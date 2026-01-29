@@ -290,6 +290,14 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   if (!module.functions.empty() && !code) return Fail("code section required when functions exist");
   if (header.entry_method_id != 0xFFFFFFFFu) {
     if (header.entry_method_id >= module.methods.size()) return Fail("entry method id out of range");
+    bool found = false;
+    for (const auto& func : module.functions) {
+      if (func.method_id == header.entry_method_id) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return Fail("entry method id not in functions table");
   }
   for (const auto& row : module.globals) {
     if (row.init_const_id != 0xFFFFFFFFu) {
@@ -322,6 +330,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     const auto& row = module.functions[i];
     if (row.method_id >= module.methods.size()) return Fail("function method id out of range");
     if (code && row.code_offset + row.code_size > module.code.size()) return Fail("function code out of range");
+    if (row.stack_max == 0) return Fail("function stack_max must be > 0");
   }
   for (size_t i = 0; i < module.fields.size(); ++i) {
     const auto& row = module.fields[i];

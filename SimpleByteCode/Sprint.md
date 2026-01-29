@@ -93,3 +93,7 @@
 - Added loader validation for header flags with a negative load test.
 
 - Added loader validation for field offset alignment with a negative load test.
+
+- Added loader validation for stack_max > 0 with a negative load test.
+
+- Added loader validation for entry_method_id presence in functions table with a negative load test.
