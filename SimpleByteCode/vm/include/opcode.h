@@ -86,6 +86,13 @@ enum class OpCode : uint8_t {
   ArrayLen = 0xB1,
   ArrayGetI32 = 0xB2,
   ArraySetI32 = 0xB3,
+
+  NewList = 0xC0,
+  ListLen = 0xC1,
+  ListGetI32 = 0xC2,
+  ListSetI32 = 0xC3,
+  ListPushI32 = 0xC4,
+  ListPopI32 = 0xC5,
 };
 
 struct OpInfo {

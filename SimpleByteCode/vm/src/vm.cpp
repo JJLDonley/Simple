@@ -82,6 +82,7 @@ void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t valu
   payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
 }
 
+
 ExecResult Trap(const std::string& message) {
   ExecResult result;
   result.status = ExecStatus::Trapped;
@@ -328,6 +329,86 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
         size_t offset = 4 + static_cast<size_t>(index) * 4;
         WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        break;
+      }
+      case OpCode::NewList: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t capacity = ReadU32(module.code, pc);
+        uint32_t size = 8 + capacity * 4;
+        uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_LIST allocation failed");
+        WriteU32Payload(obj->payload, 0, 0);
+        WriteU32Payload(obj->payload, 4, capacity);
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
+      case OpCode::ListLen: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_LEN on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_LEN on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        break;
+      }
+      case OpCode::ListGetI32: {
+        Value idx = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_GET on non-ref");
+        if (idx.kind != ValueKind::I32) return Trap("LIST_GET index not i32");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ListSetI32: {
+        Value value = Pop(stack);
+        Value idx = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_SET on non-ref");
+        if (idx.kind != ValueKind::I32 || value.kind != ValueKind::I32) return Trap("LIST_SET type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        break;
+      }
+      case OpCode::ListPushI32: {
+        Value value = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_PUSH on non-ref");
+        if (value.kind != ValueKind::I32) return Trap("LIST_PUSH type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        size_t offset = 8 + static_cast<size_t>(length) * 4;
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListPopI32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (length == 0) return Trap("LIST_POP empty");
+        uint32_t index = length - 1;
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, Value{ValueKind::I32, value});
         break;
       }
       case OpCode::AddI32:

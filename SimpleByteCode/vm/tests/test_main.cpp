@@ -469,6 +469,46 @@ std::vector<uint8_t> BuildArrayModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
+
+std::vector<uint8_t> BuildListModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -829,6 +869,30 @@ bool RunArrayTest() {
   return true;
 }
 
+bool RunListTest() {
+  std::vector<uint8_t> module_bytes = BuildListModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 11) {
+    std::cerr << "expected 11, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 int main() {
@@ -853,6 +917,7 @@ int main() {
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
       {"array_i32", RunArrayTest},
+      {"list_i32", RunListTest},
   };
 
   int failures = 0;

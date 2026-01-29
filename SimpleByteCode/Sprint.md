@@ -28,6 +28,8 @@
 - Added local load/store and loop execution tests; added JMP bounds checks.
 - Added heap object scaffolding and reference opcodes (ConstNull/NewObject/IsNull/RefEq/RefNe) with tests.
 - Added array opcodes (NEW_ARRAY/ARRAY_LEN/ARRAY_GET_I32/ARRAY_SET_I32) with VM support and tests.
+- Added list opcodes (NEW_LIST/LIST_LEN/LIST_GET_I32/LIST_SET_I32/LIST_PUSH_I32/LIST_POP_I32) with VM support and tests.
+- Fixed list and core test local-count mismatches after adding list support.
 
 ## Notes
 - This log must record every VM-related change going forward.

@@ -144,6 +144,24 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ArraySetI32:
       *info = {0, 3, 0};
       return true;
+    case OpCode::NewList:
+      *info = {8, 0, 1};
+      return true;
+    case OpCode::ListLen:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::ListGetI32:
+      *info = {0, 2, 1};
+      return true;
+    case OpCode::ListSetI32:
+      *info = {0, 3, 0};
+      return true;
+    case OpCode::ListPushI32:
+      *info = {0, 2, 0};
+      return true;
+    case OpCode::ListPopI32:
+      *info = {0, 1, 1};
+      return true;
   }
   return false;
 }
