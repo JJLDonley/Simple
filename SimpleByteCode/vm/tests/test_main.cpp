@@ -2626,6 +2626,19 @@ std::vector<uint8_t> BuildBadJmpCondVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadJmpFalseCondVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadArrayGetArrVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -6407,6 +6420,21 @@ bool RunBadJmpCondVerifyTest() {
   return true;
 }
 
+bool RunBadJmpFalseCondVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJmpFalseCondVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadArrayGetArrVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadArrayGetArrVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -7809,6 +7837,7 @@ int main() {
       {"bad_bool_and_verify", RunBadBoolAndVerifyTest},
       {"bad_bool_or_verify", RunBadBoolOrVerifyTest},
       {"bad_jmp_cond_verify", RunBadJmpCondVerifyTest},
+      {"bad_jmp_false_cond_verify", RunBadJmpFalseCondVerifyTest},
       {"bad_array_get_arr_verify", RunBadArrayGetArrVerifyTest},
       {"bad_array_set_arr_verify", RunBadArraySetArrVerifyTest},
       {"bad_list_get_list_verify", RunBadListGetListVerifyTest},

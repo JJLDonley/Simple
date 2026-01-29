@@ -123,3 +123,5 @@
 - Added verifier type-mismatch tests for BOOL ops and JMP condition.
 
 - Added verifier type-mismatch tests for array/list ops with wrong container types.
+
+- Added verifier test for JMP_FALSE non-bool condition.
