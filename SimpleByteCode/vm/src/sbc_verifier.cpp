@@ -18,6 +18,22 @@ bool ReadI32(const std::vector<uint8_t>& code, size_t offset, int32_t* out) {
   return true;
 }
 
+bool ReadU16(const std::vector<uint8_t>& code, size_t offset, uint16_t* out) {
+  if (offset + 2 > code.size()) return false;
+  *out = static_cast<uint16_t>(code[offset]) |
+         (static_cast<uint16_t>(code[offset + 1]) << 8);
+  return true;
+}
+
+bool ReadU32(const std::vector<uint8_t>& code, size_t offset, uint32_t* out) {
+  if (offset + 4 > code.size()) return false;
+  *out = static_cast<uint32_t>(code[offset]) |
+         (static_cast<uint32_t>(code[offset + 1]) << 8) |
+         (static_cast<uint32_t>(code[offset + 2]) << 16) |
+         (static_cast<uint32_t>(code[offset + 3]) << 24);
+  return true;
+}
+
 VerifyResult Fail(const std::string& message) {
   VerifyResult result;
   result.ok = false;
@@ -38,6 +54,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
     size_t pc = func.code_offset;
     size_t end = func.code_offset + func.code_size;
     std::unordered_set<size_t> boundaries;
+
+    uint32_t method_id = func.method_id;
+    if (method_id >= module.methods.size()) return Fail("function method id out of range");
+    uint16_t local_count = module.methods[method_id].local_count;
 
     while (pc < end) {
       boundaries.insert(pc);
@@ -69,6 +89,46 @@ VerifyResult VerifyModule(const SbcModule& module) {
         size_t target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
         if (target < func.code_offset || target > end) return Fail("jump target out of bounds");
         if (boundaries.find(target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+      }
+
+      if (opcode == static_cast<uint8_t>(OpCode::Enter)) {
+        uint16_t locals = 0;
+        if (!ReadU16(code, pc + 1, &locals)) return Fail("ENTER operand out of bounds");
+        if (locals != local_count) return Fail("ENTER local count mismatch");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::LoadLocal) ||
+          opcode == static_cast<uint8_t>(OpCode::StoreLocal)) {
+        uint32_t idx = 0;
+        if (!ReadU32(code, pc + 1, &idx)) return Fail("local index out of bounds");
+        if (idx >= local_count) return Fail("local index out of range");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::LoadGlobal) ||
+          opcode == static_cast<uint8_t>(OpCode::StoreGlobal)) {
+        uint32_t idx = 0;
+        if (!ReadU32(code, pc + 1, &idx)) return Fail("global index out of bounds");
+        if (idx >= module.globals.size()) return Fail("global index out of range");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::Call) ||
+          opcode == static_cast<uint8_t>(OpCode::TailCall)) {
+        uint32_t func_id = 0;
+        uint8_t arg_count = 0;
+        if (!ReadU32(code, pc + 1, &func_id)) return Fail("CALL function id out of bounds");
+        if (pc + 5 >= code.size()) return Fail("CALL arg count out of bounds");
+        arg_count = code[pc + 5];
+        if (func_id >= module.functions.size()) return Fail("CALL function id out of range");
+        uint32_t callee_method = module.functions[func_id].method_id;
+        if (callee_method >= module.methods.size()) return Fail("CALL method id out of range");
+        uint32_t sig_id = module.methods[callee_method].sig_id;
+        if (sig_id >= module.sigs.size()) return Fail("CALL signature id out of range");
+        if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL arg count mismatch");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::CallIndirect)) {
+        uint32_t sig_id = 0;
+        if (!ReadU32(code, pc + 1, &sig_id)) return Fail("CALL_INDIRECT sig id out of bounds");
+        if (pc + 5 >= code.size()) return Fail("CALL_INDIRECT arg count out of bounds");
+        uint8_t arg_count = code[pc + 5];
+        if (sig_id >= module.sigs.size()) return Fail("CALL_INDIRECT signature id out of range");
+        if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL_INDIRECT arg count mismatch");
       }
 
       if (info.pops > 0) {

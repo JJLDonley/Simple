@@ -9,6 +9,12 @@
 - Added `build.sh` using g++ for local build.
 - Added VM README.
 - Added implementation plan `SimpleByteCode/Implementation.md`.
+- Removed committed VM binary `SimpleByteCode/vm/bin/simplevm`.
+- Expanded loader validation (section IDs, bounds, table index checks).
+- Expanded verifier checks for locals/globals and call signature validation.
+- Added VM test harness and initial bytecode test (CONST_I32 + ADD_I32).
+- Updated build script to compile test binary.
+- Added `SimpleByteCode/vm/.gitignore` to prevent committing built binaries.
 
 ## Notes
 - This log must record every VM-related change going forward.

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <limits>
+#include <unordered_set>
 
 namespace simplevm {
 namespace {
@@ -100,6 +101,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   }
 
   module.sections.resize(header.section_count);
+  std::unordered_set<uint32_t> seen_ids;
   for (uint32_t i = 0; i < header.section_count; ++i) {
     size_t off = header.section_table_offset + static_cast<size_t>(i) * 16u;
     SectionEntry entry;
@@ -109,6 +111,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (!ReadU32At(bytes, off + 12, &entry.count)) return Fail("section read failed");
     if (entry.offset % 4 != 0) return Fail("section offset must be 4-byte aligned");
     if (entry.offset + entry.size > bytes.size()) return Fail("section out of bounds");
+    if (!seen_ids.insert(entry.id).second) return Fail("duplicate section id");
+    if (entry.id < static_cast<uint32_t>(SectionId::Types) ||
+        entry.id > static_cast<uint32_t>(SectionId::Debug)) {
+      return Fail("unknown section id");
+    }
     module.sections[i] = entry;
   }
 
@@ -242,6 +249,33 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (!ReadBytes(bytes, debug->offset, debug->size, &module.debug)) {
       return Fail("failed to read debug section");
     }
+  }
+
+  if (!module.functions.empty() && !code) return Fail("code section required when functions exist");
+  if (header.entry_method_id != 0xFFFFFFFFu) {
+    if (header.entry_method_id >= module.methods.size()) return Fail("entry method id out of range");
+  }
+  for (size_t i = 0; i < module.types.size(); ++i) {
+    const auto& row = module.types[i];
+    if (row.field_start + row.field_count > module.fields.size()) return Fail("type field range out of bounds");
+  }
+  for (size_t i = 0; i < module.methods.size(); ++i) {
+    const auto& row = module.methods[i];
+    if (row.sig_id >= module.sigs.size()) return Fail("method signature out of range");
+    if (code && row.code_offset >= module.code.size()) return Fail("method code offset out of range");
+  }
+  for (size_t i = 0; i < module.functions.size(); ++i) {
+    const auto& row = module.functions[i];
+    if (row.method_id >= module.methods.size()) return Fail("function method id out of range");
+    if (code && row.code_offset + row.code_size > module.code.size()) return Fail("function code out of range");
+  }
+  for (size_t i = 0; i < module.fields.size(); ++i) {
+    const auto& row = module.fields[i];
+    if (row.type_id >= module.types.size()) return Fail("field type id out of range");
+  }
+  for (size_t i = 0; i < module.globals.size(); ++i) {
+    const auto& row = module.globals[i];
+    if (row.type_id >= module.types.size()) return Fail("global type id out of range");
   }
 
   LoadResult result;
