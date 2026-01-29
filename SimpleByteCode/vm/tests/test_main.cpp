@@ -2300,6 +2300,18 @@ std::vector<uint8_t> BuildBadStringGetCharVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadStringGetCharIdxVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringGetChar));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadStringSliceVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2311,6 +2323,34 @@ std::vector<uint8_t> BuildBadStringSliceVerifyModule() {
   AppendI32(code, 2);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringSliceStartVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringSliceEndVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
@@ -6045,8 +6085,53 @@ bool RunBadStringGetCharVerifyTest() {
   return true;
 }
 
+bool RunBadStringGetCharIdxVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadStringGetCharIdxVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadStringSliceVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadStringSliceVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadStringSliceStartVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadStringSliceStartVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadStringSliceEndVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadStringSliceEndVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -7812,7 +7897,10 @@ int main() {
       {"bad_stack_underflow_verify", RunBadStackUnderflowVerifyTest},
       {"bad_string_concat_verify", RunBadStringConcatVerifyTest},
       {"bad_string_get_char_verify", RunBadStringGetCharVerifyTest},
+      {"bad_string_get_char_idx_verify", RunBadStringGetCharIdxVerifyTest},
       {"bad_string_slice_verify", RunBadStringSliceVerifyTest},
+      {"bad_string_slice_start_verify", RunBadStringSliceStartVerifyTest},
+      {"bad_string_slice_end_verify", RunBadStringSliceEndVerifyTest},
       {"bad_is_null_verify", RunBadIsNullVerifyTest},
       {"bad_ref_eq_verify", RunBadRefEqVerifyTest},
       {"bad_ref_ne_verify", RunBadRefNeVerifyTest},

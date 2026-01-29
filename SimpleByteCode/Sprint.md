@@ -125,3 +125,5 @@
 - Added verifier type-mismatch tests for array/list ops with wrong container types.
 
 - Added verifier test for JMP_FALSE non-bool condition.
+
+- Added verifier tests for STRING_GET_CHAR and STRING_SLICE index type mismatches.
