@@ -331,6 +331,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (row.method_id >= module.methods.size()) return Fail("function method id out of range");
     if (code && row.code_offset + row.code_size > module.code.size()) return Fail("function code out of range");
     if (row.stack_max == 0) return Fail("function stack_max must be > 0");
+    if (code && row.code_offset != module.methods[row.method_id].code_offset) {
+      return Fail("function code offset mismatch");
+    }
   }
   for (size_t i = 0; i < module.fields.size(); ++i) {
     const auto& row = module.fields[i];
