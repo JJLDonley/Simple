@@ -2235,7 +2235,22 @@ std::vector<uint8_t> BuildBadTypeConstLoadModule() {
   std::vector<uint8_t> code;
   AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildBadGlobalInitTypeRuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 5);
+  AppendU32(const_pool, 0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> empty;
   return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
 }
@@ -4297,6 +4312,27 @@ bool RunBadTypeConstLoadTest() {
   return true;
 }
 
+bool RunBadGlobalInitTypeRuntimeTest() {
+  std::vector<uint8_t> module_bytes = BuildBadGlobalInitTypeRuntimeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "bad_global_init_type load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "bad_global_init_type verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << "bad_global_init_type expected trap, got status="
+              << static_cast<int>(exec.status) << " error=" << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGoodStringConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildGoodStringConstLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4772,6 +4808,7 @@ int main() {
       {"bad_field_offset_load", RunBadFieldOffsetLoadTest},
       {"bad_field_size_load", RunBadFieldSizeLoadTest},
       {"bad_type_const_load", RunBadTypeConstLoadTest},
+      {"bad_global_init_type_runtime", RunBadGlobalInitTypeRuntimeTest},
       {"good_string_const_load", RunGoodStringConstLoadTest},
       {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},

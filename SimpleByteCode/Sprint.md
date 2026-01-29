@@ -85,3 +85,5 @@
 - Added loader validation for field size bounds with a negative load test.
 
 - Added loader validation for TYPE const ids with a negative load test.
+
+- Added runtime trap test for unsupported TYPE global init consts.
