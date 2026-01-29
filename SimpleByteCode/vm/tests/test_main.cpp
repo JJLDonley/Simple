@@ -2684,6 +2684,35 @@ std::vector<uint8_t> BuildBadSigParamTypeIdLoadModule() {
   return BuildModuleWithTablesAndSig(code, const_pool, empty, empty, 0, 0, 0, 1, 0, 0, bad_param);
 }
 
+std::vector<uint8_t> BuildBadSigTableTruncatedLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint8_t> empty;
+  std::vector<uint32_t> no_params;
+  std::vector<uint8_t> module =
+      BuildModuleWithTablesAndSig(code, const_pool, empty, empty, 0, 0, 0, 0, 0, 0, no_params);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 4) continue;
+    uint32_t sig_size = ReadU32At(module, off + 8);
+    if (sig_size > 0) {
+      WriteU32(module, off + 8, sig_size - 4);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5063,6 +5092,16 @@ bool RunBadSigParamTypeIdLoadTest() {
   return true;
 }
 
+bool RunBadSigTableTruncatedLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadSigTableTruncatedLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5678,6 +5717,7 @@ int main() {
       {"bad_sig_param_type_start_load", RunBadSigParamTypeStartLoadTest},
       {"bad_sig_param_type_misaligned_load", RunBadSigParamTypeMisalignedLoadTest},
       {"bad_sig_param_type_id_load", RunBadSigParamTypeIdLoadTest},
+      {"bad_sig_table_truncated_load", RunBadSigTableTruncatedLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
