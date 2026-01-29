@@ -236,14 +236,11 @@ std::vector<uint8_t> BuildCmpModule() {
   patch_sites.push_back(code.size());
   AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 10);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 10);
-  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   size_t false_block = code.size();
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
-  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   for (size_t site : patch_sites) {
     size_t next_pc = site + 4;

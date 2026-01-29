@@ -22,6 +22,7 @@
 - Implemented stack ops (POP/DUP/DUP2/SWAP/ROT) and small const variants (I8/I16/U8/U16).
 - Added tests for DUP, SWAP, and ROT behaviors.
 - Added full i32 comparison opcodes (EQ/NE/LT/LE/GT/GE) and branch coverage tests.
+- Fixed comparison test to return i32 exit code instead of bool.
 
 ## Notes
 - This log must record every VM-related change going forward.
