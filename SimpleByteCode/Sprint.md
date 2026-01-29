@@ -54,6 +54,9 @@
 - Added CONST_I128/CONST_U128 handling via const pool blobs with verifier support and tests.
 - Added numeric conversion opcodes (int/float) with verifier checks, runtime support, and tests.
 - Added conversion misuse tests: verifier rejection and runtime trap (no-verify) for bad conversion types.
+- Added return-type verification (void vs typed) with a negative test for missing return value.
+- Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).
 
 ## Notes
 - This log must record every VM-related change going forward.
+- Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).

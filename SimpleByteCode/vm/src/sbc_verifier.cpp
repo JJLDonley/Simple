@@ -59,6 +59,23 @@ VerifyResult VerifyModule(const SbcModule& module) {
     uint32_t method_id = func.method_id;
     if (method_id >= module.methods.size()) return Fail("function method id out of range");
     uint16_t local_count = module.methods[method_id].local_count;
+    uint32_t sig_id = module.methods[method_id].sig_id;
+    if (sig_id >= module.sigs.size()) return Fail("function signature out of range");
+    uint32_t ret_type_id = module.sigs[sig_id].ret_type_id;
+
+    enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
+    auto resolve_type = [&](uint32_t type_id) -> ValType {
+      if (type_id >= module.types.size()) return ValType::Unknown;
+      const auto& row = module.types[type_id];
+      if ((row.flags & 0x1u) != 0u) return ValType::Ref;
+      if (row.size == 0) return ValType::Ref;
+      if (row.size == 4) return ValType::I32;
+      if (row.size == 8) return ValType::I64;
+      return ValType::Unknown;
+    };
+    bool expect_void = (ret_type_id == 0xFFFFFFFFu);
+    ValType expected_ret = expect_void ? ValType::Unknown : resolve_type(ret_type_id);
+    if (!expect_void && expected_ret == ValType::Unknown) return Fail("unsupported return type");
 
     while (pc < end) {
       boundaries.insert(pc);
@@ -74,7 +91,6 @@ VerifyResult VerifyModule(const SbcModule& module) {
 
     if (pc != end) return Fail("function code does not align to instruction boundary");
 
-    enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
     pc = func.code_offset;
     int stack_height = 0;
     std::unordered_map<size_t, std::vector<ValType>> merge_types;
@@ -700,6 +716,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::Halt:
         case OpCode::Trap:
         case OpCode::Ret:
+          if (static_cast<OpCode>(opcode) == OpCode::Ret) {
+            if (expect_void) {
+              if (!stack_types.empty()) return Fail("return value on void");
+            } else {
+              if (stack_types.size() != 1) return Fail("return stack size mismatch");
+              VerifyResult r = check_type(stack_types.back(), expected_ret, "return type mismatch");
+              if (!r.ok) return r;
+            }
+          }
           fall_through = false;
           break;
         default:

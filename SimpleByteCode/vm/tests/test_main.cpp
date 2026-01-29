@@ -772,7 +772,7 @@ std::vector<uint8_t> BuildListOverflowModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 2);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   return BuildModule(code, 0, 0);
 }
 
@@ -851,7 +851,7 @@ std::vector<uint8_t> BuildFieldModule() {
   AppendU8(types, 0);
   AppendU8(types, 0);
   AppendU16(types, 0);
-  AppendU32(types, 0);
+  AppendU32(types, 4);
   AppendU32(types, 0);
   AppendU32(types, 0);
   // type 1: object with 1 i32 field at offset 0
@@ -1321,7 +1321,7 @@ std::vector<uint8_t> BuildIntrinsicTrapModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
   AppendU32(code, 42);
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   return BuildModule(code, 0, 0);
 }
 
@@ -1332,7 +1332,7 @@ std::vector<uint8_t> BuildSysCallTrapModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::SysCall));
   AppendU32(code, 7);
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   return BuildModule(code, 0, 0);
 }
 
@@ -1482,6 +1482,15 @@ std::vector<uint8_t> BuildBadTailCallVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadReturnVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadConvVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1547,7 +1556,7 @@ std::vector<uint8_t> BuildBadListInsertModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 9);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   return BuildModule(code, 0, 0);
 }
 
@@ -1607,7 +1616,7 @@ std::vector<uint8_t> BuildBadStringSliceModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 5);
   AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> empty;
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
@@ -2763,6 +2772,21 @@ bool RunBadTailCallVerifyTest() {
   return true;
 }
 
+bool RunBadReturnVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadReturnVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadConvVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadConvVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2965,6 +2989,7 @@ int main() {
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},
       {"bad_tailcall_verify", RunBadTailCallVerifyTest},
+      {"bad_return_verify", RunBadReturnVerifyTest},
       {"bad_conv_verify", RunBadConvVerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
