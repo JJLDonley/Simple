@@ -23,3 +23,7 @@
 ### Step 5 - 2026-01-29
 - Implemented token model and lexer with keyword/operator support.
 - Added numeric, string, char literal parsing and comment handling.
+
+### Step 6 - 2026-01-29
+- Implemented syntax tree, parser, and AST node types for Phase 1 constructs.
+- Added operator precedence table for expression parsing.
