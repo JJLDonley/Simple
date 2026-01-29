@@ -17,6 +17,7 @@
 - Added `SimpleByteCode/vm/.gitignore` to prevent committing built binaries.
 - Implemented global storage in VM with LOAD_GLOBAL/STORE_GLOBAL support.
 - Added global read/write test to the VM test harness.
+- Updated VM build script to auto-run tests after build.
 
 ## Notes
 - This log must record every VM-related change going forward.

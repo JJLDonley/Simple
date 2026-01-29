@@ -23,3 +23,6 @@ g++ -std=c++17 -O2 -Wall -Wextra -I"$ROOT_DIR/include" \
 
 echo "built: $OUT_DIR/simplevm"
 echo "built: $OUT_DIR/simplevm_tests"
+
+echo "running: $OUT_DIR/simplevm_tests"
+"$OUT_DIR/simplevm_tests"
