@@ -97,3 +97,4 @@
 - Added no-verify runtime trap tests for out-of-bounds JmpTrue/JmpFalse.
 - Wired packed signature param type lists into loader/verifier with a negative CALL param type test.
 - Added negative verifier tests for CALL_INDIRECT and TAILCALL param type mismatches.
+- Added loader negative tests for missing/out-of-range signature param type lists.
