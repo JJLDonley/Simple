@@ -1090,6 +1090,62 @@ std::vector<uint8_t> BuildI64ModModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildF32ArithModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x3FC00000u); // 1.5f
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x40100000u); // 2.25f
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x40700000u); // 3.75f
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildF64ArithModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendU64(code, 0x3FF8000000000000ULL); // 1.5
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendU64(code, 0x4002000000000000ULL); // 2.25
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendU64(code, 0x400E000000000000ULL); // 3.75
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildDebugNoopModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2187,6 +2243,54 @@ bool RunI64ModTest() {
   return true;
 }
 
+bool RunF32ArithTest() {
+  std::vector<uint8_t> module_bytes = BuildF32ArithModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunF64ArithTest() {
+  std::vector<uint8_t> module_bytes = BuildF64ArithModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunDebugNoopTest() {
   std::vector<uint8_t> module_bytes = BuildDebugNoopModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2542,6 +2646,8 @@ int main() {
       {"const_f64", RunConstF64Test},
       {"i64_arith", RunI64ArithTest},
       {"i64_mod", RunI64ModTest},
+      {"f32_arith", RunF32ArithTest},
+      {"f64_arith", RunF64ArithTest},
       {"debug_noop", RunDebugNoopTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},

@@ -1,6 +1,7 @@
 #include "vm.h"
 
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "heap.h"
@@ -24,6 +25,32 @@ struct Value {
   ValueKind kind = ValueKind::None;
   int64_t i64 = 0;
 };
+
+float BitsToF32(int64_t bits) {
+  uint32_t v = static_cast<uint32_t>(bits);
+  float out = 0.0f;
+  std::memcpy(&out, &v, sizeof(out));
+  return out;
+}
+
+double BitsToF64(int64_t bits) {
+  uint64_t v = static_cast<uint64_t>(bits);
+  double out = 0.0;
+  std::memcpy(&out, &v, sizeof(out));
+  return out;
+}
+
+int64_t F32ToBits(float value) {
+  uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return static_cast<int64_t>(bits);
+}
+
+int64_t F64ToBits(double value) {
+  uint64_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return static_cast<int64_t>(bits);
+}
 
 struct Frame {
   size_t func_index = 0;
@@ -769,6 +796,40 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I64, out});
         break;
       }
+      case OpCode::AddF32:
+      case OpCode::SubF32:
+      case OpCode::MulF32:
+      case OpCode::DivF32: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F32 || b.kind != ValueKind::F32) return Trap("F32 arithmetic on non-f32");
+        float lhs = BitsToF32(a.i64);
+        float rhs = BitsToF32(b.i64);
+        float out = 0.0f;
+        if (opcode == static_cast<uint8_t>(OpCode::AddF32)) out = lhs + rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::SubF32)) out = lhs - rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::MulF32)) out = lhs * rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::DivF32)) out = rhs == 0.0f ? 0.0f : (lhs / rhs);
+        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        break;
+      }
+      case OpCode::AddF64:
+      case OpCode::SubF64:
+      case OpCode::MulF64:
+      case OpCode::DivF64: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F64 || b.kind != ValueKind::F64) return Trap("F64 arithmetic on non-f64");
+        double lhs = BitsToF64(a.i64);
+        double rhs = BitsToF64(b.i64);
+        double out = 0.0;
+        if (opcode == static_cast<uint8_t>(OpCode::AddF64)) out = lhs + rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::SubF64)) out = lhs - rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::MulF64)) out = lhs * rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::DivF64)) out = rhs == 0.0 ? 0.0 : (lhs / rhs);
+        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        break;
+      }
       case OpCode::CmpEqI32:
       case OpCode::CmpLtI32:
       case OpCode::CmpNeI32:
@@ -808,6 +869,48 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeI64)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtI64)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeI64)) out = (lhs >= rhs);
+        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        break;
+      }
+      case OpCode::CmpEqF32:
+      case OpCode::CmpLtF32:
+      case OpCode::CmpNeF32:
+      case OpCode::CmpLeF32:
+      case OpCode::CmpGtF32:
+      case OpCode::CmpGeF32: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F32 || b.kind != ValueKind::F32) return Trap("F32 compare on non-f32");
+        float lhs = BitsToF32(a.i64);
+        float rhs = BitsToF32(b.i64);
+        bool out = false;
+        if (opcode == static_cast<uint8_t>(OpCode::CmpEqF32)) out = (lhs == rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpNeF32)) out = (lhs != rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLtF32)) out = (lhs < rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLeF32)) out = (lhs <= rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGtF32)) out = (lhs > rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGeF32)) out = (lhs >= rhs);
+        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        break;
+      }
+      case OpCode::CmpEqF64:
+      case OpCode::CmpLtF64:
+      case OpCode::CmpNeF64:
+      case OpCode::CmpLeF64:
+      case OpCode::CmpGtF64:
+      case OpCode::CmpGeF64: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F64 || b.kind != ValueKind::F64) return Trap("F64 compare on non-f64");
+        double lhs = BitsToF64(a.i64);
+        double rhs = BitsToF64(b.i64);
+        bool out = false;
+        if (opcode == static_cast<uint8_t>(OpCode::CmpEqF64)) out = (lhs == rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpNeF64)) out = (lhs != rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLtF64)) out = (lhs < rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLeF64)) out = (lhs <= rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGtF64)) out = (lhs > rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGeF64)) out = (lhs >= rhs);
         Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
         break;
       }

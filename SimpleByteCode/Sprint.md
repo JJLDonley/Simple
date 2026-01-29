@@ -50,6 +50,7 @@
 - Added verifier rejection tests for CALL and TAILCALL arg-count mismatches.
 - Added ConstI64/ConstU64/ConstF32/ConstF64 runtime handling with new tests.
 - Added I64 arithmetic and comparison opcodes with verifier support and tests.
+- Added F32/F64 arithmetic and comparison opcodes with verifier support and tests.
 
 ## Notes
 - This log must record every VM-related change going forward.

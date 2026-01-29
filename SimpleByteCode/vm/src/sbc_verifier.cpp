@@ -308,6 +308,32 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I64);
           break;
         }
+        case OpCode::AddF32:
+        case OpCode::SubF32:
+        case OpCode::MulF32:
+        case OpCode::DivF32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::F32, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::F32, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::AddF64:
+        case OpCode::SubF64:
+        case OpCode::MulF64:
+        case OpCode::DivF64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::F64, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::F64, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F64);
+          break;
+        }
         case OpCode::CmpEqI32:
         case OpCode::CmpNeI32:
         case OpCode::CmpLtI32:
@@ -334,6 +360,36 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r1 = check_type(a, ValType::I64, "compare type mismatch");
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(b, ValType::I64, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::CmpEqF32:
+        case OpCode::CmpNeF32:
+        case OpCode::CmpLtF32:
+        case OpCode::CmpLeF32:
+        case OpCode::CmpGtF32:
+        case OpCode::CmpGeF32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::F32, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::F32, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::CmpEqF64:
+        case OpCode::CmpNeF64:
+        case OpCode::CmpLtF64:
+        case OpCode::CmpLeF64:
+        case OpCode::CmpGtF64:
+        case OpCode::CmpGeF64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::F64, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::F64, "compare type mismatch");
           if (!r2.ok) return r2;
           push_type(ValType::Bool);
           break;
