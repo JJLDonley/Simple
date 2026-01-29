@@ -750,6 +750,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, out});
         break;
       }
+      case OpCode::AddI64:
+      case OpCode::SubI64:
+      case OpCode::MulI64:
+      case OpCode::DivI64:
+      case OpCode::ModI64: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 arithmetic on non-i64");
+        int64_t lhs = a.i64;
+        int64_t rhs = b.i64;
+        int64_t out = 0;
+        if (opcode == static_cast<uint8_t>(OpCode::AddI64)) out = lhs + rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::SubI64)) out = lhs - rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::MulI64)) out = lhs * rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::DivI64)) out = rhs == 0 ? 0 : (lhs / rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::ModI64)) out = rhs == 0 ? 0 : (lhs % rhs);
+        Push(stack, Value{ValueKind::I64, out});
+        break;
+      }
       case OpCode::CmpEqI32:
       case OpCode::CmpLtI32:
       case OpCode::CmpNeI32:
@@ -768,6 +787,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeI32)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtI32)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeI32)) out = (lhs >= rhs);
+        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        break;
+      }
+      case OpCode::CmpEqI64:
+      case OpCode::CmpLtI64:
+      case OpCode::CmpNeI64:
+      case OpCode::CmpLeI64:
+      case OpCode::CmpGtI64:
+      case OpCode::CmpGeI64: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 compare on non-i64");
+        int64_t lhs = a.i64;
+        int64_t rhs = b.i64;
+        bool out = false;
+        if (opcode == static_cast<uint8_t>(OpCode::CmpEqI64)) out = (lhs == rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpNeI64)) out = (lhs != rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLtI64)) out = (lhs < rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLeI64)) out = (lhs <= rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGtI64)) out = (lhs > rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGeI64)) out = (lhs >= rhs);
         Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
         break;
       }

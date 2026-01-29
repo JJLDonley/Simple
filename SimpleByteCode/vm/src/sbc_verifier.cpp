@@ -74,7 +74,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
 
     if (pc != end) return Fail("function code does not align to instruction boundary");
 
-    enum class ValType { Unknown, I32, Bool, Ref };
+    enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
     pc = func.code_offset;
     int stack_height = 0;
     std::unordered_map<size_t, std::vector<ValType>> merge_types;
@@ -191,6 +191,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstChar:
           push_type(ValType::I32);
           break;
+        case OpCode::ConstI64:
+        case OpCode::ConstU64:
+          push_type(ValType::I64);
+          break;
+        case OpCode::ConstF32:
+          push_type(ValType::F32);
+          break;
+        case OpCode::ConstF64:
+          push_type(ValType::F64);
+          break;
         case OpCode::ConstBool:
           push_type(ValType::Bool);
           break;
@@ -284,6 +294,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::AddI64:
+        case OpCode::SubI64:
+        case OpCode::MulI64:
+        case OpCode::DivI64:
+        case OpCode::ModI64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I64, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I64, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
         case OpCode::CmpEqI32:
         case OpCode::CmpNeI32:
         case OpCode::CmpLtI32:
@@ -295,6 +319,21 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r1 = check_type(a, ValType::I32, "compare type mismatch");
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(b, ValType::I32, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::CmpEqI64:
+        case OpCode::CmpNeI64:
+        case OpCode::CmpLtI64:
+        case OpCode::CmpLeI64:
+        case OpCode::CmpGtI64:
+        case OpCode::CmpGeI64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I64, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I64, "compare type mismatch");
           if (!r2.ok) return r2;
           push_type(ValType::Bool);
           break;
