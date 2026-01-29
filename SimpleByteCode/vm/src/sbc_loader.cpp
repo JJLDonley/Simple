@@ -89,6 +89,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   if (header.magic != kSbcMagic) return Fail("bad magic");
   if (header.version != kSbcVersion) return Fail("unsupported version");
   if (header.endian != 1) return Fail("unsupported endian");
+  if (header.flags != 0) return Fail("unsupported header flags");
   if (header.reserved0 != 0 || header.reserved1 != 0 || header.reserved2 != 0) {
     return Fail("reserved header fields must be zero");
   }

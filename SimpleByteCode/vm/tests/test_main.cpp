@@ -235,6 +235,17 @@ std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithHeaderFlags(const std::vector<uint8_t>& code,
+                                                uint32_t global_count,
+                                                uint16_t local_count,
+                                                uint8_t flags) {
+  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
+  if (module.size() > 0x07) {
+    WriteU8(module, 0x07, flags);
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildModuleWithSigParamCount(const std::vector<uint8_t>& code,
                                                   uint32_t global_count,
                                                   uint16_t local_count,
@@ -2362,6 +2373,15 @@ std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   return BuildModuleWithMethodFlags(code, 0, 0, 0x10);
 }
 
+std::vector<uint8_t> BuildBadHeaderFlagsLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithHeaderFlags(code, 0, 0, 1);
+}
+
 std::vector<uint8_t> BuildJumpToEndModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4446,6 +4466,16 @@ bool RunBadMethodFlagsLoadTest() {
   return true;
 }
 
+bool RunBadHeaderFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadHeaderFlagsLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJumpToEndTest() {
   std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4891,6 +4921,7 @@ int main() {
       {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
       {"bad_sig_callconv_load", RunBadSigCallConvLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
+      {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},

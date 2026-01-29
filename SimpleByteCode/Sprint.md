@@ -89,3 +89,5 @@
 - Added runtime trap test for unsupported TYPE global init consts.
 
 - Added loader validation for signature call_conv and method flags with negative load tests.
+
+- Added loader validation for header flags with a negative load test.
