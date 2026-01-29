@@ -13,6 +13,7 @@ public sealed class Binder
     private readonly DiagnosticBag _diagnostics = new();
     private BoundScope _scope;
     private FunctionSymbol? _currentFunction;
+    private int _loopDepth;
 
     public Binder(BoundScope parentScope)
     {
@@ -182,6 +183,11 @@ public sealed class Binder
             ExpressionStatementSyntax expression => new BoundExpressionStatement(BindExpression(expression.Expression)),
             ReturnStatementSyntax returnStatement => BindReturnStatement(returnStatement),
             IfStatementSyntax ifStatement => BindIfStatement(ifStatement),
+            IfElseChainStatementSyntax ifChain => BindIfElseChainStatement(ifChain),
+            WhileStatementSyntax whileStatement => BindWhileStatement(whileStatement),
+            ForStatementSyntax forStatement => BindForStatement(forStatement),
+            BreakStatementSyntax breakStatement => BindBreakStatement(breakStatement),
+            SkipStatementSyntax skipStatement => BindSkipStatement(skipStatement),
             AssignmentStatementSyntax assignment => BindAssignmentStatement(assignment),
             _ => new BoundExpressionStatement(new BoundLiteralExpression(0, TypeSymbol.Error)),
         };
@@ -272,6 +278,113 @@ public sealed class Binder
 
         var body = BindBlockStatement(syntax.Body);
         return new BoundIfStatement(condition, body);
+    }
+
+    private BoundStatement BindIfElseChainStatement(IfElseChainStatementSyntax syntax)
+    {
+        var clauses = new List<BoundIfClause>();
+        var sawDefault = false;
+
+        foreach (var clause in syntax.Clauses)
+        {
+            if (clause.IsDefault)
+            {
+                if (sawDefault)
+                {
+                    _diagnostics.Report("BND030", clause.Span, "Only one default clause is allowed.");
+                }
+
+                sawDefault = true;
+                var body = BindBlockStatement(clause.Body);
+                clauses.Add(new BoundIfClause(null, body));
+                continue;
+            }
+
+            if (sawDefault)
+            {
+                _diagnostics.Report("BND031", clause.Span, "Default clause must be last.");
+            }
+
+            var condition = BindExpression(clause.Condition!);
+            if (condition.Type != TypeSymbol.Bool && condition.Type != TypeSymbol.Error)
+            {
+                _diagnostics.Report("BND032", clause.Condition!.Span, "If-else chain condition must be bool.");
+            }
+
+            var body = BindBlockStatement(clause.Body);
+            clauses.Add(new BoundIfClause(condition, body));
+        }
+
+        return new BoundIfChainStatement(clauses);
+    }
+
+    private BoundStatement BindWhileStatement(WhileStatementSyntax syntax)
+    {
+        var condition = BindExpression(syntax.Condition);
+        if (condition.Type != TypeSymbol.Bool && condition.Type != TypeSymbol.Error)
+        {
+            _diagnostics.Report("BND033", syntax.Condition.Span, "While condition must be bool.");
+        }
+
+        _loopDepth++;
+        var body = BindBlockStatement(syntax.Body);
+        _loopDepth--;
+        return new BoundWhileStatement(condition, body);
+    }
+
+    private BoundStatement BindForStatement(ForStatementSyntax syntax)
+    {
+        var previousScope = _scope;
+        _scope = new BoundScope(previousScope);
+
+        BoundStatement? initializer = null;
+        if (syntax.Initializer is not null)
+        {
+            initializer = BindStatement(syntax.Initializer);
+        }
+
+        var condition = syntax.Condition is null
+            ? new BoundLiteralExpression(true, TypeSymbol.Bool)
+            : BindExpression(syntax.Condition);
+
+        if (condition.Type != TypeSymbol.Bool && condition.Type != TypeSymbol.Error)
+        {
+            _diagnostics.Report("BND034", syntax.Condition?.Span ?? syntax.SecondSemicolon.Span, "For condition must be bool.");
+        }
+
+        BoundStatement? increment = null;
+        if (syntax.Increment is not null)
+        {
+            increment = BindStatement(syntax.Increment);
+        }
+
+        _loopDepth++;
+        var body = BindBlockStatement(syntax.Body);
+        _loopDepth--;
+
+        _scope = previousScope;
+
+        return new BoundForStatement(initializer, condition, increment, body);
+    }
+
+    private BoundStatement BindBreakStatement(BreakStatementSyntax syntax)
+    {
+        if (_loopDepth == 0)
+        {
+            _diagnostics.Report("BND035", syntax.Span, "break is only valid inside a loop.");
+        }
+
+        return new BoundBreakStatement();
+    }
+
+    private BoundStatement BindSkipStatement(SkipStatementSyntax syntax)
+    {
+        if (_loopDepth == 0)
+        {
+            _diagnostics.Report("BND036", syntax.Span, "skip is only valid inside a loop.");
+        }
+
+        return new BoundSkipStatement();
     }
 
     private BoundExpression BindExpression(ExpressionSyntax syntax)

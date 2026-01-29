@@ -18,8 +18,15 @@ internal static class Program
         failures += RunTest("Lexer_Numbers", LexerNumbers);
         failures += RunTest("Parser_VariableDeclaration", ParserVariableDeclaration);
         failures += RunTest("Parser_Procedure", ParserProcedure);
+        failures += RunTest("Parser_IfElseChain", ParserIfElseChain);
+        failures += RunTest("Parser_While", ParserWhile);
+        failures += RunTest("Parser_For", ParserFor);
         failures += RunTest("Binder_TypeMismatch", BinderTypeMismatch);
         failures += RunTest("Binder_PrintCall", BinderPrintCall);
+        failures += RunTest("Binder_BreakOutsideLoop", BinderBreakOutsideLoop);
+        failures += RunTest("Binder_SkipOutsideLoop", BinderSkipOutsideLoop);
+        failures += RunTest("Binder_WhileConditionType", BinderWhileConditionType);
+        failures += RunTest("Binder_ForConditionType", BinderForConditionType);
         failures += RunTest("Compilation_Emit_HelloWorld", CompilationEmitHelloWorld);
 
         Console.WriteLine(failures == 0 ? "All tests passed." : $"{failures} test(s) failed.");
@@ -95,6 +102,60 @@ internal static class Program
         var syntax = SyntaxTree.Parse(source);
         Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
         Assert.Equal(0, diagnostics.Count, "Expected no diagnostics for print call.");
+    }
+
+    private static void ParserIfElseChain()
+    {
+        var source = "main : i32 () { |> true { x : i32 = 1 } |> default { x : i32 = 2 } return 0 }";
+        var syntax = SyntaxTree.Parse(source);
+        Assert.Equal(0, syntax.Diagnostics.Count, "Expected no parser diagnostics.");
+        Assert.Equal(1, syntax.Root.Declarations.Count, "Expected one declaration.");
+    }
+
+    private static void ParserWhile()
+    {
+        var source = "main : i32 () { while true { return 0 } }";
+        var syntax = SyntaxTree.Parse(source);
+        Assert.Equal(0, syntax.Diagnostics.Count, "Expected no parser diagnostics.");
+    }
+
+    private static void ParserFor()
+    {
+        var source = "main : i32 () { for (i : i32 = 0; i < 10; i = i + 1) { skip } return 0 }";
+        var syntax = SyntaxTree.Parse(source);
+        Assert.Equal(0, syntax.Diagnostics.Count, "Expected no parser diagnostics.");
+    }
+
+    private static void BinderBreakOutsideLoop()
+    {
+        var source = "main : i32 () { break return 0 }";
+        var syntax = SyntaxTree.Parse(source);
+        Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
+        Assert.True(diagnostics.Count > 0, "Expected diagnostic for break outside loop.");
+    }
+
+    private static void BinderSkipOutsideLoop()
+    {
+        var source = "main : i32 () { skip return 0 }";
+        var syntax = SyntaxTree.Parse(source);
+        Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
+        Assert.True(diagnostics.Count > 0, "Expected diagnostic for skip outside loop.");
+    }
+
+    private static void BinderWhileConditionType()
+    {
+        var source = "main : i32 () { while 1 { return 0 } }";
+        var syntax = SyntaxTree.Parse(source);
+        Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
+        Assert.True(diagnostics.Count > 0, "Expected diagnostic for non-bool while condition.");
+    }
+
+    private static void BinderForConditionType()
+    {
+        var source = "main : i32 () { for (; 1; ) { return 0 } }";
+        var syntax = SyntaxTree.Parse(source);
+        Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
+        Assert.True(diagnostics.Count > 0, "Expected diagnostic for non-bool for condition.");
     }
 
     private static void CompilationEmitHelloWorld()

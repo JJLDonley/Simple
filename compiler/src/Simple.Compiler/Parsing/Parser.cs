@@ -113,6 +113,33 @@ public sealed class Parser
 
     private StatementSyntax ParseStatement()
     {
+        if (Current.Kind == TokenKind.PipeArrow)
+        {
+            return ParseIfElseChainStatement();
+        }
+
+        if (Current.Kind == TokenKind.WhileKeyword)
+        {
+            return ParseWhileStatement();
+        }
+
+        if (Current.Kind == TokenKind.ForKeyword)
+        {
+            return ParseForStatement();
+        }
+
+        if (Current.Kind == TokenKind.BreakKeyword)
+        {
+            var keyword = NextToken();
+            return new BreakStatementSyntax(keyword);
+        }
+
+        if (Current.Kind == TokenKind.SkipKeyword)
+        {
+            var keyword = NextToken();
+            return new SkipStatementSyntax(keyword);
+        }
+
         if (Current.Kind == TokenKind.ReturnKeyword)
         {
             return ParseReturnStatement();
@@ -136,6 +163,105 @@ public sealed class Parser
         }
 
         return new ExpressionStatementSyntax(expression);
+    }
+
+    private StatementSyntax ParseIfElseChainStatement()
+    {
+        var clauses = new List<IfElseClauseSyntax>();
+        var sawDefault = false;
+
+        while (Current.Kind == TokenKind.PipeArrow)
+        {
+            var pipeArrow = NextToken();
+            SyntaxToken? defaultKeyword = null;
+            ExpressionSyntax? condition = null;
+
+            if (Current.Kind == TokenKind.DefaultKeyword)
+            {
+                defaultKeyword = NextToken();
+                sawDefault = true;
+            }
+            else
+            {
+                condition = ParseExpression();
+            }
+
+            var body = ParseBlockStatement();
+            clauses.Add(new IfElseClauseSyntax(pipeArrow, defaultKeyword, condition, body));
+
+            if (sawDefault)
+            {
+                break;
+            }
+        }
+
+        return new IfElseChainStatementSyntax(clauses);
+    }
+
+    private StatementSyntax ParseWhileStatement()
+    {
+        var keyword = NextToken();
+        var condition = ParseExpression();
+        var body = ParseBlockStatement();
+        return new WhileStatementSyntax(keyword, condition, body);
+    }
+
+    private StatementSyntax ParseForStatement()
+    {
+        var keyword = NextToken();
+        var openParen = Match(TokenKind.OpenParen, "PAR020", "Expected '(' after 'for'.");
+
+        StatementSyntax? initializer = null;
+        if (Current.Kind != TokenKind.Semicolon)
+        {
+            initializer = ParseForInitializer();
+        }
+
+        var firstSemicolon = Match(TokenKind.Semicolon, "PAR021", "Expected ';' after for initializer.");
+
+        ExpressionSyntax? condition = null;
+        if (Current.Kind != TokenKind.Semicolon)
+        {
+            condition = ParseExpression();
+        }
+
+        var secondSemicolon = Match(TokenKind.Semicolon, "PAR022", "Expected ';' after for condition.");
+
+        StatementSyntax? increment = null;
+        if (Current.Kind != TokenKind.CloseParen)
+        {
+            increment = ParseForIncrement();
+        }
+
+        var closeParen = Match(TokenKind.CloseParen, "PAR023", "Expected ')' after for clauses.");
+        var body = ParseBlockStatement();
+
+        return new ForStatementSyntax(keyword, openParen, initializer, firstSemicolon, condition, secondSemicolon, increment, closeParen, body);
+    }
+
+    private StatementSyntax ParseForInitializer()
+    {
+        if (Current.Kind == TokenKind.Identifier && (Peek(1).Kind == TokenKind.Colon || Peek(1).Kind == TokenKind.DoubleColon))
+        {
+            return ParseVariableDeclarationStatement();
+        }
+
+        if (Current.Kind == TokenKind.Identifier && IsAssignmentOperator(Peek(1).Kind))
+        {
+            return ParseAssignmentStatement();
+        }
+
+        return new ExpressionStatementSyntax(ParseExpression());
+    }
+
+    private StatementSyntax ParseForIncrement()
+    {
+        if (Current.Kind == TokenKind.Identifier && IsAssignmentOperator(Peek(1).Kind))
+        {
+            return ParseAssignmentStatement();
+        }
+
+        return new ExpressionStatementSyntax(ParseExpression());
     }
 
     private StatementSyntax ParseVariableDeclarationStatement()

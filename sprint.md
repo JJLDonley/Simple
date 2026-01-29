@@ -70,3 +70,8 @@
 
 ### Step 1 - 2026-01-29
 - Started Phase 2 branch and planning.
+
+### Step 2 - 2026-01-29
+- Added Phase 2 syntax nodes and parser support for if-else chains, while/for loops, break/skip.
+- Added binder + codegen support for new control flow and loop statements.
+- Expanded tests for Phase 2 parsing and binding rules.

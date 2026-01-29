@@ -210,6 +210,7 @@ public sealed class CodeGenerator
         private readonly Dictionary<VariableSymbol, LocalBuilder> _locals = new();
         private readonly FunctionSymbol? _function;
         private readonly ILGenerator _il;
+        private readonly Stack<LoopLabels> _loopLabels = new();
 
         public MethodEmitter(
             Dictionary<VariableSymbol, FieldBuilder> globalFields,
@@ -255,6 +256,21 @@ public sealed class CodeGenerator
                     break;
                 case BoundIfStatement ifStatement:
                     EmitIfStatement(ifStatement);
+                    break;
+                case BoundIfChainStatement ifChain:
+                    EmitIfChainStatement(ifChain);
+                    break;
+                case BoundWhileStatement whileStatement:
+                    EmitWhileStatement(whileStatement);
+                    break;
+                case BoundForStatement forStatement:
+                    EmitForStatement(forStatement);
+                    break;
+                case BoundBreakStatement:
+                    EmitBreakStatement();
+                    break;
+                case BoundSkipStatement:
+                    EmitSkipStatement();
                     break;
                 case BoundAssignmentStatement assignment:
                     EmitAssignment(assignment);
@@ -343,6 +359,95 @@ public sealed class CodeGenerator
             _il.Emit(OpCodes.Brfalse, endLabel);
             EmitStatement(statement.Body);
             _il.MarkLabel(endLabel);
+        }
+
+        private void EmitIfChainStatement(BoundIfChainStatement statement)
+        {
+            var endLabel = _il.DefineLabel();
+
+            foreach (var clause in statement.Clauses)
+            {
+                if (clause.IsDefault)
+                {
+                    EmitStatement(clause.Body);
+                    _il.Emit(OpCodes.Br, endLabel);
+                    break;
+                }
+
+                var nextLabel = _il.DefineLabel();
+                EmitExpression(clause.Condition!);
+                _il.Emit(OpCodes.Brfalse, nextLabel);
+                EmitStatement(clause.Body);
+                _il.Emit(OpCodes.Br, endLabel);
+                _il.MarkLabel(nextLabel);
+            }
+
+            _il.MarkLabel(endLabel);
+        }
+
+        private void EmitWhileStatement(BoundWhileStatement statement)
+        {
+            var continueLabel = _il.DefineLabel();
+            var breakLabel = _il.DefineLabel();
+
+            _loopLabels.Push(new LoopLabels(breakLabel, continueLabel));
+
+            _il.MarkLabel(continueLabel);
+            EmitExpression(statement.Condition);
+            _il.Emit(OpCodes.Brfalse, breakLabel);
+            EmitStatement(statement.Body);
+            _il.Emit(OpCodes.Br, continueLabel);
+            _il.MarkLabel(breakLabel);
+
+            _loopLabels.Pop();
+        }
+
+        private void EmitForStatement(BoundForStatement statement)
+        {
+            if (statement.Initializer is not null)
+            {
+                EmitStatement(statement.Initializer);
+            }
+
+            var checkLabel = _il.DefineLabel();
+            var breakLabel = _il.DefineLabel();
+            var continueLabel = _il.DefineLabel();
+
+            _loopLabels.Push(new LoopLabels(breakLabel, continueLabel));
+
+            _il.MarkLabel(checkLabel);
+            EmitExpression(statement.Condition);
+            _il.Emit(OpCodes.Brfalse, breakLabel);
+            EmitStatement(statement.Body);
+            _il.MarkLabel(continueLabel);
+            if (statement.Increment is not null)
+            {
+                EmitStatement(statement.Increment);
+            }
+            _il.Emit(OpCodes.Br, checkLabel);
+            _il.MarkLabel(breakLabel);
+
+            _loopLabels.Pop();
+        }
+
+        private void EmitBreakStatement()
+        {
+            if (_loopLabels.Count == 0)
+            {
+                return;
+            }
+
+            _il.Emit(OpCodes.Br, _loopLabels.Peek().BreakLabel);
+        }
+
+        private void EmitSkipStatement()
+        {
+            if (_loopLabels.Count == 0)
+            {
+                return;
+            }
+
+            _il.Emit(OpCodes.Br, _loopLabels.Peek().ContinueLabel);
         }
 
         private void EmitExpression(BoundExpression expression)
@@ -565,6 +670,18 @@ public sealed class CodeGenerator
             }
 
             return typeof(void);
+        }
+
+        private readonly struct LoopLabels
+        {
+            public LoopLabels(Label breakLabel, Label continueLabel)
+            {
+                BreakLabel = breakLabel;
+                ContinueLabel = continueLabel;
+            }
+
+            public Label BreakLabel { get; }
+            public Label ContinueLabel { get; }
         }
     }
 }
