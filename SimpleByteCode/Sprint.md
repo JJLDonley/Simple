@@ -131,3 +131,5 @@
 - Added verifier tests for REF_EQ/REF_NE mixed ref vs non-ref operands.
 
 - Added verifier tests for mixed BOOL_AND/BOOL_OR operand types.
+
+- Added runtime trap tests for ARRAY_SET and LIST_GET/LIST_SET out-of-bounds indices.

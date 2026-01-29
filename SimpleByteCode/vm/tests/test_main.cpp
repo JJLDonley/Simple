@@ -4565,6 +4565,63 @@ std::vector<uint8_t> BuildBadArrayGetModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadArraySetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListGetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadListPopModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -7812,6 +7869,18 @@ bool RunBadArrayGetTrapTest() {
   return RunExpectTrap(BuildBadArrayGetModule(), "bad_array_get");
 }
 
+bool RunBadArraySetTrapTest() {
+  return RunExpectTrap(BuildBadArraySetModule(), "bad_array_set");
+}
+
+bool RunBadListGetTrapTest() {
+  return RunExpectTrap(BuildBadListGetModule(), "bad_list_get");
+}
+
+bool RunBadListSetTrapTest() {
+  return RunExpectTrap(BuildBadListSetModule(), "bad_list_set");
+}
+
 bool RunBadListPopTrapTest() {
   return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
 }
@@ -8143,6 +8212,9 @@ int main() {
       {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
       {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
+      {"bad_array_set", RunBadArraySetTrapTest},
+      {"bad_list_get", RunBadListGetTrapTest},
+      {"bad_list_set", RunBadListSetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
       {"bad_list_remove", RunBadListRemoveTrapTest},
