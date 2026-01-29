@@ -108,6 +108,28 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (!ReadU32(code, pc + 1, &idx)) return Fail("global index out of bounds");
         if (idx >= module.globals.size()) return Fail("global index out of range");
       }
+      if (opcode == static_cast<uint8_t>(OpCode::NewObject)) {
+        uint32_t type_id = 0;
+        if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_OBJECT type id out of bounds");
+        if (type_id >= module.types.size()) return Fail("NEW_OBJECT bad type id");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::NewArray) ||
+          opcode == static_cast<uint8_t>(OpCode::NewList)) {
+        uint32_t type_id = 0;
+        if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_ARRAY/LIST type id out of bounds");
+        if (type_id >= module.types.size()) return Fail("NEW_ARRAY/LIST bad type id");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::LoadField) ||
+          opcode == static_cast<uint8_t>(OpCode::StoreField)) {
+        uint32_t field_id = 0;
+        if (!ReadU32(code, pc + 1, &field_id)) return Fail("LOAD/STORE_FIELD id out of bounds");
+        if (field_id >= module.fields.size()) return Fail("LOAD/STORE_FIELD bad field id");
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::ConstString)) {
+        uint32_t const_id = 0;
+        if (!ReadU32(code, pc + 1, &const_id)) return Fail("CONST_STRING const id out of bounds");
+        if (const_id + 8 > module.const_pool.size()) return Fail("CONST_STRING const id bad");
+      }
       if (opcode == static_cast<uint8_t>(OpCode::Call) ||
           opcode == static_cast<uint8_t>(OpCode::TailCall)) {
         uint32_t func_id = 0;
