@@ -112,3 +112,4 @@
 - Added loader negative test for unsupported header flags.
 - Added loader negative tests for bad magic/version/reserved, section count/offset issues, and table size mismatches.
 - Added loader negative tests for invalid type/field/global/function/method references.
+- Added loader negative tests for missing CODE/FUNCTIONS sections.
