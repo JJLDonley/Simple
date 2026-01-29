@@ -2056,6 +2056,68 @@ std::vector<uint8_t> BuildGlobalInitStringModule() {
   return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
 }
 
+std::vector<uint8_t> BuildGlobalInitF32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 3);
+  AppendU32(const_pool, 0x3F800000u);
+
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x3F800000u);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildGlobalInitF64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 4);
+  AppendU64(const_pool, 0x3FF0000000000000ULL);
+
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendU64(code, 0x3FF0000000000000ULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
 std::vector<uint8_t> BuildBadGlobalInitConstModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4054,6 +4116,54 @@ bool RunGlobalInitStringTest() {
   return true;
 }
 
+bool RunGlobalInitF32Test() {
+  std::vector<uint8_t> module_bytes = BuildGlobalInitF32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunGlobalInitF64Test() {
+  std::vector<uint8_t> module_bytes = BuildGlobalInitF64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadGlobalInitConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadGlobalInitConstModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4551,6 +4661,8 @@ int main() {
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
       {"global_init_string", RunGlobalInitStringTest},
+      {"global_init_f32", RunGlobalInitF32Test},
+      {"global_init_f64", RunGlobalInitF64Test},
       {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
       {"bad_string_const_nul_load", RunBadStringConstNoNullLoadTest},
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},

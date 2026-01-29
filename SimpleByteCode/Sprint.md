@@ -86,3 +86,5 @@
 - Added positive load tests for valid CONST_STRING and I128 blob lengths.
 
 - Added runtime initialization for globals from const pool (string/f32/f64) with a string init test.
+
+- Added global init tests for F32/F64 const pool values.
