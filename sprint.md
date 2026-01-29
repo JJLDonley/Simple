@@ -47,3 +47,6 @@
 
 ### Step 11 - 2026-01-29
 - Fixed lexer keyword test token count to match spec keywords list.
+
+### Step 12 - 2026-01-29
+- Parser now skips semicolons inside blocks and advances on unexpected tokens to prevent infinite loops.

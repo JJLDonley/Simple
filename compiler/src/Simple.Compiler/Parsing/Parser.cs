@@ -94,6 +94,16 @@ public sealed class Parser
 
         while (Current.Kind != TokenKind.CloseBrace && Current.Kind != TokenKind.EndOfFile)
         {
+            while (Current.Kind == TokenKind.Semicolon)
+            {
+                NextToken();
+            }
+
+            if (Current.Kind == TokenKind.CloseBrace || Current.Kind == TokenKind.EndOfFile)
+            {
+                break;
+            }
+
             statements.Add(ParseStatement());
         }
 
@@ -251,8 +261,10 @@ public sealed class Parser
             }
         }
 
-        var badToken = Match(TokenKind.Identifier, "PAR014", "Unexpected token in expression.");
-        return new NameExpressionSyntax(badToken);
+        var unexpected = NextToken();
+        _diagnostics.Report("PAR014", unexpected.Span, "Unexpected token in expression.");
+        var placeholder = new SyntaxToken(TokenKind.Identifier, unexpected.Text, null, unexpected.Span);
+        return new NameExpressionSyntax(placeholder);
     }
 
     private SyntaxToken ParseMutabilityToken()
