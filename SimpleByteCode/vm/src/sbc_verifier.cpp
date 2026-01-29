@@ -837,6 +837,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         stack_height -= pop_count;
       }
       stack_height += info.pushes + extra_pushes;
+      if (static_cast<uint32_t>(stack_height) > func.stack_max) {
+        return Fail("stack exceeds max");
+      }
       if (has_jump_target) {
         auto it = merge_types.find(jump_target);
         if (it == merge_types.end()) {
