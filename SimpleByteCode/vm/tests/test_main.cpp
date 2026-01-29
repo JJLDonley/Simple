@@ -2225,6 +2225,21 @@ std::vector<uint8_t> BuildBadFieldSizeLoadModule() {
   return BuildModuleWithTables(code, empty, types, fields, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadTypeConstLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 5);
+  AppendU32(const_pool, 99);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
 std::vector<uint8_t> BuildGoodStringConstLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -4272,6 +4287,16 @@ bool RunBadFieldSizeLoadTest() {
   return true;
 }
 
+bool RunBadTypeConstLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeConstLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGoodStringConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildGoodStringConstLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4746,6 +4771,7 @@ int main() {
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},
       {"bad_field_offset_load", RunBadFieldOffsetLoadTest},
       {"bad_field_size_load", RunBadFieldSizeLoadTest},
+      {"bad_type_const_load", RunBadTypeConstLoadTest},
       {"good_string_const_load", RunGoodStringConstLoadTest},
       {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},

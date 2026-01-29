@@ -277,8 +277,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (payload + 4 + blob_len > module.const_pool.size()) return false;
       return blob_len == 16;
     }
-    if (kind == 3 || kind == 5) {
+    if (kind == 3) {
       return true;
+    }
+    if (kind == 5) {
+      return payload < module.types.size();
     }
     return false;
   };

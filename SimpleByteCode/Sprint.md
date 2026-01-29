@@ -74,21 +74,14 @@
 - Allowed jump targets at function end boundary in verifier.
 - Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
 - Added verifier negative test for signature param_count exceeding local_count.
-
 - Added verifier tracking for uninitialized globals with a negative test.
-
 - Updated bad_call_indirect_type test to use initialized global under new verifier rule.
-
 - Added loader validation for global init const ids with a negative load test.
-
 - Tightened const pool validation for string null-termination and 16-byte I128/U128 blobs with load-time tests.
-
 - Added positive load tests for valid CONST_STRING and I128 blob lengths.
-
 - Added runtime initialization for globals from const pool (string/f32/f64) with a string init test.
-
 - Added global init tests for F32/F64 const pool values.
-
 - Added loader validation for field offsets against type size with a negative load test.
-
 - Added loader validation for field size bounds with a negative load test.
+
+- Added loader validation for TYPE const ids with a negative load test.
