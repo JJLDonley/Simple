@@ -286,6 +286,7 @@ std::vector<uint8_t> BuildModuleWithMethodCodeOffset(const std::vector<uint8_t>&
   return module;
 }
 
+
 std::vector<uint8_t> BuildModuleWithHeaderFlags(const std::vector<uint8_t>& code,
                                                 uint32_t global_count,
                                                 uint16_t local_count,
@@ -2533,6 +2534,41 @@ std::vector<uint8_t> BuildBadMethodOffsetLoadModule() {
   return BuildModuleWithMethodCodeOffset(code, 0, 0, 4);
 }
 
+std::vector<uint8_t> BuildBadFunctionOverlapLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> module = BuildModuleWithFunctions({entry, callee}, {0, 0});
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 7) continue;
+    uint32_t func_offset = ReadU32At(module, off + 4);
+    if (func_offset + 32 <= module.size()) {
+      WriteU32(module, func_offset + 4, 0);
+      WriteU32(module, func_offset + 8, 8);
+      WriteU32(module, func_offset + 16 + 4, 4);
+      WriteU32(module, func_offset + 16 + 8, 8);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildCallCheckModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4685,6 +4721,16 @@ bool RunBadMethodOffsetLoadTest() {
   return true;
 }
 
+bool RunBadFunctionOverlapLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadFunctionOverlapLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunCallCheckTest() {
   std::vector<uint8_t> module_bytes = BuildCallCheckModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5098,6 +5144,7 @@ int main() {
       {"bad_entry_method_load", RunBadEntryMethodLoadTest},
       {"bad_function_offset_load", RunBadFunctionOffsetLoadTest},
       {"bad_method_offset_load", RunBadMethodOffsetLoadTest},
+      {"bad_function_overlap_load", RunBadFunctionOverlapLoadTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},

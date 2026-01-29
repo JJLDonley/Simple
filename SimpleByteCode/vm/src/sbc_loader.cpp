@@ -343,6 +343,17 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       return Fail("function code offset mismatch");
     }
   }
+  if (code && !module.functions.empty()) {
+    std::vector<FunctionRow> sorted_funcs = module.functions;
+    std::sort(sorted_funcs.begin(), sorted_funcs.end(),
+              [](const FunctionRow& a, const FunctionRow& b) { return a.code_offset < b.code_offset; });
+    for (size_t i = 1; i < sorted_funcs.size(); ++i) {
+      uint32_t prev_end = sorted_funcs[i - 1].code_offset + sorted_funcs[i - 1].code_size;
+      if (sorted_funcs[i].code_offset < prev_end) {
+        return Fail("function code overlap");
+      }
+    }
+  }
   for (size_t i = 0; i < module.fields.size(); ++i) {
     const auto& row = module.fields[i];
     if (row.type_id >= module.types.size()) return Fail("field type id out of range");

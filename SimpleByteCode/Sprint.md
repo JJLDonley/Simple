@@ -101,3 +101,5 @@
 - Added loader validation for function code_offset matching method code_offset with a negative load test.
 
 - Added loader validation for duplicate method code offsets with a negative load test.
+
+- Added loader validation for overlapping function code ranges with a negative load test.
