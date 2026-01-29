@@ -73,3 +73,4 @@
 - Added verifier negative test for out-of-bounds jump targets and a positive jump-to-end test.
 - Allowed jump targets at function end boundary in verifier.
 - Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
+- Added verifier negative test for signature param_count exceeding local_count.

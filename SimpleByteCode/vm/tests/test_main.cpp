@@ -235,6 +235,26 @@ std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithSigParamCount(const std::vector<uint8_t>& code,
+                                                  uint32_t global_count,
+                                                  uint16_t local_count,
+                                                  uint16_t param_count) {
+  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 4) continue;
+    uint32_t sig_offset = ReadU32At(module, off + 4);
+    if (sig_offset + 6 <= module.size()) {
+      WriteU16(module, sig_offset + 4, param_count);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
                                               const std::vector<uint16_t>& local_counts) {
   std::vector<uint8_t> const_pool;
@@ -1957,6 +1977,17 @@ std::vector<uint8_t> BuildBadJumpOobModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   PatchRel32(code, jmp_operand, code.size() + 4);
   return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadParamLocalsModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithSigParamCount(code, 0, 0, 1);
 }
 
 std::vector<uint8_t> BuildJumpToEndModule() {
@@ -3820,6 +3851,21 @@ bool RunBadJumpOobVerifyTest() {
   return true;
 }
 
+bool RunBadParamLocalsVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJumpToEndTest() {
   std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4250,6 +4296,7 @@ int main() {
       {"bad_local_uninit_verify", RunBadLocalUninitVerifyTest},
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
+      {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},
