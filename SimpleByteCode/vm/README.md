@@ -8,6 +8,7 @@ Build:
 Run:
 ```
 ./bin/simplevm <module.sbc>
+./bin/simplevm <module.sbc> --no-verify
 ```
 
 Tests:

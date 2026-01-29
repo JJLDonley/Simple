@@ -22,15 +22,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (verify) {
-    simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-    if (!vr.ok) {
-      std::cerr << "verify failed: " << vr.error << "\n";
-      return 1;
-    }
-  }
-
-  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, verify);
   if (exec.status == simplevm::ExecStatus::Trapped) {
     std::cerr << "runtime trap: " << exec.error << "\n";
     return 1;

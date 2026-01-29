@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "opcode.h"
+#include "sbc_verifier.h"
 
 namespace simplevm {
 namespace {
@@ -75,6 +76,14 @@ ExecResult Trap(const std::string& message) {
 } // namespace
 
 ExecResult ExecuteModule(const SbcModule& module) {
+  return ExecuteModule(module, true);
+}
+
+ExecResult ExecuteModule(const SbcModule& module, bool verify) {
+  if (verify) {
+    VerifyResult vr = VerifyModule(module);
+    if (!vr.ok) return Trap(vr.error);
+  }
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
 

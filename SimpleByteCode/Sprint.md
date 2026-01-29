@@ -18,6 +18,7 @@
 - Implemented global storage in VM with LOAD_GLOBAL/STORE_GLOBAL support.
 - Added global read/write test to the VM test harness.
 - Updated VM build script to auto-run tests after build.
+- Routed VM execution through verifier by default; added `--no-verify` option path.
 
 ## Notes
 - This log must record every VM-related change going forward.

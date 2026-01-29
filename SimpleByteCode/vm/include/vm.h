@@ -23,6 +23,7 @@ struct ExecResult {
 };
 
 ExecResult ExecuteModule(const SbcModule& module);
+ExecResult ExecuteModule(const SbcModule& module, bool verify);
 
 } // namespace simplevm
 
