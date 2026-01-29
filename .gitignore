@@ -1,0 +1,7 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# IDE
+.vs/
+.DS_Store

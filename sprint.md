@@ -11,3 +11,7 @@
 - Created projects: `Simple.Compiler.Module`, `Simple.Compiler`, `Simple.Compiler.Cli`, `Simple.Compiler.Tests`.
 - Added project references between module/core/cli/tests.
 - Noted: test project restore requires NuGet access; will run tests once packages are available.
+
+### Step 3 - 2026-01-29
+- Added `.gitignore` to exclude build artifacts.
+- Removed tracked `obj/` folders from compiler projects.
