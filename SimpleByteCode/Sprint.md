@@ -27,6 +27,7 @@
 - Added MOD_I32 opcode and tests for POP, DUP2, MOD, and boolean ops with branching.
 - Added local load/store and loop execution tests; added JMP bounds checks.
 - Added heap object scaffolding and reference opcodes (ConstNull/NewObject/IsNull/RefEq/RefNe) with tests.
+- Added array opcodes (NEW_ARRAY/ARRAY_LEN/ARRAY_GET_I32/ARRAY_SET_I32) with VM support and tests.
 
 ## Notes
 - This log must record every VM-related change going forward.

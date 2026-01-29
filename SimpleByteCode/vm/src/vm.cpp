@@ -68,6 +68,20 @@ void Push(std::vector<Value>& stack, Value v) {
   stack.push_back(v);
 }
 
+uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset) {
+  return static_cast<uint32_t>(payload[offset]) |
+         (static_cast<uint32_t>(payload[offset + 1]) << 8) |
+         (static_cast<uint32_t>(payload[offset + 2]) << 16) |
+         (static_cast<uint32_t>(payload[offset + 3]) << 24);
+}
+
+void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
 ExecResult Trap(const std::string& message) {
   ExecResult result;
   result.status = ExecStatus::Trapped;
@@ -264,6 +278,56 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         bool out = (a.i64 == b.i64);
         if (opcode == static_cast<uint8_t>(OpCode::RefNe)) out = !out;
         Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        break;
+      }
+      case OpCode::NewArray: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t length = ReadU32(module.code, pc);
+        uint32_t size = 4 + length * 4;
+        uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_ARRAY allocation failed");
+        WriteU32Payload(obj->payload, 0, length);
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
+      case OpCode::ArrayLen: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_LEN on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_LEN on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        break;
+      }
+      case OpCode::ArrayGetI32: {
+        Value idx = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_GET on non-ref");
+        if (idx.kind != ValueKind::I32) return Trap("ARRAY_GET index not i32");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ArraySetI32: {
+        Value value = Pop(stack);
+        Value idx = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_SET on non-ref");
+        if (idx.kind != ValueKind::I32 || value.kind != ValueKind::I32) return Trap("ARRAY_SET type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
         break;
       }
       case OpCode::AddI32:

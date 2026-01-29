@@ -81,6 +81,11 @@ enum class OpCode : uint8_t {
   RefEq = 0xA5,
   RefNe = 0xA6,
   TypeOf = 0xA7,
+
+  NewArray = 0xB0,
+  ArrayLen = 0xB1,
+  ArrayGetI32 = 0xB2,
+  ArraySetI32 = 0xB3,
 };
 
 struct OpInfo {

@@ -132,6 +132,18 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::TypeOf:
       *info = {0, 1, 1};
       return true;
+    case OpCode::NewArray:
+      *info = {8, 0, 1};
+      return true;
+    case OpCode::ArrayLen:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::ArrayGetI32:
+      *info = {0, 2, 1};
+      return true;
+    case OpCode::ArraySetI32:
+      *info = {0, 3, 0};
+      return true;
   }
   return false;
 }
