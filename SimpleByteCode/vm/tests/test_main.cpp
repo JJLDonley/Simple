@@ -665,6 +665,34 @@ std::vector<uint8_t> BuildBadConstStringModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadArrayGetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListPopModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildGcModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1161,6 +1189,34 @@ bool RunBadConstStringVerifyTest() {
   }
   return true;
 }
+
+bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << name << " load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << name << " verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << name << " expected trap, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadArrayGetTrapTest() {
+  return RunExpectTrap(BuildBadArrayGetModule(), "bad_array_get");
+}
+
+bool RunBadListPopTrapTest() {
+  return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
+}
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1215,6 +1271,8 @@ int main() {
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
       {"bad_const_string", RunBadConstStringVerifyTest},
+      {"bad_array_get", RunBadArrayGetTrapTest},
+      {"bad_list_pop", RunBadListPopTrapTest},
   };
 
   int failures = 0;

@@ -36,6 +36,7 @@
 - Fixed field test stack order for TYPEOF.
 - Added verifier checks for object/field/string indices and a negative field-id verify test.
 - Added verifier coverage for bad CONST_STRING indices.
+- Added negative runtime tests for array bounds and list pop underflow.
 
 ## Notes
 - This log must record every VM-related change going forward.
