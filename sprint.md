@@ -15,3 +15,7 @@
 ### Step 3 - 2026-01-29
 - Added `.gitignore` to exclude build artifacts.
 - Removed tracked `obj/` folders from compiler projects.
+
+### Step 4 - 2026-01-29
+- Added core reusable module utilities: `SourceText`, `TextSpan`, `Diagnostic`, and `DiagnosticBag`.
+- Removed placeholder class from module project.
