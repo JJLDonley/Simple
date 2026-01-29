@@ -714,6 +714,20 @@ std::vector<uint8_t> BuildBadConstStringModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadTypeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadArrayGetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1289,6 +1303,21 @@ bool RunBadConstStringVerifyTest() {
   return true;
 }
 
+bool RunBadTypeVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
@@ -1376,6 +1405,7 @@ int main() {
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
       {"bad_const_string", RunBadConstStringVerifyTest},
+      {"bad_type_verify", RunBadTypeVerifyTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"list_overflow", RunListOverflowTrapTest},

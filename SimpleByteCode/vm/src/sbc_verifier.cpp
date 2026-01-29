@@ -73,8 +73,23 @@ VerifyResult VerifyModule(const SbcModule& module) {
 
     if (pc != end) return Fail("function code does not align to instruction boundary");
 
+    enum class ValType { Unknown, I32, Bool, Ref };
     pc = func.code_offset;
     int stack_height = 0;
+    std::vector<ValType> stack_types;
+    std::vector<ValType> locals(local_count, ValType::Unknown);
+    std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
+    auto pop_type = [&]() -> ValType {
+      if (stack_types.empty()) return ValType::Unknown;
+      ValType t = stack_types.back();
+      stack_types.pop_back();
+      return t;
+    };
+    auto push_type = [&](ValType t) { stack_types.push_back(t); };
+    auto check_type = [&](ValType got, ValType expected, const char* msg) -> VerifyResult {
+      if (got != ValType::Unknown && got != expected) return Fail(msg);
+      return {true, ""};
+    };
     while (pc < end) {
       uint8_t opcode = code[pc];
       OpInfo info{};
@@ -151,6 +166,286 @@ VerifyResult VerifyModule(const SbcModule& module) {
         uint8_t arg_count = code[pc + 5];
         if (sig_id >= module.sigs.size()) return Fail("CALL_INDIRECT signature id out of range");
         if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL_INDIRECT arg count mismatch");
+      }
+
+      switch (static_cast<OpCode>(opcode)) {
+        case OpCode::ConstI8:
+        case OpCode::ConstI16:
+        case OpCode::ConstI32:
+        case OpCode::ConstU8:
+        case OpCode::ConstU16:
+        case OpCode::ConstU32:
+          push_type(ValType::I32);
+          break;
+        case OpCode::ConstBool:
+          push_type(ValType::Bool);
+          break;
+        case OpCode::ConstNull:
+        case OpCode::ConstString:
+        case OpCode::NewObject:
+        case OpCode::NewArray:
+        case OpCode::NewList:
+          push_type(ValType::Ref);
+          break;
+        case OpCode::LoadLocal: {
+          uint32_t idx = 0;
+          ReadU32(code, pc + 1, &idx);
+          if (idx < locals.size()) push_type(locals[idx]);
+          else push_type(ValType::Unknown);
+          break;
+        }
+        case OpCode::StoreLocal: {
+          uint32_t idx = 0;
+          ReadU32(code, pc + 1, &idx);
+          ValType t = pop_type();
+          if (idx < locals.size()) {
+            if (locals[idx] != ValType::Unknown && t != ValType::Unknown && locals[idx] != t) {
+              return Fail("STORE_LOCAL type mismatch");
+            }
+            locals[idx] = t;
+          }
+          break;
+        }
+        case OpCode::LoadGlobal: {
+          uint32_t idx = 0;
+          ReadU32(code, pc + 1, &idx);
+          if (idx < globals.size()) push_type(globals[idx]);
+          else push_type(ValType::Unknown);
+          break;
+        }
+        case OpCode::StoreGlobal: {
+          uint32_t idx = 0;
+          ReadU32(code, pc + 1, &idx);
+          ValType t = pop_type();
+          if (idx < globals.size()) {
+            if (globals[idx] != ValType::Unknown && t != ValType::Unknown && globals[idx] != t) {
+              return Fail("STORE_GLOBAL type mismatch");
+            }
+            globals[idx] = t;
+          }
+          break;
+        }
+        case OpCode::Pop:
+          pop_type();
+          break;
+        case OpCode::Dup: {
+          if (stack_types.empty()) return Fail("DUP underflow");
+          push_type(stack_types.back());
+          break;
+        }
+        case OpCode::Dup2: {
+          if (stack_types.size() < 2) return Fail("DUP2 underflow");
+          ValType a = stack_types[stack_types.size() - 2];
+          ValType b = stack_types[stack_types.size() - 1];
+          push_type(a);
+          push_type(b);
+          break;
+        }
+        case OpCode::Swap: {
+          if (stack_types.size() < 2) return Fail("SWAP underflow");
+          std::swap(stack_types[stack_types.size() - 1], stack_types[stack_types.size() - 2]);
+          break;
+        }
+        case OpCode::Rot: {
+          if (stack_types.size() < 3) return Fail("ROT underflow");
+          ValType a = stack_types[stack_types.size() - 3];
+          ValType b = stack_types[stack_types.size() - 2];
+          ValType c = stack_types[stack_types.size() - 1];
+          stack_types[stack_types.size() - 3] = b;
+          stack_types[stack_types.size() - 2] = c;
+          stack_types[stack_types.size() - 1] = a;
+          break;
+        }
+        case OpCode::AddI32:
+        case OpCode::SubI32:
+        case OpCode::MulI32:
+        case OpCode::DivI32:
+        case OpCode::ModI32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I32, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I32, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::CmpEqI32:
+        case OpCode::CmpNeI32:
+        case OpCode::CmpLtI32:
+        case OpCode::CmpLeI32:
+        case OpCode::CmpGtI32:
+        case OpCode::CmpGeI32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I32, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I32, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::BoolNot: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Bool, "BOOL_NOT type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::BoolAnd:
+        case OpCode::BoolOr: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Bool, "BOOL op type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::Bool, "BOOL op type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::JmpTrue:
+        case OpCode::JmpFalse: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Bool, "JMP type mismatch");
+          if (!r.ok) return r;
+          break;
+        }
+        case OpCode::IsNull: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Ref, "IS_NULL type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::RefEq:
+        case OpCode::RefNe: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Ref, "REF type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::Ref, "REF type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::TypeOf: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Ref, "TYPEOF type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::LoadField: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Ref, "LOAD_FIELD type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::StoreField: {
+          ValType v = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Ref, "STORE_FIELD type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(v, ValType::I32, "STORE_FIELD type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
+        case OpCode::ArrayLen: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Ref, "ARRAY_LEN type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ArrayGetI32: {
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ArraySetI32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListLen: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::Ref, "LIST_LEN type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ListGetI32: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ListSetI32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I32, "LIST_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListPushI32: {
+          ValType value = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(value, ValType::I32, "LIST_PUSH type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
+        case OpCode::ListPopI32: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::StringLen: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "STRING_LEN type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::StringConcat: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Ref, "STRING_CONCAT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::Ref, "STRING_CONCAT type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Ref);
+          break;
+        }
+        default:
+          for (int i = 0; i < info.pops; ++i) pop_type();
+          for (int i = 0; i < info.pushes; ++i) push_type(ValType::Unknown);
+          break;
       }
 
       if (info.pops > 0) {
