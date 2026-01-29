@@ -2010,6 +2010,17 @@ std::vector<uint8_t> BuildBadGlobalUninitModule() {
   return BuildModule(code, 1, 0);
 }
 
+std::vector<uint8_t> BuildBadGlobalInitConstModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithGlobalInitConst(code, 1, 0, 0xFFFFFFF0u);
+}
+
 std::vector<uint8_t> BuildBadParamLocalsModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -3897,6 +3908,16 @@ bool RunBadGlobalUninitVerifyTest() {
   return true;
 }
 
+bool RunBadGlobalInitConstLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadGlobalInitConstModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadParamLocalsVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4343,6 +4364,7 @@ int main() {
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
+      {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},

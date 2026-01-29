@@ -251,9 +251,40 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     }
   }
 
+  auto const_ok = [&](uint32_t const_id) -> bool {
+    if (module.const_pool.empty()) return false;
+    if (const_id + 4 > module.const_pool.size()) return false;
+    uint32_t kind = 0;
+    ReadU32At(module.const_pool, const_id, &kind);
+    if (kind == 4) {
+      return const_id + 12 <= module.const_pool.size();
+    }
+    if (const_id + 8 > module.const_pool.size()) return false;
+    uint32_t payload = 0;
+    ReadU32At(module.const_pool, const_id + 4, &payload);
+    if (kind == 0) {
+      return payload < module.const_pool.size();
+    }
+    if (kind == 1 || kind == 2) {
+      if (payload + 4 > module.const_pool.size()) return false;
+      uint32_t blob_len = 0;
+      ReadU32At(module.const_pool, payload, &blob_len);
+      return payload + 4 + blob_len <= module.const_pool.size();
+    }
+    if (kind == 3 || kind == 5) {
+      return true;
+    }
+    return false;
+  };
+
   if (!module.functions.empty() && !code) return Fail("code section required when functions exist");
   if (header.entry_method_id != 0xFFFFFFFFu) {
     if (header.entry_method_id >= module.methods.size()) return Fail("entry method id out of range");
+  }
+  for (const auto& row : module.globals) {
+    if (row.init_const_id != 0xFFFFFFFFu) {
+      if (!const_ok(row.init_const_id)) return Fail("global init const out of bounds");
+    }
   }
   for (size_t i = 0; i < module.types.size(); ++i) {
     const auto& row = module.types[i];

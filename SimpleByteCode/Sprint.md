@@ -78,3 +78,5 @@
 - Added verifier tracking for uninitialized globals with a negative test.
 
 - Updated bad_call_indirect_type test to use initialized global under new verifier rule.
+
+- Added loader validation for global init const ids with a negative load test.
