@@ -37,3 +37,6 @@
 - Extended `SourceText` with line text/span helpers for diagnostics.
 - Added reflection-based entry point handling and output persistence fallback.
 - Note: CLI/tests builds require restore; dotnet restore currently failing in this environment.
+
+### Step 9 - 2026-01-29
+- Added unknown type diagnostics during binding.

@@ -391,7 +391,7 @@ public sealed class Binder
             _ => string.Empty
         };
 
-        return name switch
+        var type = name switch
         {
             "i32" => TypeSymbol.I32,
             "f64" => TypeSymbol.F64,
@@ -401,5 +401,12 @@ public sealed class Binder
             "void" => TypeSymbol.Void,
             _ => TypeSymbol.Error
         };
+
+        if (type == TypeSymbol.Error)
+        {
+            _diagnostics.Report("BND021", syntax.Span, $"Unknown type '{name}'.");
+        }
+
+        return type;
     }
 }
