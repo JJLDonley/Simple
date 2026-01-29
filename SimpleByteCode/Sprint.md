@@ -48,6 +48,7 @@
 - Added trap tests for list insert/remove and string get/slice bounds errors.
 - Added CALL_INDIRECT verify/trap tests for arg mismatch, bad function index, and invalid runtime function value.
 - Added verifier rejection tests for CALL and TAILCALL arg-count mismatches.
+- Added ConstI64/ConstU64/ConstF32/ConstF64 runtime handling with new tests.
 
 ## Notes
 - This log must record every VM-related change going forward.

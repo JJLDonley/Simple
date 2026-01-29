@@ -12,6 +12,9 @@ namespace {
 
 enum class ValueKind {
   I32,
+  I64,
+  F32,
+  F64,
   Bool,
   Ref,
   None,
@@ -38,12 +41,38 @@ int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
   return static_cast<int32_t>(v);
 }
 
+int64_t ReadI64(const std::vector<uint8_t>& code, size_t& pc) {
+  uint64_t v = static_cast<uint64_t>(code[pc]) |
+               (static_cast<uint64_t>(code[pc + 1]) << 8) |
+               (static_cast<uint64_t>(code[pc + 2]) << 16) |
+               (static_cast<uint64_t>(code[pc + 3]) << 24) |
+               (static_cast<uint64_t>(code[pc + 4]) << 32) |
+               (static_cast<uint64_t>(code[pc + 5]) << 40) |
+               (static_cast<uint64_t>(code[pc + 6]) << 48) |
+               (static_cast<uint64_t>(code[pc + 7]) << 56);
+  pc += 8;
+  return static_cast<int64_t>(v);
+}
+
 uint32_t ReadU32(const std::vector<uint8_t>& code, size_t& pc) {
   uint32_t v = static_cast<uint32_t>(code[pc]) |
                (static_cast<uint32_t>(code[pc + 1]) << 8) |
                (static_cast<uint32_t>(code[pc + 2]) << 16) |
                (static_cast<uint32_t>(code[pc + 3]) << 24);
   pc += 4;
+  return v;
+}
+
+uint64_t ReadU64(const std::vector<uint8_t>& code, size_t& pc) {
+  uint64_t v = static_cast<uint64_t>(code[pc]) |
+               (static_cast<uint64_t>(code[pc + 1]) << 8) |
+               (static_cast<uint64_t>(code[pc + 2]) << 16) |
+               (static_cast<uint64_t>(code[pc + 3]) << 24) |
+               (static_cast<uint64_t>(code[pc + 4]) << 32) |
+               (static_cast<uint64_t>(code[pc + 5]) << 40) |
+               (static_cast<uint64_t>(code[pc + 6]) << 48) |
+               (static_cast<uint64_t>(code[pc + 7]) << 56);
+  pc += 8;
   return v;
 }
 
@@ -269,9 +298,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, value});
         break;
       }
+      case OpCode::ConstI64: {
+        int64_t value = ReadI64(module.code, pc);
+        Push(stack, Value{ValueKind::I64, value});
+        break;
+      }
       case OpCode::ConstU32: {
         uint32_t value = ReadU32(module.code, pc);
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(value)});
+        break;
+      }
+      case OpCode::ConstU64: {
+        uint64_t value = ReadU64(module.code, pc);
+        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(value)});
         break;
       }
       case OpCode::ConstI8: {
@@ -292,6 +331,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       case OpCode::ConstU16: {
         uint16_t value = ReadU16(module.code, pc);
         Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstF32: {
+        uint32_t bits = ReadU32(module.code, pc);
+        Push(stack, Value{ValueKind::F32, static_cast<int64_t>(bits)});
+        break;
+      }
+      case OpCode::ConstF64: {
+        uint64_t bits = ReadU64(module.code, pc);
+        Push(stack, Value{ValueKind::F64, static_cast<int64_t>(bits)});
         break;
       }
       case OpCode::ConstChar: {
