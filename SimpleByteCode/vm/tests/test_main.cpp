@@ -3344,6 +3344,51 @@ std::vector<uint8_t> BuildMissingFunctionsSectionLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadConstStringOffsetLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 0);
+  AppendU32(const_pool, 0xFFFFFFF0u);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildBadConstI128OffsetLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 1);
+  AppendU32(const_pool, 0xFFFFFFF0u);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildBadConstF64TruncatedLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 4);
+  AppendU32(const_pool, 0x3FF00000u);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5993,6 +6038,36 @@ bool RunMissingFunctionsSectionLoadTest() {
   return true;
 }
 
+bool RunBadConstStringOffsetLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadConstStringOffsetLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadConstI128OffsetLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadConstI128OffsetLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadConstF64TruncatedLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadConstF64TruncatedLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -6625,6 +6700,9 @@ int main() {
       {"bad_method_sig_id_load", RunBadMethodSigIdLoadTest},
       {"missing_code_section_load", RunMissingCodeSectionLoadTest},
       {"missing_functions_section_load", RunMissingFunctionsSectionLoadTest},
+      {"bad_const_string_offset_load", RunBadConstStringOffsetLoadTest},
+      {"bad_const_i128_offset_load", RunBadConstI128OffsetLoadTest},
+      {"bad_const_f64_truncated_load", RunBadConstF64TruncatedLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_zero_load", RunBadStackMaxZeroLoadTest},
