@@ -116,3 +116,6 @@
 - Added loader negative tests for const pool string/i128 offsets and truncated F64.
 - Added verifier tests for merge height mismatch and stack underflow.
 - Added verifier test for merge type mismatch between ref and i32.
+- Added verifier tests for string op type mismatches.
+
+- Added verifier type-mismatch tests for ref ops, field ops, array/list ops, and STRING_LEN.
