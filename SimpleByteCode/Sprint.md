@@ -103,3 +103,5 @@
 - Added loader validation for duplicate method code offsets with a negative load test.
 
 - Added loader validation for overlapping function code ranges with a negative load test.
+
+- Added no-verify runtime trap test for out-of-bounds JMP.
