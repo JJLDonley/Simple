@@ -27,3 +27,7 @@
 ### Step 6 - 2026-01-29
 - Implemented syntax tree, parser, and AST node types for Phase 1 constructs.
 - Added operator precedence table for expression parsing.
+
+### Step 7 - 2026-01-29
+- Implemented binder, symbols, and bound node model for Phase 1 type checking.
+- Added built-in procedures (`print`, `println`) and basic operator binding.
