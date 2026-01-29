@@ -47,6 +47,7 @@
 - Added list insert/remove/clear and string get/slice opcodes with verifier checks, runtime support, and tests.
 - Added trap tests for list insert/remove and string get/slice bounds errors.
 - Added CALL_INDIRECT verify/trap tests for arg mismatch, bad function index, and invalid runtime function value.
+- Added verifier rejection tests for CALL and TAILCALL arg-count mismatches.
 
 ## Notes
 - This log must record every VM-related change going forward.
