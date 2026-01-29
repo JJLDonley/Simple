@@ -2665,6 +2665,20 @@ std::vector<uint8_t> BuildBadBoolAndVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadBoolAndMixedVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadBoolOrVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2674,6 +2688,20 @@ std::vector<uint8_t> BuildBadBoolOrVerifyModule() {
   AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolOr));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadBoolOrMixedVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::BoolOr));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
@@ -6531,8 +6559,38 @@ bool RunBadBoolAndVerifyTest() {
   return true;
 }
 
+bool RunBadBoolAndMixedVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadBoolAndMixedVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadBoolOrVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadBoolOrVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadBoolOrMixedVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadBoolOrMixedVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -7981,7 +8039,9 @@ int main() {
       {"bad_string_len_verify", RunBadStringLenVerifyTest},
       {"bad_bool_not_verify", RunBadBoolNotVerifyTest},
       {"bad_bool_and_verify", RunBadBoolAndVerifyTest},
+      {"bad_bool_and_mixed_verify", RunBadBoolAndMixedVerifyTest},
       {"bad_bool_or_verify", RunBadBoolOrVerifyTest},
+      {"bad_bool_or_mixed_verify", RunBadBoolOrMixedVerifyTest},
       {"bad_jmp_cond_verify", RunBadJmpCondVerifyTest},
       {"bad_jmp_false_cond_verify", RunBadJmpFalseCondVerifyTest},
       {"bad_array_get_arr_verify", RunBadArrayGetArrVerifyTest},
