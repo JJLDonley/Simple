@@ -19,3 +19,7 @@
 ### Step 4 - 2026-01-29
 - Added core reusable module utilities: `SourceText`, `TextSpan`, `Diagnostic`, and `DiagnosticBag`.
 - Removed placeholder class from module project.
+
+### Step 5 - 2026-01-29
+- Implemented token model and lexer with keyword/operator support.
+- Added numeric, string, char literal parsing and comment handling.
