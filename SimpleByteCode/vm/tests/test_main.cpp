@@ -4763,6 +4763,26 @@ std::vector<uint8_t> BuildBadStringGetCharModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadStringGetCharNegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "A"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringGetChar));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadStringSliceModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -4779,6 +4799,28 @@ std::vector<uint8_t> BuildBadStringSliceModule() {
   AppendI32(code, 2);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringSliceNegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "abc"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> empty;
@@ -7981,6 +8023,14 @@ bool RunBadListRemoveTrapTest() {
   return RunExpectTrap(BuildBadListRemoveModule(), "bad_list_remove");
 }
 
+bool RunBadStringGetCharNegIndexTrapTest() {
+  return RunExpectTrap(BuildBadStringGetCharNegIndexModule(), "bad_string_get_char_neg_index");
+}
+
+bool RunBadStringSliceNegIndexTrapTest() {
+  return RunExpectTrap(BuildBadStringSliceNegIndexModule(), "bad_string_slice_neg_index");
+}
+
 bool RunBadConvRuntimeTrapTest() {
   return RunExpectTrapNoVerify(BuildBadConvRuntimeModule(), "bad_conv_runtime");
 }
@@ -8310,6 +8360,8 @@ int main() {
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
       {"bad_list_remove", RunBadListRemoveTrapTest},
+      {"bad_string_get_char_neg_index", RunBadStringGetCharNegIndexTrapTest},
+      {"bad_string_slice_neg_index", RunBadStringSliceNegIndexTrapTest},
       {"bad_string_get_char", RunBadStringGetCharTrapTest},
       {"bad_string_slice", RunBadStringSliceTrapTest},
       {"list_overflow", RunListOverflowTrapTest},

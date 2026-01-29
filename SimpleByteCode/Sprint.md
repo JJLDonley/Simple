@@ -135,3 +135,5 @@
 - Added runtime trap tests for ARRAY_SET and LIST_GET/LIST_SET out-of-bounds indices.
 
 - Added runtime trap tests for negative indices in ARRAY_GET/ARRAY_SET and LIST_GET/LIST_SET.
+
+- Added runtime trap tests for negative indices in STRING_GET_CHAR and STRING_SLICE.
