@@ -1,0 +1,1855 @@
+# Simple Programming Language
+## Grammar and Design Specification
+
+**Version:** 1.0  
+**Target Platform:** .NET Common Language Runtime (CLR)  
+**File Extension:** `.simple`
+
+---
+
+## Table of Contents
+
+1. [Executive Summary](#executive-summary)
+2. [Design Philosophy](#design-philosophy)
+3. [Lexical Structure](#lexical-structure)
+4. [Type System](#type-system)
+5. [Grammar Specification](#grammar-specification)
+6. [Semantic Rules](#semantic-rules)
+7. [CLR Mapping](#clr-mapping)
+8. [Compiler Architecture](#compiler-architecture)
+
+---
+
+## Executive Summary
+
+Simple is a statically-typed, general-purpose programming language that compiles to .NET Common Intermediate Language (CIL). The language emphasizes:
+
+- **Universal mutability system** using `:` (mutable) and `::` (immutable)
+- **Minimal syntax** with no unnecessary keywords
+- **Strict typing** with explicit type declarations
+- **Composition over inheritance** through artifacts and modules
+- **First-class procedures** with clear syntax
+
+---
+
+## Design Philosophy
+
+### Core Principles
+
+1. **Consistency**: The `:` vs `::` pattern applies universally to all declarations
+2. **Explicitness**: All types must be explicitly declared
+3. **Simplicity**: Minimal keywords and clean syntax
+4. **Safety**: Immutability by default encourages safer code
+
+### Mutability System
+
+The fundamental principle: **`:` = mutable, `::` = immutable**
+
+This applies to:
+- Variables
+- artifact members
+- Procedure parameters
+- Procedure return types
+- First-class procedure bindings
+
+---
+
+## Lexical Structure
+
+### Keywords
+
+```
+while, for, break, skip, return, default
+fn, self, artifact, enum, module, union
+```
+
+### Operators
+
+**Arithmetic:** `+`, `-`, `*`, `/`, `%`, `++`, `--`  
+**Bitwise:** `&`, `|`, `^`, `<<`, `>>`  
+**Comparison:** `==`, `!=`, `<`, `>`, `<=`, `>=`  
+**Logical:** `&&`, `||`, `!`  
+**Assignment:** `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`  
+**Declaration:** `:`, `::`  
+**Access:** `.`, `[]`  
+**Conditional Chain:** `|>`  
+**Pointer:** `*`, `&`, `@`, `^` (future)  
+**Generics:** `<`, `>` (type parameter and type argument lists)
+
+### Literals
+
+```
+Integers:  123, -456, 0, 0xFF, 0b1010
+Floats:    3.14, -0.5, 1.0e-10
+Strings:   "hello world"
+Characters: 'a', '\n', '\t'
+Booleans:  true, false
+Arrays:    [1, 2, 3], [[1, 2], [3, 4]]
+```
+
+### Zero-Initialization
+
+All variables that are declared but not explicitly initialized receive zero values:
+
+```
+x : i32        // 0
+y : i64        // 0
+f : f32        // 0.0
+d : f64        // 0.0
+b : bool       // false
+s : string     // ""
+c : char       // '\0'
+```
+
+artifacts are initialized with all members set to their zero values:
+
+```
+Point :: artifact {
+    x : f32
+    y : f32
+}
+
+p : Point = { }  // x = 0.0, y = 0.0
+```
+
+### Comments
+
+```
+// Single-line comment
+/* Multi-line
+   comment */
+```
+
+### Identifiers
+
+```
+identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
+```
+
+---
+
+## Type System
+
+### Primitive Types
+
+#### Integer Types (Signed)
+- `i8` - 8-bit signed integer
+- `i16` - 16-bit signed integer
+- `i32` - 32-bit signed integer
+- `i64` - 64-bit signed integer
+- `i128` - 128-bit signed integer
+
+#### Integer Types (Unsigned)
+- `u8` - 8-bit unsigned integer
+- `u16` - 16-bit unsigned integer
+- `u32` - 32-bit unsigned integer
+- `u64` - 64-bit unsigned integer
+- `u128` - 128-bit unsigned integer
+
+#### Floating Point Types
+- `f32` - 32-bit floating point (IEEE 754 single precision)
+- `f64` - 64-bit floating point (IEEE 754 double precision)
+
+#### Other Primitive Types
+- `bool` - Boolean type (`true` or `false`)
+- `char` - Unicode character (UTF-16 code unit)
+- `string` - UTF-16 encoded string
+
+### Composite Types
+
+#### Arrays (Fixed Size)
+```
+T[N]
+T[N][M]
+T[N][M][P]
+```
+- `T` is the element type
+- `N`, `M`, `P` are compile-time constant sizes
+- Arrays are fixed-size and rectangular (all dimensions must match)
+- Example: `i32[10]`, `f32[3][4]`, `bool[5][5][5]`
+
+#### Lists (Dynamic Size)
+```
+T[]
+T[][]
+T[][][]
+```
+- `T` is the element type
+- Dynamically sized collections
+- Multi-dimensional lists can be jagged (rows can have different lengths)
+- Example: `i32[]`, `string[][]`, `f64[][][]`
+
+#### Procedure Types
+```
+(param_types) : return_type
+(param_types) :: return_type
+```
+- Example: `(i32, i32) : i32` - procedure taking two i32s, returning mutable i32
+- Example: `(string) :: bool` - procedure taking string, returning immutable bool
+
+#### Generics (Type Parameters)
+Generic types and procedures accept type parameters declared with `<...>` and instantiated with type arguments:
+
+```
+Box<T>
+Result<T, E>
+```
+
+- Type parameters are identifiers like `T`, `U`, `Key`, `Value`
+- Type arguments are concrete types: `Box<i32>`, `Map<string, f64>`
+- Generic procedures and artifacts may reference their type parameters in member types, parameter types, and return types
+
+**Examples:**
+```
+Box<T> :: artifact {
+    value : T
+}
+
+identity<T> : T (value : T) {
+    return value
+}
+
+boxed : Box<string> = { "hello" }
+v : i32 = identity<i32>(10)
+```
+
+### User-Defined Types
+
+#### artifacts
+Class-like composite types with members and procedures. artifacts are essentially classes and are declared with the `:: artifact` keyword:
+
+```
+Point :: artifact {
+    x : f32
+    y : f32
+}
+```
+
+#### enums
+Strictly scoped enumeration types declared with `:: enum`:
+
+```
+Color :: enum {
+    Red,
+    Green,
+    Blue
+}
+```
+
+#### modules
+Static collections of procedures and constants. modules are declared with `:: module` and all members are static:
+
+```
+Math :: module {
+    PI :: f64 = 3.14159265359
+
+    abs :: f64 (x : f64) {
+        |> x < 0.0 { return -x }
+        |> default { return x }
+    }
+}
+```
+
+#### unions (Reserved)
+Strictly scoped tagged unions declared with `:: union`. The keyword is reserved, and implementation is still deferred.
+
+---
+
+## Grammar Specification
+
+### Program Structure
+
+```ebnf
+program ::= declaration*
+
+declaration ::= variable_declaration
+              | procedure_declaration
+              | artifact_declaration
+              | module_declaration
+              | enum_declaration
+```
+
+### Variables
+
+#### Mutable Variable
+```ebnf
+variable_declaration ::= identifier ":" type "=" expression
+```
+
+**Example:**
+```
+count : i32 = 0
+name : string = "Alice"
+values : i32[] = [1, 2, 3]
+```
+
+#### Immutable Variable
+```ebnf
+variable_declaration ::= identifier "::" type "=" expression
+```
+
+**Example:**
+```
+MAX_SIZE :: i32 = 100
+PI :: f64 = 3.14159
+config :: Config = Config()
+```
+
+### Procedures
+
+#### Procedure Definition
+```ebnf
+procedure_declaration ::= identifier generic_parameters? ":" type parameter_list block
+                        | identifier generic_parameters? "::" type parameter_list block
+
+parameter_list ::= "(" ")"
+                 | "(" parameter ("," parameter)* ")"
+
+parameter ::= identifier ":" type
+            | identifier "::" type
+
+generic_parameters ::= "<" identifier ("," identifier)* ">"
+```
+
+**Syntax:**
+- `name : return_type (params) { block }` - returns mutable value
+- `name :: return_type (params) { block }` - returns immutable value
+
+**Examples:**
+```
+add : i32 (a : i32, b : i32) {
+    return a + b
+}
+
+get_config :: Config () {
+    return Config()
+}
+
+process : void (data : Point, config :: Settings) {
+    data.x = 10
+}
+
+identity<T> : T (value : T) {
+    return value
+}
+```
+
+#### First-Class Procedures
+```ebnf
+fn_variable ::= identifier ":" "fn" ":" type "=" lambda
+              | identifier ":" "fn" "::" type "=" lambda
+              | identifier "::" "fn" ":" type "=" lambda
+              | identifier "::" "fn" "::" type "=" lambda
+
+lambda ::= "(" parameter_list ")" block
+```
+
+**Examples:**
+```
+// Mutable function variable, returns mutable i32
+multiply : fn : i32 = (a : i32, b : i32) {
+    return a * b
+}
+
+// Immutable function variable, returns immutable string
+formatter :: fn :: string = (value : i32) {
+    return "Value: " + str(value)
+}
+
+// Can reassign multiply
+multiply = (a : i32, b : i32) {
+    return a * b * 2
+}
+```
+
+### artifacts
+
+```ebnf
+artifact_declaration ::= identifier generic_parameters? "::" "artifact" "{" artifact_body "}"
+
+artifact_body ::= (member_declaration | method_declaration)*
+
+member_declaration ::= identifier ":" type "=" expression
+                     | identifier "::" type "=" expression
+
+method_declaration ::= identifier ":" type parameter_list block
+                     | identifier "::" type parameter_list block
+```
+
+**Example:**
+```
+Point :: artifact {
+    x : f32
+    y : f32
+    label : string
+    
+    distance :: f64 () {
+        return sqrt(self.x * self.x + self.y * self.y)
+    }
+    
+    move : void (dx : f32, dy : f32) {
+        self.x = self.x + dx
+        self.y = self.y + dy
+    }
+}
+```
+
+**Instantiation:**
+
+artifacts are initialized using brace syntax with member assignments:
+
+```
+// Ordered member values (positional)
+p : Point = { 10.0, 20.0, "Origin" }
+p2 :: Point = { 5.0, 5.0, "Corner" }
+
+// Named member assignment
+p3 : Point = {
+    .x = 10.0,
+    .y = 20.0,
+    .label = "Origin"
+}
+
+// Can mix positional and named (positional must come first)
+p4 : Point = { 10.0, .y = 20.0, .label = "Mixed" }
+```
+
+**Member Access:**
+Within methods, use `self` to access members and other methods:
+```
+self.x = 10.0
+value : f32 = self.y
+self.other_method()
+```
+
+### modules
+
+```ebnf
+module_declaration ::= identifier "::" "module" "{" (procedure_declaration | variable_declaration)* "}"
+```
+
+modules are artifacts whose members are static. The `:: module` declaration makes the module itself immutable while its members follow their own mutability annotations. modules operate under static semantics and cannot be instantiated.
+
+**Example:**
+```
+Math :: module {
+    PI :: f64 = 3.14159265359
+
+    abs :: f64 (x : f64) {
+        |> x < 0.0 { return -x }
+        |> default { return x }
+    }
+    
+    max :: i32 (a : i32, b : i32) {
+        |> a > b { return a }
+        |> default { return b }
+    }
+}
+```
+
+**Usage:**
+```
+result : f64 = Math.abs(-5.5)
+largest : i32 = Math.max(10, 20)
+pi_value : f64 = Math.PI
+```
+
+### enums
+
+```ebnf
+enum_declaration ::= identifier "::" "enum" "{" enum_body "}"
+
+enum_body ::= enum_member ("," enum_member)* ","?
+
+enum_member ::= identifier
+              | identifier "=" integer_literal
+```
+
+**Example:**
+```
+Status :: enum {
+    Pending = 1,
+    Active = 2,
+    Completed = 3,
+    Cancelled = 4
+}
+
+Color :: enum {
+    Red,
+    Green,
+    Blue
+}
+```
+
+**Usage (Strict Scoping):**
+```
+current_status : Status = Status.Active
+primary : Color = Color.Red
+
+// ERROR: Implicit enum values not allowed
+status : Status = Active  // WRONG
+```
+
+### Statements
+
+```ebnf
+statement ::= variable_declaration
+            | assignment_statement
+            | if_statement
+            | if_else_chain
+            | while_statement
+            | for_statement
+            | return_statement
+            | break_statement
+            | skip_statement
+            | expression_statement
+            | block
+
+assignment_statement ::= identifier "=" expression
+                       | identifier "+=" expression
+                       | identifier "-=" expression
+                       | identifier "*=" expression
+                       | identifier "/=" expression
+                       | identifier "%=" expression
+                       | identifier "&=" expression
+                       | identifier "|=" expression
+                       | identifier "^=" expression
+                       | identifier "<<=" expression
+                       | identifier ">>=" expression
+
+if_statement ::= expression block
+
+if_else_chain ::= ("|>" expression block)+
+
+while_statement ::= "while" expression block
+
+for_statement ::= "for" "(" (variable_declaration | assignment_statement)? ";" expression? ";" (assignment_statement | expression)? ")" block
+
+return_statement ::= "return" expression?
+
+break_statement ::= "break"
+
+skip_statement ::= "skip"
+
+expression_statement ::= expression
+
+block ::= "{" statement* "}"
+```
+
+### Control Flow
+
+#### Simple If
+```
+condition { block }
+```
+
+**Example:**
+```
+x > 10 {
+    print("Greater than 10")
+}
+```
+
+#### If-Else Chain
+```
+|> condition { block }
+|> condition { block }
+|> default { block }
+```
+
+**Example:**
+```
+|> score >= 90 { grade = "A" }
+|> score >= 80 { grade = "B" }
+|> score >= 70 { grade = "C" }
+|> default { grade = "F" }
+```
+
+#### While Loop
+```
+while condition {
+    // body
+    break    // exit loop
+    skip     // continue to next iteration
+}
+```
+
+**Example:**
+```
+i : i32 = 0
+while i < 10 {
+    |> i == 5 { 
+        i = i + 1
+        skip 
+    }
+    print(i)
+    i = i + 1
+}
+```
+
+#### For Loop
+```
+for (init; condition; update) {
+    // body
+}
+```
+
+**Syntax:**
+- `init` - variable declaration or assignment (optional)
+- `condition` - boolean expression (optional, defaults to true)
+- `update` - assignment or expression (optional)
+
+**Examples:**
+```
+// Traditional counting loop
+for (i : i32 = 0; i < 10; i++) {
+    print(i)
+}
+
+// Count by 2s
+for (i : i32 = 0; i < 10; i += 2) {
+    print(i)  // 0, 2, 4, 6, 8
+}
+
+// Count backwards
+for (i : i32 = 10; i >= 0; i--) {
+    print(i)  // 10, 9, 8, ..., 0
+}
+
+// Multiple operations in update
+for (i : i32 = 0; i < 100; i = i + 1) {
+    |> i % 2 == 0 { skip }
+    print(i)  // prints odd numbers only
+}
+
+// Infinite loop (all parts optional)
+for (;;) {
+    // runs forever
+    break  // until break
+}
+
+// Declaration outside, no update
+count : i32 = 0
+for (; count < 10;) {
+    print(count)
+    count += 1
+}
+```
+
+### Expressions
+
+```ebnf
+expression ::= literal
+             | identifier
+             | identifier generic_arguments
+             | binary_expression
+             | unary_expression
+             | call_expression
+             | index_expression
+             | member_expression
+             | artifact_literal
+             | array_literal
+             | "(" expression ")"
+
+binary_expression ::= expression binary_operator expression
+
+unary_expression ::= unary_operator expression
+                   | expression "++"
+                   | expression "--"
+
+call_expression ::= expression "(" argument_list? ")"
+
+argument_list ::= expression ("," expression)*
+
+generic_arguments ::= "<" type ("," type)* ">"
+
+index_expression ::= expression "[" expression "]"
+
+member_expression ::= expression "." identifier
+
+artifact_literal ::= "{" artifact_init_list? "}"
+
+artifact_init_list ::= artifact_init_item ("," artifact_init_item)*
+
+artifact_init_item ::= expression
+                     | "." identifier "=" expression
+
+array_literal ::= "[" array_element_list? "]"
+
+array_element_list ::= expression ("," expression)*
+```
+
+### Operator Precedence
+
+From highest to lowest:
+
+1. `++`, `--` (postfix), `[]`, `.` (member access)
+2. `!`, `-` (unary), `++`, `--` (prefix)
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<<`, `>>`
+6. `<`, `>`, `<=`, `>=`
+7. `==`, `!=`
+8. `&` (bitwise AND)
+9. `^` (bitwise XOR)
+10. `|` (bitwise OR)
+11. `&&` (logical AND)
+12. `||` (logical OR)
+13. `|>` (conditional chain - statement level)
+14. `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` (assignment)
+
+### Array and List Operations
+
+#### Declaration
+```
+// Fixed-size arrays
+arr : i32[5] = [1, 2, 3, 4, 5]
+matrix : i32[3][3] = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+// Dynamic lists
+list : string[] = ["hello", "world"]
+jagged : i32[][] = [
+    [1, 2],
+    [3, 4, 5, 6],
+    [7]
+]
+
+// Empty array
+empty : bool[10]              // All false (zero-initialized)
+
+// Immutable
+constants :: f64[3] = [3.14, 2.71, 1.41]
+```
+
+#### Indexing
+```
+// 1D
+first : i32 = arr[0]          // First element
+last : i32 = arr[5]           // Last element
+
+// 2D
+value : i32 = matrix[2][3]    // Row 2, Column 3
+matrix[0][0] = 100            // Modify first element
+
+// Jagged lists **not implemented**
+jagged[0][1] = 99             // Second element of first row
+len : i32 = len(jagged[2])    // Length of second row (6)
+```
+
+---
+
+## Semantic Rules
+
+### Type Checking
+
+1. **All variables must have explicit type declarations**
+   ```
+   x : i32 = 10       // OK
+   y = 10             // ERROR: missing type
+   ```
+
+2. **No implicit type conversions**
+   ```
+   a : i32 = 10
+   b : f32 = a        // ERROR: cannot assign i32 to f32
+   b : f32 = f32(a)   // OK: explicit conversion
+   ```
+
+3. **Binary operations require matching types**
+   ```
+   x : i32 = 10
+   y : f64 = 3.14
+   z = x + y          // ERROR: type mismatch
+   z = f64(x) + y     // OK
+   ```
+
+4. **Generic type arguments must be concrete**
+   ```
+   Box<T> :: artifact { value : T }
+   b : Box<T> = { }   // ERROR: T is not in scope
+   b : Box<i32> = { 1 }  // OK
+   ```
+
+### Mutability Rules
+
+1. **Immutable variables cannot be reassigned**
+   ```
+   x :: i32 = 10
+   x = 20             // ERROR: cannot reassign immutable variable
+   ```
+
+2. **Immutable artifact members cannot be modified**
+   ```
+   Point :: artifact {
+       x :: f32
+   }
+   p : Point = { 10.0 }
+   p.x = 20.0         // ERROR: x is immutable
+   ```
+
+3. **Immutable parameters cannot be modified**
+   ```
+   process : void (value :: i32) {
+       value = value + 1    // ERROR: value is immutable
+   }
+   ```
+
+4. **Return type mutability affects returned values**
+   ```
+   get_point :: Point () {
+       return { 1.0, 2.0 }
+   }
+   
+   p : Point = get_point()
+   // Compiler may enforce immutability constraints based on return type
+   ```
+
+### Scoping Rules
+
+1. **Block scope**: Variables declared in a block are only visible within that block
+2. **Shadowing allowed**: Inner scope variables can shadow outer scope variables
+3. **enum and union scoping**: enum values (and union values once implemented) must always be qualified with their type name
+   ```
+   Status.Active      // OK
+   Active             // ERROR: unqualified enum value
+   ```
+
+### Procedure Rules
+
+1. **All procedures must have explicit return types**
+   ```
+   foo () { }         // ERROR: missing return type
+   foo : void () { }  // OK
+   ```
+
+2. **All parameters must have explicit types**
+   ```
+   add (a, b) { }           // ERROR: missing types
+   add : i32 (a : i32, b : i32) { }  // OK
+   ```
+
+3. **Procedures returning non-void must have return statement**
+   ```
+   get_value : i32 () {
+       // ERROR: missing return
+   }
+   
+   get_value : i32 () {
+       return 42          // OK
+   }
+   ```
+
+4. **Generic procedures are instantiated at use sites**
+   ```
+   identity<T> : T (value : T) { return value }
+   x : i32 = identity<i32>(10)    // OK
+   y : i32 = identity(10)         // OK if type can be inferred
+   z : i32 = identity()           // ERROR: cannot infer T
+   ```
+
+### artifact Rules
+
+1. **Members are zero-initialized if not given a value**
+   ```
+   Point :: artifact {
+       x : f32           // Automatically 0.0
+       y : f32 = 10.0    // Explicitly 10.0
+   }
+   
+   p : Point = { }  // x = 0.0, y = 10.0
+   ```
+
+2. **Instantiation uses brace syntax with positional or named values**
+   ```
+   Point :: artifact {
+       x : f32
+       y : f32
+   }
+   
+   // Positional
+   p : Point = { 10.0, 20.0 }  // x=10.0, y=20.0
+   
+   // Named
+   p2 : Point = { .x = 10.0, .y = 20.0 }
+   
+   // Mixed (positional must come first)
+   p3 : Point = { 10.0, .y = 20.0 }
+   ```
+
+3. **Within methods, use `self` to access members and call other methods**
+   ```
+   Point :: artifact {
+       x : f32
+       
+       get_x :: f32 () {
+           return self.x      // OK
+           return x           // ERROR: undefined identifier
+       }
+       
+       move : void (dx : f32) {
+           self.x = self.x + dx  // Access member
+           self.normalize()       // Call other method
+       }
+   }
+   ```
+
+### Generic Rules
+
+1. **Type parameters are scoped to their declaration**
+   ```
+   Box<T> :: artifact { value : T }
+   use_box : void () {
+       x : T = 1       // ERROR: T not in scope
+   }
+   ```
+
+2. **Generic types must be fully instantiated in variable declarations**
+   ```
+   b : Box = { }       // ERROR: missing type arguments
+   b : Box<i32> = { 1 }  // OK
+   ```
+
+3. **Generic procedure calls may infer type arguments**
+   ```
+   identity<T> : T (value : T) { return value }
+   a : i32 = identity(10)          // OK, T inferred as i32
+   b : string = identity("hi")     // OK, T inferred as string
+   ```
+
+4. **First-class `fn` values are always fully concrete**
+   ```
+   identity<T> : T (value : T) { return value }
+   f : fn : i32 = (v : i32) { return identity<i32>(v) }  // OK
+   ```
+
+5. **Generics are invariant**
+   ```
+   Box<T> :: artifact { value : T }
+   b1 : Box<string> = { "hi" }
+   b2 : Box<object> = b1    // ERROR: invariant type parameters
+   ```
+
+---
+
+## CLR Mapping
+
+### Type Mapping
+
+| Simple Type | CLR Type |
+|-------------|----------|
+| `i8` | `System.SByte` |
+| `i16` | `System.Int16` |
+| `i32` | `System.Int32` |
+| `i64` | `System.Int64` |
+| `i128` | `System.Int128` (.NET 7+) |
+| `u8` | `System.Byte` |
+| `u16` | `System.UInt16` |
+| `u32` | `System.UInt32` |
+| `u64` | `System.UInt64` |
+| `u128` | `System.UInt128` (.NET 7+) |
+| `f32` | `System.Single` |
+| `f64` | `System.Double` |
+| `bool` | `System.Boolean` |
+| `char` | `System.Char` |
+| `string` | `System.String` |
+| `T[N]` | `T[]` (fixed 1D array) |
+| `T[N][M]` | `T[,]` (fixed rectangular 2D array) |
+| `T[N][M][P]` | `T[,,]` (fixed rectangular 3D array) |
+| `T[]` | `System.Collections.Generic.List<T>` |
+| `T[][]` | `System.Collections.Generic.List<List<T>>` (jagged) |
+| `T[][][]` | `System.Collections.Generic.List<List<List<T>>>` (jagged) |
+| `Box<T>` | `Box<T>` (generic CLR type) |
+| `Map<K, V>` | `Map<K, V>` (generic CLR type) |
+
+### Structure Mapping
+
+#### Global Variables
+```
+// Simple
+count : i32 = 0
+
+// CIL: Static field in generated Program class
+.class public Program {
+    .field public static int32 count
+}
+```
+
+#### Global Procedures
+```
+// Simple
+add : i32 (a : i32, b : i32) {
+    return a + b
+}
+
+// CIL: Static method
+.method public static int32 add(int32 a, int32 b) {
+    ldarg.0
+    ldarg.1
+    add
+    ret
+}
+```
+
+#### artifacts
+```
+// Simple
+Point :: artifact {
+    x : f32
+    y : f32
+}
+
+// CIL: Value type (struct)
+.class public sequential sealed Point extends System.ValueType {
+    .field public float32 x
+    .field public float32 y
+    
+    .method public instance void .ctor(float32, float32) { }
+}
+```
+
+#### modules
+```
+// Simple
+Math :: module {
+    abs :: i32 (x : i32) { ... }
+}
+
+// CIL: Static class
+.class public sealed abstract Math {
+    .method public static int32 abs(int32 x) { }
+}
+```
+
+#### enums
+```
+// Simple
+Status :: enum {
+    Pending = 1,
+    Active = 2
+}
+
+// CIL: enum
+.class public sealed Status extends System.enum {
+    .field public static literal valuetype Status Pending = int32(1)
+    .field public static literal valuetype Status Active = int32(2)
+}
+```
+
+### Mutability Mapping
+
+| Simple | CLR Implementation |
+|--------|-------------------|
+| `x :: T = value` | `readonly` field |
+| `x : T = value` | Regular field |
+| `param :: T` | Regular parameter (tracked by compiler) |
+| `param : T` | Regular parameter |
+| Return `:: T` | Return value (immutability enforced by compiler) |
+| Return `: T` | Return value |
+
+**Note:** CLR has limited native immutability support. The compiler enforces most immutability rules during compilation.
+
+### First-Class Procedures
+
+```
+// Simple
+func : fn : i32 = (a : i32, b : i32) { return a + b }
+
+// CIL: Delegate instance
+.class public Func extends System.MulticastDelegate {
+    .method public instance int32 Invoke(int32, int32) { }
+}
+
+// Field holding delegate
+.field public static class Func func
+```
+
+### Generics Mapping
+
+Generic artifacts and procedures map directly to CLR generics.
+
+```
+// Simple
+Box<T> :: artifact {
+    value : T
+}
+
+identity<T> : T (value : T) {
+    return value
+}
+
+// CIL (conceptual)
+.class public sequential sealed Box`1<T> extends System.ValueType {
+    .field public !0 value
+}
+
+.method public static !0 identity<T>(!0 value) {
+    ldarg.0
+    ret
+}
+```
+
+---
+
+## Compiler Architecture
+
+### Pipeline Overview
+
+```
+Source Code (.simple)
+    ↓
+┌─────────────┐
+│   Lexer     │ → Tokens
+└─────────────┘
+    ↓
+┌─────────────┐
+│   Parser    │ → Abstract Syntax Tree (AST)
+└─────────────┘
+    ↓
+┌─────────────┐
+│   Semantic  │ → Annotated AST
+│   Analyzer  │   (Type checking, scope resolution)
+└─────────────┘
+    ↓
+┌─────────────┐
+│   Code      │ → CIL Bytecode
+│  Generator  │
+└─────────────┘
+    ↓
+┌─────────────┐
+│  Assembly   │ → .exe or .dll
+│   Emitter   │
+└─────────────┘
+```
+
+### Phase 1: Lexical Analysis
+
+**Input:** Source code string  
+**Output:** Stream of tokens
+
+**Responsibilities:**
+- Tokenize source code
+- Recognize keywords, identifiers, operators, literals
+- Track line/column positions for error reporting
+- Handle comments (discard)
+
+**Token Types:**
+```
+IDENTIFIER, KEYWORD, OPERATOR, LITERAL, 
+COLON, DOUBLE_COLON, LBRACE, RBRACE, 
+LPAREN, RPAREN, LBRACKET, RBRACKET,
+COMMA, SEMICOLON, PIPE_ARROW, EOF
+```
+
+### Phase 2: Syntax Analysis (Parsing)
+
+**Input:** Token stream  
+**Output:** Abstract Syntax Tree (AST)
+
+**Responsibilities:**
+- Build AST from tokens
+- Enforce grammar rules
+- Report syntax errors
+- Handle operator precedence
+
+**AST Node Types:**
+```
+Program
+Declaration (Variable, Procedure, artifact, module, enum)
+Statement (Assignment, If, IfElseChain, While, Return, Break, Skip)
+Expression (Binary, Unary, Call, Index, Member, Literal, Identifier)
+Type (Primitive, Array, List, Procedure, UserDefined, GenericInstance, TypeParameter)
+```
+
+**Parser Strategy:** Recursive descent parser with operator precedence climbing
+
+### Phase 3: Semantic Analysis
+
+**Input:** AST  
+**Output:** Annotated AST with type information
+
+**Responsibilities:**
+- Build symbol table
+- Resolve identifiers
+- Type checking
+- Mutability checking
+- Flow analysis (return paths, unreachable code)
+- Validate enum scoping
+
+**Symbol Table:**
+```
+Scope {
+    parent: Scope?
+    symbols: Map<string, Symbol>
+}
+
+Symbol {
+    name: string
+    type: Type
+    mutable: bool
+    kind: Variable | Procedure | artifact | module | enum | TypeParameter
+}
+```
+
+### Phase 4: Code Generation
+
+**Input:** Annotated AST  
+**Output:** CIL bytecode
+
+**Responsibilities:**
+- Generate CIL instructions
+- Emit type definitions
+- Emit method bodies
+- Handle stack-based evaluation
+- Optimize basic blocks
+
+**Generation Strategy:**
+- Use `System.Reflection.Emit` API
+- Create `AssemblyBuilder`, `moduleBuilder`, `TypeBuilder`
+- Emit IL instructions using `ILGenerator`
+
+**Stack Machine Code Generation:**
+
+For expression: `a + b * c`
+
+1. Parse to AST: `Add(a, Mul(b, c))`
+2. Post-order traversal:
+   - Load `b`
+   - Load `c`
+   - Multiply
+   - Load `a`
+   - Add
+
+**CIL:**
+```
+ldloc.1    // Load b
+ldloc.2    // Load c
+mul
+ldloc.0    // Load a
+add
+```
+
+### Phase 5: Assembly Emission
+
+**Input:** CIL bytecode  
+**Output:** .NET assembly (.exe or .dll)
+
+**Responsibilities:**
+- Write assembly to disk
+- Set entry point (Main method)
+- Configure assembly metadata
+- Embed resources (if any)
+
+**Entry Point Generation:**
+
+Simple requires a top-level procedure to serve as entry point. By convention, `main : i32 () { }`:
+
+```
+main : i32 () {
+    print("Hello, World!")
+    return 0
+}
+```
+
+Compiled to:
+```
+.method public static int32 Main() cil managed {
+    .entrypoint
+    .maxstack 8
+    ldstr "Hello, World!"
+    call void [System.Console]System.Console::WriteLine(string)
+    ldc.i4.0
+    ret
+}
+```
+
+### Error Handling
+
+**Error Types:**
+1. **Lexical Errors:** Invalid characters, unterminated strings
+2. **Syntax Errors:** Unexpected tokens, missing delimiters
+3. **Semantic Errors:** Type mismatches, undefined identifiers, mutability violations
+4. **Code Generation Errors:** Invalid IL sequences
+
+**Error Reporting Format:**
+```
+error[E0001]: type mismatch
+  --> file.simple:10:5
+   |
+10 |     x : i32 = 3.14
+   |               ^^^^ expected i32, found f64
+```
+
+### Optimization Opportunities
+
+**Phase 1 - AST Level:**
+- Constant folding
+- Dead code elimination
+- Common subexpression elimination
+
+**Phase 2 - CIL Level:**
+- Peephole optimization
+- Register allocation simulation
+- Tail call optimization
+
+**Phase 3 - Defer to CLR:**
+- JIT compiler optimizations
+- Garbage collection
+- Native code generation
+
+---
+
+## Implementation Plan
+
+### Phase 1: Minimal Compiler (MVP)
+
+**Features:**
+- Variables (mutable and immutable)
+- Primitive types (i32, f64, bool, string)
+- Binary expressions (arithmetic, comparison)
+- Simple if statements
+- Procedure definitions and calls
+- Print statement (built-in)
+
+**Deliverable:** Hello World program
+
+```
+main : i32 () {
+    print("Hello, World!")
+    return 0
+}
+```
+
+### Phase 2: Control Flow
+
+**Features:**
+- If-else chains (`|>`)
+- While loops
+- For loops (traditional C-style)
+- Break and skip
+- Return statements
+
+**Deliverable:** FizzBuzz program
+
+### Phase 3: artifacts and Methods
+
+**Features:**
+- artifact definitions
+- artifact instantiation
+- Member access
+- Method calls
+
+**Deliverable:** Point/Rectangle example
+
+### Phase 4: Advanced Features
+
+**Features:**
+- modules
+- enums
+- Arrays and lists
+- First-class procedures
+- Generics
+
+**Deliverable:** Full language support
+
+### Phase 5: Optimization and Tooling
+
+**Features:**
+- Error recovery in parser
+- Better error messages
+- Basic optimizations
+- Standard library
+- Language server protocol (LSP)
+- Debugger support
+
+---
+
+## Detailed Implementation Plan (Implementation Document)
+
+This plan follows the language specification and compiler architecture in this document. Each checklist item should be completed and verified before advancing to the next dependent item.
+
+### Compiler Pipeline Checklists
+
+#### 1) Lexer (Tokenization)
+- [ ] Recognize all keywords: `while`, `for`, `break`, `skip`, `return`, `default`, `Fn`, `self`, `Artifact`, `Enum`, `Module`, `Union`
+- [ ] Recognize literals: integers (decimal/hex/binary), floats, strings, characters, booleans
+- [ ] Recognize operators and punctuators (including `::`, `|>`, `<`, `>`, `[]`, `()`, `{}`)
+- [ ] Emit distinct tokens for `:` vs `::`
+- [ ] Handle single-line and multi-line comments
+- [ ] Track line/column for diagnostics
+- [ ] Emit EOF token
+
+#### 2) Parser (Recursive Descent + Precedence Climbing)
+- [ ] Parse program structure: `declaration*`
+- [ ] Parse declarations: variables, procedures, artifacts, modules, enums
+- [ ] Parse parameter lists with mutability (`:` and `::`)
+- [ ] Parse types (primitive, arrays, lists, procedure types, user-defined)
+- [ ] Parse generic parameters and generic arguments (`<T>`, `<T, U>`, `Type<...>`)
+- [ ] Parse statements: assignment, if, if-else chain, while, for, return, break, skip, block
+- [ ] Parse expressions with precedence and associativity as specified
+- [ ] Parse artifact literals and array literals (positional + named fields)
+- [ ] Validate grammar error recovery (Phase 5)
+
+#### 3) AST Construction
+- [ ] Implement AST nodes for all declarations, statements, and expressions
+- [ ] Implement type nodes including `GenericInstance` and `TypeParameter`
+- [ ] Preserve source spans for diagnostics
+- [ ] Normalize operator precedence in AST (no ambiguity after parse)
+
+#### 4) Semantic Analysis
+- [ ] Build nested scopes and symbol table
+- [ ] Enforce explicit type declarations
+- [ ] Resolve identifiers and qualify enum values
+- [ ] Enforce mutability rules (`:` vs `::`)
+- [ ] Enforce type checking for expressions and assignments
+- [ ] Validate procedure rules (return types, return paths)
+- [ ] Validate artifact rules (member initialization, `self` access)
+- [ ] Validate generic rules (type parameter scope, instantiation, inference)
+- [ ] Validate array sizes as compile-time constants
+- [ ] Validate list and array indexing types
+
+#### 5) Code Generation (CIL)
+- [ ] Emit CLR types for primitives, arrays, lists, artifacts, modules, enums
+- [ ] Emit delegate types for `Fn` procedures
+- [ ] Emit generic artifacts and generic procedures as CLR generics
+- [ ] Emit fields for global variables
+- [ ] Emit methods for procedures and artifact methods
+- [ ] Emit control flow: if, if-else chain, while, for, break, skip
+- [ ] Emit expression evaluation (binary, unary, call, index, member)
+- [ ] Emit artifact initialization (positional and named)
+- [ ] Emit array and list literals
+- [ ] Emit return statements and default returns for `void`
+
+#### 6) Assembly Emission
+- [ ] Create assembly/module builders
+- [ ] Define entry point (`main : i32 ()`)
+- [ ] Write assembly to disk as `.exe` or `.dll`
+
+#### 7) Diagnostics and Errors
+- [ ] Uniform error format (`error[E0001]: ...`)
+- [ ] Report line/column and highlight ranges
+- [ ] Distinguish syntax vs semantic errors
+
+#### 8) CLI Commands
+- [ ] `simple build` emits `.exe` or `.dll`
+- [ ] `simple run` compiles + executes
+- [ ] `simple check` validates syntax only
+
+### Language Feature Checklists
+
+#### Variables and Mutability
+- [ ] Mutable variable declarations (`:`)
+- [ ] Immutable variable declarations (`::`)
+- [ ] Zero-initialization of unassigned variables
+
+#### Types
+- [ ] Primitive types (`i8..i128`, `u8..u128`, `f32`, `f64`, `bool`, `char`, `string`)
+- [ ] Fixed-size arrays (`T[N]`, `T[N][M]`, `T[N][M][P]`)
+- [ ] Dynamic lists (`T[]`, `T[][]`, `T[][][]`)
+- [ ] Procedure types (`(params) : return`, `(params) :: return`)
+- [ ] User-defined types: artifacts, modules, enums
+- [ ] Generics: type parameters, type arguments, generic instantiation
+
+#### Expressions
+- [ ] Literals (int, float, string, char, bool)
+- [ ] Identifiers and member access
+- [ ] Unary operators (prefix/postfix)
+- [ ] Binary operators (arithmetic, comparison, logical, bitwise)
+- [ ] Calls and argument lists
+- [ ] Index expressions
+- [ ] Artifact literals with positional and named fields
+- [ ] Array literals
+
+#### Statements
+- [ ] Variable declarations
+- [ ] Assignment statements and compound assignments
+- [ ] If statements
+- [ ] If-else chains (`|>`)
+- [ ] While loops
+- [ ] For loops
+- [ ] Return statements
+- [ ] Break and skip
+- [ ] Blocks and expression statements
+
+#### Procedures and First-Class `Fn`
+- [ ] Procedure declarations with mutable/immutable return types
+- [ ] Parameter mutability (`:` and `::`)
+- [ ] First-class procedure values (`Fn`) with correct type checking
+- [ ] Lambda expressions
+
+#### Artifacts
+- [ ] Artifact declarations (including generics)
+- [ ] Member declarations with mutability
+- [ ] Methods with `self` access
+- [ ] Instantiation with brace syntax
+
+#### Modules
+- [ ] Module declarations
+- [ ] Static member access
+
+#### Enums
+- [ ] Enum declarations (with optional explicit values)
+- [ ] Strict scoping (`Type.Member`)
+
+#### Generics
+- [ ] Generic artifacts
+- [ ] Generic procedures
+- [ ] Type argument inference at call sites
+- [ ] Invariance rules
+
+#### Standard Library
+- [ ] Built-ins: `print`, `println`
+- [ ] Conversions: `str(i32)`, `str(f64)`, `str(bool)`, `i32(string)`, `f64(string)`
+- [ ] `len<T>` for lists and `len` for strings
+- [ ] Standard modules: `IO`, `Math`, `String`
+
+### Phase Milestone Checklists
+
+#### Phase 1: Minimal Compiler (MVP)
+- [ ] Lexer supports primitives, literals, operators for MVP
+- [ ] Parser supports variable declarations, simple expressions, procedures
+- [ ] Semantic checks for explicit typing and returns
+- [ ] Codegen for variables, arithmetic, procedure calls, `print`
+- [ ] Hello World program compiles and runs
+
+#### Phase 2: Control Flow
+- [ ] Parser supports `|>`, `while`, `for`, `break`, `skip`
+- [ ] Codegen for branching and looping
+- [ ] FizzBuzz program compiles and runs
+
+#### Phase 3: Artifacts and Methods
+- [ ] Artifact declarations and members
+- [ ] Artifact instantiation and member access
+- [ ] Method calls with `self`
+- [ ] Point/Rectangle example compiles and runs
+
+#### Phase 4: Advanced Features
+- [ ] Modules and enums
+- [ ] Arrays and lists
+- [ ] First-class procedures (`Fn`)
+- [ ] Generics for artifacts and procedures
+- [ ] Full language support examples compile and run
+
+#### Phase 5: Optimization and Tooling
+- [ ] Error recovery in parser
+- [ ] Improved diagnostics
+- [ ] Optimization passes (AST and CIL)
+- [ ] Standard library modules wired to CLR
+- [ ] CLI tools stable
+- [ ] Optional LSP and debugger hooks
+
+## Standard Library
+
+### Built-in Procedures
+
+```
+print : void (value : string)
+println : void (value : string)
+
+str : string (value : i32)
+str : string (value : f64)
+str : string (value : bool)
+
+i32 : i32 (value : string)
+f64 : f64 (value : string)
+
+len<T> : i32 (arr : T[])       // Length of 1D list
+len<T> : i32 (arr : T[][])     // Length of outer dimension (number of rows)
+len : i32 (str : string)    // Length of string
+```
+
+### Standard modules
+
+```
+IO :: module {
+    read_file :: string (path : string)
+    write_file : void (path : string, content : string)
+}
+
+Math :: module {
+    abs :: f64 (x : f64)
+    sqrt :: f64 (x : f64)
+    pow :: f64 (base : f64, exp : f64)
+    sin :: f64 (x : f64)
+    cos :: f64 (x : f64)
+}
+
+String :: module {
+    concat :: string (a : string, b : string)
+    substring :: string (s : string, start : i32, length : i32)
+    to_upper :: string (s : string)
+    to_lower :: string (s : string)
+}
+```
+
+---
+
+## Example Programs
+
+### Hello World
+
+```
+main : i32 () {
+    println("Hello, World!")
+    return 0
+}
+```
+
+### FizzBuzz
+
+```
+main : i32 () {
+    for (i : i32 = 1; i <= 100; i++) {
+        |> i % 15 == 0 { println("FizzBuzz") }
+        |> i % 3 == 0 { println("Fizz") }
+        |> i % 5 == 0 { println("Buzz") }
+        |> default { println(str(i)) }
+    }
+    return 0
+}
+```
+
+### artifact Example
+
+```
+Point :: artifact {
+    x : f64
+    y : f64
+    
+    distance :: f64 () {
+        return Math.sqrt(self.x * self.x + self.y * self.y)
+    }
+    
+    move : void (dx : f64, dy : f64) {
+        self.x = self.x + dx
+        self.y = self.y + dy
+    }
+}
+
+main : i32 () {
+    p : Point = { 3.0, 4.0 }
+    println("Distance: " + str(p.distance()))
+    
+    p.move(1.0, 1.0)
+    println("New position: (" + str(p.x) + ", " + str(p.y) + ")")
+    
+    return 0
+}
+```
+
+### First-Class Procedures
+
+```
+apply : i32 (operation : fn : i32, a : i32, b : i32) {
+    return operation(a, b)
+}
+
+main : i32 () {
+    add : fn : i32 = (x : i32, y : i32) { return x + y }
+    multiply : fn : i32 = (x : i32, y : i32) { return x * y }
+    
+    sum : i32 = apply(add, 5, 3)
+    product : i32 = apply(multiply, 5, 3)
+    
+    println("Sum: " + str(sum))
+    println("Product: " + str(product))
+    
+    return 0
+}
+```
+
+### Generics
+
+```
+swap<T> : void (a : T, b : T) {
+    temp : T = a
+    a = b
+    b = temp
+}
+
+Box<T> :: artifact {
+    value : T
+    
+    get :: T () {
+        return self.value
+    }
+}
+
+main : i32 () {
+    i : i32 = 1
+    j : i32 = 2
+    swap<i32>(i, j)
+
+    box : Box<string> = { "hello" }
+    println(box.get())
+    return 0
+}
+```
+
+### module Example
+
+```
+Math :: module {
+    PI :: f64 = 3.14159265359
+    E :: f64 = 2.71828182846
+    
+    abs :: f64 (x : f64) {
+        |> x < 0.0 { return -x }
+        |> default { return x }
+    }
+    
+    max :: i32 (a : i32, b : i32) {
+        |> a > b { return a }
+        |> default { return b }
+    }
+}
+
+main : i32 () {
+    println("PI = " + str(Math.PI))
+    println("abs(-5.5) = " + str(Math.abs(-5.5)))
+    println("max(10, 20) = " + str(Math.max(10, 20)))
+    return 0
+}
+```
+
+---
+
+## Future Considerations
+
+### unions (Tagged unions)
+
+```
+Success<T> :: union {
+    Result : bool
+    Data : T
+}
+```
+
+The `:: union` declaration is a strictly scoped tagged union whose variants carry payloads, similar to an algebraic data type or `Result` type. We can refer to variants as `Success<bool>.Result` or `Success<string>.Data`, giving a natural way to express outcomes that include either metadata or typed data. unions are still planned, but no longer blocked by generics.
+
+### Pattern Matching
+
+```
+|> value is Point(x, y) { println("Point at " + str(x) + ", " + str(y)) }
+|> value is Status.Active { println("Active status") }
+|> default { println("Unknown") }
+```
+
+### modules/Packages
+
+```
+import Math
+import IO.File
+
+// Or
+using Math
+using IO.File
+```
+
+---
+
+## Appendix
+
+### Grammar Summary (EBNF)
+
+```ebnf
+program ::= declaration*
+
+declaration ::= variable_declaration
+              | procedure_declaration  
+              | artifact_declaration
+              | module_declaration
+              | enum_declaration
+
+variable_declaration ::= identifier (":" | "::") type "=" expression
+
+procedure_declaration ::= identifier generic_parameters? (":" | "::") type parameter_list block
+
+parameter_list ::= "(" (parameter ("," parameter)*)? ")"
+parameter ::= identifier (":" | "::") type
+
+artifact_declaration ::= identifier generic_parameters? "::" "artifact" "{" (member_declaration | method_declaration)* "}"
+member_declaration ::= identifier (":" | "::") type "=" expression
+method_declaration ::= identifier (":" | "::") type parameter_list block
+
+module_declaration ::= identifier "::" "module" "{" (procedure_declaration | variable_declaration)* "}"
+
+enum_declaration ::= identifier "::" "enum" "{" enum_member ("," enum_member)* ","? "}"
+enum_member ::= identifier ("=" integer_literal)?
+
+statement ::= variable_declaration
+            | identifier "=" expression
+            | expression block
+            | ("|>" expression block)+
+            | "while" expression block
+            | "for" "(" (variable_declaration | identifier "=" expression)? ";" expression? ";" (assignment_statement | expression)? ")" block
+            | "return" expression?
+            | "break"
+            | "skip"
+            | expression
+            | block
+
+block ::= "{" statement* "}"
+
+expression ::= literal
+             | identifier
+             | identifier generic_arguments
+             | expression binary_op expression
+             | unary_op expression
+             | expression "(" (expression ("," expression)*)? ")"
+             | expression "[" expression "]"
+             | expression "." identifier
+             | "{" (artifact_init_item ("," artifact_init_item)*)? "}"
+             | "[" (expression ("," expression)*)? "]"
+             | "(" expression ")"
+
+artifact_init_item ::= expression
+                     | "." identifier "=" expression
+
+type ::= primitive_type
+       | identifier generic_arguments?
+       | type "[" integer_literal "]"
+       | type "[" "]"
+       | "(" (type ("," type)*)? ")" (":" | "::") type
+
+generic_parameters ::= "<" identifier ("," identifier)* ">"
+generic_arguments ::= "<" type ("," type)* ">"
+```
+
+### Reserved Words
+
+```
+while, for, break, skip, return, default, fn, self,
+artifact, enum, module, union,
+true, false
+```
+
+### File Extension
+
+`.simple`
+
+### Compiler Invocation
+
+```bash
+# Compile to executable
+simple build program.simple -o program.exe
+
+# Compile to library
+simple build library.simple --lib -o library.dll
+
+# Run directly (compile + execute)
+simple run program.simple
+
+# Check syntax only
+simple check program.simple
+```
+
+---
+
+**End of Specification**
+
+**Version:** 1.0  
+**Last Updated:** 2026-01-29
