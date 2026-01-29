@@ -40,6 +40,8 @@
 - Added tests for ARRAY_LEN, LIST_LEN, and list overflow trapping.
 - Added basic type-stack verification and a bad-type verifier test.
 - Added CallCheck opcode and verifier/type-stack support for it.
+- Added merge-point type validation and a bad-merge verifier test.
+- Fixed verifier control-flow merge handling for non-fallthrough ops (JMP/RET/etc.).
 
 ## Notes
 - This log must record every VM-related change going forward.

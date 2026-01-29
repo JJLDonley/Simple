@@ -1,6 +1,7 @@
 #include "sbc_verifier.h"
 
 #include <cstdint>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "opcode.h"
@@ -76,6 +77,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
     enum class ValType { Unknown, I32, Bool, Ref };
     pc = func.code_offset;
     int stack_height = 0;
+    std::unordered_map<size_t, std::vector<ValType>> merge_types;
     std::vector<ValType> stack_types;
     std::vector<ValType> locals(local_count, ValType::Unknown);
     std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
@@ -97,14 +99,18 @@ VerifyResult VerifyModule(const SbcModule& module) {
       GetOpInfo(opcode, &info);
       size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
 
+      bool has_jump_target = false;
+      size_t jump_target = 0;
+      bool fall_through = true;
       if (opcode == static_cast<uint8_t>(OpCode::Jmp) ||
           opcode == static_cast<uint8_t>(OpCode::JmpTrue) ||
           opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
         int32_t offset = 0;
         if (!ReadI32(code, pc + 1, &offset)) return Fail("jump operand out of bounds");
-        size_t target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
-        if (target < func.code_offset || target > end) return Fail("jump target out of bounds");
-        if (boundaries.find(target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+        jump_target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
+        if (jump_target < func.code_offset || jump_target > end) return Fail("jump target out of bounds");
+        if (boundaries.find(jump_target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+        has_jump_target = true;
       }
 
       if (opcode == static_cast<uint8_t>(OpCode::Enter)) {
@@ -171,6 +177,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
       }
 
       switch (static_cast<OpCode>(opcode)) {
+        case OpCode::Jmp:
+          fall_through = false;
+          break;
         case OpCode::ConstI8:
         case OpCode::ConstI16:
         case OpCode::ConstI32:
@@ -447,7 +456,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CallCheck:
           if (call_depth != 0) return Fail("CALLCHECK not in root");
           break;
+        case OpCode::Halt:
+        case OpCode::Trap:
+        case OpCode::TailCall:
         case OpCode::Ret:
+          fall_through = false;
           break;
         default:
           for (int i = 0; i < info.pops; ++i) pop_type();
@@ -460,6 +473,41 @@ VerifyResult VerifyModule(const SbcModule& module) {
         stack_height -= info.pops;
       }
       stack_height += info.pushes;
+      if (has_jump_target) {
+        auto it = merge_types.find(jump_target);
+        if (it == merge_types.end()) {
+          merge_types[jump_target] = stack_types;
+        } else {
+          if (it->second.size() != stack_types.size()) return Fail("stack merge height mismatch");
+          for (size_t i = 0; i < it->second.size(); ++i) {
+            if (it->second[i] == ValType::Unknown) it->second[i] = stack_types[i];
+            else if (stack_types[i] != ValType::Unknown && it->second[i] != stack_types[i]) {
+              return Fail("stack merge type mismatch");
+            }
+          }
+        }
+      }
+
+      if (fall_through) {
+        auto merge_it = merge_types.find(next);
+        if (merge_it != merge_types.end()) {
+          if (merge_it->second.size() != stack_types.size()) return Fail("stack merge height mismatch");
+          for (size_t i = 0; i < stack_types.size(); ++i) {
+            if (stack_types[i] == ValType::Unknown) stack_types[i] = merge_it->second[i];
+            else if (merge_it->second[i] != ValType::Unknown && merge_it->second[i] != stack_types[i]) {
+              return Fail("stack merge type mismatch");
+            }
+          }
+        }
+      } else {
+        auto merge_it = merge_types.find(next);
+        if (merge_it != merge_types.end()) {
+          stack_types = merge_it->second;
+        } else {
+          stack_types.clear();
+        }
+        stack_height = static_cast<int>(stack_types.size());
+      }
       pc = next;
     }
   }
