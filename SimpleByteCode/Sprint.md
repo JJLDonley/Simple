@@ -37,6 +37,7 @@
 - Added verifier checks for object/field/string indices and a negative field-id verify test.
 - Added verifier coverage for bad CONST_STRING indices.
 - Added negative runtime tests for array bounds and list pop underflow.
+- Added tests for ARRAY_LEN, LIST_LEN, and list overflow trapping.
 
 ## Notes
 - This log must record every VM-related change going forward.

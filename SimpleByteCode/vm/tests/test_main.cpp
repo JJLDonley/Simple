@@ -502,6 +502,19 @@ std::vector<uint8_t> BuildArrayModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildArrayLenModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildListModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -540,6 +553,42 @@ std::vector<uint8_t> BuildListModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildListLenModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildListOverflowModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildStringModule() {
@@ -1087,6 +1136,31 @@ bool RunArrayTest() {
   return true;
 }
 
+bool RunArrayLenTest() {
+  std::vector<uint8_t> module_bytes = BuildArrayLenModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 4) {
+    std::cerr << "expected 4, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunListTest() {
   std::vector<uint8_t> module_bytes = BuildListModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1106,6 +1180,31 @@ bool RunListTest() {
   }
   if (exec.exit_code != 11) {
     std::cerr << "expected 11, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunListLenTest() {
+  std::vector<uint8_t> module_bytes = BuildListLenModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
     return false;
   }
   return true;
@@ -1217,6 +1316,10 @@ bool RunBadArrayGetTrapTest() {
 bool RunBadListPopTrapTest() {
   return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
 }
+
+bool RunListOverflowTrapTest() {
+  return RunExpectTrap(BuildListOverflowModule(), "list_overflow");
+}
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1265,7 +1368,9 @@ int main() {
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
       {"array_i32", RunArrayTest},
+      {"array_len", RunArrayLenTest},
       {"list_i32", RunListTest},
+      {"list_len", RunListLenTest},
       {"string_ops", RunStringTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
@@ -1273,6 +1378,7 @@ int main() {
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
+      {"list_overflow", RunListOverflowTrapTest},
   };
 
   int failures = 0;
