@@ -370,6 +370,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::F64, static_cast<int64_t>(bits)});
         break;
       }
+      case OpCode::ConstI128:
+      case OpCode::ConstU128: {
+        uint32_t const_id = ReadU32(module.code, pc);
+        if (const_id + 8 > module.const_pool.size()) return Trap("CONST_I128/U128 out of bounds");
+        uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+        uint32_t want = (opcode == static_cast<uint8_t>(OpCode::ConstI128)) ? 1u : 2u;
+        if (kind != want) return Trap("CONST_I128/U128 wrong const kind");
+        uint32_t blob_offset = ReadU32Payload(module.const_pool, const_id + 4);
+        if (blob_offset + 4 > module.const_pool.size()) return Trap("CONST_I128/U128 bad blob offset");
+        uint32_t blob_len = ReadU32Payload(module.const_pool, blob_offset);
+        if (blob_len < 16) return Trap("CONST_I128/U128 blob too small");
+        if (blob_offset + 4 + blob_len > module.const_pool.size()) return Trap("CONST_I128/U128 blob out of bounds");
+        Push(stack, Value{ValueKind::Ref, -1});
+        break;
+      }
       case OpCode::ConstChar: {
         uint16_t value = ReadU16(module.code, pc);
         Push(stack, Value{ValueKind::I32, value});

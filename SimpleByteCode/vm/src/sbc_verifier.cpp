@@ -195,6 +195,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstU64:
           push_type(ValType::I64);
           break;
+        case OpCode::ConstI128:
+        case OpCode::ConstU128:
+          push_type(ValType::Ref);
+          break;
         case OpCode::ConstF32:
           push_type(ValType::F32);
           break;

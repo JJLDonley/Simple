@@ -60,6 +60,15 @@ void AppendConstString(std::vector<uint8_t>& pool, uint32_t str_offset, uint32_t
   *out_const_id = const_id;
 }
 
+void AppendConstBlob(std::vector<uint8_t>& pool, uint32_t kind, const std::vector<uint8_t>& blob, uint32_t* out_const_id) {
+  uint32_t const_id = static_cast<uint32_t>(pool.size());
+  AppendU32(pool, kind);
+  uint32_t blob_offset = static_cast<uint32_t>(pool.size() + 4);
+  AppendU32(pool, blob_offset);
+  AppendU32(pool, static_cast<uint32_t>(blob.size()));
+  pool.insert(pool.end(), blob.begin(), blob.end());
+  *out_const_id = const_id;
+}
 void WriteU8(std::vector<uint8_t>& out, size_t offset, uint8_t v) {
   out[offset] = v;
 }
@@ -1023,6 +1032,46 @@ std::vector<uint8_t> BuildConstF64Module() {
   AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildConstI128Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  std::vector<uint8_t> blob(16, 0x11);
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 1, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildConstU128Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  std::vector<uint8_t> blob(16, 0x22);
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 2, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
 std::vector<uint8_t> BuildI64ArithModule() {
@@ -2195,6 +2244,54 @@ bool RunConstF64Test() {
   return true;
 }
 
+bool RunConstI128Test() {
+  std::vector<uint8_t> module_bytes = BuildConstI128Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunConstU128Test() {
+  std::vector<uint8_t> module_bytes = BuildConstU128Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunI64ArithTest() {
   std::vector<uint8_t> module_bytes = BuildI64ArithModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2644,6 +2741,8 @@ int main() {
       {"const_u64", RunConstU64Test},
       {"const_f32", RunConstF32Test},
       {"const_f64", RunConstF64Test},
+      {"const_i128", RunConstI128Test},
+      {"const_u128", RunConstU128Test},
       {"i64_arith", RunI64ArithTest},
       {"i64_mod", RunI64ModTest},
       {"f32_arith", RunF32ArithTest},
