@@ -63,3 +63,4 @@
 - Added I32/I64 bitwise ops with tests, plus a return-ref verification test.
 - Added unsigned edge-case tests for U32/U64 div-by-zero and overflow wrap behavior.
 - Added negative tests for bitwise ops (verify failure and no-verify runtime trap).
+- Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
