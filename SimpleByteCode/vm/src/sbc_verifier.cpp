@@ -101,7 +101,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
     std::vector<ValType> locals(local_count, ValType::Unknown);
     std::vector<bool> locals_init(local_count, false);
     if (sig.param_count > local_count) return Fail("param count exceeds locals");
+    if (sig.param_count > 0 &&
+        sig.param_type_start + sig.param_count > module.param_types.size()) {
+      return Fail("signature param types out of range");
+    }
     for (uint16_t i = 0; i < sig.param_count && i < locals_init.size(); ++i) {
+      uint32_t type_id = module.param_types[sig.param_type_start + i];
+      ValType param_type = resolve_type(type_id);
+      if (param_type == ValType::Unknown) return Fail("unsupported param type");
+      locals[i] = param_type;
       locals_init[i] = true;
     }
     std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
@@ -118,6 +126,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
     };
     auto push_type = [&](ValType t) { stack_types.push_back(t); };
     auto check_type = [&](ValType got, ValType expected, const char* msg) -> VerifyResult {
+      if (expected == ValType::Unknown) return {true, ""};
       if (got != ValType::Unknown && got != expected) return Fail(msg);
       return {true, ""};
     };
@@ -736,30 +745,99 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (pc + 5 >= code.size()) return Fail("CALL arg count out of bounds");
           uint8_t arg_count = code[pc + 5];
           if (stack_types.size() < arg_count) return Fail("CALL stack underflow");
-          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
-          push_type(ValType::Unknown);
+          uint32_t func_id = 0;
+          if (!ReadU32(code, pc + 1, &func_id)) return Fail("CALL function id out of bounds");
+          if (func_id >= module.functions.size()) return Fail("CALL function id out of range");
+          uint32_t callee_method = module.functions[func_id].method_id;
+          if (callee_method >= module.methods.size()) return Fail("CALL method id out of range");
+          uint32_t sig_id = module.methods[callee_method].sig_id;
+          if (sig_id >= module.sigs.size()) return Fail("CALL signature id out of range");
+          const auto& call_sig = module.sigs[sig_id];
+          if (call_sig.param_count > 0 &&
+              call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
+            return Fail("CALL signature param types out of range");
+          }
+          for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
+            ValType got = pop_type();
+            ValType expected = ValType::Unknown;
+            if (call_sig.param_count > 0) {
+              uint32_t type_id = module.param_types[call_sig.param_type_start + static_cast<uint16_t>(i)];
+              expected = resolve_type(type_id);
+            }
+            VerifyResult r = check_type(got, expected, "CALL arg type mismatch");
+            if (!r.ok) return r;
+          }
+          if (call_sig.ret_type_id != 0xFFFFFFFFu) {
+            ValType ret_type = resolve_type(call_sig.ret_type_id);
+            push_type(ret_type);
+            extra_pushes = 1;
+          } else {
+            extra_pushes = 0;
+          }
           extra_pops = arg_count;
-          extra_pushes = 1;
           break;
         }
         case OpCode::CallIndirect: {
           if (pc + 5 >= code.size()) return Fail("CALL_INDIRECT arg count out of bounds");
           uint8_t arg_count = code[pc + 5];
           if (stack_types.size() < static_cast<size_t>(arg_count) + 1u) return Fail("CALL_INDIRECT stack underflow");
+          uint32_t sig_id = 0;
+          if (!ReadU32(code, pc + 1, &sig_id)) return Fail("CALL_INDIRECT sig id out of bounds");
+          if (sig_id >= module.sigs.size()) return Fail("CALL_INDIRECT signature id out of range");
+          const auto& call_sig = module.sigs[sig_id];
+          if (call_sig.param_count > 0 &&
+              call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
+            return Fail("CALL_INDIRECT signature param types out of range");
+          }
           ValType func_type = pop_type();
           VerifyResult r = check_type(func_type, ValType::I32, "CALL_INDIRECT func type mismatch");
           if (!r.ok) return r;
-          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
-          push_type(ValType::Unknown);
+          for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
+            ValType got = pop_type();
+            ValType expected = ValType::Unknown;
+            if (call_sig.param_count > 0) {
+              uint32_t type_id = module.param_types[call_sig.param_type_start + static_cast<uint16_t>(i)];
+              expected = resolve_type(type_id);
+            }
+            VerifyResult rarg = check_type(got, expected, "CALL_INDIRECT arg type mismatch");
+            if (!rarg.ok) return rarg;
+          }
+          if (call_sig.ret_type_id != 0xFFFFFFFFu) {
+            ValType ret_type = resolve_type(call_sig.ret_type_id);
+            push_type(ret_type);
+            extra_pushes = 1;
+          } else {
+            extra_pushes = 0;
+          }
           extra_pops = static_cast<int>(arg_count) + 1;
-          extra_pushes = 1;
           break;
         }
         case OpCode::TailCall: {
           if (pc + 5 >= code.size()) return Fail("TAILCALL arg count out of bounds");
           uint8_t arg_count = code[pc + 5];
           if (stack_types.size() < arg_count) return Fail("TAILCALL stack underflow");
-          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
+          uint32_t func_id = 0;
+          if (!ReadU32(code, pc + 1, &func_id)) return Fail("TAILCALL function id out of bounds");
+          if (func_id >= module.functions.size()) return Fail("TAILCALL function id out of range");
+          uint32_t callee_method = module.functions[func_id].method_id;
+          if (callee_method >= module.methods.size()) return Fail("TAILCALL method id out of range");
+          uint32_t sig_id = module.methods[callee_method].sig_id;
+          if (sig_id >= module.sigs.size()) return Fail("TAILCALL signature id out of range");
+          const auto& call_sig = module.sigs[sig_id];
+          if (call_sig.param_count > 0 &&
+              call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
+            return Fail("TAILCALL signature param types out of range");
+          }
+          for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
+            ValType got = pop_type();
+            ValType expected = ValType::Unknown;
+            if (call_sig.param_count > 0) {
+              uint32_t type_id = module.param_types[call_sig.param_type_start + static_cast<uint16_t>(i)];
+              expected = resolve_type(type_id);
+            }
+            VerifyResult r = check_type(got, expected, "TAILCALL arg type mismatch");
+            if (!r.ok) return r;
+          }
           extra_pops = arg_count;
           fall_through = false;
           break;

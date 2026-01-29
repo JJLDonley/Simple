@@ -191,7 +191,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
 
   if (sigs) {
     constexpr size_t kRowSize = 12;
-    if (sigs->count * kRowSize != sigs->size) return Fail("signature table size mismatch");
+    size_t sig_table_bytes = sigs->count * kRowSize;
+    if (sig_table_bytes > sigs->size) return Fail("signature table size mismatch");
     module.sigs.resize(sigs->count);
     for (uint32_t i = 0; i < sigs->count; ++i) {
       size_t off = sigs->offset + static_cast<size_t>(i) * kRowSize;
@@ -201,6 +202,20 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU16At(bytes, off + 6, &row.call_conv)) return Fail("sig row read failed");
       if (!ReadU32At(bytes, off + 8, &row.param_type_start)) return Fail("sig row read failed");
       module.sigs[i] = row;
+    }
+    size_t param_bytes = sigs->size - sig_table_bytes;
+    if (param_bytes > 0) {
+      if (param_bytes % 4 != 0) return Fail("signature param types misaligned");
+      size_t param_count = param_bytes / 4;
+      module.param_types.resize(param_count);
+      size_t param_off = sigs->offset + sig_table_bytes;
+      for (size_t i = 0; i < param_count; ++i) {
+        uint32_t type_id = 0;
+        if (!ReadU32At(bytes, param_off + i * 4, &type_id)) {
+          return Fail("signature param types read failed");
+        }
+        module.param_types[i] = type_id;
+      }
     }
   }
 
@@ -368,6 +383,19 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   for (size_t i = 0; i < module.sigs.size(); ++i) {
     const auto& row = module.sigs[i];
     if (row.call_conv > 1) return Fail("signature call_conv invalid");
+    if (row.param_type_start > module.param_types.size()) {
+      return Fail("signature param types out of range");
+    }
+    if (row.param_count > 0) {
+      if (module.param_types.empty()) return Fail("signature param types missing");
+      if (row.param_type_start + row.param_count > module.param_types.size()) {
+        return Fail("signature param types out of range");
+      }
+      for (uint16_t p = 0; p < row.param_count; ++p) {
+        uint32_t type_id = module.param_types[row.param_type_start + p];
+        if (type_id >= module.types.size()) return Fail("signature param type id out of range");
+      }
+    }
   }
   for (size_t i = 0; i < module.globals.size(); ++i) {
     const auto& row = module.globals[i];

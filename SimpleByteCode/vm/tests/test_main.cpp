@@ -109,12 +109,17 @@ struct SectionData {
   uint32_t offset = 0;
 };
 
-std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
-                                           const std::vector<uint8_t>& const_pool,
-                                           const std::vector<uint8_t>& types_bytes,
-                                           const std::vector<uint8_t>& fields_bytes,
-                                           uint32_t global_count,
-                                           uint16_t local_count) {
+std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& code,
+                                                 const std::vector<uint8_t>& const_pool,
+                                                 const std::vector<uint8_t>& types_bytes,
+                                                 const std::vector<uint8_t>& fields_bytes,
+                                                 uint32_t global_count,
+                                                 uint16_t local_count,
+                                                 uint32_t ret_type_id,
+                                                 uint16_t param_count,
+                                                 uint16_t call_conv,
+                                                 uint32_t param_type_start,
+                                                 const std::vector<uint32_t>& param_types) {
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
     AppendU32(types, 0);       // name_str
@@ -136,10 +141,19 @@ std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
   AppendU16(methods, 0);     // flags
 
   std::vector<uint8_t> sigs;
-  AppendU32(sigs, 0);        // ret_type_id
-  AppendU16(sigs, 0);        // param_count
-  AppendU16(sigs, 0);        // call_conv
-  AppendU32(sigs, 0);        // param_type_start
+  AppendU32(sigs, ret_type_id);
+  AppendU16(sigs, param_count);
+  AppendU16(sigs, call_conv);
+  AppendU32(sigs, param_type_start);
+  if (!param_types.empty() || param_type_start > 0) {
+    std::vector<uint32_t> packed = param_types;
+    if (param_type_start > 0) {
+      packed.insert(packed.begin(), param_type_start, 0);
+    }
+    for (uint32_t type_id : packed) {
+      AppendU32(sigs, type_id);
+    }
+  }
 
   std::vector<uint8_t> globals;
   for (uint32_t i = 0; i < global_count; ++i) {
@@ -204,6 +218,17 @@ std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
   }
 
   return module;
+}
+
+std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
+                                           const std::vector<uint8_t>& const_pool,
+                                           const std::vector<uint8_t>& types_bytes,
+                                           const std::vector<uint8_t>& fields_bytes,
+                                           uint32_t global_count,
+                                           uint16_t local_count) {
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, types_bytes, fields_bytes, global_count, local_count,
+                                     0, 0, 0, 0, empty_params);
 }
 
 std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t global_count, uint16_t local_count) {
@@ -302,20 +327,14 @@ std::vector<uint8_t> BuildModuleWithSigParamCount(const std::vector<uint8_t>& co
                                                   uint32_t global_count,
                                                   uint16_t local_count,
                                                   uint16_t param_count) {
-  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
-  uint32_t section_count = ReadU32At(module, 0x08);
-  uint32_t section_table_offset = ReadU32At(module, 0x0C);
-  for (uint32_t i = 0; i < section_count; ++i) {
-    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
-    uint32_t id = ReadU32At(module, off + 0);
-    if (id != 4) continue;
-    uint32_t sig_offset = ReadU32At(module, off + 4);
-    if (sig_offset + 6 <= module.size()) {
-      WriteU16(module, sig_offset + 4, param_count);
-    }
-    break;
-  }
-  return module;
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint8_t> empty;
+  std::vector<uint32_t> param_types(static_cast<size_t>(param_count), 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, empty, empty, global_count, local_count,
+                                     0, param_count, 0, 0, param_types);
 }
 
 std::vector<uint8_t> BuildModuleWithSigCallConv(const std::vector<uint8_t>& code,
@@ -425,6 +444,110 @@ std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint
   AppendU16(sigs, 0);        // param_count
   AppendU16(sigs, 0);        // call_conv
   AppendU32(sigs, 0);        // param_type_start
+
+  std::vector<uint8_t> methods;
+  std::vector<uint8_t> functions;
+  std::vector<uint8_t> code;
+  size_t offset = 0;
+  for (size_t i = 0; i < funcs.size(); ++i) {
+    uint16_t locals = 0;
+    if (i < local_counts.size()) locals = local_counts[i];
+    AppendU32(methods, 0);                                   // name_str
+    AppendU32(methods, 0);                                   // sig_id
+    AppendU32(methods, static_cast<uint32_t>(offset));       // code_offset
+    AppendU16(methods, locals);                              // local_count
+    AppendU16(methods, 0);                                   // flags
+
+    AppendU32(functions, static_cast<uint32_t>(i));          // method_id
+    AppendU32(functions, static_cast<uint32_t>(offset));     // code_offset
+    AppendU32(functions, static_cast<uint32_t>(funcs[i].size()));
+    AppendU32(functions, 8);                                 // stack_max
+
+    code.insert(code.end(), funcs[i].begin(), funcs[i].end());
+    offset += funcs[i].size();
+  }
+
+  std::vector<uint8_t> globals;
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
+  sections.push_back({3, methods, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({4, sigs, 1, 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, globals, 0, 0});
+  sections.push_back({7, functions, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({8, code, 0, 0});
+
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Align4(header_size + table_size);
+  for (auto& sec : sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+
+  WriteU32(module, 0x00, 0x30434253u); // magic
+  WriteU16(module, 0x04, 0x0001u);     // version
+  WriteU8(module, 0x06, 1);            // endian
+  WriteU8(module, 0x07, 0);            // flags
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, 0);           // entry_method_id
+  WriteU32(module, 0x14, 0);           // reserved0
+  WriteU32(module, 0x18, 0);           // reserved1
+  WriteU32(module, 0x1C, 0);           // reserved2
+
+  size_t table_off = header_size;
+  for (const auto& sec : sections) {
+    size_t off = table_off;
+    WriteU32(module, off + 0, sec.id);
+    WriteU32(module, off + 4, sec.offset);
+    const uint32_t size = static_cast<uint32_t>(sec.bytes.size());
+    WriteU32(module, off + 8, size);
+    WriteU32(module, off + 12, sec.count);
+    table_off += 16;
+  }
+
+  for (const auto& sec : sections) {
+    if (sec.bytes.empty()) continue;
+    std::memcpy(module.data() + sec.offset, sec.bytes.data(), sec.bytes.size());
+  }
+
+  return module;
+}
+
+std::vector<uint8_t> BuildModuleWithFunctionsAndSig(const std::vector<std::vector<uint8_t>>& funcs,
+                                                    const std::vector<uint16_t>& local_counts,
+                                                    uint32_t ret_type_id,
+                                                    uint16_t param_count,
+                                                    const std::vector<uint32_t>& param_types) {
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);       // name_str
+  AppendU8(types, 0);        // kind
+  AppendU8(types, 0);        // flags
+  AppendU16(types, 0);       // reserved
+  AppendU32(types, 4);       // size
+  AppendU32(types, 0);       // field_start
+  AppendU32(types, 0);       // field_count
+
+  std::vector<uint8_t> fields;
+
+  std::vector<uint8_t> sigs;
+  AppendU32(sigs, ret_type_id);
+  AppendU16(sigs, param_count);
+  AppendU16(sigs, 0);        // call_conv
+  AppendU32(sigs, 0);        // param_type_start
+  for (uint32_t type_id : param_types) {
+    AppendU32(sigs, type_id);
+  }
 
   std::vector<uint8_t> methods;
   std::vector<uint8_t> functions;
@@ -2714,6 +2837,29 @@ std::vector<uint8_t> BuildBadCallVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadCallParamTypeVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
 std::vector<uint8_t> BuildBadTailCallVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4894,6 +5040,21 @@ bool RunBadCallVerifyTest() {
   return true;
 }
 
+bool RunBadCallParamTypeVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadCallParamTypeVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadTailCallVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadTailCallVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5235,6 +5396,7 @@ int main() {
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},
+      {"bad_call_param_type_verify", RunBadCallParamTypeVerifyTest},
       {"bad_tailcall_verify", RunBadTailCallVerifyTest},
       {"bad_return_verify", RunBadReturnVerifyTest},
       {"bad_conv_verify", RunBadConvVerifyTest},
