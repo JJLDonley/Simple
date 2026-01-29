@@ -74,3 +74,7 @@
 - Allowed jump targets at function end boundary in verifier.
 - Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
 - Added verifier negative test for signature param_count exceeding local_count.
+
+- Added verifier tracking for uninitialized globals with a negative test.
+
+- Updated bad_call_indirect_type test to use initialized global under new verifier rule.

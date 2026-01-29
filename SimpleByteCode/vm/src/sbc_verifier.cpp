@@ -105,6 +105,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
       locals_init[i] = true;
     }
     std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
+    std::vector<bool> globals_init(module.globals.size(), false);
+    for (size_t i = 0; i < module.globals.size(); ++i) {
+      if (module.globals[i].init_const_id != 0xFFFFFFFFu) globals_init[i] = true;
+    }
     int call_depth = 0;
     auto pop_type = [&]() -> ValType {
       if (stack_types.empty()) return ValType::Unknown;
@@ -266,7 +270,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::LoadGlobal: {
           uint32_t idx = 0;
           ReadU32(code, pc + 1, &idx);
-          if (idx < globals.size()) push_type(globals[idx]);
+          if (idx < globals.size()) {
+            if (!globals_init[idx]) return Fail("LOAD_GLOBAL uninitialized");
+            push_type(globals[idx]);
+          }
           else push_type(ValType::Unknown);
           break;
         }
@@ -279,6 +286,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
               return Fail("STORE_GLOBAL type mismatch");
             }
             globals[idx] = t;
+            globals_init[idx] = true;
           }
           break;
         }

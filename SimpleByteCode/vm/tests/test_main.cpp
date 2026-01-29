@@ -255,6 +255,26 @@ std::vector<uint8_t> BuildModuleWithSigParamCount(const std::vector<uint8_t>& co
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithGlobalInitConst(const std::vector<uint8_t>& code,
+                                                    uint32_t global_count,
+                                                    uint16_t local_count,
+                                                    uint32_t init_const_id) {
+  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 6) continue;
+    uint32_t globals_offset = ReadU32At(module, off + 4);
+    if (globals_offset + 16 <= module.size()) {
+      WriteU32(module, globals_offset + 12, init_const_id);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
                                               const std::vector<uint16_t>& local_counts) {
   std::vector<uint8_t> const_pool;
@@ -1979,6 +1999,17 @@ std::vector<uint8_t> BuildBadJumpOobModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadGlobalUninitModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 1, 0);
+}
+
 std::vector<uint8_t> BuildBadParamLocalsModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2115,7 +2146,7 @@ std::vector<uint8_t> BuildBadCallIndirectTypeModule() {
   AppendU32(code, 0);
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-  return BuildModule(code, 1, 0);
+  return BuildModuleWithGlobalInitConst(code, 1, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadCallVerifyModule() {
@@ -3851,6 +3882,21 @@ bool RunBadJumpOobVerifyTest() {
   return true;
 }
 
+bool RunBadGlobalUninitVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadGlobalUninitModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadParamLocalsVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4296,6 +4342,7 @@ int main() {
       {"bad_local_uninit_verify", RunBadLocalUninitVerifyTest},
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
+      {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
