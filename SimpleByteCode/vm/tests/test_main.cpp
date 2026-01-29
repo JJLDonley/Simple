@@ -255,6 +255,46 @@ std::vector<uint8_t> BuildModuleWithSigParamCount(const std::vector<uint8_t>& co
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithSigCallConv(const std::vector<uint8_t>& code,
+                                                uint32_t global_count,
+                                                uint16_t local_count,
+                                                uint16_t call_conv) {
+  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 4) continue;
+    uint32_t sig_offset = ReadU32At(module, off + 4);
+    if (sig_offset + 8 <= module.size()) {
+      WriteU16(module, sig_offset + 6, call_conv);
+    }
+    break;
+  }
+  return module;
+}
+
+std::vector<uint8_t> BuildModuleWithMethodFlags(const std::vector<uint8_t>& code,
+                                                uint32_t global_count,
+                                                uint16_t local_count,
+                                                uint16_t flags) {
+  std::vector<uint8_t> module = BuildModule(code, global_count, local_count);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 3) continue;
+    uint32_t methods_offset = ReadU32At(module, off + 4);
+    if (methods_offset + 12 <= module.size()) {
+      WriteU16(module, methods_offset + 10, flags);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildModuleWithGlobalInitConst(const std::vector<uint8_t>& code,
                                                     uint32_t global_count,
                                                     uint16_t local_count,
@@ -2302,6 +2342,24 @@ std::vector<uint8_t> BuildBadParamLocalsModule() {
   AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModuleWithSigParamCount(code, 0, 0, 1);
+}
+
+std::vector<uint8_t> BuildBadSigCallConvLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithSigCallConv(code, 0, 0, 2);
+}
+
+std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithMethodFlags(code, 0, 0, 0x10);
 }
 
 std::vector<uint8_t> BuildJumpToEndModule() {
@@ -4368,6 +4426,26 @@ bool RunBadParamLocalsVerifyTest() {
   return true;
 }
 
+bool RunBadSigCallConvLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadSigCallConvLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadMethodFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJumpToEndTest() {
   std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4811,6 +4889,8 @@ int main() {
       {"bad_global_init_type_runtime", RunBadGlobalInitTypeRuntimeTest},
       {"good_string_const_load", RunGoodStringConstLoadTest},
       {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
+      {"bad_sig_callconv_load", RunBadSigCallConvLoadTest},
+      {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},

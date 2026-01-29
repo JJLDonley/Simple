@@ -315,6 +315,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     const auto& row = module.methods[i];
     if (row.sig_id >= module.sigs.size()) return Fail("method signature out of range");
     if (code && row.code_offset >= module.code.size()) return Fail("method code offset out of range");
+    if ((row.flags & ~0x7u) != 0u) return Fail("method flags invalid");
   }
   for (size_t i = 0; i < module.functions.size(); ++i) {
     const auto& row = module.functions[i];
@@ -324,6 +325,10 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   for (size_t i = 0; i < module.fields.size(); ++i) {
     const auto& row = module.fields[i];
     if (row.type_id >= module.types.size()) return Fail("field type id out of range");
+  }
+  for (size_t i = 0; i < module.sigs.size(); ++i) {
+    const auto& row = module.sigs[i];
+    if (row.call_conv > 1) return Fail("signature call_conv invalid");
   }
   for (size_t i = 0; i < module.globals.size(); ++i) {
     const auto& row = module.globals[i];
