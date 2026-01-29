@@ -43,7 +43,7 @@ internal static class Program
         var lexer = new Lexer(text);
         var tokens = lexer.Lex().Where(t => t.Kind != TokenKind.EndOfFile).ToArray();
 
-        Assert.Equal(13, tokens.Length, "Expected 13 tokens.");
+        Assert.Equal(14, tokens.Length, "Expected 14 tokens.");
         Assert.Equal(TokenKind.WhileKeyword, tokens[0].Kind, "Expected while keyword.");
         Assert.Equal(TokenKind.FalseKeyword, tokens[^1].Kind, "Expected false keyword.");
     }

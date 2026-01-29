@@ -44,3 +44,6 @@
 ### Step 10 - 2026-01-29
 - Added `/compiler/NuGet.Config` to avoid external package sources for local builds.
 - Restore still failing due to missing workload SDK resolver; needs environment fix to run CLI/tests.
+
+### Step 11 - 2026-01-29
+- Fixed lexer keyword test token count to match spec keywords list.
