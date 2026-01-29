@@ -105,3 +105,4 @@
 - Added loader validation for overlapping function code ranges with a negative load test.
 
 - Added no-verify runtime trap test for out-of-bounds JMP.
+- Added no-verify runtime trap tests for out-of-bounds JmpTrue/JmpFalse.

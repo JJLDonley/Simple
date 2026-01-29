@@ -2139,6 +2139,29 @@ std::vector<uint8_t> BuildBadJmpRuntimeModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadJmpCondRuntimeModule(bool invert) {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, invert ? 0 : 1);
+  AppendU8(code, static_cast<uint8_t>(invert ? OpCode::JmpFalse : OpCode::JmpTrue));
+  size_t jmp_operand = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  PatchRel32(code, jmp_operand, code.size() + 4);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadJmpTrueRuntimeModule() {
+  return BuildBadJmpCondRuntimeModule(false);
+}
+
+std::vector<uint8_t> BuildBadJmpFalseRuntimeModule() {
+  return BuildBadJmpCondRuntimeModule(true);
+}
+
 std::vector<uint8_t> BuildBadGlobalUninitModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4428,6 +4451,38 @@ bool RunBadJmpRuntimeTrapTest() {
   return true;
 }
 
+bool RunBadJmpTrueRuntimeTrapTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJmpTrueRuntimeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "bad_jmp_true_runtime load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, false);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << "bad_jmp_true_runtime expected trap, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadJmpFalseRuntimeTrapTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJmpFalseRuntimeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "bad_jmp_false_runtime load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, false);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << "bad_jmp_false_runtime expected trap, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadGlobalUninitVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadGlobalUninitModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5152,6 +5207,8 @@ int main() {
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_jmp_runtime", RunBadJmpRuntimeTrapTest},
+      {"bad_jmp_true_runtime", RunBadJmpTrueRuntimeTrapTest},
+      {"bad_jmp_false_runtime", RunBadJmpFalseRuntimeTrapTest},
       {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
       {"global_init_string", RunGlobalInitStringTest},
       {"global_init_f32", RunGlobalInitF32Test},
