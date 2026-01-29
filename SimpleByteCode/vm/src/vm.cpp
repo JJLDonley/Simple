@@ -254,7 +254,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         break;
       }
       case OpCode::CmpEqI32:
-      case OpCode::CmpLtI32: {
+      case OpCode::CmpLtI32:
+      case OpCode::CmpNeI32:
+      case OpCode::CmpLeI32:
+      case OpCode::CmpGtI32:
+      case OpCode::CmpGeI32: {
         Value b = Pop(stack);
         Value a = Pop(stack);
         if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 compare on non-i32");
@@ -262,7 +266,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         int32_t rhs = static_cast<int32_t>(b.i64);
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqI32)) out = (lhs == rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpNeI32)) out = (lhs != rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpLtI32)) out = (lhs < rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpLeI32)) out = (lhs <= rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGtI32)) out = (lhs > rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::CmpGeI32)) out = (lhs >= rhs);
         Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
         break;
       }

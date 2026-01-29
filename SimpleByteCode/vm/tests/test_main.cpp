@@ -220,6 +220,67 @@ std::vector<uint8_t> BuildRotModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0);
 }
+
+std::vector<uint8_t> BuildCmpModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 20);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t false_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    size_t next_pc = site + 4;
+    int32_t rel = static_cast<int32_t>(static_cast<int64_t>(false_block) - static_cast<int64_t>(next_pc));
+    WriteU32(code, site, static_cast<uint32_t>(rel));
+  }
+  return BuildModule(code, 0);
+}
+
+std::vector<uint8_t> BuildBranchModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    size_t next_pc = site + 4;
+    size_t target = code.size() - 6; // start of false branch const
+    int32_t rel = static_cast<int32_t>(static_cast<int64_t>(target) - static_cast<int64_t>(next_pc));
+    WriteU32(code, site, static_cast<uint32_t>(rel));
+  }
+  return BuildModule(code, 0);
+}
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -340,6 +401,54 @@ bool RunRotTest() {
   return true;
 }
 
+bool RunCmpTest() {
+  std::vector<uint8_t> module_bytes = BuildCmpModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBranchTest() {
+  std::vector<uint8_t> module_bytes = BuildBranchModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 int main() {
@@ -349,6 +458,8 @@ int main() {
   if (!RunDupTest()) failures++;
   if (!RunSwapTest()) failures++;
   if (!RunRotTest()) failures++;
+  if (!RunCmpTest()) failures++;
+  if (!RunBranchTest()) failures++;
   if (failures == 0) {
     std::cout << "all tests passed\n";
     return 0;

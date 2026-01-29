@@ -49,6 +49,10 @@ enum class OpCode : uint8_t {
 
   CmpEqI32 = 0x50,
   CmpLtI32 = 0x51,
+  CmpNeI32 = 0x52,
+  CmpLeI32 = 0x53,
+  CmpGtI32 = 0x54,
+  CmpGeI32 = 0x55,
 
   BoolNot = 0x60,
   BoolAnd = 0x61,

@@ -77,6 +77,10 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::DivI32:
     case OpCode::CmpEqI32:
     case OpCode::CmpLtI32:
+    case OpCode::CmpNeI32:
+    case OpCode::CmpLeI32:
+    case OpCode::CmpGtI32:
+    case OpCode::CmpGeI32:
     case OpCode::BoolAnd:
     case OpCode::BoolOr:
       *info = {0, 2, 1};
