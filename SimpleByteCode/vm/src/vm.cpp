@@ -239,7 +239,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       case OpCode::AddI32:
       case OpCode::SubI32:
       case OpCode::MulI32:
-      case OpCode::DivI32: {
+      case OpCode::DivI32:
+      case OpCode::ModI32: {
         Value b = Pop(stack);
         Value a = Pop(stack);
         if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 arithmetic on non-i32");
@@ -250,6 +251,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (opcode == static_cast<uint8_t>(OpCode::SubI32)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulI32)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivI32)) out = rhs == 0 ? 0 : (lhs / rhs);
+        if (opcode == static_cast<uint8_t>(OpCode::ModI32)) out = rhs == 0 ? 0 : (lhs % rhs);
         Push(stack, Value{ValueKind::I32, out});
         break;
       }

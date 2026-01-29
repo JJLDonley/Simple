@@ -46,6 +46,7 @@ enum class OpCode : uint8_t {
   SubI32 = 0x41,
   MulI32 = 0x42,
   DivI32 = 0x43,
+  ModI32 = 0x44,
 
   CmpEqI32 = 0x50,
   CmpLtI32 = 0x51,

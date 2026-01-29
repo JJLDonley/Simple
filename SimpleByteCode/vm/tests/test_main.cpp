@@ -47,6 +47,12 @@ void WriteU32(std::vector<uint8_t>& out, size_t offset, uint32_t v) {
   out[offset + 3] = static_cast<uint8_t>((v >> 24) & 0xFF);
 }
 
+void PatchRel32(std::vector<uint8_t>& out, size_t operand_offset, size_t target_offset) {
+  size_t next_pc = operand_offset + 4;
+  int32_t rel = static_cast<int32_t>(static_cast<int64_t>(target_offset) - static_cast<int64_t>(next_pc));
+  WriteU32(out, operand_offset, static_cast<uint32_t>(rel));
+}
+
 size_t Align4(size_t v) {
   return (v + 3u) & ~static_cast<size_t>(3u);
 }
@@ -221,6 +227,78 @@ std::vector<uint8_t> BuildRotModule() {
   return BuildModule(code, 0);
 }
 
+std::vector<uint8_t> BuildPopModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0);
+}
+
+std::vector<uint8_t> BuildDup2Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup2));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0);
+}
+
+std::vector<uint8_t> BuildModModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0);
+}
+
+std::vector<uint8_t> BuildBoolModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolOr));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t false_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, false_block);
+  }
+  return BuildModule(code, 0);
+}
+
 std::vector<uint8_t> BuildCmpModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -243,9 +321,7 @@ std::vector<uint8_t> BuildCmpModule() {
   AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   for (size_t site : patch_sites) {
-    size_t next_pc = site + 4;
-    int32_t rel = static_cast<int32_t>(static_cast<int64_t>(false_block) - static_cast<int64_t>(next_pc));
-    WriteU32(code, site, static_cast<uint32_t>(rel));
+    PatchRel32(code, site, false_block);
   }
   return BuildModule(code, 0);
 }
@@ -271,10 +347,8 @@ std::vector<uint8_t> BuildBranchModule() {
   AppendI32(code, 4);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   for (size_t site : patch_sites) {
-    size_t next_pc = site + 4;
     size_t target = code.size() - 6; // start of false branch const
-    int32_t rel = static_cast<int32_t>(static_cast<int64_t>(target) - static_cast<int64_t>(next_pc));
-    WriteU32(code, site, static_cast<uint32_t>(rel));
+    PatchRel32(code, site, target);
   }
   return BuildModule(code, 0);
 }
@@ -398,6 +472,102 @@ bool RunRotTest() {
   return true;
 }
 
+bool RunPopTest() {
+  std::vector<uint8_t> module_bytes = BuildPopModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunDup2Test() {
+  std::vector<uint8_t> module_bytes = BuildDup2Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 6) {
+    std::cerr << "expected 6, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunModTest() {
+  std::vector<uint8_t> module_bytes = BuildModModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBoolTest() {
+  std::vector<uint8_t> module_bytes = BuildBoolModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunCmpTest() {
   std::vector<uint8_t> module_bytes = BuildCmpModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -458,8 +628,12 @@ int main() {
       {"add_i32", RunAddTest},
       {"globals", RunGlobalTest},
       {"dup", RunDupTest},
+      {"dup2", RunDup2Test},
+      {"pop", RunPopTest},
       {"swap", RunSwapTest},
       {"rot", RunRotTest},
+      {"mod_i32", RunModTest},
+      {"bool_ops", RunBoolTest},
       {"cmp_i32", RunCmpTest},
       {"branch", RunBranchTest},
   };

@@ -75,6 +75,7 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::SubI32:
     case OpCode::MulI32:
     case OpCode::DivI32:
+    case OpCode::ModI32:
     case OpCode::CmpEqI32:
     case OpCode::CmpLtI32:
     case OpCode::CmpNeI32:
