@@ -2237,6 +2237,31 @@ std::vector<uint8_t> BuildBadMergeHeightModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadMergeRefI32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Jmp));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  size_t join = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  PatchRel32(code, patch_sites[1], join);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadStackUnderflowVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5465,6 +5490,21 @@ bool RunBadMergeHeightVerifyTest() {
   return true;
 }
 
+bool RunBadMergeRefI32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadMergeRefI32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadStackUnderflowVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadStackUnderflowVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -6717,6 +6757,7 @@ int main() {
       {"bad_type_verify", RunBadTypeVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
+      {"bad_merge_ref_i32_verify", RunBadMergeRefI32VerifyTest},
       {"bad_local_uninit_verify", RunBadLocalUninitVerifyTest},
       {"bad_stack_underflow_verify", RunBadStackUnderflowVerifyTest},
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
