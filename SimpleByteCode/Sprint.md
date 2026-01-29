@@ -25,6 +25,7 @@
 - Fixed comparison test to return i32 exit code instead of bool.
 - Updated test harness to print per-test results.
 - Added MOD_I32 opcode and tests for POP, DUP2, MOD, and boolean ops with branching.
+- Added local load/store and loop execution tests; added JMP bounds checks.
 
 ## Notes
 - This log must record every VM-related change going forward.

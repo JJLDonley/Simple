@@ -119,8 +119,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   };
 
   Frame current = setup_frame(entry_func_index, 0, 0);
-  size_t pc = module.functions[entry_func_index].code_offset;
-  size_t end = pc + module.functions[entry_func_index].code_size;
+  size_t func_start = module.functions[entry_func_index].code_offset;
+  size_t pc = func_start;
+  size_t end = func_start + module.functions[entry_func_index].code_size;
 
   while (pc < module.code.size()) {
     if (pc >= end) {
@@ -294,6 +295,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       case OpCode::Jmp: {
         int32_t rel = ReadI32(module.code, pc);
         pc = static_cast<size_t>(static_cast<int64_t>(pc) + rel);
+        if (pc < func_start || pc > end) return Trap("JMP out of bounds");
         break;
       }
       case OpCode::JmpTrue:
@@ -303,7 +305,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (cond.kind != ValueKind::Bool) return Trap("JMP on non-bool");
         bool take = cond.i64 != 0;
         if (opcode == static_cast<uint8_t>(OpCode::JmpFalse)) take = !take;
-        if (take) pc = static_cast<size_t>(static_cast<int64_t>(pc) + rel);
+        if (take) {
+          pc = static_cast<size_t>(static_cast<int64_t>(pc) + rel);
+          if (pc < func_start || pc > end) return Trap("JMP out of bounds");
+        }
         break;
       }
       case OpCode::Enter: {
@@ -336,8 +341,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }
-        pc = func.code_offset;
-        end = func.code_offset + func.code_size;
+        func_start = func.code_offset;
+        pc = func_start;
+        end = func_start + func.code_size;
         break;
       }
       case OpCode::Ret: {
@@ -356,7 +362,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         current = caller;
         pc = current.return_pc;
         const auto& func = module.functions[current.func_index];
-        end = func.code_offset + func.code_size;
+        func_start = func.code_offset;
+        end = func_start + func.code_size;
         break;
       }
       default:
