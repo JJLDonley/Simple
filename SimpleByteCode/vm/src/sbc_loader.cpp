@@ -299,6 +299,12 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       for (uint32_t f = 0; f < row.field_count; ++f) {
         const auto& field = module.fields[row.field_start + f];
         if (field.offset >= row.size) return Fail("field offset out of bounds");
+        if (field.type_id < module.types.size()) {
+          const auto& field_type = module.types[field.type_id];
+          if (field_type.size > 0 && field.offset + field_type.size > row.size) {
+            return Fail("field size out of bounds");
+          }
+        }
       }
     }
   }

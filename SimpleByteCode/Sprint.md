@@ -90,3 +90,5 @@
 - Added global init tests for F32/F64 const pool values.
 
 - Added loader validation for field offsets against type size with a negative load test.
+
+- Added loader validation for field size bounds with a negative load test.
