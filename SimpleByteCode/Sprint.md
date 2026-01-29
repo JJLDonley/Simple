@@ -105,4 +105,5 @@
 - Added loader negative test for misaligned section offsets.
 - Added loader negative test for overlapping sections.
 - Added loader negative test for unknown section ids.
+- Added loader negative test for duplicate section ids.
 - Added CMake + Windows build scripts for cross-platform builds.

@@ -2793,6 +2793,24 @@ std::vector<uint8_t> BuildBadUnknownSectionIdLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadDuplicateSectionIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  if (section_count > 1) {
+    size_t off0 = static_cast<size_t>(section_table_offset);
+    size_t off1 = off0 + 16u;
+    uint32_t id0 = ReadU32At(module, off0 + 0);
+    WriteU32(module, off1 + 0, id0);
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5212,6 +5230,16 @@ bool RunBadUnknownSectionIdLoadTest() {
   return true;
 }
 
+bool RunBadDuplicateSectionIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadDuplicateSectionIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5831,6 +5859,7 @@ int main() {
       {"bad_section_alignment_load", RunBadSectionAlignmentLoadTest},
       {"bad_section_overlap_load", RunBadSectionOverlapLoadTest},
       {"bad_unknown_section_id_load", RunBadUnknownSectionIdLoadTest},
+      {"bad_duplicate_section_id_load", RunBadDuplicateSectionIdLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
