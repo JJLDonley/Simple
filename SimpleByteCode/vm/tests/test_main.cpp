@@ -5287,8 +5287,8 @@ bool RunBadEndianHeaderLoadTest() {
   return true;
 }
 
-bool RunBadMethodFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
+bool RunBadHeaderFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadHeaderFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (load.ok) {
     std::cerr << "expected load failure\n";
@@ -5297,8 +5297,8 @@ bool RunBadMethodFlagsLoadTest() {
   return true;
 }
 
-bool RunBadHeaderFlagsLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadHeaderFlagsLoadModule();
+bool RunBadMethodFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (load.ok) {
     std::cerr << "expected load failure\n";
@@ -5909,8 +5909,8 @@ int main() {
       {"bad_duplicate_section_id_load", RunBadDuplicateSectionIdLoadTest},
       {"bad_section_table_oob_load", RunBadSectionTableOobLoadTest},
       {"bad_endian_header_load", RunBadEndianHeaderLoadTest},
-      {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
+      {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_zero_load", RunBadStackMaxZeroLoadTest},
       {"bad_entry_method_load", RunBadEntryMethodLoadTest},
