@@ -2382,6 +2382,19 @@ std::vector<uint8_t> BuildBadRefEqVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadRefEqMixedVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadRefNeVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2391,6 +2404,19 @@ std::vector<uint8_t> BuildBadRefNeVerifyModule() {
   AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefNe));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadRefNeMixedVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::RefNe));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
@@ -6175,8 +6201,38 @@ bool RunBadRefEqVerifyTest() {
   return true;
 }
 
+bool RunBadRefEqMixedVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadRefEqMixedVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadRefNeVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadRefNeVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadRefNeMixedVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadRefNeMixedVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -7903,7 +7959,9 @@ int main() {
       {"bad_string_slice_end_verify", RunBadStringSliceEndVerifyTest},
       {"bad_is_null_verify", RunBadIsNullVerifyTest},
       {"bad_ref_eq_verify", RunBadRefEqVerifyTest},
+      {"bad_ref_eq_mixed_verify", RunBadRefEqMixedVerifyTest},
       {"bad_ref_ne_verify", RunBadRefNeVerifyTest},
+      {"bad_ref_ne_mixed_verify", RunBadRefNeMixedVerifyTest},
       {"bad_typeof_verify", RunBadTypeOfVerifyTest},
       {"bad_load_field_type_verify", RunBadLoadFieldTypeVerifyTest},
       {"bad_store_field_object_verify", RunBadStoreFieldObjectVerifyTest},

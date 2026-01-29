@@ -127,3 +127,5 @@
 - Added verifier test for JMP_FALSE non-bool condition.
 
 - Added verifier tests for STRING_GET_CHAR and STRING_SLICE index type mismatches.
+
+- Added verifier tests for REF_EQ/REF_NE mixed ref vs non-ref operands.
