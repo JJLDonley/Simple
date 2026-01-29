@@ -52,6 +52,7 @@
 - Added I64 arithmetic and comparison opcodes with verifier support and tests.
 - Added F32/F64 arithmetic and comparison opcodes with verifier support and tests.
 - Added CONST_I128/CONST_U128 handling via const pool blobs with verifier support and tests.
+- Added numeric conversion opcodes (int/float) with verifier checks, runtime support, and tests.
 
 ## Notes
 - This log must record every VM-related change going forward.

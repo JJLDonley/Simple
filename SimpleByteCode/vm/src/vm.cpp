@@ -1058,6 +1058,60 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         end = func_start + func.code_size;
         break;
       }
+      case OpCode::ConvI32ToI64: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::I32) return Trap("CONV_I32_I64 on non-i32");
+        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(static_cast<int32_t>(v.i64))});
+        break;
+      }
+      case OpCode::ConvI64ToI32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::I64) return Trap("CONV_I64_I32 on non-i64");
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(v.i64)});
+        break;
+      }
+      case OpCode::ConvI32ToF32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::I32) return Trap("CONV_I32_F32 on non-i32");
+        float out = static_cast<float>(static_cast<int32_t>(v.i64));
+        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        break;
+      }
+      case OpCode::ConvI32ToF64: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::I32) return Trap("CONV_I32_F64 on non-i32");
+        double out = static_cast<double>(static_cast<int32_t>(v.i64));
+        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        break;
+      }
+      case OpCode::ConvF32ToI32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::F32) return Trap("CONV_F32_I32 on non-f32");
+        float in = BitsToF32(v.i64);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(in)});
+        break;
+      }
+      case OpCode::ConvF64ToI32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::F64) return Trap("CONV_F64_I32 on non-f64");
+        double in = BitsToF64(v.i64);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(in)});
+        break;
+      }
+      case OpCode::ConvF32ToF64: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::F32) return Trap("CONV_F32_F64 on non-f32");
+        double out = static_cast<double>(BitsToF32(v.i64));
+        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        break;
+      }
+      case OpCode::ConvF64ToF32: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::F64) return Trap("CONV_F64_F32 on non-f64");
+        float out = static_cast<float>(BitsToF64(v.i64));
+        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        break;
+      }
       case OpCode::Ret: {
         Value ret = {ValueKind::None, 0};
         if (!stack.empty()) ret = Pop(stack);

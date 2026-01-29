@@ -125,6 +125,16 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::TailCall:
       *info = {5, 0, 0};
       return true;
+    case OpCode::ConvI32ToI64:
+    case OpCode::ConvI64ToI32:
+    case OpCode::ConvI32ToF32:
+    case OpCode::ConvI32ToF64:
+    case OpCode::ConvF32ToI32:
+    case OpCode::ConvF64ToI32:
+    case OpCode::ConvF32ToF64:
+    case OpCode::ConvF64ToF32:
+      *info = {0, 1, 1};
+      return true;
     case OpCode::Ret:
     case OpCode::Leave:
       *info = {0, 0, 0};

@@ -641,6 +641,62 @@ VerifyResult VerifyModule(const SbcModule& module) {
           fall_through = false;
           break;
         }
+        case OpCode::ConvI32ToI64: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::ConvI64ToI32: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::I64, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ConvI32ToF32: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::ConvI32ToF64: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ConvF32ToI32: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::F32, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ConvF64ToI32: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::F64, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ConvF32ToF64: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::F32, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ConvF64ToF32: {
+          ValType v = pop_type();
+          VerifyResult r = check_type(v, ValType::F64, "CONV type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F32);
+          break;
+        }
         case OpCode::Halt:
         case OpCode::Trap:
         case OpCode::Ret:
