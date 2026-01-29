@@ -121,3 +121,5 @@
 - Added verifier type-mismatch tests for ref ops, field ops, array/list ops, and STRING_LEN.
 
 - Added verifier type-mismatch tests for BOOL ops and JMP condition.
+
+- Added verifier type-mismatch tests for array/list ops with wrong container types.
