@@ -31,6 +31,35 @@ public sealed class SourceText
         return (line, column);
     }
 
+    public string GetLineText(int lineIndex)
+    {
+        var span = GetLineSpan(lineIndex);
+        return _text.Substring(span.Start, span.Length);
+    }
+
+    public TextSpan GetLineSpan(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= _lineStarts.Length)
+        {
+            return new TextSpan(0, 0);
+        }
+
+        var start = _lineStarts[lineIndex];
+        var end = lineIndex + 1 < _lineStarts.Length ? _lineStarts[lineIndex + 1] : _text.Length;
+
+        if (end > start && _text[end - 1] == '\n')
+        {
+            end--;
+        }
+
+        if (end > start && _text[end - 1] == '\r')
+        {
+            end--;
+        }
+
+        return TextSpan.FromBounds(start, end);
+    }
+
     public int GetLineIndex(int position)
     {
         if (position < 0)

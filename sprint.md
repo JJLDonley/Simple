@@ -31,3 +31,9 @@
 ### Step 7 - 2026-01-29
 - Implemented binder, symbols, and bound node model for Phase 1 type checking.
 - Added built-in procedures (`print`, `println`) and basic operator binding.
+
+### Step 8 - 2026-01-29
+- Added compilation pipeline, CIL code generation, and CLI commands (build/check/run).
+- Extended `SourceText` with line text/span helpers for diagnostics.
+- Added reflection-based entry point handling and output persistence fallback.
+- Note: CLI/tests builds require restore; dotnet restore currently failing in this environment.
