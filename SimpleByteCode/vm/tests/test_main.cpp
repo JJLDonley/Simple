@@ -1946,6 +1946,36 @@ std::vector<uint8_t> BuildBadJumpBoundaryModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadJumpOobModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t jmp_operand = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, jmp_operand, code.size() + 4);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildJumpToEndModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTrue));
+  size_t jmp_operand = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, jmp_operand, code.size());
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadStackMaxModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -3775,6 +3805,45 @@ bool RunBadJumpBoundaryVerifyTest() {
   return true;
 }
 
+bool RunBadJumpOobVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJumpOobModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJumpToEndTest() {
+  std::vector<uint8_t> module_bytes = BuildJumpToEndModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadStackMaxVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadStackMaxModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4180,6 +4249,7 @@ int main() {
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_local_uninit_verify", RunBadLocalUninitVerifyTest},
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
+      {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},
@@ -4192,6 +4262,7 @@ int main() {
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
       {"tailcall", RunTailCallTest},
+      {"jump_to_end", RunJumpToEndTest},
       {"intrinsic_trap", RunIntrinsicTrapTest},
       {"syscall_trap", RunSysCallTrapTest},
       {"bad_call_indirect", RunBadCallIndirectTrapTest},

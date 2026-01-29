@@ -91,6 +91,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       pc = next;
     }
 
+    boundaries.insert(end);
     if (pc != end) return Fail("function code does not align to instruction boundary");
 
     pc = func.code_offset;

@@ -70,4 +70,6 @@
 - Updated bad_call_indirect_type test to avoid uninitialized local under new verifier rules.
 - Added verifier enforcement for function stack_max with a negative test.
 - Added verifier negative test for jump targets landing mid-instruction.
+- Added verifier negative test for out-of-bounds jump targets and a positive jump-to-end test.
+- Allowed jump targets at function end boundary in verifier.
 - Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
