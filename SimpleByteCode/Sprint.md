@@ -133,3 +133,5 @@
 - Added verifier tests for mixed BOOL_AND/BOOL_OR operand types.
 
 - Added runtime trap tests for ARRAY_SET and LIST_GET/LIST_SET out-of-bounds indices.
+
+- Added runtime trap tests for negative indices in ARRAY_GET/ARRAY_SET and LIST_GET/LIST_SET.
