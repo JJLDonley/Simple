@@ -326,6 +326,14 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (code && row.code_offset >= module.code.size()) return Fail("method code offset out of range");
     if ((row.flags & ~0x7u) != 0u) return Fail("method flags invalid");
   }
+  if (code) {
+    std::unordered_set<uint32_t> method_offsets;
+    for (const auto& row : module.methods) {
+      if (!method_offsets.insert(row.code_offset).second) {
+        return Fail("duplicate method code offset");
+      }
+    }
+  }
   for (size_t i = 0; i < module.functions.size(); ++i) {
     const auto& row = module.functions[i];
     if (row.method_id >= module.methods.size()) return Fail("function method id out of range");

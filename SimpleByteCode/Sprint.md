@@ -99,3 +99,5 @@
 - Added loader validation for entry_method_id presence in functions table with a negative load test.
 
 - Added loader validation for function code_offset matching method code_offset with a negative load test.
+
+- Added loader validation for duplicate method code offsets with a negative load test.
