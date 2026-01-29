@@ -700,6 +700,66 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         end = func_start + func.code_size;
         break;
       }
+      case OpCode::CallIndirect: {
+        uint32_t sig_id = ReadU32(module.code, pc);
+        uint8_t arg_count = ReadU8(module.code, pc);
+        if (sig_id >= module.sigs.size()) return Trap("CALL_INDIRECT invalid signature id");
+        const auto& sig = module.sigs[sig_id];
+        if (arg_count != sig.param_count) return Trap("CALL_INDIRECT arg count mismatch");
+        if (stack.size() < static_cast<size_t>(arg_count) + 1u) return Trap("CALL_INDIRECT stack underflow");
+        Value func_val = Pop(stack);
+        if (func_val.kind != ValueKind::I32) return Trap("CALL_INDIRECT on non-i32");
+        int64_t func_index = func_val.i64;
+        if (func_index < 0 || static_cast<size_t>(func_index) >= module.functions.size()) {
+          return Trap("CALL_INDIRECT invalid function id");
+        }
+
+        std::vector<Value> args(arg_count);
+        for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
+          args[static_cast<size_t>(i)] = Pop(stack);
+        }
+
+        current.return_pc = pc;
+        call_stack.push_back(current);
+        current = setup_frame(static_cast<size_t>(func_index), pc, stack.size());
+        for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
+          current.locals[i] = args[i];
+        }
+        const auto& func = module.functions[static_cast<size_t>(func_index)];
+        func_start = func.code_offset;
+        pc = func_start;
+        end = func_start + func.code_size;
+        break;
+      }
+      case OpCode::TailCall: {
+        uint32_t func_id = ReadU32(module.code, pc);
+        uint8_t arg_count = ReadU8(module.code, pc);
+        if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
+        const auto& func = module.functions[func_id];
+        if (func.method_id >= module.methods.size()) return Trap("TAILCALL invalid method id");
+        const auto& method = module.methods[func.method_id];
+        if (method.sig_id >= module.sigs.size()) return Trap("TAILCALL invalid signature id");
+        const auto& sig = module.sigs[method.sig_id];
+        if (arg_count != sig.param_count) return Trap("TAILCALL arg count mismatch");
+        if (stack.size() < arg_count) return Trap("TAILCALL stack underflow");
+
+        std::vector<Value> args(arg_count);
+        for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
+          args[static_cast<size_t>(i)] = Pop(stack);
+        }
+
+        size_t return_pc = current.return_pc;
+        size_t stack_base = current.stack_base;
+        stack.resize(stack_base);
+        current = setup_frame(func_id, return_pc, stack_base);
+        for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
+          current.locals[i] = args[i];
+        }
+        func_start = func.code_offset;
+        pc = func_start;
+        end = func_start + func.code_size;
+        break;
+      }
       case OpCode::Ret: {
         Value ret = {ValueKind::None, 0};
         if (!stack.empty()) ret = Pop(stack);

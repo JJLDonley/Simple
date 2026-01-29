@@ -102,6 +102,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
       bool has_jump_target = false;
       size_t jump_target = 0;
       bool fall_through = true;
+      int extra_pops = 0;
+      int extra_pushes = 0;
       if (opcode == static_cast<uint8_t>(OpCode::Jmp) ||
           opcode == static_cast<uint8_t>(OpCode::JmpTrue) ||
           opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
@@ -457,9 +459,40 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CallCheck:
           if (call_depth != 0) return Fail("CALLCHECK not in root");
           break;
+        case OpCode::Call: {
+          if (pc + 5 >= code.size()) return Fail("CALL arg count out of bounds");
+          uint8_t arg_count = code[pc + 5];
+          if (stack_types.size() < arg_count) return Fail("CALL stack underflow");
+          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
+          push_type(ValType::Unknown);
+          extra_pops = arg_count;
+          extra_pushes = 1;
+          break;
+        }
+        case OpCode::CallIndirect: {
+          if (pc + 5 >= code.size()) return Fail("CALL_INDIRECT arg count out of bounds");
+          uint8_t arg_count = code[pc + 5];
+          if (stack_types.size() < static_cast<size_t>(arg_count) + 1u) return Fail("CALL_INDIRECT stack underflow");
+          ValType func_type = pop_type();
+          VerifyResult r = check_type(func_type, ValType::I32, "CALL_INDIRECT func type mismatch");
+          if (!r.ok) return r;
+          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
+          push_type(ValType::Unknown);
+          extra_pops = static_cast<int>(arg_count) + 1;
+          extra_pushes = 1;
+          break;
+        }
+        case OpCode::TailCall: {
+          if (pc + 5 >= code.size()) return Fail("TAILCALL arg count out of bounds");
+          uint8_t arg_count = code[pc + 5];
+          if (stack_types.size() < arg_count) return Fail("TAILCALL stack underflow");
+          for (uint8_t i = 0; i < arg_count; ++i) pop_type();
+          extra_pops = arg_count;
+          fall_through = false;
+          break;
+        }
         case OpCode::Halt:
         case OpCode::Trap:
-        case OpCode::TailCall:
         case OpCode::Ret:
           fall_through = false;
           break;
@@ -469,11 +502,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
       }
 
-      if (info.pops > 0) {
-        if (stack_height - info.pops < 0) return Fail("stack underflow");
-        stack_height -= info.pops;
+      int pop_count = info.pops + extra_pops;
+      if (pop_count > 0) {
+        if (stack_height - pop_count < 0) return Fail("stack underflow");
+        stack_height -= pop_count;
       }
-      stack_height += info.pushes;
+      stack_height += info.pushes + extra_pushes;
       if (has_jump_target) {
         auto it = merge_types.find(jump_target);
         if (it == merge_types.end()) {
