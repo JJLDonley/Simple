@@ -1,0 +1,82 @@
+#ifndef SIMPLE_VM_OPCODE_H
+#define SIMPLE_VM_OPCODE_H
+
+#include <cstdint>
+
+namespace simplevm {
+
+enum class OpCode : uint8_t {
+  Nop = 0x00,
+  Halt = 0x01,
+  Trap = 0x02,
+  Breakpoint = 0x03,
+  Jmp = 0x04,
+  JmpTrue = 0x05,
+  JmpFalse = 0x06,
+
+  Pop = 0x10,
+  Dup = 0x11,
+  Dup2 = 0x12,
+  Swap = 0x13,
+  Rot = 0x14,
+
+  ConstI8 = 0x18,
+  ConstI16 = 0x19,
+  ConstI32 = 0x1A,
+  ConstI64 = 0x1B,
+  ConstI128 = 0x1C,
+  ConstU8 = 0x1D,
+  ConstU16 = 0x1E,
+  ConstU32 = 0x1F,
+  ConstU64 = 0x20,
+  ConstU128 = 0x21,
+  ConstF32 = 0x22,
+  ConstF64 = 0x23,
+  ConstBool = 0x24,
+  ConstChar = 0x25,
+  ConstString = 0x26,
+  ConstNull = 0x27,
+
+  LoadLocal = 0x30,
+  StoreLocal = 0x31,
+  LoadGlobal = 0x32,
+  StoreGlobal = 0x33,
+
+  AddI32 = 0x40,
+  SubI32 = 0x41,
+  MulI32 = 0x42,
+  DivI32 = 0x43,
+
+  CmpEqI32 = 0x50,
+  CmpLtI32 = 0x51,
+
+  BoolNot = 0x60,
+  BoolAnd = 0x61,
+  BoolOr = 0x62,
+
+  Call = 0x70,
+  CallIndirect = 0x71,
+  TailCall = 0x72,
+  Ret = 0x73,
+  Enter = 0x74,
+  Leave = 0x75,
+
+  Line = 0x80,
+  ProfileStart = 0x81,
+  ProfileEnd = 0x82,
+
+  Intrinsic = 0x90,
+  SysCall = 0x91,
+};
+
+struct OpInfo {
+  int operand_bytes;
+  int pops;
+  int pushes;
+};
+
+bool GetOpInfo(uint8_t opcode, OpInfo* info);
+
+} // namespace simplevm
+
+#endif // SIMPLE_VM_OPCODE_H
