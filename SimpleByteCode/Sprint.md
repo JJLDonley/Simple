@@ -103,4 +103,5 @@
 - Added positive CALL/CALL_INDIRECT tests for typed parameters.
 - Added loader negative test for truncated signature table size.
 - Added loader negative test for misaligned section offsets.
+- Added loader negative test for overlapping sections.
 - Added CMake + Windows build scripts for cross-platform builds.
