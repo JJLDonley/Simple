@@ -263,13 +263,19 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     uint32_t payload = 0;
     ReadU32At(module.const_pool, const_id + 4, &payload);
     if (kind == 0) {
-      return payload < module.const_pool.size();
+      if (payload >= module.const_pool.size()) return false;
+      size_t pos = payload;
+      while (pos < module.const_pool.size() && module.const_pool[pos] != 0) {
+        ++pos;
+      }
+      return pos < module.const_pool.size();
     }
     if (kind == 1 || kind == 2) {
       if (payload + 4 > module.const_pool.size()) return false;
       uint32_t blob_len = 0;
       ReadU32At(module.const_pool, payload, &blob_len);
-      return payload + 4 + blob_len <= module.const_pool.size();
+      if (payload + 4 + blob_len > module.const_pool.size()) return false;
+      return blob_len == 16;
     }
     if (kind == 3 || kind == 5) {
       return true;

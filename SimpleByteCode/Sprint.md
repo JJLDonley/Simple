@@ -80,3 +80,5 @@
 - Updated bad_call_indirect_type test to use initialized global under new verifier rule.
 
 - Added loader validation for global init const ids with a negative load test.
+
+- Tightened const pool validation for string null-termination and 16-byte I128/U128 blobs with load-time tests.

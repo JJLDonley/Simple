@@ -275,6 +275,30 @@ std::vector<uint8_t> BuildModuleWithGlobalInitConst(const std::vector<uint8_t>& 
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithTablesAndGlobalInitConst(const std::vector<uint8_t>& code,
+                                                             const std::vector<uint8_t>& const_pool,
+                                                             const std::vector<uint8_t>& types_bytes,
+                                                             const std::vector<uint8_t>& fields_bytes,
+                                                             uint32_t global_count,
+                                                             uint16_t local_count,
+                                                             uint32_t init_const_id) {
+  std::vector<uint8_t> module =
+      BuildModuleWithTables(code, const_pool, types_bytes, fields_bytes, global_count, local_count);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 6) continue;
+    uint32_t globals_offset = ReadU32At(module, off + 4);
+    if (globals_offset + 16 <= module.size()) {
+      WriteU32(module, globals_offset + 12, init_const_id);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
                                               const std::vector<uint16_t>& local_counts) {
   std::vector<uint8_t> const_pool;
@@ -2019,6 +2043,44 @@ std::vector<uint8_t> BuildBadGlobalInitConstModule() {
   AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModuleWithGlobalInitConst(code, 1, 0, 0xFFFFFFF0u);
+}
+
+std::vector<uint8_t> BuildBadStringConstNoNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 0);
+  uint32_t str_offset = static_cast<uint32_t>(const_pool.size() + 4);
+  AppendU32(const_pool, str_offset);
+  const_pool.push_back('a');
+  const_pool.push_back('b');
+  const_pool.push_back('c');
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildBadI128BlobLenModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  std::vector<uint8_t> blob(8, 0xAA);
+  AppendConstBlob(const_pool, 1, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
 }
 
 std::vector<uint8_t> BuildBadParamLocalsModule() {
@@ -3918,6 +3980,26 @@ bool RunBadGlobalInitConstLoadTest() {
   return true;
 }
 
+bool RunBadStringConstNoNullLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadStringConstNoNullModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadI128BlobLenLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadI128BlobLenModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadParamLocalsVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4365,6 +4447,8 @@ int main() {
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
       {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
+      {"bad_string_const_nul_load", RunBadStringConstNoNullLoadTest},
+      {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
