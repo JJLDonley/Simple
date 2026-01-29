@@ -5,6 +5,7 @@ using Simple.Compiler.Parsing;
 using Simple.Compiler.Syntax;
 using Simple.Compiler;
 using System.Reflection;
+using Emit = System.Reflection.Emit;
 
 namespace Simple.Compiler.Tests;
 
@@ -84,7 +85,7 @@ internal static class Program
     private static void BinderTypeMismatch()
     {
         var syntax = SyntaxTree.Parse("x : i32 = 3.14");
-        var program = Binder.BindProgram(syntax.Root, out var diagnostics);
+        var program = Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
         Assert.True(diagnostics.Count > 0, "Expected type mismatch diagnostic.");
     }
 
@@ -92,7 +93,7 @@ internal static class Program
     {
         var source = "main : i32 () { print(\"hi\"); return 0 }";
         var syntax = SyntaxTree.Parse(source);
-        Binder.BindProgram(syntax.Root, out var diagnostics);
+        Simple.Compiler.Binding.Binder.BindProgram(syntax.Root, out var diagnostics);
         Assert.Equal(0, diagnostics.Count, "Expected no diagnostics for print call.");
     }
 
@@ -144,6 +145,6 @@ internal static class CodeGenSupport
 {
     public static bool IsPersistedAssemblyBuilderAvailable()
     {
-        return typeof(AssemblyBuilder).Assembly.GetType("System.Reflection.Emit.PersistedAssemblyBuilder") is not null;
+        return typeof(Emit.AssemblyBuilder).Assembly.GetType("System.Reflection.Emit.PersistedAssemblyBuilder") is not null;
     }
 }
