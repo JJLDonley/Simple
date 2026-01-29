@@ -29,6 +29,12 @@ void Heap::Mark(uint32_t handle) {
   obj->header.marked = 1;
 }
 
+void Heap::ResetMarks() {
+  for (auto& obj : objects_) {
+    obj.header.marked = 0;
+  }
+}
+
 void Heap::Sweep() {
   for (auto& obj : objects_) {
     obj.header.marked = 0;

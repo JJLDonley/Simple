@@ -33,6 +33,7 @@ class Heap {
   const HeapObject* Get(uint32_t handle) const;
   void Mark(uint32_t handle);
   void Sweep();
+  void ResetMarks();
 
  private:
   std::vector<HeapObject> objects_;

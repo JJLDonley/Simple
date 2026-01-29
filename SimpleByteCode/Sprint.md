@@ -31,6 +31,7 @@
 - Added list opcodes (NEW_LIST/LIST_LEN/LIST_GET_I32/LIST_SET_I32/LIST_PUSH_I32/LIST_POP_I32) with VM support and tests.
 - Fixed list and core test local-count mismatches after adding list support.
 - Added string ops (CONST_STRING/STRING_LEN/STRING_CONCAT) with const pool support and tests.
+- Added basic GC root marking/sweep pass and a GC smoke test.
 
 ## Notes
 - This log must record every VM-related change going forward.

@@ -179,7 +179,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
 
+  size_t op_counter = 0;
+  auto maybe_collect = [&]() {
+    if (op_counter % 1000 != 0) return;
+    heap.ResetMarks();
+    for (const auto& g : globals) {
+      if (g.kind == ValueKind::Ref && g.i64 >= 0) heap.Mark(static_cast<uint32_t>(g.i64));
+    }
+    for (const auto& v : stack) {
+      if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
+    }
+    for (const auto& f : call_stack) {
+      for (const auto& v : f.locals) {
+        if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
+      }
+    }
+    for (const auto& v : current.locals) {
+      if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
+    }
+    heap.Sweep();
+  };
+
   while (pc < module.code.size()) {
+    ++op_counter;
+    maybe_collect();
     if (pc >= end) {
       if (call_stack.empty()) {
         ExecResult done;
