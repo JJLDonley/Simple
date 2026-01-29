@@ -1482,6 +1482,30 @@ std::vector<uint8_t> BuildBadTailCallVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadConvVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI32ToF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadConvRuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadArrayGetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -2739,6 +2763,21 @@ bool RunBadTailCallVerifyTest() {
   return true;
 }
 
+bool RunBadConvVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadConvVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildTailCallModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2783,6 +2822,21 @@ bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
   return true;
 }
 
+bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name) {
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << name << " load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, false);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << name << " expected trap, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunIntrinsicTrapTest() {
   return RunExpectTrap(BuildIntrinsicTrapModule(), "intrinsic");
 }
@@ -2805,6 +2859,10 @@ bool RunBadListInsertTrapTest() {
 
 bool RunBadListRemoveTrapTest() {
   return RunExpectTrap(BuildBadListRemoveModule(), "bad_list_remove");
+}
+
+bool RunBadConvRuntimeTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadConvRuntimeModule(), "bad_conv_runtime");
 }
 
 bool RunBadCallIndirectTrapTest() {
@@ -2907,6 +2965,7 @@ int main() {
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"bad_call_verify", RunBadCallVerifyTest},
       {"bad_tailcall_verify", RunBadTailCallVerifyTest},
+      {"bad_conv_verify", RunBadConvVerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
       {"tailcall", RunTailCallTest},
@@ -2914,6 +2973,7 @@ int main() {
       {"syscall_trap", RunSysCallTrapTest},
       {"bad_call_indirect", RunBadCallIndirectTrapTest},
       {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},
+      {"bad_conv_runtime", RunBadConvRuntimeTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
