@@ -647,6 +647,24 @@ std::vector<uint8_t> BuildBadFieldModule() {
   return BuildModuleWithTables(code, const_pool, types, fields, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadConstStringModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, 9999);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildGcModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1128,6 +1146,21 @@ bool RunBadFieldVerifyTest() {
   }
   return true;
 }
+
+bool RunBadConstStringVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadConstStringModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1181,6 +1214,7 @@ int main() {
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
+      {"bad_const_string", RunBadConstStringVerifyTest},
   };
 
   int failures = 0;
