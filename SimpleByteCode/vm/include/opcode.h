@@ -93,9 +93,14 @@ enum class OpCode : uint8_t {
   ListSetI32 = 0xC3,
   ListPushI32 = 0xC4,
   ListPopI32 = 0xC5,
+  ListInsertI32 = 0xC6,
+  ListRemoveI32 = 0xC7,
+  ListClear = 0xC8,
 
   StringLen = 0xD0,
   StringConcat = 0xD1,
+  StringGetChar = 0xD2,
+  StringSlice = 0xD3,
 
   CallCheck = 0xE0,
 };

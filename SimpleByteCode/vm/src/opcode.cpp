@@ -162,11 +162,26 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ListPopI32:
       *info = {0, 1, 1};
       return true;
+    case OpCode::ListInsertI32:
+      *info = {0, 3, 0};
+      return true;
+    case OpCode::ListRemoveI32:
+      *info = {0, 2, 1};
+      return true;
+    case OpCode::ListClear:
+      *info = {0, 1, 0};
+      return true;
     case OpCode::StringLen:
       *info = {0, 1, 1};
       return true;
     case OpCode::StringConcat:
       *info = {0, 2, 1};
+      return true;
+    case OpCode::StringGetChar:
+      *info = {0, 2, 1};
+      return true;
+    case OpCode::StringSlice:
+      *info = {0, 3, 1};
       return true;
     case OpCode::CallCheck:
       *info = {0, 0, 0};

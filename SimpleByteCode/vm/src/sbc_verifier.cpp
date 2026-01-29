@@ -439,6 +439,34 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::ListInsertI32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListRemoveI32: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_REMOVE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ListClear: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_CLEAR type mismatch");
+          if (!r.ok) return r;
+          break;
+        }
         case OpCode::StringLen: {
           ValType list = pop_type();
           VerifyResult r = check_type(list, ValType::Ref, "STRING_LEN type mismatch");
@@ -453,6 +481,29 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(b, ValType::Ref, "STRING_CONCAT type mismatch");
           if (!r2.ok) return r2;
+          push_type(ValType::Ref);
+          break;
+        }
+        case OpCode::StringGetChar: {
+          ValType idx = pop_type();
+          ValType str = pop_type();
+          VerifyResult r1 = check_type(str, ValType::Ref, "STRING_GET_CHAR type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "STRING_GET_CHAR type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
+        case OpCode::StringSlice: {
+          ValType end_idx = pop_type();
+          ValType start_idx = pop_type();
+          ValType str = pop_type();
+          VerifyResult r1 = check_type(str, ValType::Ref, "STRING_SLICE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(start_idx, ValType::I32, "STRING_SLICE type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(end_idx, ValType::I32, "STRING_SLICE type mismatch");
+          if (!r3.ok) return r3;
           push_type(ValType::Ref);
           break;
         }

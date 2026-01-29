@@ -44,6 +44,7 @@
 - Fixed verifier control-flow merge handling for non-fallthrough ops (JMP/RET/etc.).
 - Added ConstU32/ConstChar support and debug/intrinsic op handling with tests for constants, debug no-ops, and intrinsic/syscall traps.
 - Implemented CALL_INDIRECT and TAILCALL execution with verifier stack tracking and added multi-function tests.
+- Added list insert/remove/clear and string get/slice opcodes with verifier checks, runtime support, and tests.
 
 ## Notes
 - This log must record every VM-related change going forward.

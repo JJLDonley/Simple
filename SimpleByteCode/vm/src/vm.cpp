@@ -540,6 +540,59 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, value});
         break;
       }
+      case OpCode::ListInsertI32: {
+        Value value = Pop(stack);
+        Value idx_val = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_INSERT on non-ref");
+        if (idx_val.kind != ValueKind::I32) return Trap("LIST_INSERT index type mismatch");
+        if (value.kind != ValueKind::I32) return Trap("LIST_INSERT value type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        int32_t index = static_cast<int32_t>(idx_val.i64);
+        if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
+        for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
+          size_t from = 8 + static_cast<size_t>(i - 1) * 4;
+          size_t to = 8 + static_cast<size_t>(i) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListRemoveI32: {
+        Value idx_val = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_REMOVE on non-ref");
+        if (idx_val.kind != ValueKind::I32) return Trap("LIST_REMOVE index type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx_val.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        int32_t removed = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+        for (uint32_t i = static_cast<uint32_t>(index) + 1; i < length; ++i) {
+          size_t from = 8 + static_cast<size_t>(i) * 4;
+          size_t to = 8 + static_cast<size_t>(i - 1) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, Value{ValueKind::I32, removed});
+        break;
+      }
+      case OpCode::ListClear: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_CLEAR on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_CLEAR on non-list");
+        WriteU32Payload(obj->payload, 0, 0);
+        break;
+      }
       case OpCode::StringLen: {
         Value v = Pop(stack);
         if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_LEN on non-ref");
@@ -563,6 +616,44 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         std::u16string combined = sa + sb;
         uint32_t handle = CreateString(heap, combined);
         if (handle == 0xFFFFFFFFu) return Trap("STRING_CONCAT allocation failed");
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
+      case OpCode::StringGetChar: {
+        Value idx_val = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_GET_CHAR on non-ref");
+        if (idx_val.kind != ValueKind::I32) return Trap("STRING_GET_CHAR index type mismatch");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_GET_CHAR on non-string");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = static_cast<int32_t>(idx_val.i64);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("STRING_GET_CHAR out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 2;
+        uint16_t ch = ReadU16Payload(obj->payload, offset);
+        Push(stack, Value{ValueKind::I32, ch});
+        break;
+      }
+      case OpCode::StringSlice: {
+        Value end_val = Pop(stack);
+        Value start_val = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_SLICE on non-ref");
+        if (start_val.kind != ValueKind::I32 || end_val.kind != ValueKind::I32) {
+          return Trap("STRING_SLICE index type mismatch");
+        }
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_SLICE on non-string");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t start = static_cast<int32_t>(start_val.i64);
+        int32_t end_idx = static_cast<int32_t>(end_val.i64);
+        if (start < 0 || end_idx < 0 || start > end_idx || static_cast<uint32_t>(end_idx) > length) {
+          return Trap("STRING_SLICE out of bounds");
+        }
+        std::u16string text = ReadString(obj);
+        std::u16string slice = text.substr(static_cast<size_t>(start), static_cast<size_t>(end_idx - start));
+        uint32_t handle = CreateString(heap, slice);
+        if (handle == 0xFFFFFFFFu) return Trap("STRING_SLICE allocation failed");
         Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
       }
