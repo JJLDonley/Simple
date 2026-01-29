@@ -2276,6 +2276,39 @@ std::vector<uint8_t> BuildBadFieldSizeLoadModule() {
   return BuildModuleWithTables(code, empty, types, fields, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadFieldAlignmentLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0);
+  AppendU32(fields, 1);
+  AppendU32(fields, 2);
+  AppendU32(fields, 0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, empty, types, fields, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadTypeConstLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -4380,6 +4413,16 @@ bool RunBadFieldSizeLoadTest() {
   return true;
 }
 
+bool RunBadFieldAlignmentLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadFieldAlignmentLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadTypeConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeConstLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4915,6 +4958,7 @@ int main() {
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},
       {"bad_field_offset_load", RunBadFieldOffsetLoadTest},
       {"bad_field_size_load", RunBadFieldSizeLoadTest},
+      {"bad_field_align_load", RunBadFieldAlignmentLoadTest},
       {"bad_type_const_load", RunBadTypeConstLoadTest},
       {"bad_global_init_type_runtime", RunBadGlobalInitTypeRuntimeTest},
       {"good_string_const_load", RunGoodStringConstLoadTest},

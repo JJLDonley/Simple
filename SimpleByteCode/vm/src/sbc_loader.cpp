@@ -326,6 +326,13 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   for (size_t i = 0; i < module.fields.size(); ++i) {
     const auto& row = module.fields[i];
     if (row.type_id >= module.types.size()) return Fail("field type id out of range");
+    const auto& field_type = module.types[row.type_id];
+    if (field_type.size > 0) {
+      uint32_t align = field_type.size;
+      if (align == 2 || align == 4 || align == 8 || align == 16) {
+        if (row.offset % align != 0) return Fail("field offset misaligned");
+      }
+    }
   }
   for (size_t i = 0; i < module.sigs.size(); ++i) {
     const auto& row = module.sigs[i];

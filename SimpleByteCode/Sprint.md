@@ -91,3 +91,5 @@
 - Added loader validation for signature call_conv and method flags with negative load tests.
 
 - Added loader validation for header flags with a negative load test.
+
+- Added loader validation for field offset alignment with a negative load test.
