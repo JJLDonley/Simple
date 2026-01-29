@@ -42,6 +42,7 @@
 - Added CallCheck opcode and verifier/type-stack support for it.
 - Added merge-point type validation and a bad-merge verifier test.
 - Fixed verifier control-flow merge handling for non-fallthrough ops (JMP/RET/etc.).
+- Added ConstU32/ConstChar support and debug/intrinsic op handling with tests for constants, debug no-ops, and intrinsic/syscall traps.
 
 ## Notes
 - This log must record every VM-related change going forward.

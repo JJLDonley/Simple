@@ -226,6 +226,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       }
       case OpCode::Trap:
         return Trap("TRAP");
+      case OpCode::Breakpoint:
+        break;
       case OpCode::Pop: {
         if (stack.empty()) return Trap("POP on empty stack");
         stack.pop_back();
@@ -267,6 +269,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, value});
         break;
       }
+      case OpCode::ConstU32: {
+        uint32_t value = ReadU32(module.code, pc);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(value)});
+        break;
+      }
       case OpCode::ConstI8: {
         int8_t value = static_cast<int8_t>(ReadU8(module.code, pc));
         Push(stack, Value{ValueKind::I32, value});
@@ -283,6 +290,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         break;
       }
       case OpCode::ConstU16: {
+        uint16_t value = ReadU16(module.code, pc);
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstChar: {
         uint16_t value = ReadU16(module.code, pc);
         Push(stack, Value{ValueKind::I32, value});
         break;
@@ -557,6 +569,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       case OpCode::CallCheck: {
         if (!call_stack.empty()) return Trap("CALLCHECK not in root");
         break;
+      }
+      case OpCode::Line: {
+        ReadU32(module.code, pc);
+        ReadU32(module.code, pc);
+        break;
+      }
+      case OpCode::ProfileStart: {
+        ReadU32(module.code, pc);
+        break;
+      }
+      case OpCode::ProfileEnd: {
+        ReadU32(module.code, pc);
+        break;
+      }
+      case OpCode::Intrinsic: {
+        ReadU32(module.code, pc);
+        return Trap("INTRINSIC not supported");
+      }
+      case OpCode::SysCall: {
+        ReadU32(module.code, pc);
+        return Trap("SYS_CALL not supported");
       }
       case OpCode::AddI32:
       case OpCode::SubI32:

@@ -728,6 +728,95 @@ std::vector<uint8_t> BuildBadTypeModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildConstU32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 1234);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildConstCharModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstChar));
+  AppendU16(code, 65);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildDebugNoopModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Breakpoint));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(code, 10);
+  AppendU32(code, 20);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ProfileStart));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ProfileEnd));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildIntrinsicTrapModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildSysCallTrapModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SysCall));
+  AppendU32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadMergeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Jmp));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  size_t join = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  PatchRel32(code, patch_sites[1], join);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildCallCheckModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1260,6 +1349,78 @@ bool RunStringTest() {
   return true;
 }
 
+bool RunConstU32Test() {
+  std::vector<uint8_t> module_bytes = BuildConstU32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1234) {
+    std::cerr << "expected 1234, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunConstCharTest() {
+  std::vector<uint8_t> module_bytes = BuildConstCharModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 65) {
+    std::cerr << "expected 65, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunDebugNoopTest() {
+  std::vector<uint8_t> module_bytes = BuildDebugNoopModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunFieldTest() {
   std::vector<uint8_t> module_bytes = BuildFieldModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1330,6 +1491,21 @@ bool RunBadTypeVerifyTest() {
   return true;
 }
 
+bool RunBadMergeVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadMergeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunCallCheckTest() {
   std::vector<uint8_t> module_bytes = BuildCallCheckModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1373,6 +1549,14 @@ bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
     return false;
   }
   return true;
+}
+
+bool RunIntrinsicTrapTest() {
+  return RunExpectTrap(BuildIntrinsicTrapModule(), "intrinsic");
+}
+
+bool RunSysCallTrapTest() {
+  return RunExpectTrap(BuildSysCallTrapModule(), "syscall");
 }
 
 bool RunBadArrayGetTrapTest() {
@@ -1438,12 +1622,18 @@ int main() {
       {"list_i32", RunListTest},
       {"list_len", RunListLenTest},
       {"string_ops", RunStringTest},
+      {"const_u32", RunConstU32Test},
+      {"const_char", RunConstCharTest},
+      {"debug_noop", RunDebugNoopTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_type_verify", RunBadTypeVerifyTest},
+      {"bad_merge_verify", RunBadMergeVerifyTest},
       {"callcheck", RunCallCheckTest},
+      {"intrinsic_trap", RunIntrinsicTrapTest},
+      {"syscall_trap", RunSysCallTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"list_overflow", RunListOverflowTrapTest},

@@ -186,6 +186,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstU8:
         case OpCode::ConstU16:
         case OpCode::ConstU32:
+        case OpCode::ConstChar:
           push_type(ValType::I32);
           break;
         case OpCode::ConstBool:
