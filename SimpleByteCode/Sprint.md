@@ -100,3 +100,4 @@
 - Added loader negative tests for missing/out-of-range signature param type lists.
 - Added loader negative test for misaligned signature param type list size.
 - Added loader negative test for signature param type id out of range.
+- Added CMake + Windows build scripts for cross-platform builds.

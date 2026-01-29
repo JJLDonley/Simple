@@ -5,6 +5,22 @@ Build:
 ./build.sh
 ```
 
+Build (CMake, cross-platform):
+```
+cmake -S . -B build
+cmake --build build --config Release
+```
+
+Build (Windows PowerShell):
+```
+./build.ps1
+```
+
+Build (Windows cmd):
+```
+build.bat
+```
+
 Run:
 ```
 ./bin/simplevm <module.sbc>
@@ -14,6 +30,11 @@ Run:
 Tests:
 ```
 ./bin/simplevm_tests
+```
+
+Tests (CMake build):
+```
+./build/bin/simplevm_tests
 ```
 
 Notes:
