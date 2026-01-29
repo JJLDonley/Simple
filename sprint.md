@@ -65,3 +65,8 @@
 - Test run (user):
   - Command: `dotnet run --project compiler/tests/Simple.Compiler.Tests/Simple.Compiler.Tests.csproj -c Release`
   - Result: PASS (all tests, including Compilation_Emit_HelloWorld).
+
+## Phase 2
+
+### Step 1 - 2026-01-29
+- Started Phase 2 branch and planning.
