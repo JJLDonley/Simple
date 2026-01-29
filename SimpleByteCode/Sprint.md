@@ -84,3 +84,5 @@
 - Tightened const pool validation for string null-termination and 16-byte I128/U128 blobs with load-time tests.
 
 - Added positive load tests for valid CONST_STRING and I128 blob lengths.
+
+- Added runtime initialization for globals from const pool (string/f32/f64) with a string init test.

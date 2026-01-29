@@ -2034,6 +2034,28 @@ std::vector<uint8_t> BuildBadGlobalUninitModule() {
   return BuildModule(code, 1, 0);
 }
 
+std::vector<uint8_t> BuildGlobalInitStringModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 0);
+  uint32_t str_offset = static_cast<uint32_t>(const_pool.size() + 4);
+  AppendU32(const_pool, str_offset);
+  const_pool.push_back('h');
+  const_pool.push_back('i');
+  const_pool.push_back(0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
 std::vector<uint8_t> BuildBadGlobalInitConstModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4008,6 +4030,30 @@ bool RunBadGlobalUninitVerifyTest() {
   return true;
 }
 
+bool RunGlobalInitStringTest() {
+  std::vector<uint8_t> module_bytes = BuildGlobalInitStringModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 2) {
+    std::cerr << "expected 2, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadGlobalInitConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadGlobalInitConstModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4504,6 +4550,7 @@ int main() {
       {"bad_jump_boundary_verify", RunBadJumpBoundaryVerifyTest},
       {"bad_jump_oob_verify", RunBadJumpOobVerifyTest},
       {"bad_global_uninit_verify", RunBadGlobalUninitVerifyTest},
+      {"global_init_string", RunGlobalInitStringTest},
       {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
       {"bad_string_const_nul_load", RunBadStringConstNoNullLoadTest},
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},

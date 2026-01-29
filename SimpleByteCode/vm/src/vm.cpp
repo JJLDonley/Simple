@@ -131,6 +131,17 @@ uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset) {
          (static_cast<uint32_t>(payload[offset + 3]) << 24);
 }
 
+uint64_t ReadU64Payload(const std::vector<uint8_t>& payload, size_t offset) {
+  return static_cast<uint64_t>(payload[offset]) |
+         (static_cast<uint64_t>(payload[offset + 1]) << 8) |
+         (static_cast<uint64_t>(payload[offset + 2]) << 16) |
+         (static_cast<uint64_t>(payload[offset + 3]) << 24) |
+         (static_cast<uint64_t>(payload[offset + 4]) << 32) |
+         (static_cast<uint64_t>(payload[offset + 5]) << 40) |
+         (static_cast<uint64_t>(payload[offset + 6]) << 48) |
+         (static_cast<uint64_t>(payload[offset + 7]) << 56);
+}
+
 void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
   payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
@@ -200,6 +211,48 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
   Heap heap;
   std::vector<Value> globals(module.globals.size());
+  auto read_const_string = [&](uint32_t const_id) -> Value {
+    uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+    if (kind != 0) return Value{ValueKind::None, 0};
+    if (const_id + 8 > module.const_pool.size()) return Value{ValueKind::None, 0};
+    uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
+    if (str_offset >= module.const_pool.size()) return Value{ValueKind::None, 0};
+    const char* base = reinterpret_cast<const char*>(module.const_pool.data() + str_offset);
+    std::u16string text;
+    for (size_t i = 0; str_offset + i < module.const_pool.size(); ++i) {
+      char c = base[i];
+      if (c == '\0') break;
+      text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
+    }
+    uint32_t handle = CreateString(heap, text);
+    if (handle == 0xFFFFFFFFu) return Value{ValueKind::None, 0};
+    return Value{ValueKind::Ref, static_cast<int64_t>(handle)};
+  };
+  for (size_t i = 0; i < module.globals.size(); ++i) {
+    uint32_t const_id = module.globals[i].init_const_id;
+    if (const_id == 0xFFFFFFFFu) continue;
+    if (const_id + 4 > module.const_pool.size()) return Trap("GLOBAL init const out of bounds");
+    uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+    if (kind == 0) {
+      Value v = read_const_string(const_id);
+      if (v.kind == ValueKind::None) return Trap("GLOBAL init string failed");
+      globals[i] = v;
+      continue;
+    }
+    if (kind == 3) {
+      if (const_id + 8 > module.const_pool.size()) return Trap("GLOBAL init f32 out of bounds");
+      uint32_t bits = ReadU32Payload(module.const_pool, const_id + 4);
+      globals[i] = Value{ValueKind::F32, static_cast<int64_t>(bits)};
+      continue;
+    }
+    if (kind == 4) {
+      if (const_id + 12 > module.const_pool.size()) return Trap("GLOBAL init f64 out of bounds");
+      uint64_t bits = ReadU64Payload(module.const_pool, const_id + 4);
+      globals[i] = Value{ValueKind::F64, static_cast<int64_t>(bits)};
+      continue;
+    }
+    return Trap("GLOBAL init const unsupported");
+  }
 
   size_t entry_func_index = 0;
   bool found = false;
