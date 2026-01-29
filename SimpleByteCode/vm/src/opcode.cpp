@@ -110,6 +110,28 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::SysCall:
       *info = {4, 0, 0};
       return true;
+    case OpCode::NewObject:
+      *info = {4, 0, 1};
+      return true;
+    case OpCode::NewClosure:
+      *info = {5, 0, 1};
+      return true;
+    case OpCode::LoadField:
+      *info = {4, 1, 1};
+      return true;
+    case OpCode::StoreField:
+      *info = {4, 2, 0};
+      return true;
+    case OpCode::IsNull:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::RefEq:
+    case OpCode::RefNe:
+      *info = {0, 2, 1};
+      return true;
+    case OpCode::TypeOf:
+      *info = {0, 1, 1};
+      return true;
   }
   return false;
 }

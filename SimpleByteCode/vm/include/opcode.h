@@ -72,6 +72,15 @@ enum class OpCode : uint8_t {
 
   Intrinsic = 0x90,
   SysCall = 0x91,
+
+  NewObject = 0xA0,
+  NewClosure = 0xA1,
+  LoadField = 0xA2,
+  StoreField = 0xA3,
+  IsNull = 0xA4,
+  RefEq = 0xA5,
+  RefNe = 0xA6,
+  TypeOf = 0xA7,
 };
 
 struct OpInfo {

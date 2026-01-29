@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "heap.h"
 #include "opcode.h"
 #include "sbc_verifier.h"
 
@@ -12,6 +13,7 @@ namespace {
 enum class ValueKind {
   I32,
   Bool,
+  Ref,
   None,
 };
 
@@ -87,6 +89,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
 
+  Heap heap;
   std::vector<Value> globals(module.globals.size());
 
   size_t entry_func_index = 0;
@@ -213,6 +216,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::Bool, v ? 1 : 0});
         break;
       }
+      case OpCode::ConstNull: {
+        Push(stack, Value{ValueKind::Ref, -1});
+        break;
+      }
       case OpCode::LoadLocal: {
         uint32_t idx = ReadU32(module.code, pc);
         if (idx >= current.locals.size()) return Trap("LOAD_LOCAL out of range");
@@ -235,6 +242,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         uint32_t idx = ReadU32(module.code, pc);
         if (idx >= globals.size()) return Trap("STORE_GLOBAL out of range");
         globals[idx] = Pop(stack);
+        break;
+      }
+      case OpCode::NewObject: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, 0);
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
+      case OpCode::IsNull: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref) return Trap("IS_NULL on non-ref");
+        Push(stack, Value{ValueKind::Bool, v.i64 < 0 ? 1 : 0});
+        break;
+      }
+      case OpCode::RefEq:
+      case OpCode::RefNe: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::Ref || b.kind != ValueKind::Ref) return Trap("REF_EQ/REF_NE on non-ref");
+        bool out = (a.i64 == b.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::RefNe)) out = !out;
+        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
         break;
       }
       case OpCode::AddI32:

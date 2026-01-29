@@ -26,6 +26,7 @@
 - Updated test harness to print per-test results.
 - Added MOD_I32 opcode and tests for POP, DUP2, MOD, and boolean ops with branching.
 - Added local load/store and loop execution tests; added JMP bounds checks.
+- Added heap object scaffolding and reference opcodes (ConstNull/NewObject/IsNull/RefEq/RefNe) with tests.
 
 ## Notes
 - This log must record every VM-related change going forward.
