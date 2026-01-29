@@ -2713,6 +2713,29 @@ std::vector<uint8_t> BuildBadSigTableTruncatedLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadSectionAlignmentLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 1) continue;
+    uint32_t sec_offset = ReadU32At(module, off + 4);
+    if (sec_offset + 1 <= module.size()) {
+      WriteU32(module, off + 4, sec_offset + 1);
+      module.push_back(0);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5102,6 +5125,16 @@ bool RunBadSigTableTruncatedLoadTest() {
   return true;
 }
 
+bool RunBadSectionAlignmentLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadSectionAlignmentLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5718,6 +5751,7 @@ int main() {
       {"bad_sig_param_type_misaligned_load", RunBadSigParamTypeMisalignedLoadTest},
       {"bad_sig_param_type_id_load", RunBadSigParamTypeIdLoadTest},
       {"bad_sig_table_truncated_load", RunBadSigTableTruncatedLoadTest},
+      {"bad_section_alignment_load", RunBadSectionAlignmentLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
