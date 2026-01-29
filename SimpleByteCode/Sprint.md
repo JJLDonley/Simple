@@ -88,3 +88,5 @@
 - Added runtime initialization for globals from const pool (string/f32/f64) with a string init test.
 
 - Added global init tests for F32/F64 const pool values.
+
+- Added loader validation for field offsets against type size with a negative load test.

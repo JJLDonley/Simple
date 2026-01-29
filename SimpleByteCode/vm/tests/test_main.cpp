@@ -2167,6 +2167,31 @@ std::vector<uint8_t> BuildBadI128BlobLenModule() {
   return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
 }
 
+std::vector<uint8_t> BuildBadFieldOffsetLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+  AppendU32(fields, 8);
+  AppendU32(fields, 0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, empty, types, fields, 0, 0);
+}
+
 std::vector<uint8_t> BuildGoodStringConstLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -4194,6 +4219,16 @@ bool RunBadI128BlobLenLoadTest() {
   return true;
 }
 
+bool RunBadFieldOffsetLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadFieldOffsetLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGoodStringConstLoadTest() {
   std::vector<uint8_t> module_bytes = BuildGoodStringConstLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4666,6 +4701,7 @@ int main() {
       {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
       {"bad_string_const_nul_load", RunBadStringConstNoNullLoadTest},
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},
+      {"bad_field_offset_load", RunBadFieldOffsetLoadTest},
       {"good_string_const_load", RunGoodStringConstLoadTest},
       {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
