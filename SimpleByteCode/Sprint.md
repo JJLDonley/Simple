@@ -23,6 +23,7 @@
 - Added tests for DUP, SWAP, and ROT behaviors.
 - Added full i32 comparison opcodes (EQ/NE/LT/LE/GT/GE) and branch coverage tests.
 - Fixed comparison test to return i32 exit code instead of bool.
+- Updated test harness to print per-test results.
 
 ## Notes
 - This log must record every VM-related change going forward.

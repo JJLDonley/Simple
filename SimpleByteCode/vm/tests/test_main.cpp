@@ -449,14 +449,33 @@ bool RunBranchTest() {
 } // namespace
 
 int main() {
+  struct TestCase {
+    const char* name;
+    bool (*fn)();
+  };
+
+  const TestCase tests[] = {
+      {"add_i32", RunAddTest},
+      {"globals", RunGlobalTest},
+      {"dup", RunDupTest},
+      {"swap", RunSwapTest},
+      {"rot", RunRotTest},
+      {"cmp_i32", RunCmpTest},
+      {"branch", RunBranchTest},
+  };
+
   int failures = 0;
-  if (!RunAddTest()) failures++;
-  if (!RunGlobalTest()) failures++;
-  if (!RunDupTest()) failures++;
-  if (!RunSwapTest()) failures++;
-  if (!RunRotTest()) failures++;
-  if (!RunCmpTest()) failures++;
-  if (!RunBranchTest()) failures++;
+  for (const auto& test : tests) {
+    std::cout << "[ RUN      ] " << test.name << "\n";
+    bool ok = test.fn();
+    if (!ok) {
+      std::cout << "[  FAILED  ] " << test.name << "\n";
+      failures++;
+    } else {
+      std::cout << "[       OK ] " << test.name << "\n";
+    }
+  }
+
   if (failures == 0) {
     std::cout << "all tests passed\n";
     return 0;
