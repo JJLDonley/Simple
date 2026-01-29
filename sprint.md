@@ -50,3 +50,7 @@
 
 ### Step 12 - 2026-01-29
 - Parser now skips semicolons inside blocks and advances on unexpected tokens to prevent infinite loops.
+
+### Step 13 - 2026-01-29
+- Added compilation emit test to validate code generation for Hello World.
+- Added skip handling when PersistedAssemblyBuilder is unavailable.

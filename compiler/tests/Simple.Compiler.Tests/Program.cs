@@ -3,6 +3,8 @@ using Simple.Compiler.Lexing;
 using Simple.Compiler.Module.Text;
 using Simple.Compiler.Parsing;
 using Simple.Compiler.Syntax;
+using Simple.Compiler;
+using System.Reflection;
 
 namespace Simple.Compiler.Tests;
 
@@ -17,6 +19,7 @@ internal static class Program
         failures += RunTest("Parser_Procedure", ParserProcedure);
         failures += RunTest("Binder_TypeMismatch", BinderTypeMismatch);
         failures += RunTest("Binder_PrintCall", BinderPrintCall);
+        failures += RunTest("Compilation_Emit_HelloWorld", CompilationEmitHelloWorld);
 
         Console.WriteLine(failures == 0 ? "All tests passed." : $"{failures} test(s) failed.");
         return failures == 0 ? 0 : 1;
@@ -28,6 +31,11 @@ internal static class Program
         {
             test();
             Console.WriteLine($"[PASS] {name}");
+            return 0;
+        }
+        catch (SkipException ex)
+        {
+            Console.WriteLine($"[SKIP] {name}: {ex.Message}");
             return 0;
         }
         catch (Exception ex)
@@ -87,6 +95,23 @@ internal static class Program
         Binder.BindProgram(syntax.Root, out var diagnostics);
         Assert.Equal(0, diagnostics.Count, "Expected no diagnostics for print call.");
     }
+
+    private static void CompilationEmitHelloWorld()
+    {
+        if (!CodeGenSupport.IsPersistedAssemblyBuilderAvailable())
+        {
+            throw new SkipException("PersistedAssemblyBuilder not available.");
+        }
+
+        var source = "main : i32 () { print(\"Hello, World!\"); return 0 }";
+        var compilation = Compilation.Create(source);
+        var outputPath = Path.Combine(Path.GetTempPath(), $"simple-test-{Guid.NewGuid():N}.exe");
+        var success = compilation.Emit(outputPath, out var diagnostics);
+
+        Assert.True(success, "Expected emit to succeed.");
+        Assert.Equal(0, diagnostics.Count, "Expected no diagnostics.");
+        Assert.True(File.Exists(outputPath), "Expected output file.");
+    }
 }
 
 internal static class Assert
@@ -105,5 +130,20 @@ internal static class Assert
         {
             throw new InvalidOperationException(message);
         }
+    }
+}
+
+internal sealed class SkipException : Exception
+{
+    public SkipException(string message) : base(message)
+    {
+    }
+}
+
+internal static class CodeGenSupport
+{
+    public static bool IsPersistedAssemblyBuilderAvailable()
+    {
+        return typeof(AssemblyBuilder).Assembly.GetType("System.Reflection.Emit.PersistedAssemblyBuilder") is not null;
     }
 }
