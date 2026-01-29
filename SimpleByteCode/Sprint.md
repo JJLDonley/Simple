@@ -107,4 +107,5 @@
 - Added loader negative test for unknown section ids.
 - Added loader negative test for duplicate section ids.
 - Added loader negative test for section table out-of-bounds via header count.
+- Added loader negative test for invalid header endianness.
 - Added CMake + Windows build scripts for cross-platform builds.

@@ -2825,6 +2825,19 @@ std::vector<uint8_t> BuildBadSectionTableOobLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadEndianHeaderLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  if (module.size() > 0x06) {
+    module[0x06] = 0;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5264,6 +5277,16 @@ bool RunBadSectionTableOobLoadTest() {
   return true;
 }
 
+bool RunBadEndianHeaderLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadEndianHeaderLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5885,6 +5908,7 @@ int main() {
       {"bad_unknown_section_id_load", RunBadUnknownSectionIdLoadTest},
       {"bad_duplicate_section_id_load", RunBadDuplicateSectionIdLoadTest},
       {"bad_section_table_oob_load", RunBadSectionTableOobLoadTest},
+      {"bad_endian_header_load", RunBadEndianHeaderLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
