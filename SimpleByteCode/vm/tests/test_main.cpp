@@ -1074,6 +1074,50 @@ std::vector<uint8_t> BuildTailCallModule() {
   return BuildModuleWithFunctions({entry, callee}, {0, 0});
 }
 
+std::vector<uint8_t> BuildBadCallIndirectVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(code, 0);
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadCallIndirectFuncModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 99);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(code, 0);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadCallIndirectTypeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(code, 0);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
+
 std::vector<uint8_t> BuildBadArrayGetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1998,6 +2042,21 @@ bool RunCallIndirectTest() {
   return true;
 }
 
+bool RunBadCallIndirectVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadCallIndirectVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunTailCallTest() {
   std::vector<uint8_t> module_bytes = BuildTailCallModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2064,6 +2123,14 @@ bool RunBadListInsertTrapTest() {
 
 bool RunBadListRemoveTrapTest() {
   return RunExpectTrap(BuildBadListRemoveModule(), "bad_list_remove");
+}
+
+bool RunBadCallIndirectTrapTest() {
+  return RunExpectTrap(BuildBadCallIndirectFuncModule(), "bad_call_indirect");
+}
+
+bool RunBadCallIndirectTypeTrapTest() {
+  return RunExpectTrap(BuildBadCallIndirectTypeModule(), "bad_call_indirect_type");
 }
 
 bool RunBadStringGetCharTrapTest() {
@@ -2143,11 +2210,14 @@ int main() {
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_type_verify", RunBadTypeVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
+      {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
       {"tailcall", RunTailCallTest},
       {"intrinsic_trap", RunIntrinsicTrapTest},
       {"syscall_trap", RunSysCallTrapTest},
+      {"bad_call_indirect", RunBadCallIndirectTrapTest},
+      {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
