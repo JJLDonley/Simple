@@ -99,19 +99,22 @@ internal static class Program
 
     private static void CompilationEmitHelloWorld()
     {
-        if (!CodeGenSupport.IsPersistedAssemblyBuilderAvailable())
-        {
-            throw new SkipException("PersistedAssemblyBuilder not available.");
-        }
-
         var source = "main : i32 () { print(\"Hello, World!\"); return 0 }";
         var compilation = Compilation.Create(source);
         var outputPath = Path.Combine(Path.GetTempPath(), $"simple-test-{Guid.NewGuid():N}.exe");
         var success = compilation.Emit(outputPath, out var diagnostics);
 
-        Assert.True(success, "Expected emit to succeed.");
-        Assert.Equal(0, diagnostics.Count, "Expected no diagnostics.");
-        Assert.True(File.Exists(outputPath), "Expected output file.");
+        if (CodeGenSupport.IsPersistedAssemblyBuilderAvailable())
+        {
+            Assert.True(success, "Expected emit to succeed.");
+            Assert.Equal(0, diagnostics.Count, "Expected no diagnostics.");
+            Assert.True(File.Exists(outputPath), "Expected output file.");
+        }
+        else
+        {
+            Assert.True(!success, "Expected emit to fail without PersistedAssemblyBuilder.");
+            Assert.True(diagnostics.Any(d => d.Code == "EMT002"), "Expected EMT002 diagnostic for missing PersistedAssemblyBuilder.");
+        }
     }
 }
 

@@ -57,3 +57,6 @@
 
 ### Step 14 - 2026-01-29
 - Resolved Binder ambiguity and AssemblyBuilder reference in test harness.
+
+### Step 15 - 2026-01-29
+- Made emit test deterministic: validates success when PersistedAssemblyBuilder exists, otherwise asserts EMT002.
