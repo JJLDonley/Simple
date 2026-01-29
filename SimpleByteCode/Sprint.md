@@ -82,3 +82,5 @@
 - Added loader validation for global init const ids with a negative load test.
 
 - Tightened const pool validation for string null-termination and 16-byte I128/U128 blobs with load-time tests.
+
+- Added positive load tests for valid CONST_STRING and I128 blob lengths.

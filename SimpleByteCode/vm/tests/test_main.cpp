@@ -2083,6 +2083,44 @@ std::vector<uint8_t> BuildBadI128BlobLenModule() {
   return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
 }
 
+std::vector<uint8_t> BuildGoodStringConstLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 0);
+  uint32_t str_offset = static_cast<uint32_t>(const_pool.size() + 4);
+  AppendU32(const_pool, str_offset);
+  const_pool.push_back('o');
+  const_pool.push_back('k');
+  const_pool.push_back(0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
+std::vector<uint8_t> BuildGoodI128BlobLenLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  std::vector<uint8_t> blob(16, 0xCC);
+  AppendConstBlob(const_pool, 1, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndGlobalInitConst(code, const_pool, empty, empty, 1, 0, const_id);
+}
+
 std::vector<uint8_t> BuildBadParamLocalsModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4000,6 +4038,26 @@ bool RunBadI128BlobLenLoadTest() {
   return true;
 }
 
+bool RunGoodStringConstLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildGoodStringConstLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunGoodI128BlobLenLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildGoodI128BlobLenLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadParamLocalsVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadParamLocalsModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -4449,6 +4507,8 @@ int main() {
       {"bad_global_init_const_load", RunBadGlobalInitConstLoadTest},
       {"bad_string_const_nul_load", RunBadStringConstNoNullLoadTest},
       {"bad_i128_blob_len_load", RunBadI128BlobLenLoadTest},
+      {"good_string_const_load", RunGoodStringConstLoadTest},
+      {"good_i128_blob_len_load", RunGoodI128BlobLenLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_verify", RunBadStackMaxVerifyTest},
       {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
