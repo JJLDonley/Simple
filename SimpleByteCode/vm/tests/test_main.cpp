@@ -1102,6 +1102,84 @@ std::vector<uint8_t> BuildBadListPopModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadListInsertModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListRemoveModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringGetCharModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "A"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringGetChar));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringSliceModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "abc"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildGcModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1980,6 +2058,22 @@ bool RunBadListPopTrapTest() {
   return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
 }
 
+bool RunBadListInsertTrapTest() {
+  return RunExpectTrap(BuildBadListInsertModule(), "bad_list_insert");
+}
+
+bool RunBadListRemoveTrapTest() {
+  return RunExpectTrap(BuildBadListRemoveModule(), "bad_list_remove");
+}
+
+bool RunBadStringGetCharTrapTest() {
+  return RunExpectTrap(BuildBadStringGetCharModule(), "bad_string_get_char");
+}
+
+bool RunBadStringSliceTrapTest() {
+  return RunExpectTrap(BuildBadStringSliceModule(), "bad_string_slice");
+}
+
 bool RunListOverflowTrapTest() {
   return RunExpectTrap(BuildListOverflowModule(), "list_overflow");
 }
@@ -2056,6 +2150,10 @@ int main() {
       {"syscall_trap", RunSysCallTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
+      {"bad_list_insert", RunBadListInsertTrapTest},
+      {"bad_list_remove", RunBadListRemoveTrapTest},
+      {"bad_string_get_char", RunBadStringGetCharTrapTest},
+      {"bad_string_slice", RunBadStringSliceTrapTest},
       {"list_overflow", RunListOverflowTrapTest},
   };
 
