@@ -93,6 +93,9 @@ enum class OpCode : uint8_t {
   ListSetI32 = 0xC3,
   ListPushI32 = 0xC4,
   ListPopI32 = 0xC5,
+
+  StringLen = 0xD0,
+  StringConcat = 0xD1,
 };
 
 struct OpInfo {

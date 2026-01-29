@@ -31,6 +31,20 @@ void AppendI32(std::vector<uint8_t>& out, int32_t v) {
   AppendU32(out, static_cast<uint32_t>(v));
 }
 
+size_t AppendStringToPool(std::vector<uint8_t>& pool, const std::string& text) {
+  size_t offset = pool.size();
+  pool.insert(pool.end(), text.begin(), text.end());
+  pool.push_back('\0');
+  return offset;
+}
+
+void AppendConstString(std::vector<uint8_t>& pool, uint32_t str_offset, uint32_t* out_const_id) {
+  uint32_t const_id = static_cast<uint32_t>(pool.size());
+  AppendU32(pool, 0); // STRING kind
+  AppendU32(pool, str_offset);
+  *out_const_id = const_id;
+}
+
 void WriteU8(std::vector<uint8_t>& out, size_t offset, uint8_t v) {
   out[offset] = v;
 }
@@ -64,7 +78,10 @@ struct SectionData {
   uint32_t offset = 0;
 };
 
-std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t global_count, uint16_t local_count) {
+std::vector<uint8_t> BuildModuleWithConstPool(const std::vector<uint8_t>& code,
+                                              const std::vector<uint8_t>& const_pool,
+                                              uint32_t global_count,
+                                              uint16_t local_count) {
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
   AppendU8(types, 0);        // kind
@@ -106,7 +123,7 @@ std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t glob
   sections.push_back({2, {}, 0, 0});
   sections.push_back({3, methods, 1, 0});
   sections.push_back({4, sigs, 1, 0});
-  sections.push_back({5, {}, 0, 0});
+  sections.push_back({5, const_pool, 0, 0});
   sections.push_back({6, globals, global_count, 0});
   sections.push_back({7, functions, 1, 0});
   sections.push_back({8, code, 0, 0});
@@ -150,6 +167,14 @@ std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t glob
   }
 
   return module;
+}
+
+std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t global_count, uint16_t local_count) {
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  return BuildModuleWithConstPool(code, const_pool, global_count, local_count);
 }
 
 std::vector<uint8_t> BuildSimpleAddModule() {
@@ -508,6 +533,29 @@ std::vector<uint8_t> BuildListModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildStringModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t hello_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t world_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "there"));
+  uint32_t hello_const = 0;
+  uint32_t world_const = 0;
+  AppendConstString(const_pool, hello_off, &hello_const);
+  AppendConstString(const_pool, world_off, &world_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, hello_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, world_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringConcat));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithConstPool(code, const_pool, 0, 0);
 }
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
@@ -893,6 +941,30 @@ bool RunListTest() {
   return true;
 }
 
+bool RunStringTest() {
+  std::vector<uint8_t> module_bytes = BuildStringModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 int main() {
@@ -918,6 +990,7 @@ int main() {
       {"ref_ops", RunRefTest},
       {"array_i32", RunArrayTest},
       {"list_i32", RunListTest},
+      {"string_ops", RunStringTest},
   };
 
   int failures = 0;

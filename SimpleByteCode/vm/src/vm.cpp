@@ -82,6 +82,44 @@ void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t valu
   payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
 }
 
+uint16_t ReadU16Payload(const std::vector<uint8_t>& payload, size_t offset) {
+  return static_cast<uint16_t>(payload[offset]) |
+         (static_cast<uint16_t>(payload[offset + 1]) << 8);
+}
+
+void WriteU16Payload(std::vector<uint8_t>& payload, size_t offset, uint16_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+}
+
+uint32_t CreateString(Heap& heap, const std::u16string& text) {
+  uint32_t length = static_cast<uint32_t>(text.size());
+  uint32_t size = 4 + length * 2;
+  uint32_t handle = heap.Allocate(ObjectKind::String, 0, size);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return 0xFFFFFFFFu;
+  WriteU32Payload(obj->payload, 0, length);
+  size_t offset = 4;
+  for (uint32_t i = 0; i < length; ++i) {
+    WriteU16Payload(obj->payload, offset, text[i]);
+    offset += 2;
+  }
+  return handle;
+}
+
+std::u16string ReadString(const HeapObject* obj) {
+  if (!obj || obj->header.kind != ObjectKind::String) return {};
+  uint32_t length = ReadU32Payload(obj->payload, 0);
+  std::u16string out;
+  out.resize(length);
+  size_t offset = 4;
+  for (uint32_t i = 0; i < length; ++i) {
+    out[i] = static_cast<char16_t>(ReadU16Payload(obj->payload, offset));
+    offset += 2;
+  }
+  return out;
+}
+
 
 ExecResult Trap(const std::string& message) {
   ExecResult result;
@@ -229,6 +267,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       case OpCode::ConstBool: {
         uint8_t v = ReadU8(module.code, pc);
         Push(stack, Value{ValueKind::Bool, v ? 1 : 0});
+        break;
+      }
+      case OpCode::ConstString: {
+        uint32_t const_id = ReadU32(module.code, pc);
+        if (const_id + 8 > module.const_pool.size()) return Trap("CONST_STRING out of bounds");
+        uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+        if (kind != 0) return Trap("CONST_STRING wrong const kind");
+        uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
+        if (str_offset >= module.const_pool.size()) return Trap("CONST_STRING bad offset");
+        const char* base = reinterpret_cast<const char*>(module.const_pool.data() + str_offset);
+        std::u16string text;
+        for (size_t i = 0; str_offset + i < module.const_pool.size(); ++i) {
+          char c = base[i];
+          if (c == '\0') break;
+          text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
+        }
+        uint32_t handle = CreateString(heap, text);
+        if (handle == 0xFFFFFFFFu) return Trap("CONST_STRING allocation failed");
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
       }
       case OpCode::ConstNull: {
@@ -409,6 +466,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
         WriteU32Payload(obj->payload, 0, length - 1);
         Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::StringLen: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_LEN on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_LEN on non-string");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        break;
+      }
+      case OpCode::StringConcat: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::Ref || b.kind != ValueKind::Ref) return Trap("STRING_CONCAT on non-ref");
+        HeapObject* obj_a = heap.Get(static_cast<uint32_t>(a.i64));
+        HeapObject* obj_b = heap.Get(static_cast<uint32_t>(b.i64));
+        if (!obj_a || !obj_b || obj_a->header.kind != ObjectKind::String || obj_b->header.kind != ObjectKind::String) {
+          return Trap("STRING_CONCAT on non-string");
+        }
+        std::u16string sa = ReadString(obj_a);
+        std::u16string sb = ReadString(obj_b);
+        std::u16string combined = sa + sb;
+        uint32_t handle = CreateString(heap, combined);
+        if (handle == 0xFFFFFFFFu) return Trap("STRING_CONCAT allocation failed");
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
       }
       case OpCode::AddI32:

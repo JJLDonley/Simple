@@ -162,6 +162,12 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ListPopI32:
       *info = {0, 1, 1};
       return true;
+    case OpCode::StringLen:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::StringConcat:
+      *info = {0, 2, 1};
+      return true;
   }
   return false;
 }
