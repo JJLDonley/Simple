@@ -78,18 +78,24 @@ struct SectionData {
   uint32_t offset = 0;
 };
 
-std::vector<uint8_t> BuildModuleWithConstPool(const std::vector<uint8_t>& code,
-                                              const std::vector<uint8_t>& const_pool,
-                                              uint32_t global_count,
-                                              uint16_t local_count) {
-  std::vector<uint8_t> types;
-  AppendU32(types, 0);       // name_str
-  AppendU8(types, 0);        // kind
-  AppendU8(types, 0);        // flags
-  AppendU16(types, 0);       // reserved
-  AppendU32(types, 4);       // size
-  AppendU32(types, 0);       // field_start
-  AppendU32(types, 0);       // field_count
+std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
+                                           const std::vector<uint8_t>& const_pool,
+                                           const std::vector<uint8_t>& types_bytes,
+                                           const std::vector<uint8_t>& fields_bytes,
+                                           uint32_t global_count,
+                                           uint16_t local_count) {
+  std::vector<uint8_t> types = types_bytes;
+  if (types.empty()) {
+    AppendU32(types, 0);       // name_str
+    AppendU8(types, 0);        // kind
+    AppendU8(types, 0);        // flags
+    AppendU16(types, 0);       // reserved
+    AppendU32(types, 4);       // size
+    AppendU32(types, 0);       // field_start
+    AppendU32(types, 0);       // field_count
+  }
+
+  std::vector<uint8_t> fields = fields_bytes;
 
   std::vector<uint8_t> methods;
   AppendU32(methods, 0);     // name_str
@@ -119,8 +125,8 @@ std::vector<uint8_t> BuildModuleWithConstPool(const std::vector<uint8_t>& code,
   AppendU32(functions, 8);   // stack_max
 
   std::vector<SectionData> sections;
-  sections.push_back({1, types, 1, 0});
-  sections.push_back({2, {}, 0, 0});
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
   sections.push_back({3, methods, 1, 0});
   sections.push_back({4, sigs, 1, 0});
   sections.push_back({5, const_pool, 0, 0});
@@ -174,7 +180,8 @@ std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t glob
   uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
   uint32_t dummy_const_id = 0;
   AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
-  return BuildModuleWithConstPool(code, const_pool, global_count, local_count);
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, global_count, local_count);
 }
 
 std::vector<uint8_t> BuildSimpleAddModule() {
@@ -555,7 +562,60 @@ std::vector<uint8_t> BuildStringModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::StringConcat));
   AppendU8(code, static_cast<uint8_t>(OpCode::StringLen));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-  return BuildModuleWithConstPool(code, const_pool, 0, 0);
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildFieldModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  // type 0: dummy
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  // type 1: object with 1 i32 field at offset 0
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0); // name_str
+  AppendU32(fields, 0); // type_id (unused in VM)
+  AppendU32(fields, 0); // offset
+  AppendU32(fields, 1); // flags
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 99);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreField));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadField));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Swap));
+  AppendU8(code, static_cast<uint8_t>(OpCode::TypeOf));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithTables(code, const_pool, types, fields, 0, 0);
 }
 
 std::vector<uint8_t> BuildGcModule() {
@@ -602,7 +662,8 @@ bool RunAddTest() {
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
   if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
     return false;
   }
   if (exec.exit_code != 42) {
@@ -626,7 +687,8 @@ bool RunGlobalTest() {
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
   if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
     return false;
   }
   if (exec.exit_code != 7) {
@@ -650,7 +712,8 @@ bool RunDupTest() {
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
   if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
     return false;
   }
   if (exec.exit_code != 10) {
@@ -674,7 +737,8 @@ bool RunSwapTest() {
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
   if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
     return false;
   }
   if (exec.exit_code != 3) {
@@ -996,6 +1060,30 @@ bool RunStringTest() {
   return true;
 }
 
+bool RunFieldTest() {
+  std::vector<uint8_t> module_bytes = BuildFieldModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed: status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 100) {
+    std::cerr << "expected 100, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -1047,6 +1135,7 @@ int main() {
       {"list_i32", RunListTest},
       {"string_ops", RunStringTest},
       {"gc_smoke", RunGcTest},
+      {"field_ops", RunFieldTest},
   };
 
   int failures = 0;

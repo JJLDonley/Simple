@@ -341,8 +341,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       }
       case OpCode::NewObject: {
         uint32_t type_id = ReadU32(module.code, pc);
-        uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, 0);
+        if (type_id >= module.types.size()) return Trap("NEW_OBJECT bad type id");
+        uint32_t size = module.types[type_id].size;
+        uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, size);
         Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
+      case OpCode::LoadField: {
+        uint32_t field_id = ReadU32(module.code, pc);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LOAD_FIELD on non-ref");
+        if (field_id >= module.fields.size()) return Trap("LOAD_FIELD bad field id");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("LOAD_FIELD on non-object");
+        uint32_t offset = module.fields[field_id].offset;
+        if (offset + 4 > obj->payload.size()) return Trap("LOAD_FIELD out of bounds");
+        int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::StoreField: {
+        uint32_t field_id = ReadU32(module.code, pc);
+        Value value = Pop(stack);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STORE_FIELD on non-ref");
+        if (value.kind != ValueKind::I32) return Trap("STORE_FIELD type mismatch");
+        if (field_id >= module.fields.size()) return Trap("STORE_FIELD bad field id");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("STORE_FIELD on non-object");
+        uint32_t offset = module.fields[field_id].offset;
+        if (offset + 4 > obj->payload.size()) return Trap("STORE_FIELD out of bounds");
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
         break;
       }
       case OpCode::IsNull: {
@@ -359,6 +388,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         bool out = (a.i64 == b.i64);
         if (opcode == static_cast<uint8_t>(OpCode::RefNe)) out = !out;
         Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        break;
+      }
+      case OpCode::TypeOf: {
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("TYPEOF on non-ref");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (!obj) return Trap("TYPEOF on invalid ref");
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(obj->header.type_id)});
         break;
       }
       case OpCode::NewArray: {

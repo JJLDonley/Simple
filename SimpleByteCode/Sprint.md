@@ -32,6 +32,8 @@
 - Fixed list and core test local-count mismatches after adding list support.
 - Added string ops (CONST_STRING/STRING_LEN/STRING_CONCAT) with const pool support and tests.
 - Added basic GC root marking/sweep pass and a GC smoke test.
+- Added field ops (NEW_OBJECT/LOAD_FIELD/STORE_FIELD/TYPEOF) with tests and custom type/field tables.
+- Fixed field test stack order for TYPEOF.
 
 ## Notes
 - This log must record every VM-related change going forward.
