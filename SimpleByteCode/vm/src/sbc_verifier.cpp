@@ -79,6 +79,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
     std::vector<ValType> stack_types;
     std::vector<ValType> locals(local_count, ValType::Unknown);
     std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
+    int call_depth = 0;
     auto pop_type = [&]() -> ValType {
       if (stack_types.empty()) return ValType::Unknown;
       ValType t = stack_types.back();
@@ -158,6 +159,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         uint32_t sig_id = module.methods[callee_method].sig_id;
         if (sig_id >= module.sigs.size()) return Fail("CALL signature id out of range");
         if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL arg count mismatch");
+        if (opcode == static_cast<uint8_t>(OpCode::Call)) ++call_depth;
       }
       if (opcode == static_cast<uint8_t>(OpCode::CallIndirect)) {
         uint32_t sig_id = 0;
@@ -442,6 +444,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::Ref);
           break;
         }
+        case OpCode::CallCheck:
+          if (call_depth != 0) return Fail("CALLCHECK not in root");
+          break;
+        case OpCode::Ret:
+          break;
         default:
           for (int i = 0; i < info.pops; ++i) pop_type();
           for (int i = 0; i < info.pushes; ++i) push_type(ValType::Unknown);

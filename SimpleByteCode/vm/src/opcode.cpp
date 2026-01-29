@@ -168,6 +168,9 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StringConcat:
       *info = {0, 2, 1};
       return true;
+    case OpCode::CallCheck:
+      *info = {0, 0, 0};
+      return true;
   }
   return false;
 }

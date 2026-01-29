@@ -96,6 +96,8 @@ enum class OpCode : uint8_t {
 
   StringLen = 0xD0,
   StringConcat = 0xD1,
+
+  CallCheck = 0xE0,
 };
 
 struct OpInfo {

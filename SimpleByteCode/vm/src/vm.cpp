@@ -554,6 +554,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
       }
+      case OpCode::CallCheck: {
+        if (!call_stack.empty()) return Trap("CALLCHECK not in root");
+        break;
+      }
       case OpCode::AddI32:
       case OpCode::SubI32:
       case OpCode::MulI32:

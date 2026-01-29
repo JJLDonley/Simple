@@ -39,6 +39,7 @@
 - Added negative runtime tests for array bounds and list pop underflow.
 - Added tests for ARRAY_LEN, LIST_LEN, and list overflow trapping.
 - Added basic type-stack verification and a bad-type verifier test.
+- Added CallCheck opcode and verifier/type-stack support for it.
 
 ## Notes
 - This log must record every VM-related change going forward.

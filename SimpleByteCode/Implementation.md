@@ -174,3 +174,11 @@ Coverage targets:
 - JIT tiering works and is validated by differential tests.
 - GC stable under stress tests.
 - Debug info and diagnostics are correct.
+
+---
+
+## 8) Current Status (Living Notes)
+
+- VM interpreter, verifier, and core opcode tests are in place and expanding.
+- Heap objects and basic GC root marking are implemented (mark/sweep pass).
+- Arrays, lists, strings, and object fields have runtime and negative tests.
