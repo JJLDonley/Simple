@@ -61,3 +61,4 @@
 - Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).
 - Added U32/U64 arithmetic/compare opcodes with verifier/runtime support and tests; added negative CONST_I128/U128 tests; extended return type mapping for bool.
 - Added I32/I64 bitwise ops with tests, plus a return-ref verification test.
+- Added unsigned edge-case tests for U32/U64 div-by-zero and overflow wrap behavior.
