@@ -66,4 +66,6 @@
 - Added unsigned compare min/max ordering tests for U32/U64.
 - Added shift masking tests for large shift counts on I32/I64.
 - Added unsigned-op wrong-type tests (verify failures + no-verify runtime traps).
+- Added verifier tracking for uninitialized locals with a negative test.
+- Updated bad_call_indirect_type test to avoid uninitialized local under new verifier rules.
 - Added unsigned compare boundary tests for U32/U64 max vs zero and equality.

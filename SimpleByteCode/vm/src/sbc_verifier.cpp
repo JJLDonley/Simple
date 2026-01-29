@@ -61,7 +61,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
     uint16_t local_count = module.methods[method_id].local_count;
     uint32_t sig_id = module.methods[method_id].sig_id;
     if (sig_id >= module.sigs.size()) return Fail("function signature out of range");
-    uint32_t ret_type_id = module.sigs[sig_id].ret_type_id;
+    const auto& sig = module.sigs[sig_id];
+    uint32_t ret_type_id = sig.ret_type_id;
 
     enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
     auto resolve_type = [&](uint32_t type_id) -> ValType {
@@ -97,6 +98,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
     std::unordered_map<size_t, std::vector<ValType>> merge_types;
     std::vector<ValType> stack_types;
     std::vector<ValType> locals(local_count, ValType::Unknown);
+    std::vector<bool> locals_init(local_count, false);
+    if (sig.param_count > local_count) return Fail("param count exceeds locals");
+    for (uint16_t i = 0; i < sig.param_count && i < locals_init.size(); ++i) {
+      locals_init[i] = true;
+    }
     std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
     int call_depth = 0;
     auto pop_type = [&]() -> ValType {
@@ -235,8 +241,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::LoadLocal: {
           uint32_t idx = 0;
           ReadU32(code, pc + 1, &idx);
-          if (idx < locals.size()) push_type(locals[idx]);
-          else push_type(ValType::Unknown);
+          if (idx < locals.size()) {
+            if (!locals_init[idx]) return Fail("LOAD_LOCAL uninitialized");
+            push_type(locals[idx]);
+          } else {
+            push_type(ValType::Unknown);
+          }
           break;
         }
         case OpCode::StoreLocal: {
@@ -248,6 +258,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
               return Fail("STORE_LOCAL type mismatch");
             }
             locals[idx] = t;
+            locals_init[idx] = true;
           }
           break;
         }
