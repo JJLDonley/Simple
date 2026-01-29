@@ -56,7 +56,7 @@
 - Added conversion misuse tests: verifier rejection and runtime trap (no-verify) for bad conversion types.
 - Added return-type verification (void vs typed) with a negative test for missing return value.
 - Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).
+- Added U32/U64 arithmetic/compare opcodes with verifier/runtime support and tests; added negative CONST_I128/U128 tests; extended return type mapping for bool.
 
 ## Notes
 - This log must record every VM-related change going forward.
-- Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).

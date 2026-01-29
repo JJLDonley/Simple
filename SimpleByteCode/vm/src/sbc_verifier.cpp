@@ -69,6 +69,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       const auto& row = module.types[type_id];
       if ((row.flags & 0x1u) != 0u) return ValType::Ref;
       if (row.size == 0) return ValType::Ref;
+      if (row.size == 1) return ValType::Bool;
       if (row.size == 4) return ValType::I32;
       if (row.size == 8) return ValType::I64;
       return ValType::Unknown;
@@ -314,11 +315,39 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::AddU32:
+        case OpCode::SubU32:
+        case OpCode::MulU32:
+        case OpCode::DivU32:
+        case OpCode::ModU32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I32, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I32, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
         case OpCode::AddI64:
         case OpCode::SubI64:
         case OpCode::MulI64:
         case OpCode::DivI64:
         case OpCode::ModI64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I64, "arith type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I64, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::AddU64:
+        case OpCode::SubU64:
+        case OpCode::MulU64:
+        case OpCode::DivU64:
+        case OpCode::ModU64: {
           ValType b = pop_type();
           ValType a = pop_type();
           VerifyResult r1 = check_type(a, ValType::I64, "arith type mismatch");
@@ -369,12 +398,42 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::Bool);
           break;
         }
+        case OpCode::CmpEqU32:
+        case OpCode::CmpNeU32:
+        case OpCode::CmpLtU32:
+        case OpCode::CmpLeU32:
+        case OpCode::CmpGtU32:
+        case OpCode::CmpGeU32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I32, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I32, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
         case OpCode::CmpEqI64:
         case OpCode::CmpNeI64:
         case OpCode::CmpLtI64:
         case OpCode::CmpLeI64:
         case OpCode::CmpGtI64:
         case OpCode::CmpGeI64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I64, "compare type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I64, "compare type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
+        case OpCode::CmpEqU64:
+        case OpCode::CmpNeU64:
+        case OpCode::CmpLtU64:
+        case OpCode::CmpLeU64:
+        case OpCode::CmpGtU64:
+        case OpCode::CmpGeU64: {
           ValType b = pop_type();
           ValType a = pop_type();
           VerifyResult r1 = check_type(a, ValType::I64, "compare type mismatch");

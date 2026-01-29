@@ -142,6 +142,28 @@ enum class OpCode : uint8_t {
   StringSlice = 0xD3,
 
   CallCheck = 0xE0,
+  AddU32 = 0xE1,
+  SubU32 = 0xE2,
+  MulU32 = 0xE3,
+  DivU32 = 0xE4,
+  ModU32 = 0xE5,
+  AddU64 = 0xE6,
+  SubU64 = 0xE7,
+  MulU64 = 0xE8,
+  DivU64 = 0xE9,
+  ModU64 = 0xEA,
+  CmpEqU32 = 0xEB,
+  CmpNeU32 = 0xEC,
+  CmpLtU32 = 0xED,
+  CmpLeU32 = 0xEE,
+  CmpGtU32 = 0xEF,
+  CmpGeU32 = 0xF0,
+  CmpEqU64 = 0xF1,
+  CmpNeU64 = 0xF2,
+  CmpLtU64 = 0xF3,
+  CmpLeU64 = 0xF4,
+  CmpGtU64 = 0xF5,
+  CmpGeU64 = 0xF6,
 };
 
 struct OpInfo {

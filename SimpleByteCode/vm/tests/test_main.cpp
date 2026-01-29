@@ -1295,6 +1295,62 @@ std::vector<uint8_t> BuildConvFloatModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildU32ArithModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ModU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildU64CmpModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildDebugNoopModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1513,6 +1569,40 @@ std::vector<uint8_t> BuildBadConvRuntimeModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadConstI128KindModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  std::vector<uint8_t> blob(16, 0x33);
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 2, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadConstU128BlobModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  std::vector<uint8_t> blob(8, 0x44);
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 2, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadArrayGetModule() {
@@ -2569,6 +2659,54 @@ bool RunConvFloatTest() {
   return true;
 }
 
+bool RunU32ArithTest() {
+  std::vector<uint8_t> module_bytes = BuildU32ArithModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunU64CmpTest() {
+  std::vector<uint8_t> module_bytes = BuildU64CmpModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunDebugNoopTest() {
   std::vector<uint8_t> module_bytes = BuildDebugNoopModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -2889,6 +3027,14 @@ bool RunBadConvRuntimeTrapTest() {
   return RunExpectTrapNoVerify(BuildBadConvRuntimeModule(), "bad_conv_runtime");
 }
 
+bool RunBadConstI128KindTrapTest() {
+  return RunExpectTrap(BuildBadConstI128KindModule(), "bad_const_i128_kind");
+}
+
+bool RunBadConstU128BlobTrapTest() {
+  return RunExpectTrap(BuildBadConstU128BlobModule(), "bad_const_u128_blob");
+}
+
 bool RunBadCallIndirectTrapTest() {
   return RunExpectTrap(BuildBadCallIndirectFuncModule(), "bad_call_indirect");
 }
@@ -2979,6 +3125,8 @@ int main() {
       {"f64_arith", RunF64ArithTest},
       {"conv_int", RunConvIntTest},
       {"conv_float", RunConvFloatTest},
+      {"u32_arith", RunU32ArithTest},
+      {"u64_cmp", RunU64CmpTest},
       {"debug_noop", RunDebugNoopTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
@@ -2999,6 +3147,8 @@ int main() {
       {"bad_call_indirect", RunBadCallIndirectTrapTest},
       {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},
       {"bad_conv_runtime", RunBadConvRuntimeTrapTest},
+      {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
+      {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
