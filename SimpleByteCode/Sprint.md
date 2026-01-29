@@ -62,3 +62,4 @@
 - Added U32/U64 arithmetic/compare opcodes with verifier/runtime support and tests; added negative CONST_I128/U128 tests; extended return type mapping for bool.
 - Added I32/I64 bitwise ops with tests, plus a return-ref verification test.
 - Added unsigned edge-case tests for U32/U64 div-by-zero and overflow wrap behavior.
+- Added negative tests for bitwise ops (verify failure and no-verify runtime trap).

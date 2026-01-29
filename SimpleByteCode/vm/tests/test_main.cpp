@@ -1829,6 +1829,34 @@ std::vector<uint8_t> BuildBadConstU128BlobModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadBitwiseVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AndI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadBitwiseRuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AndI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadArrayGetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -3418,6 +3446,25 @@ bool RunBadConstU128BlobTrapTest() {
   return RunExpectTrap(BuildBadConstU128BlobModule(), "bad_const_u128_blob");
 }
 
+bool RunBadBitwiseVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadBitwiseVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadBitwiseRuntimeTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadBitwiseRuntimeModule(), "bad_bitwise_runtime");
+}
+
 bool RunBadCallIndirectTrapTest() {
   return RunExpectTrap(BuildBadCallIndirectFuncModule(), "bad_call_indirect");
 }
@@ -3529,6 +3576,7 @@ int main() {
       {"bad_tailcall_verify", RunBadTailCallVerifyTest},
       {"bad_return_verify", RunBadReturnVerifyTest},
       {"bad_conv_verify", RunBadConvVerifyTest},
+      {"bad_bitwise_verify", RunBadBitwiseVerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
       {"tailcall", RunTailCallTest},
@@ -3537,6 +3585,7 @@ int main() {
       {"bad_call_indirect", RunBadCallIndirectTrapTest},
       {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},
       {"bad_conv_runtime", RunBadConvRuntimeTrapTest},
+      {"bad_bitwise_runtime", RunBadBitwiseRuntimeTrapTest},
       {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
       {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
