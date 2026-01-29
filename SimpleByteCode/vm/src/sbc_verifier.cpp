@@ -329,6 +329,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::AndI32:
+        case OpCode::OrI32:
+        case OpCode::XorI32:
+        case OpCode::ShlI32:
+        case OpCode::ShrI32: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I32, "bitwise type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I32, "bitwise type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I32);
+          break;
+        }
         case OpCode::AddI64:
         case OpCode::SubI64:
         case OpCode::MulI64:
@@ -353,6 +367,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r1 = check_type(a, ValType::I64, "arith type mismatch");
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(b, ValType::I64, "arith type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::AndI64:
+        case OpCode::OrI64:
+        case OpCode::XorI64:
+        case OpCode::ShlI64:
+        case OpCode::ShrI64: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::I64, "bitwise type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::I64, "bitwise type mismatch");
           if (!r2.ok) return r2;
           push_type(ValType::I64);
           break;

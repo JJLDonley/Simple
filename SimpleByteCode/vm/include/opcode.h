@@ -164,6 +164,16 @@ enum class OpCode : uint8_t {
   CmpLeU64 = 0xF4,
   CmpGtU64 = 0xF5,
   CmpGeU64 = 0xF6,
+  AndI64 = 0xD4,
+  OrI64 = 0xD5,
+  XorI64 = 0xD6,
+  ShlI64 = 0xD7,
+  ShrI64 = 0xD8,
+  AndI32 = 0xF7,
+  OrI32 = 0xF8,
+  XorI32 = 0xF9,
+  ShlI32 = 0xFA,
+  ShrI32 = 0xFB,
 };
 
 struct OpInfo {

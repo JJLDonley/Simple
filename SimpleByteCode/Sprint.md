@@ -1,5 +1,8 @@
 # Sprint Log - Simple VM
 
+## Notes
+- This log must record every VM-related change going forward.
+
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
 - Implemented initial VM skeleton in `SimpleByteCode/vm/`.
@@ -57,6 +60,4 @@
 - Added return-type verification (void vs typed) with a negative test for missing return value.
 - Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).
 - Added U32/U64 arithmetic/compare opcodes with verifier/runtime support and tests; added negative CONST_I128/U128 tests; extended return type mapping for bool.
-
-## Notes
-- This log must record every VM-related change going forward.
+- Added I32/I64 bitwise ops with tests, plus a return-ref verification test.

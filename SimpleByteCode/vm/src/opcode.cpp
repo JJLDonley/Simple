@@ -240,6 +240,18 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StringConcat:
       *info = {0, 2, 1};
       return true;
+    case OpCode::AndI32:
+    case OpCode::OrI32:
+    case OpCode::XorI32:
+    case OpCode::ShlI32:
+    case OpCode::ShrI32:
+    case OpCode::AndI64:
+    case OpCode::OrI64:
+    case OpCode::XorI64:
+    case OpCode::ShlI64:
+    case OpCode::ShrI64:
+      *info = {0, 2, 1};
+      return true;
     case OpCode::StringGetChar:
       *info = {0, 2, 1};
       return true;

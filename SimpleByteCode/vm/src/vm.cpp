@@ -811,6 +811,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
         break;
       }
+      case OpCode::AndI32:
+      case OpCode::OrI32:
+      case OpCode::XorI32:
+      case OpCode::ShlI32:
+      case OpCode::ShrI32: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 bitwise on non-i32");
+        uint32_t lhs = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
+        uint32_t rhs = static_cast<uint32_t>(static_cast<int32_t>(b.i64));
+        uint32_t out = 0;
+        if (opcode == static_cast<uint8_t>(OpCode::AndI32)) out = lhs & rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::OrI32)) out = lhs | rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::XorI32)) out = lhs ^ rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::ShlI32)) out = lhs << (rhs & 31u);
+        if (opcode == static_cast<uint8_t>(OpCode::ShrI32)) out = lhs >> (rhs & 31u);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
       case OpCode::AddI64:
       case OpCode::SubI64:
       case OpCode::MulI64:
@@ -846,6 +865,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (opcode == static_cast<uint8_t>(OpCode::MulU64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivU64)) out = rhs == 0 ? 0u : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModU64)) out = rhs == 0 ? 0u : (lhs % rhs);
+        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        break;
+      }
+      case OpCode::AndI64:
+      case OpCode::OrI64:
+      case OpCode::XorI64:
+      case OpCode::ShlI64:
+      case OpCode::ShrI64: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 bitwise on non-i64");
+        uint64_t lhs = static_cast<uint64_t>(a.i64);
+        uint64_t rhs = static_cast<uint64_t>(b.i64);
+        uint64_t out = 0;
+        if (opcode == static_cast<uint8_t>(OpCode::AndI64)) out = lhs & rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::OrI64)) out = lhs | rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::XorI64)) out = lhs ^ rhs;
+        if (opcode == static_cast<uint8_t>(OpCode::ShlI64)) out = lhs << (rhs & 63u);
+        if (opcode == static_cast<uint8_t>(OpCode::ShrI64)) out = lhs >> (rhs & 63u);
         Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
         break;
       }
