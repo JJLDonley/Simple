@@ -2816,6 +2816,29 @@ std::vector<uint8_t> BuildCallCheckModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildCallParamTypeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
 std::vector<uint8_t> BuildCallIndirectModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> entry;
@@ -2836,6 +2859,31 @@ std::vector<uint8_t> BuildCallIndirectModule() {
   AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
 
   return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildCallIndirectParamTypeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
 }
 
 std::vector<uint8_t> BuildTailCallModule() {
@@ -5149,6 +5197,30 @@ bool RunCallCheckTest() {
   return true;
 }
 
+bool RunCallParamTypeTest() {
+  std::vector<uint8_t> module_bytes = BuildCallParamTypeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunCallIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildCallIndirectModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -5288,6 +5360,30 @@ bool RunBadConvVerifyTest() {
   simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
   if (vr.ok) {
     std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunCallIndirectParamTypeTest() {
+  std::vector<uint8_t> module_bytes = BuildCallIndirectParamTypeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
     return false;
   }
   return true;
@@ -5603,7 +5699,9 @@ int main() {
       {"bad_u32_verify", RunBadU32VerifyTest},
       {"bad_u64_verify", RunBadU64VerifyTest},
       {"callcheck", RunCallCheckTest},
+      {"call_param_types", RunCallParamTypeTest},
       {"call_indirect", RunCallIndirectTest},
+      {"call_indirect_param_types", RunCallIndirectParamTypeTest},
       {"tailcall", RunTailCallTest},
       {"jump_to_end", RunJumpToEndTest},
       {"intrinsic_trap", RunIntrinsicTrapTest},
