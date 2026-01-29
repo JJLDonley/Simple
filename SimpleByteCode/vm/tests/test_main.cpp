@@ -1531,6 +1531,108 @@ std::vector<uint8_t> BuildU64CmpBoundsModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildU32CmpMinMaxModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0xFFFFFFFFu);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0xFFFFFFFFu);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0xFFFFFFFFu);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0xFFFFFFFFu);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGeU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, else_block);
+  }
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildU64CmpMinMaxModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGeU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, else_block);
+  }
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBitwiseI32Module() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1574,6 +1676,46 @@ std::vector<uint8_t> BuildBitwiseI32Module() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildShiftMaskI32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 33);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ShlI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0x40000000);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 33);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ShrI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0x20000000);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  PatchRel32(code, patch_sites[1], else_block);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBitwiseI64Module() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1601,6 +1743,46 @@ std::vector<uint8_t> BuildBitwiseI64Module() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ShrI64));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
   AppendI64(code, 0xFF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  PatchRel32(code, patch_sites[1], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildShiftMaskI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 65);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ShlI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 0x4000000000000000LL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 65);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ShrI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 0x2000000000000000LL);
   AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI64));
   AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
   patch_sites.push_back(code.size());
@@ -1911,6 +2093,34 @@ std::vector<uint8_t> BuildBadBitwiseVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadU32VerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadU64VerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadBitwiseRuntimeModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -1921,6 +2131,34 @@ std::vector<uint8_t> BuildBadBitwiseRuntimeModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::AndI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadU32RuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadU64RuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU64));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
@@ -3075,6 +3313,54 @@ bool RunU64CmpBoundsTest() {
   return true;
 }
 
+bool RunU32CmpMinMaxTest() {
+  std::vector<uint8_t> module_bytes = BuildU32CmpMinMaxModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunU64CmpMinMaxTest() {
+  std::vector<uint8_t> module_bytes = BuildU64CmpMinMaxModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunU32DivZeroTest() {
   std::vector<uint8_t> module_bytes = BuildU32DivZeroModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -3195,8 +3481,56 @@ bool RunBitwiseI32Test() {
   return true;
 }
 
+bool RunShiftMaskI32Test() {
+  std::vector<uint8_t> module_bytes = BuildShiftMaskI32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBitwiseI64Test() {
   std::vector<uint8_t> module_bytes = BuildBitwiseI64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunShiftMaskI64Test() {
+  std::vector<uint8_t> module_bytes = BuildShiftMaskI64Module();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -3577,8 +3911,46 @@ bool RunBadBitwiseVerifyTest() {
   return true;
 }
 
+bool RunBadU32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadU32VerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadU64VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadU64VerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadBitwiseRuntimeTrapTest() {
   return RunExpectTrapNoVerify(BuildBadBitwiseRuntimeModule(), "bad_bitwise_runtime");
+}
+
+bool RunBadU32RuntimeTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadU32RuntimeModule(), "bad_u32_runtime");
+}
+
+bool RunBadU64RuntimeTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadU64RuntimeModule(), "bad_u64_runtime");
 }
 
 bool RunBadCallIndirectTrapTest() {
@@ -3675,12 +4047,16 @@ int main() {
       {"u64_cmp", RunU64CmpTest},
       {"u32_cmp_bounds", RunU32CmpBoundsTest},
       {"u64_cmp_bounds", RunU64CmpBoundsTest},
+      {"u32_cmp_minmax", RunU32CmpMinMaxTest},
+      {"u64_cmp_minmax", RunU64CmpMinMaxTest},
       {"u32_div_zero", RunU32DivZeroTest},
       {"u32_overflow", RunU32OverflowTest},
       {"u64_div_zero", RunU64DivZeroTest},
       {"u64_overflow", RunU64OverflowTest},
       {"bitwise_i32", RunBitwiseI32Test},
+      {"shift_mask_i32", RunShiftMaskI32Test},
       {"bitwise_i64", RunBitwiseI64Test},
+      {"shift_mask_i64", RunShiftMaskI64Test},
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
       {"gc_smoke", RunGcTest},
@@ -3695,6 +4071,8 @@ int main() {
       {"bad_return_verify", RunBadReturnVerifyTest},
       {"bad_conv_verify", RunBadConvVerifyTest},
       {"bad_bitwise_verify", RunBadBitwiseVerifyTest},
+      {"bad_u32_verify", RunBadU32VerifyTest},
+      {"bad_u64_verify", RunBadU64VerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_indirect", RunCallIndirectTest},
       {"tailcall", RunTailCallTest},
@@ -3704,6 +4082,8 @@ int main() {
       {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},
       {"bad_conv_runtime", RunBadConvRuntimeTrapTest},
       {"bad_bitwise_runtime", RunBadBitwiseRuntimeTrapTest},
+      {"bad_u32_runtime", RunBadU32RuntimeTrapTest},
+      {"bad_u64_runtime", RunBadU64RuntimeTrapTest},
       {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
       {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
