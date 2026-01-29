@@ -3046,6 +3046,127 @@ std::vector<uint8_t> BuildBadFunctionsTableSizeLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadTypeFieldRangeLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  std::vector<uint8_t> fields;
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithTables(code, const_pool, types, fields, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadFieldTypeIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0);
+  AppendU32(fields, 999);
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithTables(code, const_pool, types, fields, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadGlobalTypeIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 1, 0);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 6) continue;
+    uint32_t globals_offset = ReadU32At(module, off + 4);
+    if (globals_offset + 8 <= module.size()) {
+      WriteU32(module, globals_offset + 4, 999);
+    }
+    break;
+  }
+  return module;
+}
+
+std::vector<uint8_t> BuildBadFunctionMethodIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 7) continue;
+    uint32_t func_offset = ReadU32At(module, off + 4);
+    if (func_offset + 4 <= module.size()) {
+      WriteU32(module, func_offset + 0, 99);
+    }
+    break;
+  }
+  return module;
+}
+
+std::vector<uint8_t> BuildBadMethodSigIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 3) continue;
+    uint32_t methods_offset = ReadU32At(module, off + 4);
+    if (methods_offset + 8 <= module.size()) {
+      WriteU32(module, methods_offset + 4, 99);
+    }
+    break;
+  }
+  return module;
+}
+
 std::vector<uint8_t> BuildBadMethodFlagsLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5625,6 +5746,56 @@ bool RunBadFunctionsTableSizeLoadTest() {
   return true;
 }
 
+bool RunBadTypeFieldRangeLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeFieldRangeLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadFieldTypeIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadFieldTypeIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadGlobalTypeIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadGlobalTypeIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadFunctionMethodIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadFunctionMethodIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadMethodSigIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadMethodSigIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMethodFlagsLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadMethodFlagsLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -6250,6 +6421,11 @@ int main() {
       {"bad_sigs_table_size_load", RunBadSigsTableSizeLoadTest},
       {"bad_globals_table_size_load", RunBadGlobalsTableSizeLoadTest},
       {"bad_functions_table_size_load", RunBadFunctionsTableSizeLoadTest},
+      {"bad_type_field_range_load", RunBadTypeFieldRangeLoadTest},
+      {"bad_field_type_id_load", RunBadFieldTypeIdLoadTest},
+      {"bad_global_type_id_load", RunBadGlobalTypeIdLoadTest},
+      {"bad_function_method_id_load", RunBadFunctionMethodIdLoadTest},
+      {"bad_method_sig_id_load", RunBadMethodSigIdLoadTest},
       {"bad_method_flags_load", RunBadMethodFlagsLoadTest},
       {"bad_param_locals_verify", RunBadParamLocalsVerifyTest},
       {"bad_stack_max_zero_load", RunBadStackMaxZeroLoadTest},
