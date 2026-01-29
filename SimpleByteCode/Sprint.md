@@ -19,6 +19,8 @@
 - Added global read/write test to the VM test harness.
 - Updated VM build script to auto-run tests after build.
 - Routed VM execution through verifier by default; added `--no-verify` option path.
+- Implemented stack ops (POP/DUP/DUP2/SWAP/ROT) and small const variants (I8/I16/U8/U16).
+- Added tests for DUP, SWAP, and ROT behaviors.
 
 ## Notes
 - This log must record every VM-related change going forward.

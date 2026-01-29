@@ -146,8 +146,64 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       }
       case OpCode::Trap:
         return Trap("TRAP");
+      case OpCode::Pop: {
+        if (stack.empty()) return Trap("POP on empty stack");
+        stack.pop_back();
+        break;
+      }
+      case OpCode::Dup: {
+        if (stack.empty()) return Trap("DUP on empty stack");
+        stack.push_back(stack.back());
+        break;
+      }
+      case OpCode::Dup2: {
+        if (stack.size() < 2) return Trap("DUP2 on short stack");
+        Value b = stack[stack.size() - 1];
+        Value a = stack[stack.size() - 2];
+        stack.push_back(a);
+        stack.push_back(b);
+        break;
+      }
+      case OpCode::Swap: {
+        if (stack.size() < 2) return Trap("SWAP on short stack");
+        Value a = stack[stack.size() - 1];
+        Value b = stack[stack.size() - 2];
+        stack[stack.size() - 1] = b;
+        stack[stack.size() - 2] = a;
+        break;
+      }
+      case OpCode::Rot: {
+        if (stack.size() < 3) return Trap("ROT on short stack");
+        Value c = stack[stack.size() - 1];
+        Value b = stack[stack.size() - 2];
+        Value a = stack[stack.size() - 3];
+        stack[stack.size() - 3] = b;
+        stack[stack.size() - 2] = c;
+        stack[stack.size() - 1] = a;
+        break;
+      }
       case OpCode::ConstI32: {
         int32_t value = ReadI32(module.code, pc);
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstI8: {
+        int8_t value = static_cast<int8_t>(ReadU8(module.code, pc));
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstI16: {
+        int16_t value = static_cast<int16_t>(ReadU16(module.code, pc));
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstU8: {
+        uint8_t value = ReadU8(module.code, pc);
+        Push(stack, Value{ValueKind::I32, value});
+        break;
+      }
+      case OpCode::ConstU16: {
+        uint16_t value = ReadU16(module.code, pc);
         Push(stack, Value{ValueKind::I32, value});
         break;
       }
@@ -214,6 +270,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Value v = Pop(stack);
         if (v.kind != ValueKind::Bool) return Trap("BOOL_NOT on non-bool");
         Push(stack, Value{ValueKind::Bool, v.i64 ? 0 : 1});
+        break;
+      }
+      case OpCode::BoolAnd:
+      case OpCode::BoolOr: {
+        Value b = Pop(stack);
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::Bool || b.kind != ValueKind::Bool) return Trap("BOOL op on non-bool");
+        bool out = (opcode == static_cast<uint8_t>(OpCode::BoolAnd)) ? (a.i64 && b.i64) : (a.i64 || b.i64);
+        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
         break;
       }
       case OpCode::Jmp: {

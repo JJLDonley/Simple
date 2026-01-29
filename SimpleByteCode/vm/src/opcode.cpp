@@ -8,12 +8,22 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Halt:
     case OpCode::Trap:
     case OpCode::Breakpoint:
-    case OpCode::Pop:
-    case OpCode::Dup:
-    case OpCode::Dup2:
-    case OpCode::Swap:
-    case OpCode::Rot:
       *info = {0, 0, 0};
+      return true;
+    case OpCode::Pop:
+      *info = {0, 1, 0};
+      return true;
+    case OpCode::Dup:
+      *info = {0, 1, 2};
+      return true;
+    case OpCode::Dup2:
+      *info = {0, 2, 4};
+      return true;
+    case OpCode::Swap:
+      *info = {0, 2, 2};
+      return true;
+    case OpCode::Rot:
+      *info = {0, 3, 3};
       return true;
     case OpCode::Jmp:
     case OpCode::JmpTrue:
