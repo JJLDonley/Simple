@@ -15,6 +15,8 @@
 - Added VM test harness and initial bytecode test (CONST_I32 + ADD_I32).
 - Updated build script to compile test binary.
 - Added `SimpleByteCode/vm/.gitignore` to prevent committing built binaries.
+- Implemented global storage in VM with LOAD_GLOBAL/STORE_GLOBAL support.
+- Added global read/write test to the VM test harness.
 
 ## Notes
 - This log must record every VM-related change going forward.

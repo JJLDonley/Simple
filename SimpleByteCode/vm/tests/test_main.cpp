@@ -58,19 +58,7 @@ struct SectionData {
   uint32_t offset = 0;
 };
 
-std::vector<uint8_t> BuildSimpleAddModule() {
-  using simplevm::OpCode;
-
-  std::vector<uint8_t> code;
-  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
-  AppendU16(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 40);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 2);
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-
+std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t global_count) {
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
   AppendU8(types, 0);        // kind
@@ -93,6 +81,14 @@ std::vector<uint8_t> BuildSimpleAddModule() {
   AppendU16(sigs, 0);        // call_conv
   AppendU32(sigs, 0);        // param_type_start
 
+  std::vector<uint8_t> globals;
+  for (uint32_t i = 0; i < global_count; ++i) {
+    AppendU32(globals, 0);            // name_str
+    AppendU32(globals, 0);            // type_id
+    AppendU32(globals, 1);            // flags (mutable)
+    AppendU32(globals, 0xFFFFFFFFu);  // init_const_id (zero-init)
+  }
+
   std::vector<uint8_t> functions;
   AppendU32(functions, 0);   // method_id
   AppendU32(functions, 0);   // code_offset
@@ -105,7 +101,7 @@ std::vector<uint8_t> BuildSimpleAddModule() {
   sections.push_back({3, methods, 1, 0});
   sections.push_back({4, sigs, 1, 0});
   sections.push_back({5, {}, 0, 0});
-  sections.push_back({6, {}, 0, 0});
+  sections.push_back({6, globals, global_count, 0});
   sections.push_back({7, functions, 1, 0});
   sections.push_back({8, code, 0, 0});
 
@@ -150,6 +146,34 @@ std::vector<uint8_t> BuildSimpleAddModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildSimpleAddModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0);
+}
+
+std::vector<uint8_t> BuildGlobalModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 1);
+}
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -174,11 +198,36 @@ bool RunAddTest() {
   return true;
 }
 
+bool RunGlobalTest() {
+  std::vector<uint8_t> module_bytes = BuildGlobalModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 int main() {
   int failures = 0;
   if (!RunAddTest()) failures++;
+  if (!RunGlobalTest()) failures++;
   if (failures == 0) {
     std::cout << "all tests passed\n";
     return 0;

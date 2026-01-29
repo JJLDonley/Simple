@@ -78,6 +78,8 @@ ExecResult ExecuteModule(const SbcModule& module) {
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
 
+  std::vector<Value> globals(module.globals.size());
+
   size_t entry_func_index = 0;
   bool found = false;
   for (size_t i = 0; i < module.functions.size(); ++i) {
@@ -155,6 +157,18 @@ ExecResult ExecuteModule(const SbcModule& module) {
         uint32_t idx = ReadU32(module.code, pc);
         if (idx >= current.locals.size()) return Trap("STORE_LOCAL out of range");
         current.locals[idx] = Pop(stack);
+        break;
+      }
+      case OpCode::LoadGlobal: {
+        uint32_t idx = ReadU32(module.code, pc);
+        if (idx >= globals.size()) return Trap("LOAD_GLOBAL out of range");
+        Push(stack, globals[idx]);
+        break;
+      }
+      case OpCode::StoreGlobal: {
+        uint32_t idx = ReadU32(module.code, pc);
+        if (idx >= globals.size()) return Trap("STORE_GLOBAL out of range");
+        globals[idx] = Pop(stack);
         break;
       }
       case OpCode::AddI32:
