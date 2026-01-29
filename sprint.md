@@ -60,3 +60,8 @@
 
 ### Step 15 - 2026-01-29
 - Made emit test deterministic: validates success when PersistedAssemblyBuilder exists, otherwise asserts EMT002.
+
+### Step 16 - 2026-01-29
+- Test run (user):
+  - Command: `dotnet run --project compiler/tests/Simple.Compiler.Tests/Simple.Compiler.Tests.csproj -c Release`
+  - Result: PASS (all tests, including Compilation_Emit_HelloWorld).
