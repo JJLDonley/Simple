@@ -147,3 +147,5 @@
 - Added closure upvalue marking in GC and a heap closure mark test.
 
 - Added GC stress test to validate mark/sweep behavior on many objects.
+
+- Added VM-level GC stress test with allocation loop.

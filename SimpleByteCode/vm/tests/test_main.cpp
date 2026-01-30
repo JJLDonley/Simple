@@ -1137,6 +1137,47 @@ std::vector<uint8_t> BuildListOverflowModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildGcVmStressModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2000);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+  size_t loop_start = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTrue));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], loop_start);
+  return BuildModule(code, 0, 2);
+}
+
 std::vector<uint8_t> BuildStringModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -8539,6 +8580,30 @@ bool RunGcStressTest() {
   return true;
 }
 
+bool RunGcVmStressTest() {
+  std::vector<uint8_t> module_bytes = BuildGcVmStressModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8630,6 +8695,7 @@ int main() {
       {"heap_reuse", RunHeapReuseTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
+      {"gc_vm_stress", RunGcVmStressTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
