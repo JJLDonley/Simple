@@ -6967,6 +6967,14 @@ bool RunJitTierTest() {
     std::cerr << "expected None tier for entry\n";
     return false;
   }
+  if (exec.opcode_counts.size() != 256) {
+    std::cerr << "expected 256 opcode counters\n";
+    return false;
+  }
+  if (exec.opcode_counts[static_cast<uint8_t>(simplevm::OpCode::Call)] == 0) {
+    std::cerr << "expected CALL opcode count > 0\n";
+    return false;
+  }
   return true;
 }
 

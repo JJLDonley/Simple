@@ -31,6 +31,7 @@ struct ExecResult {
   int32_t exit_code = 0;
   std::vector<JitTier> jit_tiers;
   std::vector<uint32_t> call_counts;
+  std::vector<uint64_t> opcode_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

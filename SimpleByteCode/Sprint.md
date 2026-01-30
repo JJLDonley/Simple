@@ -155,3 +155,4 @@
 - Added JIT tier stubs in call paths (Tier0/Tier1 placeholder hooks).
 - Added JMP_TABLE default-target boundary tests (jump to end/start).
 - Added NEG U8/U16 wraparound boundary tests.
+- Added per-opcode hotness counters in ExecResult with JIT test coverage.
