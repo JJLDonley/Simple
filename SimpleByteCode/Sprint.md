@@ -145,3 +145,5 @@
 - Added NEW_CLOSURE execution + verifier validation, with positive and negative tests.
 
 - Added closure upvalue marking in GC and a heap closure mark test.
+
+- Added GC stress test to validate mark/sweep behavior on many objects.

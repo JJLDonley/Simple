@@ -8509,6 +8509,36 @@ bool RunHeapClosureMarkTest() {
   return true;
 }
 
+bool RunGcStressTest() {
+  simplevm::Heap heap;
+  std::vector<uint32_t> handles;
+  handles.reserve(1000);
+  for (uint32_t i = 0; i < 1000; ++i) {
+    simplevm::ObjectKind kind = (i % 2 == 0) ? simplevm::ObjectKind::String : simplevm::ObjectKind::Array;
+    uint32_t handle = heap.Allocate(kind, 0, 8);
+    handles.push_back(handle);
+  }
+  heap.ResetMarks();
+  for (uint32_t i = 0; i < handles.size(); ++i) {
+    if (i % 10 == 0) {
+      heap.Mark(handles[i]);
+    }
+  }
+  heap.Sweep();
+  for (uint32_t i = 0; i < handles.size(); ++i) {
+    bool should_live = (i % 10 == 0);
+    if (should_live && !heap.Get(handles[i])) {
+      std::cerr << "expected live object to remain\n";
+      return false;
+    }
+    if (!should_live && heap.Get(handles[i])) {
+      std::cerr << "expected dead object to be collected\n";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8599,6 +8629,7 @@ int main() {
       {"debug_noop", RunDebugNoopTest},
       {"heap_reuse", RunHeapReuseTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
+      {"gc_stress", RunGcStressTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
