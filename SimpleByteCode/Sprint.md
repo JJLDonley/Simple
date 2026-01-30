@@ -248,3 +248,4 @@
 - Added Tier1 JIT fallback indirect test to ensure indirect Tier1 failures fall back safely.
 - Added Tier1 JIT fallback tailcall test to ensure tailcall Tier1 failures fall back safely.
 - Added JIT fallback test to ensure direct-failure stubs stay disabled for subsequent indirect calls.
+- Added JIT fallback test to ensure indirect-failure stubs stay disabled for subsequent direct calls.

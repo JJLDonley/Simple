@@ -3034,6 +3034,45 @@ std::vector<uint8_t> BuildJitFallbackDirectThenIndirectModule() {
   return BuildModuleWithFunctionsAndSig({entry, callee}, {0, 0}, 0, 0, param_types);
 }
 
+std::vector<uint8_t> BuildJitFallbackIndirectThenDirectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types;
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {0, 0}, 0, 0, param_types);
+}
+
 std::vector<uint8_t> BuildJitOpcodeHotI32CompareModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> entry;
@@ -11627,6 +11666,46 @@ bool RunJitFallbackDirectThenIndirectTest() {
   return true;
 }
 
+bool RunJitFallbackIndirectThenDirectTest() {
+  std::vector<uint8_t> module_bytes = BuildJitFallbackIndirectThenDirectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for fallback callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 1) {
+    std::cerr << "expected exactly one compiled exec before fallback\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected exit code 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitDisabledTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17051,6 +17130,7 @@ int main(int argc, char** argv) {
       {"jit_tier1_fallback_indirect", RunJitTier1FallbackIndirectTest},
       {"jit_tier1_fallback_tailcall", RunJitTier1FallbackTailCallTest},
       {"jit_fallback_direct_then_indirect", RunJitFallbackDirectThenIndirectTest},
+      {"jit_fallback_indirect_then_direct", RunJitFallbackIndirectThenDirectTest},
       {"jit_disabled", RunJitDisabledTest},
       {"jit_compiled_bool_ops", RunJitCompiledBoolOpsTest},
       {"jit_compiled_locals_bool_chain", RunJitCompiledLocalsBoolChainTest},
