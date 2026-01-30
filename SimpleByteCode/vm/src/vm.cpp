@@ -1051,6 +1051,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
         break;
       }
+      case OpCode::NegU32: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("NEG_U32 on non-i32");
+        uint32_t v = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
+        uint32_t out = 0u - v;
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
       case OpCode::AndI32:
       case OpCode::OrI32:
       case OpCode::XorI32:
@@ -1094,6 +1102,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (a.kind != ValueKind::I64) return Trap("NEG_I64 on non-i64");
         int64_t out = -a.i64;
         Push(stack, Value{ValueKind::I64, out});
+        break;
+      }
+      case OpCode::NegU64: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I64) return Trap("NEG_U64 on non-i64");
+        uint64_t v = static_cast<uint64_t>(a.i64);
+        uint64_t out = 0u - v;
+        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
         break;
       }
       case OpCode::IncI64:

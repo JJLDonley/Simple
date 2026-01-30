@@ -150,3 +150,4 @@
 - Exposed per-function call counts in ExecResult and validated counts in the JIT tier test.
 - Added JMP_TABLE runtime trap tests for bad kind, malformed blob, and out-of-bounds targets.
 - Added NEG I8/I16 wraparound boundary tests.
+- Added NEG U32/U64 opcodes with verifier/runtime support and tests.

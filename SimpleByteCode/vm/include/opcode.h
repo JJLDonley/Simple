@@ -89,6 +89,8 @@ enum class OpCode : uint8_t {
   NegI16 = 0x9B,
   NegU8 = 0x9C,
   NegU16 = 0x9D,
+  NegU32 = 0x9E,
+  NegU64 = 0x9F,
   NegF32 = 0x7E,
   NegF64 = 0x7F,
 

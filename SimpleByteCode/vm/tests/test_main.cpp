@@ -2540,6 +2540,58 @@ std::vector<uint8_t> BuildNegI16WrapModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildNegU32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 0xFFFFFFFFu);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildNegU64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0xFFFFFFFFFFFFFFFFULL);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildI64ModModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5689,6 +5741,18 @@ std::vector<uint8_t> BuildBadNegI8VerifyModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
+
+std::vector<uint8_t> BuildBadNegU32VerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x3F800000u);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
 std::vector<uint8_t> BuildBadU64VerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -7852,6 +7916,54 @@ bool RunNegI16WrapTest() {
 }
 bool RunF32ArithTest() {
   std::vector<uint8_t> module_bytes = BuildF32ArithModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunNegU32Test() {
+  std::vector<uint8_t> module_bytes = BuildNegU32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunNegU64Test() {
+  std::vector<uint8_t> module_bytes = BuildNegU64Module();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10423,6 +10535,21 @@ bool RunBadNegI8VerifyTest() {
   return true;
 }
 
+bool RunBadNegU32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadNegU32VerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadJmpTableKindVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadJmpTableKindModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -10721,6 +10848,8 @@ int main() {
       {"neg_u16", RunNegU16Test},
       {"neg_i8_wrap", RunNegI8WrapTest},
       {"neg_i16_wrap", RunNegI16WrapTest},
+      {"neg_u32", RunNegU32Test},
+      {"neg_u64", RunNegU64Test},
       {"i64_mod", RunI64ModTest},
       {"f32_arith", RunF32ArithTest},
       {"f64_arith", RunF64ArithTest},
@@ -10881,6 +11010,7 @@ int main() {
       {"bad_inc_u32_verify", RunBadIncU32VerifyTest},
       {"bad_inc_i8_verify", RunBadIncI8VerifyTest},
       {"bad_neg_i8_verify", RunBadNegI8VerifyTest},
+      {"bad_neg_u32_verify", RunBadNegU32VerifyTest},
       {"bad_jmp_table_kind_verify", RunBadJmpTableKindVerifyTest},
       {"bad_jmp_table_kind_runtime", RunBadJmpTableRuntimeKindTrapTest},
       {"bad_jmp_table_blob_runtime", RunBadJmpTableBlobTrapTest},
