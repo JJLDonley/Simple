@@ -12223,6 +12223,38 @@ bool RunRecursiveCallTest() {
   return true;
 }
 
+bool RunRecursiveCallJitTest() {
+  std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true, true);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 5) {
+    std::cerr << "expected 5, got " << exec.exit_code << "\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 0) {
+    std::cerr << "expected no compiled execs for recursive callee\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunRefTest() {
   std::vector<uint8_t> module_bytes = BuildRefModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -16496,6 +16528,7 @@ int main(int argc, char** argv) {
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
       {"recursive_call", RunRecursiveCallTest},
+      {"recursive_call_jit", RunRecursiveCallJitTest},
       {"ref_ops", RunRefTest},
       {"upvalue_ops", RunUpvalueTest},
       {"upvalue_object", RunUpvalueObjectTest},

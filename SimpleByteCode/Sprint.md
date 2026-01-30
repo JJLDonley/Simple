@@ -239,3 +239,4 @@
 - Stabilized JIT execution by falling back to interpreter when compiled execution fails.
 - Added opcode-hot JIT test to ensure unsupported opcodes never enter compiled execution.
 - Added JIT-disabled test to ensure no tiers/compiled execs when JIT is off.
+- Added recursive CALL JIT test to ensure recursion stays stable with JIT enabled.
