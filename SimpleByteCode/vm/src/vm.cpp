@@ -329,6 +329,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     std::vector<Value> local_stack;
     std::vector<Value> locals;
     bool saw_enter = false;
+    bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
     while (pc < end_pc) {
       uint8_t op = module.code[pc++];
       switch (static_cast<OpCode>(op)) {
@@ -348,6 +349,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           break;
         }
         case OpCode::Nop:
+          if (skip_nops) {
+            break;
+          }
           break;
         case OpCode::ConstI32: {
           if (pc + 4 > end_pc) {

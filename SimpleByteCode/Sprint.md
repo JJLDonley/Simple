@@ -221,3 +221,9 @@
 - Expanded JIT differential tests to cover branches, loops, and compare+bool operations.
 - Added JIT differential tests for CALL_INDIRECT and TAILCALL compiled paths.
 - Added Tier1 compiled execution counters and a Tier1 exec count test.
+- Added Tier1 exec count assertions for compiled indirect and tailcall compare+bool tests.
+- Added Tier1 exec count assertions for compiled branch and loop tests.
+- Added Tier1 exec count assertions for compiled indirect loop test.
+- Added a simple benchmark mode (--bench) for loop modules to compare no-JIT vs JIT execution time.
+- Added Tier1 skip-NOP test using the existing tier1 exec counter.
+- Added compiled branch coverage for CALL_INDIRECT path with Tier1 exec assertions.
