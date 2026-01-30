@@ -222,6 +222,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<uint64_t> opcode_counts(256, 0);
   std::vector<uint32_t> compile_counts(module.functions.size(), 0);
   std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
+  std::vector<uint64_t> compile_ticks_tier0(module.functions.size(), 0);
+  std::vector<uint64_t> compile_ticks_tier1(module.functions.size(), 0);
+  uint64_t compile_tick = 0;
   auto update_tier = [&](size_t func_index) {
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
@@ -230,12 +233,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         jit_tiers[func_index] = JitTier::Tier1;
         jit_stubs[func_index].active = true;
         compile_counts[func_index] += 1;
+        compile_ticks_tier1[func_index] = ++compile_tick;
       }
     } else if (count >= kJitTier0Threshold) {
       if (jit_tiers[func_index] == JitTier::None) {
         jit_tiers[func_index] = JitTier::Tier0;
         jit_stubs[func_index].active = true;
         compile_counts[func_index] += 1;
+        compile_ticks_tier0[func_index] = ++compile_tick;
       }
     }
   };
@@ -245,6 +250,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
     result.opcode_counts = opcode_counts;
     result.compile_counts = compile_counts;
     result.func_opcode_counts = func_opcode_counts;
+    result.compile_ticks_tier0 = compile_ticks_tier0;
+    result.compile_ticks_tier1 = compile_ticks_tier1;
     return result;
   };
   auto read_const_string = [&](uint32_t const_id) -> Value {
@@ -368,6 +375,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         jit_tiers[current.func_index] = JitTier::Tier0;
         jit_stubs[current.func_index].active = true;
         compile_counts[current.func_index] += 1;
+        compile_ticks_tier0[current.func_index] = ++compile_tick;
       }
     }
     switch (static_cast<OpCode>(opcode)) {

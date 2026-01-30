@@ -35,6 +35,8 @@ struct ExecResult {
   std::vector<uint64_t> opcode_counts;
   std::vector<uint32_t> compile_counts;
   std::vector<uint32_t> func_opcode_counts;
+  std::vector<uint64_t> compile_ticks_tier0;
+  std::vector<uint64_t> compile_ticks_tier1;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

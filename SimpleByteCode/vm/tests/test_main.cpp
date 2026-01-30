@@ -7101,6 +7101,14 @@ bool RunJitTierTest() {
     std::cerr << "expected 2 compile events for callee, got " << exec.compile_counts[1] << "\n";
     return false;
   }
+  if (exec.compile_ticks_tier0.size() < 2 || exec.compile_ticks_tier1.size() < 2) {
+    std::cerr << "expected compile tick arrays for functions\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0[1] == 0 || exec.compile_ticks_tier1[1] == 0) {
+    std::cerr << "expected compile ticks for callee tiers\n";
+    return false;
+  }
   return true;
 }
 
