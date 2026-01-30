@@ -72,6 +72,10 @@ enum class OpCode : uint8_t {
   DecF32 = 0x88,
   IncF64 = 0x89,
   DecF64 = 0x8A,
+  IncU32 = 0x8B,
+  DecU32 = 0x8C,
+  IncU64 = 0x8D,
+  DecU64 = 0x8E,
   NegF32 = 0x7E,
   NegF64 = 0x7F,
 

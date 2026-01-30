@@ -937,6 +937,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
         break;
       }
+      case OpCode::IncU32:
+      case OpCode::DecU32: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U32 on non-i32");
+        uint32_t out = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
+        if (opcode == static_cast<uint8_t>(OpCode::IncU32)) {
+          out += 1u;
+        } else {
+          out -= 1u;
+        }
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
       case OpCode::AndI32:
       case OpCode::OrI32:
       case OpCode::XorI32:
@@ -1011,6 +1024,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (opcode == static_cast<uint8_t>(OpCode::MulU64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivU64)) out = rhs == 0 ? 0u : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModU64)) out = rhs == 0 ? 0u : (lhs % rhs);
+        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        break;
+      }
+      case OpCode::IncU64:
+      case OpCode::DecU64: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I64) return Trap("INC/DEC_U64 on non-i64");
+        uint64_t out = static_cast<uint64_t>(a.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::IncU64)) {
+          out += 1u;
+        } else {
+          out -= 1u;
+        }
         Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
         break;
       }
