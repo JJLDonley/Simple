@@ -148,3 +148,4 @@
 - Added JMP_TABLE opcode with const pool jump table entries, verifier/VM support, and tests.
 - Added basic JIT tier tracking scaffolding with hotness thresholds and a tiering test.
 - Exposed per-function call counts in ExecResult and validated counts in the JIT tier test.
+- Added JMP_TABLE runtime trap tests for bad kind, malformed blob, and out-of-bounds targets.

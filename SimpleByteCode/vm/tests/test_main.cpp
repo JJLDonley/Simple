@@ -1201,6 +1201,85 @@ std::vector<uint8_t> BuildBadJmpTableKindModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadJmpTableRuntimeKindModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  size_t str_offset = AppendStringToPool(const_pool, "x");
+  uint32_t const_id = 0;
+  AppendConstString(const_pool, static_cast<uint32_t>(str_offset), &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  AppendU32(code, const_id);
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadJmpTableBlobModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 6);
+  uint32_t blob_offset = static_cast<uint32_t>(const_pool.size() + 4);
+  AppendU32(const_pool, blob_offset);
+  AppendU32(const_pool, 6);
+  AppendU32(const_pool, 1);
+  AppendU8(const_pool, 0);
+  AppendU8(const_pool, 0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  AppendU32(code, const_id);
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadJmpTableOobTargetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  size_t const_id_offset = code.size();
+  AppendU32(code, 0);
+  AppendI32(code, 0x7FFFFFFF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> blob;
+  AppendU32(blob, 1);
+  AppendI32(blob, static_cast<int32_t>(0x7FFFFFFF));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 6, blob, &const_id);
+  WriteU32(code, const_id_offset, const_id);
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildJitTierModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> entry;
@@ -10274,6 +10353,17 @@ bool RunBadU64VerifyTest() {
   return true;
 }
 
+bool RunBadJmpTableRuntimeKindTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadJmpTableRuntimeKindModule(), "bad_jmp_table_kind_runtime");
+}
+
+bool RunBadJmpTableBlobTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadJmpTableBlobModule(), "bad_jmp_table_blob_runtime");
+}
+
+bool RunBadJmpTableOobTargetTrapTest() {
+  return RunExpectTrapNoVerify(BuildBadJmpTableOobTargetModule(), "bad_jmp_table_oob_runtime");
+}
 bool RunBadBitwiseRuntimeTrapTest() {
   return RunExpectTrapNoVerify(BuildBadBitwiseRuntimeModule(), "bad_bitwise_runtime");
 }
@@ -10691,6 +10781,9 @@ int main() {
       {"bad_inc_i8_verify", RunBadIncI8VerifyTest},
       {"bad_neg_i8_verify", RunBadNegI8VerifyTest},
       {"bad_jmp_table_kind_verify", RunBadJmpTableKindVerifyTest},
+      {"bad_jmp_table_kind_runtime", RunBadJmpTableRuntimeKindTrapTest},
+      {"bad_jmp_table_blob_runtime", RunBadJmpTableBlobTrapTest},
+      {"bad_jmp_table_oob_runtime", RunBadJmpTableOobTargetTrapTest},
       {"bad_u64_verify", RunBadU64VerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_param_types", RunCallParamTypeTest},
