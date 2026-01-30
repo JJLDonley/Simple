@@ -3103,6 +3103,68 @@ std::vector<uint8_t> BuildJitOpcodeHotFallbackModule() {
   return BuildModuleWithFunctions({entry, callee}, {0, 0});
 }
 
+std::vector<uint8_t> BuildJitParamCalleeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i < simplevm::kJitTier0Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+    AppendI32(entry, 7);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 1);
+    if (i + 1 < simplevm::kJitTier0Threshold) {
+      AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+    }
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {0}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{0, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  return BuildModuleWithFunctionsAndSigs(funcs, locals, sig_ids, {entry_sig, callee_sig});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotParamCalleeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {0}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{0, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  return BuildModuleWithFunctionsAndSigs(funcs, locals, sig_ids, {entry_sig, callee_sig});
+}
+
 std::vector<uint8_t> BuildJitOpcodeHotI32CompareModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> entry;
@@ -11776,6 +11838,86 @@ bool RunJitOpcodeHotFallbackTest() {
   return true;
 }
 
+bool RunJitParamCalleeTest() {
+  std::vector<uint8_t> module_bytes = BuildJitParamCalleeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for param callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 0) {
+    std::cerr << "expected no compiled execs for param callee\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected exit code 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotParamCalleeTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotParamCalleeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot param callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 0) {
+    std::cerr << "expected no compiled execs for opcode-hot param callee\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected exit code 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitDisabledTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17261,6 +17403,8 @@ int main(int argc, char** argv) {
       {"jit_fallback_direct_then_indirect", RunJitFallbackDirectThenIndirectTest},
       {"jit_fallback_indirect_then_direct", RunJitFallbackIndirectThenDirectTest},
       {"jit_opcode_hot_fallback", RunJitOpcodeHotFallbackTest},
+      {"jit_param_callee", RunJitParamCalleeTest},
+      {"jit_opcode_hot_param_callee", RunJitOpcodeHotParamCalleeTest},
       {"jit_disabled", RunJitDisabledTest},
       {"jit_compiled_bool_ops", RunJitCompiledBoolOpsTest},
       {"jit_compiled_locals_bool_chain", RunJitCompiledLocalsBoolChainTest},
