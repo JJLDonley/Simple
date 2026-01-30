@@ -227,3 +227,5 @@
 - Added a simple benchmark mode (--bench) for loop modules to compare no-JIT vs JIT execution time.
 - Added Tier1 skip-NOP test using the existing tier1 exec counter.
 - Added compiled branch coverage for CALL_INDIRECT path with Tier1 exec assertions.
+- Added compiled branch coverage for TAILCALL via helper trampoline with Tier1 exec assertions.
+- Added opcode-hot compiled branch coverage for CALL_INDIRECT path with Tier0 promotion and compiled exec assertions.
