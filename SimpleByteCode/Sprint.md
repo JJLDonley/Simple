@@ -229,3 +229,5 @@
 - Added compiled branch coverage for CALL_INDIRECT path with Tier1 exec assertions.
 - Added compiled branch coverage for TAILCALL via helper trampoline with Tier1 exec assertions.
 - Added opcode-hot compiled branch coverage for CALL_INDIRECT path with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled loop coverage for CALL_INDIRECT and TAILCALL paths with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled branch coverage for TAILCALL path with Tier0 promotion and compiled exec assertions.
