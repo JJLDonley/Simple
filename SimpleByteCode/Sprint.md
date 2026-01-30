@@ -153,3 +153,4 @@
 - Implemented LOAD_UPVALUE/STORE_UPVALUE with closure-aware CALL_INDIRECT, plus tests.
 
 - NEW_CLOSURE now captures upvalues from stack; added verifier/type tests for upvalues.
+- Added upvalue capture test for non-null ref objects.

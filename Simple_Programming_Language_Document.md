@@ -2,7 +2,7 @@
 ## Grammar and Design Specification
 
 **Version:** 1.0  
-**Target Platform:** .NET Common Language Runtime (CLR)  
+**Target Platform:** Simple VM (portable C++ runtime)  
 **File Extension:** `.simple`
 
 ---
@@ -15,14 +15,14 @@
 4. [Type System](#type-system)
 5. [Grammar Specification](#grammar-specification)
 6. [Semantic Rules](#semantic-rules)
-7. [CLR Mapping](#clr-mapping)
+7. [VM Mapping](#vm-mapping)
 8. [Compiler Architecture](#compiler-architecture)
 
 ---
 
 ## Executive Summary
 
-Simple is a statically-typed, general-purpose programming language that compiles to .NET Common Intermediate Language (CIL). The language emphasizes:
+Simple is a statically-typed, general-purpose programming language that compiles to Simple bytecode executed by the Simple VM. The language emphasizes:
 
 - **Universal mutability system** using `:` (mutable) and `::` (immutable)
 - **Minimal syntax** with no unnecessary keywords
@@ -935,162 +935,58 @@ len : i32 = len(jagged[2])    // Length of second row (6)
 
 ---
 
-## CLR Mapping
+## VM Mapping
 
-### Type Mapping
+Simple compiles to Simple bytecode executed by the Simple VM, implemented in portable C++.
 
-| Simple Type | CLR Type |
-|-------------|----------|
-| `i8` | `System.SByte` |
-| `i16` | `System.Int16` |
-| `i32` | `System.Int32` |
-| `i64` | `System.Int64` |
-| `i128` | `System.Int128` (.NET 7+) |
-| `u8` | `System.Byte` |
-| `u16` | `System.UInt16` |
-| `u32` | `System.UInt32` |
-| `u64` | `System.UInt64` |
-| `u128` | `System.UInt128` (.NET 7+) |
-| `f32` | `System.Single` |
-| `f64` | `System.Double` |
-| `bool` | `System.Boolean` |
-| `char` | `System.Char` |
-| `string` | `System.String` |
-| `T[N]` | `T[]` (fixed 1D array) |
-| `T[N][M]` | `T[,]` (fixed rectangular 2D array) |
-| `T[N][M][P]` | `T[,,]` (fixed rectangular 3D array) |
-| `T[]` | `System.Collections.Generic.List<T>` |
-| `T[][]` | `System.Collections.Generic.List<List<T>>` (jagged) |
-| `T[][][]` | `System.Collections.Generic.List<List<List<T>>>` (jagged) |
-| `Box<T>` | `Box<T>` (generic CLR type) |
-| `Map<K, V>` | `Map<K, V>` (generic CLR type) |
+### Value Representation
 
-### Structure Mapping
+- Integer and floating types are stored in fixed-width VM slots matching the Simple type.
+- `bool` is stored as `u8` (0 or 1).
+- `char` is a UTF-16 code unit (`u16`).
+- `string` is a heap object containing UTF-16 data.
+- Arrays, lists, artifacts, modules, and closures are heap objects referenced by a VM ref value.
 
-#### Global Variables
-```
-// Simple
-count : i32 = 0
+### Heap Object Layout (Conceptual)
 
-// CIL: Static field in generated Program class
-.class public Program {
-    .field public static int32 count
-}
-```
+- Header: `type_id`, `size`, GC/refcount metadata
+- Payload: type-specific data (fields, elements, captures)
 
-#### Global Procedures
-```
-// Simple
-add : i32 (a : i32, b : i32) {
-    return a + b
-}
+### Globals and Locals
 
-// CIL: Static method
-.method public static int32 add(int32 a, int32 b) {
-    ldarg.0
-    ldarg.1
-    add
-    ret
-}
-```
+- Globals live in a global slot table (indexed by the bytecode).
+- Locals live in a fixed slot array per call frame.
 
-#### artifacts
-```
-// Simple
-Point :: artifact {
-    x : f32
-    y : f32
-}
+### Procedures and Calls
 
-// CIL: Value type (struct)
-.class public sequential sealed Point extends System.ValueType {
-    .field public float32 x
-    .field public float32 y
-    
-    .method public instance void .ctor(float32, float32) { }
-}
-```
+- Each procedure compiles to a bytecode function with a signature and local count.
+- Call frames store return address, locals, and evaluation stack base.
 
-#### modules
-```
-// Simple
-Math :: module {
-    abs :: i32 (x : i32) { ... }
-}
+### Mutability
 
-// CIL: Static class
-.class public sealed abstract Math {
-    .method public static int32 abs(int32 x) { }
-}
-```
-
-#### enums
-```
-// Simple
-Status :: enum {
-    Pending = 1,
-    Active = 2
-}
-
-// CIL: enum
-.class public sealed Status extends System.enum {
-    .field public static literal valuetype Status Pending = int32(1)
-    .field public static literal valuetype Status Active = int32(2)
-}
-```
-
-### Mutability Mapping
-
-| Simple | CLR Implementation |
-|--------|-------------------|
-| `x :: T = value` | `readonly` field |
-| `x : T = value` | Regular field |
-| `param :: T` | Regular parameter (tracked by compiler) |
-| `param : T` | Regular parameter |
-| Return `:: T` | Return value (immutability enforced by compiler) |
-| Return `: T` | Return value |
-
-**Note:** CLR has limited native immutability support. The compiler enforces most immutability rules during compilation.
+Mutability rules are enforced by the compiler. The VM treats storage as writable.
 
 ### First-Class Procedures
 
-```
-// Simple
-func : fn : i32 = (a : i32, b : i32) { return a + b }
+Closures are heap objects containing a `function_id` and captured environment values.
 
-// CIL: Delegate instance
-.class public Func extends System.MulticastDelegate {
-    .method public instance int32 Invoke(int32, int32) { }
-}
+### Generics
 
-// Field holding delegate
-.field public static class Func func
-```
+Generics are monomorphized at compile time (specialized bytecode per concrete type).
 
-### Generics Mapping
+### Bytecode Module Layout
 
-Generic artifacts and procedures map directly to CLR generics.
+- Header: magic, version, endianness
+- Sections: types, constants, globals, functions, code, debug info
 
-```
-// Simple
-Box<T> :: artifact {
-    value : T
-}
+### Instruction Set
 
-identity<T> : T (value : T) {
-    return value
-}
+The full opcode list and encoding rules live in `Simple_VM_Opcode_Spec.md`.
 
-// CIL (conceptual)
-.class public sequential sealed Box`1<T> extends System.ValueType {
-    .field public !0 value
-}
+### Execution Model
 
-.method public static !0 identity<T>(!0 value) {
-    ldarg.0
-    ret
-}
-```
+- Execution can run in the interpreter or via a tiered JIT.
+- The VM uses a tracing GC; roots are globals, call frames, locals, and the operand stack.
 
 ---
 
@@ -1115,13 +1011,13 @@ Source Code (.simple)
 └─────────────┘
     ↓
 ┌─────────────┐
-│   Code      │ → CIL Bytecode
-│  Generator  │
+│  Bytecode   │ → Simple bytecode
+│  Emitter    │
 └─────────────┘
     ↓
 ┌─────────────┐
-│  Assembly   │ → .exe or .dll
-│   Emitter   │
+│  VM Image   │ → .sbc module
+│  Packager   │
 └─────────────┘
 ```
 
@@ -1194,24 +1090,23 @@ Symbol {
 }
 ```
 
-### Phase 4: Code Generation
+### Phase 4: Bytecode Generation
 
 **Input:** Annotated AST  
-**Output:** CIL bytecode
+**Output:** Simple bytecode
 
 **Responsibilities:**
-- Generate CIL instructions
-- Emit type definitions
-- Emit method bodies
-- Handle stack-based evaluation
-- Optimize basic blocks
+- Emit typed VM instructions
+- Build constant pool and function metadata
+- Emit local/global slot maps
+- Compute stack usage per function
+- Emit optional debug line info
 
 **Generation Strategy:**
-- Use `System.Reflection.Emit` API
-- Create `AssemblyBuilder`, `moduleBuilder`, `TypeBuilder`
-- Emit IL instructions using `ILGenerator`
+- Emit opcodes defined in `Simple_VM_Opcode_Spec.md`
+- Use stack-based evaluation with explicit local/global loads
 
-**Stack Machine Code Generation:**
+**VM Stack Code Generation:**
 
 For expression: `a + b * c`
 
@@ -1223,46 +1118,34 @@ For expression: `a + b * c`
    - Load `a`
    - Add
 
-**CIL:**
+**Bytecode (conceptual):**
 ```
-ldloc.1    // Load b
-ldloc.2    // Load c
-mul
-ldloc.0    // Load a
-add
+load_local 1   // b
+load_local 2   // c
+mul_i32
+load_local 0   // a
+add_i32
 ```
 
-### Phase 5: Assembly Emission
+### Phase 5: Bytecode Packaging
 
-**Input:** CIL bytecode  
-**Output:** .NET assembly (.exe or .dll)
+**Input:** Simple bytecode  
+**Output:** `.sbc` module
 
 **Responsibilities:**
-- Write assembly to disk
-- Set entry point (Main method)
-- Configure assembly metadata
-- Embed resources (if any)
+- Write module to disk
+- Record entry point (main function id)
+- Persist type, constant, and function tables
+- Emit optional debug sections
 
-**Entry Point Generation:**
+**Entry Point:**
 
 Simple requires a top-level procedure to serve as entry point. By convention, `main : i32 () { }`:
 
 ```
 main : i32 () {
-    print("Hello, World!")
+    println("Hello, World!")
     return 0
-}
-```
-
-Compiled to:
-```
-.method public static int32 Main() cil managed {
-    .entrypoint
-    .maxstack 8
-    ldstr "Hello, World!"
-    call void [System.Console]System.Console::WriteLine(string)
-    ldc.i4.0
-    ret
 }
 ```
 
@@ -1272,7 +1155,7 @@ Compiled to:
 1. **Lexical Errors:** Invalid characters, unterminated strings
 2. **Syntax Errors:** Unexpected tokens, missing delimiters
 3. **Semantic Errors:** Type mismatches, undefined identifiers, mutability violations
-4. **Code Generation Errors:** Invalid IL sequences
+4. **Code Generation Errors:** Invalid bytecode sequences
 
 **Error Reporting Format:**
 ```
@@ -1290,15 +1173,15 @@ error[E0001]: type mismatch
 - Dead code elimination
 - Common subexpression elimination
 
-**Phase 2 - CIL Level:**
+**Phase 2 - Bytecode Level:**
 - Peephole optimization
-- Register allocation simulation
+- Stack effect simplification
 - Tail call optimization
 
-**Phase 3 - Defer to CLR:**
-- JIT compiler optimizations
-- Garbage collection
-- Native code generation
+**Phase 3 - VM Runtime:**
+- Optional JIT/AOT compilation
+- Garbage collection / refcount tuning
+- Native code generation hooks
 
 ---
 
@@ -1411,22 +1294,21 @@ This plan follows the language specification and compiler architecture in this d
 - [ ] Validate array sizes as compile-time constants
 - [ ] Validate list and array indexing types
 
-#### 5) Code Generation (CIL)
-- [ ] Emit CLR types for primitives, arrays, lists, artifacts, modules, enums
-- [ ] Emit delegate types for `Fn` procedures
-- [ ] Emit generic artifacts and generic procedures as CLR generics
-- [ ] Emit fields for global variables
-- [ ] Emit methods for procedures and artifact methods
+#### 5) Bytecode Generation
+- [ ] Emit VM instructions for primitives, arrays, lists, artifacts, modules, enums
+- [ ] Emit closures for `Fn` procedures
+- [ ] Monomorphize generics into concrete bytecode
+- [ ] Emit globals and locals with stable slot indexes
 - [ ] Emit control flow: if, if-else chain, while, for, break, skip
 - [ ] Emit expression evaluation (binary, unary, call, index, member)
 - [ ] Emit artifact initialization (positional and named)
 - [ ] Emit array and list literals
 - [ ] Emit return statements and default returns for `void`
 
-#### 6) Assembly Emission
-- [ ] Create assembly/module builders
+#### 6) Bytecode Packaging
+- [ ] Build module header and section tables
 - [ ] Define entry point (`main : i32 ()`)
-- [ ] Write assembly to disk as `.exe` or `.dll`
+- [ ] Write module to disk as `.sbc`
 
 #### 7) Diagnostics and Errors
 - [ ] Uniform error format (`error[E0001]: ...`)
@@ -1434,8 +1316,8 @@ This plan follows the language specification and compiler architecture in this d
 - [ ] Distinguish syntax vs semantic errors
 
 #### 8) CLI Commands
-- [ ] `simple build` emits `.exe` or `.dll`
-- [ ] `simple run` compiles + executes
+- [ ] `simple build` emits `.sbc`
+- [ ] `simple run` compiles + executes on the VM
 - [ ] `simple check` validates syntax only
 
 ### Language Feature Checklists
@@ -1536,8 +1418,8 @@ This plan follows the language specification and compiler architecture in this d
 #### Phase 5: Optimization and Tooling
 - [ ] Error recovery in parser
 - [ ] Improved diagnostics
-- [ ] Optimization passes (AST and CIL)
-- [ ] Standard library modules wired to CLR
+- [ ] Optimization passes (AST and bytecode)
+- [ ] Standard library modules wired to VM runtime
 - [ ] CLI tools stable
 - [ ] Optional LSP and debugger hooks
 
@@ -1834,11 +1716,11 @@ true, false
 ### Compiler Invocation
 
 ```bash
-# Compile to executable
-simple build program.simple -o program.exe
+# Compile to bytecode module
+simple build program.simple -o program.sbc
 
-# Compile to library
-simple build library.simple --lib -o library.dll
+# Compile to library module
+simple build library.simple --lib -o library.sbc
 
 # Run directly (compile + execute)
 simple run program.simple

@@ -2,7 +2,7 @@
 ## Implementation Document
 
 **Version:** 1.0  
-**Target Platform:** .NET Common Language Runtime (CLR)  
+**Target Platform:** Simple VM (portable C++ runtime)  
 **File Extension:** `.simple`
 
 ---
@@ -26,11 +26,27 @@ This document defines the detailed implementation plan and verification checklis
 ## Scope
 
 This plan covers:
-- The compiler pipeline (lexer → parser → AST → semantic analysis → codegen → assembly emission)
+- The compiler pipeline (lexer → parser → AST → semantic analysis → bytecode emission → bytecode packaging)
 - Language features as specified (types, statements, expressions, artifacts, modules, enums, generics, standard library)
 - CLI tooling and diagnostics
 
 ## Implementation Phases
+
+### Phase 0: VM Core + Bytecode Spec
+
+**Features:**
+- Define bytecode format and module sections
+- Define opcode list (see `Simple_VM_Opcode_Spec.md`)
+- Define metadata tables (types, fields, methods, signatures)
+- Define verifier rules (IL-style)
+- Implement C++ VM fetch/decode/execute loop
+- Implement call frames, locals, globals, and value stack
+- Implement heap objects (string, array, list, artifact, closure)
+- Implement tracing GC (mark-sweep or generational)
+- Implement tiered JIT (tier 0 quick + tier 1 optimizing)
+- Implement entry point loading and execution
+
+**Deliverable:** Minimal VM runs a hand-written bytecode "hello"
 
 ### Phase 1: Minimal Compiler (MVP)
 
@@ -90,6 +106,19 @@ This plan covers:
 
 ## Compiler Pipeline Checklists
 
+### 0) VM Runtime (C++)
+- [ ] Define bytecode header, versioning, and section layout
+- [ ] Define opcode enum and operand decoding rules
+- [ ] Define metadata tables and indexing rules
+- [ ] Implement verifier (stack/type safety)
+- [ ] Implement fetch/decode/execute loop
+- [ ] Implement call frames, locals, globals, and value stack
+- [ ] Implement core opcodes: const/load/store/arithmetic/compare/branch/call/ret
+- [ ] Implement heap objects: string, array, list, artifact, closure
+- [ ] Implement tracing GC (mark-sweep or generational)
+- [ ] Implement tiered JIT (tier 0 quick, tier 1 optimizing)
+- [ ] Implement debug hooks (line info, traps)
+
 ### 1) Lexer (Tokenization)
 - [ ] Recognize all keywords: `while`, `for`, `break`, `skip`, `return`, `default`, `Fn`, `self`, `Artifact`, `Enum`, `Module`, `Union`
 - [ ] Recognize literals: integers (decimal/hex/binary), floats, strings, characters, booleans
@@ -128,22 +157,21 @@ This plan covers:
 - [ ] Validate array sizes as compile-time constants
 - [ ] Validate list and array indexing types
 
-### 5) Code Generation (CIL)
-- [ ] Emit CLR types for primitives, arrays, lists, artifacts, modules, enums
-- [ ] Emit delegate types for `Fn` procedures
-- [ ] Emit generic artifacts and generic procedures as CLR generics
-- [ ] Emit fields for global variables
-- [ ] Emit methods for procedures and artifact methods
+### 5) Bytecode Generation
+- [ ] Emit VM instructions for primitives, arrays, lists, artifacts, modules, enums
+- [ ] Emit closures for `Fn` procedures
+- [ ] Monomorphize generics into concrete bytecode
+- [ ] Emit globals and locals with stable slot indexes
 - [ ] Emit control flow: if, if-else chain, while, for, break, skip
 - [ ] Emit expression evaluation (binary, unary, call, index, member)
 - [ ] Emit artifact initialization (positional and named)
 - [ ] Emit array and list literals
 - [ ] Emit return statements and default returns for `void`
 
-### 6) Assembly Emission
-- [ ] Create assembly/module builders
+### 6) Bytecode Packaging
+- [ ] Build module header and section tables
 - [ ] Define entry point (`main : i32 ()`)
-- [ ] Write assembly to disk as `.exe` or `.dll`
+- [ ] Write module to disk as `.sbc`
 
 ### 7) Diagnostics and Errors
 - [ ] Uniform error format (`error[E0001]: ...`)
@@ -151,8 +179,8 @@ This plan covers:
 - [ ] Distinguish syntax vs semantic errors
 
 ### 8) CLI Commands
-- [ ] `simple build` emits `.exe` or `.dll`
-- [ ] `simple run` compiles + executes
+- [ ] `simple build` emits `.sbc`
+- [ ] `simple run` compiles + executes on the VM
 - [ ] `simple check` validates syntax only
 
 ---
@@ -257,8 +285,8 @@ This plan covers:
 ### Phase 5: Optimization and Tooling
 - [ ] Error recovery in parser
 - [ ] Improved diagnostics
-- [ ] Optimization passes (AST and CIL)
-- [ ] Standard library modules wired to CLR
+- [ ] Optimization passes (AST and bytecode)
+- [ ] Standard library modules wired to VM runtime
 - [ ] CLI tools stable
 - [ ] Optional LSP and debugger hooks
 

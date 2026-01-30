@@ -973,6 +973,49 @@ std::vector<uint8_t> BuildUpvalueModule() {
   return BuildModuleWithFunctions(funcs, locals);
 }
 
+std::vector<uint8_t> BuildUpvalueObjectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  std::vector<size_t> patch_sites;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadUpvalue));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::JmpTrue));
+  patch_sites.push_back(callee.size());
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+  size_t true_block = callee.size();
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(callee, patch_sites[0], true_block);
+
+  std::vector<std::vector<uint8_t>> funcs = {entry, callee};
+  std::vector<uint16_t> locals = {1, 0};
+  return BuildModuleWithFunctions(funcs, locals);
+}
+
 std::vector<uint8_t> BuildBadUpvalueTypeVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5587,6 +5630,30 @@ bool RunUpvalueTest() {
   return true;
 }
 
+bool RunUpvalueObjectTest() {
+  std::vector<uint8_t> module_bytes = BuildUpvalueObjectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunNewClosureTest() {
   std::vector<uint8_t> module_bytes = BuildNewClosureModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8784,6 +8851,7 @@ int main() {
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
       {"upvalue_ops", RunUpvalueTest},
+      {"upvalue_object", RunUpvalueObjectTest},
       {"new_closure", RunNewClosureTest},
       {"array_i32", RunArrayTest},
       {"array_len", RunArrayLenTest},
