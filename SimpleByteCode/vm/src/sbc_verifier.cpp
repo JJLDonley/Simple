@@ -382,6 +382,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::IncI32:
+        case OpCode::DecI32: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I32);
+          break;
+        }
         case OpCode::AddU32:
         case OpCode::SubU32:
         case OpCode::MulU32:
@@ -425,6 +433,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
         }
         case OpCode::NegI64: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::I64, "arith type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::IncI64:
+        case OpCode::DecI64: {
           ValType a = pop_type();
           VerifyResult r = check_type(a, ValType::I64, "arith type mismatch");
           if (!r.ok) return r;
