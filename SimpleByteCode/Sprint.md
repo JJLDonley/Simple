@@ -151,3 +151,4 @@
 - Added JMP_TABLE runtime trap tests for bad kind, malformed blob, and out-of-bounds targets.
 - Added NEG I8/I16 wraparound boundary tests.
 - Added NEG U32/U64 opcodes with verifier/runtime support and tests.
+- Added NEG U32/U64 wraparound boundary tests.
