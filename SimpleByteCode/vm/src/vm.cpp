@@ -63,6 +63,7 @@ struct Frame {
 struct JitStub {
   bool active = false;
   bool compiled = false;
+  bool disabled = false;
 };
 
 int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
@@ -630,7 +631,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       if (jit_tiers[func_index] != JitTier::Tier1) {
         jit_tiers[func_index] = JitTier::Tier1;
         jit_stubs[func_index].active = true;
-        jit_stubs[func_index].compiled = can_compile(func_index);
+        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
         compile_counts[func_index] += 1;
         compile_ticks_tier1[func_index] = ++compile_tick;
       }
@@ -638,7 +639,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       if (jit_tiers[func_index] == JitTier::None) {
         jit_tiers[func_index] = JitTier::Tier0;
         jit_stubs[func_index].active = true;
-        jit_stubs[func_index].compiled = can_compile(func_index);
+        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
         compile_counts[func_index] += 1;
         compile_ticks_tier0[func_index] = ++compile_tick;
       }
@@ -777,7 +778,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       if (enable_jit && count >= kJitOpcodeThreshold && jit_tiers[current.func_index] == JitTier::None) {
         jit_tiers[current.func_index] = JitTier::Tier0;
         jit_stubs[current.func_index].active = true;
-        jit_stubs[current.func_index].compiled = can_compile(current.func_index);
+        jit_stubs[current.func_index].compiled =
+            jit_stubs[current.func_index].disabled ? false : can_compile(current.func_index);
         compile_counts[current.func_index] += 1;
         compile_ticks_tier0[current.func_index] = ++compile_tick;
       }
@@ -1918,6 +1920,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             break;
           }
           jit_stubs[func_id].compiled = false;
+          jit_stubs[func_id].disabled = true;
         }
 
         current.return_pc = pc;
@@ -1988,6 +1991,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             break;
           }
           jit_stubs[static_cast<size_t>(func_index)].compiled = false;
+          jit_stubs[static_cast<size_t>(func_index)].disabled = true;
         }
 
         current.return_pc = pc;
@@ -2051,6 +2055,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             break;
           }
           jit_stubs[func_id].compiled = false;
+          jit_stubs[func_id].disabled = true;
         }
 
         size_t return_pc = current.return_pc;

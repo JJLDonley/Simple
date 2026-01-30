@@ -243,3 +243,5 @@
 - Added JIT compiled-fallback test to ensure failed compiled runs fall back once and then stay interpreter-only.
 - Added JIT compiled-fallback tailcall test to validate fallback behavior for tailcalls.
 - Added JIT compiled-fallback indirect test to validate fallback behavior for indirect calls.
+- Added Tier1 JIT fallback test to ensure Tier1 failures fall back to interpreter safely.
+- Prevented failed JIT stubs from re-enabling after fallback by disabling compiled stubs permanently.
