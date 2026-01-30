@@ -6758,6 +6758,10 @@ bool RunJitTierTest() {
     std::cerr << "expected Tier1 for callee\n";
     return false;
   }
+  if (exec.jit_tiers[0] != simplevm::JitTier::None) {
+    std::cerr << "expected None tier for entry\n";
+    return false;
+  }
   return true;
 }
 

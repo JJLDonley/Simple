@@ -60,6 +60,10 @@ struct Frame {
   std::vector<Value> locals;
 };
 
+struct JitStub {
+  bool active = false;
+};
+
 int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
   uint32_t v = static_cast<uint32_t>(code[pc]) |
                (static_cast<uint32_t>(code[pc + 1]) << 8) |
@@ -214,13 +218,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<Value> globals(module.globals.size());
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
+  std::vector<JitStub> jit_stubs(module.functions.size());
   auto update_tier = [&](size_t func_index) {
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
     if (count >= kJitTier1Threshold) {
       jit_tiers[func_index] = JitTier::Tier1;
+      jit_stubs[func_index].active = true;
     } else if (count >= kJitTier0Threshold) {
       jit_tiers[func_index] = JitTier::Tier0;
+      jit_stubs[func_index].active = true;
     }
   };
   auto finish = [&](ExecResult result) {
@@ -1447,6 +1454,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("CALL invalid function id");
+        if (jit_stubs[func_id].active) {
+          // JIT stub placeholder: still runs interpreter path.
+        }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("CALL invalid method id");
         const auto& method = module.methods[func.method_id];
@@ -1505,6 +1515,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
           return Trap("CALL_INDIRECT on invalid callee");
         }
 
+        if (jit_stubs[static_cast<size_t>(func_index)].active) {
+          // JIT stub placeholder: still runs interpreter path.
+        }
         std::vector<Value> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
@@ -1526,6 +1539,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
+        if (jit_stubs[func_id].active) {
+          // JIT stub placeholder: still runs interpreter path.
+        }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("TAILCALL invalid method id");
         const auto& method = module.methods[func.method_id];
