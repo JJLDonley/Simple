@@ -11801,6 +11801,22 @@ bool RunJitDisabledTest() {
     std::cerr << "expected no jit tier when disabled\n";
     return false;
   }
+  if (exec.compile_counts.size() < 2) {
+    std::cerr << "expected compile counts for functions\n";
+    return false;
+  }
+  if (exec.compile_counts[1] != 0) {
+    std::cerr << "expected no compile counts when jit disabled\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 2) {
+    std::cerr << "expected jit dispatch counts for functions\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[1] != 0) {
+    std::cerr << "expected no jit dispatch counts when jit disabled\n";
+    return false;
+  }
   if (exec.jit_compiled_exec_counts.size() < 2) {
     std::cerr << "expected compiled exec counts for functions\n";
     return false;
