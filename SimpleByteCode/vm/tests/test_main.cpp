@@ -7030,6 +7030,14 @@ bool RunJitTierTest() {
     std::cerr << "expected CALL opcode count > 0\n";
     return false;
   }
+  if (exec.compile_counts.size() < 2) {
+    std::cerr << "expected compile counts for functions\n";
+    return false;
+  }
+  if (exec.compile_counts[1] != 2) {
+    std::cerr << "expected 2 compile events for callee, got " << exec.compile_counts[1] << "\n";
+    return false;
+  }
   return true;
 }
 

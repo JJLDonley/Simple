@@ -32,6 +32,7 @@ struct ExecResult {
   std::vector<JitTier> jit_tiers;
   std::vector<uint32_t> call_counts;
   std::vector<uint64_t> opcode_counts;
+  std::vector<uint32_t> compile_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

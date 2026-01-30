@@ -220,21 +220,29 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
   std::vector<JitStub> jit_stubs(module.functions.size());
   std::vector<uint64_t> opcode_counts(256, 0);
+  std::vector<uint32_t> compile_counts(module.functions.size(), 0);
   auto update_tier = [&](size_t func_index) {
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
     if (count >= kJitTier1Threshold) {
-      jit_tiers[func_index] = JitTier::Tier1;
-      jit_stubs[func_index].active = true;
+      if (jit_tiers[func_index] != JitTier::Tier1) {
+        jit_tiers[func_index] = JitTier::Tier1;
+        jit_stubs[func_index].active = true;
+        compile_counts[func_index] += 1;
+      }
     } else if (count >= kJitTier0Threshold) {
-      jit_tiers[func_index] = JitTier::Tier0;
-      jit_stubs[func_index].active = true;
+      if (jit_tiers[func_index] == JitTier::None) {
+        jit_tiers[func_index] = JitTier::Tier0;
+        jit_stubs[func_index].active = true;
+        compile_counts[func_index] += 1;
+      }
     }
   };
   auto finish = [&](ExecResult result) {
     result.jit_tiers = jit_tiers;
     result.call_counts = call_counts;
     result.opcode_counts = opcode_counts;
+    result.compile_counts = compile_counts;
     return result;
   };
   auto read_const_string = [&](uint32_t const_id) -> Value {
