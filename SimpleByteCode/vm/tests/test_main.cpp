@@ -39,6 +39,13 @@ void AppendU64(std::vector<uint8_t>& out, uint64_t v) {
   out.push_back(static_cast<uint8_t>((v >> 56) & 0xFF));
 }
 
+void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
 void AppendI32(std::vector<uint8_t>& out, int32_t v) {
   AppendU32(out, static_cast<uint32_t>(v));
 }
@@ -8471,6 +8478,37 @@ bool RunHeapReuseTest() {
   return true;
 }
 
+bool RunHeapClosureMarkTest() {
+  simplevm::Heap heap;
+  uint32_t target = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
+  uint32_t closure = heap.Allocate(simplevm::ObjectKind::Closure, 0, 12);
+  uint32_t dead = heap.Allocate(simplevm::ObjectKind::List, 0, 8);
+  if (!heap.Get(closure) || !heap.Get(target) || !heap.Get(dead)) {
+    std::cerr << "heap allocation failed\n";
+    return false;
+  }
+  simplevm::HeapObject* obj = heap.Get(closure);
+  WriteU32Payload(obj->payload, 0, 0);
+  WriteU32Payload(obj->payload, 4, 1);
+  WriteU32Payload(obj->payload, 8, target);
+  heap.ResetMarks();
+  heap.Mark(closure);
+  heap.Sweep();
+  if (!heap.Get(closure)) {
+    std::cerr << "closure should remain alive\n";
+    return false;
+  }
+  if (!heap.Get(target)) {
+    std::cerr << "closure upvalue target should remain alive\n";
+    return false;
+  }
+  if (heap.Get(dead)) {
+    std::cerr << "unreferenced object should be collected\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8560,6 +8598,7 @@ int main() {
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
       {"heap_reuse", RunHeapReuseTest},
+      {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},

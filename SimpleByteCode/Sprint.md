@@ -143,3 +143,5 @@
 - Implemented heap free-list reuse with alive tracking; added heap reuse test.
 
 - Added NEW_CLOSURE execution + verifier validation, with positive and negative tests.
+
+- Added closure upvalue marking in GC and a heap closure mark test.
