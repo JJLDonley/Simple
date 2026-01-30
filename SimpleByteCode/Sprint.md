@@ -156,3 +156,4 @@
 - Added upvalue capture test for non-null ref objects.
 - Added upvalue capture ordering test for multiple captures.
 - Added NEG_I32/NEG_I64 opcodes with verifier/runtime support and tests.
+- Added NEG_F32/NEG_F64 opcodes with verifier/runtime support and tests.

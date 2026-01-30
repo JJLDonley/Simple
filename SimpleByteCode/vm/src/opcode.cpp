@@ -163,6 +163,8 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ConvF64ToI32:
     case OpCode::ConvF32ToF64:
     case OpCode::ConvF64ToF32:
+    case OpCode::NegF32:
+    case OpCode::NegF64:
       *info = {0, 1, 1};
       return true;
     case OpCode::Ret:

@@ -64,6 +64,8 @@ enum class OpCode : uint8_t {
   DivF64 = 0x5D,
   NegI32 = 0x5E,
   NegI64 = 0x5F,
+  NegF32 = 0x7E,
+  NegF64 = 0x7F,
 
   CmpEqI32 = 0x50,
   CmpLtI32 = 0x51,

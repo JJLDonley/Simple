@@ -472,6 +472,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::F32);
           break;
         }
+        case OpCode::NegF32: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::F32, "arith type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F32);
+          break;
+        }
         case OpCode::AddF64:
         case OpCode::SubF64:
         case OpCode::MulF64:
@@ -482,6 +489,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(b, ValType::F64, "arith type mismatch");
           if (!r2.ok) return r2;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::NegF64: {
+          ValType a = pop_type();
+          VerifyResult r = check_type(a, ValType::F64, "arith type mismatch");
+          if (!r.ok) return r;
           push_type(ValType::F64);
           break;
         }
