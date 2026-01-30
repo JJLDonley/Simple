@@ -1696,6 +1696,58 @@ std::vector<uint8_t> BuildI64ArithModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildNegI32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildNegI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, -7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildI64ModModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4762,6 +4814,18 @@ std::vector<uint8_t> BuildBadU32VerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadNegI32VerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x3F800000u);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NegI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadU64VerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -6213,6 +6277,54 @@ bool RunI64ArithTest() {
 
 bool RunI64ModTest() {
   std::vector<uint8_t> module_bytes = BuildI64ModModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunNegI32Test() {
+  std::vector<uint8_t> module_bytes = BuildNegI32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunNegI64Test() {
+  std::vector<uint8_t> module_bytes = BuildNegI64Module();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -8703,6 +8815,21 @@ bool RunBadU32VerifyTest() {
   return true;
 }
 
+bool RunBadNegI32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadNegI32VerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadU64VerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadU64VerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8948,6 +9075,8 @@ int main() {
       {"const_i128", RunConstI128Test},
       {"const_u128", RunConstU128Test},
       {"i64_arith", RunI64ArithTest},
+      {"neg_i32", RunNegI32Test},
+      {"neg_i64", RunNegI64Test},
       {"i64_mod", RunI64ModTest},
       {"f32_arith", RunF32ArithTest},
       {"f64_arith", RunF64ArithTest},
@@ -9101,6 +9230,7 @@ int main() {
       {"bad_conv_verify", RunBadConvVerifyTest},
       {"bad_bitwise_verify", RunBadBitwiseVerifyTest},
       {"bad_u32_verify", RunBadU32VerifyTest},
+      {"bad_neg_i32_verify", RunBadNegI32VerifyTest},
       {"bad_u64_verify", RunBadU64VerifyTest},
       {"callcheck", RunCallCheckTest},
       {"call_param_types", RunCallParamTypeTest},

@@ -143,6 +143,10 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::BoolOr:
       *info = {0, 2, 1};
       return true;
+    case OpCode::NegI32:
+    case OpCode::NegI64:
+      *info = {0, 1, 1};
+      return true;
     case OpCode::BoolNot:
       *info = {0, 1, 1};
       return true;

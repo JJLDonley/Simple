@@ -155,3 +155,4 @@
 - NEW_CLOSURE now captures upvalues from stack; added verifier/type tests for upvalues.
 - Added upvalue capture test for non-null ref objects.
 - Added upvalue capture ordering test for multiple captures.
+- Added NEG_I32/NEG_I64 opcodes with verifier/runtime support and tests.
