@@ -56,6 +56,7 @@ struct Frame {
   size_t func_index = 0;
   size_t return_pc = 0;
   size_t stack_base = 0;
+  int64_t closure_ref = -1;
   std::vector<Value> locals;
 };
 
@@ -268,11 +269,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<Value> stack;
   std::vector<Frame> call_stack;
 
-  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base) -> Frame {
+  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, int64_t closure_ref) -> Frame {
     Frame frame;
     frame.func_index = func_index;
     frame.return_pc = return_pc;
     frame.stack_base = stack_base;
+    frame.closure_ref = closure_ref;
     uint32_t method_id = module.functions[func_index].method_id;
     if (method_id >= module.methods.size()) {
       frame.locals.clear();
@@ -283,7 +285,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
     return frame;
   };
 
-  Frame current = setup_frame(entry_func_index, 0, 0);
+  Frame current = setup_frame(entry_func_index, 0, 0, -1);
   size_t func_start = module.functions[entry_func_index].code_offset;
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
@@ -493,6 +495,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         uint32_t idx = ReadU32(module.code, pc);
         if (idx >= globals.size()) return Trap("STORE_GLOBAL out of range");
         globals[idx] = Pop(stack);
+        break;
+      }
+      case OpCode::LoadUpvalue: {
+        uint32_t idx = ReadU32(module.code, pc);
+        if (current.closure_ref < 0) return Trap("LOAD_UPVALUE without closure");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(current.closure_ref));
+        if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("LOAD_UPVALUE on non-closure");
+        if (obj->payload.size() < 8) return Trap("LOAD_UPVALUE invalid closure payload");
+        uint32_t count = ReadU32Payload(obj->payload, 4);
+        if (idx >= count) return Trap("LOAD_UPVALUE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(idx) * 4;
+        if (offset + 4 > obj->payload.size()) return Trap("LOAD_UPVALUE out of bounds");
+        uint32_t handle = ReadU32Payload(obj->payload, offset);
+        int64_t ref = handle == 0xFFFFFFFFu ? -1 : static_cast<int64_t>(handle);
+        Push(stack, Value{ValueKind::Ref, ref});
+        break;
+      }
+      case OpCode::StoreUpvalue: {
+        uint32_t idx = ReadU32(module.code, pc);
+        Value v = Pop(stack);
+        if (v.kind != ValueKind::Ref) return Trap("STORE_UPVALUE type mismatch");
+        if (current.closure_ref < 0) return Trap("STORE_UPVALUE without closure");
+        HeapObject* obj = heap.Get(static_cast<uint32_t>(current.closure_ref));
+        if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("STORE_UPVALUE on non-closure");
+        if (obj->payload.size() < 8) return Trap("STORE_UPVALUE invalid closure payload");
+        uint32_t count = ReadU32Payload(obj->payload, 4);
+        if (idx >= count) return Trap("STORE_UPVALUE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(idx) * 4;
+        if (offset + 4 > obj->payload.size()) return Trap("STORE_UPVALUE out of bounds");
+        uint32_t handle = v.i64 < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(v.i64);
+        WriteU32Payload(obj->payload, offset, handle);
         break;
       }
       case OpCode::NewObject: {
@@ -1176,7 +1209,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
         current.return_pc = pc;
         call_stack.push_back(current);
-        current = setup_frame(func_id, pc, stack.size());
+        current = setup_frame(func_id, pc, stack.size(), -1);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }
@@ -1193,10 +1226,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (arg_count != sig.param_count) return Trap("CALL_INDIRECT arg count mismatch");
         if (stack.size() < static_cast<size_t>(arg_count) + 1u) return Trap("CALL_INDIRECT stack underflow");
         Value func_val = Pop(stack);
-        if (func_val.kind != ValueKind::I32) return Trap("CALL_INDIRECT on non-i32");
-        int64_t func_index = func_val.i64;
-        if (func_index < 0 || static_cast<size_t>(func_index) >= module.functions.size()) {
-          return Trap("CALL_INDIRECT invalid function id");
+        int64_t func_index = -1;
+        int64_t closure_ref = -1;
+        if (func_val.kind == ValueKind::I32) {
+          func_index = func_val.i64;
+          if (func_index < 0 || static_cast<size_t>(func_index) >= module.functions.size()) {
+            return Trap("CALL_INDIRECT invalid function id");
+          }
+        } else if (func_val.kind == ValueKind::Ref) {
+          if (func_val.i64 < 0) return Trap("CALL_INDIRECT null closure");
+          HeapObject* obj = heap.Get(static_cast<uint32_t>(func_val.i64));
+          if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("CALL_INDIRECT on non-closure");
+          uint32_t method_id = ReadU32Payload(obj->payload, 0);
+          bool found = false;
+          for (size_t i = 0; i < module.functions.size(); ++i) {
+            if (module.functions[i].method_id == method_id) {
+              func_index = static_cast<int64_t>(i);
+              found = true;
+              break;
+            }
+          }
+          if (!found) return Trap("CALL_INDIRECT closure method not found");
+          closure_ref = func_val.i64;
+        } else {
+          return Trap("CALL_INDIRECT on invalid callee");
         }
 
         std::vector<Value> args(arg_count);
@@ -1206,7 +1259,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
         current.return_pc = pc;
         call_stack.push_back(current);
-        current = setup_frame(static_cast<size_t>(func_index), pc, stack.size());
+        current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }
@@ -1236,7 +1289,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         size_t return_pc = current.return_pc;
         size_t stack_base = current.stack_base;
         stack.resize(stack_base);
-        current = setup_frame(func_id, return_pc, stack_base);
+        current = setup_frame(func_id, return_pc, stack_base, -1);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }

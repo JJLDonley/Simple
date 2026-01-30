@@ -41,6 +41,8 @@ enum class OpCode : uint8_t {
   StoreLocal = 0x31,
   LoadGlobal = 0x32,
   StoreGlobal = 0x33,
+  LoadUpvalue = 0x34,
+  StoreUpvalue = 0x35,
 
   AddI32 = 0x40,
   SubI32 = 0x41,

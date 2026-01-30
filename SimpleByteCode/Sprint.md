@@ -149,3 +149,5 @@
 - Added GC stress test to validate mark/sweep behavior on many objects.
 
 - Added VM-level GC stress test with allocation loop.
+
+- Implemented LOAD_UPVALUE/STORE_UPVALUE with closure-aware CALL_INDIRECT, plus tests.

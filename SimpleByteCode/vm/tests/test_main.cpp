@@ -928,6 +928,80 @@ std::vector<uint8_t> BuildRefModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildUpvalueModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  std::vector<size_t> patch_sites;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreUpvalue));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadUpvalue));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::JmpTrue));
+  patch_sites.push_back(callee.size());
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+  size_t true_block = callee.size();
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(callee, patch_sites[0], true_block);
+
+  std::vector<std::vector<uint8_t>> funcs = {entry, callee};
+  std::vector<uint16_t> locals = {1, 0};
+  return BuildModuleWithFunctions(funcs, locals);
+}
+
+std::vector<uint8_t> BuildBadUpvalueIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreUpvalue));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Halt));
+
+  std::vector<std::vector<uint8_t>> funcs = {entry, callee};
+  std::vector<uint16_t> locals = {1, 0};
+  return BuildModuleWithFunctions(funcs, locals);
+}
+
 std::vector<uint8_t> BuildNewClosureModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5474,6 +5548,30 @@ bool RunRefTest() {
   return true;
 }
 
+bool RunUpvalueTest() {
+  std::vector<uint8_t> module_bytes = BuildUpvalueModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunNewClosureTest() {
   std::vector<uint8_t> module_bytes = BuildNewClosureModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8460,6 +8558,10 @@ bool RunBadU64RuntimeTrapTest() {
   return RunExpectTrapNoVerify(BuildBadU64RuntimeModule(), "bad_u64_runtime");
 }
 
+bool RunBadUpvalueIndexTrapTest() {
+  return RunExpectTrap(BuildBadUpvalueIndexModule(), "bad_upvalue_index");
+}
+
 bool RunBadCallIndirectTrapTest() {
   return RunExpectTrap(BuildBadCallIndirectFuncModule(), "bad_call_indirect");
 }
@@ -8651,6 +8753,7 @@ int main() {
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
+      {"upvalue_ops", RunUpvalueTest},
       {"new_closure", RunNewClosureTest},
       {"array_i32", RunArrayTest},
       {"array_len", RunArrayLenTest},
@@ -8838,6 +8941,7 @@ int main() {
       {"bad_bitwise_runtime", RunBadBitwiseRuntimeTrapTest},
       {"bad_u32_runtime", RunBadU32RuntimeTrapTest},
       {"bad_u64_runtime", RunBadU64RuntimeTrapTest},
+      {"bad_upvalue_index", RunBadUpvalueIndexTrapTest},
       {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
       {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},

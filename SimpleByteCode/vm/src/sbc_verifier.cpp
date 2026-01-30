@@ -169,6 +169,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (!ReadU32(code, pc + 1, &idx)) return Fail("global index out of bounds");
         if (idx >= module.globals.size()) return Fail("global index out of range");
       }
+      if (opcode == static_cast<uint8_t>(OpCode::LoadUpvalue) ||
+          opcode == static_cast<uint8_t>(OpCode::StoreUpvalue)) {
+        uint32_t idx = 0;
+        if (!ReadU32(code, pc + 1, &idx)) return Fail("upvalue index out of bounds");
+      }
       if (opcode == static_cast<uint8_t>(OpCode::NewObject)) {
         uint32_t type_id = 0;
         if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_OBJECT type id out of bounds");
@@ -304,6 +309,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
             globals[idx] = t;
             globals_init[idx] = true;
           }
+          break;
+        }
+        case OpCode::LoadUpvalue:
+          push_type(ValType::Ref);
+          break;
+        case OpCode::StoreUpvalue: {
+          ValType t = pop_type();
+          VerifyResult r = check_type(t, ValType::Ref, "STORE_UPVALUE type mismatch");
+          if (!r.ok) return r;
           break;
         }
         case OpCode::Pop:
@@ -797,8 +811,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
             return Fail("CALL_INDIRECT signature param types out of range");
           }
           ValType func_type = pop_type();
-          VerifyResult r = check_type(func_type, ValType::I32, "CALL_INDIRECT func type mismatch");
-          if (!r.ok) return r;
+          if (func_type != ValType::I32 && func_type != ValType::Ref && func_type != ValType::Unknown) {
+            return Fail("CALL_INDIRECT func type mismatch");
+          }
           for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
             ValType got = pop_type();
             ValType expected = ValType::Unknown;

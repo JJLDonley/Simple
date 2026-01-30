@@ -62,12 +62,16 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StoreLocal:
     case OpCode::LoadGlobal:
     case OpCode::StoreGlobal:
+    case OpCode::LoadUpvalue:
+    case OpCode::StoreUpvalue:
       *info = {4, opcode == static_cast<uint8_t>(OpCode::StoreLocal) ||
                       opcode == static_cast<uint8_t>(OpCode::StoreGlobal)
+                      || opcode == static_cast<uint8_t>(OpCode::StoreUpvalue)
                   ? 1
                   : 0,
                opcode == static_cast<uint8_t>(OpCode::LoadLocal) ||
-                      opcode == static_cast<uint8_t>(OpCode::LoadGlobal)
+                      opcode == static_cast<uint8_t>(OpCode::LoadGlobal) ||
+                      opcode == static_cast<uint8_t>(OpCode::LoadUpvalue)
                   ? 1
                   : 0};
       return true;
