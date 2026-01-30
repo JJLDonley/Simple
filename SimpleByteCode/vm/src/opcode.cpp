@@ -30,6 +30,9 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::JmpFalse:
       *info = {4, opcode == static_cast<uint8_t>(OpCode::Jmp) ? 0 : 1, 0};
       return true;
+    case OpCode::JmpTable:
+      *info = {8, 1, 0};
+      return true;
     case OpCode::ConstI8:
     case OpCode::ConstU8:
     case OpCode::ConstBool:
@@ -165,6 +168,10 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::DecU8:
     case OpCode::IncU16:
     case OpCode::DecU16:
+    case OpCode::NegI8:
+    case OpCode::NegI16:
+    case OpCode::NegU8:
+    case OpCode::NegU16:
       *info = {0, 1, 1};
       return true;
     case OpCode::BoolNot:

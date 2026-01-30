@@ -99,6 +99,7 @@ Entry format: `u32 kind` + payload.
 3 = F32    : u32 bits
 4 = F64    : u64 bits
 5 = TYPE   : u32 type_id
+6 = JMP_TABLE : u32 blob_offset (u32 count + i32 offsets)
 ```
 
 Requirements:

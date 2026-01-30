@@ -21,7 +21,7 @@ This document defines the opcode set for Simple VM bytecode (v0.1).
 - `JMP i32`
 - `JMP_TRUE i32`
 - `JMP_FALSE i32`
-- `JMP_TABLE idx, i32`
+- `JMP_TABLE idx, i32` (jump table from CONST_POOL kind 6 + default offset)
 
 ---
 

@@ -144,3 +144,6 @@
 - Added INC/DEC opcodes for U32/U64 with verifier/runtime support and tests.
 - Added U32/U64 INC/DEC wraparound tests at numeric bounds.
 - Added INC/DEC opcodes for I8/I16/U8/U16 with verifier/runtime support and tests.
+- Added NEG opcodes for I8/I16/U8/U16 with verifier/runtime support and tests.
+- Added JMP_TABLE opcode with const pool jump table entries, verifier/VM support, and tests.
+- Added basic JIT tier tracking scaffolding with hotness thresholds and a tiering test.

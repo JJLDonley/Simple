@@ -136,8 +136,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       GetOpInfo(opcode, &info);
       size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
 
-      bool has_jump_target = false;
-      size_t jump_target = 0;
+      std::vector<size_t> jump_targets;
       bool fall_through = true;
       int extra_pops = 0;
       int extra_pushes = 0;
@@ -146,10 +145,42 @@ VerifyResult VerifyModule(const SbcModule& module) {
           opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
         int32_t offset = 0;
         if (!ReadI32(code, pc + 1, &offset)) return Fail("jump operand out of bounds");
-        jump_target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
+        size_t jump_target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
         if (jump_target < func.code_offset || jump_target > end) return Fail("jump target out of bounds");
         if (boundaries.find(jump_target) == boundaries.end()) return Fail("jump target not on instruction boundary");
-        has_jump_target = true;
+        jump_targets.push_back(jump_target);
+      }
+      if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
+        uint32_t const_id = 0;
+        int32_t default_off = 0;
+        if (!ReadU32(code, pc + 1, &const_id)) return Fail("JMP_TABLE const id out of bounds");
+        if (!ReadI32(code, pc + 5, &default_off)) return Fail("JMP_TABLE default offset out of bounds");
+        if (const_id + 8 > module.const_pool.size()) return Fail("JMP_TABLE const id bad");
+        uint32_t kind = 0;
+        ReadU32(module.const_pool, const_id, &kind);
+        if (kind != 6) return Fail("JMP_TABLE const kind mismatch");
+        uint32_t payload = 0;
+        ReadU32(module.const_pool, const_id + 4, &payload);
+        if (payload + 4 > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
+        uint32_t blob_len = 0;
+        ReadU32(module.const_pool, payload, &blob_len);
+        if (payload + 4 + blob_len > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
+        if (blob_len < 4 || (blob_len - 4) % 4 != 0) return Fail("JMP_TABLE blob size invalid");
+        uint32_t count = 0;
+        ReadU32(module.const_pool, payload + 4, &count);
+        if (blob_len != 4 + count * 4) return Fail("JMP_TABLE blob size mismatch");
+        for (uint32_t i = 0; i < count; ++i) {
+          int32_t off = 0;
+          ReadI32(module.const_pool, payload + 8 + i * 4, &off);
+          size_t target = static_cast<size_t>(static_cast<int64_t>(next) + off);
+          if (target < func.code_offset || target > end) return Fail("jump target out of bounds");
+          if (boundaries.find(target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+          jump_targets.push_back(target);
+        }
+        size_t default_target = static_cast<size_t>(static_cast<int64_t>(next) + default_off);
+        if (default_target < func.code_offset || default_target > end) return Fail("jump target out of bounds");
+        if (boundaries.find(default_target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+        jump_targets.push_back(default_target);
       }
 
       if (opcode == static_cast<uint8_t>(OpCode::Enter)) {
@@ -230,6 +261,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::Jmp:
           fall_through = false;
           break;
+        case OpCode::JmpTable: {
+          ValType idx = pop_type();
+          VerifyResult r = check_type(idx, ValType::I32, "JMP_TABLE index type mismatch");
+          if (!r.ok) return r;
+          fall_through = false;
+          break;
+        }
         case OpCode::ConstI8:
         case OpCode::ConstI16:
         case OpCode::ConstI32:
@@ -419,7 +457,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::IncU8:
         case OpCode::DecU8:
         case OpCode::IncU16:
-        case OpCode::DecU16: {
+        case OpCode::DecU16:
+        case OpCode::NegI8:
+        case OpCode::NegI16:
+        case OpCode::NegU8:
+        case OpCode::NegU16: {
           ValType a = pop_type();
           VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
           if (!r.ok) return r;
@@ -1049,7 +1091,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       if (static_cast<uint32_t>(stack_height) > func.stack_max) {
         return Fail("stack exceeds max");
       }
-      if (has_jump_target) {
+      for (size_t jump_target : jump_targets) {
         auto it = merge_types.find(jump_target);
         if (it == merge_types.end()) {
           merge_types[jump_target] = stack_types;

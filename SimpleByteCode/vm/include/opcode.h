@@ -13,6 +13,7 @@ enum class OpCode : uint8_t {
   Jmp = 0x04,
   JmpTrue = 0x05,
   JmpFalse = 0x06,
+  JmpTable = 0x07,
 
   Pop = 0x10,
   Dup = 0x11,
@@ -84,6 +85,10 @@ enum class OpCode : uint8_t {
   DecU8 = 0x97,
   IncU16 = 0x98,
   DecU16 = 0x99,
+  NegI8 = 0x9A,
+  NegI16 = 0x9B,
+  NegU8 = 0x9C,
+  NegU16 = 0x9D,
   NegF32 = 0x7E,
   NegF64 = 0x7F,
 

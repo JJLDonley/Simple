@@ -212,6 +212,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
   Heap heap;
   std::vector<Value> globals(module.globals.size());
+  std::vector<uint32_t> call_counts(module.functions.size(), 0);
+  std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
+  auto update_tier = [&](size_t func_index) {
+    if (func_index >= call_counts.size()) return;
+    uint32_t count = ++call_counts[func_index];
+    if (count >= kJitTier1Threshold) {
+      jit_tiers[func_index] = JitTier::Tier1;
+    } else if (count >= kJitTier0Threshold) {
+      jit_tiers[func_index] = JitTier::Tier0;
+    }
+  };
+  auto finish = [&](ExecResult result) {
+    result.jit_tiers = jit_tiers;
+    return result;
+  };
   auto read_const_string = [&](uint32_t const_id) -> Value {
     uint32_t kind = ReadU32Payload(module.const_pool, const_id);
     if (kind != 0) return Value{ValueKind::None, 0};
@@ -270,6 +285,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<Frame> call_stack;
 
   auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, int64_t closure_ref) -> Frame {
+    update_tier(func_index);
     Frame frame;
     frame.func_index = func_index;
     frame.return_pc = return_pc;
@@ -318,7 +334,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       if (call_stack.empty()) {
         ExecResult done;
         done.status = ExecStatus::Halted;
-        return done;
+        return finish(done);
       }
       return Trap("pc out of bounds for function");
     }
@@ -333,7 +349,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (!stack.empty() && stack.back().kind == ValueKind::I32) {
           result.exit_code = static_cast<int32_t>(stack.back().i64);
         }
-        return result;
+        return finish(result);
       }
       case OpCode::Trap:
         return Trap("TRAP");
@@ -1002,6 +1018,38 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
         break;
       }
+      case OpCode::NegI8: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("NEG_I8 on non-i32");
+        int8_t v = static_cast<int8_t>(a.i64);
+        int8_t out = static_cast<int8_t>(-v);
+        Push(stack, Value{ValueKind::I32, out});
+        break;
+      }
+      case OpCode::NegI16: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("NEG_I16 on non-i32");
+        int16_t v = static_cast<int16_t>(a.i64);
+        int16_t out = static_cast<int16_t>(-v);
+        Push(stack, Value{ValueKind::I32, out});
+        break;
+      }
+      case OpCode::NegU8: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("NEG_U8 on non-i32");
+        uint8_t v = static_cast<uint8_t>(static_cast<int32_t>(a.i64));
+        uint8_t out = static_cast<uint8_t>(0u - v);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
+      case OpCode::NegU16: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("NEG_U16 on non-i32");
+        uint16_t v = static_cast<uint16_t>(static_cast<int32_t>(a.i64));
+        uint16_t out = static_cast<uint16_t>(0u - v);
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
       case OpCode::AndI32:
       case OpCode::OrI32:
       case OpCode::XorI32:
@@ -1332,6 +1380,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (pc < func_start || pc > end) return Trap("JMP out of bounds");
         break;
       }
+      case OpCode::JmpTable: {
+        uint32_t const_id = ReadU32(module.code, pc);
+        int32_t default_rel = ReadI32(module.code, pc);
+        Value index = Pop(stack);
+        if (index.kind != ValueKind::I32) return Trap("JMP_TABLE index type mismatch");
+        if (const_id + 8 > module.const_pool.size()) return Trap("JMP_TABLE const id bad");
+        uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+        if (kind != 6) return Trap("JMP_TABLE const kind mismatch");
+        uint32_t payload = ReadU32Payload(module.const_pool, const_id + 4);
+        if (payload + 4 > module.const_pool.size()) return Trap("JMP_TABLE blob out of bounds");
+        uint32_t blob_len = ReadU32Payload(module.const_pool, payload);
+        if (payload + 4 + blob_len > module.const_pool.size()) return Trap("JMP_TABLE blob out of bounds");
+        if (blob_len < 4 || (blob_len - 4) % 4 != 0) return Trap("JMP_TABLE blob size invalid");
+        uint32_t count = ReadU32Payload(module.const_pool, payload + 4);
+        if (blob_len != 4 + count * 4) return Trap("JMP_TABLE blob size mismatch");
+        int32_t rel = default_rel;
+        int32_t idx_val = static_cast<int32_t>(index.i64);
+        if (idx_val >= 0 && static_cast<uint32_t>(idx_val) < count) {
+          size_t off_pos = payload + 8 + static_cast<size_t>(idx_val) * 4u;
+          uint32_t raw = ReadU32Payload(module.const_pool, off_pos);
+          rel = static_cast<int32_t>(raw);
+        }
+        pc = static_cast<size_t>(static_cast<int64_t>(pc) + rel);
+        if (pc < func_start || pc > end) return Trap("JMP_TABLE out of bounds");
+        break;
+      }
       case OpCode::JmpTrue:
       case OpCode::JmpFalse: {
         int32_t rel = ReadI32(module.code, pc);
@@ -1521,7 +1595,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
           ExecResult result;
           result.status = ExecStatus::Halted;
           if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
-          return result;
+          return finish(result);
         }
         Frame caller = call_stack.back();
         call_stack.pop_back();
@@ -1541,7 +1615,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
   ExecResult result;
   result.status = ExecStatus::Halted;
-  return result;
+  return finish(result);
 }
 
 } // namespace simplevm
