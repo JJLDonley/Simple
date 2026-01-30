@@ -238,3 +238,4 @@
 - Added recursive CALL regression test to validate stack preservation through recursion.
 - Stabilized JIT execution by falling back to interpreter when compiled execution fails.
 - Added opcode-hot JIT test to ensure unsupported opcodes never enter compiled execution.
+- Added JIT-disabled test to ensure no tiers/compiled execs when JIT is off.

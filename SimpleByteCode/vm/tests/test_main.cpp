@@ -11083,6 +11083,46 @@ bool RunJitOpcodeHotUnsupportedTest() {
   return true;
 }
 
+bool RunJitDisabledTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotLoopModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true, false);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::None) {
+    std::cerr << "expected no jit tier when disabled\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 0) {
+    std::cerr << "expected no compiled execs when jit disabled\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected exit code 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 int RunBenchLoop(size_t iterations) {
   std::vector<uint8_t> module_bytes = BuildJitCompiledLoopModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -16428,6 +16468,7 @@ int main(int argc, char** argv) {
       {"jit_opcode_hot_branch_tailcall", RunJitOpcodeHotBranchTailCallTest},
       {"jit_opcode_hot_branch_indirect", RunJitOpcodeHotBranchIndirectTest},
       {"jit_opcode_hot_unsupported", RunJitOpcodeHotUnsupportedTest},
+      {"jit_disabled", RunJitDisabledTest},
       {"jit_compiled_bool_ops", RunJitCompiledBoolOpsTest},
       {"jit_compiled_locals_bool_chain", RunJitCompiledLocalsBoolChainTest},
       {"jit_compiled_local_bool_store", RunJitCompiledLocalBoolStoreTest},
