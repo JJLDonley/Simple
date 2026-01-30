@@ -156,3 +156,4 @@
 - Added JMP_TABLE default-target boundary tests (jump to end/start).
 - Added NEG U8/U16 wraparound boundary tests.
 - Added per-opcode hotness counters in ExecResult with JIT test coverage.
+- Added JMP_TABLE empty-table test (default target when count=0).

@@ -1263,6 +1263,37 @@ std::vector<uint8_t> BuildJmpTableDefaultStartModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildJmpTableEmptyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  size_t const_id_offset = code.size();
+  AppendU32(code, 0);
+  size_t default_offset = code.size();
+  AppendI32(code, 0);
+  size_t default_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  PatchRel32(code, default_offset, default_block);
+
+  std::vector<uint8_t> blob;
+  AppendU32(blob, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 6, blob, &const_id);
+  WriteU32(code, const_id_offset, const_id);
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadJmpTableKindModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -6925,6 +6956,30 @@ bool RunJmpTableDefaultStartTest() {
   return true;
 }
 
+bool RunJmpTableEmptyTest() {
+  std::vector<uint8_t> module_bytes = BuildJmpTableEmptyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitTierTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -11182,6 +11237,7 @@ int main() {
       {"jmp_table_default", RunJmpTableDefaultTest},
       {"jmp_table_default_end", RunJmpTableDefaultEndTest},
       {"jmp_table_default_start", RunJmpTableDefaultStartTest},
+      {"jmp_table_empty", RunJmpTableEmptyTest},
       {"jit_tier", RunJitTierTest},
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
