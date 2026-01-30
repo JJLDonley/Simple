@@ -1484,6 +1484,9 @@ std::vector<uint8_t> BuildJitTierModule() {
   std::vector<uint8_t> entry;
   AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(entry, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Nop));
+  }
   for (uint32_t i = 0; i < simplevm::kJitTier1Threshold; ++i) {
     AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
     AppendU32(entry, 1);

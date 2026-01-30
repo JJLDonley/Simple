@@ -163,3 +163,4 @@
 - Added JMP_TABLE verifier test for out-of-bounds targets.
 - Added JIT compile tick timestamps per tier with test coverage.
 - Added JMP_TABLE verifier test for default target out-of-bounds.
+- Added opcode-hotness Tier0 promotion coverage to JIT tier test.
