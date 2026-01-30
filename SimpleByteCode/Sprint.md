@@ -141,3 +141,5 @@
 - Added runtime trap tests for null refs across array/list/string ops.
 
 - Implemented heap free-list reuse with alive tracking; added heap reuse test.
+
+- Added NEW_CLOSURE execution + verifier validation, with positive and negative tests.

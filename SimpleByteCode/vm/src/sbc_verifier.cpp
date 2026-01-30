@@ -174,6 +174,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_OBJECT type id out of bounds");
         if (type_id >= module.types.size()) return Fail("NEW_OBJECT bad type id");
       }
+      if (opcode == static_cast<uint8_t>(OpCode::NewClosure)) {
+        uint32_t method_id = 0;
+        if (!ReadU32(code, pc + 1, &method_id)) return Fail("NEW_CLOSURE method id out of bounds");
+        if (pc + 5 >= code.size()) return Fail("NEW_CLOSURE upvalue count out of bounds");
+        if (method_id >= module.methods.size()) return Fail("NEW_CLOSURE bad method id");
+      }
       if (opcode == static_cast<uint8_t>(OpCode::NewArray) ||
           opcode == static_cast<uint8_t>(OpCode::NewList)) {
         uint32_t type_id = 0;
@@ -248,6 +254,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstNull:
         case OpCode::ConstString:
         case OpCode::NewObject:
+        case OpCode::NewClosure:
         case OpCode::NewArray:
         case OpCode::NewList:
           push_type(ValType::Ref);

@@ -503,6 +503,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
       }
+      case OpCode::NewClosure: {
+        uint32_t method_id = ReadU32(module.code, pc);
+        uint8_t upvalue_count = ReadU8(module.code, pc);
+        if (method_id >= module.methods.size()) return Trap("NEW_CLOSURE bad method id");
+        uint32_t size = 8 + static_cast<uint32_t>(upvalue_count) * 4u;
+        uint32_t handle = heap.Allocate(ObjectKind::Closure, method_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_CLOSURE allocation failed");
+        WriteU32Payload(obj->payload, 0, method_id);
+        WriteU32Payload(obj->payload, 4, static_cast<uint32_t>(upvalue_count));
+        for (uint32_t i = 0; i < upvalue_count; ++i) {
+          WriteU32Payload(obj->payload, 8 + i * 4u, 0xFFFFFFFFu);
+        }
+        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        break;
+      }
       case OpCode::LoadField: {
         uint32_t field_id = ReadU32(module.code, pc);
         Value v = Pop(stack);

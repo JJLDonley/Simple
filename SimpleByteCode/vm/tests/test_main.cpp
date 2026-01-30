@@ -921,6 +921,42 @@ std::vector<uint8_t> BuildRefModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildNewClosureModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(code, 0);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTrue));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadNewClosureVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(code, 999);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildArrayModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -5390,6 +5426,30 @@ bool RunRefTest() {
   return true;
 }
 
+bool RunNewClosureTest() {
+  std::vector<uint8_t> module_bytes = BuildNewClosureModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunArrayTest() {
   std::vector<uint8_t> module_bytes = BuildArrayModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -6520,6 +6580,21 @@ bool RunBadStringGetCharIdxVerifyTest() {
 
 bool RunBadStringSliceVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadStringSliceVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadNewClosureVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadNewClosureVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -8443,6 +8518,7 @@ int main() {
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
+      {"new_closure", RunNewClosureTest},
       {"array_i32", RunArrayTest},
       {"array_len", RunArrayLenTest},
       {"list_i32", RunListTest},
@@ -8498,6 +8574,7 @@ int main() {
       {"bad_string_get_char_verify", RunBadStringGetCharVerifyTest},
       {"bad_string_get_char_idx_verify", RunBadStringGetCharIdxVerifyTest},
       {"bad_string_slice_verify", RunBadStringSliceVerifyTest},
+      {"bad_new_closure_verify", RunBadNewClosureVerifyTest},
       {"bad_string_slice_start_verify", RunBadStringSliceStartVerifyTest},
       {"bad_string_slice_end_verify", RunBadStringSliceEndVerifyTest},
       {"bad_is_null_verify", RunBadIsNullVerifyTest},
@@ -8661,8 +8738,9 @@ int main() {
   };
 
   int failures = 0;
+  int tCount = 0;
   for (const auto& test : tests) {
-    std::cout << "[ RUN      ] " << test.name << "\n";
+    tCount++;
     bool ok = test.fn();
     if (!ok) {
       failures++;
@@ -8670,9 +8748,11 @@ int main() {
   }
 
   if (failures == 0) {
+    std::cout << "Total Tests:  " << tCount << "\n";
     std::cout << "all tests passed\n";
     return 0;
   }
+  std::cout << "Total Tests:  " << tCount << "\n";
   std::cout << failures << " tests failed\n";
   return 1;
 }
