@@ -220,3 +220,4 @@
 - Added JIT enable/disable switch for differential testing and a basic JIT vs interpreter differential test.
 - Expanded JIT differential tests to cover branches, loops, and compare+bool operations.
 - Added JIT differential tests for CALL_INDIRECT and TAILCALL compiled paths.
+- Added Tier1 compiled execution counters and a Tier1 exec count test.

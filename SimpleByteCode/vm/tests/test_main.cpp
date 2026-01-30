@@ -10113,6 +10113,38 @@ bool RunJitOpcodeHotLoopTest() {
   return true;
 }
 
+bool RunJitTier1ExecCountTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tier1_exec_counts.size() < 2) {
+    std::cerr << "expected tier1 exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_tier1_exec_counts[1] == 0) {
+    std::cerr << "expected tier1 exec count for callee\n";
+    return false;
+  }
+  if (exec.jit_tier1_exec_counts[0] != 0) {
+    std::cerr << "expected zero tier1 exec count for entry\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitOpcodeHotBranchTest() {
   std::vector<uint8_t> module_bytes = BuildJitOpcodeHotBranchModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -15424,6 +15456,7 @@ int main() {
       {"jit_diff_bool", RunJitDifferentialCompareBoolTest},
       {"jit_diff_indirect", RunJitDifferentialIndirectTest},
       {"jit_diff_tailcall", RunJitDifferentialTailCallTest},
+      {"jit_tier1_exec_count", RunJitTier1ExecCountTest},
       {"jit_opcode_hot_loop", RunJitOpcodeHotLoopTest},
       {"jit_opcode_hot_branch", RunJitOpcodeHotBranchTest},
       {"jit_compiled_bool_ops", RunJitCompiledBoolOpsTest},
