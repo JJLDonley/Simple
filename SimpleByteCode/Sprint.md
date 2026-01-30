@@ -160,3 +160,4 @@
 - Added JIT compile event counters and verified Tier0+Tier1 promotions in tests.
 - Added JMP_TABLE verifier test for blob size/count mismatch.
 - Added opcode hotness threshold promoting functions to Tier0.
+- Added JMP_TABLE verifier test for out-of-bounds targets.
