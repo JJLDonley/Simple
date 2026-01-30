@@ -225,6 +225,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   };
   auto finish = [&](ExecResult result) {
     result.jit_tiers = jit_tiers;
+    result.call_counts = call_counts;
     return result;
   };
   auto read_const_string = [&](uint32_t const_id) -> Value {

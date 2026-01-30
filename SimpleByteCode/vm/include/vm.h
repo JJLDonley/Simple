@@ -30,6 +30,7 @@ struct ExecResult {
   std::string error;
   int32_t exit_code = 0;
   std::vector<JitTier> jit_tiers;
+  std::vector<uint32_t> call_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

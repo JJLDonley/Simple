@@ -6474,6 +6474,19 @@ bool RunJitTierTest() {
     std::cerr << "expected jit tiers for functions\n";
     return false;
   }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[0] != 1) {
+    std::cerr << "expected entry call count 1, got " << exec.call_counts[0] << "\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
   if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
     std::cerr << "expected Tier1 for callee\n";
     return false;
