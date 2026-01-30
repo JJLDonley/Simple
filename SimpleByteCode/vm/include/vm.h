@@ -39,10 +39,12 @@ struct ExecResult {
   std::vector<uint64_t> compile_ticks_tier1;
   std::vector<uint32_t> jit_dispatch_counts;
   std::vector<uint32_t> jit_compiled_exec_counts;
+  std::vector<uint32_t> jit_tier1_exec_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);
 ExecResult ExecuteModule(const SbcModule& module, bool verify);
+ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit);
 
 } // namespace simplevm
 

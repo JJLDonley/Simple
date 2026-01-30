@@ -191,3 +191,32 @@
 - Added compiled locals+arithmetic JIT module/test to validate LOAD/STORE + arithmetic in compiled path.
 - Added opcode-hot locals+arithmetic compiled JIT test with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot locals+arithmetic compiled JIT coverage for CALL_INDIRECT path.
+- Added compiled i32 compare support and a JIT compare test using CmpEq/CmpLt/CmpGe ops.
+- Added opcode-hot compiled i32 compare JIT test (Tier0 promotion with compiled exec assertions).
+- Added compiled BOOL ops support (BoolNot/BoolAnd/BoolOr) and a JIT bool ops test.
+- Added opcode-hot compiled bool ops JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled bool ops coverage for CALL_INDIRECT path.
+- Added opcode-hot compiled bool ops coverage for TAILCALL via helper trampoline.
+- Added compiled locals compare+bool chain JIT test to validate LOAD/STORE with CMP/BOOL ops.
+- Added opcode-hot locals compare+bool chain JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot locals compare+bool chain coverage for CALL_INDIRECT path.
+- Added opcode-hot locals compare+bool chain coverage for TAILCALL via helper trampoline.
+- Allowed compiled locals to store/load bools and added compiled/opcode-hot local-bool store tests.
+- Added opcode-hot local-bool store coverage for CALL_INDIRECT path.
+- Added opcode-hot local-bool store coverage for TAILCALL via helper trampoline.
+- Added compiled local-bool AND/OR chain JIT test using stored bool locals.
+- Added opcode-hot local-bool AND/OR chain JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot local-bool AND/OR chain coverage for CALL_INDIRECT path.
+- Added opcode-hot local-bool AND/OR chain coverage for TAILCALL via helper trampoline.
+- Added opcode-hot compare+bool chain coverage for CALL_INDIRECT path.
+- Added opcode-hot compare+bool chain coverage for TAILCALL via helper trampoline.
+- Added compiled compare+bool chain coverage for CALL_INDIRECT path (Tier1 promotion).
+- Added compiled compare+bool chain coverage for TAILCALL via helper trampoline (Tier1 promotion).
+- Added minimal compiled support for JmpTrue/JmpFalse and a compiled branch JIT test.
+- Added opcode-hot compiled branch JIT test with Tier0 promotion and compiled exec assertions.
+- Added minimal compiled support for unconditional JMP and a compiled loop JIT test.
+- Added opcode-hot compiled loop JIT test with Tier0 promotion and compiled exec assertions.
+- Added compiled loop coverage for CALL_INDIRECT path (Tier1 promotion).
+- Added JIT enable/disable switch for differential testing and a basic JIT vs interpreter differential test.
+- Expanded JIT differential tests to cover branches, loops, and compare+bool operations.
+- Added JIT differential tests for CALL_INDIRECT and TAILCALL compiled paths.
