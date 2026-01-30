@@ -137,3 +137,5 @@
 - Added runtime trap tests for negative indices in ARRAY_GET/ARRAY_SET and LIST_GET/LIST_SET.
 
 - Added runtime trap tests for negative indices in STRING_GET_CHAR and STRING_SLICE.
+
+- Added runtime trap tests for null refs across array/list/string ops.

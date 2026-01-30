@@ -4565,6 +4565,45 @@ std::vector<uint8_t> BuildBadArrayGetModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadArrayLenNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArrayGetNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArraySetNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadArraySetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4633,6 +4672,30 @@ std::vector<uint8_t> BuildBadListGetModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadListLenNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListGetNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadListGetNegIndexModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4666,6 +4729,21 @@ std::vector<uint8_t> BuildBadListSetModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 9);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI32));
@@ -4707,6 +4785,30 @@ std::vector<uint8_t> BuildBadListPopModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadListPushNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListPopNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadListInsertModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4717,6 +4819,21 @@ std::vector<uint8_t> BuildBadListInsertModule() {
   AppendU32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListInsertNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 9);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertI32));
@@ -4743,6 +4860,30 @@ std::vector<uint8_t> BuildBadListRemoveModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadListRemoveNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListClearNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListClear));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadStringGetCharModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -4761,6 +4902,42 @@ std::vector<uint8_t> BuildBadStringGetCharModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> empty;
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringLenNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringLen));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringConcatNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringConcat));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringGetCharNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringGetChar));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadStringGetCharNegIndexModule() {
@@ -4803,6 +4980,21 @@ std::vector<uint8_t> BuildBadStringSliceModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> empty;
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadStringSliceNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringSlice));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadStringSliceNegIndexModule() {
@@ -7983,6 +8175,18 @@ bool RunBadArrayGetTrapTest() {
   return RunExpectTrap(BuildBadArrayGetModule(), "bad_array_get");
 }
 
+bool RunBadArrayLenNullTrapTest() {
+  return RunExpectTrap(BuildBadArrayLenNullModule(), "bad_array_len_null");
+}
+
+bool RunBadArrayGetNullTrapTest() {
+  return RunExpectTrap(BuildBadArrayGetNullModule(), "bad_array_get_null");
+}
+
+bool RunBadArraySetNullTrapTest() {
+  return RunExpectTrap(BuildBadArraySetNullModule(), "bad_array_set_null");
+}
+
 bool RunBadArraySetTrapTest() {
   return RunExpectTrap(BuildBadArraySetModule(), "bad_array_set");
 }
@@ -7999,12 +8203,24 @@ bool RunBadListGetTrapTest() {
   return RunExpectTrap(BuildBadListGetModule(), "bad_list_get");
 }
 
+bool RunBadListLenNullTrapTest() {
+  return RunExpectTrap(BuildBadListLenNullModule(), "bad_list_len_null");
+}
+
+bool RunBadListGetNullTrapTest() {
+  return RunExpectTrap(BuildBadListGetNullModule(), "bad_list_get_null");
+}
+
 bool RunBadListGetNegIndexTrapTest() {
   return RunExpectTrap(BuildBadListGetNegIndexModule(), "bad_list_get_neg_index");
 }
 
 bool RunBadListSetTrapTest() {
   return RunExpectTrap(BuildBadListSetModule(), "bad_list_set");
+}
+
+bool RunBadListSetNullTrapTest() {
+  return RunExpectTrap(BuildBadListSetNullModule(), "bad_list_set_null");
 }
 
 bool RunBadListSetNegIndexTrapTest() {
@@ -8015,12 +8231,32 @@ bool RunBadListPopTrapTest() {
   return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
 }
 
+bool RunBadListPushNullTrapTest() {
+  return RunExpectTrap(BuildBadListPushNullModule(), "bad_list_push_null");
+}
+
+bool RunBadListPopNullTrapTest() {
+  return RunExpectTrap(BuildBadListPopNullModule(), "bad_list_pop_null");
+}
+
 bool RunBadListInsertTrapTest() {
   return RunExpectTrap(BuildBadListInsertModule(), "bad_list_insert");
 }
 
+bool RunBadListInsertNullTrapTest() {
+  return RunExpectTrap(BuildBadListInsertNullModule(), "bad_list_insert_null");
+}
+
 bool RunBadListRemoveTrapTest() {
   return RunExpectTrap(BuildBadListRemoveModule(), "bad_list_remove");
+}
+
+bool RunBadListRemoveNullTrapTest() {
+  return RunExpectTrap(BuildBadListRemoveNullModule(), "bad_list_remove_null");
+}
+
+bool RunBadListClearNullTrapTest() {
+  return RunExpectTrap(BuildBadListClearNullModule(), "bad_list_clear_null");
 }
 
 bool RunBadStringGetCharNegIndexTrapTest() {
@@ -8108,8 +8344,24 @@ bool RunBadCallIndirectTypeTrapTest() {
   return RunExpectTrap(BuildBadCallIndirectTypeModule(), "bad_call_indirect_type");
 }
 
+bool RunBadStringLenNullTrapTest() {
+  return RunExpectTrap(BuildBadStringLenNullModule(), "bad_string_len_null");
+}
+
+bool RunBadStringConcatNullTrapTest() {
+  return RunExpectTrap(BuildBadStringConcatNullModule(), "bad_string_concat_null");
+}
+
+bool RunBadStringGetCharNullTrapTest() {
+  return RunExpectTrap(BuildBadStringGetCharNullModule(), "bad_string_get_char_null");
+}
+
 bool RunBadStringGetCharTrapTest() {
   return RunExpectTrap(BuildBadStringGetCharModule(), "bad_string_get_char");
+}
+
+bool RunBadStringSliceNullTrapTest() {
+  return RunExpectTrap(BuildBadStringSliceNullModule(), "bad_string_slice_null");
 }
 
 bool RunBadStringSliceTrapTest() {
@@ -8350,19 +8602,34 @@ int main() {
       {"bad_const_i128_kind", RunBadConstI128KindTrapTest},
       {"bad_const_u128_blob", RunBadConstU128BlobTrapTest},
       {"bad_array_get", RunBadArrayGetTrapTest},
+      {"bad_array_len_null", RunBadArrayLenNullTrapTest},
+      {"bad_array_get_null", RunBadArrayGetNullTrapTest},
+      {"bad_array_set_null", RunBadArraySetNullTrapTest},
       {"bad_array_set", RunBadArraySetTrapTest},
       {"bad_array_get_neg_index", RunBadArrayGetNegIndexTrapTest},
       {"bad_array_set_neg_index", RunBadArraySetNegIndexTrapTest},
       {"bad_list_get", RunBadListGetTrapTest},
+      {"bad_list_len_null", RunBadListLenNullTrapTest},
+      {"bad_list_get_null", RunBadListGetNullTrapTest},
       {"bad_list_set", RunBadListSetTrapTest},
+      {"bad_list_set_null", RunBadListSetNullTrapTest},
       {"bad_list_get_neg_index", RunBadListGetNegIndexTrapTest},
       {"bad_list_set_neg_index", RunBadListSetNegIndexTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
+      {"bad_list_push_null", RunBadListPushNullTrapTest},
+      {"bad_list_pop_null", RunBadListPopNullTrapTest},
       {"bad_list_insert", RunBadListInsertTrapTest},
+      {"bad_list_insert_null", RunBadListInsertNullTrapTest},
       {"bad_list_remove", RunBadListRemoveTrapTest},
+      {"bad_list_remove_null", RunBadListRemoveNullTrapTest},
+      {"bad_list_clear_null", RunBadListClearNullTrapTest},
+      {"bad_string_len_null", RunBadStringLenNullTrapTest},
+      {"bad_string_concat_null", RunBadStringConcatNullTrapTest},
+      {"bad_string_get_char_null", RunBadStringGetCharNullTrapTest},
       {"bad_string_get_char_neg_index", RunBadStringGetCharNegIndexTrapTest},
       {"bad_string_slice_neg_index", RunBadStringSliceNegIndexTrapTest},
       {"bad_string_get_char", RunBadStringGetCharTrapTest},
+      {"bad_string_slice_null", RunBadStringSliceNullTrapTest},
       {"bad_string_slice", RunBadStringSliceTrapTest},
       {"list_overflow", RunListOverflowTrapTest},
   };
