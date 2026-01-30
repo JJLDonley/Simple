@@ -253,3 +253,4 @@
 - Added fixture-based tests to run real SBC files (add/loop/fib/uuid) through loader/verifier/VM.
 - Expanded JIT-disabled test to assert no compile or dispatch counts when JIT is off.
 - Added JIT tests to ensure functions with parameters never enter compiled execution (call-count and opcode-hot paths).
+- Added JIT tests to ensure disabled stubs remain interpreter-only after fallback (Tier1 and opcode-hot paths).
