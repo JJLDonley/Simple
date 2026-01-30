@@ -1919,6 +1919,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
 
         current.return_pc = pc;
+        current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(func_id, pc, stack.size(), -1);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
@@ -1986,6 +1987,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
 
         current.return_pc = pc;
+        current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {

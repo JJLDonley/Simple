@@ -231,3 +231,8 @@
 - Added opcode-hot compiled branch coverage for CALL_INDIRECT path with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot compiled loop coverage for CALL_INDIRECT and TAILCALL paths with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot compiled branch coverage for TAILCALL path with Tier0 promotion and compiled exec assertions.
+- Added a small SBC generator tool and generated sample add/loop SBC fixtures for real-module testing.
+- Extended SBC generator to emit iterative/recursive Fibonacci modules and a UUID-length module (constant UUID in const pool).
+- Generated SBC fixtures for fib_iter, fib_rec, and uuid_len modules for real-module testing.
+- Fixed CALL/CALL_INDIRECT stack-base handling so recursive calls preserve caller stack values (fixes fib_rec crash).
+- Added recursive CALL regression test to validate stack preservation through recursion.

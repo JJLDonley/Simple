@@ -118,6 +118,12 @@ struct SectionData {
   uint32_t offset = 0;
 };
 
+struct SigSpec {
+  uint32_t ret_type_id = 0;
+  uint16_t param_count = 0;
+  std::vector<uint32_t> param_types;
+};
+
 std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& code,
                                                  const std::vector<uint8_t>& const_pool,
                                                  const std::vector<uint8_t>& types_bytes,
@@ -632,6 +638,118 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSig(const std::vector<std::vecto
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<std::vector<uint8_t>>& funcs,
+                                                     const std::vector<uint16_t>& local_counts,
+                                                     const std::vector<uint32_t>& method_sig_ids,
+                                                     const std::vector<SigSpec>& sig_specs) {
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);       // name_str
+  AppendU8(types, 0);        // kind
+  AppendU8(types, 0);        // flags
+  AppendU16(types, 0);       // reserved
+  AppendU32(types, 4);       // size
+  AppendU32(types, 0);       // field_start
+  AppendU32(types, 0);       // field_count
+
+  std::vector<uint8_t> fields;
+
+  std::vector<uint8_t> sigs;
+  std::vector<uint32_t> param_types;
+  for (const auto& spec : sig_specs) {
+    uint32_t param_type_start = static_cast<uint32_t>(param_types.size());
+    AppendU32(sigs, spec.ret_type_id);
+    AppendU16(sigs, spec.param_count);
+    AppendU16(sigs, 0); // call_conv
+    AppendU32(sigs, param_type_start);
+    for (uint32_t type_id : spec.param_types) {
+      param_types.push_back(type_id);
+    }
+  }
+  for (uint32_t type_id : param_types) {
+    AppendU32(sigs, type_id);
+  }
+
+  std::vector<uint8_t> methods;
+  std::vector<uint8_t> functions;
+  std::vector<uint8_t> code;
+  size_t offset = 0;
+  for (size_t i = 0; i < funcs.size(); ++i) {
+    uint16_t locals = 0;
+    if (i < local_counts.size()) locals = local_counts[i];
+    uint32_t sig_id = 0;
+    if (i < method_sig_ids.size()) sig_id = method_sig_ids[i];
+    AppendU32(methods, 0);                                   // name_str
+    AppendU32(methods, sig_id);                              // sig_id
+    AppendU32(methods, static_cast<uint32_t>(offset));       // code_offset
+    AppendU16(methods, locals);                              // local_count
+    AppendU16(methods, 0);                                   // flags
+
+    AppendU32(functions, static_cast<uint32_t>(i));          // method_id
+    AppendU32(functions, static_cast<uint32_t>(offset));     // code_offset
+    AppendU32(functions, static_cast<uint32_t>(funcs[i].size()));
+    AppendU32(functions, 12);                                // stack_max
+
+    code.insert(code.end(), funcs[i].begin(), funcs[i].end());
+    offset += funcs[i].size();
+  }
+
+  std::vector<uint8_t> globals;
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
+  sections.push_back({3, methods, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({4, sigs, static_cast<uint32_t>(sig_specs.size()), 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, globals, 0, 0});
+  sections.push_back({7, functions, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({8, code, 0, 0});
+
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Align4(header_size + table_size);
+  for (auto& sec : sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+
+  WriteU32(module, 0x00, 0x30434253u); // magic
+  WriteU16(module, 0x04, 0x0001u);     // version
+  WriteU8(module, 0x06, 1);            // endian
+  WriteU8(module, 0x07, 0);            // flags
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, 0);           // entry_method_id
+  WriteU32(module, 0x14, 0);           // reserved0
+  WriteU32(module, 0x18, 0);           // reserved1
+  WriteU32(module, 0x1C, 0);           // reserved2
+
+  size_t table_off = header_size;
+  for (const auto& sec : sections) {
+    size_t off = table_off;
+    WriteU32(module, off + 0, sec.id);
+    WriteU32(module, off + 4, sec.offset);
+    const uint32_t size = static_cast<uint32_t>(sec.bytes.size());
+    WriteU32(module, off + 8, size);
+    WriteU32(module, off + 12, sec.count);
+    table_off += 16;
+  }
+
+  for (const auto& sec : sections) {
+    if (sec.bytes.empty()) continue;
+    std::memcpy(module.data() + sec.offset, sec.bytes.data(), sec.bytes.size());
+  }
+
+  return module;
+}
+
 std::vector<uint8_t> BuildSimpleAddModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -896,6 +1014,64 @@ std::vector<uint8_t> BuildLoopModule() {
     PatchRel32(code, site, exit_block);
   }
   return BuildModule(code, 0, 2);
+}
+
+std::vector<uint8_t> BuildRecursiveCallModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 5);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> fib;
+  AppendU8(fib, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(fib, 1);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(fib, 0);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(fib, 2);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(fib, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_else = fib.size();
+  AppendI32(fib, 0);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(fib, 0);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::Ret));
+
+  size_t else_pos = fib.size();
+  AppendU8(fib, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(fib, 0);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(fib, 1);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(fib, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(fib, 1);
+  AppendU8(fib, 1);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(fib, 0);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(fib, 2);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(fib, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(fib, 1);
+  AppendU8(fib, 1);
+  AppendU8(fib, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(fib, static_cast<uint8_t>(OpCode::Ret));
+
+  int32_t rel = static_cast<int32_t>(else_pos) - static_cast<int32_t>(jmp_else + 4);
+  WriteU32(fib, jmp_else, static_cast<uint32_t>(rel));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec fib_sig{0, 1, {0}};
+  std::vector<std::vector<uint8_t>> funcs{entry, fib};
+  std::vector<uint16_t> locals{0, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  return BuildModuleWithFunctionsAndSigs(funcs, locals, sig_ids, {entry_sig, fib_sig});
 }
 
 std::vector<uint8_t> BuildRefModule() {
@@ -11913,6 +12089,30 @@ bool RunLoopTest() {
   return true;
 }
 
+bool RunRecursiveCallTest() {
+  std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 5) {
+    std::cerr << "expected 5, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunRefTest() {
   std::vector<uint8_t> module_bytes = BuildRefModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -16183,6 +16383,7 @@ int main(int argc, char** argv) {
       {"jit_opcode_hot_i32_arith_tailcall", RunJitOpcodeHotI32ArithmeticTailCallTest},
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
+      {"recursive_call", RunRecursiveCallTest},
       {"ref_ops", RunRefTest},
       {"upvalue_ops", RunUpvalueTest},
       {"upvalue_object", RunUpvalueObjectTest},
