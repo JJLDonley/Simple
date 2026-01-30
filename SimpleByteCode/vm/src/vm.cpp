@@ -221,6 +221,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<JitStub> jit_stubs(module.functions.size());
   std::vector<uint64_t> opcode_counts(256, 0);
   std::vector<uint32_t> compile_counts(module.functions.size(), 0);
+  std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
   auto update_tier = [&](size_t func_index) {
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
@@ -243,6 +244,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
     result.call_counts = call_counts;
     result.opcode_counts = opcode_counts;
     result.compile_counts = compile_counts;
+    result.func_opcode_counts = func_opcode_counts;
     return result;
   };
   auto read_const_string = [&](uint32_t const_id) -> Value {
@@ -359,6 +361,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
     uint8_t opcode = module.code[pc++];
     opcode_counts[opcode] += 1;
+    if (current.func_index < func_opcode_counts.size()) {
+      uint32_t& count = func_opcode_counts[current.func_index];
+      count += 1;
+      if (count >= kJitOpcodeThreshold && jit_tiers[current.func_index] == JitTier::None) {
+        jit_tiers[current.func_index] = JitTier::Tier0;
+        jit_stubs[current.func_index].active = true;
+        compile_counts[current.func_index] += 1;
+      }
+    }
     switch (static_cast<OpCode>(opcode)) {
       case OpCode::Nop:
         break;

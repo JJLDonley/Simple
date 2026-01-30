@@ -24,6 +24,7 @@ enum class JitTier {
 
 constexpr uint32_t kJitTier0Threshold = 3;
 constexpr uint32_t kJitTier1Threshold = 6;
+constexpr uint32_t kJitOpcodeThreshold = 10;
 
 struct ExecResult {
   ExecStatus status = ExecStatus::Ok;
@@ -33,6 +34,7 @@ struct ExecResult {
   std::vector<uint32_t> call_counts;
   std::vector<uint64_t> opcode_counts;
   std::vector<uint32_t> compile_counts;
+  std::vector<uint32_t> func_opcode_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

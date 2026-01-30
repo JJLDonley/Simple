@@ -7045,8 +7045,16 @@ bool RunJitTierTest() {
     std::cerr << "expected Tier1 for callee\n";
     return false;
   }
-  if (exec.jit_tiers[0] != simplevm::JitTier::None) {
-    std::cerr << "expected None tier for entry\n";
+  if (exec.func_opcode_counts.size() < 2) {
+    std::cerr << "expected opcode counts per function\n";
+    return false;
+  }
+  if (exec.func_opcode_counts[0] < simplevm::kJitOpcodeThreshold) {
+    std::cerr << "expected entry opcode count >= " << simplevm::kJitOpcodeThreshold << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[0] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for entry\n";
     return false;
   }
   if (exec.opcode_counts.size() != 256) {
