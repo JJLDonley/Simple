@@ -1178,6 +1178,91 @@ std::vector<uint8_t> BuildJmpTableModule(int32_t index) {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildJmpTableDefaultEndModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  size_t const_id_offset = code.size();
+  AppendU32(code, 0);
+  size_t default_offset = code.size();
+  AppendI32(code, 0);
+  size_t table_base = code.size();
+
+  size_t case0 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t case1 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t end_boundary = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+
+  PatchRel32(code, default_offset, end_boundary);
+
+  std::vector<uint8_t> blob;
+  AppendU32(blob, 2);
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case0) - static_cast<int64_t>(table_base)));
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case1) - static_cast<int64_t>(table_base)));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 6, blob, &const_id);
+  WriteU32(code, const_id_offset, const_id);
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
+std::vector<uint8_t> BuildJmpTableDefaultStartModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  size_t const_id_offset = code.size();
+  AppendU32(code, 0);
+  size_t default_offset = code.size();
+  AppendI32(code, 0);
+  size_t table_base = code.size();
+
+  size_t case0 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t case1 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t default_start = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+
+  PatchRel32(code, default_offset, default_start);
+
+  std::vector<uint8_t> blob;
+  AppendU32(blob, 2);
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case0) - static_cast<int64_t>(table_base)));
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case1) - static_cast<int64_t>(table_base)));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 6, blob, &const_id);
+  WriteU32(code, const_id_offset, const_id);
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadJmpTableKindModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
@@ -6720,6 +6805,54 @@ bool RunJmpTableDefaultTest() {
   return true;
 }
 
+bool RunJmpTableDefaultEndTest() {
+  std::vector<uint8_t> module_bytes = BuildJmpTableDefaultEndModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJmpTableDefaultStartTest() {
+  std::vector<uint8_t> module_bytes = BuildJmpTableDefaultStartModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 2) {
+    std::cerr << "expected 2, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitTierTest() {
   std::vector<uint8_t> module_bytes = BuildJitTierModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -10920,6 +11053,8 @@ int main() {
       {"jmp_table_case0", RunJmpTableCase0Test},
       {"jmp_table_case1", RunJmpTableCase1Test},
       {"jmp_table_default", RunJmpTableDefaultTest},
+      {"jmp_table_default_end", RunJmpTableDefaultEndTest},
+      {"jmp_table_default_start", RunJmpTableDefaultStartTest},
       {"jit_tier", RunJitTierTest},
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
