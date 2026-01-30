@@ -143,3 +143,4 @@
 - Added INC/DEC opcodes for F32/F64 with verifier/runtime support and tests.
 - Added INC/DEC opcodes for U32/U64 with verifier/runtime support and tests.
 - Added U32/U64 INC/DEC wraparound tests at numeric bounds.
+- Added INC/DEC opcodes for I8/I16/U8/U16 with verifier/runtime support and tests.

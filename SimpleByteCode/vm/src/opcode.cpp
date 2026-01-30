@@ -157,6 +157,14 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::DecU32:
     case OpCode::IncU64:
     case OpCode::DecU64:
+    case OpCode::IncI8:
+    case OpCode::DecI8:
+    case OpCode::IncI16:
+    case OpCode::DecI16:
+    case OpCode::IncU8:
+    case OpCode::DecU8:
+    case OpCode::IncU16:
+    case OpCode::DecU16:
       *info = {0, 1, 1};
       return true;
     case OpCode::BoolNot:

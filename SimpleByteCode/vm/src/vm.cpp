@@ -950,6 +950,58 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
         break;
       }
+      case OpCode::IncI8:
+      case OpCode::DecI8: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("INC/DEC_I8 on non-i32");
+        int8_t out = static_cast<int8_t>(a.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::IncI8)) {
+          out = static_cast<int8_t>(out + 1);
+        } else {
+          out = static_cast<int8_t>(out - 1);
+        }
+        Push(stack, Value{ValueKind::I32, out});
+        break;
+      }
+      case OpCode::IncI16:
+      case OpCode::DecI16: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("INC/DEC_I16 on non-i32");
+        int16_t out = static_cast<int16_t>(a.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::IncI16)) {
+          out = static_cast<int16_t>(out + 1);
+        } else {
+          out = static_cast<int16_t>(out - 1);
+        }
+        Push(stack, Value{ValueKind::I32, out});
+        break;
+      }
+      case OpCode::IncU8:
+      case OpCode::DecU8: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U8 on non-i32");
+        uint8_t out = static_cast<uint8_t>(static_cast<int32_t>(a.i64));
+        if (opcode == static_cast<uint8_t>(OpCode::IncU8)) {
+          out = static_cast<uint8_t>(out + 1);
+        } else {
+          out = static_cast<uint8_t>(out - 1);
+        }
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
+      case OpCode::IncU16:
+      case OpCode::DecU16: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U16 on non-i32");
+        uint16_t out = static_cast<uint16_t>(static_cast<int32_t>(a.i64));
+        if (opcode == static_cast<uint8_t>(OpCode::IncU16)) {
+          out = static_cast<uint16_t>(out + 1);
+        } else {
+          out = static_cast<uint16_t>(out - 1);
+        }
+        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        break;
+      }
       case OpCode::AndI32:
       case OpCode::OrI32:
       case OpCode::XorI32:
