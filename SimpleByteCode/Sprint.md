@@ -236,3 +236,5 @@
 - Generated SBC fixtures for fib_iter, fib_rec, and uuid_len modules for real-module testing.
 - Fixed CALL/CALL_INDIRECT stack-base handling so recursive calls preserve caller stack values (fixes fib_rec crash).
 - Added recursive CALL regression test to validate stack preservation through recursion.
+- Stabilized JIT execution by falling back to interpreter when compiled execution fails.
+- Added opcode-hot JIT test to ensure unsupported opcodes never enter compiled execution.

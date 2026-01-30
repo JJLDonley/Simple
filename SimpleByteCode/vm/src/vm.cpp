@@ -1913,9 +1913,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           }
           Value ret;
           std::string error;
-          if (!run_compiled(func_id, ret, error)) return Trap(error);
-          if (ret.kind != ValueKind::None) Push(stack, ret);
-          break;
+          if (run_compiled(func_id, ret, error)) {
+            if (ret.kind != ValueKind::None) Push(stack, ret);
+            break;
+          }
+          jit_stubs[func_id].compiled = false;
         }
 
         current.return_pc = pc;
@@ -1981,9 +1983,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           }
           Value ret;
           std::string error;
-          if (!run_compiled(static_cast<size_t>(func_index), ret, error)) return Trap(error);
-          if (ret.kind != ValueKind::None) Push(stack, ret);
-          break;
+          if (run_compiled(static_cast<size_t>(func_index), ret, error)) {
+            if (ret.kind != ValueKind::None) Push(stack, ret);
+            break;
+          }
+          jit_stubs[static_cast<size_t>(func_index)].compiled = false;
         }
 
         current.return_pc = pc;
@@ -2028,23 +2032,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           }
           Value ret;
           std::string error;
-          if (!run_compiled(func_id, ret, error)) return Trap(error);
-          if (call_stack.empty()) {
-            ExecResult result;
-            result.status = ExecStatus::Halted;
-            if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
-            return finish(result);
+          if (run_compiled(func_id, ret, error)) {
+            if (call_stack.empty()) {
+              ExecResult result;
+              result.status = ExecStatus::Halted;
+              if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
+              return finish(result);
+            }
+            Frame caller = call_stack.back();
+            call_stack.pop_back();
+            stack.resize(caller.stack_base);
+            if (ret.kind != ValueKind::None) Push(stack, ret);
+            current = caller;
+            pc = current.return_pc;
+            const auto& func = module.functions[current.func_index];
+            func_start = func.code_offset;
+            end = func_start + func.code_size;
+            break;
           }
-          Frame caller = call_stack.back();
-          call_stack.pop_back();
-          stack.resize(caller.stack_base);
-          if (ret.kind != ValueKind::None) Push(stack, ret);
-          current = caller;
-          pc = current.return_pc;
-          const auto& func = module.functions[current.func_index];
-          func_start = func.code_offset;
-          end = func_start + func.code_size;
-          break;
+          jit_stubs[func_id].compiled = false;
         }
 
         size_t return_pc = current.return_pc;
