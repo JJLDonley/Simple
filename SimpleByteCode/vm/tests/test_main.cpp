@@ -1368,6 +1368,33 @@ std::vector<uint8_t> BuildBadJmpTableBlobModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadJmpTableBlobVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 6);
+  uint32_t blob_offset = static_cast<uint32_t>(const_pool.size() + 4);
+  AppendU32(const_pool, blob_offset);
+  AppendU32(const_pool, 8);
+  AppendU32(const_pool, 2);
+  AppendU32(const_pool, 0);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  AppendU32(code, const_id);
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadJmpTableOobTargetModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -11025,6 +11052,21 @@ bool RunBadU64VerifyTest() {
   return true;
 }
 
+bool RunBadJmpTableBlobVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJmpTableBlobVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadJmpTableRuntimeKindTrapTest() {
   return RunExpectTrapNoVerify(BuildBadJmpTableRuntimeKindModule(), "bad_jmp_table_kind_runtime");
 }
@@ -11465,6 +11507,7 @@ int main() {
       {"bad_neg_i8_verify", RunBadNegI8VerifyTest},
       {"bad_neg_u32_verify", RunBadNegU32VerifyTest},
       {"bad_jmp_table_kind_verify", RunBadJmpTableKindVerifyTest},
+      {"bad_jmp_table_blob_verify", RunBadJmpTableBlobVerifyTest},
       {"bad_jmp_table_kind_runtime", RunBadJmpTableRuntimeKindTrapTest},
       {"bad_jmp_table_blob_runtime", RunBadJmpTableBlobTrapTest},
       {"bad_jmp_table_oob_runtime", RunBadJmpTableOobTargetTrapTest},

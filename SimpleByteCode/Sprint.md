@@ -158,3 +158,4 @@
 - Added per-opcode hotness counters in ExecResult with JIT test coverage.
 - Added JMP_TABLE empty-table test (default target when count=0).
 - Added JIT compile event counters and verified Tier0+Tier1 promotions in tests.
+- Added JMP_TABLE verifier test for blob size/count mismatch.
