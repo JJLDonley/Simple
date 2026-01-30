@@ -12892,6 +12892,49 @@ bool RunLoopTest() {
   return true;
 }
 
+bool RunFixtureTest(const char* path, int32_t expected_exit) {
+  simplevm::LoadResult load = simplevm::LoadModuleFromFile(path);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != expected_exit) {
+    std::cerr << "expected " << expected_exit << ", got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunFixtureAddTest() {
+  return RunFixtureTest("SimpleByteCode/vm/tests/fixtures/add_i32.sbc", 9);
+}
+
+bool RunFixtureLoopTest() {
+  return RunFixtureTest("SimpleByteCode/vm/tests/fixtures/loop.sbc", 3);
+}
+
+bool RunFixtureFibIterTest() {
+  return RunFixtureTest("SimpleByteCode/vm/tests/fixtures/fib_iter.sbc", 55);
+}
+
+bool RunFixtureFibRecTest() {
+  return RunFixtureTest("SimpleByteCode/vm/tests/fixtures/fib_rec.sbc", 5);
+}
+
+bool RunFixtureUuidLenTest() {
+  return RunFixtureTest("SimpleByteCode/vm/tests/fixtures/uuid_len.sbc", 36);
+}
+
 bool RunRecursiveCallTest() {
   std::vector<uint8_t> module_bytes = BuildRecursiveCallModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17229,6 +17272,11 @@ int main(int argc, char** argv) {
       {"jit_opcode_hot_i32_arith_tailcall", RunJitOpcodeHotI32ArithmeticTailCallTest},
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
+      {"fixture_add", RunFixtureAddTest},
+      {"fixture_loop", RunFixtureLoopTest},
+      {"fixture_fib_iter", RunFixtureFibIterTest},
+      {"fixture_fib_rec", RunFixtureFibRecTest},
+      {"fixture_uuid_len", RunFixtureUuidLenTest},
       {"recursive_call", RunRecursiveCallTest},
       {"recursive_call_jit", RunRecursiveCallJitTest},
       {"ref_ops", RunRefTest},

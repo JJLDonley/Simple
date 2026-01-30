@@ -250,3 +250,4 @@
 - Added JIT fallback test to ensure direct-failure stubs stay disabled for subsequent indirect calls.
 - Added JIT fallback test to ensure indirect-failure stubs stay disabled for subsequent direct calls.
 - Added opcode-hot JIT fallback test to ensure opcode-hot compiled failures fall back safely.
+- Added fixture-based tests to run real SBC files (add/loop/fib/uuid) through loader/verifier/VM.
