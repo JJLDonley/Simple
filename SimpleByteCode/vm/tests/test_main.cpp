@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "heap.h"
 #include "opcode.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
@@ -8371,6 +8372,30 @@ bool RunBadStringSliceTrapTest() {
 bool RunListOverflowTrapTest() {
   return RunExpectTrap(BuildListOverflowModule(), "list_overflow");
 }
+
+bool RunHeapReuseTest() {
+  simplevm::Heap heap;
+  uint32_t first = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
+  uint32_t second = heap.Allocate(simplevm::ObjectKind::Array, 0, 16);
+  heap.ResetMarks();
+  heap.Mark(second);
+  heap.Sweep();
+  if (heap.Get(first) != nullptr) {
+    std::cerr << "expected freed handle to be invalid\n";
+    return false;
+  }
+  uint32_t reused = heap.Allocate(simplevm::ObjectKind::List, 0, 12);
+  if (reused != first) {
+    std::cerr << "expected reuse of freed handle\n";
+    return false;
+  }
+  if (!heap.Get(reused)) {
+    std::cerr << "expected reused handle to be valid\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunGcTest() {
   std::vector<uint8_t> module_bytes = BuildGcModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -8458,6 +8483,7 @@ int main() {
       {"shift_mask_i64", RunShiftMaskI64Test},
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
+      {"heap_reuse", RunHeapReuseTest},
       {"gc_smoke", RunGcTest},
       {"field_ops", RunFieldTest},
       {"bad_field_verify", RunBadFieldVerifyTest},
@@ -8639,10 +8665,7 @@ int main() {
     std::cout << "[ RUN      ] " << test.name << "\n";
     bool ok = test.fn();
     if (!ok) {
-      std::cout << "[  FAILED  ] " << test.name << "\n";
       failures++;
-    } else {
-      std::cout << "[       OK ] " << test.name << "\n";
     }
   }
 

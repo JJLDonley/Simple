@@ -19,6 +19,7 @@ struct ObjHeader {
   uint32_t size;
   uint32_t type_id;
   uint8_t marked;
+  uint8_t alive;
 };
 
 struct HeapObject {
@@ -37,6 +38,7 @@ class Heap {
 
  private:
   std::vector<HeapObject> objects_;
+  std::vector<uint32_t> free_list_;
 };
 
 } // namespace simplevm
