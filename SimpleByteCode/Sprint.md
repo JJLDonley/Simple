@@ -164,3 +164,30 @@
 - Added JIT compile tick timestamps per tier with test coverage.
 - Added JMP_TABLE verifier test for default target out-of-bounds.
 - Added opcode-hotness Tier0 promotion coverage to JIT tier test.
+
+## 2026-01-30
+- Added JIT dispatch counters in ExecResult and incremented them on JIT stub call paths; extended JIT tier test to assert dispatches.
+- Added JIT dispatch test coverage for CALL_INDIRECT tier promotion and dispatch counts.
+- Added JIT dispatch test coverage for TAILCALL tier promotion and dispatch counts.
+- Added JIT opcode-hot promotion test for a non-entry callee with Tier0 dispatch coverage.
+- Added JIT opcode-hot callee dispatch test (second call after hotness promotion).
+- Added JIT opcode-hot callee dispatch test for CALL_INDIRECT.
+- Added JIT opcode-hot callee dispatch test for TAILCALL via helper trampoline.
+- Added JIT mixed-promotion dispatch test covering Tier1 call-count and Tier0 opcode-hot promotions in one module.
+- Added JIT entry-only opcode-hot promotion test (no calls).
+- Added JIT compile tick ordering test (Tier0 tick before Tier1 for same callee).
+- Added JIT opcode-hot callee Tier0 compile tick test (no extra calls).
+- Added minimal Tier0 compiled path for simple const/nop/ret functions, with compile eligibility checks and compiled execution for Call/CallIndirect/TailCall.
+- Added JIT compiled execution counters and asserted compiled execution in JIT tier test.
+- Added compiled-exec assertions for CALL_INDIRECT and TAILCALL JIT dispatch tests.
+- Added compiled-exec assertions to opcode-hot dispatch tests (call, call_indirect, tailcall).
+- Marked opcode-hot promotions as compiled-eligible and restored compiled-exec assertions for opcode-hot dispatch tests.
+- Extended compiled eligibility/execution to support i32 locals (LOAD_LOCAL/STORE_LOCAL) and added compiled-locals JIT test.
+- Extended compiled path to support basic i32 arithmetic (add/sub/mul/div/mod) and added compiled arithmetic JIT test.
+- Fixed JIT tier module call-count loop and compiled arithmetic entry return to preserve expected results.
+- Added opcode-hot compiled arithmetic JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled arithmetic coverage for CALL_INDIRECT path.
+- Added opcode-hot compiled arithmetic coverage for TAILCALL via helper trampoline.
+- Added compiled locals+arithmetic JIT module/test to validate LOAD/STORE + arithmetic in compiled path.
+- Added opcode-hot locals+arithmetic compiled JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot locals+arithmetic compiled JIT coverage for CALL_INDIRECT path.

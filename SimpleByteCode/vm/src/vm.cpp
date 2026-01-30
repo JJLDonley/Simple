@@ -62,6 +62,7 @@ struct Frame {
 
 struct JitStub {
   bool active = false;
+  bool compiled = false;
 };
 
 int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
@@ -224,7 +225,242 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
   std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
   std::vector<uint64_t> compile_ticks_tier0(module.functions.size(), 0);
   std::vector<uint64_t> compile_ticks_tier1(module.functions.size(), 0);
+  std::vector<uint32_t> jit_dispatch_counts(module.functions.size(), 0);
+  std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   uint64_t compile_tick = 0;
+  auto can_compile = [&](size_t func_index) -> bool {
+    if (func_index >= module.functions.size()) return false;
+    const auto& func = module.functions[func_index];
+    if (func.method_id >= module.methods.size()) return false;
+    const auto& method = module.methods[func.method_id];
+    if (method.sig_id >= module.sigs.size()) return false;
+    const auto& sig = module.sigs[method.sig_id];
+    if (sig.param_count != 0) return false;
+    size_t locals_count = 0;
+    bool saw_enter = false;
+    size_t pc = func.code_offset;
+    size_t end_pc = func.code_offset + func.code_size;
+    while (pc < end_pc) {
+      uint8_t op = module.code[pc++];
+      switch (static_cast<OpCode>(op)) {
+        case OpCode::Enter: {
+          if (pc + 2 > end_pc) return false;
+          uint16_t locals = ReadU16(module.code, pc);
+          if (saw_enter && locals_count != locals) return false;
+          locals_count = locals;
+          saw_enter = true;
+          break;
+        }
+        case OpCode::Nop:
+        case OpCode::Pop:
+        case OpCode::Ret:
+          break;
+        case OpCode::ConstI32: {
+          if (pc + 4 > end_pc) return false;
+          pc += 4;
+          break;
+        }
+        case OpCode::AddI32:
+        case OpCode::SubI32:
+        case OpCode::MulI32: {
+          break;
+        }
+        case OpCode::DivI32: {
+          break;
+        }
+        case OpCode::ModI32: {
+          break;
+        }
+        case OpCode::LoadLocal: {
+          if (!saw_enter || pc + 4 > end_pc) return false;
+          uint32_t idx = ReadU32(module.code, pc);
+          if (idx >= locals_count) return false;
+          break;
+        }
+        case OpCode::StoreLocal: {
+          if (!saw_enter || pc + 4 > end_pc) return false;
+          uint32_t idx = ReadU32(module.code, pc);
+          if (idx >= locals_count) return false;
+          break;
+        }
+        default:
+          return false;
+      }
+    }
+    return true;
+  };
+  auto run_compiled = [&](size_t func_index, Value& out_ret, std::string& error) -> bool {
+    if (func_index >= module.functions.size()) {
+      error = "JIT compiled invalid function id";
+      return false;
+    }
+    const auto& func = module.functions[func_index];
+    size_t pc = func.code_offset;
+    size_t end_pc = func.code_offset + func.code_size;
+    std::vector<Value> local_stack;
+    std::vector<Value> locals;
+    bool saw_enter = false;
+    while (pc < end_pc) {
+      uint8_t op = module.code[pc++];
+      switch (static_cast<OpCode>(op)) {
+        case OpCode::Enter: {
+          if (pc + 2 > end_pc) {
+            error = "JIT compiled ENTER out of bounds";
+            return false;
+          }
+          uint16_t locals_count = ReadU16(module.code, pc);
+          if (!saw_enter) {
+            locals.assign(locals_count, Value{ValueKind::None, 0});
+            saw_enter = true;
+          } else if (locals.size() != locals_count) {
+            error = "JIT compiled locals mismatch";
+            return false;
+          }
+          break;
+        }
+        case OpCode::Nop:
+          break;
+        case OpCode::ConstI32: {
+          if (pc + 4 > end_pc) {
+            error = "JIT compiled CONST_I32 out of bounds";
+            return false;
+          }
+          int32_t value = ReadI32(module.code, pc);
+          local_stack.push_back(Value{ValueKind::I32, value});
+          break;
+        }
+        case OpCode::AddI32: {
+          if (local_stack.size() < 2) {
+            error = "JIT compiled ADD_I32 underflow";
+            return false;
+          }
+          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a + b)});
+          break;
+        }
+        case OpCode::SubI32: {
+          if (local_stack.size() < 2) {
+            error = "JIT compiled SUB_I32 underflow";
+            return false;
+          }
+          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a - b)});
+          break;
+        }
+        case OpCode::MulI32: {
+          if (local_stack.size() < 2) {
+            error = "JIT compiled MUL_I32 underflow";
+            return false;
+          }
+          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a * b)});
+          break;
+        }
+        case OpCode::DivI32: {
+          if (local_stack.size() < 2) {
+            error = "JIT compiled DIV_I32 underflow";
+            return false;
+          }
+          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          if (b == 0) {
+            error = "JIT compiled DIV_I32 by zero";
+            return false;
+          }
+          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a / b)});
+          break;
+        }
+        case OpCode::ModI32: {
+          if (local_stack.size() < 2) {
+            error = "JIT compiled MOD_I32 underflow";
+            return false;
+          }
+          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          local_stack.pop_back();
+          if (b == 0) {
+            error = "JIT compiled MOD_I32 by zero";
+            return false;
+          }
+          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a % b)});
+          break;
+        }
+        case OpCode::LoadLocal: {
+          if (pc + 4 > end_pc) {
+            error = "JIT compiled LOAD_LOCAL out of bounds";
+            return false;
+          }
+          uint32_t idx = ReadU32(module.code, pc);
+          if (idx >= locals.size()) {
+            error = "JIT compiled LOAD_LOCAL invalid index";
+            return false;
+          }
+          if (locals[idx].kind != ValueKind::I32) {
+            error = "JIT compiled LOAD_LOCAL uninitialized";
+            return false;
+          }
+          local_stack.push_back(locals[idx]);
+          break;
+        }
+        case OpCode::StoreLocal: {
+          if (pc + 4 > end_pc) {
+            error = "JIT compiled STORE_LOCAL out of bounds";
+            return false;
+          }
+          uint32_t idx = ReadU32(module.code, pc);
+          if (idx >= locals.size()) {
+            error = "JIT compiled STORE_LOCAL invalid index";
+            return false;
+          }
+          if (local_stack.empty()) {
+            error = "JIT compiled STORE_LOCAL underflow";
+            return false;
+          }
+          Value v = local_stack.back();
+          local_stack.pop_back();
+          if (v.kind != ValueKind::I32) {
+            error = "JIT compiled STORE_LOCAL non-i32";
+            return false;
+          }
+          locals[idx] = v;
+          break;
+        }
+        case OpCode::Pop: {
+          if (local_stack.empty()) {
+            error = "JIT compiled POP underflow";
+            return false;
+          }
+          local_stack.pop_back();
+          break;
+        }
+        case OpCode::Ret: {
+          if (!local_stack.empty()) {
+            out_ret = local_stack.back();
+          } else {
+            out_ret = Value{ValueKind::None, 0};
+          }
+          return true;
+        }
+        default:
+          error = "JIT compiled unsupported opcode";
+          return false;
+      }
+    }
+    error = "JIT compiled missing RET";
+    return false;
+  };
   auto update_tier = [&](size_t func_index) {
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
@@ -232,6 +468,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       if (jit_tiers[func_index] != JitTier::Tier1) {
         jit_tiers[func_index] = JitTier::Tier1;
         jit_stubs[func_index].active = true;
+        jit_stubs[func_index].compiled = can_compile(func_index);
         compile_counts[func_index] += 1;
         compile_ticks_tier1[func_index] = ++compile_tick;
       }
@@ -239,6 +476,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       if (jit_tiers[func_index] == JitTier::None) {
         jit_tiers[func_index] = JitTier::Tier0;
         jit_stubs[func_index].active = true;
+        jit_stubs[func_index].compiled = can_compile(func_index);
         compile_counts[func_index] += 1;
         compile_ticks_tier0[func_index] = ++compile_tick;
       }
@@ -252,6 +490,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
     result.func_opcode_counts = func_opcode_counts;
     result.compile_ticks_tier0 = compile_ticks_tier0;
     result.compile_ticks_tier1 = compile_ticks_tier1;
+    result.jit_dispatch_counts = jit_dispatch_counts;
+    result.jit_compiled_exec_counts = jit_compiled_exec_counts;
     return result;
   };
   auto read_const_string = [&](uint32_t const_id) -> Value {
@@ -374,6 +614,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
       if (count >= kJitOpcodeThreshold && jit_tiers[current.func_index] == JitTier::None) {
         jit_tiers[current.func_index] = JitTier::Tier0;
         jit_stubs[current.func_index].active = true;
+        jit_stubs[current.func_index].compiled = can_compile(current.func_index);
         compile_counts[current.func_index] += 1;
         compile_ticks_tier0[current.func_index] = ++compile_tick;
       }
@@ -1486,6 +1727,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (func_id >= module.functions.size()) return Trap("CALL invalid function id");
         if (jit_stubs[func_id].active) {
           // JIT stub placeholder: still runs interpreter path.
+          jit_dispatch_counts[func_id] += 1;
         }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("CALL invalid method id");
@@ -1498,6 +1740,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         std::vector<Value> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
+        }
+
+        if (jit_stubs[func_id].compiled) {
+          update_tier(func_id);
+          jit_compiled_exec_counts[func_id] += 1;
+          Value ret;
+          std::string error;
+          if (!run_compiled(func_id, ret, error)) return Trap(error);
+          if (ret.kind != ValueKind::None) Push(stack, ret);
+          break;
         }
 
         current.return_pc = pc;
@@ -1547,10 +1799,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 
         if (jit_stubs[static_cast<size_t>(func_index)].active) {
           // JIT stub placeholder: still runs interpreter path.
+          jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
         }
         std::vector<Value> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
+        }
+
+        if (jit_stubs[static_cast<size_t>(func_index)].compiled) {
+          update_tier(static_cast<size_t>(func_index));
+          jit_compiled_exec_counts[static_cast<size_t>(func_index)] += 1;
+          Value ret;
+          std::string error;
+          if (!run_compiled(static_cast<size_t>(func_index), ret, error)) return Trap(error);
+          if (ret.kind != ValueKind::None) Push(stack, ret);
+          break;
         }
 
         current.return_pc = pc;
@@ -1571,6 +1834,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
         if (jit_stubs[func_id].active) {
           // JIT stub placeholder: still runs interpreter path.
+          jit_dispatch_counts[func_id] += 1;
         }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("TAILCALL invalid method id");
@@ -1583,6 +1847,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         std::vector<Value> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
+        }
+
+        if (jit_stubs[func_id].compiled) {
+          update_tier(func_id);
+          jit_compiled_exec_counts[func_id] += 1;
+          Value ret;
+          std::string error;
+          if (!run_compiled(func_id, ret, error)) return Trap(error);
+          if (call_stack.empty()) {
+            ExecResult result;
+            result.status = ExecStatus::Halted;
+            if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
+            return finish(result);
+          }
+          Frame caller = call_stack.back();
+          call_stack.pop_back();
+          stack.resize(caller.stack_base);
+          if (ret.kind != ValueKind::None) Push(stack, ret);
+          current = caller;
+          pc = current.return_pc;
+          const auto& func = module.functions[current.func_index];
+          func_start = func.code_offset;
+          end = func_start + func.code_size;
+          break;
         }
 
         size_t return_pc = current.return_pc;

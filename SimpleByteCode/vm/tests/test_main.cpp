@@ -1507,6 +1507,595 @@ std::vector<uint8_t> BuildJitTierModule() {
   return BuildModuleWithFunctions({entry, callee}, {0, 0});
 }
 
+std::vector<uint8_t> BuildJitCallIndirectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+    AppendI32(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+    AppendU32(entry, 0);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitTailCallModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> helper;
+  AppendU8(helper, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(helper, 0);
+  AppendU8(helper, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(helper, 2);
+  AppendU8(helper, 0);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, helper, callee}, {0, 0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotCalleeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotCalleeDispatchModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotCallIndirectDispatchModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i < 2; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+    AppendI32(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+    AppendU32(entry, 0);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotTailCallDispatchModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> helper;
+  AppendU8(helper, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(helper, 0);
+  AppendU8(helper, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(helper, 2);
+  AppendU8(helper, 0);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, helper, callee}, {0, 0, 0});
+}
+
+std::vector<uint8_t> BuildJitMixedPromotionDispatchModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 2);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 2);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> tier1_callee;
+  AppendU8(tier1_callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(tier1_callee, 0);
+  AppendU8(tier1_callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(tier1_callee, 0);
+  AppendU8(tier1_callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> hot_callee;
+  AppendU8(hot_callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(hot_callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(hot_callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(hot_callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(hot_callee, 0);
+  AppendU8(hot_callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, tier1_callee, hot_callee}, {0, 0, 0});
+}
+
+std::vector<uint8_t> BuildJitEntryOnlyHotModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(entry, 0, 0);
+}
+
+std::vector<uint8_t> BuildJitCompiledLocalsModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 7);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 1});
+}
+
+std::vector<uint8_t> BuildJitCompiledI32ArithmeticModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 10);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitCompiledI32LocalsArithmeticModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 10);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 2});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotI32LocalsArithmeticModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 2);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 12);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 2});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotI32LocalsArithmeticIndirectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 2);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 12);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 5);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 2});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotI32ArithmeticModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 8);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotI32ArithmeticIndirectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 9);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitOpcodeHotI32ArithmeticTailCallModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> helper;
+  AppendU8(helper, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(helper, 0);
+  AppendU8(helper, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(helper, 2);
+  AppendU8(helper, 0);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  for (uint32_t i = 0; i < simplevm::kJitOpcodeThreshold + 1; ++i) {
+    AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 8);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 2);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::DivI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 4);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, helper, callee}, {0, 0, 0});
+}
+
 std::vector<uint8_t> BuildBadNewClosureVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -7140,6 +7729,808 @@ bool RunJitTierTest() {
     std::cerr << "expected compile ticks for callee tiers\n";
     return false;
   }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 2) {
+    std::cerr << "expected jit dispatch counts for functions\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[1] == 0) {
+    std::cerr << "expected jit dispatch count for callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitDispatchCallIndirectTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCallIndirectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2 || exec.jit_dispatch_counts.size() < 2) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for call_indirect callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[1] == 0) {
+    std::cerr << "expected jit dispatch count for call_indirect callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitDispatchTailCallTest() {
+  std::vector<uint8_t> module_bytes = BuildJitTailCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 3 || exec.jit_dispatch_counts.size() < 3) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 3) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[2] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[2] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[2] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 3) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[2] == 0) {
+    std::cerr << "expected compiled exec count for tailcall callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[2] == 0) {
+    std::cerr << "expected jit dispatch count for tailcall callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotCalleeTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2 || exec.func_opcode_counts.size() < 2) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != 1) {
+    std::cerr << "expected callee call count 1, got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.func_opcode_counts[1] < simplevm::kJitOpcodeThreshold) {
+    std::cerr << "expected callee opcode count >= " << simplevm::kJitOpcodeThreshold << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.compile_counts.size() < 2) {
+    std::cerr << "expected compile counts for functions\n";
+    return false;
+  }
+  if (exec.compile_counts[1] == 0) {
+    std::cerr << "expected compile count for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0.size() < 2 || exec.compile_ticks_tier0[1] == 0) {
+    std::cerr << "expected tier0 compile tick for opcode-hot callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotCalleeTickTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0.size() < 2) {
+    std::cerr << "expected tier0 compile ticks for functions\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0[1] == 0) {
+    std::cerr << "expected tier0 compile tick for opcode-hot callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotCalleeDispatchTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCalleeDispatchModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2 || exec.func_opcode_counts.size() < 2) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != 2) {
+    std::cerr << "expected callee call count 2, got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 2 || exec.jit_dispatch_counts[1] == 0) {
+    std::cerr << "expected jit dispatch count for opcode-hot callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotCallIndirectDispatchTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotCallIndirectDispatchModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2 || exec.func_opcode_counts.size() < 2) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != 2) {
+    std::cerr << "expected callee call count 2, got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot call_indirect callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 2 || exec.jit_dispatch_counts[1] == 0) {
+    std::cerr << "expected jit dispatch count for opcode-hot call_indirect callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotTailCallDispatchTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotTailCallDispatchModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 3 || exec.func_opcode_counts.size() < 3) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 3) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[2] != 2) {
+    std::cerr << "expected callee call count 2, got " << exec.call_counts[2] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[2] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 3) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[2] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot tailcall callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 3 || exec.jit_dispatch_counts[2] == 0) {
+    std::cerr << "expected jit dispatch count for opcode-hot tailcall callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitMixedPromotionDispatchTest() {
+  std::vector<uint8_t> module_bytes = BuildJitMixedPromotionDispatchModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 3 || exec.jit_dispatch_counts.size() < 3) {
+    std::cerr << "expected jit data for functions\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 3) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected tier1 callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.call_counts[2] != 2) {
+    std::cerr << "expected opcode-hot callee call count 2, got " << exec.call_counts[2] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for call-count callee\n";
+    return false;
+  }
+  if (exec.jit_tiers[2] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[1] == 0 || exec.jit_dispatch_counts[2] == 0) {
+    std::cerr << "expected jit dispatch counts for both callees\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitEntryOnlyHotTest() {
+  std::vector<uint8_t> module_bytes = BuildJitEntryOnlyHotModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 1 || exec.func_opcode_counts.size() < 1) {
+    std::cerr << "expected jit data for entry\n";
+    return false;
+  }
+  if (exec.func_opcode_counts[0] < simplevm::kJitOpcodeThreshold) {
+    std::cerr << "expected entry opcode count >= " << simplevm::kJitOpcodeThreshold << "\n";
+    return false;
+  }
+  if (exec.jit_tiers[0] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot entry\n";
+    return false;
+  }
+  if (exec.compile_counts.size() < 1 || exec.compile_counts[0] == 0) {
+    std::cerr << "expected compile count for opcode-hot entry\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0.size() < 1 || exec.compile_ticks_tier0[0] == 0) {
+    std::cerr << "expected tier0 compile tick for opcode-hot entry\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompileTickOrderingTest() {
+  std::vector<uint8_t> module_bytes = BuildJitTierModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0.size() < 2 || exec.compile_ticks_tier1.size() < 2) {
+    std::cerr << "expected compile tick arrays for functions\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0[1] == 0 || exec.compile_ticks_tier1[1] == 0) {
+    std::cerr << "expected compile ticks for callee tiers\n";
+    return false;
+  }
+  if (exec.compile_ticks_tier0[1] >= exec.compile_ticks_tier1[1]) {
+    std::cerr << "expected tier0 tick before tier1 for callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledLocalsTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledLocalsModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for compiled-locals callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for compiled-locals callee\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledI32ArithmeticTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledI32ArithmeticModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for compiled arithmetic callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for compiled arithmetic callee\n";
+    return false;
+  }
+  if (exec.exit_code != 4) {
+    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledI32LocalsArithmeticTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledI32LocalsArithmeticModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] != simplevm::kJitTier1Threshold) {
+    std::cerr << "expected callee call count " << simplevm::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for compiled locals arithmetic callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for compiled locals arithmetic callee\n";
+    return false;
+  }
+  if (exec.exit_code != 4) {
+    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotI32LocalsArithmeticTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32LocalsArithmeticModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot locals arithmetic callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot locals arithmetic callee\n";
+    return false;
+  }
+  if (exec.exit_code != 4) {
+    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotI32LocalsArithmeticIndirectTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32LocalsArithmeticIndirectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot locals indirect callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot locals indirect callee\n";
+    return false;
+  }
+  if (exec.exit_code != 4) {
+    std::cerr << "expected exit code 4, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotI32ArithmeticTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot arithmetic callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot arithmetic callee\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected exit code 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotI32ArithmeticIndirectTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticIndirectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot indirect callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot indirect callee\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected exit code 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitOpcodeHotI32ArithmeticTailCallTest() {
+  std::vector<uint8_t> module_bytes = BuildJitOpcodeHotI32ArithmeticTailCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 3) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[2] != simplevm::JitTier::Tier0) {
+    std::cerr << "expected Tier0 for opcode-hot tailcall callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 3) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[2] == 0) {
+    std::cerr << "expected compiled exec count for opcode-hot tailcall callee\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected exit code 3, got " << exec.exit_code << "\n";
+    return false;
+  }
   return true;
 }
 
@@ -11393,6 +12784,24 @@ int main() {
       {"jmp_table_default_start", RunJmpTableDefaultStartTest},
       {"jmp_table_empty", RunJmpTableEmptyTest},
       {"jit_tier", RunJitTierTest},
+      {"jit_call_indirect_dispatch", RunJitDispatchCallIndirectTest},
+      {"jit_tailcall_dispatch", RunJitDispatchTailCallTest},
+      {"jit_opcode_hot_callee", RunJitOpcodeHotCalleeTest},
+      {"jit_opcode_hot_callee_tick", RunJitOpcodeHotCalleeTickTest},
+      {"jit_opcode_hot_callee_dispatch", RunJitOpcodeHotCalleeDispatchTest},
+      {"jit_opcode_hot_call_indirect_dispatch", RunJitOpcodeHotCallIndirectDispatchTest},
+      {"jit_opcode_hot_tailcall_dispatch", RunJitOpcodeHotTailCallDispatchTest},
+      {"jit_mixed_promotion_dispatch", RunJitMixedPromotionDispatchTest},
+      {"jit_entry_only_hot", RunJitEntryOnlyHotTest},
+      {"jit_compile_tick_order", RunJitCompileTickOrderingTest},
+      {"jit_compiled_locals", RunJitCompiledLocalsTest},
+      {"jit_compiled_i32_arith", RunJitCompiledI32ArithmeticTest},
+      {"jit_compiled_i32_locals_arith", RunJitCompiledI32LocalsArithmeticTest},
+      {"jit_opcode_hot_i32_locals_arith", RunJitOpcodeHotI32LocalsArithmeticTest},
+      {"jit_opcode_hot_i32_locals_arith_indirect", RunJitOpcodeHotI32LocalsArithmeticIndirectTest},
+      {"jit_opcode_hot_i32_arith", RunJitOpcodeHotI32ArithmeticTest},
+      {"jit_opcode_hot_i32_arith_indirect", RunJitOpcodeHotI32ArithmeticIndirectTest},
+      {"jit_opcode_hot_i32_arith_tailcall", RunJitOpcodeHotI32ArithmeticTailCallTest},
       {"locals", RunLocalTest},
       {"loop", RunLoopTest},
       {"ref_ops", RunRefTest},
@@ -11674,6 +13083,7 @@ int main() {
     tCount++;
     bool ok = test.fn();
     if (!ok) {
+      std::cout << "Failed: " << test.name << "\n";
       failures++;
     }
   }

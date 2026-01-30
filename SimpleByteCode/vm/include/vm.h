@@ -37,6 +37,8 @@ struct ExecResult {
   std::vector<uint32_t> func_opcode_counts;
   std::vector<uint64_t> compile_ticks_tier0;
   std::vector<uint64_t> compile_ticks_tier1;
+  std::vector<uint32_t> jit_dispatch_counts;
+  std::vector<uint32_t> jit_compiled_exec_counts;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);
