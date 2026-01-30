@@ -158,3 +158,4 @@
 - Added NEG_I32/NEG_I64 opcodes with verifier/runtime support and tests.
 - Added NEG_F32/NEG_F64 opcodes with verifier/runtime support and tests.
 - Added INC/DEC opcodes for I32/I64 with verifier/runtime support and tests.
+- Added INC/DEC opcodes for F32/F64 with verifier/runtime support and tests.

@@ -1057,6 +1057,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Push(stack, Value{ValueKind::F32, F32ToBits(out)});
         break;
       }
+      case OpCode::IncF32:
+      case OpCode::DecF32: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F32) return Trap("INC/DEC_F32 on non-f32");
+        float out = BitsToF32(a.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::IncF32)) {
+          out += 1.0f;
+        } else {
+          out -= 1.0f;
+        }
+        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        break;
+      }
       case OpCode::AddF64:
       case OpCode::SubF64:
       case OpCode::MulF64:
@@ -1078,6 +1091,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         Value a = Pop(stack);
         if (a.kind != ValueKind::F64) return Trap("NEG_F64 on non-f64");
         double out = -BitsToF64(a.i64);
+        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        break;
+      }
+      case OpCode::IncF64:
+      case OpCode::DecF64: {
+        Value a = Pop(stack);
+        if (a.kind != ValueKind::F64) return Trap("INC/DEC_F64 on non-f64");
+        double out = BitsToF64(a.i64);
+        if (opcode == static_cast<uint8_t>(OpCode::IncF64)) {
+          out += 1.0;
+        } else {
+          out -= 1.0;
+        }
         Push(stack, Value{ValueKind::F64, F64ToBits(out)});
         break;
       }
