@@ -259,11 +259,21 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstNull:
         case OpCode::ConstString:
         case OpCode::NewObject:
-        case OpCode::NewClosure:
         case OpCode::NewArray:
         case OpCode::NewList:
           push_type(ValType::Ref);
           break;
+        case OpCode::NewClosure: {
+          if (pc + 5 >= code.size()) return Fail("NEW_CLOSURE upvalue count out of bounds");
+          uint8_t upvalue_count = code[pc + 5];
+          for (int i = 0; i < static_cast<int>(upvalue_count); ++i) {
+            ValType t = pop_type();
+            VerifyResult r = check_type(t, ValType::Ref, "NEW_CLOSURE upvalue type mismatch");
+            if (!r.ok) return r;
+          }
+          push_type(ValType::Ref);
+          break;
+        }
         case OpCode::LoadLocal: {
           uint32_t idx = 0;
           ReadU32(code, pc + 1, &idx);

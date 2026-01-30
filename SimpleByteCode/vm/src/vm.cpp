@@ -546,8 +546,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
         if (!obj) return Trap("NEW_CLOSURE allocation failed");
         WriteU32Payload(obj->payload, 0, method_id);
         WriteU32Payload(obj->payload, 4, static_cast<uint32_t>(upvalue_count));
-        for (uint32_t i = 0; i < upvalue_count; ++i) {
-          WriteU32Payload(obj->payload, 8 + i * 4u, 0xFFFFFFFFu);
+        if (stack.size() < upvalue_count) return Trap("NEW_CLOSURE stack underflow");
+        for (int32_t i = static_cast<int32_t>(upvalue_count) - 1; i >= 0; --i) {
+          Value v = Pop(stack);
+          if (v.kind != ValueKind::Ref) return Trap("NEW_CLOSURE upvalue type mismatch");
+          uint32_t handle_val = v.i64 < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(v.i64);
+          WriteU32Payload(obj->payload, 8 + static_cast<uint32_t>(i) * 4u, handle_val);
         }
         Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
         break;
