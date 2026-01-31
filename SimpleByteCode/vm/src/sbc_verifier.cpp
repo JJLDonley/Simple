@@ -5,35 +5,36 @@
 #include <unordered_set>
 
 #include "opcode.h"
+#include "intrinsic_ids.h"
 
 namespace simplevm {
 namespace {
 
 bool IsKnownIntrinsic(uint32_t id) {
   switch (id) {
-    case 0x0000u: // core.debug.trap
-    case 0x0001u: // core.debug.breakpoint
-    case 0x0010u: // core.debug.log_i32
-    case 0x0011u: // core.debug.log_i64
-    case 0x0012u: // core.debug.log_f32
-    case 0x0013u: // core.debug.log_f64
-    case 0x0014u: // core.debug.log_ref
-    case 0x0020u: // core.math.abs_i32
-    case 0x0021u: // core.math.abs_i64
-    case 0x0022u: // core.math.min_i32
-    case 0x0023u: // core.math.max_i32
-    case 0x0024u: // core.math.min_i64
-    case 0x0025u: // core.math.max_i64
-    case 0x0026u: // core.math.min_f32
-    case 0x0027u: // core.math.max_f32
-    case 0x0028u: // core.math.min_f64
-    case 0x0029u: // core.math.max_f64
-    case 0x0030u: // core.time.mono_ns
-    case 0x0031u: // core.time.wall_ns
-    case 0x0040u: // core.rand.u32
-    case 0x0041u: // core.rand.u64
-    case 0x0050u: // core.io.write_stdout
-    case 0x0051u: // core.io.write_stderr
+    case kIntrinsicTrap:
+    case kIntrinsicBreakpoint:
+    case kIntrinsicLogI32:
+    case kIntrinsicLogI64:
+    case kIntrinsicLogF32:
+    case kIntrinsicLogF64:
+    case kIntrinsicLogRef:
+    case kIntrinsicAbsI32:
+    case kIntrinsicAbsI64:
+    case kIntrinsicMinI32:
+    case kIntrinsicMaxI32:
+    case kIntrinsicMinI64:
+    case kIntrinsicMaxI64:
+    case kIntrinsicMinF32:
+    case kIntrinsicMaxF32:
+    case kIntrinsicMinF64:
+    case kIntrinsicMaxF64:
+    case kIntrinsicMonoNs:
+    case kIntrinsicWallNs:
+    case kIntrinsicRandU32:
+    case kIntrinsicRandU64:
+    case kIntrinsicWriteStdout:
+    case kIntrinsicWriteStderr:
       return true;
     default:
       return false;
@@ -48,29 +49,29 @@ struct IntrinsicSig {
 
 bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
   switch (id) {
-    case 0x0000u: *out = {0, 1, {1, 0}}; return true; // trap(i32)
-    case 0x0001u: *out = {0, 0, {0, 0}}; return true; // breakpoint()
-    case 0x0010u: *out = {0, 1, {1, 0}}; return true; // log_i32(i32)
-    case 0x0011u: *out = {0, 1, {2, 0}}; return true; // log_i64(i64)
-    case 0x0012u: *out = {0, 1, {3, 0}}; return true; // log_f32(f32)
-    case 0x0013u: *out = {0, 1, {4, 0}}; return true; // log_f64(f64)
-    case 0x0014u: *out = {0, 1, {5, 0}}; return true; // log_ref(ref)
-    case 0x0020u: *out = {1, 1, {1, 0}}; return true; // abs_i32(i32)->i32
-    case 0x0021u: *out = {2, 1, {2, 0}}; return true; // abs_i64(i64)->i64
-    case 0x0022u: *out = {1, 2, {1, 1}}; return true; // min_i32(i32,i32)->i32
-    case 0x0023u: *out = {1, 2, {1, 1}}; return true; // max_i32(i32,i32)->i32
-    case 0x0024u: *out = {2, 2, {2, 2}}; return true; // min_i64(i64,i64)->i64
-    case 0x0025u: *out = {2, 2, {2, 2}}; return true; // max_i64(i64,i64)->i64
-    case 0x0026u: *out = {3, 2, {3, 3}}; return true; // min_f32(f32,f32)->f32
-    case 0x0027u: *out = {3, 2, {3, 3}}; return true; // max_f32(f32,f32)->f32
-    case 0x0028u: *out = {4, 2, {4, 4}}; return true; // min_f64(f64,f64)->f64
-    case 0x0029u: *out = {4, 2, {4, 4}}; return true; // max_f64(f64,f64)->f64
-    case 0x0030u: *out = {2, 0, {0, 0}}; return true; // mono_ns()->i64
-    case 0x0031u: *out = {2, 0, {0, 0}}; return true; // wall_ns()->i64
-    case 0x0040u: *out = {1, 0, {0, 0}}; return true; // rand_u32()->i32
-    case 0x0041u: *out = {2, 0, {0, 0}}; return true; // rand_u64()->i64
-    case 0x0050u: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
-    case 0x0051u: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
+    case kIntrinsicTrap: *out = {0, 1, {1, 0}}; return true; // trap(i32)
+    case kIntrinsicBreakpoint: *out = {0, 0, {0, 0}}; return true; // breakpoint()
+    case kIntrinsicLogI32: *out = {0, 1, {1, 0}}; return true; // log_i32(i32)
+    case kIntrinsicLogI64: *out = {0, 1, {2, 0}}; return true; // log_i64(i64)
+    case kIntrinsicLogF32: *out = {0, 1, {3, 0}}; return true; // log_f32(f32)
+    case kIntrinsicLogF64: *out = {0, 1, {4, 0}}; return true; // log_f64(f64)
+    case kIntrinsicLogRef: *out = {0, 1, {5, 0}}; return true; // log_ref(ref)
+    case kIntrinsicAbsI32: *out = {1, 1, {1, 0}}; return true; // abs_i32(i32)->i32
+    case kIntrinsicAbsI64: *out = {2, 1, {2, 0}}; return true; // abs_i64(i64)->i64
+    case kIntrinsicMinI32: *out = {1, 2, {1, 1}}; return true; // min_i32(i32,i32)->i32
+    case kIntrinsicMaxI32: *out = {1, 2, {1, 1}}; return true; // max_i32(i32,i32)->i32
+    case kIntrinsicMinI64: *out = {2, 2, {2, 2}}; return true; // min_i64(i64,i64)->i64
+    case kIntrinsicMaxI64: *out = {2, 2, {2, 2}}; return true; // max_i64(i64,i64)->i64
+    case kIntrinsicMinF32: *out = {3, 2, {3, 3}}; return true; // min_f32(f32,f32)->f32
+    case kIntrinsicMaxF32: *out = {3, 2, {3, 3}}; return true; // max_f32(f32,f32)->f32
+    case kIntrinsicMinF64: *out = {4, 2, {4, 4}}; return true; // min_f64(f64,f64)->f64
+    case kIntrinsicMaxF64: *out = {4, 2, {4, 4}}; return true; // max_f64(f64,f64)->f64
+    case kIntrinsicMonoNs: *out = {2, 0, {0, 0}}; return true; // mono_ns()->i64
+    case kIntrinsicWallNs: *out = {2, 0, {0, 0}}; return true; // wall_ns()->i64
+    case kIntrinsicRandU32: *out = {1, 0, {0, 0}}; return true; // rand_u32()->i32
+    case kIntrinsicRandU64: *out = {2, 0, {0, 0}}; return true; // rand_u64()->i64
+    case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
+    case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
     default: return false;
   }
 }

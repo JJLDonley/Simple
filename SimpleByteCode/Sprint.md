@@ -350,3 +350,4 @@
 - Added intrinsic signature validation in verifier (param/return types) with new verify tests.
 - Added intrinsic signature validation (param/return) in verifier with updated intrinsic tests.
 - Added verifier gate rejecting SYS_CALL with a negative verify test.
+- Introduced intrinsic ID constants header and wired verifier tables to it.
