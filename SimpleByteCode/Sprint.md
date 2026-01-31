@@ -342,3 +342,6 @@
 - Pause: no new work selected; awaiting next concrete task.
 - Tightened bad_code_alignment_load to assert operand-bounds error message.
 - Included intrinsic/syscall IDs in trap messages for diagnostics.
+- Added loader validation for JMP_TABLE const blob layout; converted blob verify test to load failure.
+- Moved JMP_TABLE kind/blob failures to loader-time checks and updated diagnostics tests accordingly.
+- Removed unused JMP_TABLE runtime helper modules after moving checks to load time.

@@ -2238,58 +2238,7 @@ std::vector<uint8_t> BuildBadJmpTableKindModule() {
   return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
-std::vector<uint8_t> BuildBadJmpTableRuntimeKindModule() {
-  using simplevm::OpCode;
-  std::vector<uint8_t> const_pool;
-  size_t str_offset = AppendStringToPool(const_pool, "x");
-  uint32_t const_id = 0;
-  AppendConstString(const_pool, static_cast<uint32_t>(str_offset), &const_id);
-
-  std::vector<uint8_t> code;
-  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
-  AppendU16(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
-  AppendU32(code, const_id);
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-
-  std::vector<uint8_t> empty;
-  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
-}
-
-std::vector<uint8_t> BuildBadJmpTableBlobModule() {
-  using simplevm::OpCode;
-  std::vector<uint8_t> const_pool;
-  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
-  AppendU32(const_pool, 6);
-  uint32_t blob_offset = static_cast<uint32_t>(const_pool.size() + 4);
-  AppendU32(const_pool, blob_offset);
-  AppendU32(const_pool, 6);
-  AppendU32(const_pool, 1);
-  AppendU8(const_pool, 0);
-  AppendU8(const_pool, 0);
-
-  std::vector<uint8_t> code;
-  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
-  AppendU16(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
-  AppendU32(code, const_id);
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-
-  std::vector<uint8_t> empty;
-  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
-}
-
-std::vector<uint8_t> BuildBadJmpTableBlobVerifyModule() {
+std::vector<uint8_t> BuildBadJmpTableBlobLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t const_id = static_cast<uint32_t>(const_pool.size());
@@ -21256,16 +21205,11 @@ bool RunBadNegU32VerifyTest() {
   return true;
 }
 
-bool RunBadJmpTableKindVerifyTest() {
+bool RunBadJmpTableKindLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadJmpTableKindModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
     return false;
   }
   return true;
@@ -21285,16 +21229,11 @@ bool RunBadU64VerifyTest() {
   return true;
 }
 
-bool RunBadJmpTableBlobVerifyTest() {
-  std::vector<uint8_t> module_bytes = BuildBadJmpTableBlobVerifyModule();
+bool RunBadJmpTableBlobLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadJmpTableBlobLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
     return false;
   }
   return true;
@@ -21329,14 +21268,6 @@ bool RunBadJmpTableVerifyDefaultOobTest() {
   }
   return true;
 }
-bool RunBadJmpTableRuntimeKindTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadJmpTableRuntimeKindModule(), "bad_jmp_table_kind_runtime");
-}
-
-bool RunBadJmpTableBlobTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadJmpTableBlobModule(), "bad_jmp_table_blob_runtime");
-}
-
 bool RunBadJmpTableOobTargetTrapTest() {
   return RunExpectTrapNoVerify(BuildBadJmpTableOobTargetModule(), "bad_jmp_table_oob_runtime");
 }
@@ -21426,7 +21357,7 @@ bool RunTrapOperandDiagTest() {
                      "operands rel=")) {
     return false;
   }
-  if (!run_no_verify(BuildBadJmpTableRuntimeKindModule(),
+  if (!run_no_verify(BuildBadJmpTableOobTargetModule(),
                      "diag_trap_jmp_table",
                      "last_op 0x07 JmpTable",
                      "table_const=")) {
@@ -21989,12 +21920,10 @@ int main(int argc, char** argv) {
       {"bad_inc_i8_verify", RunBadIncI8VerifyTest},
       {"bad_neg_i8_verify", RunBadNegI8VerifyTest},
       {"bad_neg_u32_verify", RunBadNegU32VerifyTest},
-      {"bad_jmp_table_kind_verify", RunBadJmpTableKindVerifyTest},
-      {"bad_jmp_table_blob_verify", RunBadJmpTableBlobVerifyTest},
+      {"bad_jmp_table_kind_load", RunBadJmpTableKindLoadTest},
+      {"bad_jmp_table_blob_load", RunBadJmpTableBlobLoadTest},
       {"bad_jmp_table_oob_verify", RunBadJmpTableVerifyOobTargetTest},
       {"bad_jmp_table_default_oob_verify", RunBadJmpTableVerifyDefaultOobTest},
-      {"bad_jmp_table_kind_runtime", RunBadJmpTableRuntimeKindTrapTest},
-      {"bad_jmp_table_blob_runtime", RunBadJmpTableBlobTrapTest},
       {"bad_jmp_table_oob_runtime", RunBadJmpTableOobTargetTrapTest},
       {"bad_u64_verify", RunBadU64VerifyTest},
       {"callcheck", RunCallCheckTest},
