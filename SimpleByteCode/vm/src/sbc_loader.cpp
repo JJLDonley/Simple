@@ -187,6 +187,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           row.size != 0 && row.size != 4 && row.size != 8) {
         return Fail("type kind size mismatch");
       }
+      if (row.kind == static_cast<uint8_t>(TypeKind::Ref)) {
+        if (row.field_start != 0 || row.field_count != 0) {
+          return Fail("type kind has fields");
+        }
+      }
       module.types[i] = row;
     }
   }

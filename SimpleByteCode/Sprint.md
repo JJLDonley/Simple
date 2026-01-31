@@ -324,3 +324,4 @@
 - Added loader negative tests for invalid type kind and size mismatches.
 - Added loader validation for Ref type size (allow 0/4/8) with a negative test for invalid size.
 - Added loader validation to disallow fields on primitive value types with a negative test.
+- Added loader validation to disallow fields on Ref type rows with a negative test.

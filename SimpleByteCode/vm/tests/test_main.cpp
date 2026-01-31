@@ -9533,6 +9533,18 @@ std::vector<uint8_t> BuildBadTypeKindFieldsLoadModule() {
   return BuildModuleWithTables({}, {}, types, {}, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadTypeKindRefFieldsLoadModule() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 2);
+  AppendU32(types, 1);
+  return BuildModuleWithTables({}, {}, types, {}, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadFieldsTableSizeLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> types;
@@ -20010,6 +20022,16 @@ bool RunBadTypeKindFieldsLoadTest() {
   return true;
 }
 
+bool RunBadTypeKindRefFieldsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeKindRefFieldsLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadFieldsTableSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadFieldsTableSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -21821,6 +21843,7 @@ int main(int argc, char** argv) {
       {"bad_type_kind_size_load", RunBadTypeKindSizeLoadTest},
       {"bad_type_kind_ref_size_load", RunBadTypeKindRefSizeLoadTest},
       {"bad_type_kind_fields_load", RunBadTypeKindFieldsLoadTest},
+      {"bad_type_kind_ref_fields_load", RunBadTypeKindRefFieldsLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
