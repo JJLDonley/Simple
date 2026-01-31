@@ -341,3 +341,4 @@
 - Tightened loader tests to assert specific error messages for unknown opcodes and operand overruns.
 - Pause: no new work selected; awaiting next concrete task.
 - Tightened bad_code_alignment_load to assert operand-bounds error message.
+- Included intrinsic/syscall IDs in trap messages for diagnostics.

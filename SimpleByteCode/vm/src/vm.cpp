@@ -2074,12 +2074,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         break;
       }
       case OpCode::Intrinsic: {
-        ReadU32(module.code, pc);
-        return Trap("INTRINSIC not supported");
+        uint32_t id = ReadU32(module.code, pc);
+        return Trap("INTRINSIC not supported id=" + std::to_string(id));
       }
       case OpCode::SysCall: {
-        ReadU32(module.code, pc);
-        return Trap("SYS_CALL not supported");
+        uint32_t id = ReadU32(module.code, pc);
+        return Trap("SYS_CALL not supported id=" + std::to_string(id));
       }
       case OpCode::AddI32:
       case OpCode::SubI32:
