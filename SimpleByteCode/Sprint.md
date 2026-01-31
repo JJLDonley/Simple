@@ -327,3 +327,4 @@
 - Added loader validation to disallow fields on Ref type rows with a negative test.
 - Added positive loader test for valid Ref type size (0).
 - Added verifier negative test for unknown opcode values.
+- Added loader opcode scan to reject unknown opcodes and operand overrun; moved unknown-opcode test to load failure.

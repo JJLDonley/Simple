@@ -18585,16 +18585,11 @@ bool RunBadTypeVerifyTest() {
   return true;
 }
 
-bool RunBadUnknownOpcodeVerifyTest() {
+bool RunBadUnknownOpcodeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadUnknownOpcodeModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (vr.ok) {
-    std::cerr << "expected verify failure\n";
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
     return false;
   }
   return true;
@@ -21790,7 +21785,7 @@ int main(int argc, char** argv) {
       {"bad_field_verify", RunBadFieldVerifyTest},
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_type_verify", RunBadTypeVerifyTest},
-      {"bad_unknown_opcode_verify", RunBadUnknownOpcodeVerifyTest},
+      {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
       {"bad_merge_ref_i32_verify", RunBadMergeRefI32VerifyTest},

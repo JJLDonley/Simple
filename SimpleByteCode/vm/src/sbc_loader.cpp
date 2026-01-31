@@ -1,4 +1,5 @@
 #include "sbc_loader.h"
+#include "opcode.h"
 
 #include <algorithm>
 #include <fstream>
@@ -532,6 +533,23 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (sorted_funcs[i].code_offset < prev_end) {
         return Fail("function code overlap");
       }
+    }
+  }
+  if (code && !module.functions.empty()) {
+    for (const auto& func : module.functions) {
+      size_t pc = func.code_offset;
+      const size_t end = func.code_offset + func.code_size;
+      while (pc < end) {
+        uint8_t opcode = module.code[pc];
+        OpInfo info{};
+        if (!GetOpInfo(opcode, &info)) {
+          return Fail("unknown opcode in code");
+        }
+        size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
+        if (next > end) return Fail("opcode operands out of bounds");
+        pc = next;
+      }
+      if (pc != end) return Fail("function code does not align to instruction boundary");
     }
   }
   for (size_t i = 0; i < module.fields.size(); ++i) {
