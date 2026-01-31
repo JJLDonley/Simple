@@ -310,6 +310,10 @@ Host API (Draft, C ABI)
 void sbc_ref_retain(uint32_t handle);
 void sbc_ref_release(uint32_t handle);
 
+// Type discovery
+uint32_t sbc_ref_type_id(uint32_t handle);
+uint32_t sbc_ref_kind(uint32_t handle);
+
 // String access (UTF-8)
 uint32_t sbc_string_len_utf8(uint32_t handle);
 uint32_t sbc_string_copy_utf8(uint32_t handle, char* out, uint32_t out_cap);
@@ -317,6 +321,11 @@ uint32_t sbc_string_copy_utf8(uint32_t handle, char* out, uint32_t out_cap);
 // Blob access (raw bytes)
 uint32_t sbc_blob_len(uint32_t handle);
 uint32_t sbc_blob_copy(uint32_t handle, uint8_t* out, uint32_t out_cap);
+
+// Struct access (opaque, byte-level)
+uint32_t sbc_struct_size(uint32_t handle);
+bool sbc_struct_read(uint32_t handle, uint32_t offset, uint8_t* out, uint32_t size);
+bool sbc_struct_write(uint32_t handle, uint32_t offset, const uint8_t* data, uint32_t size);
 
 // Array access (typed)
 uint32_t sbc_array_len(uint32_t handle);
@@ -334,6 +343,11 @@ bool sbc_list_get_f32(uint32_t handle, uint32_t index, float* out);
 bool sbc_list_get_f64(uint32_t handle, uint32_t index, double* out);
 bool sbc_list_get_ref(uint32_t handle, uint32_t index, uint32_t* out);
 ```
+
+Host API Tiers (Recommended)
+- Tier 0 (minimum read-only): ref_retain/release, ref_type_id/ref_kind, struct_size/read, string_len/copy.
+- Tier 1 (write-back): struct_write, list/array len + get.
+- Tier 2 (advanced): blob access + list/array set/push/pop (if exposed).
 
 ---
 
