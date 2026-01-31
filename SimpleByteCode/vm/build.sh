@@ -8,6 +8,7 @@ mkdir -p "$OUT_DIR"
 # g++ -std=c++17 -O2 -Wall -Wextra -I"$ROOT_DIR/include" \
 #   "$ROOT_DIR/src/heap.cpp" \
 #   "$ROOT_DIR/src/ir_builder.cpp" \
+#   "$ROOT_DIR/src/ir_compiler.cpp" \
 #   "$ROOT_DIR/src/opcode.cpp" \
 #   "$ROOT_DIR/src/sbc_loader.cpp" \
 #   "$ROOT_DIR/src/sbc_verifier.cpp" \
@@ -18,6 +19,7 @@ mkdir -p "$OUT_DIR"
 g++ -std=c++17 -O2 -Wall -Wextra -I"$ROOT_DIR/include" \
   "$ROOT_DIR/src/heap.cpp" \
   "$ROOT_DIR/src/ir_builder.cpp" \
+  "$ROOT_DIR/src/ir_compiler.cpp" \
   "$ROOT_DIR/src/opcode.cpp" \
   "$ROOT_DIR/src/sbc_loader.cpp" \
   "$ROOT_DIR/src/sbc_verifier.cpp" \

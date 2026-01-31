@@ -212,6 +212,47 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
   return module;
 }
 
+inline std::vector<uint8_t> BuildModuleFromSections(const std::vector<SectionData>& sections,
+                                                    uint32_t entry_method_id = 0) {
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Align4(header_size + table_size);
+  std::vector<SectionData> local_sections = sections;
+  for (auto& sec : local_sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+  WriteU32(module, 0x00, 0x30434253u); // magic
+  WriteU16(module, 0x04, 0x0001u);     // version
+  WriteU8(module, 0x06, 1);            // endian
+  WriteU8(module, 0x07, 0);            // flags
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, entry_method_id);
+  WriteU32(module, 0x14, 0);
+  WriteU32(module, 0x18, 0);
+  WriteU32(module, 0x1C, 0);
+
+  size_t table_off = header_size;
+  for (const auto& sec : local_sections) {
+    WriteU32(module, table_off + 0, sec.id);
+    WriteU32(module, table_off + 4, sec.offset);
+    WriteU32(module, table_off + 8, static_cast<uint32_t>(sec.bytes.size()));
+    WriteU32(module, table_off + 12, sec.count);
+    table_off += 16;
+  }
+
+  for (const auto& sec : local_sections) {
+    if (sec.bytes.empty()) continue;
+    std::memcpy(module.data() + sec.offset, sec.bytes.data(), sec.bytes.size());
+  }
+
+  return module;
+}
+
 inline std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
                                                   const std::vector<uint8_t>& const_pool,
                                                   const std::vector<uint8_t>& types_bytes,

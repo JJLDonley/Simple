@@ -447,3 +447,5 @@
 - Migrated `SimpleByteCode/vm/tests/test_main.cpp` to use `sbc_emitter.h` and removed duplicated module builders.
 - Added `AppendI64` helper to the standardized SBC emitter.
 - Full VM test suite pass (578 tests).
+- Added `ir_compiler` (IR→SBC) library API and `BuildModuleFromSections` emitter path.
+- Wired IR tests to compile through `ir_compiler` instead of building modules directly.

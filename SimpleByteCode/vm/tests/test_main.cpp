@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "opcode.h"
 #include "ir_builder.h"
+#include "ir_compiler.h"
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
@@ -152,7 +153,19 @@ std::vector<uint8_t> BuildIrAddModule() {
     std::cerr << "IR finish failed: " << error << "\n";
     return {};
   }
-  return BuildModule(code, 0, 0);
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = std::move(code);
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  return out;
 }
 
 std::vector<uint8_t> BuildIrJumpModule() {
@@ -171,7 +184,19 @@ std::vector<uint8_t> BuildIrJumpModule() {
     std::cerr << "IR finish failed: " << error << "\n";
     return {};
   }
-  return BuildModule(code, 0, 0);
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = std::move(code);
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  return out;
 }
 
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
