@@ -18640,6 +18640,10 @@ bool RunBadCodeAlignmentLoadTest() {
     std::cerr << "expected load failure\n";
     return false;
   }
+  if (load.error.find("opcode operands out of bounds") == std::string::npos) {
+    std::cerr << "expected operand bounds error, got: " << load.error << "\n";
+    return false;
+  }
   return true;
 }
 
