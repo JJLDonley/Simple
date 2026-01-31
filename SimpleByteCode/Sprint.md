@@ -384,3 +384,5 @@
 - Implemented core.os time/cwd/env/sleep handlers with ASCII string conversion and added import_time_mono/import_cwd_get tests.
 - Added TAILCALL support for imports with a passing import_tailcall test.
 - Added ExecOptions argv injection for core.os args_count/args_get and a passing import_args_count test.
+- Added import_args_get_char test to validate core.os args_get string content via StringGetChar.
+- Set import method local_count from signature param_count to satisfy verifier rules.

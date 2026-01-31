@@ -726,7 +726,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       method.name_str = module.imports[i].symbol_name_str;
       method.sig_id = module.imports[i].sig_id;
       method.code_offset = 0;
-      method.local_count = 0;
+      uint16_t import_locals = 0;
+      if (method.sig_id < module.sigs.size()) {
+        import_locals = module.sigs[method.sig_id].param_count;
+      }
+      method.local_count = import_locals;
       method.flags = 0;
       module.methods.push_back(method);
       FunctionRow func;

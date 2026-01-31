@@ -9923,9 +9923,9 @@ std::vector<uint8_t> BuildImportCwdGetModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
-  AppendU8(types, 0);
+  AppendU8(types, 1);
   AppendU16(types, 0);
-  AppendU32(types, 4);
+  AppendU32(types, 0);
   AppendU32(types, 0);
   AppendU32(types, 0);
   std::vector<uint8_t> const_pool;
@@ -9983,6 +9983,131 @@ std::vector<uint8_t> BuildImportArgsCountModule() {
   std::vector<uint32_t> empty_params;
   return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, empty_params,
                                      imports, {});
+}
+
+std::vector<uint8_t> BuildImportArgsGetCharEqModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StringGetChar));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstChar));
+  AppendU16(code, static_cast<uint16_t>('o'));
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_get"));
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> fields;
+
+  std::vector<uint8_t> methods;
+  AppendU32(methods, main_off);
+  AppendU32(methods, 0);
+  AppendU32(methods, 0);
+  AppendU16(methods, 0);
+  AppendU16(methods, 0);
+
+  std::vector<uint8_t> sigs;
+  AppendU32(sigs, 0);
+  AppendU16(sigs, 0);
+  AppendU16(sigs, 0);
+  AppendU32(sigs, 0);
+  AppendU32(sigs, 1);
+  AppendU16(sigs, 1);
+  AppendU16(sigs, 0);
+  AppendU32(sigs, 0);
+  AppendU32(sigs, 0);
+
+  std::vector<uint8_t> globals;
+
+  std::vector<uint8_t> functions;
+  AppendU32(functions, 0);
+  AppendU32(functions, 0);
+  AppendU32(functions, static_cast<uint32_t>(code.size()));
+  AppendU32(functions, 8);
+
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
+  AppendU32(imports, 1);
+  AppendU32(imports, 0);
+
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
+  sections.push_back({3, methods, 1, 0});
+  sections.push_back({4, sigs, 2, 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, globals, 0, 0});
+  sections.push_back({7, functions, 1, 0});
+  sections.push_back({10, imports, static_cast<uint32_t>(imports.size() / 16), 0});
+  sections.push_back({8, code, 0, 0});
+
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Align4(header_size + table_size);
+  for (auto& sec : sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+
+  WriteU32(module, 0x00, 0x30434253u);
+  WriteU16(module, 0x04, 0x0001u);
+  WriteU8(module, 0x06, 1);
+  WriteU8(module, 0x07, 0);
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, 0);
+  WriteU32(module, 0x14, 0);
+  WriteU32(module, 0x18, 0);
+  WriteU32(module, 0x1C, 0);
+
+  size_t table_off = header_size;
+  for (const auto& sec : sections) {
+    size_t off = table_off;
+    WriteU32(module, off + 0, sec.id);
+    WriteU32(module, off + 4, sec.offset);
+    const uint32_t size = static_cast<uint32_t>(sec.bytes.size());
+    WriteU32(module, off + 8, size);
+    WriteU32(module, off + 12, sec.count);
+    table_off += 16;
+  }
+
+  for (const auto& sec : sections) {
+    if (sec.bytes.empty()) continue;
+    std::memcpy(module.data() + sec.offset, sec.bytes.data(), sec.bytes.size());
+  }
+
+  return module;
 }
 
 std::vector<uint8_t> BuildBadImportCallParamVerifyModule() {
@@ -12950,6 +13075,15 @@ bool RunAddTest() {
   simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
   if (!vr.ok) {
     std::cerr << "verify failed: " << vr.error << "\n";
+    if (!load.module.sigs.empty()) {
+      std::cerr << "sig0 ret=" << load.module.sigs[0].ret_type_id
+                << " params=" << load.module.sigs[0].param_count << "\n";
+    }
+    if (load.module.types.size() > 1) {
+      const auto& t = load.module.types[1];
+      std::cerr << "type1 flags=" << static_cast<int>(t.flags)
+                << " size=" << t.size << "\n";
+    }
     return false;
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
@@ -12975,6 +13109,19 @@ bool RunGlobalTest() {
   simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
   if (!vr.ok) {
     std::cerr << "verify failed: " << vr.error << "\n";
+    std::cerr << "sigs=" << load.module.sigs.size() << " types=" << load.module.types.size()
+              << " param_types=" << load.module.param_types.size() << "\n";
+    if (!load.module.sigs.empty()) {
+      const auto& sig = load.module.sigs[0];
+      std::cerr << "sig0 ret=" << sig.ret_type_id << " params=" << sig.param_count
+                << " param_start=" << sig.param_type_start << "\n";
+    }
+    if (load.module.types.size() > 1) {
+      const auto& t = load.module.types[1];
+      std::cerr << "type1 kind=" << static_cast<int>(t.kind)
+                << " flags=" << static_cast<int>(t.flags)
+                << " size=" << t.size << "\n";
+    }
     return false;
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
@@ -20864,6 +21011,36 @@ bool RunImportArgsCountTest() {
   return true;
 }
 
+bool RunImportArgsGetCharEqTest() {
+  std::vector<uint8_t> module_bytes = BuildImportArgsGetCharEqModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecOptions options;
+  options.argv = {"one"};
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true, true, options);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadImportCallParamVerifyTest() {
   return RunExpectVerifyFail(BuildBadImportCallParamVerifyModule(), "bad_import_call_param_verify");
 }
@@ -22794,6 +22971,7 @@ int main(int argc, char** argv) {
       {"import_cwd_get", RunImportCwdGetTest},
       {"import_tailcall", RunImportTailCallTest},
       {"import_args_count", RunImportArgsCountTest},
+      {"import_args_get_char", RunImportArgsGetCharEqTest},
       {"bad_import_call_param_verify", RunBadImportCallParamVerifyTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
