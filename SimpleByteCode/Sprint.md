@@ -411,4 +411,8 @@
 - Added core.fs write clamp count test (len > buffer size returns clamped count and correct data).
 - Added core.fs read-zero-len preserve test (len=0 leaves buffer unchanged).
 - Added core.fs read/write reopen cycle test (AB then CD).
+- Added core.fs read-zero-len with non-empty buffer test (len=0 preserves data).
 - Added core.fs persist write/read test (write, close, reopen, read).
+
+## 2026-01-31
+- Fixed core.fs read-zero-len non-empty buffer test to create an empty file before read and validate preservation.
