@@ -308,3 +308,4 @@
 - Removed array/list intrinsics from the table since they are opcode-backed; replaced with core.math intrinsics.
 - Removed string intrinsics from the table since strings are opcode-backed.
 - Expanded intrinsic table with debug logging, math min/max for floats, time, rand, and basic IO intrinsics.
+- Added a dedicated pre-freeze plan section (primitives/ABI/FFI/core library + freeze gates) to the implementation plan.

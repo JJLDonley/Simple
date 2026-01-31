@@ -337,3 +337,36 @@ FFI Calling Convention
 - Added runtime trap coverage for typed array set null/out-of-bounds/negative index cases.
 - Added runtime trap coverage for typed array/list get and list pop/insert/remove cases.
 - Added JIT fallback coverage for typed array/list ops to ensure safe interpreter fallback.
+
+---
+
+## 9) Pre-Freeze Plan (Primitives, ABI, FFI, Core Library)
+
+### 9.1 Primitive Freeze
+- [ ] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
+- [ ] Add C-style type mapping table (u32/u64/bool/char/i8/i16/u8/u16 → VM types).
+- [ ] Lock VM type ID codes and version them.
+
+### 9.2 ABI Freeze (SBC + Bytecode)
+- [ ] Freeze opcode IDs, operand widths, stack effects, and trap conditions.
+- [ ] Freeze SBC header fields, section IDs, table layouts, and alignment rules.
+- [ ] Freeze call conventions: arg order, return slots, tailcall rules, `stack_max` meaning.
+- [ ] Freeze const pool formats (string encoding, i128/u128 blobs, f32/f64 encoding).
+- [ ] Define compatibility rules for header version/flags.
+
+### 9.3 FFI ABI Freeze
+- [ ] Finalize import/export tables (names, sig_id, flags).
+- [ ] Finalize FFI flags and error/trap semantics.
+- [ ] Define ref-handle ownership rules across boundary.
+- [ ] Specify host API surface for ref/string/array/list access.
+
+### 9.4 Core Library Contracts
+- [ ] Define core library namespaces and signatures (no implementation yet).
+- [ ] Decide which functions are intrinsic vs bytecode helpers.
+- [ ] Lock error model (trap vs return code) per function family.
+
+### 9.5 Freeze Gates (Tests)
+- [ ] ABI validation tests (opcode IDs, header/section invariants).
+- [ ] FFI table validation tests (bad names/sigs/flags).
+- [ ] Intrinsic ID table validation tests (unknown/unsupported IDs).
+- [ ] Cross-version compatibility test skeleton (header version/flags).
