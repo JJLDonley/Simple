@@ -367,3 +367,4 @@
 - Added import mapping into function list with import-call traps and updated section ID range for imports/exports.
 - Marked import-call strategy Option B as chosen in the implementation plan.
 - Documented import-mapped CALL behavior in SBC_OpCodes.md.
+- Added import_call_indirect_trap test for CALL_INDIRECT on imports.

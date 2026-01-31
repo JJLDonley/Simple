@@ -9758,6 +9758,30 @@ std::vector<uint8_t> BuildImportCallModule() {
                                      imports, {});
 }
 
+std::vector<uint8_t> BuildImportCallIndirectModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(code, 0);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "args_count");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0xFFFFFFFFu, 0, 0, 0, empty_params,
+                                     imports, {});
+}
+
 std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
   std::vector<uint8_t> types;
   AppendU32(types, 0);
@@ -20426,6 +20450,10 @@ bool RunImportCallTrapTest() {
   return RunExpectTrap(BuildImportCallModule(), "import_call");
 }
 
+bool RunImportCallIndirectTrapTest() {
+  return RunExpectTrap(BuildImportCallIndirectModule(), "import_call_indirect");
+}
+
 bool RunBadTypeKindSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -22325,6 +22353,7 @@ int main(int argc, char** argv) {
       {"bad_import_duplicate_load", RunBadImportDuplicateLoadTest},
       {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
       {"import_call_trap", RunImportCallTrapTest},
+      {"import_call_indirect_trap", RunImportCallIndirectTrapTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
