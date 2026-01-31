@@ -1497,6 +1497,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
           }
           break;
         }
+        case OpCode::SysCall: {
+          uint32_t id = 0;
+          if (!ReadU32(code, pc + 1, &id)) return fail_at("SYS_CALL id out of bounds", pc, opcode);
+          return fail_at("SYS_CALL not supported", pc, opcode);
+        }
         case OpCode::CallCheck:
           if (call_depth != 0) return fail_at("CALLCHECK not in root", pc, opcode);
           break;

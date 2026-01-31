@@ -7983,6 +7983,17 @@ std::vector<uint8_t> BuildSysCallTrapModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadSysCallVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SysCall));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadMergeModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -20670,7 +20681,7 @@ bool RunIntrinsicTrapTest() {
 }
 
 bool RunSysCallTrapTest() {
-  return RunExpectTrap(BuildSysCallTrapModule(), "syscall");
+  return RunExpectTrapNoVerify(BuildSysCallTrapModule(), "syscall");
 }
 
 bool RunBadIntrinsicIdVerifyTest() {
@@ -20694,6 +20705,10 @@ bool RunIntrinsicReturnVerifyTest() {
     return false;
   }
   return true;
+}
+
+bool RunBadSysCallVerifyTest() {
+  return RunExpectVerifyFail(BuildBadSysCallVerifyModule(), "bad_syscall_verify");
 }
 
 bool RunBadArrayGetTrapTest() {
@@ -21848,6 +21863,7 @@ int main(int argc, char** argv) {
       {"bad_intrinsic_id_verify", RunBadIntrinsicIdVerifyTest},
       {"bad_intrinsic_param_verify", RunBadIntrinsicParamVerifyTest},
       {"intrinsic_return_verify", RunIntrinsicReturnVerifyTest},
+      {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
       {"bad_merge_ref_i32_verify", RunBadMergeRefI32VerifyTest},
