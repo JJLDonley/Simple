@@ -9569,6 +9569,127 @@ std::vector<uint8_t> BuildBadExportsTableSizeLoadModule() {
                                      {}, exports);
 }
 
+std::vector<uint8_t> BuildBadImportNameOffsetLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0xFFFF); // module_name_str invalid
+  AppendU32(imports, 0);      // symbol_name_str
+  AppendU32(imports, 0);      // sig_id
+  AppendU32(imports, 0);      // flags
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildBadImportSigIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "args_count");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 99); // sig_id invalid
+  AppendU32(imports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildBadImportFlagsLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "args_count");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0x8000); // flags invalid
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildBadExportNameOffsetLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0xFFFF); // name invalid
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
+}
+
+std::vector<uint8_t> BuildBadExportFuncIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0);
+  AppendU32(exports, 99); // func_id invalid
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
+}
+
+std::vector<uint8_t> BuildBadExportFlagsLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0x8000); // flags invalid
+  AppendU32(exports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
+}
+
+std::vector<uint8_t> BuildBadExportReservedLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 1); // reserved invalid
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
+}
+
 std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
   std::vector<uint8_t> types;
   AppendU32(types, 0);
@@ -20143,6 +20264,76 @@ bool RunBadExportsTableSizeLoadTest() {
   return true;
 }
 
+bool RunBadImportNameOffsetLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadImportNameOffsetLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadImportSigIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadImportSigIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadImportFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadImportFlagsLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportNameOffsetLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportNameOffsetLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportFuncIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportFuncIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportFlagsLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportFlagsLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportReservedLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportReservedLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadTypeKindSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -22032,6 +22223,13 @@ int main(int argc, char** argv) {
       {"bad_code_alignment_load", RunBadCodeAlignmentLoadTest},
       {"bad_imports_table_size_load", RunBadImportsTableSizeLoadTest},
       {"bad_exports_table_size_load", RunBadExportsTableSizeLoadTest},
+      {"bad_import_name_offset_load", RunBadImportNameOffsetLoadTest},
+      {"bad_import_sig_id_load", RunBadImportSigIdLoadTest},
+      {"bad_import_flags_load", RunBadImportFlagsLoadTest},
+      {"bad_export_name_offset_load", RunBadExportNameOffsetLoadTest},
+      {"bad_export_func_id_load", RunBadExportFuncIdLoadTest},
+      {"bad_export_flags_load", RunBadExportFlagsLoadTest},
+      {"bad_export_reserved_load", RunBadExportReservedLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
