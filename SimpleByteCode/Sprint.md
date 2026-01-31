@@ -449,3 +449,4 @@
 - Full VM test suite pass (578 tests).
 - Added `ir_compiler` (IR→SBC) library API and `BuildModuleFromSections` emitter path.
 - Wired IR tests to compile through `ir_compiler` instead of building modules directly.
+- Added IR→SBC golden comparisons using `sbc_emitter` and aligned default const pool in `ir_compiler`.

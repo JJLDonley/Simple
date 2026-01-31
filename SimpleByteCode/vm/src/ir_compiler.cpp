@@ -61,6 +61,13 @@ bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string
     AppendDefaultI32Type(&types);
   }
 
+  std::vector<uint8_t> const_pool = module.const_pool;
+  if (const_pool.empty()) {
+    uint32_t dummy_str_offset = static_cast<uint32_t>(simplevm::sbc::AppendStringToPool(const_pool, ""));
+    uint32_t dummy_const_id = 0;
+    simplevm::sbc::AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  }
+
   std::vector<uint8_t> sigs;
   BuildSigTable(sig_specs, &sigs);
 
@@ -95,7 +102,7 @@ bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string
   sections.push_back({2, module.fields_bytes, static_cast<uint32_t>(module.fields_bytes.size() / 16), 0});
   sections.push_back({3, methods, static_cast<uint32_t>(module.functions.size()), 0});
   sections.push_back({4, sigs, static_cast<uint32_t>(sig_specs.size()), 0});
-  sections.push_back({5, module.const_pool, 0, 0});
+  sections.push_back({5, const_pool, 0, 0});
   sections.push_back({6, module.globals_bytes, static_cast<uint32_t>(module.globals_bytes.size() / 16), 0});
   sections.push_back({7, functions, static_cast<uint32_t>(module.functions.size()), 0});
   if (!module.imports_bytes.empty()) {

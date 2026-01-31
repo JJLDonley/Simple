@@ -97,6 +97,27 @@ bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name);
 
+bool ExpectSbcEqual(const std::vector<uint8_t>& got,
+                    const std::vector<uint8_t>& expected,
+                    const char* name) {
+  if (got == expected) {
+    return true;
+  }
+  std::cerr << "expected SBC mismatch: " << name << "\n";
+  std::cerr << "  expected size: " << expected.size() << "\n";
+  std::cerr << "  got size: " << got.size() << "\n";
+  const size_t min_size = std::min(expected.size(), got.size());
+  for (size_t i = 0; i < min_size; ++i) {
+    if (expected[i] != got[i]) {
+      std::cerr << "  first diff at byte " << i
+                << " expected=0x" << std::hex << static_cast<int>(expected[i])
+                << " got=0x" << static_cast<int>(got[i]) << std::dec << "\n";
+      break;
+    }
+  }
+  return false;
+}
+
 std::vector<uint8_t> BuildDebugSection(uint32_t file_count,
                                        uint32_t line_count,
                                        uint32_t sym_count,
@@ -155,7 +176,7 @@ std::vector<uint8_t> BuildIrAddModule() {
   }
   simplevm::ir::IrModule module;
   simplevm::ir::IrFunction func;
-  func.code = std::move(code);
+  func.code = code;
   func.local_count = 0;
   func.stack_max = 8;
   module.functions.push_back(std::move(func));
@@ -163,6 +184,10 @@ std::vector<uint8_t> BuildIrAddModule() {
   std::vector<uint8_t> out;
   if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
     std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_add_module")) {
     return {};
   }
   return out;
@@ -186,7 +211,7 @@ std::vector<uint8_t> BuildIrJumpModule() {
   }
   simplevm::ir::IrModule module;
   simplevm::ir::IrFunction func;
-  func.code = std::move(code);
+  func.code = code;
   func.local_count = 0;
   func.stack_max = 8;
   module.functions.push_back(std::move(func));
@@ -194,6 +219,10 @@ std::vector<uint8_t> BuildIrJumpModule() {
   std::vector<uint8_t> out;
   if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
     std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_jmp_module")) {
     return {};
   }
   return out;
