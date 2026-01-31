@@ -46,6 +46,17 @@ VerifyResult Fail(const std::string& message) {
 
 VerifyResult VerifyModule(const SbcModule& module) {
   enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
+  auto read_name = [&](uint32_t offset) -> std::string {
+    if (offset == 0xFFFFFFFFu) return {};
+    if (module.const_pool.empty()) return {};
+    if (offset >= module.const_pool.size()) return {};
+    size_t pos = offset;
+    while (pos < module.const_pool.size() && module.const_pool[pos] != 0) {
+      ++pos;
+    }
+    if (pos >= module.const_pool.size()) return {};
+    return std::string(reinterpret_cast<const char*>(&module.const_pool[offset]), pos - offset);
+  };
   auto resolve_type = [&](uint32_t type_id) -> ValType {
     if (type_id >= module.types.size()) return ValType::Unknown;
     const auto& row = module.types[type_id];
@@ -169,6 +180,23 @@ VerifyResult VerifyModule(const SbcModule& module) {
     std::vector<ValType> globals = global_types;
     std::vector<bool> globals_init = globals_init_base;
     int call_depth = 0;
+    auto fail_at = [&](const std::string& msg, size_t at_pc, uint8_t opcode) -> VerifyResult {
+      std::string out = "verify failed: func " + std::to_string(func_index);
+      std::string name = read_name(module.methods[method_id].name_str);
+      if (!name.empty()) {
+        out += " name " + name;
+      }
+      out += " pc " + std::to_string(at_pc);
+      out += " op 0x";
+      static const char kHex[] = "0123456789ABCDEF";
+      out.push_back(kHex[(opcode >> 4) & 0xF]);
+      out.push_back(kHex[opcode & 0xF]);
+      out += ": ";
+      out += msg;
+      return Fail(out);
+    };
+    size_t current_pc = 0;
+    uint8_t current_opcode = 0;
     auto pop_type = [&]() -> ValType {
       if (stack_types.empty()) return ValType::Unknown;
       ValType t = stack_types.back();
@@ -182,7 +210,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         ok.ok = true;
         return ok;
       }
-      if (got != ValType::Unknown && got != expected) return Fail(msg);
+      if (got != ValType::Unknown && got != expected) {
+        return fail_at(msg, current_pc, current_opcode);
+      }
       VerifyResult ok;
       ok.ok = true;
       return ok;
@@ -190,6 +220,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
     std::vector<StackMap> stack_maps;
     while (pc < end) {
       uint8_t opcode = code[pc];
+      current_pc = pc;
+      current_opcode = opcode;
       OpInfo info{};
       GetOpInfo(opcode, &info);
       size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
@@ -211,77 +243,107 @@ VerifyResult VerifyModule(const SbcModule& module) {
           opcode == static_cast<uint8_t>(OpCode::JmpTrue) ||
           opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
         int32_t offset = 0;
-        if (!ReadI32(code, pc + 1, &offset)) return Fail("jump operand out of bounds");
+        if (!ReadI32(code, pc + 1, &offset)) {
+          return fail_at("jump operand out of bounds", pc, opcode);
+        }
         size_t jump_target = static_cast<size_t>(static_cast<int64_t>(next) + offset);
-        if (jump_target < func.code_offset || jump_target > end) return Fail("jump target out of bounds");
-        if (boundaries.find(jump_target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+        if (jump_target < func.code_offset || jump_target > end) {
+          return fail_at("jump target out of bounds", pc, opcode);
+        }
+        if (boundaries.find(jump_target) == boundaries.end()) {
+          return fail_at("jump target not on instruction boundary", pc, opcode);
+        }
         jump_targets.push_back(jump_target);
       }
       if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
         uint32_t const_id = 0;
         int32_t default_off = 0;
-        if (!ReadU32(code, pc + 1, &const_id)) return Fail("JMP_TABLE const id out of bounds");
-        if (!ReadI32(code, pc + 5, &default_off)) return Fail("JMP_TABLE default offset out of bounds");
-        if (const_id + 8 > module.const_pool.size()) return Fail("JMP_TABLE const id bad");
+        if (!ReadU32(code, pc + 1, &const_id)) {
+          return fail_at("JMP_TABLE const id out of bounds", pc, opcode);
+        }
+        if (!ReadI32(code, pc + 5, &default_off)) {
+          return fail_at("JMP_TABLE default offset out of bounds", pc, opcode);
+        }
+        if (const_id + 8 > module.const_pool.size()) {
+          return fail_at("JMP_TABLE const id bad", pc, opcode);
+        }
         uint32_t kind = 0;
         ReadU32(module.const_pool, const_id, &kind);
-        if (kind != 6) return Fail("JMP_TABLE const kind mismatch");
+        if (kind != 6) return fail_at("JMP_TABLE const kind mismatch", pc, opcode);
         uint32_t payload = 0;
         ReadU32(module.const_pool, const_id + 4, &payload);
-        if (payload + 4 > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
+        if (payload + 4 > module.const_pool.size()) {
+          return fail_at("JMP_TABLE blob out of bounds", pc, opcode);
+        }
         uint32_t blob_len = 0;
         ReadU32(module.const_pool, payload, &blob_len);
-        if (payload + 4 + blob_len > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
-        if (blob_len < 4 || (blob_len - 4) % 4 != 0) return Fail("JMP_TABLE blob size invalid");
+        if (payload + 4 + blob_len > module.const_pool.size()) {
+          return fail_at("JMP_TABLE blob out of bounds", pc, opcode);
+        }
+        if (blob_len < 4 || (blob_len - 4) % 4 != 0) {
+          return fail_at("JMP_TABLE blob size invalid", pc, opcode);
+        }
         uint32_t count = 0;
         ReadU32(module.const_pool, payload + 4, &count);
-        if (blob_len != 4 + count * 4) return Fail("JMP_TABLE blob size mismatch");
+        if (blob_len != 4 + count * 4) {
+          return fail_at("JMP_TABLE blob size mismatch", pc, opcode);
+        }
         for (uint32_t i = 0; i < count; ++i) {
           int32_t off = 0;
           ReadI32(module.const_pool, payload + 8 + i * 4, &off);
           size_t target = static_cast<size_t>(static_cast<int64_t>(next) + off);
-          if (target < func.code_offset || target > end) return Fail("jump target out of bounds");
-          if (boundaries.find(target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+          if (target < func.code_offset || target > end) {
+            return fail_at("jump target out of bounds", pc, opcode);
+          }
+          if (boundaries.find(target) == boundaries.end()) {
+            return fail_at("jump target not on instruction boundary", pc, opcode);
+          }
           jump_targets.push_back(target);
         }
         size_t default_target = static_cast<size_t>(static_cast<int64_t>(next) + default_off);
-        if (default_target < func.code_offset || default_target > end) return Fail("jump target out of bounds");
-        if (boundaries.find(default_target) == boundaries.end()) return Fail("jump target not on instruction boundary");
+        if (default_target < func.code_offset || default_target > end) {
+          return fail_at("jump target out of bounds", pc, opcode);
+        }
+        if (boundaries.find(default_target) == boundaries.end()) {
+          return fail_at("jump target not on instruction boundary", pc, opcode);
+        }
         jump_targets.push_back(default_target);
       }
 
       if (opcode == static_cast<uint8_t>(OpCode::Enter)) {
         uint16_t locals = 0;
-        if (!ReadU16(code, pc + 1, &locals)) return Fail("ENTER operand out of bounds");
-        if (locals != local_count) return Fail("ENTER local count mismatch");
+        if (!ReadU16(code, pc + 1, &locals)) return fail_at("ENTER operand out of bounds", pc, opcode);
+        if (locals != local_count) return fail_at("ENTER local count mismatch", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::LoadLocal) ||
           opcode == static_cast<uint8_t>(OpCode::StoreLocal)) {
         uint32_t idx = 0;
-        if (!ReadU32(code, pc + 1, &idx)) return Fail("local index out of bounds");
-        if (idx >= local_count) return Fail("local index out of range");
+        if (!ReadU32(code, pc + 1, &idx)) return fail_at("local index out of bounds", pc, opcode);
+        if (idx >= local_count) return fail_at("local index out of range", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::LoadGlobal) ||
           opcode == static_cast<uint8_t>(OpCode::StoreGlobal)) {
         uint32_t idx = 0;
-        if (!ReadU32(code, pc + 1, &idx)) return Fail("global index out of bounds");
-        if (idx >= module.globals.size()) return Fail("global index out of range");
+        if (!ReadU32(code, pc + 1, &idx)) return fail_at("global index out of bounds", pc, opcode);
+        if (idx >= module.globals.size()) return fail_at("global index out of range", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::LoadUpvalue) ||
           opcode == static_cast<uint8_t>(OpCode::StoreUpvalue)) {
         uint32_t idx = 0;
-        if (!ReadU32(code, pc + 1, &idx)) return Fail("upvalue index out of bounds");
+        if (!ReadU32(code, pc + 1, &idx)) return fail_at("upvalue index out of bounds", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewObject)) {
         uint32_t type_id = 0;
-        if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_OBJECT type id out of bounds");
-        if (type_id >= module.types.size()) return Fail("NEW_OBJECT bad type id");
+        if (!ReadU32(code, pc + 1, &type_id)) return fail_at("NEW_OBJECT type id out of bounds", pc, opcode);
+        if (type_id >= module.types.size()) return fail_at("NEW_OBJECT bad type id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewClosure)) {
         uint32_t method_id = 0;
-        if (!ReadU32(code, pc + 1, &method_id)) return Fail("NEW_CLOSURE method id out of bounds");
-        if (pc + 5 >= code.size()) return Fail("NEW_CLOSURE upvalue count out of bounds");
-        if (method_id >= module.methods.size()) return Fail("NEW_CLOSURE bad method id");
+        if (!ReadU32(code, pc + 1, &method_id)) {
+          return fail_at("NEW_CLOSURE method id out of bounds", pc, opcode);
+        }
+        if (pc + 5 >= code.size()) return fail_at("NEW_CLOSURE upvalue count out of bounds", pc, opcode);
+        if (method_id >= module.methods.size()) return fail_at("NEW_CLOSURE bad method id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewArray) ||
           opcode == static_cast<uint8_t>(OpCode::NewArrayI64) ||
@@ -294,42 +356,50 @@ VerifyResult VerifyModule(const SbcModule& module) {
           opcode == static_cast<uint8_t>(OpCode::NewListF64) ||
           opcode == static_cast<uint8_t>(OpCode::NewListRef)) {
         uint32_t type_id = 0;
-        if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_ARRAY/LIST type id out of bounds");
-        if (type_id >= module.types.size()) return Fail("NEW_ARRAY/LIST bad type id");
+        if (!ReadU32(code, pc + 1, &type_id)) {
+          return fail_at("NEW_ARRAY/LIST type id out of bounds", pc, opcode);
+        }
+        if (type_id >= module.types.size()) return fail_at("NEW_ARRAY/LIST bad type id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::LoadField) ||
           opcode == static_cast<uint8_t>(OpCode::StoreField)) {
         uint32_t field_id = 0;
-        if (!ReadU32(code, pc + 1, &field_id)) return Fail("LOAD/STORE_FIELD id out of bounds");
-        if (field_id >= module.fields.size()) return Fail("LOAD/STORE_FIELD bad field id");
+        if (!ReadU32(code, pc + 1, &field_id)) {
+          return fail_at("LOAD/STORE_FIELD id out of bounds", pc, opcode);
+        }
+        if (field_id >= module.fields.size()) return fail_at("LOAD/STORE_FIELD bad field id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::ConstString)) {
         uint32_t const_id = 0;
-        if (!ReadU32(code, pc + 1, &const_id)) return Fail("CONST_STRING const id out of bounds");
-        if (const_id + 8 > module.const_pool.size()) return Fail("CONST_STRING const id bad");
+        if (!ReadU32(code, pc + 1, &const_id)) return fail_at("CONST_STRING const id out of bounds", pc, opcode);
+        if (const_id + 8 > module.const_pool.size()) return fail_at("CONST_STRING const id bad", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::Call) ||
           opcode == static_cast<uint8_t>(OpCode::TailCall)) {
         uint32_t func_id = 0;
         uint8_t arg_count = 0;
-        if (!ReadU32(code, pc + 1, &func_id)) return Fail("CALL function id out of bounds");
-        if (pc + 5 >= code.size()) return Fail("CALL arg count out of bounds");
+        if (!ReadU32(code, pc + 1, &func_id)) return fail_at("CALL function id out of bounds", pc, opcode);
+        if (pc + 5 >= code.size()) return fail_at("CALL arg count out of bounds", pc, opcode);
         arg_count = code[pc + 5];
-        if (func_id >= module.functions.size()) return Fail("CALL function id out of range");
+        if (func_id >= module.functions.size()) return fail_at("CALL function id out of range", pc, opcode);
         uint32_t callee_method = module.functions[func_id].method_id;
-        if (callee_method >= module.methods.size()) return Fail("CALL method id out of range");
+        if (callee_method >= module.methods.size()) return fail_at("CALL method id out of range", pc, opcode);
         uint32_t sig_id = module.methods[callee_method].sig_id;
-        if (sig_id >= module.sigs.size()) return Fail("CALL signature id out of range");
-        if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL arg count mismatch");
+        if (sig_id >= module.sigs.size()) return fail_at("CALL signature id out of range", pc, opcode);
+        if (arg_count != module.sigs[sig_id].param_count) {
+          return fail_at("CALL arg count mismatch", pc, opcode);
+        }
         if (opcode == static_cast<uint8_t>(OpCode::Call)) ++call_depth;
       }
       if (opcode == static_cast<uint8_t>(OpCode::CallIndirect)) {
         uint32_t sig_id = 0;
-        if (!ReadU32(code, pc + 1, &sig_id)) return Fail("CALL_INDIRECT sig id out of bounds");
-        if (pc + 5 >= code.size()) return Fail("CALL_INDIRECT arg count out of bounds");
+        if (!ReadU32(code, pc + 1, &sig_id)) return fail_at("CALL_INDIRECT sig id out of bounds", pc, opcode);
+        if (pc + 5 >= code.size()) return fail_at("CALL_INDIRECT arg count out of bounds", pc, opcode);
         uint8_t arg_count = code[pc + 5];
-        if (sig_id >= module.sigs.size()) return Fail("CALL_INDIRECT signature id out of range");
-        if (arg_count != module.sigs[sig_id].param_count) return Fail("CALL_INDIRECT arg count mismatch");
+        if (sig_id >= module.sigs.size()) return fail_at("CALL_INDIRECT signature id out of range", pc, opcode);
+        if (arg_count != module.sigs[sig_id].param_count) {
+          return fail_at("CALL_INDIRECT arg count mismatch", pc, opcode);
+        }
       }
 
       switch (static_cast<OpCode>(opcode)) {
@@ -1327,23 +1397,23 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
         }
         case OpCode::CallCheck:
-          if (call_depth != 0) return Fail("CALLCHECK not in root");
+          if (call_depth != 0) return fail_at("CALLCHECK not in root", pc, opcode);
           break;
         case OpCode::Call: {
-          if (pc + 5 >= code.size()) return Fail("CALL arg count out of bounds");
+          if (pc + 5 >= code.size()) return fail_at("CALL arg count out of bounds", pc, opcode);
           uint8_t arg_count = code[pc + 5];
-          if (stack_types.size() < arg_count) return Fail("CALL stack underflow");
+          if (stack_types.size() < arg_count) return fail_at("CALL stack underflow", pc, opcode);
           uint32_t func_id = 0;
-          if (!ReadU32(code, pc + 1, &func_id)) return Fail("CALL function id out of bounds");
-          if (func_id >= module.functions.size()) return Fail("CALL function id out of range");
+          if (!ReadU32(code, pc + 1, &func_id)) return fail_at("CALL function id out of bounds", pc, opcode);
+          if (func_id >= module.functions.size()) return fail_at("CALL function id out of range", pc, opcode);
           uint32_t callee_method = module.functions[func_id].method_id;
-          if (callee_method >= module.methods.size()) return Fail("CALL method id out of range");
+          if (callee_method >= module.methods.size()) return fail_at("CALL method id out of range", pc, opcode);
           uint32_t sig_id = module.methods[callee_method].sig_id;
-          if (sig_id >= module.sigs.size()) return Fail("CALL signature id out of range");
+          if (sig_id >= module.sigs.size()) return fail_at("CALL signature id out of range", pc, opcode);
           const auto& call_sig = module.sigs[sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
-            return Fail("CALL signature param types out of range");
+            return fail_at("CALL signature param types out of range", pc, opcode);
           }
           for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
             ValType got = pop_type();
@@ -1366,20 +1436,24 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
         }
         case OpCode::CallIndirect: {
-          if (pc + 5 >= code.size()) return Fail("CALL_INDIRECT arg count out of bounds");
+          if (pc + 5 >= code.size()) return fail_at("CALL_INDIRECT arg count out of bounds", pc, opcode);
           uint8_t arg_count = code[pc + 5];
-          if (stack_types.size() < static_cast<size_t>(arg_count) + 1u) return Fail("CALL_INDIRECT stack underflow");
+          if (stack_types.size() < static_cast<size_t>(arg_count) + 1u) {
+            return fail_at("CALL_INDIRECT stack underflow", pc, opcode);
+          }
           uint32_t sig_id = 0;
-          if (!ReadU32(code, pc + 1, &sig_id)) return Fail("CALL_INDIRECT sig id out of bounds");
-          if (sig_id >= module.sigs.size()) return Fail("CALL_INDIRECT signature id out of range");
+          if (!ReadU32(code, pc + 1, &sig_id)) return fail_at("CALL_INDIRECT sig id out of bounds", pc, opcode);
+          if (sig_id >= module.sigs.size()) {
+            return fail_at("CALL_INDIRECT signature id out of range", pc, opcode);
+          }
           const auto& call_sig = module.sigs[sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
-            return Fail("CALL_INDIRECT signature param types out of range");
+            return fail_at("CALL_INDIRECT signature param types out of range", pc, opcode);
           }
           ValType func_type = pop_type();
           if (func_type != ValType::I32 && func_type != ValType::Ref && func_type != ValType::Unknown) {
-            return Fail("CALL_INDIRECT func type mismatch");
+            return fail_at("CALL_INDIRECT func type mismatch", pc, opcode);
           }
           for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
             ValType got = pop_type();
@@ -1402,20 +1476,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
         }
         case OpCode::TailCall: {
-          if (pc + 5 >= code.size()) return Fail("TAILCALL arg count out of bounds");
+          if (pc + 5 >= code.size()) return fail_at("TAILCALL arg count out of bounds", pc, opcode);
           uint8_t arg_count = code[pc + 5];
-          if (stack_types.size() < arg_count) return Fail("TAILCALL stack underflow");
+          if (stack_types.size() < arg_count) return fail_at("TAILCALL stack underflow", pc, opcode);
           uint32_t func_id = 0;
-          if (!ReadU32(code, pc + 1, &func_id)) return Fail("TAILCALL function id out of bounds");
-          if (func_id >= module.functions.size()) return Fail("TAILCALL function id out of range");
+          if (!ReadU32(code, pc + 1, &func_id)) return fail_at("TAILCALL function id out of bounds", pc, opcode);
+          if (func_id >= module.functions.size()) return fail_at("TAILCALL function id out of range", pc, opcode);
           uint32_t callee_method = module.functions[func_id].method_id;
-          if (callee_method >= module.methods.size()) return Fail("TAILCALL method id out of range");
+          if (callee_method >= module.methods.size()) return fail_at("TAILCALL method id out of range", pc, opcode);
           uint32_t sig_id = module.methods[callee_method].sig_id;
-          if (sig_id >= module.sigs.size()) return Fail("TAILCALL signature id out of range");
+          if (sig_id >= module.sigs.size()) return fail_at("TAILCALL signature id out of range", pc, opcode);
           const auto& call_sig = module.sigs[sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
-            return Fail("TAILCALL signature param types out of range");
+            return fail_at("TAILCALL signature param types out of range", pc, opcode);
           }
           for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
             ValType got = pop_type();
@@ -1492,9 +1566,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::Ret:
           if (static_cast<OpCode>(opcode) == OpCode::Ret) {
             if (expect_void) {
-              if (!stack_types.empty()) return Fail("return value on void");
+              if (!stack_types.empty()) return fail_at("return value on void", pc, opcode);
             } else {
-              if (stack_types.size() != 1) return Fail("return stack size mismatch");
+              if (stack_types.size() != 1) return fail_at("return stack size mismatch", pc, opcode);
               VerifyResult r = check_type(stack_types.back(), expected_ret, "return type mismatch");
               if (!r.ok) return r;
             }
@@ -1509,23 +1583,25 @@ VerifyResult VerifyModule(const SbcModule& module) {
 
       int pop_count = info.pops + extra_pops;
       if (pop_count > 0) {
-        if (stack_height - pop_count < 0) return Fail("stack underflow");
+        if (stack_height - pop_count < 0) return fail_at("stack underflow", pc, opcode);
         stack_height -= pop_count;
       }
       stack_height += info.pushes + extra_pushes;
       if (static_cast<uint32_t>(stack_height) > func.stack_max) {
-        return Fail("stack exceeds max");
+        return fail_at("stack exceeds max", pc, opcode);
       }
       for (size_t jump_target : jump_targets) {
         auto it = merge_types.find(jump_target);
         if (it == merge_types.end()) {
           merge_types[jump_target] = stack_types;
         } else {
-          if (it->second.size() != stack_types.size()) return Fail("stack merge height mismatch");
+          if (it->second.size() != stack_types.size()) {
+            return fail_at("stack merge height mismatch", pc, opcode);
+          }
           for (size_t i = 0; i < it->second.size(); ++i) {
             if (it->second[i] == ValType::Unknown) it->second[i] = stack_types[i];
             else if (stack_types[i] != ValType::Unknown && it->second[i] != stack_types[i]) {
-              return Fail("stack merge type mismatch");
+              return fail_at("stack merge type mismatch", pc, opcode);
             }
           }
         }
@@ -1534,11 +1610,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
       if (fall_through) {
         auto merge_it = merge_types.find(next);
         if (merge_it != merge_types.end()) {
-          if (merge_it->second.size() != stack_types.size()) return Fail("stack merge height mismatch");
+          if (merge_it->second.size() != stack_types.size()) {
+            return fail_at("stack merge height mismatch", pc, opcode);
+          }
           for (size_t i = 0; i < stack_types.size(); ++i) {
             if (stack_types[i] == ValType::Unknown) stack_types[i] = merge_it->second[i];
             else if (merge_it->second[i] != ValType::Unknown && merge_it->second[i] != stack_types[i]) {
-              return Fail("stack merge type mismatch");
+              return fail_at("stack merge type mismatch", pc, opcode);
             }
           }
         }

@@ -278,3 +278,6 @@
 - Added array/list tests for I64/F32/F64/REF and fixed ref tests to return I32 via branch on RefEq.
 - Updated opcode docs to note array/list <T> support for I32/I64/F32/F64/REF.
 - Confirmed full test suite pass (387 tests).
+- Added verifier diagnostics with function name (if available), pc, and opcode in verification error messages.
+- Routed common verifier failures (jumps, CALL/CALL_INDIRECT/TAILCALL checks, stack merge/overflow, return mismatches) through contextual diagnostics.
+- Verified full test suite pass (387 tests).
