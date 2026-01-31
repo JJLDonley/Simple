@@ -294,5 +294,6 @@
 - Added pre-freeze coverage matrix to implementation plan.
 - Added locals arena tailcall preservation test and a named-method loader error test.
 - Added missing opcode coverage tests for cmp variants, xor, extra u32/u64/f32/f64 arithmetic, LEAVE, and list set ops (I64/F32/F64/REF).
-- Confirmed full test suite pass (409 tests).
 - Updated implementation notes to reflect expanded opcode test coverage.
+- Added negative verifier tests for array/list set value mismatches across I64/F32/F64/REF.
+- Expanded bench runs to cover single-type, mixed-op, and call-heavy cases for both nojit/jit modes.

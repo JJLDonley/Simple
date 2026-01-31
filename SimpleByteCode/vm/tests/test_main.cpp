@@ -3108,6 +3108,130 @@ std::vector<uint8_t> BuildJitCompiledLoopModule() {
   return BuildModuleWithFunctions({entry, callee}, {0, 1});
 }
 
+std::vector<uint8_t> BuildBenchMixedOpsModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  size_t loop_start = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_exit_offset = code.size();
+  AppendI32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ModI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolNot));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t jmp_back_offset = code.size();
+  AppendI32(code, 0);
+
+  size_t loop_end = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  int32_t exit_rel = static_cast<int32_t>(loop_end) - static_cast<int32_t>(jmp_exit_offset + 4);
+  WriteU32(code, jmp_exit_offset, static_cast<uint32_t>(exit_rel));
+  int32_t back_rel = static_cast<int32_t>(loop_start) - static_cast<int32_t>(jmp_back_offset + 4);
+  WriteU32(code, jmp_back_offset, static_cast<uint32_t>(back_rel));
+
+  return BuildModule(code, 1, 1);
+}
+
+std::vector<uint8_t> BuildBenchCallsModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < simplevm::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+    AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+    AppendI32(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+    AppendU32(entry, 0);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+
+  size_t loop_start = callee.size();
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_exit_offset = callee.size();
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Jmp));
+  size_t jmp_back_offset = callee.size();
+  AppendI32(callee, 0);
+  size_t loop_end = callee.size();
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  int32_t exit_rel = static_cast<int32_t>(loop_end) - static_cast<int32_t>(jmp_exit_offset + 4);
+  WriteU32(callee, jmp_exit_offset, static_cast<uint32_t>(exit_rel));
+  int32_t back_rel = static_cast<int32_t>(loop_start) - static_cast<int32_t>(jmp_back_offset + 4);
+  WriteU32(callee, jmp_back_offset, static_cast<uint32_t>(back_rel));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 1});
+}
+
 std::vector<uint8_t> BuildJitCompiledLoopIndirectModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> entry;
@@ -8102,6 +8226,66 @@ std::vector<uint8_t> BuildBadArraySetValueVerifyModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadArraySetI64ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArraySetF32ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArraySetF64ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArraySetRefValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadListLenVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -8136,6 +8320,66 @@ std::vector<uint8_t> BuildBadListSetValueVerifyModule() {
   AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetI64ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF32ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF64ValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetRefValueVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetRef));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
@@ -13491,34 +13735,45 @@ bool RunJitDisabledTest() {
 }
 
 int RunBenchLoop(size_t iterations) {
-  std::vector<uint8_t> module_bytes = BuildJitCompiledLoopModule();
-  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "bench load failed: " << load.error << "\n";
-    return 1;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "bench verify failed: " << vr.error << "\n";
-    return 1;
-  }
-  auto run_case = [&](bool enable_jit) {
+  struct BenchCase {
+    const char* name;
+    std::vector<uint8_t> bytes;
+  };
+  std::vector<BenchCase> cases;
+  cases.push_back({"single_type", BuildJitCompiledLoopModule()});
+  cases.push_back({"mixed_ops", BuildBenchMixedOpsModule()});
+  cases.push_back({"calls", BuildBenchCallsModule()});
+
+  auto run_case = [&](const BenchCase& bench_case, bool enable_jit) {
+    simplevm::LoadResult load = simplevm::LoadModuleFromBytes(bench_case.bytes);
+    if (!load.ok) {
+      std::cerr << "bench load failed (" << bench_case.name << "): " << load.error << "\n";
+      return false;
+    }
+    simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+    if (!vr.ok) {
+      std::cerr << "bench verify failed (" << bench_case.name << "): " << vr.error << "\n";
+      return false;
+    }
     auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 0; i < iterations; ++i) {
       simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true, enable_jit);
       if (exec.status != simplevm::ExecStatus::Halted) {
-        std::cerr << "bench exec failed\n";
+        std::cerr << "bench exec failed (" << bench_case.name << ")\n";
         return false;
       }
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::cout << (enable_jit ? "jit" : "nojit") << " iterations=" << iterations
-              << " ms=" << ms << "\n";
+    std::cout << bench_case.name << " " << (enable_jit ? "jit" : "nojit")
+              << " iterations=" << iterations << " ms=" << ms << "\n";
     return true;
   };
-  if (!run_case(false)) return 1;
-  if (!run_case(true)) return 1;
+
+  for (const auto& bench_case : cases) {
+    if (!run_case(bench_case, false)) return 1;
+    if (!run_case(bench_case, true)) return 1;
+  }
   return 0;
 }
 
@@ -17165,6 +17420,66 @@ bool RunBadArraySetValueVerifyTest() {
   return true;
 }
 
+bool RunBadArraySetI64ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadArraySetI64ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadArraySetF32ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadArraySetF32ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadArraySetF64ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadArraySetF64ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadArraySetRefValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadArraySetRefValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadListLenVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadListLenVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17197,6 +17512,66 @@ bool RunBadListGetIdxVerifyTest() {
 
 bool RunBadListSetValueVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadListSetValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadListSetI64ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadListSetI64ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadListSetF32ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadListSetF32ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadListSetF64ValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadListSetF64ValueVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << "expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadListSetRefValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadListSetRefValueVerifyModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -19504,9 +19879,17 @@ int main(int argc, char** argv) {
       {"bad_array_get_idx_verify", RunBadArrayGetIdxVerifyTest},
       {"bad_array_set_idx_verify", RunBadArraySetIdxVerifyTest},
       {"bad_array_set_value_verify", RunBadArraySetValueVerifyTest},
+      {"bad_array_set_i64_value_verify", RunBadArraySetI64ValueVerifyTest},
+      {"bad_array_set_f32_value_verify", RunBadArraySetF32ValueVerifyTest},
+      {"bad_array_set_f64_value_verify", RunBadArraySetF64ValueVerifyTest},
+      {"bad_array_set_ref_value_verify", RunBadArraySetRefValueVerifyTest},
       {"bad_list_len_verify", RunBadListLenVerifyTest},
       {"bad_list_get_idx_verify", RunBadListGetIdxVerifyTest},
       {"bad_list_set_value_verify", RunBadListSetValueVerifyTest},
+      {"bad_list_set_i64_value_verify", RunBadListSetI64ValueVerifyTest},
+      {"bad_list_set_f32_value_verify", RunBadListSetF32ValueVerifyTest},
+      {"bad_list_set_f64_value_verify", RunBadListSetF64ValueVerifyTest},
+      {"bad_list_set_ref_value_verify", RunBadListSetRefValueVerifyTest},
       {"bad_list_push_value_verify", RunBadListPushValueVerifyTest},
       {"bad_list_pop_verify", RunBadListPopVerifyTest},
       {"bad_list_insert_value_verify", RunBadListInsertValueVerifyTest},
