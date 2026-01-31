@@ -197,7 +197,7 @@ Work:
 - Freeze `opcode.h` and `SBC_OpCodes.md` to match.
 - [DONE] Loader rejects unknown opcodes and operand overruns via `GetOpInfo` scan.
 - [DONE] Freeze instruction size table for verifier (OpInfo operand_bytes).
-- Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
+- [DONE] Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
 
 Tests:
 - Loader rejects invalid opcode values.
