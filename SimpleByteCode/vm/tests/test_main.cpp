@@ -146,7 +146,9 @@ std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& cod
                                                  uint16_t param_count,
                                                  uint16_t call_conv,
                                                  uint32_t param_type_start,
-                                                 const std::vector<uint32_t>& param_types) {
+                                                 const std::vector<uint32_t>& param_types,
+                                                 const std::vector<uint8_t>& imports_bytes = std::vector<uint8_t>(),
+                                                 const std::vector<uint8_t>& exports_bytes = std::vector<uint8_t>()) {
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
     AppendU32(types, 0);       // name_str
@@ -204,6 +206,12 @@ std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& cod
   sections.push_back({5, const_pool, 0, 0});
   sections.push_back({6, globals, global_count, 0});
   sections.push_back({7, functions, 1, 0});
+  if (!imports_bytes.empty()) {
+    sections.push_back({10, imports_bytes, static_cast<uint32_t>(imports_bytes.size() / 16), 0});
+  }
+  if (!exports_bytes.empty()) {
+    sections.push_back({11, exports_bytes, static_cast<uint32_t>(exports_bytes.size() / 16), 0});
+  }
   sections.push_back({8, code, 0, 0});
 
   const uint32_t section_count = static_cast<uint32_t>(sections.size());
@@ -9531,6 +9539,34 @@ std::vector<uint8_t> BuildBadTypeKindLoadModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   return BuildModuleWithTables({}, {}, types, {}, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadImportsTableSizeLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildBadExportsTableSizeLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
 }
 
 std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
@@ -20087,6 +20123,26 @@ bool RunBadTypeKindLoadTest() {
   return true;
 }
 
+bool RunBadImportsTableSizeLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadImportsTableSizeLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportsTableSizeLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportsTableSizeLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadTypeKindSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -21974,6 +22030,8 @@ int main(int argc, char** argv) {
       {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
       {"bad_operand_overrun_load", RunBadOperandOverrunLoadTest},
       {"bad_code_alignment_load", RunBadCodeAlignmentLoadTest},
+      {"bad_imports_table_size_load", RunBadImportsTableSizeLoadTest},
+      {"bad_exports_table_size_load", RunBadExportsTableSizeLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},

@@ -40,6 +40,8 @@ enum class SectionId : uint32_t {
   Functions = 7,
   Code = 8,
   Debug = 9,
+  Imports = 10,
+  Exports = 11,
 };
 
 enum class TypeKind : uint8_t {
@@ -124,6 +126,20 @@ struct FunctionRow {
   uint32_t stack_max = 0;
 };
 
+struct ImportRow {
+  uint32_t module_name_str = 0;
+  uint32_t symbol_name_str = 0;
+  uint32_t sig_id = 0;
+  uint32_t flags = 0;
+};
+
+struct ExportRow {
+  uint32_t symbol_name_str = 0;
+  uint32_t func_id = 0;
+  uint32_t flags = 0;
+  uint32_t reserved = 0;
+};
+
 struct SbcModule {
   SbcHeader header;
   std::vector<SectionEntry> sections;
@@ -133,6 +149,8 @@ struct SbcModule {
   std::vector<SigRow> sigs;
   std::vector<GlobalRow> globals;
   std::vector<FunctionRow> functions;
+  std::vector<ImportRow> imports;
+  std::vector<ExportRow> exports;
   std::vector<uint32_t> param_types;
   std::vector<uint8_t> code;
   std::vector<uint8_t> const_pool;

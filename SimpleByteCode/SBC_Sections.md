@@ -35,6 +35,8 @@ struct SectionEntry {
 7 = FUNCTIONS
 8 = CODE
 9 = DEBUG
+10 = IMPORTS
+11 = EXPORTS
 ```
 
 Unknown IDs are **rejected** in v0.1.
@@ -46,6 +48,7 @@ Unknown IDs are **rejected** in v0.1.
 - `CODE` is required if any function exists.
 - `TYPES`, `FIELDS`, `METHODS`, `SIGS`, `CONST_POOL`, `GLOBALS`, `FUNCTIONS` are required for standard modules.
 - `DEBUG` is optional.
+- `IMPORTS`/`EXPORTS` are optional.
 
 ---
 

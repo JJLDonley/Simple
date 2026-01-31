@@ -148,6 +148,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   const SectionEntry* functions = FindSection(module.sections, SectionId::Functions);
   const SectionEntry* code = FindSection(module.sections, SectionId::Code);
   const SectionEntry* debug = FindSection(module.sections, SectionId::Debug);
+  const SectionEntry* imports = FindSection(module.sections, SectionId::Imports);
+  const SectionEntry* exports = FindSection(module.sections, SectionId::Exports);
 
   if (types) {
     constexpr size_t kRowSize = 20;
@@ -285,6 +287,36 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.code_size)) return Fail("function row read failed");
       if (!ReadU32At(bytes, off + 12, &row.stack_max)) return Fail("function row read failed");
       module.functions[i] = row;
+    }
+  }
+
+  if (imports) {
+    constexpr size_t kRowSize = 16;
+    if (imports->count * kRowSize != imports->size) return Fail("imports table size mismatch");
+    module.imports.resize(imports->count);
+    for (uint32_t i = 0; i < imports->count; ++i) {
+      size_t off = imports->offset + static_cast<size_t>(i) * kRowSize;
+      ImportRow row;
+      if (!ReadU32At(bytes, off + 0, &row.module_name_str)) return Fail("import row read failed");
+      if (!ReadU32At(bytes, off + 4, &row.symbol_name_str)) return Fail("import row read failed");
+      if (!ReadU32At(bytes, off + 8, &row.sig_id)) return Fail("import row read failed");
+      if (!ReadU32At(bytes, off + 12, &row.flags)) return Fail("import row read failed");
+      module.imports[i] = row;
+    }
+  }
+
+  if (exports) {
+    constexpr size_t kRowSize = 16;
+    if (exports->count * kRowSize != exports->size) return Fail("exports table size mismatch");
+    module.exports.resize(exports->count);
+    for (uint32_t i = 0; i < exports->count; ++i) {
+      size_t off = exports->offset + static_cast<size_t>(i) * kRowSize;
+      ExportRow row;
+      if (!ReadU32At(bytes, off + 0, &row.symbol_name_str)) return Fail("export row read failed");
+      if (!ReadU32At(bytes, off + 4, &row.func_id)) return Fail("export row read failed");
+      if (!ReadU32At(bytes, off + 8, &row.flags)) return Fail("export row read failed");
+      if (!ReadU32At(bytes, off + 12, &row.reserved)) return Fail("export row read failed");
+      module.exports[i] = row;
     }
   }
 
@@ -545,6 +577,25 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         if (!GetOpInfo(opcode, &info)) {
           return Fail("unknown opcode in code");
         }
+        if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
+          if (pc + 8 >= module.code.size()) return Fail("JMP_TABLE operand out of bounds");
+          uint32_t const_id = 0;
+          ReadU32At(module.code, pc + 1, &const_id);
+          if (const_id + 8 > module.const_pool.size()) return Fail("JMP_TABLE const id bad");
+          uint32_t kind = 0;
+          ReadU32At(module.const_pool, const_id, &kind);
+          if (kind != 6) return Fail("JMP_TABLE const kind mismatch");
+          uint32_t payload = 0;
+          ReadU32At(module.const_pool, const_id + 4, &payload);
+          if (payload + 4 > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
+          uint32_t blob_len = 0;
+          ReadU32At(module.const_pool, payload, &blob_len);
+          if (payload + 4 + blob_len > module.const_pool.size()) return Fail("JMP_TABLE blob out of bounds");
+          if (blob_len < 4 || (blob_len - 4) % 4 != 0) return Fail("JMP_TABLE blob size invalid");
+          uint32_t count = 0;
+          ReadU32At(module.const_pool, payload + 4, &count);
+          if (blob_len != 4 + count * 4) return Fail("JMP_TABLE blob size mismatch");
+        }
         size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
         if (next > end) return Fail("opcode operands out of bounds");
         pc = next;
@@ -578,6 +629,30 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         uint32_t type_id = module.param_types[row.param_type_start + p];
         if (type_id >= module.types.size()) return Fail("signature param type id out of range");
       }
+    }
+  }
+  if (!module.imports.empty()) {
+    if (module.const_pool.empty()) return Fail("imports require const pool");
+    for (const auto& row : module.imports) {
+      if (!IsValidStringOffset(module.const_pool, row.module_name_str)) {
+        return Fail("import module name offset invalid");
+      }
+      if (!IsValidStringOffset(module.const_pool, row.symbol_name_str)) {
+        return Fail("import symbol name offset invalid");
+      }
+      if (row.sig_id >= module.sigs.size()) return Fail("import signature id out of range");
+      if ((row.flags & ~0x000Fu) != 0u) return Fail("import flags invalid");
+    }
+  }
+  if (!module.exports.empty()) {
+    if (module.const_pool.empty()) return Fail("exports require const pool");
+    for (const auto& row : module.exports) {
+      if (!IsValidStringOffset(module.const_pool, row.symbol_name_str)) {
+        return Fail("export symbol name offset invalid");
+      }
+      if (row.func_id >= module.functions.size()) return Fail("export function id out of range");
+      if (row.reserved != 0u) return Fail("export reserved nonzero");
+      if ((row.flags & ~0x000Fu) != 0u) return Fail("export flags invalid");
     }
   }
   for (size_t i = 0; i < module.globals.size(); ++i) {
