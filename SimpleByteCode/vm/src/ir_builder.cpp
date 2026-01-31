@@ -57,6 +57,11 @@ void IrBuilder::EmitConstBool(bool value) {
   EmitU8(value ? 1 : 0);
 }
 
+void IrBuilder::EmitConstString(uint32_t const_id) {
+  EmitOp(OpCode::ConstString);
+  EmitU32(const_id);
+}
+
 void IrBuilder::EmitCall(uint32_t func_id, uint8_t arg_count) {
   EmitOp(OpCode::Call);
   EmitU32(func_id);
@@ -117,6 +122,22 @@ void IrBuilder::EmitListPushI32() {
 
 void IrBuilder::EmitListPopI32() {
   EmitOp(OpCode::ListPopI32);
+}
+
+void IrBuilder::EmitStringLen() {
+  EmitOp(OpCode::StringLen);
+}
+
+void IrBuilder::EmitStringConcat() {
+  EmitOp(OpCode::StringConcat);
+}
+
+void IrBuilder::EmitStringGetChar() {
+  EmitOp(OpCode::StringGetChar);
+}
+
+void IrBuilder::EmitStringSlice() {
+  EmitOp(OpCode::StringSlice);
 }
 
 void IrBuilder::EmitLoadLocal(uint32_t index) {

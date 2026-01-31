@@ -862,6 +862,49 @@ std::vector<uint8_t> BuildIrListModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrStringModule() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str0 = static_cast<uint32_t>(AppendStringToPool(const_pool, "a"));
+  uint32_t str1 = static_cast<uint32_t>(AppendStringToPool(const_pool, "bc"));
+  uint32_t id0 = 0;
+  uint32_t id1 = 0;
+  AppendConstString(const_pool, str0, &id0);
+  AppendConstString(const_pool, str1, &id1);
+
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstString(id0);
+  builder.EmitConstString(id1);
+  builder.EmitStringConcat();
+  builder.EmitStringLen();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.const_pool = const_pool;
+
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModuleWithTables(code, const_pool, {}, {}, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_string_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19483,6 +19526,10 @@ bool RunIrEmitListTest() {
   return RunExpectExit(BuildIrListModule(), 5);
 }
 
+bool RunIrEmitStringTest() {
+  return RunExpectExit(BuildIrStringModule(), 3);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30221,6 +30268,7 @@ int main(int argc, char** argv) {
       {"ir_emit_tailcall", RunIrEmitTailCallTest},
       {"ir_emit_array", RunIrEmitArrayTest},
       {"ir_emit_list", RunIrEmitListTest},
+      {"ir_emit_string", RunIrEmitStringTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

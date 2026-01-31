@@ -30,6 +30,7 @@ class IrBuilder {
   void EmitConstF32(float value);
   void EmitConstF64(double value);
   void EmitConstBool(bool value);
+  void EmitConstString(uint32_t const_id);
   void EmitCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
@@ -43,6 +44,10 @@ class IrBuilder {
   void EmitListSetI32();
   void EmitListPushI32();
   void EmitListPopI32();
+  void EmitStringLen();
+  void EmitStringConcat();
+  void EmitStringGetChar();
+  void EmitStringSlice();
   void EmitLoadLocal(uint32_t index);
   void EmitStoreLocal(uint32_t index);
   void EmitLoadGlobal(uint32_t index);
