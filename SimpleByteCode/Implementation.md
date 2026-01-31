@@ -283,7 +283,7 @@ Work:
 - Final review of SBC docs vs VM behavior.
 
 Tests:
-- Full test suite pass.
+- [DONE] Full test suite pass.
 - ABI validation tests pass.
 - FFI table validation tests pass.
 - Intrinsic ID table validation tests pass.
