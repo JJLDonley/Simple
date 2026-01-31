@@ -236,3 +236,5 @@ Coverage targets:
 - Added negative verify coverage for array/list set value mismatches across typed variants.
 - Added runtime trap coverage for typed list set null/out-of-bounds/negative index cases.
 - Added runtime trap coverage for typed array set null/out-of-bounds/negative index cases.
+- Added runtime trap coverage for typed array/list get and list pop/insert/remove cases.
+- Added JIT fallback coverage for typed array/list ops to ensure safe interpreter fallback.

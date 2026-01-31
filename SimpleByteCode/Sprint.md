@@ -298,6 +298,8 @@
 - Added negative verifier tests for array/list set value mismatches across I64/F32/F64/REF.
 - Expanded bench runs to cover single-type, mixed-op, and call-heavy cases for both nojit/jit modes.
 - Added runtime trap tests for typed list set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
-- Confirmed full test suite pass (429 tests).
 - Added runtime trap tests for typed array set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
-- Confirmed full test suite pass (441 tests).
+- Added runtime trap tests for typed array/list get ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added runtime trap tests for typed list pop/insert/remove ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added JIT fallback coverage for typed array/list ops (Tier0 dispatch with no compiled execs).
+- Confirmed full test suite pass (499 tests).
