@@ -366,3 +366,4 @@
 - Added import_call_trap test and documented import function-id mapping in SBC_ABI.md.
 - Added import mapping into function list with import-call traps and updated section ID range for imports/exports.
 - Marked import-call strategy Option B as chosen in the implementation plan.
+- Documented import-mapped CALL behavior in SBC_OpCodes.md.

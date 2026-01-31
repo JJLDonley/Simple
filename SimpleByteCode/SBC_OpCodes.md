@@ -165,6 +165,8 @@ All comparisons pop two values and push `bool`.
 - `ENTER u16`
 - `LEAVE`
 
+Note: In v0.1, imports are mapped into the Functions table at load time. `CALL` can target imports by function id; the runtime traps if the host has not resolved the import.
+
 ---
 
 ## 12. Debug / Profiling
