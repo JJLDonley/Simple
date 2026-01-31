@@ -404,6 +404,7 @@ Work:
 - Add explicit VM type ID constants to SBC docs.
 - Ensure verifier uses only these primitives as stack/local/global types.
 - Update any signatures/metadata that still accept expanded types.
+ - Explicitly define struct layout rules (field order, alignment, padding) for FFI structs.
 
 Tests:
 - Loader rejects unknown VM type IDs.
@@ -419,6 +420,7 @@ Work:
 - Freeze `opcode.h` and `SBC_OpCodes.md` to match.
 - Add a check in loader to reject unknown opcodes (if not already).
 - Freeze instruction size table for verifier.
+ - Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
 
 Tests:
 - Loader rejects invalid opcode values.
@@ -462,7 +464,9 @@ Work:
 - Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
 - Define host API surface for ref/string/array/list access.
 - Decide error propagation (trap code + message).
- - Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
+- Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
+ - Define concrete FFI error convention (return codes + trap behavior).
+ - Define pinning policy (explicitly allowed or explicitly forbidden).
 
 Tests:
 - Loader rejects malformed import/export tables.
@@ -493,3 +497,6 @@ Work:
 Tests:
 - Full test suite pass.
 - ABI validation tests pass.
+- FFI table validation tests pass.
+- Intrinsic ID table validation tests pass.
+- Cross-version compatibility skeleton tests pass.

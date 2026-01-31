@@ -316,3 +316,4 @@
 - Added `SimpleByteCode/SBC_ABI.md` with intrinsic IDs, FFI tables, and host API details; implementation plan now references it.
 - Added OS-specific core library contracts (core.os/core.fs/core.log) as FFI-backed entries in SBC_ABI.md.
 - Updated implementation plan to reference SBC_ABI.md as the source of truth for intrinsics/FFI/OS contracts.
+- Added missing suggestions to pre-freeze plan (struct layout rules, frozen opcode semantics section, FFI error convention, pinning policy, and explicit freeze-gate tests).
