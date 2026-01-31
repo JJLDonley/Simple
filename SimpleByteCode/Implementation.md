@@ -234,29 +234,101 @@ Phase C: Native ABI + FFI (optional, post-freeze)
 - Memory ownership rules for ref types across boundary.
 - Versioned import/export tables in SBC.
 
-### 5.11 Intrinsic Libraries + FFI ABI Outline
-Intrinsic Libraries (VM-owned)
-- `core.string`: len/concat/slice/get_char, encoding rules, error/trap behavior.
-- `core.array`: len/get/set, bounds/null policy, bulk ops (fill/copy) if added.
-- `core.list`: len/get/set/push/pop/insert/remove/clear, bounds/null policy.
-- `core.math`: abs/min/max/clamp, bit ops, conversions (explicit only).
-- `core.debug`: trap, breakpoint, line/profile hooks (no side effects).
-- `core.gc`: optional hooks (force_collect, stats) behind feature flag.
+### 5.11 Intrinsic Libraries + FFI ABI (Concrete Tables)
 
-Intrinsic Calling Convention
-- Intrinsic IDs are stable integers mapped to `core.*` namespaces.
-- Signature is defined in SBC metadata (param/return types).
-- Intrinsic failures use `Trap` with diagnostic string; no exceptions.
-- Intrinsics never mutate VM state outside explicit parameters unless documented.
+Intrinsic Calling Convention (Fixed)
+- Intrinsic ID: `u32`, stable, global namespace (no gaps for now).
+- Signature: defined by VM primitive types only (`i32/i64/f32/f64/ref/void`).
+- Error model: intrinsic returns `Trap` with message; no exceptions.
+- Side effects: only as documented per intrinsic.
 
-FFI ABI (Host Interop)
-- Import table: `(module_name, symbol_name, sig_id, flags)` entries.
-- Export table: `(symbol_name, func_id)` entries for host lookup.
-- Calling convention: args passed by value in VM order; return in a single slot.
-- Ref types: host receives opaque handles; ownership rules defined per function.
-- Memory: no raw pointer exposure; host uses provided APIs to read/write.
-- Errors: host may return a trap code + message; VM propagates as trap.
-- Versioning: module declares required ABI version + feature flags.
+VM Primitive Type Codes (for signatures)
+- `0 = void`
+- `1 = i32`
+- `2 = i64`
+- `3 = f32`
+- `4 = f64`
+- `5 = ref`
+
+Intrinsic Table (v0.1, stable IDs)
+| ID | Name | Params | Return | Notes |
+|----|------|--------|--------|-------|
+| 0x0000 | core.debug.trap | i32 | void | Trap with code (message optional via DEBUG table). |
+| 0x0001 | core.debug.breakpoint | void | void | No-op in release, debugger hook in dev. |
+| 0x0010 | core.string.len | ref | i32 | Null -> trap. |
+| 0x0011 | core.string.concat | ref, ref | ref | Null -> trap. |
+| 0x0012 | core.string.slice | ref, i32, i32 | ref | Bounds -> trap. |
+| 0x0013 | core.string.get_char | ref, i32 | i32 | Bounds -> trap. |
+| 0x0020 | core.array.len | ref | i32 | Null -> trap. |
+| 0x0021 | core.array.get_i32 | ref, i32 | i32 | Bounds/null -> trap. |
+| 0x0022 | core.array.set_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
+| 0x0023 | core.array.get_i64 | ref, i32 | i64 | Bounds/null -> trap. |
+| 0x0024 | core.array.set_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
+| 0x0025 | core.array.get_f32 | ref, i32 | f32 | Bounds/null -> trap. |
+| 0x0026 | core.array.set_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
+| 0x0027 | core.array.get_f64 | ref, i32 | f64 | Bounds/null -> trap. |
+| 0x0028 | core.array.set_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
+| 0x0029 | core.array.get_ref | ref, i32 | ref | Bounds/null -> trap. |
+| 0x002A | core.array.set_ref | ref, i32, ref | void | Bounds/null -> trap. |
+| 0x0030 | core.list.len | ref | i32 | Null -> trap. |
+| 0x0031 | core.list.get_i32 | ref, i32 | i32 | Bounds/null -> trap. |
+| 0x0032 | core.list.set_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
+| 0x0033 | core.list.push_i32 | ref, i32 | void | Null -> trap. |
+| 0x0034 | core.list.pop_i32 | ref | i32 | Null/empty -> trap. |
+| 0x0035 | core.list.insert_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
+| 0x0036 | core.list.remove_i32 | ref, i32 | void | Bounds/null -> trap. |
+| 0x0037 | core.list.clear | ref | void | Null -> trap. |
+| 0x0038 | core.list.get_i64 | ref, i32 | i64 | Bounds/null -> trap. |
+| 0x0039 | core.list.set_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
+| 0x003A | core.list.push_i64 | ref, i64 | void | Null -> trap. |
+| 0x003B | core.list.pop_i64 | ref | i64 | Null/empty -> trap. |
+| 0x003C | core.list.insert_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
+| 0x003D | core.list.remove_i64 | ref, i32 | void | Bounds/null -> trap. |
+| 0x003E | core.list.get_f32 | ref, i32 | f32 | Bounds/null -> trap. |
+| 0x003F | core.list.set_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
+| 0x0040 | core.list.push_f32 | ref, f32 | void | Null -> trap. |
+| 0x0041 | core.list.pop_f32 | ref | f32 | Null/empty -> trap. |
+| 0x0042 | core.list.insert_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
+| 0x0043 | core.list.remove_f32 | ref, i32 | void | Bounds/null -> trap. |
+| 0x0044 | core.list.get_f64 | ref, i32 | f64 | Bounds/null -> trap. |
+| 0x0045 | core.list.set_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
+| 0x0046 | core.list.push_f64 | ref, f64 | void | Null -> trap. |
+| 0x0047 | core.list.pop_f64 | ref | f64 | Null/empty -> trap. |
+| 0x0048 | core.list.insert_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
+| 0x0049 | core.list.remove_f64 | ref, i32 | void | Bounds/null -> trap. |
+| 0x004A | core.list.get_ref | ref, i32 | ref | Bounds/null -> trap. |
+| 0x004B | core.list.set_ref | ref, i32, ref | void | Bounds/null -> trap. |
+| 0x004C | core.list.push_ref | ref, ref | void | Null -> trap. |
+| 0x004D | core.list.pop_ref | ref | ref | Null/empty -> trap. |
+| 0x004E | core.list.insert_ref | ref, i32, ref | void | Bounds/null -> trap. |
+| 0x004F | core.list.remove_ref | ref, i32 | void | Bounds/null -> trap. |
+
+FFI ABI (Host Interop, Concrete Tables)
+
+Import Table Layout (per entry)
+- `module_name_str` (u32, string heap offset)
+- `symbol_name_str` (u32, string heap offset)
+- `sig_id` (u32, signature table index)
+- `flags` (u32)
+
+Export Table Layout (per entry)
+- `symbol_name_str` (u32, string heap offset)
+- `func_id` (u32, functions table index)
+- `flags` (u32)
+- `reserved` (u32)
+
+FFI Flags (import/export)
+- `0x0001`: can_trap (host may return trap)
+- `0x0002`: pure (no side effects)
+- `0x0004`: no_gc (host will not allocate or trigger GC)
+- `0x0008`: allow_ref (host accepts/ref returns ref handles)
+
+FFI Calling Convention
+- Args passed in VM order, stack top = last arg.
+- Returns: 0 or 1 slot (per signature).
+- Ref values are opaque handles; host must not assume pointer layout.
+- Host API must expose: retain/release ref, read string, list/array ops.
+- ABI version must be declared in SBC header flags or dedicated field.
 
 ---
 

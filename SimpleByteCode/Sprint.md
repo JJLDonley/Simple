@@ -304,3 +304,4 @@
 - Added JIT fallback coverage for typed array/list ops (Tier0 dispatch with no compiled execs).
 - Added pre-freeze ABI checklist and core library/OS roadmap to implementation plan.
 - Outlined intrinsic libraries and FFI ABI surface in the implementation plan.
+- Added concrete intrinsic ID table and FFI ABI table layouts/flags to the implementation plan.
