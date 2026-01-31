@@ -122,6 +122,7 @@ Acceptance:
 - [DONE] Line number mapping integrated into runtime trap errors.
 - [DONE] Stack trace emission (function indices at minimum).
 - [DONE] Trap errors include per-function PC offsets.
+- [DONE] Trap errors include last opcode name and operand hints for CALL/JMP/JMP_TABLE.
 - [DONE] Breakpoints and basic debug no-ops.
 - [DONE] Profiling hooks.
 

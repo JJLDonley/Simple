@@ -304,6 +304,59 @@ ExecResult Trap(const std::string& message) {
       out << " " << op_name;
     }
   }
+  if (g_trap_ctx->module && g_trap_ctx->last_opcode != 0xFF) {
+    const auto& code = g_trap_ctx->module->code;
+    size_t op_pc = g_trap_ctx->pc;
+    auto read_u32 = [&](size_t offset, uint32_t& out_val) -> bool {
+      if (offset + 4 > code.size()) return false;
+      out_val = static_cast<uint32_t>(code[offset]) |
+                (static_cast<uint32_t>(code[offset + 1]) << 8) |
+                (static_cast<uint32_t>(code[offset + 2]) << 16) |
+                (static_cast<uint32_t>(code[offset + 3]) << 24);
+      return true;
+    };
+    auto read_i32 = [&](size_t offset, int32_t& out_val) -> bool {
+      uint32_t raw = 0;
+      if (!read_u32(offset, raw)) return false;
+      out_val = static_cast<int32_t>(raw);
+      return true;
+    };
+    if (g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::Call)) {
+      uint32_t func_id = 0;
+      uint32_t arg_count = 0;
+      if (read_u32(op_pc + 1, func_id) && (op_pc + 5) < code.size()) {
+        arg_count = code[op_pc + 5];
+        out << " operands call func_id=" << func_id << " arg_count=" << arg_count;
+      }
+    } else if (g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::Jmp) ||
+               g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpTrue) ||
+               g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
+      int32_t rel = 0;
+      if (read_i32(op_pc + 1, rel)) {
+        int64_t next_pc = static_cast<int64_t>(op_pc + 1 + 4);
+        int64_t target = next_pc + rel;
+        out << " operands rel=" << rel;
+        if (g_trap_ctx->func_start <= static_cast<size_t>(target)) {
+          out << " target_pc=" << (target - static_cast<int64_t>(g_trap_ctx->func_start));
+        } else {
+          out << " target_pc=" << target;
+        }
+      }
+    } else if (g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
+      uint32_t const_id = 0;
+      int32_t def_rel = 0;
+      if (read_u32(op_pc + 1, const_id) && read_i32(op_pc + 5, def_rel)) {
+        int64_t next_pc = static_cast<int64_t>(op_pc + 1 + 8);
+        int64_t target = next_pc + def_rel;
+        out << " operands table_const=" << const_id << " default_rel=" << def_rel;
+        if (g_trap_ctx->func_start <= static_cast<size_t>(target)) {
+          out << " default_target_pc=" << (target - static_cast<int64_t>(g_trap_ctx->func_start));
+        } else {
+          out << " default_target_pc=" << target;
+        }
+      }
+    }
+  }
   if (current->line > 0) {
     out << " line " << current->line;
     if (current->column > 0) out << ":" << current->column;
@@ -449,7 +502,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   };
   auto run_compiled = [&](size_t func_index, Slot& out_ret, bool& out_has_ret, std::string& error) -> bool {
     if (func_index >= module.functions.size()) {
-      error = "JIT compiled invalid function id";
+      std::ostringstream out;
+      out << "JIT compiled invalid function id op 0xFF Unknown pc 0";
+      error = out.str();
       return false;
     }
     const auto& func = module.functions[func_index];
@@ -459,21 +514,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     std::vector<Slot> locals;
     bool saw_enter = false;
     bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
+    auto jit_fail = [&](const char* msg, uint8_t op, size_t inst_pc) -> bool {
+      std::ostringstream out;
+      out << msg << " op 0x";
+      static const char kHex[] = "0123456789ABCDEF";
+      out << kHex[(op >> 4) & 0xF] << kHex[op & 0xF];
+      const char* name = OpCodeName(op);
+      if (name && name[0] != '\0') {
+        out << " " << name;
+      }
+      if (inst_pc >= func.code_offset) {
+        out << " pc " << (inst_pc - func.code_offset);
+      }
+      error = out.str();
+      return false;
+    };
     while (pc < end_pc) {
       uint8_t op = module.code[pc++];
+      size_t inst_pc = pc - 1;
       switch (static_cast<OpCode>(op)) {
         case OpCode::Enter: {
           if (pc + 2 > end_pc) {
-            error = "JIT compiled ENTER out of bounds";
-            return false;
+            return jit_fail("JIT compiled ENTER out of bounds", op, inst_pc);
           }
           uint16_t locals_count = ReadU16(module.code, pc);
           if (!saw_enter) {
             locals.assign(locals_count, 0);
             saw_enter = true;
           } else if (locals.size() != locals_count) {
-            error = "JIT compiled locals mismatch";
-            return false;
+            return jit_fail("JIT compiled locals mismatch", op, inst_pc);
           }
           break;
         }
@@ -484,8 +553,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           break;
         case OpCode::ConstI32: {
           if (pc + 4 > end_pc) {
-            error = "JIT compiled CONST_I32 out of bounds";
-            return false;
+            return jit_fail("JIT compiled CONST_I32 out of bounds", op, inst_pc);
           }
           int32_t value = ReadI32(module.code, pc);
           local_stack.push_back(PackI32(value));
@@ -493,8 +561,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::AddI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled ADD_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled ADD_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -505,8 +572,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::SubI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled SUB_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled SUB_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -517,8 +583,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::MulI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled MUL_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled MUL_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -529,32 +594,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::DivI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled DIV_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled DIV_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
           int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
-            error = "JIT compiled DIV_I32 by zero";
-            return false;
+            return jit_fail("JIT compiled DIV_I32 by zero", op, inst_pc);
           }
           local_stack.push_back(PackI32(static_cast<int32_t>(a / b)));
           break;
         }
         case OpCode::ModI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled MOD_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled MOD_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
           int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
-            error = "JIT compiled MOD_I32 by zero";
-            return false;
+            return jit_fail("JIT compiled MOD_I32 by zero", op, inst_pc);
           }
           local_stack.push_back(PackI32(static_cast<int32_t>(a % b)));
           break;
@@ -566,8 +627,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         case OpCode::CmpGtI32:
         case OpCode::CmpGeI32: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled CMP_I32 underflow";
-            return false;
+            return jit_fail("JIT compiled CMP_I32 underflow", op, inst_pc);
           }
           Slot rhs = local_stack.back();
           local_stack.pop_back();
@@ -603,8 +663,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::BoolNot: {
           if (local_stack.empty()) {
-            error = "JIT compiled BOOL_NOT underflow";
-            return false;
+            return jit_fail("JIT compiled BOOL_NOT underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.pop_back();
@@ -614,8 +673,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         case OpCode::BoolAnd:
         case OpCode::BoolOr: {
           if (local_stack.size() < 2) {
-            error = "JIT compiled BOOL binop underflow";
-            return false;
+            return jit_fail("JIT compiled BOOL binop underflow", op, inst_pc);
           }
           Slot rhs = local_stack.back();
           local_stack.pop_back();
@@ -633,13 +691,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         case OpCode::JmpTrue:
         case OpCode::JmpFalse: {
           if (pc + 4 > end_pc) {
-            error = "JIT compiled JMP out of bounds";
-            return false;
+            return jit_fail("JIT compiled JMP out of bounds", op, inst_pc);
           }
           int32_t rel = ReadI32(module.code, pc);
           if (local_stack.empty()) {
-            error = "JIT compiled JMP underflow";
-            return false;
+            return jit_fail("JIT compiled JMP underflow", op, inst_pc);
           }
           Slot cond = local_stack.back();
           local_stack.pop_back();
@@ -650,8 +706,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (take) {
             int64_t next = static_cast<int64_t>(pc) + rel;
             if (next < static_cast<int64_t>(func.code_offset) || next > static_cast<int64_t>(end_pc)) {
-              error = "JIT compiled JMP out of bounds";
-              return false;
+              std::ostringstream out;
+              out << "JIT compiled JMP out of bounds rel=" << rel << " target=" << next;
+              return jit_fail(out.str().c_str(), op, inst_pc);
             }
             pc = static_cast<size_t>(next);
           }
@@ -659,44 +716,39 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::Jmp: {
           if (pc + 4 > end_pc) {
-            error = "JIT compiled JMP out of bounds";
-            return false;
+            return jit_fail("JIT compiled JMP out of bounds", op, inst_pc);
           }
           int32_t rel = ReadI32(module.code, pc);
           int64_t next = static_cast<int64_t>(pc) + rel;
           if (next < static_cast<int64_t>(func.code_offset) || next > static_cast<int64_t>(end_pc)) {
-            error = "JIT compiled JMP out of bounds";
-            return false;
+            std::ostringstream out;
+            out << "JIT compiled JMP out of bounds rel=" << rel << " target=" << next;
+            return jit_fail(out.str().c_str(), op, inst_pc);
           }
           pc = static_cast<size_t>(next);
           break;
         }
         case OpCode::LoadLocal: {
           if (pc + 4 > end_pc) {
-            error = "JIT compiled LOAD_LOCAL out of bounds";
-            return false;
+            return jit_fail("JIT compiled LOAD_LOCAL out of bounds", op, inst_pc);
           }
           uint32_t idx = ReadU32(module.code, pc);
           if (idx >= locals.size()) {
-            error = "JIT compiled LOAD_LOCAL invalid index";
-            return false;
+            return jit_fail("JIT compiled LOAD_LOCAL invalid index", op, inst_pc);
           }
           local_stack.push_back(locals[idx]);
           break;
         }
         case OpCode::StoreLocal: {
           if (pc + 4 > end_pc) {
-            error = "JIT compiled STORE_LOCAL out of bounds";
-            return false;
+            return jit_fail("JIT compiled STORE_LOCAL out of bounds", op, inst_pc);
           }
           uint32_t idx = ReadU32(module.code, pc);
           if (idx >= locals.size()) {
-            error = "JIT compiled STORE_LOCAL invalid index";
-            return false;
+            return jit_fail("JIT compiled STORE_LOCAL invalid index", op, inst_pc);
           }
           if (local_stack.empty()) {
-            error = "JIT compiled STORE_LOCAL underflow";
-            return false;
+            return jit_fail("JIT compiled STORE_LOCAL underflow", op, inst_pc);
           }
           locals[idx] = local_stack.back();
           local_stack.pop_back();
@@ -704,8 +756,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         case OpCode::Pop: {
           if (local_stack.empty()) {
-            error = "JIT compiled POP underflow";
-            return false;
+            return jit_fail("JIT compiled POP underflow", op, inst_pc);
           }
           local_stack.pop_back();
           break;
@@ -719,12 +770,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           return true;
         }
         default:
-          error = "JIT compiled unsupported opcode";
-          return false;
+          return jit_fail("JIT compiled unsupported opcode", op, inst_pc);
       }
     }
-    error = "JIT compiled missing RET";
-    return false;
+    return jit_fail("JIT compiled missing RET", static_cast<uint8_t>(OpCode::Ret), end_pc);
   };
   auto update_tier = [&](size_t func_index) {
     if (!enable_jit) return;

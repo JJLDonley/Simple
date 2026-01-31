@@ -7921,6 +7921,18 @@ std::vector<uint8_t> BuildBadJmpRuntimeModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadCallRuntimeModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 9999);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadJmpCondRuntimeModule(bool invert) {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -18362,6 +18374,54 @@ bool RunLineTrapDiagTest() {
   return true;
 }
 
+bool RunTrapOperandDiagTest() {
+  auto run_no_verify = [&](const std::vector<uint8_t>& bytes,
+                           const char* label,
+                           const char* needle1,
+                           const char* needle2) -> bool {
+    simplevm::LoadResult load = simplevm::LoadModuleFromBytes(bytes);
+    if (!load.ok) {
+      std::cerr << label << " load failed: " << load.error << "\n";
+      return false;
+    }
+    simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, false);
+    if (exec.status != simplevm::ExecStatus::Trapped) {
+      std::cerr << label << " expected trap, got status=" << static_cast<int>(exec.status)
+                << " error=" << exec.error << "\n";
+      return false;
+    }
+    if (exec.error.find(needle1) == std::string::npos) {
+      std::cerr << label << " missing '" << needle1 << "': " << exec.error << "\n";
+      return false;
+    }
+    if (exec.error.find(needle2) == std::string::npos) {
+      std::cerr << label << " missing '" << needle2 << "': " << exec.error << "\n";
+      return false;
+    }
+    return true;
+  };
+
+  if (!run_no_verify(BuildBadJmpRuntimeModule(),
+                     "diag_trap_jmp",
+                     "last_op 0x04 Jmp",
+                     "operands rel=")) {
+    return false;
+  }
+  if (!run_no_verify(BuildBadJmpTableRuntimeKindModule(),
+                     "diag_trap_jmp_table",
+                     "last_op 0x07 JmpTable",
+                     "table_const=")) {
+    return false;
+  }
+  if (!run_no_verify(BuildBadCallRuntimeModule(),
+                     "diag_trap_call",
+                     "last_op 0x70 Call",
+                     "func_id=")) {
+    return false;
+  }
+  return true;
+}
+
 bool RunBadStringLenNullTrapTest() {
   return RunExpectTrap(BuildBadStringLenNullModule(), "bad_string_len_null");
 }
@@ -18724,6 +18784,7 @@ int main(int argc, char** argv) {
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
       {"diag_line_trap", RunLineTrapDiagTest},
+      {"diag_trap_operands", RunTrapOperandDiagTest},
       {"verify_metadata", RunVerifyMetadataTest},
       {"verify_metadata_nonref_global", RunVerifyMetadataNonRefGlobalTest},
       {"heap_reuse", RunHeapReuseTest},
