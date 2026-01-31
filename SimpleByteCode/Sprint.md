@@ -387,4 +387,5 @@
 - Added import_args_get_char test to validate core.os args_get string content via StringGetChar.
 - Added env_get tests for hit/miss cases using host env variables.
 - Added args_get bounds tests for negative and out-of-range indices.
+- Added core.fs stub tests for open/read/write/close return behavior.
 - Set import method local_count from signature param_count to satisfy verifier rules.
