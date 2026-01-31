@@ -99,6 +99,13 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 - `flags` (u32)
 - `reserved` (u32)
 
+Validation (v0.1):
+- String offsets must point to valid null-terminated UTF-8 in CONST_POOL.
+- `sig_id` must reference a valid signature.
+- `func_id` must reference a valid function.
+- `flags` must only use bits 0..3.
+- `reserved` must be 0.
+
 ### FFI Flags
 - `0x0001`: can_trap (host may return trap)
 - `0x0002`: pure (no side effects)
