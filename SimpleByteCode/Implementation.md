@@ -51,9 +51,9 @@ Acceptance:
 - [DONE] Implement stack height tracking with merge checks.
 - [DONE] Implement basic type checking for typed opcodes.
 - [DONE] Validate jump targets and call signatures.
-- [CHANGE] Verify against VM-level types (i32/i64/f32/f64/ref) rather than runtime tags.
-- [NEW] Emit per-method local type info and stack maps for GC safepoints.
-- [NEW] Emit ref bitmaps for locals/globals.
+- [DONE] Verify against VM-level types (i32/i64/f32/f64/ref) rather than runtime tags.
+- [DONE] Emit per-method local type info and stack maps for GC safepoints.
+- [DONE] Emit ref bitmaps for locals/globals.
 
 Acceptance:
 - Invalid bytecode is rejected with clear diagnostics.

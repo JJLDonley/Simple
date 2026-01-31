@@ -6630,6 +6630,23 @@ std::vector<uint8_t> BuildVerifyMetadataModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildVerifyMetadataNonRefGlobalModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint32_t> empty_params;
+  std::vector<uint8_t> module =
+      BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 1, 0, 0xFFFFFFFFu, 0, 0, 0, empty_params);
+  PatchGlobalTypeId(module, 0, 0);
+  return module;
+}
+
 std::vector<uint8_t> BuildIntrinsicTrapModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -15281,6 +15298,29 @@ bool RunVerifyMetadataTest() {
   return true;
 }
 
+bool RunVerifyMetadataNonRefGlobalTest() {
+  std::vector<uint8_t> module_bytes = BuildVerifyMetadataNonRefGlobalModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  if (vr.globals_ref_bits.empty()) {
+    std::cerr << "expected globals ref bitmap\n";
+    return false;
+  }
+  if ((vr.globals_ref_bits[0] & 0x1u) != 0) {
+    std::cerr << "expected non-ref global bit to be clear\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunFieldTest() {
   std::vector<uint8_t> module_bytes = BuildFieldModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17860,6 +17900,7 @@ int main(int argc, char** argv) {
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
       {"verify_metadata", RunVerifyMetadataTest},
+      {"verify_metadata_nonref_global", RunVerifyMetadataNonRefGlobalTest},
       {"heap_reuse", RunHeapReuseTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
