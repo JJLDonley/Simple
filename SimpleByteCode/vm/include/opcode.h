@@ -255,6 +255,7 @@ struct OpInfo {
   int pushes;
 };
 
+// OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 const char* OpCodeName(uint8_t opcode);
 
