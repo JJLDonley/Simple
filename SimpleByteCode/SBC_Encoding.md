@@ -26,6 +26,25 @@ This document defines the exact bytecode encoding rules for SBC modules.
 
 ---
 
+## 3.1 VM Type IDs (Frozen v0.1)
+
+These IDs are used in the Type table and signature param type lists.
+
+```
+0 = unspecified
+1 = i32
+2 = i64
+3 = f32
+4 = f64
+5 = ref
+```
+
+Rules:
+- Value kinds (`i32/i64/f32/f64`) must have matching sizes (4/8).
+- `ref` allows size `0/4/8` and must have no fields.
+
+---
+
 ## 4. Jump Targets
 
 - All jumps use **signed `i32` byte offsets**.
