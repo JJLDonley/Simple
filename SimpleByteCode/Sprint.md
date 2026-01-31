@@ -435,3 +435,4 @@
 - Added ScratchArena/ScratchScope utility and switched core.fs temp buffers to use arena allocations.
 - Added scratch_arena unit test.
 - Added frozen opcode ID table to `SimpleByteCode/SBC_OpCodes.md`.
+- Documented opcode ID table source-of-truth link to `SimpleByteCode/vm/include/opcode.h`.

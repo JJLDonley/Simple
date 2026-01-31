@@ -16,6 +16,8 @@ This document defines the opcode set for Simple VM bytecode (v0.1).
 
 ## 1.1 Opcode IDs (Frozen v0.1)
 
+Source of truth: `SimpleByteCode/vm/include/opcode.h` (kept in sync with this table).
+
 | Opcode | ID |
 |--------|----|
 | NOP | 0x00 |
