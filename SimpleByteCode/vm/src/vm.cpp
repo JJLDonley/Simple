@@ -528,6 +528,57 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       if (inst_pc >= func.code_offset) {
         out << " pc " << (inst_pc - func.code_offset);
       }
+      auto read_u32 = [&](size_t offset, uint32_t& out_val) -> bool {
+        if (offset + 4 > module.code.size()) return false;
+        out_val = static_cast<uint32_t>(module.code[offset]) |
+                  (static_cast<uint32_t>(module.code[offset + 1]) << 8) |
+                  (static_cast<uint32_t>(module.code[offset + 2]) << 16) |
+                  (static_cast<uint32_t>(module.code[offset + 3]) << 24);
+        return true;
+      };
+      auto read_i32 = [&](size_t offset, int32_t& out_val) -> bool {
+        uint32_t raw = 0;
+        if (!read_u32(offset, raw)) return false;
+        out_val = static_cast<int32_t>(raw);
+        return true;
+      };
+      if (inst_pc + 1 < module.code.size()) {
+        if (op == static_cast<uint8_t>(OpCode::Call)) {
+          uint32_t func_id = 0;
+          uint32_t arg_count = 0;
+          if (read_u32(inst_pc + 1, func_id) && (inst_pc + 5) < module.code.size()) {
+            arg_count = module.code[inst_pc + 5];
+            out << " operands call func_id=" << func_id << " arg_count=" << arg_count;
+          }
+        } else if (op == static_cast<uint8_t>(OpCode::Jmp) ||
+                   op == static_cast<uint8_t>(OpCode::JmpTrue) ||
+                   op == static_cast<uint8_t>(OpCode::JmpFalse)) {
+          int32_t rel = 0;
+          if (read_i32(inst_pc + 1, rel)) {
+            int64_t next_pc = static_cast<int64_t>(inst_pc + 1 + 4);
+            int64_t target = next_pc + rel;
+            out << " operands rel=" << rel;
+            if (func.code_offset <= static_cast<size_t>(target)) {
+              out << " target_pc=" << (target - static_cast<int64_t>(func.code_offset));
+            } else {
+              out << " target_pc=" << target;
+            }
+          }
+        } else if (op == static_cast<uint8_t>(OpCode::JmpTable)) {
+          uint32_t const_id = 0;
+          int32_t def_rel = 0;
+          if (read_u32(inst_pc + 1, const_id) && read_i32(inst_pc + 5, def_rel)) {
+            int64_t next_pc = static_cast<int64_t>(inst_pc + 1 + 8);
+            int64_t target = next_pc + def_rel;
+            out << " operands table_const=" << const_id << " default_rel=" << def_rel;
+            if (func.code_offset <= static_cast<size_t>(target)) {
+              out << " default_target_pc=" << (target - static_cast<int64_t>(func.code_offset));
+            } else {
+              out << " default_target_pc=" << target;
+            }
+          }
+        }
+      }
       error = out.str();
       return false;
     };

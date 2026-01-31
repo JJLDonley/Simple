@@ -222,15 +222,37 @@ VerifyResult VerifyModule(const SbcModule& module) {
     ValType expected_ret = expect_void ? ValType::Unknown : resolve_type(ret_type_id);
     if (!expect_void && expected_ret == ValType::Unknown) return Fail("unsupported return type");
 
+    auto scan_fail = [&](const std::string& msg, size_t at_pc, uint8_t opcode) -> VerifyResult {
+      std::string out = "verify failed: func " + std::to_string(func_index);
+      std::string name = read_name(module.methods[method_id].name_str);
+      if (!name.empty()) {
+        out += " name " + name;
+      }
+      out += " pc " + std::to_string(at_pc);
+      out += " op 0x";
+      static const char kHex[] = "0123456789ABCDEF";
+      out.push_back(kHex[(opcode >> 4) & 0xF]);
+      out.push_back(kHex[opcode & 0xF]);
+      const char* op_name = OpCodeName(opcode);
+      if (op_name && op_name[0] != '\0') {
+        out += " ";
+        out += op_name;
+      }
+      out += ": ";
+      out += msg;
+      return Fail(out);
+    };
     while (pc < end) {
       boundaries.insert(pc);
       uint8_t opcode = code[pc];
       OpInfo info{};
       if (!GetOpInfo(opcode, &info)) {
-        return Fail("unknown opcode in verifier");
+        return scan_fail("unknown opcode in verifier", pc - func.code_offset, opcode);
       }
       size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
-      if (next > end) return Fail("opcode operands out of bounds");
+      if (next > end) {
+        return scan_fail("opcode operands out of bounds", pc - func.code_offset, opcode);
+      }
       pc = next;
     }
 

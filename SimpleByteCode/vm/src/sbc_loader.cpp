@@ -500,6 +500,27 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     }
     return out;
   };
+  auto function_label = [&](size_t func_index) -> std::string {
+    std::string out = "function " + std::to_string(func_index);
+    if (func_index < module.functions.size()) {
+      uint32_t method_id = module.functions[func_index].method_id;
+      out += " ";
+      out += method_label(method_id);
+    }
+    return out;
+  };
+  auto format_opcode = [&](uint8_t opcode) -> std::string {
+    std::string out = "0x";
+    static const char kHex[] = "0123456789ABCDEF";
+    out.push_back(kHex[(opcode >> 4) & 0xF]);
+    out.push_back(kHex[opcode & 0xF]);
+    const char* name = OpCodeName(opcode);
+    if (name && name[0] != '\0') {
+      out += " ";
+      out += name;
+    }
+    return out;
+  };
 
   if (!module.functions.empty() && !code) return Fail("code section required when functions exist");
   if (header.entry_method_id != 0xFFFFFFFFu) {
@@ -557,9 +578,15 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   }
   for (size_t i = 0; i < module.functions.size(); ++i) {
     const auto& row = module.functions[i];
-    if (row.method_id >= module.methods.size()) return Fail("function method id out of range");
-    if (code && row.code_offset + row.code_size > module.code.size()) return Fail("function code out of range");
-    if (row.stack_max == 0) return Fail("function stack_max must be > 0");
+    if (row.method_id >= module.methods.size()) {
+      return Fail("function method id out of range for function " + std::to_string(i));
+    }
+    if (code && row.code_offset + row.code_size > module.code.size()) {
+      return Fail("function code out of range for " + function_label(i));
+    }
+    if (row.stack_max == 0) {
+      return Fail("function stack_max must be > 0 for " + function_label(i));
+    }
     if (code && row.code_offset != module.methods[row.method_id].code_offset) {
       return Fail("function code offset mismatch for " + method_label(row.method_id));
     }
@@ -576,14 +603,21 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     }
   }
   if (code && !module.functions.empty()) {
-    for (const auto& func : module.functions) {
+    for (size_t func_index = 0; func_index < module.functions.size(); ++func_index) {
+      const auto& func = module.functions[func_index];
       size_t pc = func.code_offset;
       const size_t end = func.code_offset + func.code_size;
       while (pc < end) {
         uint8_t opcode = module.code[pc];
         OpInfo info{};
         if (!GetOpInfo(opcode, &info)) {
-          return Fail("unknown opcode in code");
+          std::string out = "unknown opcode ";
+          out += format_opcode(opcode);
+          out += " in ";
+          out += function_label(func_index);
+          out += " pc ";
+          out += std::to_string(pc - func.code_offset);
+          return Fail(out);
         }
         if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
           if (pc + 8 >= module.code.size()) return Fail("JMP_TABLE operand out of bounds");
@@ -605,10 +639,20 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           if (blob_len != 4 + count * 4) return Fail("JMP_TABLE blob size mismatch");
         }
         size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
-        if (next > end) return Fail("opcode operands out of bounds");
+        if (next > end) {
+          std::string out = "opcode operands out of bounds for ";
+          out += format_opcode(opcode);
+          out += " in ";
+          out += function_label(func_index);
+          out += " pc ";
+          out += std::to_string(pc - func.code_offset);
+          return Fail(out);
+        }
         pc = next;
       }
-      if (pc != end) return Fail("function code does not align to instruction boundary");
+      if (pc != end) {
+        return Fail("function code does not align to instruction boundary for " + function_label(func_index));
+      }
     }
   }
   for (size_t i = 0; i < module.fields.size(); ++i) {
