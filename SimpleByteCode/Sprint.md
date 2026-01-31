@@ -409,3 +409,4 @@
 - Added core.fs open/close loop test to exercise repeated fd usage.
 - Added core.fs open/close stress loop test (50 iterations).
 - Added core.fs write clamp count test (len > buffer size returns clamped count and correct data).
+- Added core.fs read-zero-len preserve test (len=0 leaves buffer unchanged).
