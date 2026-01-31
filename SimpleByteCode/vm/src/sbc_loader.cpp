@@ -175,6 +175,10 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (row.kind == static_cast<uint8_t>(TypeKind::F64) && row.size != 8) {
         return Fail("type kind size mismatch");
       }
+      if (row.kind == static_cast<uint8_t>(TypeKind::Ref) &&
+          row.size != 0 && row.size != 4 && row.size != 8) {
+        return Fail("type kind size mismatch");
+      }
       module.types[i] = row;
     }
   }

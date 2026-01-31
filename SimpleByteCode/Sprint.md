@@ -322,3 +322,4 @@
 - Added TypeKind enum for VM type validation in loader.
 - Added loader validation for type kind range and size matching for I32/I64/F32/F64.
 - Added loader negative tests for invalid type kind and size mismatches.
+- Added loader validation for Ref type size (allow 0/4/8) with a negative test for invalid size.
