@@ -314,3 +314,4 @@
 - Added a draft C ABI host API surface for ref/string/blob/array/list access.
 - Expanded host API draft with type discovery + struct read/write and tiered recommendations.
 - Added `SimpleByteCode/SBC_ABI.md` with intrinsic IDs, FFI tables, and host API details; implementation plan now references it.
+- Added OS-specific core library contracts (core.os/core.fs/core.log) as FFI-backed entries in SBC_ABI.md.

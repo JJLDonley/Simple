@@ -48,6 +48,37 @@ This document defines the stable ABI for SBC modules, intrinsics, and host FFI.
 
 ---
 
+## 1.1 Core Library OS Services (FFI-backed)
+
+These are *core library* contracts that are expected to be implemented by OS/host FFI.
+They are not VM opcodes, and not VM intrinsics. They live in the import table.
+
+### Module: `core.os`
+| Symbol | Params | Return | Notes |
+|--------|--------|--------|-------|
+| args_count | void | i32 | Returns argc. |
+| args_get | i32 | ref | Returns argv[i] as string ref. |
+| env_get | ref | ref | Input: name string ref, returns value string ref or null. |
+| cwd_get | void | ref | Returns current working directory. |
+| time_mono_ns | void | i64 | Monotonic time in ns. |
+| time_wall_ns | void | i64 | Wall clock time in ns. |
+| sleep_ms | i32 | void | Best-effort sleep. |
+
+### Module: `core.fs`
+| Symbol | Params | Return | Notes |
+|--------|--------|--------|-------|
+| open | ref, i32 | i32 | Path, flags -> fd (or -1). |
+| close | i32 | void | Close fd. |
+| read | i32, ref, i32 | i32 | fd, buffer ref, len -> bytes read (or -1). |
+| write | i32, ref, i32 | i32 | fd, buffer ref, len -> bytes written (or -1). |
+
+### Module: `core.log`
+| Symbol | Params | Return | Notes |
+|--------|--------|--------|-------|
+| log | ref, i32 | void | Writes bytes from buffer ref with length. |
+
+---
+
 ## 2. FFI Tables (Import/Export)
 
 ### Import Table Layout (per entry)
