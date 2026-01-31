@@ -10,6 +10,7 @@
 #include "opcode.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
+#include "scratch_arena.h"
 #include "vm.h"
 
 namespace {
@@ -29521,6 +29522,51 @@ bool RunHeapReuseTest() {
   return true;
 }
 
+bool RunScratchArenaTest() {
+  simplevm::ScratchArena arena(16);
+  if (arena.Used() != 0) {
+    std::cerr << "scratch arena should start empty\n";
+    return false;
+  }
+  std::size_t mark0 = arena.Mark();
+  uint8_t* a = arena.Allocate(4, 4);
+  if (!a) {
+    std::cerr << "scratch arena alloc failed\n";
+    return false;
+  }
+  std::size_t used1 = arena.Used();
+  if (used1 < 4) {
+    std::cerr << "scratch arena used size too small\n";
+    return false;
+  }
+  std::size_t mark1 = arena.Mark();
+  uint8_t* b = arena.Allocate(8, 8);
+  if (!b) {
+    std::cerr << "scratch arena alloc 2 failed\n";
+    return false;
+  }
+  if (arena.Used() <= used1) {
+    std::cerr << "scratch arena used size did not grow\n";
+    return false;
+  }
+  arena.Reset(mark1);
+  if (arena.Used() != mark1) {
+    std::cerr << "scratch arena reset failed\n";
+    return false;
+  }
+  uint8_t* c = arena.Allocate(8, 8);
+  if (!c) {
+    std::cerr << "scratch arena alloc after reset failed\n";
+    return false;
+  }
+  arena.Reset(mark0);
+  if (arena.Used() != mark0) {
+    std::cerr << "scratch arena reset to start failed\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunHeapClosureMarkTest() {
   simplevm::Heap heap;
   uint32_t target = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
@@ -29858,6 +29904,7 @@ int main(int argc, char** argv) {
       {"verify_metadata", RunVerifyMetadataTest},
       {"verify_metadata_nonref_global", RunVerifyMetadataNonRefGlobalTest},
       {"heap_reuse", RunHeapReuseTest},
+      {"scratch_arena", RunScratchArenaTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
       {"gc_vm_stress", RunGcVmStressTest},

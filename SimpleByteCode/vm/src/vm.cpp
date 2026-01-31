@@ -14,6 +14,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "opcode.h"
+#include "scratch_arena.h"
 #include "sbc_verifier.h"
 
 namespace simplevm {
@@ -446,6 +447,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
 
   Heap heap;
+  ScratchArena scratch_arena;
   std::vector<Slot> globals(module.globals.size());
   std::vector<Slot> locals_arena;
   std::vector<Slot> jit_stack;
@@ -684,9 +686,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint32_t max_len = length;
         uint32_t req = static_cast<uint32_t>(len);
         if (req > max_len) req = max_len;
-        std::vector<uint8_t> tmp(req, 0);
+        ScratchScope scratch_scope(scratch_arena);
+        uint8_t* tmp = nullptr;
+        if (req > 0) {
+          tmp = scratch_arena.Allocate(req, 1);
+          if (!tmp) {
+            out_ret = PackI32(-1);
+            return true;
+          }
+          if (sym == "read") {
+            std::memset(tmp, 0, req);
+          }
+        }
         if (sym == "read") {
-          size_t got = std::fread(tmp.data(), 1, req, f);
+          size_t got = (req > 0) ? std::fread(tmp, 1, req, f) : 0;
           for (size_t i = 0; i < got; ++i) {
             WriteU32Payload(buf_obj->payload, 4 + i * 4, tmp[i]);
           }
@@ -696,7 +709,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         for (size_t i = 0; i < req; ++i) {
           tmp[i] = static_cast<uint8_t>(ReadU32Payload(buf_obj->payload, 4 + i * 4));
         }
-        size_t wrote = std::fwrite(tmp.data(), 1, req, f);
+        size_t wrote = (req > 0) ? std::fwrite(tmp, 1, req, f) : 0;
         out_ret = PackI32(static_cast<int32_t>(wrote));
         return true;
       }

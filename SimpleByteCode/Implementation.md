@@ -115,6 +115,9 @@ Acceptance (Phase 5b):
 - Young-gen collections keep pause time low under allocation-heavy workloads.
 - Old-gen stability remains (no regressions in existing sweep behavior).
 
+Work (Phase 5b):
+- [DONE] Add `ScratchArena` + `ScratchScope` utility for transient buffers (used in `core.fs` read/write).
+
 ### Phase 6: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
 - [DONE] Arrays / Lists / Strings opcodes.

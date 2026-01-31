@@ -432,3 +432,5 @@
 - Marked cross-version compatibility skeleton tests as done in `SimpleByteCode/Implementation.md`.
 - Reviewed SBC docs vs VM behavior for freeze alignment; marked Phase 9 freeze gate tests as done.
 - Full VM test suite pass (571 tests).
+- Added ScratchArena/ScratchScope utility and switched core.fs temp buffers to use arena allocations.
+- Added scratch_arena unit test.
