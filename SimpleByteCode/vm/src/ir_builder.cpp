@@ -98,6 +98,38 @@ void IrBuilder::EmitArraySetI32() {
   EmitOp(OpCode::ArraySetI32);
 }
 
+void IrBuilder::EmitArrayGetI64() {
+  EmitOp(OpCode::ArrayGetI64);
+}
+
+void IrBuilder::EmitArraySetI64() {
+  EmitOp(OpCode::ArraySetI64);
+}
+
+void IrBuilder::EmitArrayGetF32() {
+  EmitOp(OpCode::ArrayGetF32);
+}
+
+void IrBuilder::EmitArraySetF32() {
+  EmitOp(OpCode::ArraySetF32);
+}
+
+void IrBuilder::EmitArrayGetF64() {
+  EmitOp(OpCode::ArrayGetF64);
+}
+
+void IrBuilder::EmitArraySetF64() {
+  EmitOp(OpCode::ArraySetF64);
+}
+
+void IrBuilder::EmitArrayGetRef() {
+  EmitOp(OpCode::ArrayGetRef);
+}
+
+void IrBuilder::EmitArraySetRef() {
+  EmitOp(OpCode::ArraySetRef);
+}
+
 void IrBuilder::EmitNewList(uint32_t type_id, uint32_t capacity) {
   EmitOp(OpCode::NewList);
   EmitU32(type_id);
@@ -122,6 +154,70 @@ void IrBuilder::EmitListPushI32() {
 
 void IrBuilder::EmitListPopI32() {
   EmitOp(OpCode::ListPopI32);
+}
+
+void IrBuilder::EmitListGetI64() {
+  EmitOp(OpCode::ListGetI64);
+}
+
+void IrBuilder::EmitListSetI64() {
+  EmitOp(OpCode::ListSetI64);
+}
+
+void IrBuilder::EmitListPushI64() {
+  EmitOp(OpCode::ListPushI64);
+}
+
+void IrBuilder::EmitListPopI64() {
+  EmitOp(OpCode::ListPopI64);
+}
+
+void IrBuilder::EmitListGetF32() {
+  EmitOp(OpCode::ListGetF32);
+}
+
+void IrBuilder::EmitListSetF32() {
+  EmitOp(OpCode::ListSetF32);
+}
+
+void IrBuilder::EmitListPushF32() {
+  EmitOp(OpCode::ListPushF32);
+}
+
+void IrBuilder::EmitListPopF32() {
+  EmitOp(OpCode::ListPopF32);
+}
+
+void IrBuilder::EmitListGetF64() {
+  EmitOp(OpCode::ListGetF64);
+}
+
+void IrBuilder::EmitListSetF64() {
+  EmitOp(OpCode::ListSetF64);
+}
+
+void IrBuilder::EmitListPushF64() {
+  EmitOp(OpCode::ListPushF64);
+}
+
+void IrBuilder::EmitListPopF64() {
+  EmitOp(OpCode::ListPopF64);
+}
+
+void IrBuilder::EmitListGetRef() {
+  EmitOp(OpCode::ListGetRef);
+}
+
+void IrBuilder::EmitListSetRef() {
+  EmitOp(OpCode::ListSetRef);
+}
+
+void IrBuilder::EmitListPushRef() {
+  EmitOp(OpCode::ListPushRef);
+}
+
+void IrBuilder::EmitListPopRef() {
+  EmitOp(OpCode::ListPopRef);
 }
 
 void IrBuilder::EmitIsNull() {

@@ -464,3 +464,4 @@
 - Added IR emitter ref ops (IsNull/RefEq/RefNe) and IR→SBC test.
 - Added IR emitter field/object ops and IR→SBC tests (field + typeof).
 - Added IR→SBC tests for field/object and typeof paths.
+- Added IR emitter typed array/list ops and IR→SBC tests for I64/F32/Ref containers.

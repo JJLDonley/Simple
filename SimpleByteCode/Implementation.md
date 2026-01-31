@@ -525,6 +525,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR emitter ref ops (IsNull/RefEq/RefNe) and IR→SBC test.
 - Added IR emitter field/object ops (NewObject/LoadField/StoreField/TypeOf) and IR→SBC tests.
 - Added IR→SBC tests for field/object and typeof paths.
+- Added IR emitter typed array/list ops and IR→SBC tests for I64/F32/Ref containers.
 
 ## 9) Freeze Status (v0.1)
 
