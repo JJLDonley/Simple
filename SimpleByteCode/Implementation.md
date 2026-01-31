@@ -257,6 +257,7 @@ Work:
 Tests:
 - [DONE] Loader rejects malformed import/export tables.
 - [DONE] Verifier rejects call signatures not matching import sigs.
+- Loader rejects IMPORTS/EXPORTS when const pool is missing.
 
 #### 9.6 Core Library Contract (No Impl Yet)
 Deliverables:
