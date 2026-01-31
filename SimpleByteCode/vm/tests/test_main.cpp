@@ -905,6 +905,84 @@ std::vector<uint8_t> BuildIrStringModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrStringGetCharModule() {
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "ABC"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstString(text_const);
+  builder.EmitConstI32(1);
+  builder.EmitStringGetChar();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.const_pool = const_pool;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModuleWithTables(code, const_pool, {}, {}, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_string_get_char_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrStringSliceModule() {
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hello"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstString(text_const);
+  builder.EmitConstI32(1);
+  builder.EmitConstI32(4);
+  builder.EmitStringSlice();
+  builder.EmitStringLen();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.const_pool = const_pool;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModuleWithTables(code, const_pool, {}, {}, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_string_slice_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19530,6 +19608,14 @@ bool RunIrEmitStringTest() {
   return RunExpectExit(BuildIrStringModule(), 3);
 }
 
+bool RunIrEmitStringGetCharTest() {
+  return RunExpectExit(BuildIrStringGetCharModule(), 66);
+}
+
+bool RunIrEmitStringSliceTest() {
+  return RunExpectExit(BuildIrStringSliceModule(), 3);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30269,6 +30355,8 @@ int main(int argc, char** argv) {
       {"ir_emit_array", RunIrEmitArrayTest},
       {"ir_emit_list", RunIrEmitListTest},
       {"ir_emit_string", RunIrEmitStringTest},
+      {"ir_emit_string_get_char", RunIrEmitStringGetCharTest},
+      {"ir_emit_string_slice", RunIrEmitStringSliceTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
