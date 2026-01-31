@@ -684,6 +684,110 @@ std::vector<uint8_t> BuildIrBitwiseI32Module() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrCallIndirectModule() {
+  simplevm::IrBuilder entry_builder;
+  entry_builder.EmitEnter(0);
+  entry_builder.EmitConstI32(1);
+  entry_builder.EmitCallIndirect(0, 0);
+  entry_builder.EmitRet();
+  std::vector<uint8_t> entry;
+  std::string error;
+  if (!entry_builder.Finish(&entry, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::IrBuilder callee_builder;
+  callee_builder.EmitEnter(0);
+  callee_builder.EmitConstI32(9);
+  callee_builder.EmitRet();
+  std::vector<uint8_t> callee;
+  if (!callee_builder.Finish(&callee, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction entry_func;
+  entry_func.code = entry;
+  entry_func.local_count = 0;
+  entry_func.stack_max = 12;
+  module.functions.push_back(std::move(entry_func));
+  simplevm::ir::IrFunction callee_func;
+  callee_func.code = callee;
+  callee_func.local_count = 0;
+  callee_func.stack_max = 12;
+  module.functions.push_back(std::move(callee_func));
+  module.entry_method_id = 0;
+
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+
+  std::vector<uint32_t> sig_ids = {0, 0};
+  simplevm::sbc::SigSpec sig_spec;
+  sig_spec.ret_type_id = 0;
+  sig_spec.param_count = 0;
+  std::vector<uint8_t> expected = BuildModuleWithFunctionsAndSigs({entry, callee}, {0, 0}, sig_ids, {sig_spec});
+  if (!ExpectSbcEqual(out, expected, "ir_call_indirect_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrTailCallModule() {
+  simplevm::IrBuilder entry_builder;
+  entry_builder.EmitEnter(0);
+  entry_builder.EmitTailCall(1, 0);
+  std::vector<uint8_t> entry;
+  std::string error;
+  if (!entry_builder.Finish(&entry, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::IrBuilder callee_builder;
+  callee_builder.EmitEnter(0);
+  callee_builder.EmitConstI32(42);
+  callee_builder.EmitRet();
+  std::vector<uint8_t> callee;
+  if (!callee_builder.Finish(&callee, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction entry_func;
+  entry_func.code = entry;
+  entry_func.local_count = 0;
+  entry_func.stack_max = 12;
+  module.functions.push_back(std::move(entry_func));
+  simplevm::ir::IrFunction callee_func;
+  callee_func.code = callee;
+  callee_func.local_count = 0;
+  callee_func.stack_max = 12;
+  module.functions.push_back(std::move(callee_func));
+  module.entry_method_id = 0;
+
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+
+  std::vector<uint32_t> sig_ids = {0, 0};
+  simplevm::sbc::SigSpec sig_spec;
+  sig_spec.ret_type_id = 0;
+  sig_spec.param_count = 0;
+  std::vector<uint8_t> expected = BuildModuleWithFunctionsAndSigs({entry, callee}, {0, 0}, sig_ids, {sig_spec});
+  if (!ExpectSbcEqual(out, expected, "ir_tailcall_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19289,6 +19393,14 @@ bool RunIrEmitBitwiseI32Test() {
   return RunExpectExit(BuildIrBitwiseI32Module(), 2);
 }
 
+bool RunIrEmitCallIndirectTest() {
+  return RunExpectExit(BuildIrCallIndirectModule(), 9);
+}
+
+bool RunIrEmitTailCallTest() {
+  return RunExpectExit(BuildIrTailCallModule(), 42);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30023,6 +30135,8 @@ int main(int argc, char** argv) {
       {"ir_emit_conv_f32_f64", RunIrEmitConvF32F64Test},
       {"ir_emit_f32_arith", RunIrEmitF32ArithTest},
       {"ir_emit_bitwise_i32", RunIrEmitBitwiseI32Test},
+      {"ir_emit_call_indirect", RunIrEmitCallIndirectTest},
+      {"ir_emit_tailcall", RunIrEmitTailCallTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

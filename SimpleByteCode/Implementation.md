@@ -517,6 +517,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR emitter conversion ops and IR→SBC tests for i32↔i64 and i32↔f64 paths.
 - Added IR emitter float arithmetic/conversion ops and IR→SBC tests for f32/f64 paths.
 - Added IR emitter i32 bitwise/shift ops and IR→SBC tests.
+- Added IR→SBC tests for call_indirect and tailcall paths.
 
 ## 9) Freeze Status (v0.1)
 
