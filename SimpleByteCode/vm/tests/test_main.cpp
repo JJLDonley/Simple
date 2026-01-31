@@ -644,6 +644,46 @@ std::vector<uint8_t> BuildIrF32ArithModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrBitwiseI32Module() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(0xF0);
+  builder.EmitConstI32(0x0F);
+  builder.EmitAndI32();
+  builder.EmitConstI32(0x0F);
+  builder.EmitOrI32();
+  builder.EmitConstI32(0x0A);
+  builder.EmitXorI32();
+  builder.EmitConstI32(1);
+  builder.EmitShlI32();
+  builder.EmitConstI32(2);
+  builder.EmitShrI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_bitwise_i32_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19245,6 +19285,10 @@ bool RunIrEmitF32ArithTest() {
   return RunExpectExit(BuildIrF32ArithModule(), 7);
 }
 
+bool RunIrEmitBitwiseI32Test() {
+  return RunExpectExit(BuildIrBitwiseI32Module(), 2);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -29978,6 +30022,7 @@ int main(int argc, char** argv) {
       {"ir_emit_conv_i32_f64", RunIrEmitConvI32F64Test},
       {"ir_emit_conv_f32_f64", RunIrEmitConvF32F64Test},
       {"ir_emit_f32_arith", RunIrEmitF32ArithTest},
+      {"ir_emit_bitwise_i32", RunIrEmitBitwiseI32Test},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
