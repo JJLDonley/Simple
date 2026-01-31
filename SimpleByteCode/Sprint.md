@@ -370,3 +370,4 @@
 - Added import_call_indirect_trap test for CALL_INDIRECT on imports.
 - Added opcode/method context to loader and verifier scan errors; expanded JIT error formatting with operand dumps for call/jump ops.
 - Reused call argument buffers and JIT local/stack scratch vectors to cut per-call allocations.
+- Added verifier test for import CALL arg-count mismatch.

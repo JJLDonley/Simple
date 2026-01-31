@@ -254,7 +254,7 @@ Work:
 
 Tests:
 - [DONE] Loader rejects malformed import/export tables.
-- [BLOCKED] Verifier rejects call signatures not matching import sigs (requires import-call opcode or import resolution strategy).
+- [DONE] Verifier rejects call signatures not matching import sigs.
 
 #### 9.6 Core Library Contract (No Impl Yet)
 Deliverables:
