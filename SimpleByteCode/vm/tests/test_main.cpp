@@ -8783,13 +8783,13 @@ std::vector<uint8_t> BuildBadCallIndirectTypeModule() {
   std::vector<uint8_t> code;
   AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(code, 0);
-  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
-  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0x3f800000u);
   AppendU8(code, static_cast<uint8_t>(OpCode::CallIndirect));
   AppendU32(code, 0);
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
-  return BuildModuleWithGlobalInitConst(code, 1, 0, 0);
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadCallVerifyModule() {
@@ -17172,6 +17172,20 @@ bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char*
   return true;
 }
 
+bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name) {
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << name << " load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (vr.ok) {
+    std::cerr << name << " expected verify failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunIntrinsicTrapTest() {
   return RunExpectTrap(BuildIntrinsicTrapModule(), "intrinsic");
 }
@@ -17277,7 +17291,7 @@ bool RunBadStringSliceNegIndexTrapTest() {
 }
 
 bool RunBadConvRuntimeTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadConvRuntimeModule(), "bad_conv_runtime");
+  return RunExpectVerifyFail(BuildBadConvRuntimeModule(), "bad_conv_runtime");
 }
 
 bool RunBadConstI128KindTrapTest() {
@@ -17523,15 +17537,15 @@ bool RunBadJmpTableOobTargetTrapTest() {
   return RunExpectTrapNoVerify(BuildBadJmpTableOobTargetModule(), "bad_jmp_table_oob_runtime");
 }
 bool RunBadBitwiseRuntimeTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadBitwiseRuntimeModule(), "bad_bitwise_runtime");
+  return RunExpectVerifyFail(BuildBadBitwiseRuntimeModule(), "bad_bitwise_runtime");
 }
 
 bool RunBadU32RuntimeTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadU32RuntimeModule(), "bad_u32_runtime");
+  return RunExpectVerifyFail(BuildBadU32RuntimeModule(), "bad_u32_runtime");
 }
 
 bool RunBadU64RuntimeTrapTest() {
-  return RunExpectTrapNoVerify(BuildBadU64RuntimeModule(), "bad_u64_runtime");
+  return RunExpectVerifyFail(BuildBadU64RuntimeModule(), "bad_u64_runtime");
 }
 
 bool RunBadUpvalueIndexTrapTest() {
@@ -17543,7 +17557,7 @@ bool RunBadCallIndirectTrapTest() {
 }
 
 bool RunBadCallIndirectTypeTrapTest() {
-  return RunExpectTrap(BuildBadCallIndirectTypeModule(), "bad_call_indirect_type");
+  return RunExpectVerifyFail(BuildBadCallIndirectTypeModule(), "bad_call_indirect_type");
 }
 
 bool RunBadStringLenNullTrapTest() {
@@ -18103,6 +18117,8 @@ int main(int argc, char** argv) {
   int tCount = 0;
   for (const auto& test : tests) {
     tCount++;
+    std::cout << "running: " << test.name << "\n";
+    std::cout.flush();
     bool ok = test.fn();
     if (!ok) {
       std::cout << "Failed: " << test.name << "\n";

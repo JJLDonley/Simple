@@ -11,53 +11,77 @@
 namespace simplevm {
 namespace {
 
-enum class ValueKind {
-  I32,
-  I64,
-  F32,
-  F64,
-  Bool,
-  Ref,
-  None,
-};
+using Slot = uint64_t;
+constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-struct Value {
-  ValueKind kind = ValueKind::None;
-  int64_t i64 = 0;
-};
-
-float BitsToF32(int64_t bits) {
-  uint32_t v = static_cast<uint32_t>(bits);
+float BitsToF32(uint32_t bits) {
+  uint32_t v = bits;
   float out = 0.0f;
   std::memcpy(&out, &v, sizeof(out));
   return out;
 }
 
-double BitsToF64(int64_t bits) {
-  uint64_t v = static_cast<uint64_t>(bits);
+double BitsToF64(uint64_t bits) {
+  uint64_t v = bits;
   double out = 0.0;
   std::memcpy(&out, &v, sizeof(out));
   return out;
 }
 
-int64_t F32ToBits(float value) {
+uint32_t F32ToBits(float value) {
   uint32_t bits = 0;
   std::memcpy(&bits, &value, sizeof(bits));
-  return static_cast<int64_t>(bits);
+  return bits;
 }
 
-int64_t F64ToBits(double value) {
+uint64_t F64ToBits(double value) {
   uint64_t bits = 0;
   std::memcpy(&bits, &value, sizeof(bits));
-  return static_cast<int64_t>(bits);
+  return bits;
+}
+
+inline Slot PackI32(int32_t value) {
+  return static_cast<uint32_t>(value);
+}
+
+inline int32_t UnpackI32(Slot value) {
+  return static_cast<int32_t>(static_cast<uint32_t>(value));
+}
+
+inline Slot PackI64(int64_t value) {
+  return static_cast<uint64_t>(value);
+}
+
+inline int64_t UnpackI64(Slot value) {
+  return static_cast<int64_t>(value);
+}
+
+inline Slot PackF32Bits(uint32_t bits) {
+  return static_cast<uint64_t>(bits);
+}
+
+inline Slot PackF64Bits(uint64_t bits) {
+  return bits;
+}
+
+inline Slot PackRef(uint32_t handle) {
+  return static_cast<uint64_t>(handle);
+}
+
+inline uint32_t UnpackRef(Slot value) {
+  return static_cast<uint32_t>(value);
+}
+
+inline bool IsNullRef(Slot value) {
+  return UnpackRef(value) == kNullRef;
 }
 
 struct Frame {
   size_t func_index = 0;
   size_t return_pc = 0;
   size_t stack_base = 0;
-  int64_t closure_ref = -1;
-  std::vector<Value> locals;
+  uint32_t closure_ref = kNullRef;
+  std::vector<Slot> locals;
 };
 
 struct JitStub {
@@ -121,13 +145,13 @@ uint8_t ReadU8(const std::vector<uint8_t>& code, size_t& pc) {
   return code[pc++];
 }
 
-Value Pop(std::vector<Value>& stack) {
-  Value v = stack.back();
+Slot Pop(std::vector<Slot>& stack) {
+  Slot v = stack.back();
   stack.pop_back();
   return v;
 }
 
-void Push(std::vector<Value>& stack, Value v) {
+void Push(std::vector<Slot>& stack, Slot v) {
   stack.push_back(v);
 }
 
@@ -213,15 +237,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify) {
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) {
-  if (verify) {
-    VerifyResult vr = VerifyModule(module);
-    if (!vr.ok) return Trap(vr.error);
-  }
+  VerifyResult vr = VerifyModule(module);
+  if (verify && !vr.ok) return Trap(vr.error);
+  bool have_meta = vr.ok;
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
 
   Heap heap;
-  std::vector<Value> globals(module.globals.size());
+  std::vector<Slot> globals(module.globals.size());
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
   std::vector<JitStub> jit_stubs(module.functions.size());
@@ -319,7 +342,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     }
     return true;
   };
-  auto run_compiled = [&](size_t func_index, Value& out_ret, std::string& error) -> bool {
+  auto run_compiled = [&](size_t func_index, Slot& out_ret, bool& out_has_ret, std::string& error) -> bool {
     if (func_index >= module.functions.size()) {
       error = "JIT compiled invalid function id";
       return false;
@@ -327,8 +350,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     const auto& func = module.functions[func_index];
     size_t pc = func.code_offset;
     size_t end_pc = func.code_offset + func.code_size;
-    std::vector<Value> local_stack;
-    std::vector<Value> locals;
+    std::vector<Slot> local_stack;
+    std::vector<Slot> locals;
     bool saw_enter = false;
     bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
     while (pc < end_pc) {
@@ -341,7 +364,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           }
           uint16_t locals_count = ReadU16(module.code, pc);
           if (!saw_enter) {
-            locals.assign(locals_count, Value{ValueKind::None, 0});
+            locals.assign(locals_count, 0);
             saw_enter = true;
           } else if (locals.size() != locals_count) {
             error = "JIT compiled locals mismatch";
@@ -360,7 +383,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             return false;
           }
           int32_t value = ReadI32(module.code, pc);
-          local_stack.push_back(Value{ValueKind::I32, value});
+          local_stack.push_back(PackI32(value));
           break;
         }
         case OpCode::AddI32: {
@@ -368,11 +391,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled ADD_I32 underflow";
             return false;
           }
-          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a + b)});
+          local_stack.push_back(PackI32(static_cast<int32_t>(a + b)));
           break;
         }
         case OpCode::SubI32: {
@@ -380,11 +403,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled SUB_I32 underflow";
             return false;
           }
-          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a - b)});
+          local_stack.push_back(PackI32(static_cast<int32_t>(a - b)));
           break;
         }
         case OpCode::MulI32: {
@@ -392,11 +415,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled MUL_I32 underflow";
             return false;
           }
-          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a * b)});
+          local_stack.push_back(PackI32(static_cast<int32_t>(a * b)));
           break;
         }
         case OpCode::DivI32: {
@@ -404,15 +427,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled DIV_I32 underflow";
             return false;
           }
-          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
             error = "JIT compiled DIV_I32 by zero";
             return false;
           }
-          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a / b)});
+          local_stack.push_back(PackI32(static_cast<int32_t>(a / b)));
           break;
         }
         case OpCode::ModI32: {
@@ -420,15 +443,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled MOD_I32 underflow";
             return false;
           }
-          int32_t b = static_cast<int32_t>(local_stack.back().i64);
+          int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
-          int32_t a = static_cast<int32_t>(local_stack.back().i64);
+          int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
             error = "JIT compiled MOD_I32 by zero";
             return false;
           }
-          local_stack.push_back(Value{ValueKind::I32, static_cast<int32_t>(a % b)});
+          local_stack.push_back(PackI32(static_cast<int32_t>(a % b)));
           break;
         }
         case OpCode::CmpEqI32:
@@ -441,16 +464,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled CMP_I32 underflow";
             return false;
           }
-          Value rhs = local_stack.back();
+          Slot rhs = local_stack.back();
           local_stack.pop_back();
-          Value lhs = local_stack.back();
+          Slot lhs = local_stack.back();
           local_stack.pop_back();
-          if (lhs.kind != ValueKind::I32 || rhs.kind != ValueKind::I32) {
-            error = "JIT compiled CMP_I32 non-i32";
-            return false;
-          }
-          int32_t a = static_cast<int32_t>(lhs.i64);
-          int32_t b = static_cast<int32_t>(rhs.i64);
+          int32_t a = UnpackI32(lhs);
+          int32_t b = UnpackI32(rhs);
           bool result = false;
           switch (static_cast<OpCode>(op)) {
             case OpCode::CmpEqI32:
@@ -474,7 +493,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             default:
               break;
           }
-          local_stack.push_back(Value{ValueKind::Bool, result ? 1 : 0});
+          local_stack.push_back(PackI32(result ? 1 : 0));
           break;
         }
         case OpCode::BoolNot: {
@@ -482,13 +501,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled BOOL_NOT underflow";
             return false;
           }
-          Value v = local_stack.back();
+          Slot v = local_stack.back();
           local_stack.pop_back();
-          if (v.kind != ValueKind::Bool) {
-            error = "JIT compiled BOOL_NOT non-bool";
-            return false;
-          }
-          local_stack.push_back(Value{ValueKind::Bool, v.i64 == 0 ? 1 : 0});
+          local_stack.push_back(PackI32(UnpackI32(v) == 0 ? 1 : 0));
           break;
         }
         case OpCode::BoolAnd:
@@ -497,21 +512,17 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled BOOL binop underflow";
             return false;
           }
-          Value rhs = local_stack.back();
+          Slot rhs = local_stack.back();
           local_stack.pop_back();
-          Value lhs = local_stack.back();
+          Slot lhs = local_stack.back();
           local_stack.pop_back();
-          if (lhs.kind != ValueKind::Bool || rhs.kind != ValueKind::Bool) {
-            error = "JIT compiled BOOL binop non-bool";
-            return false;
-          }
           bool result = false;
           if (static_cast<OpCode>(op) == OpCode::BoolAnd) {
-            result = (lhs.i64 != 0) && (rhs.i64 != 0);
+            result = (UnpackI32(lhs) != 0) && (UnpackI32(rhs) != 0);
           } else {
-            result = (lhs.i64 != 0) || (rhs.i64 != 0);
+            result = (UnpackI32(lhs) != 0) || (UnpackI32(rhs) != 0);
           }
-          local_stack.push_back(Value{ValueKind::Bool, result ? 1 : 0});
+          local_stack.push_back(PackI32(result ? 1 : 0));
           break;
         }
         case OpCode::JmpTrue:
@@ -525,13 +536,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled JMP underflow";
             return false;
           }
-          Value cond = local_stack.back();
+          Slot cond = local_stack.back();
           local_stack.pop_back();
-          if (cond.kind != ValueKind::Bool) {
-            error = "JIT compiled JMP on non-bool";
-            return false;
-          }
-          bool take = cond.i64 != 0;
+          bool take = UnpackI32(cond) != 0;
           if (static_cast<OpCode>(op) == OpCode::JmpFalse) {
             take = !take;
           }
@@ -569,10 +576,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled LOAD_LOCAL invalid index";
             return false;
           }
-          if (locals[idx].kind != ValueKind::I32 && locals[idx].kind != ValueKind::Bool) {
-            error = "JIT compiled LOAD_LOCAL uninitialized";
-            return false;
-          }
           local_stack.push_back(locals[idx]);
           break;
         }
@@ -590,13 +593,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             error = "JIT compiled STORE_LOCAL underflow";
             return false;
           }
-          Value v = local_stack.back();
+          locals[idx] = local_stack.back();
           local_stack.pop_back();
-          if (v.kind != ValueKind::I32 && v.kind != ValueKind::Bool) {
-            error = "JIT compiled STORE_LOCAL non-i32/bool";
-            return false;
-          }
-          locals[idx] = v;
           break;
         }
         case OpCode::Pop: {
@@ -608,10 +606,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           break;
         }
         case OpCode::Ret: {
+          out_has_ret = false;
           if (!local_stack.empty()) {
             out_ret = local_stack.back();
-          } else {
-            out_ret = Value{ValueKind::None, 0};
+            out_has_ret = true;
           }
           return true;
         }
@@ -658,12 +656,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     result.jit_tier1_exec_counts = jit_tier1_exec_counts;
     return result;
   };
-  auto read_const_string = [&](uint32_t const_id) -> Value {
+  auto read_const_string = [&](uint32_t const_id, Slot& out_value) -> bool {
     uint32_t kind = ReadU32Payload(module.const_pool, const_id);
-    if (kind != 0) return Value{ValueKind::None, 0};
-    if (const_id + 8 > module.const_pool.size()) return Value{ValueKind::None, 0};
+    if (kind != 0) return false;
+    if (const_id + 8 > module.const_pool.size()) return false;
     uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
-    if (str_offset >= module.const_pool.size()) return Value{ValueKind::None, 0};
+    if (str_offset >= module.const_pool.size()) return false;
     const char* base = reinterpret_cast<const char*>(module.const_pool.data() + str_offset);
     std::u16string text;
     for (size_t i = 0; str_offset + i < module.const_pool.size(); ++i) {
@@ -672,8 +670,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
     }
     uint32_t handle = CreateString(heap, text);
-    if (handle == 0xFFFFFFFFu) return Value{ValueKind::None, 0};
-    return Value{ValueKind::Ref, static_cast<int64_t>(handle)};
+    if (handle == 0xFFFFFFFFu) return false;
+    out_value = PackRef(handle);
+    return true;
   };
   for (size_t i = 0; i < module.globals.size(); ++i) {
     uint32_t const_id = module.globals[i].init_const_id;
@@ -681,21 +680,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     if (const_id + 4 > module.const_pool.size()) return Trap("GLOBAL init const out of bounds");
     uint32_t kind = ReadU32Payload(module.const_pool, const_id);
     if (kind == 0) {
-      Value v = read_const_string(const_id);
-      if (v.kind == ValueKind::None) return Trap("GLOBAL init string failed");
-      globals[i] = v;
+      Slot value = 0;
+      if (!read_const_string(const_id, value)) return Trap("GLOBAL init string failed");
+      globals[i] = value;
       continue;
     }
     if (kind == 3) {
       if (const_id + 8 > module.const_pool.size()) return Trap("GLOBAL init f32 out of bounds");
       uint32_t bits = ReadU32Payload(module.const_pool, const_id + 4);
-      globals[i] = Value{ValueKind::F32, static_cast<int64_t>(bits)};
+      globals[i] = PackF32Bits(bits);
       continue;
     }
     if (kind == 4) {
       if (const_id + 12 > module.const_pool.size()) return Trap("GLOBAL init f64 out of bounds");
       uint64_t bits = ReadU64Payload(module.const_pool, const_id + 4);
-      globals[i] = Value{ValueKind::F64, static_cast<int64_t>(bits)};
+      globals[i] = PackF64Bits(bits);
       continue;
     }
     return Trap("GLOBAL init const unsupported");
@@ -712,10 +711,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   }
   if (!found) return Trap("entry method not found in functions table");
 
-  std::vector<Value> stack;
+  std::vector<Slot> stack;
   std::vector<Frame> call_stack;
 
-  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, int64_t closure_ref) -> Frame {
+  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, uint32_t closure_ref) -> Frame {
     update_tier(func_index);
     Frame frame;
     frame.func_index = func_index;
@@ -732,28 +731,57 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     return frame;
   };
 
-  Frame current = setup_frame(entry_func_index, 0, 0, -1);
+  Frame current = setup_frame(entry_func_index, 0, 0, kNullRef);
   size_t func_start = module.functions[entry_func_index].code_offset;
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
 
   size_t op_counter = 0;
+  auto ref_bit_set = [&](const std::vector<uint8_t>& bits, size_t index) -> bool {
+    size_t byte = index / 8;
+    if (byte >= bits.size()) return false;
+    return (bits[byte] & static_cast<uint8_t>(1u << (index % 8))) != 0;
+  };
+  auto find_stack_map = [&](size_t func_index, size_t pc_value) -> const StackMap* {
+    if (!have_meta || func_index >= vr.methods.size()) return nullptr;
+    const auto& maps = vr.methods[func_index].stack_maps;
+    for (const auto& map : maps) {
+      if (map.pc == pc_value) return &map;
+    }
+    return nullptr;
+  };
   auto maybe_collect = [&]() {
+    if (!have_meta) return;
     if (op_counter % 1000 != 0) return;
+    const StackMap* stack_map = find_stack_map(current.func_index, pc);
+    if (!stack_map) return;
     heap.ResetMarks();
-    for (const auto& g : globals) {
-      if (g.kind == ValueKind::Ref && g.i64 >= 0) heap.Mark(static_cast<uint32_t>(g.i64));
-    }
-    for (const auto& v : stack) {
-      if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
-    }
-    for (const auto& f : call_stack) {
-      for (const auto& v : f.locals) {
-        if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
+    for (size_t i = 0; i < globals.size(); ++i) {
+      if (ref_bit_set(vr.globals_ref_bits, i) && !IsNullRef(globals[i])) {
+        heap.Mark(UnpackRef(globals[i]));
       }
     }
-    for (const auto& v : current.locals) {
-      if (v.kind == ValueKind::Ref && v.i64 >= 0) heap.Mark(static_cast<uint32_t>(v.i64));
+    for (size_t i = 0; i < stack_map->stack_height && i < stack.size(); ++i) {
+      if (ref_bit_set(stack_map->ref_bits, i) && !IsNullRef(stack[i])) {
+        heap.Mark(UnpackRef(stack[i]));
+      }
+    }
+    for (const auto& f : call_stack) {
+      if (f.func_index >= vr.methods.size()) continue;
+      const auto& bits = vr.methods[f.func_index].locals_ref_bits;
+      for (size_t i = 0; i < f.locals.size(); ++i) {
+        if (ref_bit_set(bits, i) && !IsNullRef(f.locals[i])) {
+          heap.Mark(UnpackRef(f.locals[i]));
+        }
+      }
+    }
+    if (current.func_index < vr.methods.size()) {
+      const auto& bits = vr.methods[current.func_index].locals_ref_bits;
+      for (size_t i = 0; i < current.locals.size(); ++i) {
+        if (ref_bit_set(bits, i) && !IsNullRef(current.locals[i])) {
+          heap.Mark(UnpackRef(current.locals[i]));
+        }
+      }
     }
     heap.Sweep();
   };
@@ -790,8 +818,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::Halt: {
         ExecResult result;
         result.status = ExecStatus::Halted;
-        if (!stack.empty() && stack.back().kind == ValueKind::I32) {
-          result.exit_code = static_cast<int32_t>(stack.back().i64);
+        if (!stack.empty()) {
+          result.exit_code = UnpackI32(stack.back());
         }
         return finish(result);
       }
@@ -811,25 +839,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::Dup2: {
         if (stack.size() < 2) return Trap("DUP2 on short stack");
-        Value b = stack[stack.size() - 1];
-        Value a = stack[stack.size() - 2];
+        Slot b = stack[stack.size() - 1];
+        Slot a = stack[stack.size() - 2];
         stack.push_back(a);
         stack.push_back(b);
         break;
       }
       case OpCode::Swap: {
         if (stack.size() < 2) return Trap("SWAP on short stack");
-        Value a = stack[stack.size() - 1];
-        Value b = stack[stack.size() - 2];
+        Slot a = stack[stack.size() - 1];
+        Slot b = stack[stack.size() - 2];
         stack[stack.size() - 1] = b;
         stack[stack.size() - 2] = a;
         break;
       }
       case OpCode::Rot: {
         if (stack.size() < 3) return Trap("ROT on short stack");
-        Value c = stack[stack.size() - 1];
-        Value b = stack[stack.size() - 2];
-        Value a = stack[stack.size() - 3];
+        Slot c = stack[stack.size() - 1];
+        Slot b = stack[stack.size() - 2];
+        Slot a = stack[stack.size() - 3];
         stack[stack.size() - 3] = b;
         stack[stack.size() - 2] = c;
         stack[stack.size() - 1] = a;
@@ -837,52 +865,52 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::ConstI32: {
         int32_t value = ReadI32(module.code, pc);
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstI64: {
         int64_t value = ReadI64(module.code, pc);
-        Push(stack, Value{ValueKind::I64, value});
+        Push(stack, PackI64(value));
         break;
       }
       case OpCode::ConstU32: {
         uint32_t value = ReadU32(module.code, pc);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(value)});
+        Push(stack, PackI32(static_cast<int32_t>(value)));
         break;
       }
       case OpCode::ConstU64: {
         uint64_t value = ReadU64(module.code, pc);
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(value)});
+        Push(stack, PackI64(static_cast<int64_t>(value)));
         break;
       }
       case OpCode::ConstI8: {
         int8_t value = static_cast<int8_t>(ReadU8(module.code, pc));
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstI16: {
         int16_t value = static_cast<int16_t>(ReadU16(module.code, pc));
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstU8: {
         uint8_t value = ReadU8(module.code, pc);
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstU16: {
         uint16_t value = ReadU16(module.code, pc);
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstF32: {
         uint32_t bits = ReadU32(module.code, pc);
-        Push(stack, Value{ValueKind::F32, static_cast<int64_t>(bits)});
+        Push(stack, PackF32Bits(bits));
         break;
       }
       case OpCode::ConstF64: {
         uint64_t bits = ReadU64(module.code, pc);
-        Push(stack, Value{ValueKind::F64, static_cast<int64_t>(bits)});
+        Push(stack, PackF64Bits(bits));
         break;
       }
       case OpCode::ConstI128:
@@ -897,17 +925,17 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t blob_len = ReadU32Payload(module.const_pool, blob_offset);
         if (blob_len < 16) return Trap("CONST_I128/U128 blob too small");
         if (blob_offset + 4 + blob_len > module.const_pool.size()) return Trap("CONST_I128/U128 blob out of bounds");
-        Push(stack, Value{ValueKind::Ref, -1});
+        Push(stack, PackRef(kNullRef));
         break;
       }
       case OpCode::ConstChar: {
         uint16_t value = ReadU16(module.code, pc);
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ConstBool: {
         uint8_t v = ReadU8(module.code, pc);
-        Push(stack, Value{ValueKind::Bool, v ? 1 : 0});
+        Push(stack, PackI32(v ? 1 : 0));
         break;
       }
       case OpCode::ConstString: {
@@ -926,11 +954,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         uint32_t handle = CreateString(heap, text);
         if (handle == 0xFFFFFFFFu) return Trap("CONST_STRING allocation failed");
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::ConstNull: {
-        Push(stack, Value{ValueKind::Ref, -1});
+        Push(stack, PackRef(kNullRef));
         break;
       }
       case OpCode::LoadLocal: {
@@ -959,8 +987,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::LoadUpvalue: {
         uint32_t idx = ReadU32(module.code, pc);
-        if (current.closure_ref < 0) return Trap("LOAD_UPVALUE without closure");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(current.closure_ref));
+        if (current.closure_ref == kNullRef) return Trap("LOAD_UPVALUE without closure");
+        HeapObject* obj = heap.Get(current.closure_ref);
         if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("LOAD_UPVALUE on non-closure");
         if (obj->payload.size() < 8) return Trap("LOAD_UPVALUE invalid closure payload");
         uint32_t count = ReadU32Payload(obj->payload, 4);
@@ -968,24 +996,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         size_t offset = 8 + static_cast<size_t>(idx) * 4;
         if (offset + 4 > obj->payload.size()) return Trap("LOAD_UPVALUE out of bounds");
         uint32_t handle = ReadU32Payload(obj->payload, offset);
-        int64_t ref = handle == 0xFFFFFFFFu ? -1 : static_cast<int64_t>(handle);
-        Push(stack, Value{ValueKind::Ref, ref});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::StoreUpvalue: {
         uint32_t idx = ReadU32(module.code, pc);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref) return Trap("STORE_UPVALUE type mismatch");
-        if (current.closure_ref < 0) return Trap("STORE_UPVALUE without closure");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(current.closure_ref));
+        Slot v = Pop(stack);
+        if (current.closure_ref == kNullRef) return Trap("STORE_UPVALUE without closure");
+        HeapObject* obj = heap.Get(current.closure_ref);
         if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("STORE_UPVALUE on non-closure");
         if (obj->payload.size() < 8) return Trap("STORE_UPVALUE invalid closure payload");
         uint32_t count = ReadU32Payload(obj->payload, 4);
         if (idx >= count) return Trap("STORE_UPVALUE out of bounds");
         size_t offset = 8 + static_cast<size_t>(idx) * 4;
         if (offset + 4 > obj->payload.size()) return Trap("STORE_UPVALUE out of bounds");
-        uint32_t handle = v.i64 < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(v.i64);
-        WriteU32Payload(obj->payload, offset, handle);
+        WriteU32Payload(obj->payload, offset, UnpackRef(v));
         break;
       }
       case OpCode::NewObject: {
@@ -993,7 +1018,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (type_id >= module.types.size()) return Trap("NEW_OBJECT bad type id");
         uint32_t size = module.types[type_id].size;
         uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, size);
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::NewClosure: {
@@ -1008,63 +1033,58 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         WriteU32Payload(obj->payload, 4, static_cast<uint32_t>(upvalue_count));
         if (stack.size() < upvalue_count) return Trap("NEW_CLOSURE stack underflow");
         for (int32_t i = static_cast<int32_t>(upvalue_count) - 1; i >= 0; --i) {
-          Value v = Pop(stack);
-          if (v.kind != ValueKind::Ref) return Trap("NEW_CLOSURE upvalue type mismatch");
-          uint32_t handle_val = v.i64 < 0 ? 0xFFFFFFFFu : static_cast<uint32_t>(v.i64);
-          WriteU32Payload(obj->payload, 8 + static_cast<uint32_t>(i) * 4u, handle_val);
+          Slot v = Pop(stack);
+          WriteU32Payload(obj->payload, 8 + static_cast<uint32_t>(i) * 4u, UnpackRef(v));
         }
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::LoadField: {
         uint32_t field_id = ReadU32(module.code, pc);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LOAD_FIELD on non-ref");
+        Slot v = Pop(stack);
         if (field_id >= module.fields.size()) return Trap("LOAD_FIELD bad field id");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (IsNullRef(v)) return Trap("LOAD_FIELD on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("LOAD_FIELD on non-object");
         uint32_t offset = module.fields[field_id].offset;
         if (offset + 4 > obj->payload.size()) return Trap("LOAD_FIELD out of bounds");
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::StoreField: {
         uint32_t field_id = ReadU32(module.code, pc);
-        Value value = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STORE_FIELD on non-ref");
-        if (value.kind != ValueKind::I32) return Trap("STORE_FIELD type mismatch");
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
         if (field_id >= module.fields.size()) return Trap("STORE_FIELD bad field id");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        if (IsNullRef(v)) return Trap("STORE_FIELD on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("STORE_FIELD on non-object");
         uint32_t offset = module.fields[field_id].offset;
         if (offset + 4 > obj->payload.size()) return Trap("STORE_FIELD out of bounds");
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         break;
       }
       case OpCode::IsNull: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref) return Trap("IS_NULL on non-ref");
-        Push(stack, Value{ValueKind::Bool, v.i64 < 0 ? 1 : 0});
+        Slot v = Pop(stack);
+        Push(stack, PackI32(IsNullRef(v) ? 1 : 0));
         break;
       }
       case OpCode::RefEq:
       case OpCode::RefNe: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::Ref || b.kind != ValueKind::Ref) return Trap("REF_EQ/REF_NE on non-ref");
-        bool out = (a.i64 == b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        bool out = (UnpackRef(a) == UnpackRef(b));
         if (opcode == static_cast<uint8_t>(OpCode::RefNe)) out = !out;
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::TypeOf: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("TYPEOF on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("TYPEOF on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj) return Trap("TYPEOF on invalid ref");
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(obj->header.type_id)});
+        Push(stack, PackI32(static_cast<int32_t>(obj->header.type_id)));
         break;
       }
       case OpCode::NewArray: {
@@ -1075,46 +1095,44 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         HeapObject* obj = heap.Get(handle);
         if (!obj) return Trap("NEW_ARRAY allocation failed");
         WriteU32Payload(obj->payload, 0, length);
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::ArrayLen: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_LEN on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_LEN on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_LEN on non-array");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        Push(stack, PackI32(static_cast<int32_t>(length)));
         break;
       }
       case OpCode::ArrayGetI32: {
-        Value idx = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_GET on non-ref");
-        if (idx.kind != ValueKind::I32) return Trap("ARRAY_GET index not i32");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx.i64);
+        int32_t index = UnpackI32(idx);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
         size_t offset = 4 + static_cast<size_t>(index) * 4;
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ArraySetI32: {
-        Value value = Pop(stack);
-        Value idx = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("ARRAY_SET on non-ref");
-        if (idx.kind != ValueKind::I32 || value.kind != ValueKind::I32) return Trap("ARRAY_SET type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx.i64);
+        int32_t index = UnpackI32(idx);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
         size_t offset = 4 + static_cast<size_t>(index) * 4;
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         break;
       }
       case OpCode::NewList: {
@@ -1126,67 +1144,64 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (!obj) return Trap("NEW_LIST allocation failed");
         WriteU32Payload(obj->payload, 0, 0);
         WriteU32Payload(obj->payload, 4, capacity);
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::ListLen: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_LEN on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_LEN on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_LEN on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        Push(stack, PackI32(static_cast<int32_t>(length)));
         break;
       }
       case OpCode::ListGetI32: {
-        Value idx = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_GET on non-ref");
-        if (idx.kind != ValueKind::I32) return Trap("LIST_GET index not i32");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx.i64);
+        int32_t index = UnpackI32(idx);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
         size_t offset = 8 + static_cast<size_t>(index) * 4;
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ListSetI32: {
-        Value value = Pop(stack);
-        Value idx = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_SET on non-ref");
-        if (idx.kind != ValueKind::I32 || value.kind != ValueKind::I32) return Trap("LIST_SET type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx.i64);
+        int32_t index = UnpackI32(idx);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
         size_t offset = 8 + static_cast<size_t>(index) * 4;
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         break;
       }
       case OpCode::ListPushI32: {
-        Value value = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_PUSH on non-ref");
-        if (value.kind != ValueKind::I32) return Trap("LIST_PUSH type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_PUSH on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
         uint32_t capacity = ReadU32Payload(obj->payload, 4);
         if (length >= capacity) return Trap("LIST_PUSH overflow");
         size_t offset = 8 + static_cast<size_t>(length) * 4;
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         WriteU32Payload(obj->payload, 0, length + 1);
         break;
       }
       case OpCode::ListPopI32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_POP on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
         if (length == 0) return Trap("LIST_POP empty");
@@ -1194,22 +1209,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         size_t offset = 8 + static_cast<size_t>(index) * 4;
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
         WriteU32Payload(obj->payload, 0, length - 1);
-        Push(stack, Value{ValueKind::I32, value});
+        Push(stack, PackI32(value));
         break;
       }
       case OpCode::ListInsertI32: {
-        Value value = Pop(stack);
-        Value idx_val = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_INSERT on non-ref");
-        if (idx_val.kind != ValueKind::I32) return Trap("LIST_INSERT index type mismatch");
-        if (value.kind != ValueKind::I32) return Trap("LIST_INSERT value type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot value = Pop(stack);
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_INSERT on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
         uint32_t capacity = ReadU32Payload(obj->payload, 4);
         if (length >= capacity) return Trap("LIST_INSERT overflow");
-        int32_t index = static_cast<int32_t>(idx_val.i64);
+        int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
           size_t from = 8 + static_cast<size_t>(i - 1) * 4;
@@ -1217,19 +1230,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
         }
         size_t offset = 8 + static_cast<size_t>(index) * 4;
-        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(value.i64));
+        WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         WriteU32Payload(obj->payload, 0, length + 1);
         break;
       }
       case OpCode::ListRemoveI32: {
-        Value idx_val = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_REMOVE on non-ref");
-        if (idx_val.kind != ValueKind::I32) return Trap("LIST_REMOVE index type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_REMOVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx_val.i64);
+        int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
         size_t offset = 8 + static_cast<size_t>(index) * 4;
         int32_t removed = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
@@ -1239,32 +1251,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
         }
         WriteU32Payload(obj->payload, 0, length - 1);
-        Push(stack, Value{ValueKind::I32, removed});
+        Push(stack, PackI32(removed));
         break;
       }
       case OpCode::ListClear: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("LIST_CLEAR on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_CLEAR on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_CLEAR on non-list");
         WriteU32Payload(obj->payload, 0, 0);
         break;
       }
       case OpCode::StringLen: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_LEN on non-ref");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("STRING_LEN on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_LEN on non-string");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(length)});
+        Push(stack, PackI32(static_cast<int32_t>(length)));
         break;
       }
       case OpCode::StringConcat: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::Ref || b.kind != ValueKind::Ref) return Trap("STRING_CONCAT on non-ref");
-        HeapObject* obj_a = heap.Get(static_cast<uint32_t>(a.i64));
-        HeapObject* obj_b = heap.Get(static_cast<uint32_t>(b.i64));
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        if (IsNullRef(a) || IsNullRef(b)) return Trap("STRING_CONCAT on non-ref");
+        HeapObject* obj_a = heap.Get(UnpackRef(a));
+        HeapObject* obj_b = heap.Get(UnpackRef(b));
         if (!obj_a || !obj_b || obj_a->header.kind != ObjectKind::String || obj_b->header.kind != ObjectKind::String) {
           return Trap("STRING_CONCAT on non-string");
         }
@@ -1273,37 +1285,33 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         std::u16string combined = sa + sb;
         uint32_t handle = CreateString(heap, combined);
         if (handle == 0xFFFFFFFFu) return Trap("STRING_CONCAT allocation failed");
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::StringGetChar: {
-        Value idx_val = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_GET_CHAR on non-ref");
-        if (idx_val.kind != ValueKind::I32) return Trap("STRING_GET_CHAR index type mismatch");
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("STRING_GET_CHAR on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_GET_CHAR on non-string");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t index = static_cast<int32_t>(idx_val.i64);
+        int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("STRING_GET_CHAR out of bounds");
         size_t offset = 4 + static_cast<size_t>(index) * 2;
         uint16_t ch = ReadU16Payload(obj->payload, offset);
-        Push(stack, Value{ValueKind::I32, ch});
+        Push(stack, PackI32(ch));
         break;
       }
       case OpCode::StringSlice: {
-        Value end_val = Pop(stack);
-        Value start_val = Pop(stack);
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Ref || v.i64 < 0) return Trap("STRING_SLICE on non-ref");
-        if (start_val.kind != ValueKind::I32 || end_val.kind != ValueKind::I32) {
-          return Trap("STRING_SLICE index type mismatch");
-        }
-        HeapObject* obj = heap.Get(static_cast<uint32_t>(v.i64));
+        Slot end_val = Pop(stack);
+        Slot start_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("STRING_SLICE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::String) return Trap("STRING_SLICE on non-string");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        int32_t start = static_cast<int32_t>(start_val.i64);
-        int32_t end_idx = static_cast<int32_t>(end_val.i64);
+        int32_t start = UnpackI32(start_val);
+        int32_t end_idx = UnpackI32(end_val);
         if (start < 0 || end_idx < 0 || start > end_idx || static_cast<uint32_t>(end_idx) > length) {
           return Trap("STRING_SLICE out of bounds");
         }
@@ -1311,7 +1319,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         std::u16string slice = text.substr(static_cast<size_t>(start), static_cast<size_t>(end_idx - start));
         uint32_t handle = CreateString(heap, slice);
         if (handle == 0xFFFFFFFFu) return Trap("STRING_SLICE allocation failed");
-        Push(stack, Value{ValueKind::Ref, static_cast<int64_t>(handle)});
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::CallCheck: {
@@ -1344,38 +1352,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::MulI32:
       case OpCode::DivI32:
       case OpCode::ModI32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 arithmetic on non-i32");
-        int32_t lhs = static_cast<int32_t>(a.i64);
-        int32_t rhs = static_cast<int32_t>(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        int32_t lhs = UnpackI32(a);
+        int32_t rhs = UnpackI32(b);
         int32_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AddI32)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubI32)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulI32)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivI32)) out = rhs == 0 ? 0 : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModI32)) out = rhs == 0 ? 0 : (lhs % rhs);
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::NegI32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_I32 on non-i32");
-        int32_t out = -static_cast<int32_t>(a.i64);
-        Push(stack, Value{ValueKind::I32, out});
+        Slot a = Pop(stack);
+        int32_t out = -UnpackI32(a);
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::IncI32:
       case OpCode::DecI32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_I32 on non-i32");
-        int32_t out = static_cast<int32_t>(a.i64);
+        Slot a = Pop(stack);
+        int32_t out = UnpackI32(a);
         if (opcode == static_cast<uint8_t>(OpCode::IncI32)) {
           out += 1;
         } else {
           out -= 1;
         }
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::AddU32:
@@ -1383,123 +1388,112 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::MulU32:
       case OpCode::DivU32:
       case OpCode::ModU32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("U32 arithmetic on non-i32");
-        uint32_t lhs = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
-        uint32_t rhs = static_cast<uint32_t>(static_cast<int32_t>(b.i64));
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint32_t lhs = static_cast<uint32_t>(UnpackI32(a));
+        uint32_t rhs = static_cast<uint32_t>(UnpackI32(b));
         uint32_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AddU32)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubU32)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulU32)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivU32)) out = rhs == 0 ? 0u : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModU32)) out = rhs == 0 ? 0u : (lhs % rhs);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::IncU32:
       case OpCode::DecU32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U32 on non-i32");
-        uint32_t out = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint32_t out = static_cast<uint32_t>(UnpackI32(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncU32)) {
           out += 1u;
         } else {
           out -= 1u;
         }
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::IncI8:
       case OpCode::DecI8: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_I8 on non-i32");
-        int8_t out = static_cast<int8_t>(a.i64);
+        Slot a = Pop(stack);
+        int8_t out = static_cast<int8_t>(UnpackI32(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncI8)) {
           out = static_cast<int8_t>(out + 1);
         } else {
           out = static_cast<int8_t>(out - 1);
         }
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::IncI16:
       case OpCode::DecI16: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_I16 on non-i32");
-        int16_t out = static_cast<int16_t>(a.i64);
+        Slot a = Pop(stack);
+        int16_t out = static_cast<int16_t>(UnpackI32(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncI16)) {
           out = static_cast<int16_t>(out + 1);
         } else {
           out = static_cast<int16_t>(out - 1);
         }
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::IncU8:
       case OpCode::DecU8: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U8 on non-i32");
-        uint8_t out = static_cast<uint8_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint8_t out = static_cast<uint8_t>(UnpackI32(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncU8)) {
           out = static_cast<uint8_t>(out + 1);
         } else {
           out = static_cast<uint8_t>(out - 1);
         }
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::IncU16:
       case OpCode::DecU16: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("INC/DEC_U16 on non-i32");
-        uint16_t out = static_cast<uint16_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint16_t out = static_cast<uint16_t>(UnpackI32(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncU16)) {
           out = static_cast<uint16_t>(out + 1);
         } else {
           out = static_cast<uint16_t>(out - 1);
         }
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::NegI8: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_I8 on non-i32");
-        int8_t v = static_cast<int8_t>(a.i64);
+        Slot a = Pop(stack);
+        int8_t v = static_cast<int8_t>(UnpackI32(a));
         int8_t out = static_cast<int8_t>(-v);
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::NegI16: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_I16 on non-i32");
-        int16_t v = static_cast<int16_t>(a.i64);
+        Slot a = Pop(stack);
+        int16_t v = static_cast<int16_t>(UnpackI32(a));
         int16_t out = static_cast<int16_t>(-v);
-        Push(stack, Value{ValueKind::I32, out});
+        Push(stack, PackI32(out));
         break;
       }
       case OpCode::NegU8: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_U8 on non-i32");
-        uint8_t v = static_cast<uint8_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint8_t v = static_cast<uint8_t>(UnpackI32(a));
         uint8_t out = static_cast<uint8_t>(0u - v);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::NegU16: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_U16 on non-i32");
-        uint16_t v = static_cast<uint16_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint16_t v = static_cast<uint16_t>(UnpackI32(a));
         uint16_t out = static_cast<uint16_t>(0u - v);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::NegU32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32) return Trap("NEG_U32 on non-i32");
-        uint32_t v = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
+        Slot a = Pop(stack);
+        uint32_t v = static_cast<uint32_t>(UnpackI32(a));
         uint32_t out = 0u - v;
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::AndI32:
@@ -1507,18 +1501,17 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::XorI32:
       case OpCode::ShlI32:
       case OpCode::ShrI32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 bitwise on non-i32");
-        uint32_t lhs = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
-        uint32_t rhs = static_cast<uint32_t>(static_cast<int32_t>(b.i64));
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint32_t lhs = static_cast<uint32_t>(UnpackI32(a));
+        uint32_t rhs = static_cast<uint32_t>(UnpackI32(b));
         uint32_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AndI32)) out = lhs & rhs;
         if (opcode == static_cast<uint8_t>(OpCode::OrI32)) out = lhs | rhs;
         if (opcode == static_cast<uint8_t>(OpCode::XorI32)) out = lhs ^ rhs;
         if (opcode == static_cast<uint8_t>(OpCode::ShlI32)) out = lhs << (rhs & 31u);
         if (opcode == static_cast<uint8_t>(OpCode::ShrI32)) out = lhs >> (rhs & 31u);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(out)});
+        Push(stack, PackI32(static_cast<int32_t>(out)));
         break;
       }
       case OpCode::AddI64:
@@ -1526,46 +1519,42 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::MulI64:
       case OpCode::DivI64:
       case OpCode::ModI64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 arithmetic on non-i64");
-        int64_t lhs = a.i64;
-        int64_t rhs = b.i64;
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        int64_t lhs = UnpackI64(a);
+        int64_t rhs = UnpackI64(b);
         int64_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AddI64)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubI64)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulI64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivI64)) out = rhs == 0 ? 0 : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModI64)) out = rhs == 0 ? 0 : (lhs % rhs);
-        Push(stack, Value{ValueKind::I64, out});
+        Push(stack, PackI64(out));
         break;
       }
       case OpCode::NegI64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64) return Trap("NEG_I64 on non-i64");
-        int64_t out = -a.i64;
-        Push(stack, Value{ValueKind::I64, out});
+        Slot a = Pop(stack);
+        int64_t out = -UnpackI64(a);
+        Push(stack, PackI64(out));
         break;
       }
       case OpCode::NegU64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64) return Trap("NEG_U64 on non-i64");
-        uint64_t v = static_cast<uint64_t>(a.i64);
+        Slot a = Pop(stack);
+        uint64_t v = static_cast<uint64_t>(UnpackI64(a));
         uint64_t out = 0u - v;
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        Push(stack, PackI64(static_cast<int64_t>(out)));
         break;
       }
       case OpCode::IncI64:
       case OpCode::DecI64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64) return Trap("INC/DEC_I64 on non-i64");
-        int64_t out = a.i64;
+        Slot a = Pop(stack);
+        int64_t out = UnpackI64(a);
         if (opcode == static_cast<uint8_t>(OpCode::IncI64)) {
           out += 1;
         } else {
           out -= 1;
         }
-        Push(stack, Value{ValueKind::I64, out});
+        Push(stack, PackI64(out));
         break;
       }
       case OpCode::AddU64:
@@ -1573,31 +1562,29 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::MulU64:
       case OpCode::DivU64:
       case OpCode::ModU64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("U64 arithmetic on non-i64");
-        uint64_t lhs = static_cast<uint64_t>(a.i64);
-        uint64_t rhs = static_cast<uint64_t>(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint64_t lhs = static_cast<uint64_t>(UnpackI64(a));
+        uint64_t rhs = static_cast<uint64_t>(UnpackI64(b));
         uint64_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AddU64)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubU64)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulU64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivU64)) out = rhs == 0 ? 0u : (lhs / rhs);
         if (opcode == static_cast<uint8_t>(OpCode::ModU64)) out = rhs == 0 ? 0u : (lhs % rhs);
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        Push(stack, PackI64(static_cast<int64_t>(out)));
         break;
       }
       case OpCode::IncU64:
       case OpCode::DecU64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64) return Trap("INC/DEC_U64 on non-i64");
-        uint64_t out = static_cast<uint64_t>(a.i64);
+        Slot a = Pop(stack);
+        uint64_t out = static_cast<uint64_t>(UnpackI64(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncU64)) {
           out += 1u;
         } else {
           out -= 1u;
         }
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        Push(stack, PackI64(static_cast<int64_t>(out)));
         break;
       }
       case OpCode::AndI64:
@@ -1605,92 +1592,85 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::XorI64:
       case OpCode::ShlI64:
       case OpCode::ShrI64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 bitwise on non-i64");
-        uint64_t lhs = static_cast<uint64_t>(a.i64);
-        uint64_t rhs = static_cast<uint64_t>(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint64_t lhs = static_cast<uint64_t>(UnpackI64(a));
+        uint64_t rhs = static_cast<uint64_t>(UnpackI64(b));
         uint64_t out = 0;
         if (opcode == static_cast<uint8_t>(OpCode::AndI64)) out = lhs & rhs;
         if (opcode == static_cast<uint8_t>(OpCode::OrI64)) out = lhs | rhs;
         if (opcode == static_cast<uint8_t>(OpCode::XorI64)) out = lhs ^ rhs;
         if (opcode == static_cast<uint8_t>(OpCode::ShlI64)) out = lhs << (rhs & 63u);
         if (opcode == static_cast<uint8_t>(OpCode::ShrI64)) out = lhs >> (rhs & 63u);
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(out)});
+        Push(stack, PackI64(static_cast<int64_t>(out)));
         break;
       }
       case OpCode::AddF32:
       case OpCode::SubF32:
       case OpCode::MulF32:
       case OpCode::DivF32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F32 || b.kind != ValueKind::F32) return Trap("F32 arithmetic on non-f32");
-        float lhs = BitsToF32(a.i64);
-        float rhs = BitsToF32(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        float lhs = BitsToF32(static_cast<uint32_t>(a));
+        float rhs = BitsToF32(static_cast<uint32_t>(b));
         float out = 0.0f;
         if (opcode == static_cast<uint8_t>(OpCode::AddF32)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubF32)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulF32)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivF32)) out = rhs == 0.0f ? 0.0f : (lhs / rhs);
-        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        Push(stack, PackF32Bits(F32ToBits(out)));
         break;
       }
       case OpCode::NegF32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F32) return Trap("NEG_F32 on non-f32");
-        float out = -BitsToF32(a.i64);
-        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        Slot a = Pop(stack);
+        float out = -BitsToF32(static_cast<uint32_t>(a));
+        Push(stack, PackF32Bits(F32ToBits(out)));
         break;
       }
       case OpCode::IncF32:
       case OpCode::DecF32: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F32) return Trap("INC/DEC_F32 on non-f32");
-        float out = BitsToF32(a.i64);
+        Slot a = Pop(stack);
+        float out = BitsToF32(static_cast<uint32_t>(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncF32)) {
           out += 1.0f;
         } else {
           out -= 1.0f;
         }
-        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        Push(stack, PackF32Bits(F32ToBits(out)));
         break;
       }
       case OpCode::AddF64:
       case OpCode::SubF64:
       case OpCode::MulF64:
       case OpCode::DivF64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F64 || b.kind != ValueKind::F64) return Trap("F64 arithmetic on non-f64");
-        double lhs = BitsToF64(a.i64);
-        double rhs = BitsToF64(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        double lhs = BitsToF64(static_cast<uint64_t>(a));
+        double rhs = BitsToF64(static_cast<uint64_t>(b));
         double out = 0.0;
         if (opcode == static_cast<uint8_t>(OpCode::AddF64)) out = lhs + rhs;
         if (opcode == static_cast<uint8_t>(OpCode::SubF64)) out = lhs - rhs;
         if (opcode == static_cast<uint8_t>(OpCode::MulF64)) out = lhs * rhs;
         if (opcode == static_cast<uint8_t>(OpCode::DivF64)) out = rhs == 0.0 ? 0.0 : (lhs / rhs);
-        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        Push(stack, PackF64Bits(F64ToBits(out)));
         break;
       }
       case OpCode::NegF64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F64) return Trap("NEG_F64 on non-f64");
-        double out = -BitsToF64(a.i64);
-        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        Slot a = Pop(stack);
+        double out = -BitsToF64(static_cast<uint64_t>(a));
+        Push(stack, PackF64Bits(F64ToBits(out)));
         break;
       }
       case OpCode::IncF64:
       case OpCode::DecF64: {
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F64) return Trap("INC/DEC_F64 on non-f64");
-        double out = BitsToF64(a.i64);
+        Slot a = Pop(stack);
+        double out = BitsToF64(static_cast<uint64_t>(a));
         if (opcode == static_cast<uint8_t>(OpCode::IncF64)) {
           out += 1.0;
         } else {
           out -= 1.0;
         }
-        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        Push(stack, PackF64Bits(F64ToBits(out)));
         break;
       }
       case OpCode::CmpEqI32:
@@ -1699,11 +1679,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeI32:
       case OpCode::CmpGtI32:
       case OpCode::CmpGeI32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("I32 compare on non-i32");
-        int32_t lhs = static_cast<int32_t>(a.i64);
-        int32_t rhs = static_cast<int32_t>(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        int32_t lhs = UnpackI32(a);
+        int32_t rhs = UnpackI32(b);
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqI32)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeI32)) out = (lhs != rhs);
@@ -1711,7 +1690,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeI32)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtI32)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeI32)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::CmpEqU32:
@@ -1720,11 +1699,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeU32:
       case OpCode::CmpGtU32:
       case OpCode::CmpGeU32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I32 || b.kind != ValueKind::I32) return Trap("U32 compare on non-i32");
-        uint32_t lhs = static_cast<uint32_t>(static_cast<int32_t>(a.i64));
-        uint32_t rhs = static_cast<uint32_t>(static_cast<int32_t>(b.i64));
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint32_t lhs = static_cast<uint32_t>(UnpackI32(a));
+        uint32_t rhs = static_cast<uint32_t>(UnpackI32(b));
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqU32)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeU32)) out = (lhs != rhs);
@@ -1732,7 +1710,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeU32)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtU32)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeU32)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::CmpEqI64:
@@ -1741,11 +1719,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeI64:
       case OpCode::CmpGtI64:
       case OpCode::CmpGeI64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("I64 compare on non-i64");
-        int64_t lhs = a.i64;
-        int64_t rhs = b.i64;
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        int64_t lhs = UnpackI64(a);
+        int64_t rhs = UnpackI64(b);
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqI64)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeI64)) out = (lhs != rhs);
@@ -1753,7 +1730,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeI64)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtI64)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeI64)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::CmpEqU64:
@@ -1762,11 +1739,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeU64:
       case OpCode::CmpGtU64:
       case OpCode::CmpGeU64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::I64 || b.kind != ValueKind::I64) return Trap("U64 compare on non-i64");
-        uint64_t lhs = static_cast<uint64_t>(a.i64);
-        uint64_t rhs = static_cast<uint64_t>(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        uint64_t lhs = static_cast<uint64_t>(UnpackI64(a));
+        uint64_t rhs = static_cast<uint64_t>(UnpackI64(b));
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqU64)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeU64)) out = (lhs != rhs);
@@ -1774,7 +1750,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeU64)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtU64)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeU64)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::CmpEqF32:
@@ -1783,11 +1759,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeF32:
       case OpCode::CmpGtF32:
       case OpCode::CmpGeF32: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F32 || b.kind != ValueKind::F32) return Trap("F32 compare on non-f32");
-        float lhs = BitsToF32(a.i64);
-        float rhs = BitsToF32(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        float lhs = BitsToF32(static_cast<uint32_t>(a));
+        float rhs = BitsToF32(static_cast<uint32_t>(b));
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqF32)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeF32)) out = (lhs != rhs);
@@ -1795,7 +1770,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeF32)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtF32)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeF32)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::CmpEqF64:
@@ -1804,11 +1779,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::CmpLeF64:
       case OpCode::CmpGtF64:
       case OpCode::CmpGeF64: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::F64 || b.kind != ValueKind::F64) return Trap("F64 compare on non-f64");
-        double lhs = BitsToF64(a.i64);
-        double rhs = BitsToF64(b.i64);
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        double lhs = BitsToF64(static_cast<uint64_t>(a));
+        double rhs = BitsToF64(static_cast<uint64_t>(b));
         bool out = false;
         if (opcode == static_cast<uint8_t>(OpCode::CmpEqF64)) out = (lhs == rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpNeF64)) out = (lhs != rhs);
@@ -1816,22 +1790,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (opcode == static_cast<uint8_t>(OpCode::CmpLeF64)) out = (lhs <= rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGtF64)) out = (lhs > rhs);
         if (opcode == static_cast<uint8_t>(OpCode::CmpGeF64)) out = (lhs >= rhs);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::BoolNot: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::Bool) return Trap("BOOL_NOT on non-bool");
-        Push(stack, Value{ValueKind::Bool, v.i64 ? 0 : 1});
+        Slot v = Pop(stack);
+        Push(stack, PackI32(UnpackI32(v) ? 0 : 1));
         break;
       }
       case OpCode::BoolAnd:
       case OpCode::BoolOr: {
-        Value b = Pop(stack);
-        Value a = Pop(stack);
-        if (a.kind != ValueKind::Bool || b.kind != ValueKind::Bool) return Trap("BOOL op on non-bool");
-        bool out = (opcode == static_cast<uint8_t>(OpCode::BoolAnd)) ? (a.i64 && b.i64) : (a.i64 || b.i64);
-        Push(stack, Value{ValueKind::Bool, out ? 1 : 0});
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        bool out = (opcode == static_cast<uint8_t>(OpCode::BoolAnd)) ?
+            (UnpackI32(a) != 0 && UnpackI32(b) != 0) :
+            (UnpackI32(a) != 0 || UnpackI32(b) != 0);
+        Push(stack, PackI32(out ? 1 : 0));
         break;
       }
       case OpCode::Jmp: {
@@ -1843,8 +1817,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::JmpTable: {
         uint32_t const_id = ReadU32(module.code, pc);
         int32_t default_rel = ReadI32(module.code, pc);
-        Value index = Pop(stack);
-        if (index.kind != ValueKind::I32) return Trap("JMP_TABLE index type mismatch");
+        Slot index = Pop(stack);
         if (const_id + 8 > module.const_pool.size()) return Trap("JMP_TABLE const id bad");
         uint32_t kind = ReadU32Payload(module.const_pool, const_id);
         if (kind != 6) return Trap("JMP_TABLE const kind mismatch");
@@ -1856,7 +1829,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t count = ReadU32Payload(module.const_pool, payload + 4);
         if (blob_len != 4 + count * 4) return Trap("JMP_TABLE blob size mismatch");
         int32_t rel = default_rel;
-        int32_t idx_val = static_cast<int32_t>(index.i64);
+        int32_t idx_val = UnpackI32(index);
         if (idx_val >= 0 && static_cast<uint32_t>(idx_val) < count) {
           size_t off_pos = payload + 8 + static_cast<size_t>(idx_val) * 4u;
           uint32_t raw = ReadU32Payload(module.const_pool, off_pos);
@@ -1869,9 +1842,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       case OpCode::JmpTrue:
       case OpCode::JmpFalse: {
         int32_t rel = ReadI32(module.code, pc);
-        Value cond = Pop(stack);
-        if (cond.kind != ValueKind::Bool) return Trap("JMP on non-bool");
-        bool take = cond.i64 != 0;
+        Slot cond = Pop(stack);
+        bool take = UnpackI32(cond) != 0;
         if (opcode == static_cast<uint8_t>(OpCode::JmpFalse)) take = !take;
         if (take) {
           pc = static_cast<size_t>(static_cast<int64_t>(pc) + rel);
@@ -1902,7 +1874,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (arg_count != sig.param_count) return Trap("CALL arg count mismatch");
         if (stack.size() < arg_count) return Trap("CALL stack underflow");
 
-        std::vector<Value> args(arg_count);
+        std::vector<Slot> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
         }
@@ -1913,10 +1885,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (jit_tiers[func_id] == JitTier::Tier1) {
             jit_tier1_exec_counts[func_id] += 1;
           }
-          Value ret;
+          Slot ret = 0;
+          bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, ret, error)) {
-            if (ret.kind != ValueKind::None) Push(stack, ret);
+          if (run_compiled(func_id, ret, has_ret, error)) {
+            if (has_ret) Push(stack, ret);
             break;
           }
           jit_stubs[func_id].compiled = false;
@@ -1926,7 +1899,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         current.return_pc = pc;
         current.stack_base = stack.size();
         call_stack.push_back(current);
-        current = setup_frame(func_id, pc, stack.size(), -1);
+        current = setup_frame(func_id, pc, stack.size(), kNullRef);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }
@@ -1942,38 +1915,39 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         const auto& sig = module.sigs[sig_id];
         if (arg_count != sig.param_count) return Trap("CALL_INDIRECT arg count mismatch");
         if (stack.size() < static_cast<size_t>(arg_count) + 1u) return Trap("CALL_INDIRECT stack underflow");
-        Value func_val = Pop(stack);
+        Slot func_val = Pop(stack);
         int64_t func_index = -1;
-        int64_t closure_ref = -1;
-        if (func_val.kind == ValueKind::I32) {
-          func_index = func_val.i64;
-          if (func_index < 0 || static_cast<size_t>(func_index) >= module.functions.size()) {
+        uint32_t closure_ref = kNullRef;
+        uint32_t handle = UnpackRef(func_val);
+        if (handle != kNullRef) {
+          HeapObject* obj = heap.Get(handle);
+          if (obj && obj->header.kind == ObjectKind::Closure) {
+            uint32_t method_id = ReadU32Payload(obj->payload, 0);
+            bool found = false;
+            for (size_t i = 0; i < module.functions.size(); ++i) {
+              if (module.functions[i].method_id == method_id) {
+                func_index = static_cast<int64_t>(i);
+                found = true;
+                break;
+              }
+            }
+            if (!found) return Trap("CALL_INDIRECT closure method not found");
+            closure_ref = handle;
+          }
+        }
+        if (func_index < 0) {
+          int32_t idx = UnpackI32(func_val);
+          if (idx < 0 || static_cast<size_t>(idx) >= module.functions.size()) {
             return Trap("CALL_INDIRECT invalid function id");
           }
-        } else if (func_val.kind == ValueKind::Ref) {
-          if (func_val.i64 < 0) return Trap("CALL_INDIRECT null closure");
-          HeapObject* obj = heap.Get(static_cast<uint32_t>(func_val.i64));
-          if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("CALL_INDIRECT on non-closure");
-          uint32_t method_id = ReadU32Payload(obj->payload, 0);
-          bool found = false;
-          for (size_t i = 0; i < module.functions.size(); ++i) {
-            if (module.functions[i].method_id == method_id) {
-              func_index = static_cast<int64_t>(i);
-              found = true;
-              break;
-            }
-          }
-          if (!found) return Trap("CALL_INDIRECT closure method not found");
-          closure_ref = func_val.i64;
-        } else {
-          return Trap("CALL_INDIRECT on invalid callee");
+          func_index = idx;
         }
 
         if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].active) {
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
         }
-        std::vector<Value> args(arg_count);
+        std::vector<Slot> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
         }
@@ -1984,10 +1958,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (jit_tiers[static_cast<size_t>(func_index)] == JitTier::Tier1) {
             jit_tier1_exec_counts[static_cast<size_t>(func_index)] += 1;
           }
-          Value ret;
+          Slot ret = 0;
+          bool has_ret = false;
           std::string error;
-          if (run_compiled(static_cast<size_t>(func_index), ret, error)) {
-            if (ret.kind != ValueKind::None) Push(stack, ret);
+          if (run_compiled(static_cast<size_t>(func_index), ret, has_ret, error)) {
+            if (has_ret) Push(stack, ret);
             break;
           }
           jit_stubs[static_cast<size_t>(func_index)].compiled = false;
@@ -2023,7 +1998,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (arg_count != sig.param_count) return Trap("TAILCALL arg count mismatch");
         if (stack.size() < arg_count) return Trap("TAILCALL stack underflow");
 
-        std::vector<Value> args(arg_count);
+        std::vector<Slot> args(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           args[static_cast<size_t>(i)] = Pop(stack);
         }
@@ -2034,19 +2009,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (jit_tiers[func_id] == JitTier::Tier1) {
             jit_tier1_exec_counts[func_id] += 1;
           }
-          Value ret;
+          Slot ret = 0;
+          bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, ret, error)) {
+          if (run_compiled(func_id, ret, has_ret, error)) {
             if (call_stack.empty()) {
               ExecResult result;
               result.status = ExecStatus::Halted;
-              if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
+              if (has_ret) result.exit_code = UnpackI32(ret);
               return finish(result);
             }
             Frame caller = call_stack.back();
             call_stack.pop_back();
             stack.resize(caller.stack_base);
-            if (ret.kind != ValueKind::None) Push(stack, ret);
+            if (has_ret) Push(stack, ret);
             current = caller;
             pc = current.return_pc;
             const auto& func = module.functions[current.func_index];
@@ -2061,7 +2037,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         size_t return_pc = current.return_pc;
         size_t stack_base = current.stack_base;
         stack.resize(stack_base);
-        current = setup_frame(func_id, return_pc, stack_base, -1);
+        current = setup_frame(func_id, return_pc, stack_base, kNullRef);
         for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
           current.locals[i] = args[i];
         }
@@ -2071,72 +2047,68 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         break;
       }
       case OpCode::ConvI32ToI64: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::I32) return Trap("CONV_I32_I64 on non-i32");
-        Push(stack, Value{ValueKind::I64, static_cast<int64_t>(static_cast<int32_t>(v.i64))});
+        Slot v = Pop(stack);
+        Push(stack, PackI64(static_cast<int64_t>(UnpackI32(v))));
         break;
       }
       case OpCode::ConvI64ToI32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::I64) return Trap("CONV_I64_I32 on non-i64");
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(v.i64)});
+        Slot v = Pop(stack);
+        Push(stack, PackI32(static_cast<int32_t>(UnpackI64(v))));
         break;
       }
       case OpCode::ConvI32ToF32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::I32) return Trap("CONV_I32_F32 on non-i32");
-        float out = static_cast<float>(static_cast<int32_t>(v.i64));
-        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        Slot v = Pop(stack);
+        float out = static_cast<float>(UnpackI32(v));
+        Push(stack, PackF32Bits(F32ToBits(out)));
         break;
       }
       case OpCode::ConvI32ToF64: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::I32) return Trap("CONV_I32_F64 on non-i32");
-        double out = static_cast<double>(static_cast<int32_t>(v.i64));
-        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        Slot v = Pop(stack);
+        double out = static_cast<double>(UnpackI32(v));
+        Push(stack, PackF64Bits(F64ToBits(out)));
         break;
       }
       case OpCode::ConvF32ToI32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::F32) return Trap("CONV_F32_I32 on non-f32");
-        float in = BitsToF32(v.i64);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(in)});
+        Slot v = Pop(stack);
+        float in = BitsToF32(static_cast<uint32_t>(v));
+        Push(stack, PackI32(static_cast<int32_t>(in)));
         break;
       }
       case OpCode::ConvF64ToI32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::F64) return Trap("CONV_F64_I32 on non-f64");
-        double in = BitsToF64(v.i64);
-        Push(stack, Value{ValueKind::I32, static_cast<int32_t>(in)});
+        Slot v = Pop(stack);
+        double in = BitsToF64(static_cast<uint64_t>(v));
+        Push(stack, PackI32(static_cast<int32_t>(in)));
         break;
       }
       case OpCode::ConvF32ToF64: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::F32) return Trap("CONV_F32_F64 on non-f32");
-        double out = static_cast<double>(BitsToF32(v.i64));
-        Push(stack, Value{ValueKind::F64, F64ToBits(out)});
+        Slot v = Pop(stack);
+        double out = static_cast<double>(BitsToF32(static_cast<uint32_t>(v)));
+        Push(stack, PackF64Bits(F64ToBits(out)));
         break;
       }
       case OpCode::ConvF64ToF32: {
-        Value v = Pop(stack);
-        if (v.kind != ValueKind::F64) return Trap("CONV_F64_F32 on non-f64");
-        float out = static_cast<float>(BitsToF64(v.i64));
-        Push(stack, Value{ValueKind::F32, F32ToBits(out)});
+        Slot v = Pop(stack);
+        float out = static_cast<float>(BitsToF64(static_cast<uint64_t>(v)));
+        Push(stack, PackF32Bits(F32ToBits(out)));
         break;
       }
       case OpCode::Ret: {
-        Value ret = {ValueKind::None, 0};
-        if (!stack.empty()) ret = Pop(stack);
+        Slot ret = 0;
+        bool has_ret = false;
+        if (!stack.empty()) {
+          ret = Pop(stack);
+          has_ret = true;
+        }
         if (call_stack.empty()) {
           ExecResult result;
           result.status = ExecStatus::Halted;
-          if (ret.kind == ValueKind::I32) result.exit_code = static_cast<int32_t>(ret.i64);
+          if (has_ret) result.exit_code = UnpackI32(ret);
           return finish(result);
         }
         Frame caller = call_stack.back();
         call_stack.pop_back();
         stack.resize(caller.stack_base);
-        if (ret.kind != ValueKind::None) Push(stack, ret);
+        if (has_ret) Push(stack, ret);
         current = caller;
         pc = current.return_pc;
         const auto& func = module.functions[current.func_index];

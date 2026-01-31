@@ -261,3 +261,8 @@
 - Added verifier metadata outputs for VM types, locals/global ref bitmaps, and safepoint stack maps.
 - Added verifier metadata test to validate locals/global ref bits and stack map capture.
 - Added verifier metadata test to ensure non-ref globals do not set ref bitmap bits.
+- Refactored VM runtime to use untagged Slot storage for stack/locals/globals, removing ValueKind checks in interpreter and JIT paths.
+- Added slot pack/unpack helpers for i32/i64/f32/f64/ref and updated call frames to store untagged locals.
+- Switched GC root scanning to verifier-provided ref bitmaps + stack maps and only collect at safepoints with stack maps.
+- Adjusted bad call-indirect type test to fail verification (ConstF32) under typed runtime rules.
+- Added per-test "running" output in the test harness for easier hang diagnostics.

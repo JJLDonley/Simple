@@ -60,10 +60,10 @@ Acceptance:
 - Verified bytecode can be executed safely.
 
 ### Phase 2: Typed Runtime Refactor (No Tagged Values)
-- [CHANGE] Replace `Value`/`ValueKind` with raw `Slot` storage for stack/locals/globals.
-- [CHANGE] Remove runtime type checks; rely on verifier + debug asserts.
-- [NEW] Add slot pack/unpack helpers (i32/i64/f32/f64/ref).
-- [NEW] Update call frames to hold untagged locals.
+- [DONE] Replace `Value`/`ValueKind` with raw `Slot` storage for stack/locals/globals.
+- [DONE] Remove runtime type checks; rely on verifier + debug asserts.
+- [DONE] Add slot pack/unpack helpers (i32/i64/f32/f64/ref).
+- [DONE] Update call frames to hold untagged locals.
 
 Acceptance:
 - Runtime contains no tagged values and passes existing opcode tests.
@@ -80,7 +80,7 @@ Acceptance:
   - Comparisons
   - Boolean
   - Calls / Frames
-- [CHANGE] Migrate opcode handlers to untagged slots.
+- [DONE] Migrate opcode handlers to untagged slots.
 
 Acceptance:
 - Simple arithmetic programs run and return correct exit codes.
@@ -88,8 +88,8 @@ Acceptance:
 ### Phase 4: Heap Objects + GC
 - [DONE] Implement heap object headers and type ids.
 - [DONE] Implement strings, arrays, lists, artifacts, closures.
-- [CHANGE] Replace tag-based GC root scanning with ref bitmaps + stack maps.
-- [CHANGE] Run GC only at safepoints with stack maps.
+- [DONE] Replace tag-based GC root scanning with ref bitmaps + stack maps.
+- [DONE] Run GC only at safepoints with stack maps.
 
 Acceptance:
 - Allocations are tracked and reclaimed safely.
@@ -100,7 +100,7 @@ Acceptance:
 - [DONE] Arrays / Lists / Strings opcodes.
 - [DONE] Conversions / Casts opcodes.
 - [DONE] Intrinsics and syscalls.
-- [CHANGE] Ensure all opcodes operate on untagged slots only.
+- [DONE] Ensure all opcodes operate on untagged slots only.
 
 Acceptance:
 - Collections and string ops are correct and bounds-checked.
@@ -110,7 +110,7 @@ Acceptance:
 - [DONE] Add counters and hotness tracking.
 - [DONE] Implement Tier 1 optimized JIT pass.
 - [DONE] Add JIT fallback to interpreter on failure.
-- [CHANGE] JIT execution uses untagged slots + verifier summaries (no tag checks).
+- [DONE] JIT execution uses untagged slots + verifier summaries (no tag checks).
 
 Acceptance:
 - Hot functions promote to Tier 1.
