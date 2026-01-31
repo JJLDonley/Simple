@@ -127,9 +127,23 @@ VerifyResult VerifyModule(const SbcModule& module) {
   auto resolve_type = [&](uint32_t type_id) -> ValType {
     if (type_id >= module.types.size()) return ValType::Unknown;
     const auto& row = module.types[type_id];
+    switch (static_cast<TypeKind>(row.kind)) {
+      case TypeKind::I32:
+        return ValType::I32;
+      case TypeKind::I64:
+        return ValType::I64;
+      case TypeKind::F32:
+        return ValType::F32;
+      case TypeKind::F64:
+        return ValType::F64;
+      case TypeKind::Ref:
+        return ValType::Ref;
+      case TypeKind::Unspecified:
+      default:
+        break;
+    }
     if ((row.flags & 0x1u) != 0u) return ValType::Ref;
     if (row.size == 0) return ValType::Ref;
-    if (row.size == 1) return ValType::Bool;
     if (row.size == 4) return ValType::I32;
     if (row.size == 8) return ValType::I64;
     return ValType::Unknown;

@@ -179,7 +179,7 @@ Deliverables:
 
 Work:
 - [DONE] Add explicit VM type ID constants to SBC docs.
-- Ensure verifier uses only these primitives as stack/local/global types.
+- [DONE] Ensure verifier uses only these primitives as stack/local/global types.
 - Update any signatures/metadata that still accept expanded types.
 - [DONE] Explicitly define struct layout rules (field order, alignment, padding) for FFI structs.
 - [DONE] Loader rejects unknown VM type IDs (globals/fields/params/returns/const TYPE).
