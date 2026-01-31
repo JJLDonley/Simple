@@ -406,3 +406,4 @@
 - Added core.fs write-zero-buffer test (len > 0 with zero-length buffer).
 - Added core.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
 - Added core.fs write-after-readonly-open test (open flags=0 then write returns -1).
+- Added core.fs open/close loop test to exercise repeated fd usage.
