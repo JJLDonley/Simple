@@ -400,3 +400,4 @@
 - Added core.fs write clamp (len > buffer size) and close-twice tests.
 - Added core.fs open-null-path and read-zero-len tests.
 - Added core.fs read-after-close test.
+- Added core.fs write-after-close test.
