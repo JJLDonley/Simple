@@ -337,3 +337,4 @@
 - Documented OpInfo operand widths as ABI-frozen in opcode header.
 - Added loader negative test for misaligned instruction boundary (trailing byte).
 - Marked opcode frozen-semantics doc as DONE in implementation plan.
+- No new changes; waiting on next implementation target selection.
