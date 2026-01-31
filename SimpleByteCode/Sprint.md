@@ -307,3 +307,4 @@
 - Added concrete intrinsic ID table and FFI ABI table layouts/flags to the implementation plan.
 - Removed array/list intrinsics from the table since they are opcode-backed; replaced with core.math intrinsics.
 - Removed string intrinsics from the table since strings are opcode-backed.
+- Expanded intrinsic table with debug logging, math min/max for floats, time, rand, and basic IO intrinsics.

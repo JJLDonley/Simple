@@ -255,12 +255,27 @@ Intrinsic Table (v0.1, stable IDs)
 |----|------|--------|--------|-------|
 | 0x0000 | core.debug.trap | i32 | void | Trap with code (message optional via DEBUG table). |
 | 0x0001 | core.debug.breakpoint | void | void | No-op in release, debugger hook in dev. |
+| 0x0010 | core.debug.log_i32 | i32 | void | Debug log; optional in release. |
+| 0x0011 | core.debug.log_i64 | i64 | void | Debug log; optional in release. |
+| 0x0012 | core.debug.log_f32 | f32 | void | Debug log; optional in release. |
+| 0x0013 | core.debug.log_f64 | f64 | void | Debug log; optional in release. |
+| 0x0014 | core.debug.log_ref | ref | void | Debug log; prints ref id. |
 | 0x0020 | core.math.abs_i32 | i32 | i32 | Pure. |
 | 0x0021 | core.math.abs_i64 | i64 | i64 | Pure. |
 | 0x0022 | core.math.min_i32 | i32, i32 | i32 | Pure. |
 | 0x0023 | core.math.max_i32 | i32, i32 | i32 | Pure. |
 | 0x0024 | core.math.min_i64 | i64, i64 | i64 | Pure. |
 | 0x0025 | core.math.max_i64 | i64, i64 | i64 | Pure. |
+| 0x0026 | core.math.min_f32 | f32, f32 | f32 | Pure. |
+| 0x0027 | core.math.max_f32 | f32, f32 | f32 | Pure. |
+| 0x0028 | core.math.min_f64 | f64, f64 | f64 | Pure. |
+| 0x0029 | core.math.max_f64 | f64, f64 | f64 | Pure. |
+| 0x0030 | core.time.mono_ns | void | i64 | Monotonic time in ns. |
+| 0x0031 | core.time.wall_ns | void | i64 | Wall clock time in ns. |
+| 0x0040 | core.rand.u32 | void | i32 | PRNG/OS entropy; impl-defined. |
+| 0x0041 | core.rand.u64 | void | i64 | PRNG/OS entropy; impl-defined. |
+| 0x0050 | core.io.write_stdout | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
+| 0x0051 | core.io.write_stderr | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
 
 FFI ABI (Host Interop, Concrete Tables)
 
