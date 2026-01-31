@@ -45,6 +45,71 @@ VerifyResult Fail(const std::string& message) {
 } // namespace
 
 VerifyResult VerifyModule(const SbcModule& module) {
+  enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
+  auto resolve_type = [&](uint32_t type_id) -> ValType {
+    if (type_id >= module.types.size()) return ValType::Unknown;
+    const auto& row = module.types[type_id];
+    if ((row.flags & 0x1u) != 0u) return ValType::Ref;
+    if (row.size == 0) return ValType::Ref;
+    if (row.size == 1) return ValType::Bool;
+    if (row.size == 4) return ValType::I32;
+    if (row.size == 8) return ValType::I64;
+    return ValType::Unknown;
+  };
+  auto to_vm_type = [&](ValType t) -> VmType {
+    switch (t) {
+      case ValType::I32:
+      case ValType::Bool:
+        return VmType::I32;
+      case ValType::I64:
+        return VmType::I64;
+      case ValType::F32:
+        return VmType::F32;
+      case ValType::F64:
+        return VmType::F64;
+      case ValType::Ref:
+        return VmType::Ref;
+      case ValType::Unknown:
+      default:
+        return VmType::Unknown;
+    }
+  };
+  auto make_ref_bits = [&](const std::vector<ValType>& types) -> std::vector<uint8_t> {
+    size_t count = types.size();
+    std::vector<uint8_t> bits((count + 7) / 8, 0);
+    for (size_t i = 0; i < count; ++i) {
+      if (types[i] == ValType::Ref) {
+        bits[i / 8] |= static_cast<uint8_t>(1u << (i % 8));
+      }
+    }
+    return bits;
+  };
+  auto make_ref_bits_vm = [&](const std::vector<VmType>& types) -> std::vector<uint8_t> {
+    size_t count = types.size();
+    std::vector<uint8_t> bits((count + 7) / 8, 0);
+    for (size_t i = 0; i < count; ++i) {
+      if (types[i] == VmType::Ref) {
+        bits[i / 8] |= static_cast<uint8_t>(1u << (i % 8));
+      }
+    }
+    return bits;
+  };
+
+  std::vector<ValType> global_types(module.globals.size(), ValType::Unknown);
+  std::vector<bool> globals_init_base(module.globals.size(), false);
+  for (size_t i = 0; i < module.globals.size(); ++i) {
+    ValType global_type = resolve_type(module.globals[i].type_id);
+    if (global_type != ValType::Ref) {
+      global_type = ValType::Unknown;
+    }
+    global_types[i] = global_type;
+    if (module.globals[i].init_const_id != 0xFFFFFFFFu) globals_init_base[i] = true;
+  }
+
+  VerifyResult result;
+  result.methods.resize(module.functions.size());
+  result.globals_ref_bits = make_ref_bits(global_types);
+
   const auto& code = module.code;
   for (size_t func_index = 0; func_index < module.functions.size(); ++func_index) {
     const auto& func = module.functions[func_index];
@@ -64,17 +129,6 @@ VerifyResult VerifyModule(const SbcModule& module) {
     const auto& sig = module.sigs[sig_id];
     uint32_t ret_type_id = sig.ret_type_id;
 
-    enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
-    auto resolve_type = [&](uint32_t type_id) -> ValType {
-      if (type_id >= module.types.size()) return ValType::Unknown;
-      const auto& row = module.types[type_id];
-      if ((row.flags & 0x1u) != 0u) return ValType::Ref;
-      if (row.size == 0) return ValType::Ref;
-      if (row.size == 1) return ValType::Bool;
-      if (row.size == 4) return ValType::I32;
-      if (row.size == 8) return ValType::I64;
-      return ValType::Unknown;
-    };
     bool expect_void = (ret_type_id == 0xFFFFFFFFu);
     ValType expected_ret = expect_void ? ValType::Unknown : resolve_type(ret_type_id);
     if (!expect_void && expected_ret == ValType::Unknown) return Fail("unsupported return type");
@@ -112,11 +166,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
       locals[i] = param_type;
       locals_init[i] = true;
     }
-    std::vector<ValType> globals(module.globals.size(), ValType::Unknown);
-    std::vector<bool> globals_init(module.globals.size(), false);
-    for (size_t i = 0; i < module.globals.size(); ++i) {
-      if (module.globals[i].init_const_id != 0xFFFFFFFFu) globals_init[i] = true;
-    }
+    std::vector<ValType> globals = global_types;
+    std::vector<bool> globals_init = globals_init_base;
     int call_depth = 0;
     auto pop_type = [&]() -> ValType {
       if (stack_types.empty()) return ValType::Unknown;
@@ -126,15 +177,31 @@ VerifyResult VerifyModule(const SbcModule& module) {
     };
     auto push_type = [&](ValType t) { stack_types.push_back(t); };
     auto check_type = [&](ValType got, ValType expected, const char* msg) -> VerifyResult {
-      if (expected == ValType::Unknown) return {true, ""};
+      if (expected == ValType::Unknown) {
+        VerifyResult ok;
+        ok.ok = true;
+        return ok;
+      }
       if (got != ValType::Unknown && got != expected) return Fail(msg);
-      return {true, ""};
+      VerifyResult ok;
+      ok.ok = true;
+      return ok;
     };
+    std::vector<StackMap> stack_maps;
     while (pc < end) {
       uint8_t opcode = code[pc];
       OpInfo info{};
       GetOpInfo(opcode, &info);
       size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
+      if (opcode == static_cast<uint8_t>(OpCode::Line) ||
+          opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
+          opcode == static_cast<uint8_t>(OpCode::ProfileEnd)) {
+        StackMap map;
+        map.pc = static_cast<uint32_t>(pc);
+        map.stack_height = static_cast<uint32_t>(stack_types.size());
+        map.ref_bits = make_ref_bits(stack_types);
+        stack_maps.push_back(std::move(map));
+      }
 
       std::vector<size_t> jump_targets;
       bool fall_through = true;
@@ -1142,9 +1209,17 @@ VerifyResult VerifyModule(const SbcModule& module) {
       }
       pc = next;
     }
+
+    MethodVerifyInfo info;
+    info.locals.reserve(locals.size());
+    for (ValType t : locals) {
+      info.locals.push_back(to_vm_type(t));
+    }
+    info.locals_ref_bits = make_ref_bits_vm(info.locals);
+    info.stack_maps = std::move(stack_maps);
+    result.methods[func_index] = std::move(info);
   }
 
-  VerifyResult result;
   result.ok = true;
   return result;
 }

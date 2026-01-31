@@ -436,6 +436,22 @@ std::vector<uint8_t> BuildModuleWithTablesAndGlobalInitConst(const std::vector<u
   return module;
 }
 
+void PatchGlobalTypeId(std::vector<uint8_t>& module, uint32_t global_index, uint32_t type_id) {
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 6) continue;
+    uint32_t globals_offset = ReadU32At(module, off + 4);
+    size_t entry_offset = static_cast<size_t>(globals_offset) + static_cast<size_t>(global_index) * 16u;
+    if (entry_offset + 8 <= module.size()) {
+      WriteU32(module, entry_offset + 4, type_id);
+    }
+    break;
+  }
+}
+
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
                                               const std::vector<uint16_t>& local_counts) {
   std::vector<uint8_t> const_pool;
@@ -6564,6 +6580,54 @@ std::vector<uint8_t> BuildDebugNoopModule() {
   AppendI32(code, 7);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildVerifyMetadataModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, 0);
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(code, 10);
+  AppendU32(code, 20);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(code, 11);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> empty_params;
+  std::vector<uint8_t> module =
+      BuildModuleWithTablesAndSig(code, const_pool, types, {}, 1, 1, 0xFFFFFFFFu, 0, 0, 0, empty_params);
+  PatchGlobalTypeId(module, 0, 1);
+  return module;
 }
 
 std::vector<uint8_t> BuildIntrinsicTrapModule() {
@@ -15167,6 +15231,56 @@ bool RunDebugNoopTest() {
   return true;
 }
 
+bool RunVerifyMetadataTest() {
+  std::vector<uint8_t> module_bytes = BuildVerifyMetadataModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  if (vr.methods.size() != 1) {
+    std::cerr << "expected 1 method info\n";
+    return false;
+  }
+  const auto& info = vr.methods[0];
+  if (info.locals.size() != 1 || info.locals[0] != simplevm::VmType::Ref) {
+    std::cerr << "expected local 0 to be ref\n";
+    return false;
+  }
+  if (info.locals_ref_bits.empty() || (info.locals_ref_bits[0] & 0x1u) == 0) {
+    std::cerr << "expected local ref bit set\n";
+    return false;
+  }
+  if (vr.globals_ref_bits.empty() || (vr.globals_ref_bits[0] & 0x1u) == 0) {
+    std::cerr << "expected global ref bit set\n";
+    return false;
+  }
+  if (info.stack_maps.size() < 2) {
+    std::cerr << "expected at least 2 stack maps\n";
+    return false;
+  }
+  bool saw_empty = false;
+  bool saw_ref = false;
+  for (const auto& map : info.stack_maps) {
+    if (map.stack_height == 0) {
+      saw_empty = true;
+    }
+    if (map.stack_height == 1 && !map.ref_bits.empty() && (map.ref_bits[0] & 0x1u) != 0) {
+      saw_ref = true;
+    }
+  }
+  if (!saw_empty || !saw_ref) {
+    std::cerr << "expected stack maps for empty and ref stack states\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunFieldTest() {
   std::vector<uint8_t> module_bytes = BuildFieldModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -17745,6 +17859,7 @@ int main(int argc, char** argv) {
       {"shift_mask_i64", RunShiftMaskI64Test},
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
+      {"verify_metadata", RunVerifyMetadataTest},
       {"heap_reuse", RunHeapReuseTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},

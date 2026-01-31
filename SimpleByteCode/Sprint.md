@@ -258,3 +258,5 @@
 
 ## 2026-01-31
 - Updated `SimpleByteCode/Implementation.md` to add a typed runtime refactor phase and mark each phase with [DONE]/[CHANGE]/[NEW] status.
+- Added verifier metadata outputs for VM types, locals/global ref bitmaps, and safepoint stack maps.
+- Added verifier metadata test to validate locals/global ref bits and stack map capture.
