@@ -396,3 +396,4 @@
 - Added core.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
 - Redirected core.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
 - Added core.fs negative tests for bad fd reads and null-buffer writes.
+- Added core.fs negative tests for non-array read buffers and bad-fd write/close paths.
