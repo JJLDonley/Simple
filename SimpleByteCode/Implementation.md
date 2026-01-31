@@ -234,3 +234,4 @@ Coverage targets:
 - Arrays, lists, strings, and object fields have runtime and negative tests.
 - Added coverage for remaining core arithmetic/compare/bitwise opcodes and list set variants.
 - Added negative verify coverage for array/list set value mismatches across typed variants.
+- Added runtime trap coverage for typed list set null/out-of-bounds/negative index cases.

@@ -10710,6 +10710,229 @@ std::vector<uint8_t> BuildBadListSetNegIndexModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadListSetI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListI64));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetI64NullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetI64NegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListI64));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF32));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 4.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 9.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF32NullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 9.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF32NegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF32));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 4.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 9.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF64));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 4.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 9.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF64NullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 9.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetF64NegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF64));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 4.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 9.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetRefModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListRef));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetRefNullModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadListSetRefNegIndexModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListRef));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadListPopModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -19072,6 +19295,54 @@ bool RunBadListSetNegIndexTrapTest() {
   return RunExpectTrap(BuildBadListSetNegIndexModule(), "bad_list_set_neg_index");
 }
 
+bool RunBadListSetI64TrapTest() {
+  return RunExpectTrap(BuildBadListSetI64Module(), "bad_list_set_i64");
+}
+
+bool RunBadListSetI64NullTrapTest() {
+  return RunExpectTrap(BuildBadListSetI64NullModule(), "bad_list_set_i64_null");
+}
+
+bool RunBadListSetI64NegIndexTrapTest() {
+  return RunExpectTrap(BuildBadListSetI64NegIndexModule(), "bad_list_set_i64_neg_index");
+}
+
+bool RunBadListSetF32TrapTest() {
+  return RunExpectTrap(BuildBadListSetF32Module(), "bad_list_set_f32");
+}
+
+bool RunBadListSetF32NullTrapTest() {
+  return RunExpectTrap(BuildBadListSetF32NullModule(), "bad_list_set_f32_null");
+}
+
+bool RunBadListSetF32NegIndexTrapTest() {
+  return RunExpectTrap(BuildBadListSetF32NegIndexModule(), "bad_list_set_f32_neg_index");
+}
+
+bool RunBadListSetF64TrapTest() {
+  return RunExpectTrap(BuildBadListSetF64Module(), "bad_list_set_f64");
+}
+
+bool RunBadListSetF64NullTrapTest() {
+  return RunExpectTrap(BuildBadListSetF64NullModule(), "bad_list_set_f64_null");
+}
+
+bool RunBadListSetF64NegIndexTrapTest() {
+  return RunExpectTrap(BuildBadListSetF64NegIndexModule(), "bad_list_set_f64_neg_index");
+}
+
+bool RunBadListSetRefTrapTest() {
+  return RunExpectTrap(BuildBadListSetRefModule(), "bad_list_set_ref");
+}
+
+bool RunBadListSetRefNullTrapTest() {
+  return RunExpectTrap(BuildBadListSetRefNullModule(), "bad_list_set_ref_null");
+}
+
+bool RunBadListSetRefNegIndexTrapTest() {
+  return RunExpectTrap(BuildBadListSetRefNegIndexModule(), "bad_list_set_ref_neg_index");
+}
+
 bool RunBadListPopTrapTest() {
   return RunExpectTrap(BuildBadListPopModule(), "bad_list_pop");
 }
@@ -20035,6 +20306,18 @@ int main(int argc, char** argv) {
       {"bad_list_set_null", RunBadListSetNullTrapTest},
       {"bad_list_get_neg_index", RunBadListGetNegIndexTrapTest},
       {"bad_list_set_neg_index", RunBadListSetNegIndexTrapTest},
+      {"bad_list_set_i64", RunBadListSetI64TrapTest},
+      {"bad_list_set_i64_null", RunBadListSetI64NullTrapTest},
+      {"bad_list_set_i64_neg_index", RunBadListSetI64NegIndexTrapTest},
+      {"bad_list_set_f32", RunBadListSetF32TrapTest},
+      {"bad_list_set_f32_null", RunBadListSetF32NullTrapTest},
+      {"bad_list_set_f32_neg_index", RunBadListSetF32NegIndexTrapTest},
+      {"bad_list_set_f64", RunBadListSetF64TrapTest},
+      {"bad_list_set_f64_null", RunBadListSetF64NullTrapTest},
+      {"bad_list_set_f64_neg_index", RunBadListSetF64NegIndexTrapTest},
+      {"bad_list_set_ref", RunBadListSetRefTrapTest},
+      {"bad_list_set_ref_null", RunBadListSetRefNullTrapTest},
+      {"bad_list_set_ref_neg_index", RunBadListSetRefNegIndexTrapTest},
       {"bad_list_pop", RunBadListPopTrapTest},
       {"bad_list_push_null", RunBadListPushNullTrapTest},
       {"bad_list_pop_null", RunBadListPopNullTrapTest},
