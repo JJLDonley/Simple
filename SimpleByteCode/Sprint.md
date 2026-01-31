@@ -330,3 +330,4 @@
 - Added loader opcode scan to reject unknown opcodes and operand overrun; moved unknown-opcode test to load failure.
 - Updated SBC type table docs to lock VM type kind values and size/field rules.
 - Added frozen VM type ID table to SBC_Encoding.md.
+- Implemented loader opcode scan to validate operand widths/alignments via OpInfo.
