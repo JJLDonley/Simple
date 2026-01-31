@@ -247,6 +247,10 @@ Work:
 - Define concrete FFI error convention (return codes + trap behavior).
 - Define pinning policy (explicitly allowed or explicitly forbidden).
 - [DONE] Parse and validate IMPORTS/EXPORTS sections (names, sig/func ids, flags, reserved).
+- Decide import-call strategy:
+  - Option A: `CALL_IMPORT idx,u8` opcode that targets IMPORTS.
+  - Option B: imports are mapped into Functions table at load time (host-resolved).
+  - Option C: imports only via host reflection API (no VM opcode).
 
 Tests:
 - [DONE] Loader rejects malformed import/export tables.

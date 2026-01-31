@@ -361,3 +361,4 @@
 - Documented duplicate import/export name rejection in SBC_ABI.md.
 - Documented IMPORTS/EXPORTS tables in SBC_Metadata_Tables.md.
 - Marked import-call signature verification as blocked pending import-call opcode/resolution.
+- Added import-call strategy options to the FFI ABI freeze plan.
