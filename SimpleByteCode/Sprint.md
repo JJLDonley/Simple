@@ -393,3 +393,5 @@
 - Documented core.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
 - Set import method local_count from signature param_count to satisfy verifier rules.
 - Fixed core.fs round-trip test call targets/signature param list and added close+reopen for read path.
+- Added core.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
+- Redirected core.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
