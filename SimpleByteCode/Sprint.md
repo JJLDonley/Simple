@@ -424,3 +424,7 @@
 - Documented VM type IDs in SBC metadata docs and FFI struct layout rules in SBC ABI docs.
 - Verifier now maps types to VM primitives using TypeKind (with legacy size fallback).
 - Regenerated SBC fixtures with TypeKind i32 metadata and updated object type flags for field tests.
+- Clarified verifier type mapping uses TypeKind only, with `Unspecified + ref_type` treated as `ref` (no size fallback).
+- Expanded `SBC_OpCodes.md` with explicit opcode listings (including typed array/list variants) and aligned naming with `opcode.h`.
+- Documented v0.1 freeze notes for header layout, section IDs, and const pool formats.
+- Marked Phase 9 opcode/format/intrinsic work items as done in `SimpleByteCode/Implementation.md`.

@@ -128,17 +128,25 @@ All comparisons pop two values and push `bool`.
 - `IS_NULL`
 - `REF_EQ`
 - `REF_NE`
-- `TYPEOF`
+- `TYPE_OF`
 
 ---
 
 ## 10. Arrays / Lists / Strings
 
 - `NEW_ARRAY idx, u32`
+- `NEW_ARRAY_I64 idx, u32`
+- `NEW_ARRAY_F32 idx, u32`
+- `NEW_ARRAY_F64 idx, u32`
+- `NEW_ARRAY_REF idx, u32`
 - `ARRAY_LEN`
 - `ARRAY_GET_<T>`
 - `ARRAY_SET_<T>`
 - `NEW_LIST idx, u32`
+- `NEW_LIST_I64 idx, u32`
+- `NEW_LIST_F32 idx, u32`
+- `NEW_LIST_F64 idx, u32`
+- `NEW_LIST_REF idx, u32`
 - `LIST_LEN`
 - `LIST_GET_<T>`
 - `LIST_SET_<T>`
@@ -160,7 +168,7 @@ All comparisons pop two values and push `bool`.
 
 - `CALL idx, u8`
 - `CALL_INDIRECT idx, u8`
-- `TAILCALL idx, u8`
+- `TAIL_CALL idx, u8`
 - `RET`
 - `ENTER u16`
 - `LEAVE`
@@ -238,7 +246,7 @@ All opcodes below are fixed for v0.1. The verifier and loader must enforce:
 
 ### 14.3 Arithmetic / Bitwise / Compare / Bool
 
-All typed arithmetic and compare ops have no operands and use fixed stacks:
+All opcodes in this section have **no operands** and use fixed stacks:
 
 - Binary numeric/compare ops: Pops 2, pushes 1.
 - Unary numeric ops (NEG/INC/DEC): Pops 1, pushes 1.
@@ -250,13 +258,49 @@ Trap conditions:
 - Bad operand types (verification failure).
 - Shift counts masked to bit width (no trap).
 
+#### Integer Arithmetic (binary)
+
+- I32: `ADD_I32`, `SUB_I32`, `MUL_I32`, `DIV_I32`, `MOD_I32`
+- I64: `ADD_I64`, `SUB_I64`, `MUL_I64`, `DIV_I64`, `MOD_I64`
+- U32: `ADD_U32`, `SUB_U32`, `MUL_U32`, `DIV_U32`, `MOD_U32`
+- U64: `ADD_U64`, `SUB_U64`, `MUL_U64`, `DIV_U64`, `MOD_U64`
+
+#### Float Arithmetic (binary)
+
+- F32: `ADD_F32`, `SUB_F32`, `MUL_F32`, `DIV_F32`
+- F64: `ADD_F64`, `SUB_F64`, `MUL_F64`, `DIV_F64`
+
+#### Unary Numeric Ops
+
+- Negation: `NEG_I8`, `NEG_I16`, `NEG_I32`, `NEG_I64`, `NEG_U8`, `NEG_U16`, `NEG_U32`, `NEG_U64`, `NEG_F32`, `NEG_F64`
+- Increment: `INC_I8`, `INC_I16`, `INC_I32`, `INC_I64`, `INC_U8`, `INC_U16`, `INC_U32`, `INC_U64`, `INC_F32`, `INC_F64`
+- Decrement: `DEC_I8`, `DEC_I16`, `DEC_I32`, `DEC_I64`, `DEC_U8`, `DEC_U16`, `DEC_U32`, `DEC_U64`, `DEC_F32`, `DEC_F64`
+
+#### Comparisons (binary, push bool)
+
+- I32: `CMP_EQ_I32`, `CMP_NE_I32`, `CMP_LT_I32`, `CMP_LE_I32`, `CMP_GT_I32`, `CMP_GE_I32`
+- I64: `CMP_EQ_I64`, `CMP_NE_I64`, `CMP_LT_I64`, `CMP_LE_I64`, `CMP_GT_I64`, `CMP_GE_I64`
+- U32: `CMP_EQ_U32`, `CMP_NE_U32`, `CMP_LT_U32`, `CMP_LE_U32`, `CMP_GT_U32`, `CMP_GE_U32`
+- U64: `CMP_EQ_U64`, `CMP_NE_U64`, `CMP_LT_U64`, `CMP_LE_U64`, `CMP_GT_U64`, `CMP_GE_U64`
+- F32: `CMP_EQ_F32`, `CMP_NE_F32`, `CMP_LT_F32`, `CMP_LE_F32`, `CMP_GT_F32`, `CMP_GE_F32`
+- F64: `CMP_EQ_F64`, `CMP_NE_F64`, `CMP_LT_F64`, `CMP_LE_F64`, `CMP_GT_F64`, `CMP_GE_F64`
+
+#### Bitwise / Shifts (binary)
+
+- I32: `AND_I32`, `OR_I32`, `XOR_I32`, `SHL_I32`, `SHR_I32`
+- I64: `AND_I64`, `OR_I64`, `XOR_I64`, `SHL_I64`, `SHR_I64`
+
+#### Boolean
+
+- `BOOL_NOT`, `BOOL_AND`, `BOOL_OR`
+
 ### 14.4 Calls / Frames / Conversions
 
 | Opcode | Operands | Pops | Pushes | Trap Conditions |
 |--------|----------|------|--------|-----------------|
 | CALL | idx, u8 | dynamic | dynamic | bad method/sig; arg mismatch |
 | CALL_INDIRECT | idx, u8 | dynamic | dynamic | bad target; arg mismatch |
-| TAILCALL | idx, u8 | dynamic | dynamic | bad target; arg mismatch |
+| TAIL_CALL | idx, u8 | dynamic | dynamic | bad target; arg mismatch |
 | RET | — | dynamic | 0 | return type mismatch |
 | ENTER | u16 | 0 | 0 | locals mismatch |
 | LEAVE | — | 0 | 0 | — |
@@ -269,6 +313,10 @@ Common traps:
 - Index out of range (negative or >= len).
 - Bad field/type IDs (verify/load).
 
+Notes:
+- `NEW_ARRAY` / `NEW_LIST` allocate 4-byte element containers (i32/u32/bool/char).
+- Typed variants (`*_I64`, `*_F32`, `*_F64`, `*_REF`) fix element width to match the suffix.
+
 | Opcode | Operands | Pops | Pushes |
 |--------|----------|------|--------|
 | NEW_OBJECT | idx | 0 | 1 |
@@ -276,20 +324,61 @@ Common traps:
 | LOAD_FIELD | idx | 1 | 1 |
 | STORE_FIELD | idx | 2 | 0 |
 | IS_NULL | — | 1 | 1 |
-| REF_EQ / REF_NE | — | 2 | 1 |
-| TYPEOF | — | 1 | 1 |
+| REF_EQ | — | 2 | 1 |
+| REF_NE | — | 2 | 1 |
+| TYPE_OF | — | 1 | 1 |
 | NEW_ARRAY | idx, u32 | 0 | 1 |
+| NEW_ARRAY_I64 | idx, u32 | 0 | 1 |
+| NEW_ARRAY_F32 | idx, u32 | 0 | 1 |
+| NEW_ARRAY_F64 | idx, u32 | 0 | 1 |
+| NEW_ARRAY_REF | idx, u32 | 0 | 1 |
 | ARRAY_LEN | — | 1 | 1 |
-| ARRAY_GET_<T> | — | 2 | 1 |
-| ARRAY_SET_<T> | — | 3 | 0 |
+| ARRAY_GET_I32 | — | 2 | 1 |
+| ARRAY_GET_I64 | — | 2 | 1 |
+| ARRAY_GET_F32 | — | 2 | 1 |
+| ARRAY_GET_F64 | — | 2 | 1 |
+| ARRAY_GET_REF | — | 2 | 1 |
+| ARRAY_SET_I32 | — | 3 | 0 |
+| ARRAY_SET_I64 | — | 3 | 0 |
+| ARRAY_SET_F32 | — | 3 | 0 |
+| ARRAY_SET_F64 | — | 3 | 0 |
+| ARRAY_SET_REF | — | 3 | 0 |
 | NEW_LIST | idx, u32 | 0 | 1 |
+| NEW_LIST_I64 | idx, u32 | 0 | 1 |
+| NEW_LIST_F32 | idx, u32 | 0 | 1 |
+| NEW_LIST_F64 | idx, u32 | 0 | 1 |
+| NEW_LIST_REF | idx, u32 | 0 | 1 |
 | LIST_LEN | — | 1 | 1 |
-| LIST_GET_<T> | — | 2 | 1 |
-| LIST_SET_<T> | — | 3 | 0 |
-| LIST_PUSH_<T> | — | 2 | 0 |
-| LIST_POP_<T> | — | 1 | 1 |
-| LIST_INSERT_<T> | — | 3 | 0 |
-| LIST_REMOVE_<T> | — | 2 | 1 |
+| LIST_GET_I32 | — | 2 | 1 |
+| LIST_GET_I64 | — | 2 | 1 |
+| LIST_GET_F32 | — | 2 | 1 |
+| LIST_GET_F64 | — | 2 | 1 |
+| LIST_GET_REF | — | 2 | 1 |
+| LIST_SET_I32 | — | 3 | 0 |
+| LIST_SET_I64 | — | 3 | 0 |
+| LIST_SET_F32 | — | 3 | 0 |
+| LIST_SET_F64 | — | 3 | 0 |
+| LIST_SET_REF | — | 3 | 0 |
+| LIST_PUSH_I32 | — | 2 | 0 |
+| LIST_PUSH_I64 | — | 2 | 0 |
+| LIST_PUSH_F32 | — | 2 | 0 |
+| LIST_PUSH_F64 | — | 2 | 0 |
+| LIST_PUSH_REF | — | 2 | 0 |
+| LIST_POP_I32 | — | 1 | 1 |
+| LIST_POP_I64 | — | 1 | 1 |
+| LIST_POP_F32 | — | 1 | 1 |
+| LIST_POP_F64 | — | 1 | 1 |
+| LIST_POP_REF | — | 1 | 1 |
+| LIST_INSERT_I32 | — | 3 | 0 |
+| LIST_INSERT_I64 | — | 3 | 0 |
+| LIST_INSERT_F32 | — | 3 | 0 |
+| LIST_INSERT_F64 | — | 3 | 0 |
+| LIST_INSERT_REF | — | 3 | 0 |
+| LIST_REMOVE_I32 | — | 2 | 1 |
+| LIST_REMOVE_I64 | — | 2 | 1 |
+| LIST_REMOVE_F32 | — | 2 | 1 |
+| LIST_REMOVE_F64 | — | 2 | 1 |
+| LIST_REMOVE_REF | — | 2 | 1 |
 | LIST_CLEAR | — | 1 | 0 |
 | STRING_LEN | — | 1 | 1 |
 | STRING_GET_CHAR | — | 2 | 1 |

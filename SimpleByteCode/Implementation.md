@@ -195,7 +195,7 @@ Deliverables:
 - Jmp/JmpTable encoding fixed (offsets, table layout).
 
 Work:
-- Freeze `opcode.h` and `SBC_OpCodes.md` to match.
+- [DONE] Freeze `opcode.h` and `SBC_OpCodes.md` to match.
 - [DONE] Loader rejects unknown opcodes and operand overruns via `GetOpInfo` scan.
 - [DONE] Freeze instruction size table for verifier (OpInfo operand_bytes).
 - [DONE] Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
@@ -211,8 +211,8 @@ Deliverables:
 - Alignment rules fixed (table + section alignment).
 
 Work:
-- Update `SBC_Headers.md`, `SBC_Sections.md`, `SBC_Metadata_Tables.md`.
-- Lock const pool formats (string, i128/u128 blobs, f32/f64).
+- [DONE] Update `SBC_Headers.md`, `SBC_Sections.md`, `SBC_Metadata_Tables.md`.
+- [DONE] Lock const pool formats (string, i128/u128 blobs, f32/f64).
 
 Tests:
 - Existing loader negative tests updated to match frozen rules.
@@ -226,8 +226,8 @@ Deliverables:
 
 Work:
 - Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
-- Define intrinsic IDs as constants in VM.
-- Ensure `Intrinsic` opcode validates ID + signature.
+- [DONE] Define intrinsic IDs as constants in VM.
+- [DONE] Ensure `Intrinsic` opcode validates ID + signature.
 - [DONE] Verifier rejects `SYS_CALL` in v0.1 (reserved in ABI).
 
 Tests:

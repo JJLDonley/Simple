@@ -28,6 +28,8 @@ Offset Size Field
 0x1C   4    reserved2
 ```
 
+This layout is **frozen** for v0.1.
+
 ---
 
 ## 3. Field Requirements

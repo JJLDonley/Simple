@@ -121,6 +121,11 @@ Entry format: `u32 kind` + payload.
 
 Requirements:
 - Offsets must be within heap bounds.
+- Const pool formats are **frozen** in v0.1.
+- STRING: `str_offset` must point to a null-terminated UTF-8 string.
+- I128/U128: `blob_offset` must point to a blob with `length == 16`.
+- F32/F64: `bits` are raw IEEE-754 bit patterns.
+- JMP_TABLE: `blob_offset` must point to `u32 count` followed by `count` `i32` offsets.
 
 ---
 

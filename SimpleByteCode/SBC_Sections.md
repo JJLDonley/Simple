@@ -40,6 +40,7 @@ struct SectionEntry {
 ```
 
 Unknown IDs are **rejected** in v0.1.
+Section IDs are **frozen** for v0.1.
 
 ---
 
