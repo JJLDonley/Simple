@@ -117,6 +117,7 @@ Acceptance (Phase 5b):
 
 Work (Phase 5b):
 - [DONE] Add `ScratchArena` + `ScratchScope` utility for transient buffers (used in `core.fs` read/write).
+  - [DONE] Add scratch arena/scope unit tests.
 
 ### Phase 6: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).

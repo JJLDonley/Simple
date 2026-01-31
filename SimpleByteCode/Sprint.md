@@ -436,3 +436,4 @@
 - Added scratch_arena unit test.
 - Added frozen opcode ID table to `SimpleByteCode/SBC_OpCodes.md`.
 - Documented opcode ID table source-of-truth link to `SimpleByteCode/vm/include/opcode.h`.
+- Added scratch_scope unit test to validate ScratchScope RAII reset behavior.

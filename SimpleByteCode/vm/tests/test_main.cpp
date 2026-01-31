@@ -29567,6 +29567,28 @@ bool RunScratchArenaTest() {
   return true;
 }
 
+bool RunScratchScopeTest() {
+  simplevm::ScratchArena arena(32);
+  std::size_t before = arena.Used();
+  {
+    simplevm::ScratchScope scope(arena);
+    uint8_t* a = arena.Allocate(12, 4);
+    if (!a) {
+      std::cerr << "scratch scope alloc failed\n";
+      return false;
+    }
+    if (arena.Used() <= before) {
+      std::cerr << "scratch scope did not advance\n";
+      return false;
+    }
+  }
+  if (arena.Used() != before) {
+    std::cerr << "scratch scope did not reset\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunHeapClosureMarkTest() {
   simplevm::Heap heap;
   uint32_t target = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
@@ -29905,6 +29927,7 @@ int main(int argc, char** argv) {
       {"verify_metadata_nonref_global", RunVerifyMetadataNonRefGlobalTest},
       {"heap_reuse", RunHeapReuseTest},
       {"scratch_arena", RunScratchArenaTest},
+      {"scratch_scope", RunScratchScopeTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
       {"gc_vm_stress", RunGcVmStressTest},
