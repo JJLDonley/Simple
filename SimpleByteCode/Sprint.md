@@ -299,3 +299,5 @@
 - Expanded bench runs to cover single-type, mixed-op, and call-heavy cases for both nojit/jit modes.
 - Added runtime trap tests for typed list set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
 - Confirmed full test suite pass (429 tests).
+- Added runtime trap tests for typed array set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Confirmed full test suite pass (441 tests).
