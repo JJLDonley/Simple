@@ -22,10 +22,10 @@ This document defines the exact formats for metadata tables and heaps in SBC.
 ```
 struct TypeRow {
   u32 name_str;
-  u8  kind;        // 0=primitive,1=struct,2=artifact,3=module,4=enum
+  u8  kind;        // 0=unspecified,1=i32,2=i64,3=f32,4=f64,5=ref
   u8  flags;       // bit0=ref_type, bit1=generic, bit2=sealed
   u16 reserved;
-  u32 size;        // bytes for value types, 0 for ref types
+  u32 size;        // bytes for value types, 0/4/8 for ref types
   u32 field_start; // index into Field table
   u32 field_count;
 }
@@ -33,6 +33,11 @@ struct TypeRow {
 
 Requirements:
 - `field_start + field_count` must be within the Field table.
+- `kind` must be one of the VM primitive type kinds above.
+- `kind=i32` requires `size=4`; `kind=i64` requires `size=8`.
+- `kind=f32` requires `size=4`; `kind=f64` requires `size=8`.
+- `kind=ref` allows `size=0/4/8` and must have `field_start=0` and `field_count=0`.
+- Value kinds (`i32/i64/f32/f64`) must have `field_start=0` and `field_count=0`.
 
 ---
 

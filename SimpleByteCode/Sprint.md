@@ -328,3 +328,4 @@
 - Added positive loader test for valid Ref type size (0).
 - Added verifier negative test for unknown opcode values.
 - Added loader opcode scan to reject unknown opcodes and operand overrun; moved unknown-opcode test to load failure.
+- Updated SBC type table docs to lock VM type kind values and size/field rules.
