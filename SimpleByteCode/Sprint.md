@@ -333,3 +333,4 @@
 - Implemented loader opcode scan to validate operand widths/alignments via OpInfo.
 - Added loader negative test for operand overrun (malformed instruction length).
 - Marked loader opcode scan + operand-width gate as DONE in implementation plan.
+- Added frozen semantics section to SBC_OpCodes.md (operand widths, stack effects, traps).
