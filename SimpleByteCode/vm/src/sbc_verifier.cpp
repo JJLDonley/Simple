@@ -9,6 +9,37 @@
 namespace simplevm {
 namespace {
 
+bool IsKnownIntrinsic(uint32_t id) {
+  switch (id) {
+    case 0x0000u: // core.debug.trap
+    case 0x0001u: // core.debug.breakpoint
+    case 0x0010u: // core.debug.log_i32
+    case 0x0011u: // core.debug.log_i64
+    case 0x0012u: // core.debug.log_f32
+    case 0x0013u: // core.debug.log_f64
+    case 0x0014u: // core.debug.log_ref
+    case 0x0020u: // core.math.abs_i32
+    case 0x0021u: // core.math.abs_i64
+    case 0x0022u: // core.math.min_i32
+    case 0x0023u: // core.math.max_i32
+    case 0x0024u: // core.math.min_i64
+    case 0x0025u: // core.math.max_i64
+    case 0x0026u: // core.math.min_f32
+    case 0x0027u: // core.math.max_f32
+    case 0x0028u: // core.math.min_f64
+    case 0x0029u: // core.math.max_f64
+    case 0x0030u: // core.time.mono_ns
+    case 0x0031u: // core.time.wall_ns
+    case 0x0040u: // core.rand.u32
+    case 0x0041u: // core.rand.u64
+    case 0x0050u: // core.io.write_stdout
+    case 0x0051u: // core.io.write_stderr
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool ReadI32(const std::vector<uint8_t>& code, size_t offset, int32_t* out) {
   if (offset + 4 > code.size()) return false;
   uint32_t v = static_cast<uint32_t>(code[offset]) |
@@ -1399,6 +1430,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r3 = check_type(end_idx, ValType::I32, "STRING_SLICE type mismatch");
           if (!r3.ok) return r3;
           push_type(ValType::Ref);
+          break;
+        }
+        case OpCode::Intrinsic: {
+          uint32_t id = 0;
+          if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);
+          if (!IsKnownIntrinsic(id)) return fail_at("INTRINSIC id invalid", pc, opcode);
           break;
         }
         case OpCode::CallCheck:

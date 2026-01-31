@@ -346,3 +346,4 @@
 - Moved JMP_TABLE kind/blob failures to loader-time checks and updated diagnostics tests accordingly.
 - Removed unused JMP_TABLE runtime helper modules after moving checks to load time.
 - Tightened JMP_TABLE load tests to assert error message content (kind/blob).
+- Added intrinsic ID validation in verifier against SBC_ABI table and a negative verify test; intrinsic trap uses a valid ID.
