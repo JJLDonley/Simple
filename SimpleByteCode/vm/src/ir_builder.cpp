@@ -167,6 +167,14 @@ void IrBuilder::EmitAddI64() {
   EmitOp(OpCode::AddI64);
 }
 
+void IrBuilder::EmitAddF32() {
+  EmitOp(OpCode::AddF32);
+}
+
+void IrBuilder::EmitAddF64() {
+  EmitOp(OpCode::AddF64);
+}
+
 void IrBuilder::EmitJmp(IrLabel label) {
   EmitOp(OpCode::Jmp);
   EmitRel32Fixup(label);

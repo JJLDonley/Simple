@@ -55,6 +55,8 @@ class IrBuilder {
   void EmitConvF64ToF32();
   void EmitAddI32();
   void EmitAddI64();
+  void EmitAddF32();
+  void EmitAddF64();
   void EmitJmp(IrLabel label);
   void EmitJmpTrue(IrLabel label);
   void EmitJmpFalse(IrLabel label);

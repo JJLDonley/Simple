@@ -454,3 +454,4 @@
 - Added IR emitter bool const and IR→SBC tests for globals, stack ops, and conditional branches.
 - Added IR emitter comparisons/boolean ops and IR→SBC tests for compare + bool paths.
 - Added IR emitter conversion ops and IR→SBC tests for i32↔i64 and i32↔f64 conversions.
+- Added IR emitter float add/convert ops and IR→SBC tests for f32/f64 paths.

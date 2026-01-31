@@ -577,6 +577,73 @@ std::vector<uint8_t> BuildIrConvI32ToF64Module() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrConvF32F64Module() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstF32(6.0f);
+  builder.EmitConvF32ToF64();
+  builder.EmitConstF64(1.0);
+  builder.EmitAddF64();
+  builder.EmitConvF64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_conv_f32_f64_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrF32ArithModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstF32(2.0f);
+  builder.EmitConstF32(5.0f);
+  builder.EmitAddF32();
+  builder.EmitConvF32ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_f32_arith_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19170,6 +19237,14 @@ bool RunIrEmitConvI32F64Test() {
   return RunExpectExit(BuildIrConvI32ToF64Module(), 7);
 }
 
+bool RunIrEmitConvF32F64Test() {
+  return RunExpectExit(BuildIrConvF32F64Module(), 7);
+}
+
+bool RunIrEmitF32ArithTest() {
+  return RunExpectExit(BuildIrF32ArithModule(), 7);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -29901,6 +29976,8 @@ int main(int argc, char** argv) {
       {"ir_emit_bool", RunIrEmitBoolTest},
       {"ir_emit_conv_i32_i64", RunIrEmitConvI32I64Test},
       {"ir_emit_conv_i32_f64", RunIrEmitConvI32F64Test},
+      {"ir_emit_conv_f32_f64", RunIrEmitConvF32F64Test},
+      {"ir_emit_f32_arith", RunIrEmitF32ArithTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
