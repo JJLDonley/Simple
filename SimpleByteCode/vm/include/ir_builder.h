@@ -33,6 +33,16 @@ class IrBuilder {
   void EmitCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
+  void EmitNewArray(uint32_t type_id, uint32_t length);
+  void EmitArrayLen();
+  void EmitArrayGetI32();
+  void EmitArraySetI32();
+  void EmitNewList(uint32_t type_id, uint32_t capacity);
+  void EmitListLen();
+  void EmitListGetI32();
+  void EmitListSetI32();
+  void EmitListPushI32();
+  void EmitListPopI32();
   void EmitLoadLocal(uint32_t index);
   void EmitStoreLocal(uint32_t index);
   void EmitLoadGlobal(uint32_t index);

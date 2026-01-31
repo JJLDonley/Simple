@@ -75,6 +75,50 @@ void IrBuilder::EmitTailCall(uint32_t func_id, uint8_t arg_count) {
   EmitU8(arg_count);
 }
 
+void IrBuilder::EmitNewArray(uint32_t type_id, uint32_t length) {
+  EmitOp(OpCode::NewArray);
+  EmitU32(type_id);
+  EmitU32(length);
+}
+
+void IrBuilder::EmitArrayLen() {
+  EmitOp(OpCode::ArrayLen);
+}
+
+void IrBuilder::EmitArrayGetI32() {
+  EmitOp(OpCode::ArrayGetI32);
+}
+
+void IrBuilder::EmitArraySetI32() {
+  EmitOp(OpCode::ArraySetI32);
+}
+
+void IrBuilder::EmitNewList(uint32_t type_id, uint32_t capacity) {
+  EmitOp(OpCode::NewList);
+  EmitU32(type_id);
+  EmitU32(capacity);
+}
+
+void IrBuilder::EmitListLen() {
+  EmitOp(OpCode::ListLen);
+}
+
+void IrBuilder::EmitListGetI32() {
+  EmitOp(OpCode::ListGetI32);
+}
+
+void IrBuilder::EmitListSetI32() {
+  EmitOp(OpCode::ListSetI32);
+}
+
+void IrBuilder::EmitListPushI32() {
+  EmitOp(OpCode::ListPushI32);
+}
+
+void IrBuilder::EmitListPopI32() {
+  EmitOp(OpCode::ListPopI32);
+}
+
 void IrBuilder::EmitLoadLocal(uint32_t index) {
   EmitOp(OpCode::LoadLocal);
   EmitU32(index);

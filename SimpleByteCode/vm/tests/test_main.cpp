@@ -788,6 +788,80 @@ std::vector<uint8_t> BuildIrTailCallModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrArrayModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(1);
+  builder.EmitNewArray(0, 3);
+  builder.EmitStoreLocal(0);
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(1);
+  builder.EmitConstI32(7);
+  builder.EmitArraySetI32();
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(1);
+  builder.EmitArrayGetI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 1;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 1);
+  if (!ExpectSbcEqual(out, expected, "ir_array_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrListModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(1);
+  builder.EmitNewList(0, 2);
+  builder.EmitStoreLocal(0);
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(5);
+  builder.EmitListPushI32();
+  builder.EmitLoadLocal(0);
+  builder.EmitListPopI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 1;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 1);
+  if (!ExpectSbcEqual(out, expected, "ir_list_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19401,6 +19475,14 @@ bool RunIrEmitTailCallTest() {
   return RunExpectExit(BuildIrTailCallModule(), 42);
 }
 
+bool RunIrEmitArrayTest() {
+  return RunExpectExit(BuildIrArrayModule(), 7);
+}
+
+bool RunIrEmitListTest() {
+  return RunExpectExit(BuildIrListModule(), 5);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30137,6 +30219,8 @@ int main(int argc, char** argv) {
       {"ir_emit_bitwise_i32", RunIrEmitBitwiseI32Test},
       {"ir_emit_call_indirect", RunIrEmitCallIndirectTest},
       {"ir_emit_tailcall", RunIrEmitTailCallTest},
+      {"ir_emit_array", RunIrEmitArrayTest},
+      {"ir_emit_list", RunIrEmitListTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

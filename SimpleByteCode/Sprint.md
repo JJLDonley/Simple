@@ -457,3 +457,4 @@
 - Added IR emitter float add/convert ops and IR→SBC tests for f32/f64 paths.
 - Added IR emitter i32 bitwise/shift ops and IR→SBC tests.
 - Added IR→SBC tests for call_indirect and tailcall paths.
+- Added IR emitter array/list ops (i32) and IR→SBC tests for array/list paths.
