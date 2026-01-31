@@ -7984,6 +7984,74 @@ std::vector<uint8_t> BuildIntrinsicReturnVerifyModule() {
   return BuildModuleWithTablesAndSig(code, {}, types, {}, 0, 0, 0, 0, 0, 0, empty_params);
 }
 
+std::vector<uint8_t> BuildIntrinsicCoreModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> const_pool;
+  uint32_t text_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_off, &text_const);
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0020); // abs_i32
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0023); // max_i32
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0022); // min_i32
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, -9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0021); // abs_i64
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 3.5f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0026); // min_f32
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0029); // max_f64
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0030); // mono_ns
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0040); // rand_u32
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0041); // rand_u64
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(code, text_const);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0050); // write_stdout
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithTables(code, const_pool, {}, {}, 0, 1);
+}
+
 std::vector<uint8_t> BuildSysCallTrapModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -21134,6 +21202,26 @@ bool RunIntrinsicReturnVerifyTest() {
   return true;
 }
 
+bool RunIntrinsicCoreTest() {
+  std::vector<uint8_t> module_bytes = BuildIntrinsicCoreModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "intrinsic_core load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "intrinsic_core expected halt, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 18) {
+    std::cerr << "intrinsic_core expected 18, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadSysCallVerifyTest() {
   return RunExpectVerifyFail(BuildBadSysCallVerifyModule(), "bad_syscall_verify");
 }
@@ -22472,6 +22560,7 @@ int main(int argc, char** argv) {
       {"tailcall", RunTailCallTest},
       {"jump_to_end", RunJumpToEndTest},
       {"intrinsic_trap", RunIntrinsicTrapTest},
+      {"intrinsic_core", RunIntrinsicCoreTest},
       {"syscall_trap", RunSysCallTrapTest},
       {"bad_call_indirect", RunBadCallIndirectTrapTest},
       {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},

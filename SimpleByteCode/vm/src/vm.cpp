@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "heap.h"
+#include "intrinsic_ids.h"
 #include "opcode.h"
 #include "sbc_verifier.h"
 
@@ -2131,7 +2132,90 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::Intrinsic: {
         uint32_t id = ReadU32(module.code, pc);
-        return Trap("INTRINSIC not supported id=" + std::to_string(id));
+        switch (id) {
+          case kIntrinsicTrap: {
+            if (stack.empty()) return Trap("INTRINSIC trap stack underflow");
+            int32_t code = UnpackI32(Pop(stack));
+            return Trap("INTRINSIC trap code=" + std::to_string(code));
+          }
+          case kIntrinsicBreakpoint:
+            break;
+          case kIntrinsicLogI32:
+          case kIntrinsicLogI64:
+          case kIntrinsicLogF32:
+          case kIntrinsicLogF64:
+          case kIntrinsicLogRef:
+            if (stack.empty()) return Trap("INTRINSIC log stack underflow");
+            Pop(stack);
+            break;
+          case kIntrinsicAbsI32: {
+            if (stack.empty()) return Trap("INTRINSIC abs_i32 stack underflow");
+            int32_t value = UnpackI32(Pop(stack));
+            Push(stack, PackI32(value < 0 ? -value : value));
+            break;
+          }
+          case kIntrinsicAbsI64: {
+            if (stack.empty()) return Trap("INTRINSIC abs_i64 stack underflow");
+            int64_t value = UnpackI64(Pop(stack));
+            Push(stack, PackI64(value < 0 ? -value : value));
+            break;
+          }
+          case kIntrinsicMinI32:
+          case kIntrinsicMaxI32: {
+            if (stack.size() < 2) return Trap("INTRINSIC min/max i32 stack underflow");
+            int32_t b = UnpackI32(Pop(stack));
+            int32_t a = UnpackI32(Pop(stack));
+            int32_t out = (id == kIntrinsicMinI32) ? (a < b ? a : b) : (a > b ? a : b);
+            Push(stack, PackI32(out));
+            break;
+          }
+          case kIntrinsicMinI64:
+          case kIntrinsicMaxI64: {
+            if (stack.size() < 2) return Trap("INTRINSIC min/max i64 stack underflow");
+            int64_t b = UnpackI64(Pop(stack));
+            int64_t a = UnpackI64(Pop(stack));
+            int64_t out = (id == kIntrinsicMinI64) ? (a < b ? a : b) : (a > b ? a : b);
+            Push(stack, PackI64(out));
+            break;
+          }
+          case kIntrinsicMinF32:
+          case kIntrinsicMaxF32: {
+            if (stack.size() < 2) return Trap("INTRINSIC min/max f32 stack underflow");
+            float b = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float a = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float out = (id == kIntrinsicMinF32) ? (a < b ? a : b) : (a > b ? a : b);
+            Push(stack, PackF32Bits(F32ToBits(out)));
+            break;
+          }
+          case kIntrinsicMinF64:
+          case kIntrinsicMaxF64: {
+            if (stack.size() < 2) return Trap("INTRINSIC min/max f64 stack underflow");
+            double b = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double a = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double out = (id == kIntrinsicMinF64) ? (a < b ? a : b) : (a > b ? a : b);
+            Push(stack, PackF64Bits(F64ToBits(out)));
+            break;
+          }
+          case kIntrinsicMonoNs:
+          case kIntrinsicWallNs:
+            Push(stack, PackI64(0));
+            break;
+          case kIntrinsicRandU32:
+            Push(stack, PackI32(0));
+            break;
+          case kIntrinsicRandU64:
+            Push(stack, PackI64(0));
+            break;
+          case kIntrinsicWriteStdout:
+          case kIntrinsicWriteStderr:
+            if (stack.size() < 2) return Trap("INTRINSIC write stack underflow");
+            Pop(stack); // length
+            Pop(stack); // ref
+            break;
+          default:
+            return Trap("INTRINSIC not supported id=" + std::to_string(id));
+        }
+        break;
       }
       case OpCode::SysCall: {
         uint32_t id = ReadU32(module.code, pc);
