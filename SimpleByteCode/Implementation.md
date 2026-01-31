@@ -270,6 +270,7 @@ Work:
 
 Tests:
 - Intrinsic ID table coverage for declared core functions.
+- Import smoke tests for `core.log` (buffer + len).
 
 #### 9.7 Freeze Gates + Tag
 Deliverables:
