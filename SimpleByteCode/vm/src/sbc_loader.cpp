@@ -48,6 +48,14 @@ bool IsValidStringOffset(const std::vector<uint8_t>& pool, uint32_t offset) {
   return false;
 }
 
+std::string ReadStringAt(const std::vector<uint8_t>& pool, uint32_t offset) {
+  if (offset >= pool.size()) return {};
+  size_t pos = offset;
+  while (pos < pool.size() && pool[pos] != 0) ++pos;
+  if (pos >= pool.size()) return {};
+  return std::string(reinterpret_cast<const char*>(&pool[offset]), pos - offset);
+}
+
 const SectionEntry* FindSection(const std::vector<SectionEntry>& sections, SectionId id) {
   for (const auto& sec : sections) {
     if (sec.id == static_cast<uint32_t>(id)) return &sec;
@@ -633,6 +641,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   }
   if (!module.imports.empty()) {
     if (module.const_pool.empty()) return Fail("imports require const pool");
+    std::unordered_set<std::string> import_names;
     for (const auto& row : module.imports) {
       if (!IsValidStringOffset(module.const_pool, row.module_name_str)) {
         return Fail("import module name offset invalid");
@@ -642,10 +651,15 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       }
       if (row.sig_id >= module.sigs.size()) return Fail("import signature id out of range");
       if ((row.flags & ~0x000Fu) != 0u) return Fail("import flags invalid");
+      std::string mod = ReadStringAt(module.const_pool, row.module_name_str);
+      std::string sym = ReadStringAt(module.const_pool, row.symbol_name_str);
+      std::string key = mod + '\0' + sym;
+      if (!import_names.insert(key).second) return Fail("duplicate import name");
     }
   }
   if (!module.exports.empty()) {
     if (module.const_pool.empty()) return Fail("exports require const pool");
+    std::unordered_set<std::string> export_names;
     for (const auto& row : module.exports) {
       if (!IsValidStringOffset(module.const_pool, row.symbol_name_str)) {
         return Fail("export symbol name offset invalid");
@@ -653,6 +667,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (row.func_id >= module.functions.size()) return Fail("export function id out of range");
       if (row.reserved != 0u) return Fail("export reserved nonzero");
       if ((row.flags & ~0x000Fu) != 0u) return Fail("export flags invalid");
+      std::string sym = ReadStringAt(module.const_pool, row.symbol_name_str);
+      if (!export_names.insert(sym).second) return Fail("duplicate export name");
     }
   }
   for (size_t i = 0; i < module.globals.size(); ++i) {

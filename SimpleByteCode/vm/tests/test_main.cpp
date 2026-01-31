@@ -9690,6 +9690,49 @@ std::vector<uint8_t> BuildBadExportReservedLoadModule() {
                                      {}, exports);
 }
 
+std::vector<uint8_t> BuildBadImportDuplicateLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "args_count");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildBadExportDuplicateLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "main");
+  std::vector<uint8_t> exports;
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  AppendU32(exports, 0);
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
+                                     {}, exports);
+}
+
 std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
   std::vector<uint8_t> types;
   AppendU32(types, 0);
@@ -20334,6 +20377,26 @@ bool RunBadExportReservedLoadTest() {
   return true;
 }
 
+bool RunBadImportDuplicateLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadImportDuplicateLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadExportDuplicateLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadExportDuplicateLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadTypeKindSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -22230,6 +22293,8 @@ int main(int argc, char** argv) {
       {"bad_export_func_id_load", RunBadExportFuncIdLoadTest},
       {"bad_export_flags_load", RunBadExportFlagsLoadTest},
       {"bad_export_reserved_load", RunBadExportReservedLoadTest},
+      {"bad_import_duplicate_load", RunBadImportDuplicateLoadTest},
+      {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},

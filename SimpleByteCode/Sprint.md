@@ -357,3 +357,4 @@
 - Added loader negative tests for import/export name offsets, sig/function IDs, flags, and reserved fields.
 - Documented import/export table validation rules in SBC_ABI.md.
 - Marked import/export validation as DONE in FFI ABI freeze section.
+- Added loader duplicate-name checks for imports/exports with negative tests.
