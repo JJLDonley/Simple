@@ -87,6 +87,22 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 
 ---
 
+## 1.2 FFI Struct Layout (v0.1)
+
+FFI structs are **concrete and platform-ABI compatible** in v0.1.
+
+Rules:
+- Field order is **exactly as declared** (no reordering).
+- Each field is aligned to its **natural alignment**: 1, 2, 4, 8, or 16 bytes.
+- Struct alignment = max field alignment.
+- Struct size is padded to a multiple of struct alignment.
+- Endianness is **little-endian** for all scalar fields.
+- Only VM value types (`i32/i64/f32/f64`) are allowed as struct fields in v0.1.
+- `ref` is **not** a valid struct field for FFI unless explicitly documented for that API.
+- No packed/bitfield structs in v0.1.
+
+---
+
 ## 1.3 Core Library Namespaces (v0.1)
 
 ### Opcode-Backed (NOT imports)

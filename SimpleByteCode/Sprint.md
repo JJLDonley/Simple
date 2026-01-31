@@ -421,3 +421,4 @@
 - Marked section-id/misaligned-section loader tests as Phase 9 complete in implementation plan.
 - Marked intrinsic ID coverage and core.log import smoke test as Phase 9 complete.
 - Full VM test suite pass (569 tests).
+- Documented VM type IDs in SBC metadata docs and FFI struct layout rules in SBC ABI docs.

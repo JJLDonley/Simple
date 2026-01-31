@@ -19,6 +19,17 @@ This document defines the exact formats for metadata tables and heaps in SBC.
 
 ## 3. Type Table (TYPES)
 
+### VM Type IDs (Frozen v0.1)
+
+```
+0 = unspecified
+1 = i32
+2 = i64
+3 = f32
+4 = f64
+5 = ref
+```
+
 ```
 struct TypeRow {
   u32 name_str;
