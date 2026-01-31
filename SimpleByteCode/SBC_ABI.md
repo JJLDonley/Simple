@@ -121,6 +121,19 @@ Validation (v0.1):
 - Ref values are opaque handles; host must not assume pointer layout.
 - ABI version must be declared in SBC header flags or a dedicated field.
 
+### Error Convention (FFI)
+- Host functions return normal values as specified by their signatures.
+- On failure, host code must request a trap and return a sentinel error value:
+  - `i32/i64`: return `-1` and trap.
+  - `ref`: return null (`0xFFFFFFFF`) and trap.
+  - `void`: trap directly.
+- Imports marked with `can_trap` may legally trigger traps.
+
+### Pinning / GC Interop Policy
+- Raw pointers to VM-managed heap data are **not** exposed through FFI.
+- Host code must use the Host API to read/write VM-managed data.
+- No pinning in v0.1. If pinning is needed later, it must be explicit and versioned.
+
 ---
 
 ## 3. Host API (C ABI, Draft)

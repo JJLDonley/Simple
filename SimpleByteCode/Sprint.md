@@ -375,3 +375,4 @@
 - Marked VM type-ID validation coverage as done in the implementation plan.
 - Added loader negative test for invalid signature call_conv.
 - Marked Phase 9.1 primitive freeze items as DONE in the implementation plan.
+- Documented FFI error convention and pinning policy in SBC_ABI.md; marked FFI ABI work items as DONE.

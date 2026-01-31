@@ -242,11 +242,11 @@ Deliverables:
 
 Work:
 - Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
-- Define host API surface for ref/string/array/list access.
-- Decide error propagation (trap code + message).
-- Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
-- Define concrete FFI error convention (return codes + trap behavior).
-- Define pinning policy (explicitly allowed or explicitly forbidden).
+- [DONE] Define host API surface for ref/string/array/list access.
+- [DONE] Decide error propagation (trap code + message).
+- [DONE] Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
+- [DONE] Define concrete FFI error convention (return codes + trap behavior).
+- [DONE] Define pinning policy (explicitly allowed or explicitly forbidden).
 - [DONE] Parse and validate IMPORTS/EXPORTS sections (names, sig/func ids, flags, reserved).
 - Decide import-call strategy:
   - Option A: `CALL_IMPORT idx,u8` opcode that targets IMPORTS.
