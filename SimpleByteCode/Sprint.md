@@ -347,3 +347,5 @@
 - Removed unused JMP_TABLE runtime helper modules after moving checks to load time.
 - Tightened JMP_TABLE load tests to assert error message content (kind/blob).
 - Added intrinsic ID validation in verifier against SBC_ABI table and a negative verify test; intrinsic trap uses a valid ID.
+- Added intrinsic signature validation in verifier (param/return types) with new verify tests.
+- Added intrinsic signature validation (param/return) in verifier with updated intrinsic tests.

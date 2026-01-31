@@ -40,6 +40,41 @@ bool IsKnownIntrinsic(uint32_t id) {
   }
 }
 
+struct IntrinsicSig {
+  uint8_t ret = 0;
+  uint8_t param_count = 0;
+  uint8_t params[2]{0, 0};
+};
+
+bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
+  switch (id) {
+    case 0x0000u: *out = {0, 1, {1, 0}}; return true; // trap(i32)
+    case 0x0001u: *out = {0, 0, {0, 0}}; return true; // breakpoint()
+    case 0x0010u: *out = {0, 1, {1, 0}}; return true; // log_i32(i32)
+    case 0x0011u: *out = {0, 1, {2, 0}}; return true; // log_i64(i64)
+    case 0x0012u: *out = {0, 1, {3, 0}}; return true; // log_f32(f32)
+    case 0x0013u: *out = {0, 1, {4, 0}}; return true; // log_f64(f64)
+    case 0x0014u: *out = {0, 1, {5, 0}}; return true; // log_ref(ref)
+    case 0x0020u: *out = {1, 1, {1, 0}}; return true; // abs_i32(i32)->i32
+    case 0x0021u: *out = {2, 1, {2, 0}}; return true; // abs_i64(i64)->i64
+    case 0x0022u: *out = {1, 2, {1, 1}}; return true; // min_i32(i32,i32)->i32
+    case 0x0023u: *out = {1, 2, {1, 1}}; return true; // max_i32(i32,i32)->i32
+    case 0x0024u: *out = {2, 2, {2, 2}}; return true; // min_i64(i64,i64)->i64
+    case 0x0025u: *out = {2, 2, {2, 2}}; return true; // max_i64(i64,i64)->i64
+    case 0x0026u: *out = {3, 2, {3, 3}}; return true; // min_f32(f32,f32)->f32
+    case 0x0027u: *out = {3, 2, {3, 3}}; return true; // max_f32(f32,f32)->f32
+    case 0x0028u: *out = {4, 2, {4, 4}}; return true; // min_f64(f64,f64)->f64
+    case 0x0029u: *out = {4, 2, {4, 4}}; return true; // max_f64(f64,f64)->f64
+    case 0x0030u: *out = {2, 0, {0, 0}}; return true; // mono_ns()->i64
+    case 0x0031u: *out = {2, 0, {0, 0}}; return true; // wall_ns()->i64
+    case 0x0040u: *out = {1, 0, {0, 0}}; return true; // rand_u32()->i32
+    case 0x0041u: *out = {2, 0, {0, 0}}; return true; // rand_u64()->i64
+    case 0x0050u: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
+    case 0x0051u: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
+    default: return false;
+  }
+}
+
 bool ReadI32(const std::vector<uint8_t>& code, size_t offset, int32_t* out) {
   if (offset + 4 > code.size()) return false;
   uint32_t v = static_cast<uint32_t>(code[offset]) |
@@ -114,6 +149,17 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case ValType::Unknown:
       default:
         return VmType::Unknown;
+    }
+  };
+  auto from_intrinsic_type = [&](uint8_t code) -> ValType {
+    switch (code) {
+      case 0: return ValType::Unknown;
+      case 1: return ValType::I32;
+      case 2: return ValType::I64;
+      case 3: return ValType::F32;
+      case 4: return ValType::F64;
+      case 5: return ValType::Ref;
+      default: return ValType::Unknown;
     }
   };
   auto make_ref_bits = [&](const std::vector<ValType>& types) -> std::vector<uint8_t> {
@@ -1436,6 +1482,19 @@ VerifyResult VerifyModule(const SbcModule& module) {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);
           if (!IsKnownIntrinsic(id)) return fail_at("INTRINSIC id invalid", pc, opcode);
+          IntrinsicSig sig{};
+          if (!GetIntrinsicSig(id, &sig)) return fail_at("INTRINSIC signature missing", pc, opcode);
+          if (stack_types.size() < sig.param_count) return fail_at("INTRINSIC stack underflow", pc, opcode);
+          for (int i = static_cast<int>(sig.param_count) - 1; i >= 0; --i) {
+            ValType arg = pop_type();
+            ValType expected = from_intrinsic_type(sig.params[static_cast<size_t>(i)]);
+            VerifyResult r = check_type(arg, expected, "INTRINSIC param type mismatch");
+            if (!r.ok) return r;
+          }
+          if (sig.ret != 0) {
+            ValType ret = from_intrinsic_type(sig.ret);
+            push_type(ret);
+          }
           break;
         }
         case OpCode::CallCheck:

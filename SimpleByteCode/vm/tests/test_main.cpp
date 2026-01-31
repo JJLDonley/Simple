@@ -7920,6 +7920,8 @@ std::vector<uint8_t> BuildIntrinsicTrapModule() {
   std::vector<uint8_t> code;
   AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
   AppendU32(code, 0x0000);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
@@ -7935,6 +7937,39 @@ std::vector<uint8_t> BuildBadIntrinsicIdVerifyModule() {
   AppendU32(code, 0xFFFF);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadIntrinsicParamVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0020); // core.math.abs_i32
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildIntrinsicReturnVerifyModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0030); // core.time.mono_ns -> i64
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I64));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, {}, types, {}, 0, 0, 0, 0, 0, 0, empty_params);
 }
 
 std::vector<uint8_t> BuildSysCallTrapModule() {
@@ -20642,6 +20677,25 @@ bool RunBadIntrinsicIdVerifyTest() {
   return RunExpectVerifyFail(BuildBadIntrinsicIdVerifyModule(), "bad_intrinsic_id");
 }
 
+bool RunBadIntrinsicParamVerifyTest() {
+  return RunExpectVerifyFail(BuildBadIntrinsicParamVerifyModule(), "bad_intrinsic_param");
+}
+
+bool RunIntrinsicReturnVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildIntrinsicReturnVerifyModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "intrinsic_return load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "intrinsic_return verify failed: " << vr.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadArrayGetTrapTest() {
   return RunExpectTrap(BuildBadArrayGetModule(), "bad_array_get");
 }
@@ -21792,6 +21846,8 @@ int main(int argc, char** argv) {
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_type_verify", RunBadTypeVerifyTest},
       {"bad_intrinsic_id_verify", RunBadIntrinsicIdVerifyTest},
+      {"bad_intrinsic_param_verify", RunBadIntrinsicParamVerifyTest},
+      {"intrinsic_return_verify", RunIntrinsicReturnVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
       {"bad_merge_ref_i32_verify", RunBadMergeRefI32VerifyTest},
