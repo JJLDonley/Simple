@@ -97,6 +97,8 @@ struct JitStub {
 struct TrapContext {
   Frame* current = nullptr;
   const std::vector<Frame>* call_stack = nullptr;
+  size_t pc = 0;
+  size_t func_start = 0;
 };
 
 thread_local TrapContext* g_trap_ctx = nullptr;
@@ -252,6 +254,9 @@ ExecResult Trap(const std::string& message) {
   out << message;
   const Frame* current = g_trap_ctx->current;
   out << " (func " << current->func_index;
+  if (g_trap_ctx->pc >= g_trap_ctx->func_start) {
+    out << " pc " << (g_trap_ctx->pc - g_trap_ctx->func_start);
+  }
   if (current->line > 0) {
     out << " line " << current->line;
     if (current->column > 0) out << ":" << current->column;
@@ -778,12 +783,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     return frame;
   };
 
+  size_t func_start = module.functions[entry_func_index].code_offset;
   Frame current = setup_frame(entry_func_index, 0, 0, kNullRef);
   TrapContext trap_ctx;
   trap_ctx.current = &current;
   trap_ctx.call_stack = &call_stack;
+  trap_ctx.pc = 0;
+  trap_ctx.func_start = func_start;
   TrapContextGuard trap_guard(&trap_ctx);
-  size_t func_start = module.functions[entry_func_index].code_offset;
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
 
@@ -838,6 +845,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   };
 
   while (pc < module.code.size()) {
+    trap_ctx.pc = pc;
+    trap_ctx.func_start = func_start;
     ++op_counter;
     maybe_collect();
     if (pc >= end) {

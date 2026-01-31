@@ -17594,6 +17594,10 @@ bool RunLineTrapDiagTest() {
     std::cerr << "line_trap missing line info: " << exec.error << "\n";
     return false;
   }
+  if (exec.error.find("pc ") == std::string::npos) {
+    std::cerr << "line_trap missing pc info: " << exec.error << "\n";
+    return false;
+  }
   return true;
 }
 

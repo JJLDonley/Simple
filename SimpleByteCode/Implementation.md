@@ -119,6 +119,7 @@ Acceptance:
 ### Phase 7: Tooling + Diagnostics
 - [DONE] Line number mapping integrated into runtime trap errors.
 - [DONE] Stack trace emission (function indices at minimum).
+- [DONE] Trap errors include per-function PC offsets.
 - [DONE] Breakpoints and basic debug no-ops.
 - [DONE] Profiling hooks.
 

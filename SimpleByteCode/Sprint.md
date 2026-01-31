@@ -268,3 +268,4 @@
 - Added per-test "running" output in the test harness for easier hang diagnostics.
 - Added LINE opcode tracking in VM and trap errors now include function index + line/column with a simple stack trace.
 - Added diagnostic test to assert LINE data appears in trap error strings.
+- Added per-function PC offsets to trap errors and extended diagnostics test coverage.
