@@ -45,6 +45,16 @@ class IrBuilder {
   void EmitBoolNot();
   void EmitBoolAnd();
   void EmitBoolOr();
+  void EmitConvI32ToI64();
+  void EmitConvI64ToI32();
+  void EmitConvI32ToF32();
+  void EmitConvI32ToF64();
+  void EmitConvF32ToI32();
+  void EmitConvF64ToI32();
+  void EmitConvF32ToF64();
+  void EmitConvF64ToF32();
+  void EmitAddI32();
+  void EmitAddI64();
   void EmitJmp(IrLabel label);
   void EmitJmpTrue(IrLabel label);
   void EmitJmpFalse(IrLabel label);

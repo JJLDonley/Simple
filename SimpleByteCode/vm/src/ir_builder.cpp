@@ -127,6 +127,46 @@ void IrBuilder::EmitBoolOr() {
   EmitOp(OpCode::BoolOr);
 }
 
+void IrBuilder::EmitConvI32ToI64() {
+  EmitOp(OpCode::ConvI32ToI64);
+}
+
+void IrBuilder::EmitConvI64ToI32() {
+  EmitOp(OpCode::ConvI64ToI32);
+}
+
+void IrBuilder::EmitConvI32ToF32() {
+  EmitOp(OpCode::ConvI32ToF32);
+}
+
+void IrBuilder::EmitConvI32ToF64() {
+  EmitOp(OpCode::ConvI32ToF64);
+}
+
+void IrBuilder::EmitConvF32ToI32() {
+  EmitOp(OpCode::ConvF32ToI32);
+}
+
+void IrBuilder::EmitConvF64ToI32() {
+  EmitOp(OpCode::ConvF64ToI32);
+}
+
+void IrBuilder::EmitConvF32ToF64() {
+  EmitOp(OpCode::ConvF32ToF64);
+}
+
+void IrBuilder::EmitConvF64ToF32() {
+  EmitOp(OpCode::ConvF64ToF32);
+}
+
+void IrBuilder::EmitAddI32() {
+  EmitOp(OpCode::AddI32);
+}
+
+void IrBuilder::EmitAddI64() {
+  EmitOp(OpCode::AddI64);
+}
+
 void IrBuilder::EmitJmp(IrLabel label) {
   EmitOp(OpCode::Jmp);
   EmitRel32Fixup(label);
