@@ -434,3 +434,4 @@
 - Full VM test suite pass (571 tests).
 - Added ScratchArena/ScratchScope utility and switched core.fs temp buffers to use arena allocations.
 - Added scratch_arena unit test.
+- Added frozen opcode ID table to `SimpleByteCode/SBC_OpCodes.md`.

@@ -202,6 +202,7 @@ Work:
 - [DONE] Loader rejects unknown opcodes and operand overruns via `GetOpInfo` scan.
 - [DONE] Freeze instruction size table for verifier (OpInfo operand_bytes).
 - [DONE] Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
+- [DONE] Add opcode ID table to `SBC_OpCodes.md`.
 
 Tests:
 - Loader rejects invalid opcode values.
