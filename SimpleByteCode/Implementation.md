@@ -205,6 +205,35 @@ Coverage targets:
 - JIT: fallback safety, opcode-hot promotion, tiering counters, differential interpreter vs JIT.
 - GC: root scanning via stack maps/bitmaps, stress allocation, mark/sweep correctness.
 
+### 5.9 Pre-Freeze ABI Checklist (VM + SBC)
+- Freeze opcode IDs and semantics (operand widths, stack effects, trap conditions).
+- Freeze SBC header fields, section IDs, table layouts, and alignment rules.
+- Freeze call conventions: arg order, return slots, tailcall rules, stack_max meaning.
+- Freeze type ID mapping for VM primitive types (i32/i64/f32/f64/ref) and reference kind rules.
+- Freeze const pool formats (string encoding, i128/u128 blob sizes, f32/f64 encoding).
+- Freeze intrinsic/syscall ABI: numbering, signatures, error handling, and versioning.
+- Freeze GC safepoint contract: where safepoints occur and how stack maps are encoded.
+- Define module compatibility rules (versioning, feature flags, reserved fields behavior).
+
+### 5.10 Core Library + OS Layer Roadmap
+Phase A: VM Core Library (no OS)
+- String helpers: concat/slice/len parity with opcodes; UTF-16/UTF-8 policy.
+- Array/list helpers: bounds-safe wrappers, bulk operations (fill/copy).
+- Numeric helpers: abs/min/max/clamp, conversions; define overflow policy.
+- Error model: trap vs error code vs exception (if any).
+
+Phase B: OS Abstraction Layer (portable)
+- File IO: open/read/write/close with platform-neutral flags.
+- Time: monotonic clock + wall clock (explicit units).
+- Random: seeded RNG and OS entropy hook.
+- Environment: args, env, cwd.
+- Logging: stdout/stderr abstraction.
+
+Phase C: Native ABI + FFI (optional, post-freeze)
+- Stable calling convention for host functions.
+- Memory ownership rules for ref types across boundary.
+- Versioned import/export tables in SBC.
+
 ---
 
 ## 6) Test Infrastructure
