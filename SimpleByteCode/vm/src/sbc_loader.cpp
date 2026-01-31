@@ -672,6 +672,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (row.param_type_start > module.param_types.size()) {
       return Fail("signature param types out of range");
     }
+    if (row.ret_type_id != 0xFFFFFFFFu && row.ret_type_id >= module.types.size()) {
+      return Fail("signature return type id out of range");
+    }
     if (row.param_count > 0) {
       if (module.param_types.empty()) return Fail("signature param types missing");
       if (row.param_type_start + row.param_count > module.param_types.size()) {

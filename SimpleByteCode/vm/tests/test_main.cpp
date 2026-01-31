@@ -156,7 +156,7 @@ std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& cod
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
     AppendU32(types, 0);       // name_str
-    AppendU8(types, 0);        // kind
+    AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
     AppendU8(types, 0);        // flags
     AppendU16(types, 0);       // reserved
     AppendU32(types, 4);       // size
@@ -274,7 +274,7 @@ std::vector<uint8_t> BuildModuleWithTablesAndSigAndDebug(const std::vector<uint8
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
     AppendU32(types, 0);
-    AppendU8(types, 0);
+    AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
     AppendU8(types, 0);
     AppendU16(types, 0);
     AppendU32(types, 4);
@@ -9289,6 +9289,20 @@ std::vector<uint8_t> BuildBadSigParamTypeIdLoadModule() {
   std::vector<uint8_t> empty;
   std::vector<uint32_t> bad_param = {999};
   return BuildModuleWithTablesAndSig(code, const_pool, empty, empty, 0, 0, 0, 1, 0, 0, bad_param);
+}
+
+std::vector<uint8_t> BuildBadSigRetTypeIdLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTablesAndSig(code, const_pool, empty, empty, 0, 0, 999, 0, 0, 0, {});
 }
 
 std::vector<uint8_t> BuildBadSigTableTruncatedLoadModule() {
@@ -20160,6 +20174,16 @@ bool RunBadSigParamTypeIdLoadTest() {
   return true;
 }
 
+bool RunBadSigRetTypeIdLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadSigRetTypeIdLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadSigTableTruncatedLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadSigTableTruncatedLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -22350,6 +22374,7 @@ int main(int argc, char** argv) {
       {"bad_sig_param_type_start_load", RunBadSigParamTypeStartLoadTest},
       {"bad_sig_param_type_misaligned_load", RunBadSigParamTypeMisalignedLoadTest},
       {"bad_sig_param_type_id_load", RunBadSigParamTypeIdLoadTest},
+      {"bad_sig_ret_type_id_load", RunBadSigRetTypeIdLoadTest},
       {"bad_sig_table_truncated_load", RunBadSigTableTruncatedLoadTest},
       {"bad_section_alignment_load", RunBadSectionAlignmentLoadTest},
       {"bad_section_overlap_load", RunBadSectionOverlapLoadTest},

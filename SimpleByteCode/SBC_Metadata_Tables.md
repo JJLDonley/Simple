@@ -88,6 +88,7 @@ struct SigRow {
 ```
 
 Param Type List (packed):
+- `ret_type_id` must reference a valid Type row, or be `0xFFFFFFFF` for void.
 - `param_type_start` is an index into a packed `u32` array of type IDs.
 - `param_count` entries follow.
 
