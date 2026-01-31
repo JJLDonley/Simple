@@ -8792,6 +8792,18 @@ std::vector<uint8_t> BuildBadCallIndirectTypeModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildLineTrapModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(code, 10);
+  AppendU32(code, 20);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Trap));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadCallVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -17560,6 +17572,31 @@ bool RunBadCallIndirectTypeTrapTest() {
   return RunExpectVerifyFail(BuildBadCallIndirectTypeModule(), "bad_call_indirect_type");
 }
 
+bool RunLineTrapDiagTest() {
+  std::vector<uint8_t> module_bytes = BuildLineTrapModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "line_trap load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "line_trap verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Trapped) {
+    std::cerr << "line_trap expected trap, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.error.find("line 10:20") == std::string::npos) {
+    std::cerr << "line_trap missing line info: " << exec.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadStringLenNullTrapTest() {
   return RunExpectTrap(BuildBadStringLenNullModule(), "bad_string_len_null");
 }
@@ -17913,6 +17950,7 @@ int main(int argc, char** argv) {
       {"shift_mask_i64", RunShiftMaskI64Test},
       {"return_ref", RunReturnRefTest},
       {"debug_noop", RunDebugNoopTest},
+      {"diag_line_trap", RunLineTrapDiagTest},
       {"verify_metadata", RunVerifyMetadataTest},
       {"verify_metadata_nonref_global", RunVerifyMetadataNonRefGlobalTest},
       {"heap_reuse", RunHeapReuseTest},

@@ -117,8 +117,8 @@ Acceptance:
 - JIT results match interpreter output.
 
 ### Phase 7: Tooling + Diagnostics
-- [NEW] Line number mapping integrated into runtime trap errors.
-- [NEW] Stack trace emission (function indices at minimum).
+- [DONE] Line number mapping integrated into runtime trap errors.
+- [DONE] Stack trace emission (function indices at minimum).
 - [DONE] Breakpoints and basic debug no-ops.
 - [DONE] Profiling hooks.
 

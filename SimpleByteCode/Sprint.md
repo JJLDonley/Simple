@@ -266,3 +266,5 @@
 - Switched GC root scanning to verifier-provided ref bitmaps + stack maps and only collect at safepoints with stack maps.
 - Adjusted bad call-indirect type test to fail verification (ConstF32) under typed runtime rules.
 - Added per-test "running" output in the test harness for easier hang diagnostics.
+- Added LINE opcode tracking in VM and trap errors now include function index + line/column with a simple stack trace.
+- Added diagnostic test to assert LINE data appears in trap error strings.

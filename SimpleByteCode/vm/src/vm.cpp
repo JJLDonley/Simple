@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <limits>
+#include <sstream>
 #include <vector>
 
 #include "heap.h"
@@ -81,6 +83,8 @@ struct Frame {
   size_t return_pc = 0;
   size_t stack_base = 0;
   uint32_t closure_ref = kNullRef;
+  uint32_t line = 0;
+  uint32_t column = 0;
   std::vector<Slot> locals;
 };
 
@@ -88,6 +92,24 @@ struct JitStub {
   bool active = false;
   bool compiled = false;
   bool disabled = false;
+};
+
+struct TrapContext {
+  Frame* current = nullptr;
+  const std::vector<Frame>* call_stack = nullptr;
+};
+
+thread_local TrapContext* g_trap_ctx = nullptr;
+
+struct TrapContextGuard {
+  TrapContext* prev = nullptr;
+  explicit TrapContextGuard(TrapContext* ctx) {
+    prev = g_trap_ctx;
+    g_trap_ctx = ctx;
+  }
+  ~TrapContextGuard() {
+    g_trap_ctx = prev;
+  }
 };
 
 int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
@@ -222,7 +244,30 @@ std::u16string ReadString(const HeapObject* obj) {
 ExecResult Trap(const std::string& message) {
   ExecResult result;
   result.status = ExecStatus::Trapped;
-  result.error = message;
+  if (!g_trap_ctx || !g_trap_ctx->current) {
+    result.error = message;
+    return result;
+  }
+  std::ostringstream out;
+  out << message;
+  const Frame* current = g_trap_ctx->current;
+  out << " (func " << current->func_index;
+  if (current->line > 0) {
+    out << " line " << current->line;
+    if (current->column > 0) out << ":" << current->column;
+  }
+  out << ")";
+  if (g_trap_ctx->call_stack && !g_trap_ctx->call_stack->empty()) {
+    out << " stack:";
+    for (auto it = g_trap_ctx->call_stack->rbegin(); it != g_trap_ctx->call_stack->rend(); ++it) {
+      out << " <- func " << it->func_index;
+      if (it->line > 0) {
+        out << " " << it->line;
+        if (it->column > 0) out << ":" << it->column;
+      }
+    }
+  }
+  result.error = out.str();
   return result;
 }
 
@@ -721,6 +766,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     frame.return_pc = return_pc;
     frame.stack_base = stack_base;
     frame.closure_ref = closure_ref;
+    frame.line = 0;
+    frame.column = 0;
     uint32_t method_id = module.functions[func_index].method_id;
     if (method_id >= module.methods.size()) {
       frame.locals.clear();
@@ -732,6 +779,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   };
 
   Frame current = setup_frame(entry_func_index, 0, 0, kNullRef);
+  TrapContext trap_ctx;
+  trap_ctx.current = &current;
+  trap_ctx.call_stack = &call_stack;
+  TrapContextGuard trap_guard(&trap_ctx);
   size_t func_start = module.functions[entry_func_index].code_offset;
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
@@ -1327,8 +1378,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         break;
       }
       case OpCode::Line: {
-        ReadU32(module.code, pc);
-        ReadU32(module.code, pc);
+        uint32_t line = ReadU32(module.code, pc);
+        uint32_t column = ReadU32(module.code, pc);
+        current.line = line;
+        current.column = column;
         break;
       }
       case OpCode::ProfileStart: {
