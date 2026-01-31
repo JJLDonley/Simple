@@ -313,3 +313,4 @@
 - Added a detailed pre-freeze implementation plan with steps, deliverables, and tests.
 - Added a draft C ABI host API surface for ref/string/blob/array/list access.
 - Expanded host API draft with type discovery + struct read/write and tiered recommendations.
+- Added `SimpleByteCode/SBC_ABI.md` with intrinsic IDs, FFI tables, and host API details; implementation plan now references it.
