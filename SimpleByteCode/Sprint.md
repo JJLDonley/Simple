@@ -374,3 +374,4 @@
 - Added loader validation for signature return type IDs with a negative load test.
 - Marked VM type-ID validation coverage as done in the implementation plan.
 - Added loader negative test for invalid signature call_conv.
+- Marked Phase 9.1 primitive freeze items as DONE in the implementation plan.

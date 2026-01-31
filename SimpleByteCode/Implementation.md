@@ -151,9 +151,9 @@ Acceptance:
 ### Phase 9: Pre-Freeze (Primitives, ABI, FFI, Core Library)
 
 #### 9.1 Primitive Freeze
-- [ ] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
-- [ ] Add C-style type + opcode mapping table (storage + operator families).
-- [ ] Lock VM type ID codes and version them.
+- [DONE] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
+- [DONE] Add C-style type + opcode mapping table (storage + operator families).
+- [DONE] Lock VM type ID codes and version them.
 
 ##### C-Style Type + Opcode Mapping (Draft)
 | C-Style Type | VM Storage Type | Opcode Families |
