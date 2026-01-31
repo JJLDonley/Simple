@@ -105,6 +105,8 @@ Validation (v0.1):
 - `func_id` must reference a valid function.
 - `flags` must only use bits 0..3.
 - `reserved` must be 0.
+- Duplicate import names (module + symbol) are rejected.
+- Duplicate export names are rejected.
 
 ### FFI Flags
 - `0x0001`: can_trap (host may return trap)
