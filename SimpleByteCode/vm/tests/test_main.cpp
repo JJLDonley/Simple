@@ -18612,6 +18612,10 @@ bool RunBadUnknownOpcodeLoadTest() {
     std::cerr << "expected load failure\n";
     return false;
   }
+  if (load.error.find("unknown opcode") == std::string::npos) {
+    std::cerr << "expected unknown opcode error, got: " << load.error << "\n";
+    return false;
+  }
   return true;
 }
 
@@ -18620,6 +18624,10 @@ bool RunBadOperandOverrunLoadTest() {
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (load.ok) {
     std::cerr << "expected load failure\n";
+    return false;
+  }
+  if (load.error.find("opcode operands out of bounds") == std::string::npos) {
+    std::cerr << "expected operand bounds error, got: " << load.error << "\n";
     return false;
   }
   return true;

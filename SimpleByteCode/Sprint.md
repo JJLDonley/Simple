@@ -338,3 +338,4 @@
 - Added loader negative test for misaligned instruction boundary (trailing byte).
 - Marked opcode frozen-semantics doc as DONE in implementation plan.
 - No new changes; waiting on next implementation target selection.
+- Tightened loader tests to assert specific error messages for unknown opcodes and operand overruns.
