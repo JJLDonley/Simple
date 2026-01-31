@@ -344,8 +344,25 @@ FFI Calling Convention
 
 ### 9.1 Primitive Freeze
 - [ ] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
-- [ ] Add C-style type mapping table (u32/u64/bool/char/i8/i16/u8/u16 → VM types).
+- [ ] Add C-style type + opcode mapping table (storage + operator families).
 - [ ] Lock VM type ID codes and version them.
+
+#### C-Style Type + Opcode Mapping (Draft)
+| C-Style Type | VM Storage Type | Opcode Families |
+|-------------|------------------|-----------------|
+| bool | i32 | BoolNot/BoolAnd/BoolOr, CmpEqI32 |
+| char | i32 | ConstChar, StringGetChar |
+| i8 | i32 | ConstI8, Inc/DecI8, NegI8 |
+| u8 | i32 | ConstU8, Inc/DecU8 |
+| i16 | i32 | ConstI16, Inc/DecI16, NegI16 |
+| u16 | i32 | ConstU16, Inc/DecU16 |
+| i32 | i32 | Add/Sub/Mul/Div/ModI32, Cmp*I32, BitwiseI32 |
+| u32 | i32 | Add/Sub/Mul/Div/ModU32, Cmp*U32, ShiftI32 |
+| i64 | i64 | Add/Sub/Mul/Div/ModI64, Cmp*I64, BitwiseI64 |
+| u64 | i64 | Add/Sub/Mul/Div/ModU64, Cmp*U64, ShiftI64 |
+| f32 | f32 | Add/Sub/Mul/DivF32, Cmp*F32 |
+| f64 | f64 | Add/Sub/Mul/DivF64, Cmp*F64 |
+| ref<T> | ref | RefEq/RefNe, IsNull, Load/StoreRef, Array/List ops |
 
 ### 9.2 ABI Freeze (SBC + Bytecode)
 - [ ] Freeze opcode IDs, operand widths, stack effects, and trap conditions.

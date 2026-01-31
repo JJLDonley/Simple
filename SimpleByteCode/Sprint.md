@@ -309,3 +309,4 @@
 - Removed string intrinsics from the table since strings are opcode-backed.
 - Expanded intrinsic table with debug logging, math min/max for floats, time, rand, and basic IO intrinsics.
 - Added a dedicated pre-freeze plan section (primitives/ABI/FFI/core library + freeze gates) to the implementation plan.
+- Added a draft C-style type + opcode mapping table (storage + operator families).
