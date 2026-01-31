@@ -48,6 +48,12 @@ This document defines the stable ABI for SBC modules, intrinsics, and host FFI.
 
 ---
 
+## 1.2 SysCall IDs (v0.1)
+
+SysCalls are **reserved** in v0.1 and must not appear in verified modules.
+
+---
+
 ## 1.1 Core Library OS Services (FFI-backed)
 
 These are *core library* contracts that are expected to be implemented by OS/host FFI.

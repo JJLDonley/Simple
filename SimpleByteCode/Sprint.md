@@ -351,3 +351,4 @@
 - Added intrinsic signature validation (param/return) in verifier with updated intrinsic tests.
 - Added verifier gate rejecting SYS_CALL with a negative verify test.
 - Introduced intrinsic ID constants header and wired verifier tables to it.
+- Documented SysCall IDs as reserved in SBC_ABI.md.
