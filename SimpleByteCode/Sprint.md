@@ -352,3 +352,4 @@
 - Added verifier gate rejecting SYS_CALL with a negative verify test.
 - Introduced intrinsic ID constants header and wired verifier tables to it.
 - Documented SysCall IDs as reserved in SBC_ABI.md.
+- Updated implementation plan to reserve SYS_CALL in v0.1 and mark verifier gate as done.

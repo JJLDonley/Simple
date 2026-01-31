@@ -221,11 +221,13 @@ Tests:
 Deliverables:
 - Intrinsic ID table finalized (IDs + signatures + trap rules).
 - Debug/time/rand/io intrinsics stabilized.
+- SysCall IDs reserved (no verified modules use SYS_CALL).
 
 Work:
 - Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
 - Define intrinsic IDs as constants in VM.
 - Ensure `Intrinsic` opcode validates ID + signature.
+- [DONE] Verifier rejects `SYS_CALL` in v0.1 (reserved in ABI).
 
 Tests:
 - Invalid intrinsic ID rejects at verify or runtime.
