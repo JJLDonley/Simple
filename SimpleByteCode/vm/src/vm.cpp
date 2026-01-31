@@ -3083,9 +3083,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
-        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
-          return Trap("TAILCALL import not supported");
-        }
         if (enable_jit && jit_stubs[func_id].active) {
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[func_id] += 1;
@@ -3101,6 +3098,31 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         call_args.resize(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           call_args[static_cast<size_t>(i)] = Pop(stack);
+        }
+        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
+          Slot ret = 0;
+          bool has_ret = false;
+          std::string error;
+          if (!handle_import_call(func_id, call_args, ret, has_ret, error)) {
+            return Trap(error);
+          }
+          if (call_stack.empty()) {
+            ExecResult result;
+            result.status = ExecStatus::Halted;
+            if (has_ret) result.exit_code = UnpackI32(ret);
+            return finish(result);
+          }
+          Frame caller = call_stack.back();
+          call_stack.pop_back();
+          stack.resize(caller.stack_base);
+          locals_arena.resize(caller.locals_base + caller.locals_count);
+          if (has_ret) Push(stack, ret);
+          current = caller;
+          pc = current.return_pc;
+          const auto& func = module.functions[current.func_index];
+          func_start = func.code_offset;
+          end = func_start + func.code_size;
+          break;
         }
 
         if (enable_jit && jit_stubs[func_id].compiled) {

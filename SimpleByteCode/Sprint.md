@@ -382,3 +382,4 @@
 - Added v0.1 freeze summary to Implementation.md and vm/README.md.
 - Implemented core library import handling for core.os/core.fs/core.log and updated import call tests to succeed.
 - Implemented core.os time/cwd/env/sleep handlers with ASCII string conversion and added import_time_mono/import_cwd_get tests.
+- Added TAILCALL support for imports with a passing import_tailcall test.
