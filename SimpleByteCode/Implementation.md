@@ -528,6 +528,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR emitter typed array/list ops and IR→SBC tests for I64/F32/Ref containers.
 - Added IR→SBC tests for array/list F64 and ref array paths.
 - Added IR→SBC tests for array F32 and list I64 paths.
+- Added IR→SBC tests for array/list length ops.
 
 ## 9) Freeze Status (v0.1)
 
