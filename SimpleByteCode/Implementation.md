@@ -216,7 +216,7 @@ Work:
 
 Tests:
 - Existing loader negative tests updated to match frozen rules.
-- Add “unknown section id” and “misaligned section” tests if missing.
+- [DONE] Add “unknown section id” and “misaligned section” tests.
 
 #### 9.4 Intrinsic ID Freeze
 Deliverables:
@@ -257,7 +257,7 @@ Work:
 Tests:
 - [DONE] Loader rejects malformed import/export tables.
 - [DONE] Verifier rejects call signatures not matching import sigs.
-- Loader rejects IMPORTS/EXPORTS when const pool is missing.
+- [DONE] Loader rejects IMPORTS/EXPORTS when const pool is missing.
 
 #### 9.6 Core Library Contract (No Impl Yet)
 Deliverables:

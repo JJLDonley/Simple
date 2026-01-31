@@ -418,3 +418,4 @@
 - Fixed core.fs read-zero-len non-empty buffer test to create an empty file before read and validate preservation.
 - Added core.log import test to validate log(ref, i32) call path.
 - Added loader negative tests for imports/exports requiring a const pool.
+- Marked section-id/misaligned-section loader tests as Phase 9 complete in implementation plan.
