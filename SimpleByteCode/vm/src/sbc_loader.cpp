@@ -131,7 +131,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (entry.offset + entry.size > bytes.size()) return Fail("section out of bounds");
     if (!seen_ids.insert(entry.id).second) return Fail("duplicate section id");
     if (entry.id < static_cast<uint32_t>(SectionId::Types) ||
-        entry.id > static_cast<uint32_t>(SectionId::Debug)) {
+        entry.id > static_cast<uint32_t>(SectionId::Exports)) {
       return Fail("unknown section id");
     }
     module.sections[i] = entry;
@@ -670,6 +670,29 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       std::string sym = ReadStringAt(module.const_pool, row.symbol_name_str);
       if (!export_names.insert(sym).second) return Fail("duplicate export name");
     }
+  }
+  if (!module.imports.empty()) {
+    const uint32_t import_base = static_cast<uint32_t>(module.functions.size());
+    module.function_is_import.assign(module.functions.size(), 0);
+    for (size_t i = 0; i < module.imports.size(); ++i) {
+      MethodRow method;
+      method.name_str = module.imports[i].symbol_name_str;
+      method.sig_id = module.imports[i].sig_id;
+      method.code_offset = 0;
+      method.local_count = 0;
+      method.flags = 0;
+      module.methods.push_back(method);
+      FunctionRow func;
+      func.method_id = static_cast<uint32_t>(module.methods.size() - 1);
+      func.code_offset = 0;
+      func.code_size = 0;
+      func.stack_max = 1;
+      module.functions.push_back(func);
+      module.function_is_import.push_back(1);
+    }
+    (void)import_base;
+  } else {
+    module.function_is_import.assign(module.functions.size(), 0);
   }
   for (size_t i = 0; i < module.globals.size(); ++i) {
     const auto& row = module.globals[i];

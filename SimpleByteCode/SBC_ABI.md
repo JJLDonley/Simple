@@ -107,6 +107,7 @@ Validation (v0.1):
 - `reserved` must be 0.
 - Duplicate import names (module + symbol) are rejected.
 - Duplicate export names are rejected.
+- Import entries map to function IDs at load time: `func_id = functions_count + import_index`.
 
 ### FFI Flags
 - `0x0001`: can_trap (host may return trap)

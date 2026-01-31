@@ -151,6 +151,7 @@ struct SbcModule {
   std::vector<FunctionRow> functions;
   std::vector<ImportRow> imports;
   std::vector<ExportRow> exports;
+  std::vector<uint8_t> function_is_import;
   std::vector<uint32_t> param_types;
   std::vector<uint8_t> code;
   std::vector<uint8_t> const_pool;

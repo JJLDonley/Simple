@@ -2596,6 +2596,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("CALL invalid function id");
+        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
+          return Trap("CALL import not supported");
+        }
         if (enable_jit && jit_stubs[func_id].active) {
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[func_id] += 1;
@@ -2674,6 +2677,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (idx < 0 || static_cast<size_t>(idx) >= module.functions.size()) {
             return Trap("CALL_INDIRECT invalid function id");
           }
+          if (static_cast<size_t>(idx) < module.function_is_import.size() &&
+              module.function_is_import[static_cast<size_t>(idx)]) {
+            return Trap("CALL_INDIRECT import not supported");
+          }
           func_index = idx;
         }
 
@@ -2720,6 +2727,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
+        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
+          return Trap("TAILCALL import not supported");
+        }
         if (enable_jit && jit_stubs[func_id].active) {
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[func_id] += 1;

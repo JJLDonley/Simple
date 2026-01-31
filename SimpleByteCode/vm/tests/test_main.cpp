@@ -136,6 +136,9 @@ struct SigSpec {
   std::vector<uint32_t> param_types;
 };
 
+bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
+bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
+
 std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& code,
                                                  const std::vector<uint8_t>& const_pool,
                                                  const std::vector<uint8_t>& types_bytes,
@@ -9731,6 +9734,28 @@ std::vector<uint8_t> BuildBadExportDuplicateLoadModule() {
   AppendU32(exports, 0);
   return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
                                      {}, exports);
+}
+
+std::vector<uint8_t> BuildImportCallModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "args_count");
+  std::vector<uint8_t> imports;
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0xFFFFFFFFu, 0, 0, 0, empty_params,
+                                     imports, {});
 }
 
 std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
@@ -20397,6 +20422,10 @@ bool RunBadExportDuplicateLoadTest() {
   return true;
 }
 
+bool RunImportCallTrapTest() {
+  return RunExpectTrap(BuildImportCallModule(), "import_call");
+}
+
 bool RunBadTypeKindSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -22295,6 +22324,7 @@ int main(int argc, char** argv) {
       {"bad_export_reserved_load", RunBadExportReservedLoadTest},
       {"bad_import_duplicate_load", RunBadImportDuplicateLoadTest},
       {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
+      {"import_call_trap", RunImportCallTrapTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},

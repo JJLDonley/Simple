@@ -362,3 +362,6 @@
 - Documented IMPORTS/EXPORTS tables in SBC_Metadata_Tables.md.
 - Marked import-call signature verification as blocked pending import-call opcode/resolution.
 - Added import-call strategy options to the FFI ABI freeze plan.
+- Implemented option-2 import mapping: imports append to functions list; CALL/TailCall/CallIndirect trap on import.
+- Added import_call_trap test and documented import function-id mapping in SBC_ABI.md.
+- Added import mapping into function list with import-call traps and updated section ID range for imports/exports.
