@@ -70,6 +70,38 @@ void IrBuilder::EmitTailCall(uint32_t func_id, uint8_t arg_count) {
   EmitU8(arg_count);
 }
 
+void IrBuilder::EmitLoadLocal(uint32_t index) {
+  EmitOp(OpCode::LoadLocal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitStoreLocal(uint32_t index) {
+  EmitOp(OpCode::StoreLocal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitLoadGlobal(uint32_t index) {
+  EmitOp(OpCode::LoadGlobal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitStoreGlobal(uint32_t index) {
+  EmitOp(OpCode::StoreGlobal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitRet() {
+  EmitOp(OpCode::Ret);
+}
+
+void IrBuilder::EmitPop() {
+  EmitOp(OpCode::Pop);
+}
+
+void IrBuilder::EmitDup() {
+  EmitOp(OpCode::Dup);
+}
+
 void IrBuilder::EmitJmp(IrLabel label) {
   EmitOp(OpCode::Jmp);
   EmitRel32Fixup(label);

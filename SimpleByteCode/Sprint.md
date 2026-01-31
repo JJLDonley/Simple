@@ -450,3 +450,4 @@
 - Added `ir_compiler` (IR→SBC) library API and `BuildModuleFromSections` emitter path.
 - Wired IR tests to compile through `ir_compiler` instead of building modules directly.
 - Added IR→SBC golden comparisons using `sbc_emitter` and aligned default const pool in `ir_compiler`.
+- Extended IR emitter API with locals/globals/ret/stack ops and added IR→SBC tests for locals and calls.

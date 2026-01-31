@@ -511,6 +511,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Standardized SBC emitter helpers and migrated test fixtures and `gen_sbc` to use `sbc_emitter.h`.
 - Added IR→SBC compiler API (`ir_compiler`) and wired IR tests through it.
 - Added IR→SBC golden comparisons using `sbc_emitter` (no manual SBC bytes).
+- Extended IR emitter API (locals/globals/ret/stack ops) and added IR→SBC tests for locals and calls.
 
 ## 9) Freeze Status (v0.1)
 

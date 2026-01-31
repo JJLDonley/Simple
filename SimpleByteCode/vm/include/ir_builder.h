@@ -32,6 +32,13 @@ class IrBuilder {
   void EmitCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
+  void EmitLoadLocal(uint32_t index);
+  void EmitStoreLocal(uint32_t index);
+  void EmitLoadGlobal(uint32_t index);
+  void EmitStoreGlobal(uint32_t index);
+  void EmitRet();
+  void EmitPop();
+  void EmitDup();
   void EmitJmp(IrLabel label);
   void EmitJmpTrue(IrLabel label);
   void EmitJmpFalse(IrLabel label);

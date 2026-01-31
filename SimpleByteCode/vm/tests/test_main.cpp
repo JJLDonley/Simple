@@ -228,6 +228,90 @@ std::vector<uint8_t> BuildIrJumpModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrLocalsModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(1);
+  builder.EmitConstI32(9);
+  builder.EmitStoreLocal(0);
+  builder.EmitLoadLocal(0);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 1;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 1);
+  if (!ExpectSbcEqual(out, expected, "ir_locals_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrCallModule() {
+  simplevm::IrBuilder entry_builder;
+  entry_builder.EmitEnter(0);
+  entry_builder.EmitCall(1, 0);
+  entry_builder.EmitRet();
+  std::vector<uint8_t> entry;
+  std::string error;
+  if (!entry_builder.Finish(&entry, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::IrBuilder callee_builder;
+  callee_builder.EmitEnter(0);
+  callee_builder.EmitConstI32(7);
+  callee_builder.EmitRet();
+  std::vector<uint8_t> callee;
+  if (!callee_builder.Finish(&callee, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction entry_func;
+  entry_func.code = entry;
+  entry_func.local_count = 0;
+  entry_func.stack_max = 12;
+  module.functions.push_back(std::move(entry_func));
+  simplevm::ir::IrFunction callee_func;
+  callee_func.code = callee;
+  callee_func.local_count = 0;
+  callee_func.stack_max = 12;
+  module.functions.push_back(std::move(callee_func));
+  module.entry_method_id = 0;
+
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+
+  std::vector<uint32_t> sig_ids = {0, 0};
+  simplevm::sbc::SigSpec sig_spec;
+  sig_spec.ret_type_id = 0;
+  sig_spec.param_count = 0;
+  std::vector<uint8_t> expected = BuildModuleWithFunctionsAndSigs({entry, callee}, {0, 0}, sig_ids, {sig_spec});
+  if (!ExpectSbcEqual(out, expected, "ir_call_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -18785,6 +18869,14 @@ bool RunIrEmitJumpTest() {
   return RunExpectExit(BuildIrJumpModule(), 7);
 }
 
+bool RunIrEmitLocalsTest() {
+  return RunExpectExit(BuildIrLocalsModule(), 9);
+}
+
+bool RunIrEmitCallTest() {
+  return RunExpectExit(BuildIrCallModule(), 7);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -29507,6 +29599,8 @@ int main(int argc, char** argv) {
       {"intrinsic_return_verify", RunIntrinsicReturnVerifyTest},
       {"ir_emit_add", RunIrEmitAddTest},
       {"ir_emit_jump", RunIrEmitJumpTest},
+      {"ir_emit_locals", RunIrEmitLocalsTest},
+      {"ir_emit_call", RunIrEmitCallTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
