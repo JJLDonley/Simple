@@ -444,7 +444,7 @@ Deliverables:
 - Debug/time/rand/io intrinsics stabilized.
 
 Work:
-- Move intrinsic ID table into a dedicated ABI doc (optional).
+- Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
 - Define intrinsic IDs as constants in VM.
 - Ensure `Intrinsic` opcode validates ID + signature.
 
@@ -459,9 +459,10 @@ Deliverables:
 - Ref handle ownership rules defined.
 
 Work:
-- Add `SBC_ABI.md` or extend SBC docs with FFI tables.
+- Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
 - Define host API surface for ref/string/array/list access.
 - Decide error propagation (trap code + message).
+ - Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
 
 Tests:
 - Loader rejects malformed import/export tables.
@@ -475,6 +476,7 @@ Deliverables:
 Work:
 - Enumerate core library functions that are NOT opcode-backed.
 - Decide which are intrinsic vs bytecode helpers.
+- Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
 
 Tests:
 - Intrinsic ID table coverage for declared core functions.
