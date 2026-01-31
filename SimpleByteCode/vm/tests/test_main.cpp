@@ -6133,6 +6133,16 @@ std::vector<uint8_t> BuildBadOperandOverrunModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadCodeAlignmentLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildConstU32Module() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -18615,6 +18625,16 @@ bool RunBadOperandOverrunLoadTest() {
   return true;
 }
 
+bool RunBadCodeAlignmentLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadCodeAlignmentLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMergeVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadMergeModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -21914,6 +21934,7 @@ int main(int argc, char** argv) {
       {"good_type_kind_ref_size_load", RunGoodTypeKindRefSizeLoadTest},
       {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
       {"bad_operand_overrun_load", RunBadOperandOverrunLoadTest},
+      {"bad_code_alignment_load", RunBadCodeAlignmentLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
