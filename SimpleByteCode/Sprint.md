@@ -398,3 +398,4 @@
 - Added core.fs negative tests for bad fd reads and null-buffer writes.
 - Added core.fs negative tests for non-array read buffers and bad-fd write/close paths.
 - Added core.fs write clamp (len > buffer size) and close-twice tests.
+- Added core.fs open-null-path and read-zero-len tests.
