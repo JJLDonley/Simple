@@ -326,3 +326,4 @@
 - Added loader validation to disallow fields on primitive value types with a negative test.
 - Added loader validation to disallow fields on Ref type rows with a negative test.
 - Added positive loader test for valid Ref type size (0).
+- Added verifier negative test for unknown opcode values.
