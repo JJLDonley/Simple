@@ -448,6 +448,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
   Heap heap;
   ScratchArena scratch_arena;
+  scratch_arena.SetRequireScope(true);
   std::vector<Slot> globals(module.globals.size());
   std::vector<Slot> locals_arena;
   std::vector<Slot> jit_stack;

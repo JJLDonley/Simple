@@ -29612,6 +29612,25 @@ bool RunScratchArenaAlignmentTest() {
   return true;
 }
 
+bool RunScratchScopeEnforcedTest() {
+  simplevm::ScratchArena arena(16);
+  arena.SetRequireScope(true);
+  uint8_t* fail = arena.Allocate(4, 4);
+  if (fail != nullptr) {
+    std::cerr << "scratch arena should reject alloc without scope\n";
+    return false;
+  }
+  {
+    simplevm::ScratchScope scope(arena);
+    uint8_t* ok = arena.Allocate(4, 4);
+    if (!ok) {
+      std::cerr << "scratch arena scoped alloc failed\n";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool RunHeapClosureMarkTest() {
   simplevm::Heap heap;
   uint32_t target = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
@@ -29952,6 +29971,7 @@ int main(int argc, char** argv) {
       {"scratch_arena", RunScratchArenaTest},
       {"scratch_scope", RunScratchScopeTest},
       {"scratch_align", RunScratchArenaAlignmentTest},
+      {"scratch_scope_enforced", RunScratchScopeEnforcedTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
       {"gc_vm_stress", RunGcVmStressTest},

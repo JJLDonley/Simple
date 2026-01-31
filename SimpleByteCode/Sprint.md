@@ -438,3 +438,4 @@
 - Documented opcode ID table source-of-truth link to `SimpleByteCode/vm/include/opcode.h`.
 - Added scratch_scope unit test to validate ScratchScope RAII reset behavior.
 - Added scratch_arena alignment test.
+- Enforced scratch-scope-only allocations and added scratch_scope_enforced test.

@@ -119,6 +119,7 @@ Work (Phase 5b):
 - [DONE] Add `ScratchArena` + `ScratchScope` utility for transient buffers (used in `core.fs` read/write).
   - [DONE] Add scratch arena/scope unit tests.
   - [DONE] Add scratch arena alignment test.
+  - [DONE] Enforce scratch scope allocation (no allocations outside scope).
 
 ### Phase 6: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
