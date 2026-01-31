@@ -395,3 +395,4 @@
 - Fixed core.fs round-trip test call targets/signature param list and added close+reopen for read path.
 - Added core.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
 - Redirected core.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
+- Added core.fs negative tests for bad fd reads and null-buffer writes.
