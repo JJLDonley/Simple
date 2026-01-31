@@ -508,6 +508,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added runtime trap coverage for typed array set null/out-of-bounds/negative index cases.
 - Added runtime trap coverage for typed array/list get and list pop/insert/remove cases.
 - Added JIT fallback coverage for typed array/list ops to ensure safe interpreter fallback.
+- Standardized SBC emitter helpers and migrated test fixtures and `gen_sbc` to use `sbc_emitter.h`.
 
 ## 9) Freeze Status (v0.1)
 
