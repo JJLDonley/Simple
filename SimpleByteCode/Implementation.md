@@ -280,13 +280,13 @@ Deliverables:
 
 Work:
 - Run full suite; add missing ABI/FFI tests.
-- Final review of SBC docs vs VM behavior.
+- [DONE] Final review of SBC docs vs VM behavior.
 
 Tests:
 - [DONE] Full test suite pass.
-- ABI validation tests pass.
-- FFI table validation tests pass.
-- Intrinsic ID table validation tests pass.
+- [DONE] ABI validation tests pass.
+- [DONE] FFI table validation tests pass.
+- [DONE] Intrinsic ID table validation tests pass.
 - [DONE] Cross-version compatibility skeleton tests pass.
 
 ---

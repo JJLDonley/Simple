@@ -430,3 +430,5 @@
 - Marked Phase 9 opcode/format/intrinsic work items as done in `SimpleByteCode/Implementation.md`.
 - Added cross-version loader tests for past and current header versions (reject 0x0000, accept 0x0001).
 - Marked cross-version compatibility skeleton tests as done in `SimpleByteCode/Implementation.md`.
+- Reviewed SBC docs vs VM behavior for freeze alignment; marked Phase 9 freeze gate tests as done.
+- Full VM test suite pass (571 tests).
