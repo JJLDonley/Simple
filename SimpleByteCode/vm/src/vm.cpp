@@ -93,7 +93,8 @@ struct Frame {
   uint32_t closure_ref = kNullRef;
   uint32_t line = 0;
   uint32_t column = 0;
-  std::vector<Slot> locals;
+  size_t locals_base = 0;
+  uint16_t locals_count = 0;
 };
 
 struct JitStub {
@@ -403,6 +404,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
 
   Heap heap;
   std::vector<Slot> globals(module.globals.size());
+  std::vector<Slot> locals_arena;
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
   std::vector<JitStub> jit_stubs(module.functions.size());
@@ -868,6 +870,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   std::vector<Slot> stack;
   std::vector<Frame> call_stack;
 
+  auto alloc_locals = [&](uint16_t count) -> size_t {
+    size_t base = locals_arena.size();
+    locals_arena.resize(base + count);
+    std::fill(locals_arena.begin() + base, locals_arena.end(), 0);
+    return base;
+  };
   auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, uint32_t closure_ref) -> Frame {
     update_tier(func_index);
     Frame frame;
@@ -879,11 +887,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     frame.column = 0;
     uint32_t method_id = module.functions[func_index].method_id;
     if (method_id >= module.methods.size()) {
-      frame.locals.clear();
+      frame.locals_base = 0;
+      frame.locals_count = 0;
       return frame;
     }
     uint16_t local_count = module.methods[method_id].local_count;
-    frame.locals.resize(local_count);
+    frame.locals_count = local_count;
+    frame.locals_base = alloc_locals(local_count);
     return frame;
   };
 
@@ -932,17 +942,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     for (const auto& f : call_stack) {
       if (f.func_index >= vr.methods.size()) continue;
       const auto& bits = vr.methods[f.func_index].locals_ref_bits;
-      for (size_t i = 0; i < f.locals.size(); ++i) {
-        if (ref_bit_set(bits, i) && !IsNullRef(f.locals[i])) {
-          heap.Mark(UnpackRef(f.locals[i]));
+      for (size_t i = 0; i < f.locals_count; ++i) {
+        Slot v = locals_arena[f.locals_base + i];
+        if (ref_bit_set(bits, i) && !IsNullRef(v)) {
+          heap.Mark(UnpackRef(v));
         }
       }
     }
     if (current.func_index < vr.methods.size()) {
       const auto& bits = vr.methods[current.func_index].locals_ref_bits;
-      for (size_t i = 0; i < current.locals.size(); ++i) {
-        if (ref_bit_set(bits, i) && !IsNullRef(current.locals[i])) {
-          heap.Mark(UnpackRef(current.locals[i]));
+      for (size_t i = 0; i < current.locals_count; ++i) {
+        Slot v = locals_arena[current.locals_base + i];
+        if (ref_bit_set(bits, i) && !IsNullRef(v)) {
+          heap.Mark(UnpackRef(v));
         }
       }
     }
@@ -1129,14 +1141,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::LoadLocal: {
         uint32_t idx = ReadU32(module.code, pc);
-        if (idx >= current.locals.size()) return Trap("LOAD_LOCAL out of range");
-        Push(stack, current.locals[idx]);
+        if (idx >= current.locals_count) return Trap("LOAD_LOCAL out of range");
+        Push(stack, locals_arena[current.locals_base + idx]);
         break;
       }
       case OpCode::StoreLocal: {
         uint32_t idx = ReadU32(module.code, pc);
-        if (idx >= current.locals.size()) return Trap("STORE_LOCAL out of range");
-        current.locals[idx] = Pop(stack);
+        if (idx >= current.locals_count) return Trap("STORE_LOCAL out of range");
+        locals_arena[current.locals_base + idx] = Pop(stack);
         break;
       }
       case OpCode::LoadGlobal: {
@@ -2575,7 +2587,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
       }
       case OpCode::Enter: {
         uint16_t locals = ReadU16(module.code, pc);
-        if (locals != current.locals.size()) return Trap("ENTER local count mismatch");
+        if (locals != current.locals_count) return Trap("ENTER local count mismatch");
         break;
       }
       case OpCode::Leave:
@@ -2622,8 +2634,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(func_id, pc, stack.size(), kNullRef);
-        for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
-          current.locals[i] = args[i];
+        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = args[i];
         }
         func_start = func.code_offset;
         pc = func_start;
@@ -2695,8 +2707,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
-        for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
-          current.locals[i] = args[i];
+        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = args[i];
         }
         const auto& func = module.functions[static_cast<size_t>(func_index)];
         func_start = func.code_offset;
@@ -2744,6 +2756,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
             Frame caller = call_stack.back();
             call_stack.pop_back();
             stack.resize(caller.stack_base);
+            locals_arena.resize(caller.locals_base + caller.locals_count);
             if (has_ret) Push(stack, ret);
             current = caller;
             pc = current.return_pc;
@@ -2758,10 +2771,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
 
         size_t return_pc = current.return_pc;
         size_t stack_base = current.stack_base;
+        locals_arena.resize(current.locals_base);
         stack.resize(stack_base);
         current = setup_frame(func_id, return_pc, stack_base, kNullRef);
-        for (size_t i = 0; i < args.size() && i < current.locals.size(); ++i) {
-          current.locals[i] = args[i];
+        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = args[i];
         }
         func_start = func.code_offset;
         pc = func_start;
@@ -2830,6 +2844,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         Frame caller = call_stack.back();
         call_stack.pop_back();
         stack.resize(caller.stack_base);
+        locals_arena.resize(caller.locals_base + caller.locals_count);
         if (has_ret) Push(stack, ret);
         current = caller;
         pc = current.return_pc;

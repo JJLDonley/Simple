@@ -287,3 +287,8 @@
 - Added runtime trap operand dumps for CALL/JMP/JMP_TABLE (with last-op opcode name).
 - Added diagnostic test coverage for trap operand dumps (jmp/jmp_table/call).
 - Updated implementation plan diagnostics section for opcode/operand hints.
+- Refactored VM locals to use a shared arena (frame stores base/count; arena shrinks on return/tailcall).
+- Updated GC root scanning and local load/store to use arena indexing.
+- Added locals arena preservation test across call boundaries.
+- Updated implementation plan to mark locals arena as done.
+- Confirmed full test suite pass (389 tests).

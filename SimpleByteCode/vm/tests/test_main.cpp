@@ -1046,6 +1046,37 @@ std::vector<uint8_t> BuildModModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildLocalsArenaModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {1, 1});
+}
+
 std::vector<uint8_t> BuildBoolModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -10371,6 +10402,30 @@ bool RunModTest() {
   return true;
 }
 
+bool RunLocalsArenaPreserveTest() {
+  std::vector<uint8_t> module_bytes = BuildLocalsArenaModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBoolTest() {
   std::vector<uint8_t> module_bytes = BuildBoolModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -18763,6 +18818,7 @@ int main(int argc, char** argv) {
       {"neg_u8_wrap", RunNegU8WrapTest},
       {"neg_u16_wrap", RunNegU16WrapTest},
       {"i64_mod", RunI64ModTest},
+      {"locals_arena_preserve", RunLocalsArenaPreserveTest},
       {"f32_arith", RunF32ArithTest},
       {"f64_arith", RunF64ArithTest},
       {"conv_int", RunConvIntTest},

@@ -73,6 +73,7 @@ Acceptance:
 ### Phase 3: Interpreter Core
 - [DONE] Implement stack-based execution engine.
 - [DONE] Support locals, globals, and call frames.
+- [DONE] Locals arena to reduce per-call allocations.
 - [DONE] Implement core opcode groups:
   - Control
   - Stack / Constants
