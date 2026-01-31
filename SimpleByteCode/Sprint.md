@@ -332,3 +332,4 @@
 - Added frozen VM type ID table to SBC_Encoding.md.
 - Implemented loader opcode scan to validate operand widths/alignments via OpInfo.
 - Added loader negative test for operand overrun (malformed instruction length).
+- Marked loader opcode scan + operand-width gate as DONE in implementation plan.
