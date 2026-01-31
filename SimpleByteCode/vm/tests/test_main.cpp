@@ -9865,6 +9865,82 @@ std::vector<uint8_t> BuildImportCallIndirectModule() {
                                      imports, {});
 }
 
+std::vector<uint8_t> BuildImportTimeMonoModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I64));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  std::vector<uint8_t> const_pool;
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "time_mono_ns"));
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, types, {}, 0, 0, 1, 0, 0, 0, empty_params,
+                                     imports, {});
+}
+
+std::vector<uint8_t> BuildImportCwdGetModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  std::vector<uint8_t> const_pool;
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "cwd_get"));
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, types, {}, 0, 0, 1, 0, 0, 0, empty_params,
+                                     imports, {});
+}
+
 std::vector<uint8_t> BuildBadImportCallParamVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -20630,6 +20706,62 @@ bool RunImportCallIndirectTest() {
   return true;
 }
 
+bool RunImportTimeMonoTest() {
+  std::vector<uint8_t> module_bytes = BuildImportTimeMonoModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunImportCwdGetTest() {
+  std::vector<uint8_t> module_bytes = BuildImportCwdGetModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadImportCallParamVerifyTest() {
   return RunExpectVerifyFail(BuildBadImportCallParamVerifyModule(), "bad_import_call_param_verify");
 }
@@ -22556,6 +22688,8 @@ int main(int argc, char** argv) {
       {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
       {"import_call", RunImportCallTest},
       {"import_call_indirect", RunImportCallIndirectTest},
+      {"import_time_mono", RunImportTimeMonoTest},
+      {"import_cwd_get", RunImportCwdGetTest},
       {"bad_import_call_param_verify", RunBadImportCallParamVerifyTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},

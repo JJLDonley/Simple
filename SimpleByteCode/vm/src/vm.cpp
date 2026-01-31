@@ -1,9 +1,13 @@
 #include "vm.h"
 
+#include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <limits>
 #include <sstream>
+#include <thread>
 #include <vector>
 
 #include "heap.h"
@@ -94,6 +98,28 @@ std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
     char c = static_cast<char>(module.const_pool[pos]);
     if (c == '\0') break;
     out.push_back(c);
+  }
+  return out;
+}
+
+std::u16string AsciiToU16(const std::string& text) {
+  std::u16string out;
+  out.reserve(text.size());
+  for (unsigned char c : text) {
+    out.push_back(static_cast<char16_t>(c));
+  }
+  return out;
+}
+
+std::string U16ToAscii(const std::u16string& text) {
+  std::string out;
+  out.reserve(text.size());
+  for (char16_t c : text) {
+    if (c <= 0x7Fu) {
+      out.push_back(static_cast<char>(c));
+    } else {
+      out.push_back('?');
+    }
   }
   return out;
 }
@@ -496,6 +522,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           out_error = "core.os ref return type mismatch";
           return false;
         }
+        if (sym == "env_get") {
+          if (args.size() != 1) {
+            out_error = "core.os.env_get arg count mismatch";
+            return false;
+          }
+          uint32_t name_ref = UnpackRef(args[0]);
+          if (name_ref == kNullRef) {
+            out_ret = PackRef(kNullRef);
+            return true;
+          }
+          HeapObject* name_obj = heap.Get(name_ref);
+          std::u16string name_u16 = ReadString(name_obj);
+          std::string name = U16ToAscii(name_u16);
+          if (name.empty()) {
+            out_ret = PackRef(kNullRef);
+            return true;
+          }
+          const char* value = std::getenv(name.c_str());
+          if (!value) {
+            out_ret = PackRef(kNullRef);
+            return true;
+          }
+          uint32_t handle = CreateString(heap, AsciiToU16(value));
+          out_ret = PackRef(handle);
+          return true;
+        }
         out_ret = PackRef(kNullRef);
         return true;
       }
@@ -504,21 +556,42 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           out_error = "core.os.cwd_get return type mismatch";
           return false;
         }
-        uint32_t handle = CreateString(heap, u"");
-        out_ret = PackRef(handle);
-        return true;
+        try {
+          std::string cwd = std::filesystem::current_path().u8string();
+          uint32_t handle = CreateString(heap, AsciiToU16(cwd));
+          out_ret = PackRef(handle);
+          return true;
+        } catch (...) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
         if (ret_kind != TypeKind::I64) {
           out_error = "core.os time return type mismatch";
           return false;
         }
-        out_ret = PackI64(0);
+        if (sym == "time_mono_ns") {
+          auto now = std::chrono::steady_clock::now().time_since_epoch();
+          auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
+          out_ret = PackI64(static_cast<int64_t>(ns));
+          return true;
+        }
+        auto now = std::chrono::system_clock::now().time_since_epoch();
+        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
+        out_ret = PackI64(static_cast<int64_t>(ns));
         return true;
       }
       if (sym == "sleep_ms") {
         out_has_ret = false;
-        (void)args;
+        if (args.size() != 1) {
+          out_error = "core.os.sleep_ms arg count mismatch";
+          return false;
+        }
+        int32_t ms = UnpackI32(args[0]);
+        if (ms > 0) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
         return true;
       }
     }
