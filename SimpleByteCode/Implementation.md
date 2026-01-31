@@ -287,7 +287,7 @@ Tests:
 - ABI validation tests pass.
 - FFI table validation tests pass.
 - Intrinsic ID table validation tests pass.
-- Cross-version compatibility skeleton tests pass.
+- [DONE] Cross-version compatibility skeleton tests pass.
 
 ---
 

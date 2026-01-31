@@ -428,3 +428,5 @@
 - Expanded `SBC_OpCodes.md` with explicit opcode listings (including typed array/list variants) and aligned naming with `opcode.h`.
 - Documented v0.1 freeze notes for header layout, section IDs, and const pool formats.
 - Marked Phase 9 opcode/format/intrinsic work items as done in `SimpleByteCode/Implementation.md`.
+- Added cross-version loader tests for past and current header versions (reject 0x0000, accept 0x0001).
+- Marked cross-version compatibility skeleton tests as done in `SimpleByteCode/Implementation.md`.

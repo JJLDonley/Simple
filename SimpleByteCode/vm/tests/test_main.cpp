@@ -9566,6 +9566,26 @@ std::vector<uint8_t> BuildBadHeaderVersionLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildPastHeaderVersionLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> module = BuildModule(code, 0, 0);
+  WriteU16(module, 0x04, 0x0000u);
+  return module;
+}
+
+std::vector<uint8_t> BuildGoodHeaderVersionLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadHeaderReservedLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -26602,6 +26622,26 @@ bool RunBadHeaderVersionLoadTest() {
   return true;
 }
 
+bool RunPastHeaderVersionLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildPastHeaderVersionLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunGoodHeaderVersionLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildGoodHeaderVersionLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "expected load success: " << load.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadHeaderReservedLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadHeaderReservedLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -29925,6 +29965,8 @@ int main(int argc, char** argv) {
       {"bad_header_flags_load", RunBadHeaderFlagsLoadTest},
       {"bad_header_magic_load", RunBadHeaderMagicLoadTest},
       {"bad_header_version_load", RunBadHeaderVersionLoadTest},
+      {"bad_header_version_past_load", RunPastHeaderVersionLoadTest},
+      {"good_header_version_load", RunGoodHeaderVersionLoadTest},
       {"bad_header_reserved_load", RunBadHeaderReservedLoadTest},
       {"bad_debug_header_load", RunBadDebugHeaderLoadTest},
       {"bad_debug_line_oob_load", RunBadDebugLineOobLoadTest},
