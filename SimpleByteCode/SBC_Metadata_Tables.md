@@ -139,3 +139,42 @@ struct FunctionRow {
 Requirements:
 - `method_id` must reference a valid Method row.
 - `code_offset + code_size` must be within CODE bounds.
+
+---
+
+## 10. Import Table (IMPORTS)
+
+```
+struct ImportRow {
+  u32 module_name_str;
+  u32 symbol_name_str;
+  u32 sig_id;
+  u32 flags;
+}
+```
+
+Requirements:
+- `module_name_str` and `symbol_name_str` must be valid CONST_POOL string offsets.
+- `sig_id` must reference a valid Signature row.
+- `flags` must only use bits 0..3.
+- Duplicate `module_name_str + symbol_name_str` pairs are invalid.
+
+---
+
+## 11. Export Table (EXPORTS)
+
+```
+struct ExportRow {
+  u32 symbol_name_str;
+  u32 func_id;
+  u32 flags;
+  u32 reserved;
+}
+```
+
+Requirements:
+- `symbol_name_str` must be a valid CONST_POOL string offset.
+- `func_id` must reference a valid Function row.
+- `flags` must only use bits 0..3.
+- `reserved` must be 0.
+- Duplicate export names are invalid.
