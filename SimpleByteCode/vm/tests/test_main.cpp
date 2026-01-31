@@ -8,6 +8,7 @@
 
 #include "heap.h"
 #include "opcode.h"
+#include "ir_builder.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "scratch_arena.h"
@@ -443,6 +444,41 @@ std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t glob
   AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
   std::vector<uint8_t> empty;
   return BuildModuleWithTables(code, const_pool, empty, empty, global_count, local_count);
+}
+
+std::vector<uint8_t> BuildIrAddModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(7);
+  builder.EmitConstI32(5);
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitOp(simplevm::OpCode::Ret);
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildIrJumpModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel skip = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitJmp(skip);
+  builder.EmitConstI32(99);
+  builder.EmitOp(simplevm::OpCode::Pop);
+  builder.BindLabel(skip, nullptr);
+  builder.EmitConstI32(7);
+  builder.EmitOp(simplevm::OpCode::Ret);
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
@@ -19286,6 +19322,14 @@ bool RunExpectExit(const std::vector<uint8_t>& module_bytes, int32_t expected) {
   return true;
 }
 
+bool RunIrEmitAddTest() {
+  return RunExpectExit(BuildIrAddModule(), 12);
+}
+
+bool RunIrEmitJumpTest() {
+  return RunExpectExit(BuildIrJumpModule(), 7);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30006,6 +30050,8 @@ int main(int argc, char** argv) {
       {"bad_intrinsic_id_verify", RunBadIntrinsicIdVerifyTest},
       {"bad_intrinsic_param_verify", RunBadIntrinsicParamVerifyTest},
       {"intrinsic_return_verify", RunIntrinsicReturnVerifyTest},
+      {"ir_emit_add", RunIrEmitAddTest},
+      {"ir_emit_jump", RunIrEmitJumpTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

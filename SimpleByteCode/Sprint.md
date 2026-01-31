@@ -440,3 +440,6 @@
 - Added scratch_arena alignment test.
 - Enforced scratch-scope-only allocations and added scratch_scope_enforced test.
 - Added ScratchArena debug poison on reset and a scratch_poison unit test.
+- Added VM IR builder (label/fixup emitter) and IR emission tests (add/jump).
+- Added `SimpleByteCode/SBC_IR.md` spec document for VM IR.
+- Formalized Simple IR spec (module scope, stack discipline, labels/fixups, error model, builder API).

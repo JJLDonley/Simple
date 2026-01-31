@@ -297,6 +297,25 @@ Tests:
 - [DONE] Intrinsic ID table validation tests pass.
 - [DONE] Cross-version compatibility skeleton tests pass.
 
+### Phase 10: VM IR (IL Emitter)
+
+Deliverables:
+- VM IR emitter that produces SBC bytecode (stack-based, typed).
+- Label/fixup support for control-flow emission.
+- IR doc describing model + emission rules.
+
+Work:
+- [DONE] Add `IrBuilder` for emitting SBC bytecode with labels/fixups.
+- [DONE] Add `SBC_IR.md` spec document.
+- [DONE] Add IR emission tests (const/add and jump fixup).
+- [DONE] Formalize Simple IR spec (scope, stack rules, labels, error model, API).
+- [NEW] Extend IR builder to cover full opcode families (arrays/lists/strings/fields).
+- [NEW] Add IR-level source mapping hooks (optional).
+
+Tests:
+- [DONE] `ir_emit_add` (const/add/ret).
+- [DONE] `ir_emit_jump` (relative jump fixup).
+
 ---
 
 ## 5) Testing Strategy

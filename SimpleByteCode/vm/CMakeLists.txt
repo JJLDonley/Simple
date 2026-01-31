@@ -13,6 +13,7 @@ endforeach()
 
 set(SIMPLEVM_CORE_SRC
   src/heap.cpp
+  src/ir_builder.cpp
   src/opcode.cpp
   src/sbc_loader.cpp
   src/sbc_verifier.cpp
