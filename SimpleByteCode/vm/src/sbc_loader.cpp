@@ -407,6 +407,28 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     }
     return false;
   };
+  auto read_name = [&](uint32_t offset) -> std::string {
+    if (offset == 0xFFFFFFFFu) return {};
+    if (module.const_pool.empty()) return {};
+    if (offset >= module.const_pool.size()) return {};
+    size_t pos = offset;
+    while (pos < module.const_pool.size() && module.const_pool[pos] != 0) {
+      ++pos;
+    }
+    if (pos >= module.const_pool.size()) return {};
+    return std::string(reinterpret_cast<const char*>(&module.const_pool[offset]), pos - offset);
+  };
+  auto method_label = [&](uint32_t method_id) -> std::string {
+    if (method_id >= module.methods.size()) return "method " + std::to_string(method_id);
+    const auto& method = module.methods[method_id];
+    std::string name = read_name(method.name_str);
+    std::string out = "method " + std::to_string(method_id);
+    if (!name.empty()) {
+      out += " name ";
+      out += name;
+    }
+    return out;
+  };
 
   if (!module.functions.empty() && !code) return Fail("code section required when functions exist");
   if (header.entry_method_id != 0xFFFFFFFFu) {
@@ -443,15 +465,22 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   }
   for (size_t i = 0; i < module.methods.size(); ++i) {
     const auto& row = module.methods[i];
-    if (row.sig_id >= module.sigs.size()) return Fail("method signature out of range");
-    if (code && row.code_offset >= module.code.size()) return Fail("method code offset out of range");
-    if ((row.flags & ~0x7u) != 0u) return Fail("method flags invalid");
+    if (row.sig_id >= module.sigs.size()) {
+      return Fail(method_label(static_cast<uint32_t>(i)) + " signature out of range");
+    }
+    if (code && row.code_offset >= module.code.size()) {
+      return Fail(method_label(static_cast<uint32_t>(i)) + " code offset out of range");
+    }
+    if ((row.flags & ~0x7u) != 0u) {
+      return Fail(method_label(static_cast<uint32_t>(i)) + " flags invalid");
+    }
   }
   if (code) {
     std::unordered_set<uint32_t> method_offsets;
-    for (const auto& row : module.methods) {
+    for (size_t i = 0; i < module.methods.size(); ++i) {
+      const auto& row = module.methods[i];
       if (!method_offsets.insert(row.code_offset).second) {
-        return Fail("duplicate method code offset");
+        return Fail("duplicate " + method_label(static_cast<uint32_t>(i)) + " code offset");
       }
     }
   }
@@ -461,7 +490,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (code && row.code_offset + row.code_size > module.code.size()) return Fail("function code out of range");
     if (row.stack_max == 0) return Fail("function stack_max must be > 0");
     if (code && row.code_offset != module.methods[row.method_id].code_offset) {
-      return Fail("function code offset mismatch");
+      return Fail("function code offset mismatch for " + method_label(row.method_id));
     }
   }
   if (code && !module.functions.empty()) {

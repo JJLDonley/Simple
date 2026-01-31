@@ -256,6 +256,7 @@ struct OpInfo {
 };
 
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
+const char* OpCodeName(uint8_t opcode);
 
 } // namespace simplevm
 

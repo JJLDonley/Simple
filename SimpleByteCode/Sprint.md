@@ -281,3 +281,7 @@
 - Added verifier diagnostics with function name (if available), pc, and opcode in verification error messages.
 - Routed common verifier failures (jumps, CALL/CALL_INDIRECT/TAILCALL checks, stack merge/overflow, return mismatches) through contextual diagnostics.
 - Verified full test suite pass (387 tests).
+- Added opcode name strings and surfaced names in verifier errors.
+- Added method-name context to loader table validation errors for methods/functions.
+- Added last-opcode trace to runtime trap output (hex + opcode name).
+- Confirmed full test suite pass (387 tests).

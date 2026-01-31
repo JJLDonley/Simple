@@ -108,6 +108,7 @@ struct TrapContext {
   const SbcModule* module = nullptr;
   size_t pc = 0;
   size_t func_start = 0;
+  uint8_t last_opcode = 0xFF;
 };
 
 thread_local TrapContext* g_trap_ctx = nullptr;
@@ -292,6 +293,16 @@ ExecResult Trap(const std::string& message) {
   out << " (func " << current->func_index;
   if (g_trap_ctx->pc >= g_trap_ctx->func_start) {
     out << " pc " << (g_trap_ctx->pc - g_trap_ctx->func_start);
+  }
+  if (g_trap_ctx->last_opcode != 0xFF) {
+    out << " last_op 0x";
+    static const char kHex[] = "0123456789ABCDEF";
+    out << kHex[(g_trap_ctx->last_opcode >> 4) & 0xF];
+    out << kHex[g_trap_ctx->last_opcode & 0xF];
+    const char* op_name = OpCodeName(g_trap_ctx->last_opcode);
+    if (op_name && op_name[0] != '\0') {
+      out << " " << op_name;
+    }
   }
   if (current->line > 0) {
     out << " line " << current->line;
@@ -904,6 +915,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     }
 
     uint8_t opcode = module.code[pc++];
+    trap_ctx.last_opcode = opcode;
     opcode_counts[opcode] += 1;
     if (current.func_index < func_opcode_counts.size()) {
       uint32_t& count = func_opcode_counts[current.func_index];

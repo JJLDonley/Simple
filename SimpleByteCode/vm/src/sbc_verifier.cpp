@@ -191,6 +191,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
       static const char kHex[] = "0123456789ABCDEF";
       out.push_back(kHex[(opcode >> 4) & 0xF]);
       out.push_back(kHex[opcode & 0xF]);
+      const char* op_name = OpCodeName(opcode);
+      if (op_name && op_name[0] != '\0') {
+        out += " ";
+        out += op_name;
+      }
       out += ": ";
       out += msg;
       return Fail(out);
