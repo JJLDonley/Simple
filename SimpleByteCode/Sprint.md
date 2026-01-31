@@ -404,3 +404,4 @@
 - Added core.fs reopen and write-zero-len tests.
 - Added core.fs read-zero-buffer test (len > 0 with zero-length buffer).
 - Added core.fs write-zero-buffer test (len > 0 with zero-length buffer).
+- Added core.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
