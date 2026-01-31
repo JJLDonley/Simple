@@ -311,3 +311,4 @@
 - Added a dedicated pre-freeze plan section (primitives/ABI/FFI/core library + freeze gates) to the implementation plan.
 - Added a draft C-style type + opcode mapping table (storage + operator families).
 - Added a detailed pre-freeze implementation plan with steps, deliverables, and tests.
+- Added a draft C ABI host API surface for ref/string/blob/array/list access.

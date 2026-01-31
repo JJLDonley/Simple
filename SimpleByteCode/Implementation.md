@@ -304,6 +304,37 @@ FFI Calling Convention
 - Host API must expose: retain/release ref, read string, list/array ops.
 - ABI version must be declared in SBC header flags or dedicated field.
 
+Host API (Draft, C ABI)
+```
+// Lifetime
+void sbc_ref_retain(uint32_t handle);
+void sbc_ref_release(uint32_t handle);
+
+// String access (UTF-8)
+uint32_t sbc_string_len_utf8(uint32_t handle);
+uint32_t sbc_string_copy_utf8(uint32_t handle, char* out, uint32_t out_cap);
+
+// Blob access (raw bytes)
+uint32_t sbc_blob_len(uint32_t handle);
+uint32_t sbc_blob_copy(uint32_t handle, uint8_t* out, uint32_t out_cap);
+
+// Array access (typed)
+uint32_t sbc_array_len(uint32_t handle);
+bool sbc_array_get_i32(uint32_t handle, uint32_t index, int32_t* out);
+bool sbc_array_get_i64(uint32_t handle, uint32_t index, int64_t* out);
+bool sbc_array_get_f32(uint32_t handle, uint32_t index, float* out);
+bool sbc_array_get_f64(uint32_t handle, uint32_t index, double* out);
+bool sbc_array_get_ref(uint32_t handle, uint32_t index, uint32_t* out);
+
+// List access (typed)
+uint32_t sbc_list_len(uint32_t handle);
+bool sbc_list_get_i32(uint32_t handle, uint32_t index, int32_t* out);
+bool sbc_list_get_i64(uint32_t handle, uint32_t index, int64_t* out);
+bool sbc_list_get_f32(uint32_t handle, uint32_t index, float* out);
+bool sbc_list_get_f64(uint32_t handle, uint32_t index, double* out);
+bool sbc_list_get_ref(uint32_t handle, uint32_t index, uint32_t* out);
+```
+
 ---
 
 ## 6) Test Infrastructure
