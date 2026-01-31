@@ -303,3 +303,4 @@
 - Added runtime trap tests for typed list pop/insert/remove ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
 - Added JIT fallback coverage for typed array/list ops (Tier0 dispatch with no compiled execs).
 - Added pre-freeze ABI checklist and core library/OS roadmap to implementation plan.
+- Outlined intrinsic libraries and FFI ABI surface in the implementation plan.

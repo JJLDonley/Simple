@@ -234,6 +234,30 @@ Phase C: Native ABI + FFI (optional, post-freeze)
 - Memory ownership rules for ref types across boundary.
 - Versioned import/export tables in SBC.
 
+### 5.11 Intrinsic Libraries + FFI ABI Outline
+Intrinsic Libraries (VM-owned)
+- `core.string`: len/concat/slice/get_char, encoding rules, error/trap behavior.
+- `core.array`: len/get/set, bounds/null policy, bulk ops (fill/copy) if added.
+- `core.list`: len/get/set/push/pop/insert/remove/clear, bounds/null policy.
+- `core.math`: abs/min/max/clamp, bit ops, conversions (explicit only).
+- `core.debug`: trap, breakpoint, line/profile hooks (no side effects).
+- `core.gc`: optional hooks (force_collect, stats) behind feature flag.
+
+Intrinsic Calling Convention
+- Intrinsic IDs are stable integers mapped to `core.*` namespaces.
+- Signature is defined in SBC metadata (param/return types).
+- Intrinsic failures use `Trap` with diagnostic string; no exceptions.
+- Intrinsics never mutate VM state outside explicit parameters unless documented.
+
+FFI ABI (Host Interop)
+- Import table: `(module_name, symbol_name, sig_id, flags)` entries.
+- Export table: `(symbol_name, func_id)` entries for host lookup.
+- Calling convention: args passed by value in VM order; return in a single slot.
+- Ref types: host receives opaque handles; ownership rules defined per function.
+- Memory: no raw pointer exposure; host uses provided APIs to read/write.
+- Errors: host may return a trap code + message; VM propagates as trap.
+- Versioning: module declares required ABI version + feature flags.
+
 ---
 
 ## 6) Test Infrastructure
