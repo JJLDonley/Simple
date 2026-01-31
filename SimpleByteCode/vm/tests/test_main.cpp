@@ -312,6 +312,118 @@ std::vector<uint8_t> BuildIrCallModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrGlobalsModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(11);
+  builder.EmitStoreGlobal(0);
+  builder.EmitLoadGlobal(0);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);            // name_str
+  AppendU32(globals, 0);            // type_id
+  AppendU32(globals, 1);            // flags (mutable)
+  AppendU32(globals, 0xFFFFFFFFu);  // init_const_id
+  module.globals_bytes = globals;
+
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 1, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_globals_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrStackOpsModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(3);
+  builder.EmitDup();
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitPop();
+  builder.EmitConstI32(5);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_stack_ops_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrBranchModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel taken = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstBool(true);
+  builder.EmitJmpTrue(taken);
+  builder.EmitConstI32(1);
+  builder.EmitJmp(done);
+  builder.BindLabel(taken, nullptr);
+  builder.EmitConstI32(9);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_branch_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -18877,6 +18989,18 @@ bool RunIrEmitCallTest() {
   return RunExpectExit(BuildIrCallModule(), 7);
 }
 
+bool RunIrEmitGlobalsTest() {
+  return RunExpectExit(BuildIrGlobalsModule(), 11);
+}
+
+bool RunIrEmitStackOpsTest() {
+  return RunExpectExit(BuildIrStackOpsModule(), 5);
+}
+
+bool RunIrEmitBranchTest() {
+  return RunExpectExit(BuildIrBranchModule(), 9);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -29601,6 +29725,9 @@ int main(int argc, char** argv) {
       {"ir_emit_jump", RunIrEmitJumpTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
+      {"ir_emit_globals", RunIrEmitGlobalsTest},
+      {"ir_emit_stack_ops", RunIrEmitStackOpsTest},
+      {"ir_emit_branch", RunIrEmitBranchTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

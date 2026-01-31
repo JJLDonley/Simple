@@ -52,6 +52,11 @@ void IrBuilder::EmitConstF64(double value) {
   EmitU64(DoubleToBits(value));
 }
 
+void IrBuilder::EmitConstBool(bool value) {
+  EmitOp(OpCode::ConstBool);
+  EmitU8(value ? 1 : 0);
+}
+
 void IrBuilder::EmitCall(uint32_t func_id, uint8_t arg_count) {
   EmitOp(OpCode::Call);
   EmitU32(func_id);

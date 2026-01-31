@@ -29,6 +29,7 @@ class IrBuilder {
   void EmitConstI64(int64_t value);
   void EmitConstF32(float value);
   void EmitConstF64(double value);
+  void EmitConstBool(bool value);
   void EmitCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
