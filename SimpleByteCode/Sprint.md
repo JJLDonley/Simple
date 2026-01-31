@@ -443,3 +443,4 @@
 - Added VM IR builder (label/fixup emitter) and IR emission tests (add/jump).
 - Added `SimpleByteCode/SBC_IR.md` spec document for VM IR.
 - Formalized Simple IR spec (module scope, stack discipline, labels/fixups, error model, builder API).
+- Added standardized SBC emitter helpers (`sbc_emitter.h`) and migrated `gen_sbc` to use them.

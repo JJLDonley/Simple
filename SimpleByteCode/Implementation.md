@@ -309,6 +309,7 @@ Work:
 - [DONE] Add `SBC_IR.md` spec document.
 - [DONE] Add IR emission tests (const/add and jump fixup).
 - [DONE] Formalize Simple IR spec (scope, stack rules, labels, error model, API).
+- [DONE] Add standardized SBC emitter helpers and migrate `gen_sbc` to use them.
 - [NEW] Extend IR builder to cover full opcode families (arrays/lists/strings/fields).
 - [NEW] Add IR-level source mapping hooks (optional).
 
