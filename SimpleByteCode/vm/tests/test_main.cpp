@@ -1027,6 +1027,126 @@ std::vector<uint8_t> BuildIrRefOpsModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrFieldModule() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+  AppendU32(fields, 4);
+
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitNewObject(1);
+  builder.EmitDup();
+  builder.EmitConstI32(12);
+  builder.EmitStoreField(0);
+  builder.EmitLoadField(0);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.types_bytes = types;
+  module.fields_bytes = fields;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected_pool = module.const_pool;
+  if (expected_pool.empty()) {
+    uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(expected_pool, ""));
+    uint32_t dummy_const_id = 0;
+    AppendConstString(expected_pool, dummy_str_offset, &dummy_const_id);
+  }
+  std::vector<uint8_t> expected = BuildModuleWithTables(code, expected_pool, types, fields, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_field_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrTypeOfModule() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitNewObject(1);
+  builder.EmitTypeOf();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.types_bytes = types;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected_pool = module.const_pool;
+  if (expected_pool.empty()) {
+    uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(expected_pool, ""));
+    uint32_t dummy_const_id = 0;
+    AppendConstString(expected_pool, dummy_str_offset, &dummy_const_id);
+  }
+  std::vector<uint8_t> expected = BuildModuleWithTables(code, expected_pool, types, {}, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_typeof_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19664,6 +19784,14 @@ bool RunIrEmitRefOpsTest() {
   return RunExpectExit(BuildIrRefOpsModule(), 1);
 }
 
+bool RunIrEmitFieldTest() {
+  return RunExpectExit(BuildIrFieldModule(), 12);
+}
+
+bool RunIrEmitTypeOfTest() {
+  return RunExpectExit(BuildIrTypeOfModule(), 1);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30406,6 +30534,8 @@ int main(int argc, char** argv) {
       {"ir_emit_string_get_char", RunIrEmitStringGetCharTest},
       {"ir_emit_string_slice", RunIrEmitStringSliceTest},
       {"ir_emit_ref_ops", RunIrEmitRefOpsTest},
+      {"ir_emit_field", RunIrEmitFieldTest},
+      {"ir_emit_typeof", RunIrEmitTypeOfTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

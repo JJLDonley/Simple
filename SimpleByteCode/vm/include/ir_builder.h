@@ -47,6 +47,10 @@ class IrBuilder {
   void EmitIsNull();
   void EmitRefEq();
   void EmitRefNe();
+  void EmitNewObject(uint32_t type_id);
+  void EmitLoadField(uint32_t field_id);
+  void EmitStoreField(uint32_t field_id);
+  void EmitTypeOf();
   void EmitStringLen();
   void EmitStringConcat();
   void EmitStringGetChar();

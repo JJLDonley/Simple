@@ -136,6 +136,25 @@ void IrBuilder::EmitRefNe() {
   EmitOp(OpCode::RefNe);
 }
 
+void IrBuilder::EmitNewObject(uint32_t type_id) {
+  EmitOp(OpCode::NewObject);
+  EmitU32(type_id);
+}
+
+void IrBuilder::EmitLoadField(uint32_t field_id) {
+  EmitOp(OpCode::LoadField);
+  EmitU32(field_id);
+}
+
+void IrBuilder::EmitStoreField(uint32_t field_id) {
+  EmitOp(OpCode::StoreField);
+  EmitU32(field_id);
+}
+
+void IrBuilder::EmitTypeOf() {
+  EmitOp(OpCode::TypeOf);
+}
+
 void IrBuilder::EmitStringLen() {
   EmitOp(OpCode::StringLen);
 }
