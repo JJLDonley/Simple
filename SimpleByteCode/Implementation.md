@@ -255,10 +255,6 @@ Intrinsic Table (v0.1, stable IDs)
 |----|------|--------|--------|-------|
 | 0x0000 | core.debug.trap | i32 | void | Trap with code (message optional via DEBUG table). |
 | 0x0001 | core.debug.breakpoint | void | void | No-op in release, debugger hook in dev. |
-| 0x0010 | core.string.len | ref | i32 | Null -> trap. |
-| 0x0011 | core.string.concat | ref, ref | ref | Null -> trap. |
-| 0x0012 | core.string.slice | ref, i32, i32 | ref | Bounds -> trap. |
-| 0x0013 | core.string.get_char | ref, i32 | i32 | Bounds -> trap. |
 | 0x0020 | core.math.abs_i32 | i32 | i32 | Pure. |
 | 0x0021 | core.math.abs_i64 | i64 | i64 | Pure. |
 | 0x0022 | core.math.min_i32 | i32, i32 | i32 | Pure. |
