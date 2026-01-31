@@ -139,14 +139,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case TypeKind::Ref:
         return ValType::Ref;
       case TypeKind::Unspecified:
+        if ((row.flags & 0x1u) != 0u) return ValType::Ref;
+        return ValType::Unknown;
       default:
-        break;
+        return ValType::Unknown;
     }
-    if ((row.flags & 0x1u) != 0u) return ValType::Ref;
-    if (row.size == 0) return ValType::Ref;
-    if (row.size == 4) return ValType::I32;
-    if (row.size == 8) return ValType::I64;
-    return ValType::Unknown;
   };
   auto to_vm_type = [&](ValType t) -> VmType {
     switch (t) {

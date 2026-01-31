@@ -650,7 +650,7 @@ std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint
 
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
-  AppendU8(types, 0);        // kind
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
   AppendU8(types, 0);        // flags
   AppendU16(types, 0);       // reserved
   AppendU32(types, 4);       // size
@@ -751,7 +751,7 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSig(const std::vector<std::vecto
 
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
-  AppendU8(types, 0);        // kind
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
   AppendU8(types, 0);        // flags
   AppendU16(types, 0);       // reserved
   AppendU32(types, 4);       // size
@@ -854,7 +854,7 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<std::vect
 
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
-  AppendU8(types, 0);        // kind
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
   AppendU8(types, 0);        // flags
   AppendU16(types, 0);       // reserved
   AppendU32(types, 4);       // size
@@ -5983,7 +5983,7 @@ std::vector<uint8_t> BuildFieldModule() {
   std::vector<uint8_t> types;
   // type 0: dummy
   AppendU32(types, 0);
-  AppendU8(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
   AppendU8(types, 0);
   AppendU16(types, 0);
   AppendU32(types, 4);
@@ -5991,8 +5991,8 @@ std::vector<uint8_t> BuildFieldModule() {
   AppendU32(types, 0);
   // type 1: object with 1 i32 field at offset 0
   AppendU32(types, 0);
-  AppendU8(types, 0);
-  AppendU8(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
   AppendU16(types, 0);
   AppendU32(types, 4);
   AppendU32(types, 0);
@@ -7838,7 +7838,7 @@ std::vector<uint8_t> BuildReturnRefModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> types;
   AppendU32(types, 0);
-  AppendU8(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
   AppendU8(types, 1); // ref_type
   AppendU16(types, 0);
   AppendU32(types, 0);
@@ -7890,7 +7890,7 @@ std::vector<uint8_t> BuildVerifyMetadataModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   AppendU32(types, 0);
-  AppendU8(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
   AppendU8(types, 1);
   AppendU16(types, 0);
   AppendU32(types, 0);

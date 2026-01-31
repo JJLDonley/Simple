@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "opcode.h"
+#include "sbc_types.h"
 
 namespace {
 
@@ -81,7 +82,7 @@ std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& cod
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
     AppendU32(types, 0);       // name_str
-    AppendU8(types, 0);        // kind
+    AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
     AppendU8(types, 0);        // flags
     AppendU16(types, 0);       // reserved
     AppendU32(types, 4);       // size
@@ -208,7 +209,7 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSigs(const std::vector<std::vect
 
   std::vector<uint8_t> types;
   AppendU32(types, 0);       // name_str
-  AppendU8(types, 0);        // kind
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32)); // kind
   AppendU8(types, 0);        // flags
   AppendU16(types, 0);       // reserved
   AppendU32(types, 4);       // size (i32)

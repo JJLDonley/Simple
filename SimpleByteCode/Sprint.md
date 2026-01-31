@@ -423,3 +423,4 @@
 - Full VM test suite pass (569 tests).
 - Documented VM type IDs in SBC metadata docs and FFI struct layout rules in SBC ABI docs.
 - Verifier now maps types to VM primitives using TypeKind (with legacy size fallback).
+- Regenerated SBC fixtures with TypeKind i32 metadata and updated object type flags for field tests.
