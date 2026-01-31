@@ -319,3 +319,6 @@
 - Added missing suggestions to pre-freeze plan (struct layout rules, frozen opcode semantics section, FFI error convention, pinning policy, and explicit freeze-gate tests).
 - Moved and merged pre-freeze plan + detailed plan to the top of Implementation.md.
 - Moved pre-freeze plan into Implementation Phases as Phase 0 and renumbered subsequent phases.
+- Added TypeKind enum for VM type validation in loader.
+- Added loader validation for type kind range and size matching for I32/I64/F32/F64.
+- Added loader negative tests for invalid type kind and size mismatches.

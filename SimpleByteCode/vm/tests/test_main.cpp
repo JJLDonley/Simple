@@ -9485,6 +9485,30 @@ std::vector<uint8_t> BuildBadTypesTableSizeLoadModule() {
   return module;
 }
 
+std::vector<uint8_t> BuildBadTypeKindLoadModule() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, 99);
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  return BuildModuleWithTables({}, {}, types, {}, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadTypeKindSizeLoadModule() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  return BuildModuleWithTables({}, {}, types, {}, 0, 0);
+}
+
 std::vector<uint8_t> BuildBadFieldsTableSizeLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> types;
@@ -19922,6 +19946,26 @@ bool RunBadTypesTableSizeLoadTest() {
   return true;
 }
 
+bool RunBadTypeKindLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeKindLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadTypeKindSizeLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTypeKindSizeLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadFieldsTableSizeLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadFieldsTableSizeLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -21729,6 +21773,8 @@ int main(int argc, char** argv) {
       {"bad_section_table_misaligned_load", RunBadSectionTableMisalignedLoadTest},
       {"bad_section_table_offset_oob_load", RunBadSectionTableOffsetOobLoadTest},
       {"bad_types_table_size_load", RunBadTypesTableSizeLoadTest},
+      {"bad_type_kind_load", RunBadTypeKindLoadTest},
+      {"bad_type_kind_size_load", RunBadTypeKindSizeLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},

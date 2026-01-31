@@ -162,6 +162,19 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
+      if (row.kind > static_cast<uint8_t>(TypeKind::Ref)) return Fail("type kind invalid");
+      if (row.kind == static_cast<uint8_t>(TypeKind::I32) && row.size != 4) {
+        return Fail("type kind size mismatch");
+      }
+      if (row.kind == static_cast<uint8_t>(TypeKind::I64) && row.size != 8) {
+        return Fail("type kind size mismatch");
+      }
+      if (row.kind == static_cast<uint8_t>(TypeKind::F32) && row.size != 4) {
+        return Fail("type kind size mismatch");
+      }
+      if (row.kind == static_cast<uint8_t>(TypeKind::F64) && row.size != 8) {
+        return Fail("type kind size mismatch");
+      }
       module.types[i] = row;
     }
   }

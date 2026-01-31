@@ -42,6 +42,15 @@ enum class SectionId : uint32_t {
   Debug = 9,
 };
 
+enum class TypeKind : uint8_t {
+  Unspecified = 0,
+  I32 = 1,
+  I64 = 2,
+  F32 = 3,
+  F64 = 4,
+  Ref = 5,
+};
+
 struct DebugHeader {
   uint32_t file_count = 0;
   uint32_t line_count = 0;
