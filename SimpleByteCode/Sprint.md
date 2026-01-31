@@ -401,3 +401,4 @@
 - Added core.fs open-null-path and read-zero-len tests.
 - Added core.fs read-after-close test.
 - Added core.fs write-after-close test.
+- Added core.fs reopen and write-zero-len tests.
