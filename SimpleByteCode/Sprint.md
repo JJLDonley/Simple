@@ -380,3 +380,4 @@
 - Implemented core intrinsic handlers (math/time/rand/io/log) with a runtime test.
 - Ran full test suite for freeze gate (all tests passed).
 - Added v0.1 freeze summary to Implementation.md and vm/README.md.
+- Implemented core library import handling for core.os/core.fs/core.log and updated import call tests to succeed.

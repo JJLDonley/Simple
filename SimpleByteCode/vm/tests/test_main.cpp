@@ -9829,15 +9829,15 @@ std::vector<uint8_t> BuildImportCallModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
-  AppendStringToPool(const_pool, "args_count");
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
-  AppendU32(imports, 0);
-  AppendU32(imports, 0);
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
   AppendU32(imports, 0);
   AppendU32(imports, 0);
   std::vector<uint32_t> empty_params;
-  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0xFFFFFFFFu, 0, 0, 0, empty_params,
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, empty_params,
                                      imports, {});
 }
 
@@ -9853,15 +9853,15 @@ std::vector<uint8_t> BuildImportCallIndirectModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
-  AppendStringToPool(const_pool, "args_count");
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
-  AppendU32(imports, 0);
-  AppendU32(imports, 0);
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
   AppendU32(imports, 0);
   AppendU32(imports, 0);
   std::vector<uint32_t> empty_params;
-  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0xFFFFFFFFu, 0, 0, 0, empty_params,
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, empty_params,
                                      imports, {});
 }
 
@@ -12934,7 +12934,11 @@ bool RunRotTest() {
   }
   simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
   if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
     return false;
   }
   if (exec.exit_code != 4) {
@@ -20570,12 +20574,60 @@ bool RunBadExportDuplicateLoadTest() {
   return true;
 }
 
-bool RunImportCallTrapTest() {
-  return RunExpectTrap(BuildImportCallModule(), "import_call");
+bool RunImportCallTest() {
+  std::vector<uint8_t> module_bytes = BuildImportCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
 }
 
-bool RunImportCallIndirectTrapTest() {
-  return RunExpectTrap(BuildImportCallIndirectModule(), "import_call_indirect");
+bool RunImportCallIndirectTest() {
+  std::vector<uint8_t> module_bytes = BuildImportCallIndirectModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
 }
 
 bool RunBadImportCallParamVerifyTest() {
@@ -22502,8 +22554,8 @@ int main(int argc, char** argv) {
       {"bad_export_reserved_load", RunBadExportReservedLoadTest},
       {"bad_import_duplicate_load", RunBadImportDuplicateLoadTest},
       {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
-      {"import_call_trap", RunImportCallTrapTest},
-      {"import_call_indirect_trap", RunImportCallIndirectTrapTest},
+      {"import_call", RunImportCallTest},
+      {"import_call_indirect", RunImportCallIndirectTest},
       {"bad_import_call_param_verify", RunBadImportCallParamVerifyTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},

@@ -87,6 +87,17 @@ inline bool IsNullRef(Slot value) {
   return UnpackRef(value) == kNullRef;
 }
 
+std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
+  if (offset >= module.const_pool.size()) return {};
+  std::string out;
+  for (size_t pos = offset; pos < module.const_pool.size(); ++pos) {
+    char c = static_cast<char>(module.const_pool[pos]);
+    if (c == '\0') break;
+    out.push_back(c);
+  }
+  return out;
+}
+
 struct Frame {
   size_t func_index = 0;
   size_t return_pc = 0;
@@ -420,6 +431,120 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
   uint64_t compile_tick = 0;
+  auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
+                                bool& out_has_ret, std::string& out_error) -> bool {
+    if (module.imports.empty()) {
+      out_error = "import not supported";
+      return false;
+    }
+    size_t import_base = module.functions.size() - module.imports.size();
+    if (func_id < import_base) {
+      out_error = "import not supported";
+      return false;
+    }
+    size_t import_index = func_id - import_base;
+    if (import_index >= module.imports.size()) {
+      out_error = "import index out of range";
+      return false;
+    }
+    const ImportRow& row = module.imports[import_index];
+    std::string mod = ReadConstPoolString(module, row.module_name_str);
+    std::string sym = ReadConstPoolString(module, row.symbol_name_str);
+    if (mod.empty() || sym.empty()) {
+      out_error = "import name invalid";
+      return false;
+    }
+    if (func_id >= module.functions.size()) {
+      out_error = "import function id invalid";
+      return false;
+    }
+    const auto& func = module.functions[func_id];
+    if (func.method_id >= module.methods.size()) {
+      out_error = "import method id invalid";
+      return false;
+    }
+    const auto& method = module.methods[func.method_id];
+    if (method.sig_id >= module.sigs.size()) {
+      out_error = "import signature id invalid";
+      return false;
+    }
+    const auto& sig = module.sigs[method.sig_id];
+    out_has_ret = (sig.ret_type_id != 0xFFFFFFFFu);
+    TypeKind ret_kind = TypeKind::Unspecified;
+    if (out_has_ret) {
+      if (sig.ret_type_id >= module.types.size()) {
+        out_error = "import return type out of range";
+        return false;
+      }
+      ret_kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
+    }
+    if (mod == "core.os") {
+      if (sym == "args_count") {
+        if (ret_kind == TypeKind::I32) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        if (ret_kind == TypeKind::I64) {
+          out_ret = PackI64(0);
+          return true;
+        }
+        out_error = "core.os.args_count return type mismatch";
+        return false;
+      }
+      if (sym == "args_get" || sym == "env_get") {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "core.os ref return type mismatch";
+          return false;
+        }
+        out_ret = PackRef(kNullRef);
+        return true;
+      }
+      if (sym == "cwd_get") {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "core.os.cwd_get return type mismatch";
+          return false;
+        }
+        uint32_t handle = CreateString(heap, u"");
+        out_ret = PackRef(handle);
+        return true;
+      }
+      if (sym == "time_mono_ns" || sym == "time_wall_ns") {
+        if (ret_kind != TypeKind::I64) {
+          out_error = "core.os time return type mismatch";
+          return false;
+        }
+        out_ret = PackI64(0);
+        return true;
+      }
+      if (sym == "sleep_ms") {
+        out_has_ret = false;
+        (void)args;
+        return true;
+      }
+    }
+    if (mod == "core.fs") {
+      if (sym == "open" || sym == "read" || sym == "write") {
+        if (ret_kind != TypeKind::I32) {
+          out_error = "core.fs return type mismatch";
+          return false;
+        }
+        out_ret = PackI32(-1);
+        return true;
+      }
+      if (sym == "close") {
+        out_has_ret = false;
+        return true;
+      }
+    }
+    if (mod == "core.log") {
+      if (sym == "log") {
+        out_has_ret = false;
+        return true;
+      }
+    }
+    out_error = "import not supported: " + mod + "." + sym;
+    return false;
+  };
   auto can_compile = [&](size_t func_index) -> bool {
     if (func_index >= module.functions.size()) return false;
     const auto& func = module.functions[func_index];
@@ -2736,13 +2861,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("CALL invalid function id");
-        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
-          return Trap("CALL import not supported");
-        }
-        if (enable_jit && jit_stubs[func_id].active) {
-          // JIT stub placeholder: still runs interpreter path.
-          jit_dispatch_counts[func_id] += 1;
-        }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("CALL invalid method id");
         const auto& method = module.methods[func.method_id];
@@ -2754,6 +2872,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         call_args.resize(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           call_args[static_cast<size_t>(i)] = Pop(stack);
+        }
+        if (func_id < module.function_is_import.size() && module.function_is_import[func_id]) {
+          Slot ret = 0;
+          bool has_ret = false;
+          std::string error;
+          if (!handle_import_call(func_id, call_args, ret, has_ret, error)) {
+            return Trap(error);
+          }
+          if (has_ret) Push(stack, ret);
+          break;
+        }
+        if (enable_jit && jit_stubs[func_id].active) {
+          // JIT stub placeholder: still runs interpreter path.
+          jit_dispatch_counts[func_id] += 1;
         }
 
         if (enable_jit && jit_stubs[func_id].compiled) {
@@ -2817,20 +2949,31 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           if (idx < 0 || static_cast<size_t>(idx) >= module.functions.size()) {
             return Trap("CALL_INDIRECT invalid function id");
           }
-          if (static_cast<size_t>(idx) < module.function_is_import.size() &&
-              module.function_is_import[static_cast<size_t>(idx)]) {
-            return Trap("CALL_INDIRECT import not supported");
-          }
           func_index = idx;
+        }
+
+        call_args.resize(arg_count);
+        for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
+          call_args[static_cast<size_t>(i)] = Pop(stack);
+        }
+        if (static_cast<size_t>(func_index) < module.function_is_import.size() &&
+            module.function_is_import[static_cast<size_t>(func_index)]) {
+          if (closure_ref != kNullRef) {
+            return Trap("CALL_INDIRECT import closure unsupported");
+          }
+          Slot ret = 0;
+          bool has_ret = false;
+          std::string error;
+          if (!handle_import_call(static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
+            return Trap(error);
+          }
+          if (has_ret) Push(stack, ret);
+          break;
         }
 
         if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].active) {
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
-        }
-        call_args.resize(arg_count);
-        for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
-          call_args[static_cast<size_t>(i)] = Pop(stack);
         }
 
         if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].compiled) {
