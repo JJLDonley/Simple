@@ -255,3 +255,6 @@
 - Added JIT tests to ensure functions with parameters never enter compiled execution (call-count and opcode-hot paths).
 - Added JIT tests to ensure disabled stubs remain interpreter-only after fallback (Tier1 and opcode-hot paths).
 - Added JIT test to validate dispatch counts remain tracked after fallback disables compilation.
+
+## 2026-01-31
+- Updated `SimpleByteCode/Implementation.md` to add a typed runtime refactor phase and mark each phase with [DONE]/[CHANGE]/[NEW] status.

@@ -26,6 +26,7 @@ This document defines the full implementation plan for the Simple VM runtime and
 - **Loader**: Reads SBC header, section table, metadata tables, heaps, and CODE.
 - **Verifier**: Validates structural and type safety before execution/JIT.
 - **Interpreter**: Executes SBC bytecode in a typed stack VM.
+- **Typed Runtime Core**: Operand stack, locals, and globals are untagged slots (no `ValueKind` at runtime); types are enforced by verifier + metadata.
 - **JIT**:
   - Tier 0: fast, minimal optimizations.
   - Tier 1: optimized code for hot methods.
@@ -37,28 +38,41 @@ This document defines the full implementation plan for the Simple VM runtime and
 ## 4) Implementation Phases (VM)
 
 ### Phase 0: Foundations
-- Implement module loader with strict validation per SBC docs.
-- Implement metadata tables, string heap, blob heap decoding.
-- Implement error reporting with offsets and table indexes.
+- [DONE] Implement module loader with strict validation per SBC docs.
+- [DONE] Implement metadata tables, string heap, blob heap decoding.
+- [DONE] Implement error reporting with offsets and table indexes.
 
 Acceptance:
 - Loader rejects invalid headers and sections.
 - Loader parses all tables and code correctly.
 
 ### Phase 1: Verifier
-- Implement instruction boundary validation.
-- Implement stack height tracking with merge checks.
-- Implement basic type checking for typed opcodes.
-- Validate jump targets and call signatures.
+- [DONE] Implement instruction boundary validation.
+- [DONE] Implement stack height tracking with merge checks.
+- [DONE] Implement basic type checking for typed opcodes.
+- [DONE] Validate jump targets and call signatures.
+- [CHANGE] Verify against VM-level types (i32/i64/f32/f64/ref) rather than runtime tags.
+- [NEW] Emit per-method local type info and stack maps for GC safepoints.
+- [NEW] Emit ref bitmaps for locals/globals.
 
 Acceptance:
 - Invalid bytecode is rejected with clear diagnostics.
 - Verified bytecode can be executed safely.
 
-### Phase 2: Interpreter Core
-- Implement stack-based execution engine.
-- Support locals, globals, and call frames.
-- Implement core opcode groups:
+### Phase 2: Typed Runtime Refactor (No Tagged Values)
+- [CHANGE] Replace `Value`/`ValueKind` with raw `Slot` storage for stack/locals/globals.
+- [CHANGE] Remove runtime type checks; rely on verifier + debug asserts.
+- [NEW] Add slot pack/unpack helpers (i32/i64/f32/f64/ref).
+- [NEW] Update call frames to hold untagged locals.
+
+Acceptance:
+- Runtime contains no tagged values and passes existing opcode tests.
+- Verified bytecode executes correctly without runtime type checks.
+
+### Phase 3: Interpreter Core
+- [DONE] Implement stack-based execution engine.
+- [DONE] Support locals, globals, and call frames.
+- [DONE] Implement core opcode groups:
   - Control
   - Stack / Constants
   - Locals / Globals
@@ -66,42 +80,47 @@ Acceptance:
   - Comparisons
   - Boolean
   - Calls / Frames
+- [CHANGE] Migrate opcode handlers to untagged slots.
 
 Acceptance:
 - Simple arithmetic programs run and return correct exit codes.
 
-### Phase 3: Heap Objects + GC
-- Implement heap object headers and type ids.
-- Implement strings, arrays, lists, artifacts, closures.
-- Implement tracing GC (mark-sweep or generational).
+### Phase 4: Heap Objects + GC
+- [DONE] Implement heap object headers and type ids.
+- [DONE] Implement strings, arrays, lists, artifacts, closures.
+- [CHANGE] Replace tag-based GC root scanning with ref bitmaps + stack maps.
+- [CHANGE] Run GC only at safepoints with stack maps.
 
 Acceptance:
 - Allocations are tracked and reclaimed safely.
 - Stress tests do not leak memory.
 
-### Phase 4: Extended OpCodes
-- Memory / Objects opcodes (field loads/stores, typeof, ref checks).
-- Arrays / Lists / Strings opcodes.
-- Conversions / Casts opcodes.
-- Intrinsics and syscalls.
+### Phase 5: Extended OpCodes
+- [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
+- [DONE] Arrays / Lists / Strings opcodes.
+- [DONE] Conversions / Casts opcodes.
+- [DONE] Intrinsics and syscalls.
+- [CHANGE] Ensure all opcodes operate on untagged slots only.
 
 Acceptance:
 - Collections and string ops are correct and bounds-checked.
 
-### Phase 5: Tiered JIT
-- Implement Tier 0 quick JIT for hot methods.
-- Add counters and hotness tracking.
-- Implement Tier 1 optimized JIT pass.
-- Add JIT fallback to interpreter on failure.
+### Phase 6: Tiered JIT
+- [DONE] Implement Tier 0 quick JIT for hot methods.
+- [DONE] Add counters and hotness tracking.
+- [DONE] Implement Tier 1 optimized JIT pass.
+- [DONE] Add JIT fallback to interpreter on failure.
+- [CHANGE] JIT execution uses untagged slots + verifier summaries (no tag checks).
 
 Acceptance:
 - Hot functions promote to Tier 1.
 - JIT results match interpreter output.
 
-### Phase 6: Tooling + Diagnostics
-- Line number mapping and debug table usage.
-- Breakpoints and basic stack traces.
-- Profiling hooks.
+### Phase 7: Tooling + Diagnostics
+- [NEW] Line number mapping integrated into runtime trap errors.
+- [NEW] Stack trace emission (function indices at minimum).
+- [DONE] Breakpoints and basic debug no-ops.
+- [DONE] Profiling hooks.
 
 Acceptance:
 - Debug info produces correct line/column mapping.
@@ -174,6 +193,7 @@ Coverage targets:
 - JIT tiering works and is validated by differential tests.
 - GC stable under stress tests.
 - Debug info and diagnostics are correct.
+- Runtime uses untagged slots (no `ValueKind` or runtime type tags).
 
 ---
 
@@ -182,3 +202,4 @@ Coverage targets:
 - VM interpreter, verifier, and core opcode tests are in place and expanding.
 - Heap objects and basic GC root marking are implemented (mark/sweep pass).
 - Arrays, lists, strings, and object fields have runtime and negative tests.
+- Typed runtime refactor (no tagged values) is planned and not yet completed.
