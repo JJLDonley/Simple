@@ -41,6 +41,7 @@ This document defines the full implementation plan for the Simple VM runtime and
 - [DONE] Implement module loader with strict validation per SBC docs.
 - [DONE] Implement metadata tables, string heap, blob heap decoding.
 - [DONE] Implement error reporting with offsets and table indexes.
+- [DONE] Validate DEBUG section header and line table bounds.
 
 Acceptance:
 - Loader rejects invalid headers and sections.

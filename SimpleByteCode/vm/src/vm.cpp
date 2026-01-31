@@ -97,6 +97,7 @@ struct JitStub {
 struct TrapContext {
   Frame* current = nullptr;
   const std::vector<Frame>* call_stack = nullptr;
+  const SbcModule* module = nullptr;
   size_t pc = 0;
   size_t func_start = 0;
 };
@@ -250,6 +251,22 @@ ExecResult Trap(const std::string& message) {
     result.error = message;
     return result;
   }
+  auto get_method_name = [&](size_t func_index) -> std::string {
+    if (!g_trap_ctx->module) return {};
+    const auto& module = *g_trap_ctx->module;
+    if (func_index >= module.functions.size()) return {};
+    uint32_t method_id = module.functions[func_index].method_id;
+    if (method_id >= module.methods.size()) return {};
+    uint32_t name_offset = module.methods[method_id].name_str;
+    if (name_offset >= module.const_pool.size()) return {};
+    std::string out;
+    for (size_t pos = name_offset; pos < module.const_pool.size(); ++pos) {
+      char c = static_cast<char>(module.const_pool[pos]);
+      if (c == '\0') break;
+      out.push_back(c);
+    }
+    return out;
+  };
   std::ostringstream out;
   out << message;
   const Frame* current = g_trap_ctx->current;
@@ -261,11 +278,19 @@ ExecResult Trap(const std::string& message) {
     out << " line " << current->line;
     if (current->column > 0) out << ":" << current->column;
   }
+  std::string name = get_method_name(current->func_index);
+  if (!name.empty()) {
+    out << " name " << name;
+  }
   out << ")";
   if (g_trap_ctx->call_stack && !g_trap_ctx->call_stack->empty()) {
     out << " stack:";
     for (auto it = g_trap_ctx->call_stack->rbegin(); it != g_trap_ctx->call_stack->rend(); ++it) {
       out << " <- func " << it->func_index;
+      std::string caller_name = get_method_name(it->func_index);
+      if (!caller_name.empty()) {
+        out << " " << caller_name;
+      }
       if (it->line > 0) {
         out << " " << it->line;
         if (it->column > 0) out << ":" << it->column;
@@ -788,6 +813,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   TrapContext trap_ctx;
   trap_ctx.current = &current;
   trap_ctx.call_stack = &call_stack;
+  trap_ctx.module = &module;
   trap_ctx.pc = 0;
   trap_ctx.func_start = func_start;
   TrapContextGuard trap_guard(&trap_ctx);

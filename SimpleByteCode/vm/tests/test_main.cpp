@@ -235,6 +235,145 @@ std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& cod
   return module;
 }
 
+std::vector<uint8_t> BuildModuleWithTablesAndSigAndDebug(const std::vector<uint8_t>& code,
+                                                         const std::vector<uint8_t>& const_pool,
+                                                         const std::vector<uint8_t>& types_bytes,
+                                                         const std::vector<uint8_t>& fields_bytes,
+                                                         const std::vector<uint8_t>& debug_bytes,
+                                                         uint32_t global_count,
+                                                         uint16_t local_count,
+                                                         uint32_t ret_type_id,
+                                                         uint16_t param_count,
+                                                         uint16_t call_conv,
+                                                         uint32_t param_type_start,
+                                                         const std::vector<uint32_t>& param_types) {
+  std::vector<uint8_t> types = types_bytes;
+  if (types.empty()) {
+    AppendU32(types, 0);
+    AppendU8(types, 0);
+    AppendU8(types, 0);
+    AppendU16(types, 0);
+    AppendU32(types, 4);
+    AppendU32(types, 0);
+    AppendU32(types, 0);
+  }
+
+  std::vector<uint8_t> fields = fields_bytes;
+
+  std::vector<uint8_t> methods;
+  AppendU32(methods, 0);
+  AppendU32(methods, 0);
+  AppendU32(methods, 0);
+  AppendU16(methods, local_count);
+  AppendU16(methods, 0);
+
+  std::vector<uint8_t> sigs;
+  AppendU32(sigs, ret_type_id);
+  AppendU16(sigs, param_count);
+  AppendU16(sigs, call_conv);
+  AppendU32(sigs, param_type_start);
+  if (!param_types.empty() || param_type_start > 0) {
+    std::vector<uint32_t> packed = param_types;
+    if (param_type_start > 0) {
+      packed.insert(packed.begin(), param_type_start, 0);
+    }
+    for (uint32_t type_id : packed) {
+      AppendU32(sigs, type_id);
+    }
+  }
+
+  std::vector<uint8_t> globals;
+  for (uint32_t i = 0; i < global_count; ++i) {
+    AppendU32(globals, 0);
+    AppendU32(globals, 0);
+    AppendU32(globals, 1);
+    AppendU32(globals, 0xFFFFFFFFu);
+  }
+
+  std::vector<uint8_t> functions;
+  AppendU32(functions, 0);
+  AppendU32(functions, 0);
+  AppendU32(functions, static_cast<uint32_t>(code.size()));
+  AppendU32(functions, 8);
+
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
+  sections.push_back({3, methods, 1, 0});
+  sections.push_back({4, sigs, 1, 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, globals, global_count, 0});
+  sections.push_back({7, functions, 1, 0});
+  sections.push_back({8, code, 0, 0});
+  if (!debug_bytes.empty()) {
+    sections.push_back({9, debug_bytes, 0, 0});
+  }
+
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Align4(header_size + table_size);
+  for (auto& sec : sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+  WriteU32(module, 0x00, 0x30434253u);
+  WriteU16(module, 0x04, 0x0001u);
+  WriteU8(module, 0x06, 1);
+  WriteU8(module, 0x07, 0);
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, 0);
+
+  size_t table_offset = header_size;
+  for (size_t i = 0; i < sections.size(); ++i) {
+    size_t off = table_offset + i * 16u;
+    WriteU32(module, off + 0, sections[i].id);
+    WriteU32(module, off + 4, sections[i].offset);
+    WriteU32(module, off + 8, static_cast<uint32_t>(sections[i].bytes.size()));
+    WriteU32(module, off + 12, sections[i].count);
+    std::memcpy(module.data() + static_cast<std::ptrdiff_t>(sections[i].offset),
+                sections[i].bytes.data(), sections[i].bytes.size());
+  }
+  return module;
+}
+
+std::vector<uint8_t> BuildDebugSection(uint32_t file_count,
+                                       uint32_t line_count,
+                                       uint32_t sym_count,
+                                       uint32_t reserved,
+                                       uint32_t method_id,
+                                       uint32_t code_offset,
+                                       uint32_t file_id,
+                                       uint32_t line,
+                                       uint32_t column) {
+  std::vector<uint8_t> out;
+  AppendU32(out, file_count);
+  AppendU32(out, line_count);
+  AppendU32(out, sym_count);
+  AppendU32(out, reserved);
+  for (uint32_t i = 0; i < file_count; ++i) {
+    AppendU32(out, 0);
+    AppendU32(out, 0);
+  }
+  for (uint32_t i = 0; i < line_count; ++i) {
+    AppendU32(out, method_id);
+    AppendU32(out, code_offset);
+    AppendU32(out, file_id);
+    AppendU32(out, line);
+    AppendU32(out, column);
+  }
+  for (uint32_t i = 0; i < sym_count; ++i) {
+    AppendU32(out, 0);
+    AppendU32(out, 0);
+    AppendU32(out, 0);
+    AppendU32(out, 0);
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
                                            const std::vector<uint8_t>& const_pool,
                                            const std::vector<uint8_t>& types_bytes,
@@ -244,6 +383,15 @@ std::vector<uint8_t> BuildModuleWithTables(const std::vector<uint8_t>& code,
   std::vector<uint32_t> empty_params;
   return BuildModuleWithTablesAndSig(code, const_pool, types_bytes, fields_bytes, global_count, local_count,
                                      0, 0, 0, 0, empty_params);
+}
+
+std::vector<uint8_t> BuildModuleWithDebugSection(const std::vector<uint8_t>& code,
+                                                 const std::vector<uint8_t>& debug_bytes) {
+  std::vector<uint8_t> const_pool;
+  AppendStringToPool(const_pool, "");
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSigAndDebug(code, const_pool, {}, {}, debug_bytes, 0, 0, 0, 0, 0, 0,
+                                             empty_params);
 }
 
 std::vector<uint8_t> BuildModule(const std::vector<uint8_t>& code, uint32_t global_count, uint16_t local_count) {
@@ -16619,6 +16767,54 @@ bool RunBadHeaderReservedLoadTest() {
   return true;
 }
 
+bool RunBadDebugHeaderLoadTest() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> debug = BuildDebugSection(1, 0, 0, 1, 0, 0, 0, 1, 1);
+  std::vector<uint8_t> module = BuildModuleWithDebugSection(code, debug);
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module);
+  if (load.ok) {
+    std::cerr << "expected debug header load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadDebugLineOobLoadTest() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> debug = BuildDebugSection(1, 1, 0, 0, 0, 99, 0, 1, 1);
+  std::vector<uint8_t> module = BuildModuleWithDebugSection(code, debug);
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module);
+  if (load.ok) {
+    std::cerr << "expected debug line load failure\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunGoodDebugLoadTest() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  std::vector<uint8_t> debug = BuildDebugSection(1, 1, 0, 0, 0, 0, 0, 1, 1);
+  std::vector<uint8_t> module = BuildModuleWithDebugSection(code, debug);
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module);
+  if (!load.ok) {
+    std::cerr << "debug load failed: " << load.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadSectionCountZeroLoadTest() {
   std::vector<uint8_t> module_bytes = BuildBadSectionCountZeroLoadModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -18052,6 +18248,9 @@ int main(int argc, char** argv) {
       {"bad_header_magic_load", RunBadHeaderMagicLoadTest},
       {"bad_header_version_load", RunBadHeaderVersionLoadTest},
       {"bad_header_reserved_load", RunBadHeaderReservedLoadTest},
+      {"bad_debug_header_load", RunBadDebugHeaderLoadTest},
+      {"bad_debug_line_oob_load", RunBadDebugLineOobLoadTest},
+      {"good_debug_load", RunGoodDebugLoadTest},
       {"bad_section_count_zero_load", RunBadSectionCountZeroLoadTest},
       {"bad_section_table_misaligned_load", RunBadSectionTableMisalignedLoadTest},
       {"bad_section_table_offset_oob_load", RunBadSectionTableOffsetOobLoadTest},

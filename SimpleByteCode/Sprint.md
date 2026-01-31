@@ -269,3 +269,6 @@
 - Added LINE opcode tracking in VM and trap errors now include function index + line/column with a simple stack trace.
 - Added diagnostic test to assert LINE data appears in trap error strings.
 - Added per-function PC offsets to trap errors and extended diagnostics test coverage.
+- Included method names (if available) in trap error output and stack traces.
+- Added DEBUG section parsing/validation in loader (header + line bounds + basic symbol checks).
+- Added loader tests for DEBUG section header and line table bounds, plus a positive debug load test.

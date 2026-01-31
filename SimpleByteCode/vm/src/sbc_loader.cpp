@@ -39,6 +39,14 @@ bool ReadBytes(const std::vector<uint8_t>& bytes, size_t offset, size_t size, st
   return true;
 }
 
+bool IsValidStringOffset(const std::vector<uint8_t>& pool, uint32_t offset) {
+  if (offset >= pool.size()) return false;
+  for (size_t pos = offset; pos < pool.size(); ++pos) {
+    if (pool[pos] == 0) return true;
+  }
+  return false;
+}
+
 const SectionEntry* FindSection(const std::vector<SectionEntry>& sections, SectionId id) {
   for (const auto& sec : sections) {
     if (sec.id == static_cast<uint32_t>(id)) return &sec;
@@ -264,6 +272,94 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   if (debug) {
     if (!ReadBytes(bytes, debug->offset, debug->size, &module.debug)) {
       return Fail("failed to read debug section");
+    }
+    if (module.debug.size() < 16) return Fail("debug section too small");
+    DebugHeader header;
+    if (!ReadU32At(module.debug, 0, &header.file_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 4, &header.line_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 8, &header.sym_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 12, &header.reserved)) return Fail("debug header read failed");
+    if (header.reserved != 0) return Fail("debug header reserved nonzero");
+    size_t expected = 16;
+    expected += static_cast<size_t>(header.file_count) * 8u;
+    expected += static_cast<size_t>(header.line_count) * 20u;
+    expected += static_cast<size_t>(header.sym_count) * 16u;
+    if (expected != module.debug.size()) return Fail("debug section size mismatch");
+    module.debug_header = header;
+    size_t cursor = 16;
+    module.debug_files.resize(header.file_count);
+    for (uint32_t i = 0; i < header.file_count; ++i) {
+      DebugFileRow row;
+      if (!ReadU32At(module.debug, cursor + 0, &row.file_name_str)) return Fail("debug file row read failed");
+      if (!ReadU32At(module.debug, cursor + 4, &row.file_hash)) return Fail("debug file row read failed");
+      if (!module.const_pool.empty() && !IsValidStringOffset(module.const_pool, row.file_name_str)) {
+        return Fail("debug file name offset invalid");
+      }
+      module.debug_files[i] = row;
+      cursor += 8;
+    }
+    module.debug_lines.resize(header.line_count);
+    for (uint32_t i = 0; i < header.line_count; ++i) {
+      DebugLineRow row;
+      if (!ReadU32At(module.debug, cursor + 0, &row.method_id)) return Fail("debug line row read failed");
+      if (!ReadU32At(module.debug, cursor + 4, &row.code_offset)) return Fail("debug line row read failed");
+      if (!ReadU32At(module.debug, cursor + 8, &row.file_id)) return Fail("debug line row read failed");
+      if (!ReadU32At(module.debug, cursor + 12, &row.line)) return Fail("debug line row read failed");
+      if (!ReadU32At(module.debug, cursor + 16, &row.column)) return Fail("debug line row read failed");
+      if (row.method_id >= module.methods.size()) return Fail("debug line method id out of range");
+      if (row.file_id >= header.file_count) return Fail("debug line file id out of range");
+      if (row.line == 0 || row.column == 0) return Fail("debug line invalid line/column");
+      bool found = false;
+      for (const auto& func : module.functions) {
+        if (func.method_id != row.method_id) continue;
+        if (row.code_offset < func.code_offset ||
+            row.code_offset >= func.code_offset + func.code_size) {
+          return Fail("debug line code offset out of range");
+        }
+        found = true;
+        break;
+      }
+      if (!found) return Fail("debug line method missing in functions");
+      module.debug_lines[i] = row;
+      cursor += 20;
+    }
+    module.debug_syms.resize(header.sym_count);
+    for (uint32_t i = 0; i < header.sym_count; ++i) {
+      DebugSymRow row;
+      if (!ReadU32At(module.debug, cursor + 0, &row.kind)) return Fail("debug sym row read failed");
+      if (!ReadU32At(module.debug, cursor + 4, &row.owner_id)) return Fail("debug sym row read failed");
+      if (!ReadU32At(module.debug, cursor + 8, &row.symbol_id)) return Fail("debug sym row read failed");
+      if (!ReadU32At(module.debug, cursor + 12, &row.name_str)) return Fail("debug sym row read failed");
+      if (row.kind > 5) return Fail("debug sym kind invalid");
+      if (!module.const_pool.empty() && !IsValidStringOffset(module.const_pool, row.name_str)) {
+        return Fail("debug sym name offset invalid");
+      }
+      if (row.kind == 0 && row.symbol_id >= module.globals.size()) {
+        return Fail("debug sym global id out of range");
+      }
+      if (row.kind == 1 || row.kind == 2) {
+        if (row.owner_id >= module.methods.size()) return Fail("debug sym method id out of range");
+        const auto& method = module.methods[row.owner_id];
+        if (row.kind == 1 && row.symbol_id >= method.local_count) {
+          return Fail("debug sym local id out of range");
+        }
+        if (row.kind == 2) {
+          if (method.sig_id >= module.sigs.size()) return Fail("debug sym method sig id out of range");
+          const auto& sig = module.sigs[method.sig_id];
+          if (row.symbol_id >= sig.param_count) return Fail("debug sym param id out of range");
+        }
+      }
+      if (row.kind == 3 && row.symbol_id >= module.types.size()) {
+        return Fail("debug sym type id out of range");
+      }
+      if (row.kind == 4 && row.symbol_id >= module.fields.size()) {
+        return Fail("debug sym field id out of range");
+      }
+      if (row.kind == 5 && row.symbol_id >= module.methods.size()) {
+        return Fail("debug sym method id out of range");
+      }
+      module.debug_syms[i] = row;
+      cursor += 16;
     }
   }
 

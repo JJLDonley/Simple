@@ -42,6 +42,33 @@ enum class SectionId : uint32_t {
   Debug = 9,
 };
 
+struct DebugHeader {
+  uint32_t file_count = 0;
+  uint32_t line_count = 0;
+  uint32_t sym_count = 0;
+  uint32_t reserved = 0;
+};
+
+struct DebugFileRow {
+  uint32_t file_name_str = 0;
+  uint32_t file_hash = 0;
+};
+
+struct DebugLineRow {
+  uint32_t method_id = 0;
+  uint32_t code_offset = 0;
+  uint32_t file_id = 0;
+  uint32_t line = 0;
+  uint32_t column = 0;
+};
+
+struct DebugSymRow {
+  uint32_t kind = 0;
+  uint32_t owner_id = 0;
+  uint32_t symbol_id = 0;
+  uint32_t name_str = 0;
+};
+
 struct TypeRow {
   uint32_t name_str = 0;
   uint8_t kind = 0;
@@ -101,6 +128,10 @@ struct SbcModule {
   std::vector<uint8_t> code;
   std::vector<uint8_t> const_pool;
   std::vector<uint8_t> debug;
+  DebugHeader debug_header;
+  std::vector<DebugFileRow> debug_files;
+  std::vector<DebugLineRow> debug_lines;
+  std::vector<DebugSymRow> debug_syms;
 };
 
 struct LoadResult {
