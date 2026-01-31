@@ -405,6 +405,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
   Heap heap;
   std::vector<Slot> globals(module.globals.size());
   std::vector<Slot> locals_arena;
+  std::vector<Slot> jit_stack;
+  std::vector<Slot> jit_locals;
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
   std::vector<JitStub> jit_stubs(module.functions.size());
@@ -512,8 +514,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     const auto& func = module.functions[func_index];
     size_t pc = func.code_offset;
     size_t end_pc = func.code_offset + func.code_size;
-    std::vector<Slot> local_stack;
-    std::vector<Slot> locals;
+    jit_stack.clear();
+    jit_locals.clear();
+    std::vector<Slot>& local_stack = jit_stack;
+    std::vector<Slot>& locals = jit_locals;
     bool saw_enter = false;
     bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
     auto jit_fail = [&](const char* msg, uint8_t op, size_t inst_pc) -> bool {
@@ -920,6 +924,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
 
   std::vector<Slot> stack;
   std::vector<Frame> call_stack;
+  std::vector<Slot> call_args;
 
   auto alloc_locals = [&](uint16_t count) -> size_t {
     size_t base = locals_arena.size();
@@ -2662,9 +2667,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (arg_count != sig.param_count) return Trap("CALL arg count mismatch");
         if (stack.size() < arg_count) return Trap("CALL stack underflow");
 
-        std::vector<Slot> args(arg_count);
+        call_args.resize(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
-          args[static_cast<size_t>(i)] = Pop(stack);
+          call_args[static_cast<size_t>(i)] = Pop(stack);
         }
 
         if (enable_jit && jit_stubs[func_id].compiled) {
@@ -2688,8 +2693,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(func_id, pc, stack.size(), kNullRef);
-        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
-          locals_arena[current.locals_base + i] = args[i];
+        for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = call_args[i];
         }
         func_start = func.code_offset;
         pc = func_start;
@@ -2739,9 +2744,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
           // JIT stub placeholder: still runs interpreter path.
           jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
         }
-        std::vector<Slot> args(arg_count);
+        call_args.resize(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
-          args[static_cast<size_t>(i)] = Pop(stack);
+          call_args[static_cast<size_t>(i)] = Pop(stack);
         }
 
         if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].compiled) {
@@ -2765,8 +2770,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         current.stack_base = stack.size();
         call_stack.push_back(current);
         current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
-        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
-          locals_arena[current.locals_base + i] = args[i];
+        for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = call_args[i];
         }
         const auto& func = module.functions[static_cast<size_t>(func_index)];
         func_start = func.code_offset;
@@ -2793,9 +2798,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (arg_count != sig.param_count) return Trap("TAILCALL arg count mismatch");
         if (stack.size() < arg_count) return Trap("TAILCALL stack underflow");
 
-        std::vector<Slot> args(arg_count);
+        call_args.resize(arg_count);
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
-          args[static_cast<size_t>(i)] = Pop(stack);
+          call_args[static_cast<size_t>(i)] = Pop(stack);
         }
 
         if (enable_jit && jit_stubs[func_id].compiled) {
@@ -2835,8 +2840,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         locals_arena.resize(current.locals_base);
         stack.resize(stack_base);
         current = setup_frame(func_id, return_pc, stack_base, kNullRef);
-        for (size_t i = 0; i < args.size() && i < current.locals_count; ++i) {
-          locals_arena[current.locals_base + i] = args[i];
+        for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
+          locals_arena[current.locals_base + i] = call_args[i];
         }
         func_start = func.code_offset;
         pc = func_start;
