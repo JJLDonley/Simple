@@ -259,49 +259,12 @@ Intrinsic Table (v0.1, stable IDs)
 | 0x0011 | core.string.concat | ref, ref | ref | Null -> trap. |
 | 0x0012 | core.string.slice | ref, i32, i32 | ref | Bounds -> trap. |
 | 0x0013 | core.string.get_char | ref, i32 | i32 | Bounds -> trap. |
-| 0x0020 | core.array.len | ref | i32 | Null -> trap. |
-| 0x0021 | core.array.get_i32 | ref, i32 | i32 | Bounds/null -> trap. |
-| 0x0022 | core.array.set_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
-| 0x0023 | core.array.get_i64 | ref, i32 | i64 | Bounds/null -> trap. |
-| 0x0024 | core.array.set_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
-| 0x0025 | core.array.get_f32 | ref, i32 | f32 | Bounds/null -> trap. |
-| 0x0026 | core.array.set_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
-| 0x0027 | core.array.get_f64 | ref, i32 | f64 | Bounds/null -> trap. |
-| 0x0028 | core.array.set_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
-| 0x0029 | core.array.get_ref | ref, i32 | ref | Bounds/null -> trap. |
-| 0x002A | core.array.set_ref | ref, i32, ref | void | Bounds/null -> trap. |
-| 0x0030 | core.list.len | ref | i32 | Null -> trap. |
-| 0x0031 | core.list.get_i32 | ref, i32 | i32 | Bounds/null -> trap. |
-| 0x0032 | core.list.set_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
-| 0x0033 | core.list.push_i32 | ref, i32 | void | Null -> trap. |
-| 0x0034 | core.list.pop_i32 | ref | i32 | Null/empty -> trap. |
-| 0x0035 | core.list.insert_i32 | ref, i32, i32 | void | Bounds/null -> trap. |
-| 0x0036 | core.list.remove_i32 | ref, i32 | void | Bounds/null -> trap. |
-| 0x0037 | core.list.clear | ref | void | Null -> trap. |
-| 0x0038 | core.list.get_i64 | ref, i32 | i64 | Bounds/null -> trap. |
-| 0x0039 | core.list.set_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
-| 0x003A | core.list.push_i64 | ref, i64 | void | Null -> trap. |
-| 0x003B | core.list.pop_i64 | ref | i64 | Null/empty -> trap. |
-| 0x003C | core.list.insert_i64 | ref, i32, i64 | void | Bounds/null -> trap. |
-| 0x003D | core.list.remove_i64 | ref, i32 | void | Bounds/null -> trap. |
-| 0x003E | core.list.get_f32 | ref, i32 | f32 | Bounds/null -> trap. |
-| 0x003F | core.list.set_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
-| 0x0040 | core.list.push_f32 | ref, f32 | void | Null -> trap. |
-| 0x0041 | core.list.pop_f32 | ref | f32 | Null/empty -> trap. |
-| 0x0042 | core.list.insert_f32 | ref, i32, f32 | void | Bounds/null -> trap. |
-| 0x0043 | core.list.remove_f32 | ref, i32 | void | Bounds/null -> trap. |
-| 0x0044 | core.list.get_f64 | ref, i32 | f64 | Bounds/null -> trap. |
-| 0x0045 | core.list.set_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
-| 0x0046 | core.list.push_f64 | ref, f64 | void | Null -> trap. |
-| 0x0047 | core.list.pop_f64 | ref | f64 | Null/empty -> trap. |
-| 0x0048 | core.list.insert_f64 | ref, i32, f64 | void | Bounds/null -> trap. |
-| 0x0049 | core.list.remove_f64 | ref, i32 | void | Bounds/null -> trap. |
-| 0x004A | core.list.get_ref | ref, i32 | ref | Bounds/null -> trap. |
-| 0x004B | core.list.set_ref | ref, i32, ref | void | Bounds/null -> trap. |
-| 0x004C | core.list.push_ref | ref, ref | void | Null -> trap. |
-| 0x004D | core.list.pop_ref | ref | ref | Null/empty -> trap. |
-| 0x004E | core.list.insert_ref | ref, i32, ref | void | Bounds/null -> trap. |
-| 0x004F | core.list.remove_ref | ref, i32 | void | Bounds/null -> trap. |
+| 0x0020 | core.math.abs_i32 | i32 | i32 | Pure. |
+| 0x0021 | core.math.abs_i64 | i64 | i64 | Pure. |
+| 0x0022 | core.math.min_i32 | i32, i32 | i32 | Pure. |
+| 0x0023 | core.math.max_i32 | i32, i32 | i32 | Pure. |
+| 0x0024 | core.math.min_i64 | i64, i64 | i64 | Pure. |
+| 0x0025 | core.math.max_i64 | i64, i64 | i64 | Pure. |
 
 FFI ABI (Host Interop, Concrete Tables)
 

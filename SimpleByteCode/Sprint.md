@@ -305,3 +305,4 @@
 - Added pre-freeze ABI checklist and core library/OS roadmap to implementation plan.
 - Outlined intrinsic libraries and FFI ABI surface in the implementation plan.
 - Added concrete intrinsic ID table and FFI ABI table layouts/flags to the implementation plan.
+- Removed array/list intrinsics from the table since they are opcode-backed; replaced with core.math intrinsics.
