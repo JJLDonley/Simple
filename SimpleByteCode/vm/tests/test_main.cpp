@@ -22372,6 +22372,7 @@ int main(int argc, char** argv) {
       {"bad_sig_callconv_load", RunBadSigCallConvLoadTest},
       {"bad_sig_param_types_missing_load", RunBadSigParamTypesMissingLoadTest},
       {"bad_sig_param_type_start_load", RunBadSigParamTypeStartLoadTest},
+      {"bad_sig_call_conv_load", RunBadSigCallConvLoadTest},
       {"bad_sig_param_type_misaligned_load", RunBadSigParamTypeMisalignedLoadTest},
       {"bad_sig_param_type_id_load", RunBadSigParamTypeIdLoadTest},
       {"bad_sig_ret_type_id_load", RunBadSigRetTypeIdLoadTest},
