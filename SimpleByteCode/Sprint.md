@@ -452,3 +452,4 @@
 - Added IR→SBC golden comparisons using `sbc_emitter` and aligned default const pool in `ir_compiler`.
 - Extended IR emitter API with locals/globals/ret/stack ops and added IR→SBC tests for locals and calls.
 - Added IR emitter bool const and IR→SBC tests for globals, stack ops, and conditional branches.
+- Added IR emitter comparisons/boolean ops and IR→SBC tests for compare + bool paths.

@@ -513,6 +513,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR→SBC golden comparisons using `sbc_emitter` (no manual SBC bytes).
 - Extended IR emitter API (locals/globals/ret/stack ops) and added IR→SBC tests for locals and calls.
 - Added IR emitter support for bool consts and added IR→SBC tests for globals, stack ops, and conditional branches.
+- Added IR emitter support for i32 comparisons and boolean ops with IR→SBC tests.
 
 ## 9) Freeze Status (v0.1)
 

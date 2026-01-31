@@ -424,6 +424,91 @@ std::vector<uint8_t> BuildIrBranchModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrCompareModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel ok = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstI32(7);
+  builder.EmitConstI32(7);
+  builder.EmitCmpEqI32();
+  builder.EmitConstI32(3);
+  builder.EmitConstI32(9);
+  builder.EmitCmpLtI32();
+  builder.EmitBoolAnd();
+  builder.EmitJmpTrue(ok);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(ok, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_compare_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrBoolModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel ok = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstBool(false);
+  builder.EmitBoolNot();
+  builder.EmitConstBool(true);
+  builder.EmitBoolOr();
+  builder.EmitJmpTrue(ok);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(ok, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_bool_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19001,6 +19086,14 @@ bool RunIrEmitBranchTest() {
   return RunExpectExit(BuildIrBranchModule(), 9);
 }
 
+bool RunIrEmitCompareTest() {
+  return RunExpectExit(BuildIrCompareModule(), 1);
+}
+
+bool RunIrEmitBoolTest() {
+  return RunExpectExit(BuildIrBoolModule(), 1);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -29728,6 +29821,8 @@ int main(int argc, char** argv) {
       {"ir_emit_globals", RunIrEmitGlobalsTest},
       {"ir_emit_stack_ops", RunIrEmitStackOpsTest},
       {"ir_emit_branch", RunIrEmitBranchTest},
+      {"ir_emit_compare", RunIrEmitCompareTest},
+      {"ir_emit_bool", RunIrEmitBoolTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},

@@ -40,6 +40,11 @@ class IrBuilder {
   void EmitRet();
   void EmitPop();
   void EmitDup();
+  void EmitCmpEqI32();
+  void EmitCmpLtI32();
+  void EmitBoolNot();
+  void EmitBoolAnd();
+  void EmitBoolOr();
   void EmitJmp(IrLabel label);
   void EmitJmpTrue(IrLabel label);
   void EmitJmpFalse(IrLabel label);

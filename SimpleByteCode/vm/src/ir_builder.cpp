@@ -107,6 +107,26 @@ void IrBuilder::EmitDup() {
   EmitOp(OpCode::Dup);
 }
 
+void IrBuilder::EmitCmpEqI32() {
+  EmitOp(OpCode::CmpEqI32);
+}
+
+void IrBuilder::EmitCmpLtI32() {
+  EmitOp(OpCode::CmpLtI32);
+}
+
+void IrBuilder::EmitBoolNot() {
+  EmitOp(OpCode::BoolNot);
+}
+
+void IrBuilder::EmitBoolAnd() {
+  EmitOp(OpCode::BoolAnd);
+}
+
+void IrBuilder::EmitBoolOr() {
+  EmitOp(OpCode::BoolOr);
+}
+
 void IrBuilder::EmitJmp(IrLabel label) {
   EmitOp(OpCode::Jmp);
   EmitRel32Fixup(label);
