@@ -377,3 +377,4 @@
 - Marked Phase 9.1 primitive freeze items as DONE in the implementation plan.
 - Documented FFI error convention and pinning policy in SBC_ABI.md; marked FFI ABI work items as DONE.
 - Documented core library namespaces (opcode vs intrinsic vs FFI) and marked core library contract items as DONE.
+- Ran full test suite for freeze gate (all tests passed).
