@@ -291,7 +291,8 @@
 - Updated GC root scanning and local load/store to use arena indexing.
 - Added locals arena preservation test across call boundaries.
 - Updated implementation plan to mark locals arena as done.
-- Confirmed full test suite pass (389 tests).
 - Added pre-freeze coverage matrix to implementation plan.
 - Added locals arena tailcall preservation test and a named-method loader error test.
-- Confirmed full test suite pass (392 tests).
+- Added missing opcode coverage tests for cmp variants, xor, extra u32/u64/f32/f64 arithmetic, LEAVE, and list set ops (I64/F32/F64/REF).
+- Confirmed full test suite pass (409 tests).
+- Updated implementation notes to reflect expanded opcode test coverage.

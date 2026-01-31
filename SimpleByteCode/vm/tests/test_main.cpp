@@ -1119,6 +1119,477 @@ std::vector<uint8_t> BuildLocalsArenaTailCallModule() {
   return BuildModuleWithFunctions({entry, mid, callee}, {1, 1, 1});
 }
 
+std::vector<uint8_t> BuildLeaveModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Leave));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildXorI32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::XorI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildXorI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 12);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::XorI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildU32ArithExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildU64ArithExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 9);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ModU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildF32ArithExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 9.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 3.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 8.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::DivF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildF64ArithExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 9.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 3.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 8.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::DivF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildCmpI32ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildCmpI64ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGeI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildCmpF32ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 1.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 1.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 1.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 3.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGeF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildCmpF64ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 3.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGeF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildCmpU32ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildCmpU64ExtraModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpNeU64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildListSetI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListI64));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildListSetF32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF32));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 1.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 7.0f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildListSetF64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF64));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 7.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildListSetRefModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListRef));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushRef));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListSetRef));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t false_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, false_block);
+  }
+  return BuildModule(code, 0, 2);
+}
+
 std::vector<uint8_t> BuildBadNamedMethodSigLoadModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -10444,8 +10915,7 @@ bool RunDup2Test() {
   return true;
 }
 
-bool RunModTest() {
-  std::vector<uint8_t> module_bytes = BuildModModule();
+bool RunExpectExit(const std::vector<uint8_t>& module_bytes, int32_t expected) {
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
@@ -10461,59 +10931,92 @@ bool RunModTest() {
     std::cerr << "exec failed\n";
     return false;
   }
-  if (exec.exit_code != 1) {
-    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+  if (exec.exit_code != expected) {
+    std::cerr << "expected " << expected << ", got " << exec.exit_code << "\n";
     return false;
   }
   return true;
+}
+
+bool RunModTest() {
+  std::vector<uint8_t> module_bytes = BuildModModule();
+  return RunExpectExit(module_bytes, 1);
 }
 
 bool RunLocalsArenaPreserveTest() {
-  std::vector<uint8_t> module_bytes = BuildLocalsArenaModule();
-  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
-  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
-  if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildLocalsArenaModule(), 7);
 }
 
 bool RunLocalsArenaTailCallTest() {
-  std::vector<uint8_t> module_bytes = BuildLocalsArenaTailCallModule();
-  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
-  if (!load.ok) {
-    std::cerr << "load failed: " << load.error << "\n";
-    return false;
-  }
-  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
-  if (!vr.ok) {
-    std::cerr << "verify failed: " << vr.error << "\n";
-    return false;
-  }
-  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
-  if (exec.status != simplevm::ExecStatus::Halted) {
-    std::cerr << "exec failed\n";
-    return false;
-  }
-  if (exec.exit_code != 7) {
-    std::cerr << "expected 7, got " << exec.exit_code << "\n";
-    return false;
-  }
-  return true;
+  return RunExpectExit(BuildLocalsArenaTailCallModule(), 7);
+}
+
+bool RunLeaveTest() {
+  return RunExpectExit(BuildLeaveModule(), 1);
+}
+
+bool RunXorI32Test() {
+  return RunExpectExit(BuildXorI32Module(), 5);
+}
+
+bool RunXorI64Test() {
+  return RunExpectExit(BuildXorI64Module(), 6);
+}
+
+bool RunU32ArithExtraTest() {
+  return RunExpectExit(BuildU32ArithExtraModule(), 4);
+}
+
+bool RunU64ArithExtraTest() {
+  return RunExpectExit(BuildU64ArithExtraModule(), 7);
+}
+
+bool RunF32ArithExtraTest() {
+  return RunExpectExit(BuildF32ArithExtraModule(), 7);
+}
+
+bool RunF64ArithExtraTest() {
+  return RunExpectExit(BuildF64ArithExtraModule(), 7);
+}
+
+bool RunCmpI32ExtraTest() {
+  return RunExpectExit(BuildCmpI32ExtraModule(), 1);
+}
+
+bool RunCmpI64ExtraTest() {
+  return RunExpectExit(BuildCmpI64ExtraModule(), 1);
+}
+
+bool RunCmpF32ExtraTest() {
+  return RunExpectExit(BuildCmpF32ExtraModule(), 1);
+}
+
+bool RunCmpF64ExtraTest() {
+  return RunExpectExit(BuildCmpF64ExtraModule(), 1);
+}
+
+bool RunCmpU32ExtraTest() {
+  return RunExpectExit(BuildCmpU32ExtraModule(), 1);
+}
+
+bool RunCmpU64ExtraTest() {
+  return RunExpectExit(BuildCmpU64ExtraModule(), 1);
+}
+
+bool RunListSetI64Test() {
+  return RunExpectExit(BuildListSetI64Module(), 7);
+}
+
+bool RunListSetF32Test() {
+  return RunExpectExit(BuildListSetF32Module(), 7);
+}
+
+bool RunListSetF64Test() {
+  return RunExpectExit(BuildListSetF64Module(), 7);
+}
+
+bool RunListSetRefTest() {
+  return RunExpectExit(BuildListSetRefModule(), 1);
 }
 
 bool RunBadNamedMethodSigLoadTest() {
@@ -18767,8 +19270,15 @@ int main(int argc, char** argv) {
       {"mod_i32", RunModTest},
       {"locals_arena_preserve", RunLocalsArenaPreserveTest},
       {"locals_arena_tailcall", RunLocalsArenaTailCallTest},
+      {"leave", RunLeaveTest},
       {"bool_ops", RunBoolTest},
       {"cmp_i32", RunCmpTest},
+      {"cmp_i32_extra", RunCmpI32ExtraTest},
+      {"cmp_i64_extra", RunCmpI64ExtraTest},
+      {"cmp_f32_extra", RunCmpF32ExtraTest},
+      {"cmp_f64_extra", RunCmpF64ExtraTest},
+      {"cmp_u32_extra", RunCmpU32ExtraTest},
+      {"cmp_u64_extra", RunCmpU64ExtraTest},
       {"branch", RunBranchTest},
       {"jmp_table_case0", RunJmpTableCase0Test},
       {"jmp_table_case1", RunJmpTableCase1Test},
@@ -18878,6 +19388,10 @@ int main(int argc, char** argv) {
       {"list_f64", RunListF64Test},
       {"list_ref", RunListRefTest},
       {"list_len", RunListLenTest},
+      {"list_set_i64", RunListSetI64Test},
+      {"list_set_f32", RunListSetF32Test},
+      {"list_set_f64", RunListSetF64Test},
+      {"list_set_ref", RunListSetRefTest},
       {"list_insert", RunListInsertTest},
       {"list_remove", RunListRemoveTest},
       {"list_clear", RunListClearTest},
@@ -18893,6 +19407,12 @@ int main(int argc, char** argv) {
       {"const_i128", RunConstI128Test},
       {"const_u128", RunConstU128Test},
       {"i64_arith", RunI64ArithTest},
+      {"xor_i32", RunXorI32Test},
+      {"xor_i64", RunXorI64Test},
+      {"u32_arith_extra", RunU32ArithExtraTest},
+      {"u64_arith_extra", RunU64ArithExtraTest},
+      {"f32_arith_extra", RunF32ArithExtraTest},
+      {"f64_arith_extra", RunF64ArithExtraTest},
       {"neg_i32", RunNegI32Test},
       {"neg_i64", RunNegI64Test},
       {"neg_f32", RunNegF32Test},

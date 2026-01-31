@@ -232,4 +232,4 @@ Coverage targets:
 - VM interpreter, verifier, and core opcode tests are in place and expanding.
 - Heap objects and basic GC root marking are implemented (mark/sweep pass).
 - Arrays, lists, strings, and object fields have runtime and negative tests.
-- Typed runtime refactor (no tagged values) is planned and not yet completed.
+- Added coverage for remaining core arithmetic/compare/bitwise opcodes and list set variants.
