@@ -246,9 +246,10 @@ Work:
 - Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
 - Define concrete FFI error convention (return codes + trap behavior).
 - Define pinning policy (explicitly allowed or explicitly forbidden).
+- [DONE] Parse and validate IMPORTS/EXPORTS sections (names, sig/func ids, flags, reserved).
 
 Tests:
-- Loader rejects malformed import/export tables.
+- [DONE] Loader rejects malformed import/export tables.
 - Verifier rejects call signatures not matching import sigs.
 
 #### 9.6 Core Library Contract (No Impl Yet)

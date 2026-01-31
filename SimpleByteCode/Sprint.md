@@ -356,3 +356,4 @@
 - Added import/export section parsing + validation with table-size load tests; documented section IDs in SBC_Sections.md.
 - Added loader negative tests for import/export name offsets, sig/function IDs, flags, and reserved fields.
 - Documented import/export table validation rules in SBC_ABI.md.
+- Marked import/export validation as DONE in FFI ABI freeze section.
