@@ -263,9 +263,9 @@ Deliverables:
 - Error model per namespace fixed (trap vs return code).
 
 Work:
-- Enumerate core library functions that are NOT opcode-backed.
-- Decide which are intrinsic vs bytecode helpers.
-- Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
+- [DONE] Enumerate core library functions that are NOT opcode-backed.
+- [DONE] Decide which are intrinsic vs bytecode helpers.
+- [DONE] Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
 
 Tests:
 - Intrinsic ID table coverage for declared core functions.

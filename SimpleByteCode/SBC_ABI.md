@@ -85,6 +85,35 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 
 ---
 
+## 1.3 Core Library Namespaces (v0.1)
+
+### Opcode-Backed (NOT imports)
+- `core.array.*` (all Array* opcodes)
+- `core.list.*` (all List* opcodes)
+- `core.string.*` (StringLen/StringConcat/StringGetChar/StringSlice)
+- `core.ref.*` (IsNull/RefEq/RefNe/TypeOf)
+- `core.object.*` (NewObject/LoadField/StoreField/NewClosure/LoadUpvalue/StoreUpvalue)
+- `core.num.*` (all numeric ops and conversions)
+- `core.ctrl.*` (Jmp/JmpTrue/JmpFalse/JmpTable/Call/TailCall/Ret/Enter/Leave)
+
+### Intrinsic-Backed
+- `core.debug.*` (trap/breakpoint/log_*)
+- `core.math.*` (abs/min/max)
+- `core.time.*` (mono_ns/wall_ns)
+- `core.rand.*` (u32/u64)
+- `core.io.*` (write_stdout/write_stderr)
+
+### FFI Import-Backed
+- `core.os.*`
+- `core.fs.*`
+- `core.log.*`
+
+Notes:
+- Core library functions in `core.*` must not overlap in name between opcode, intrinsic, and import spaces.
+- If a capability is opcode-backed, it must NOT appear as a core import in v0.1.
+
+---
+
 ## 2. FFI Tables (Import/Export)
 
 ### Import Table Layout (per entry)
