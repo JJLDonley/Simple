@@ -5,6 +5,10 @@ Build:
 ./build.sh
 ```
 
+Freeze Status (v0.1):
+- Freeze tag: `vm-freeze-v0.1`
+- Pre-freeze checklist complete; full test suite passed at freeze gate.
+
 Build (CMake, cross-platform):
 ```
 cmake -S . -B build

@@ -478,4 +478,10 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added runtime trap coverage for typed array/list get and list pop/insert/remove cases.
 - Added JIT fallback coverage for typed array/list ops to ensure safe interpreter fallback.
 
+## 9) Freeze Status (v0.1)
+
+- Freeze tag: `vm-freeze-v0.1`
+- All Phase 9 pre-freeze items completed.
+- Full test suite passed at freeze gate.
+
 ---
