@@ -331,3 +331,4 @@
 - Updated SBC type table docs to lock VM type kind values and size/field rules.
 - Added frozen VM type ID table to SBC_Encoding.md.
 - Implemented loader opcode scan to validate operand widths/alignments via OpInfo.
+- Added loader negative test for operand overrun (malformed instruction length).

@@ -6123,6 +6123,16 @@ std::vector<uint8_t> BuildBadUnknownOpcodeModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildBadOperandOverrunModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendU16(code, 0x1234);
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildConstU32Module() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -18595,6 +18605,16 @@ bool RunBadUnknownOpcodeLoadTest() {
   return true;
 }
 
+bool RunBadOperandOverrunLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadOperandOverrunModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "expected load failure\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadMergeVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadMergeModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -21785,7 +21805,6 @@ int main(int argc, char** argv) {
       {"bad_field_verify", RunBadFieldVerifyTest},
       {"bad_const_string", RunBadConstStringVerifyTest},
       {"bad_type_verify", RunBadTypeVerifyTest},
-      {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
       {"bad_merge_ref_i32_verify", RunBadMergeRefI32VerifyTest},
@@ -21893,6 +21912,8 @@ int main(int argc, char** argv) {
       {"bad_type_kind_fields_load", RunBadTypeKindFieldsLoadTest},
       {"bad_type_kind_ref_fields_load", RunBadTypeKindRefFieldsLoadTest},
       {"good_type_kind_ref_size_load", RunGoodTypeKindRefSizeLoadTest},
+      {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
+      {"bad_operand_overrun_load", RunBadOperandOverrunLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
       {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
