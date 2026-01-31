@@ -388,6 +388,8 @@
 - Added env_get tests for hit/miss cases using host env variables.
 - Added args_get bounds tests for negative and out-of-range indices.
 - Added core.fs stub tests for open/read/write/close return behavior.
+- Added core.fs round-trip test (open/write/read/close) using Array<i32> byte buffers.
 - Implemented core.fs open/read/write/close with Array<i32> byte-buffer semantics (u8 stored in each element).
 - Documented core.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
 - Set import method local_count from signature param_count to satisfy verifier rules.
+- Fixed core.fs round-trip test call targets/signature param list and added close+reopen for read path.
