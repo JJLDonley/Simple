@@ -407,3 +407,4 @@
 - Added core.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
 - Added core.fs write-after-readonly-open test (open flags=0 then write returns -1).
 - Added core.fs open/close loop test to exercise repeated fd usage.
+- Added core.fs write clamp count test (len > buffer size returns clamped count and correct data).
