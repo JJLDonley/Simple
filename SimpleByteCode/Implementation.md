@@ -270,8 +270,8 @@ Work:
 - [DONE] Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
 
 Tests:
-- Intrinsic ID table coverage for declared core functions.
-- Import smoke tests for `core.log` (buffer + len).
+- [DONE] Intrinsic ID table coverage for declared core functions.
+- [DONE] Import smoke tests for `core.log` (buffer + len).
 
 #### 9.7 Freeze Gates + Tag
 Deliverables:
