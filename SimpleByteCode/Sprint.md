@@ -292,3 +292,6 @@
 - Added locals arena preservation test across call boundaries.
 - Updated implementation plan to mark locals arena as done.
 - Confirmed full test suite pass (389 tests).
+- Added pre-freeze coverage matrix to implementation plan.
+- Added locals arena tailcall preservation test and a named-method loader error test.
+- Confirmed full test suite pass (392 tests).

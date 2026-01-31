@@ -92,10 +92,28 @@ Acceptance:
 - [DONE] Implement strings, arrays, lists, artifacts, closures.
 - [DONE] Replace tag-based GC root scanning with ref bitmaps + stack maps.
 - [DONE] Run GC only at safepoints with stack maps.
+- [NEW] Two-phase GC roadmap (arena/scratch + young/old).
 
 Acceptance:
 - Allocations are tracked and reclaimed safely.
 - Stress tests do not leak memory.
+
+#### Phase 4b: Two-Phase GC Roadmap
+- [NEW] Phase A (Scratch/Arena): add explicit short-lived arenas for transient allocations.
+  - Scope-limited allocations (compiler/JIT/temp runtime helpers).
+  - No-escape rule enforced by API (arena handles cannot be stored in heap objects or globals).
+  - Bulk free on scope end; no GC scan needed.
+- [NEW] Phase B (Young/Old Generational):
+  - Young gen uses copying collection for fast allocation + compaction.
+  - Old gen remains current mark-sweep heap.
+  - Add promotion policy (survivor count/age threshold).
+  - Add write barrier for old->young references (remembered set).
+  - Keep stack maps/ref bitmaps as root sources for both generations.
+
+Acceptance (Phase 4b):
+- Scratch/arena allocations never escape; debug checks catch violations.
+- Young-gen collections keep pause time low under allocation-heavy workloads.
+- Old-gen stability remains (no regressions in existing sweep behavior).
 
 ### Phase 5: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
@@ -179,6 +197,13 @@ Coverage targets:
 - Hot loop benchmarks to validate tiering.
 - Allocation-heavy workloads to validate GC.
 - Measure JIT compile time vs runtime speedup.
+
+### 5.8 Pre-Freeze Coverage Matrix
+- Loader: section/table bounds, const pool integrity, DEBUG tables, signature param lists.
+- Verifier: stack height/merge types, jump targets, call signature typing, locals/globals init.
+- Runtime: traps for bounds/null/type errors, stack discipline, recursion, locals arena preservation.
+- JIT: fallback safety, opcode-hot promotion, tiering counters, differential interpreter vs JIT.
+- GC: root scanning via stack maps/bitmaps, stress allocation, mark/sweep correctness.
 
 ---
 

@@ -1077,6 +1077,72 @@ std::vector<uint8_t> BuildLocalsArenaModule() {
   return BuildModuleWithFunctions({entry, callee}, {1, 1});
 }
 
+std::vector<uint8_t> BuildLocalsArenaTailCallModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> mid;
+  AppendU8(mid, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(mid, 1);
+  AppendU8(mid, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(mid, 5);
+  AppendU8(mid, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(mid, 0);
+  AppendU8(mid, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(mid, 2);
+  AppendU8(mid, 0);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, mid, callee}, {1, 1, 1});
+}
+
+std::vector<uint8_t> BuildBadNamedMethodSigLoadModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t name_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "bad_method"));
+
+  std::vector<uint8_t> module = BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {});
+  uint32_t section_count = ReadU32At(module, 0x08);
+  uint32_t section_table_offset = ReadU32At(module, 0x0C);
+  for (uint32_t i = 0; i < section_count; ++i) {
+    size_t off = static_cast<size_t>(section_table_offset) + i * 16u;
+    uint32_t id = ReadU32At(module, off + 0);
+    if (id != 3) continue;
+    uint32_t methods_offset = ReadU32At(module, off + 4);
+    WriteU32(module, methods_offset + 0, name_offset);
+    WriteU32(module, methods_offset + 4, 1); // sig_id out of range (only 1 sig exists)
+    break;
+  }
+  return module;
+}
 std::vector<uint8_t> BuildBoolModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -10426,6 +10492,44 @@ bool RunLocalsArenaPreserveTest() {
   return true;
 }
 
+bool RunLocalsArenaTailCallTest() {
+  std::vector<uint8_t> module_bytes = BuildLocalsArenaTailCallModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunBadNamedMethodSigLoadTest() {
+  std::vector<uint8_t> module_bytes = BuildBadNamedMethodSigLoadModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (load.ok) {
+    std::cerr << "bad_named_method_sig expected load fail\n";
+    return false;
+  }
+  if (load.error.find("bad_method") == std::string::npos) {
+    std::cerr << "bad_named_method_sig missing method name: " << load.error << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBoolTest() {
   std::vector<uint8_t> module_bytes = BuildBoolModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -18661,6 +18765,8 @@ int main(int argc, char** argv) {
       {"swap", RunSwapTest},
       {"rot", RunRotTest},
       {"mod_i32", RunModTest},
+      {"locals_arena_preserve", RunLocalsArenaPreserveTest},
+      {"locals_arena_tailcall", RunLocalsArenaTailCallTest},
       {"bool_ops", RunBoolTest},
       {"cmp_i32", RunCmpTest},
       {"branch", RunBranchTest},
@@ -18947,6 +19053,7 @@ int main(int argc, char** argv) {
       {"bad_types_table_size_load", RunBadTypesTableSizeLoadTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},
+      {"bad_named_method_sig_load", RunBadNamedMethodSigLoadTest},
       {"bad_sigs_table_size_load", RunBadSigsTableSizeLoadTest},
       {"bad_globals_table_size_load", RunBadGlobalsTableSizeLoadTest},
       {"bad_functions_table_size_load", RunBadFunctionsTableSizeLoadTest},
