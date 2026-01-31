@@ -389,4 +389,5 @@
 - Added args_get bounds tests for negative and out-of-range indices.
 - Added core.fs stub tests for open/read/write/close return behavior.
 - Implemented core.fs open/read/write/close with Array<i32> byte-buffer semantics (u8 stored in each element).
+- Documented core.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
 - Set import method local_count from signature param_count to satisfy verifier rules.

@@ -78,6 +78,8 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 | read | i32, ref, i32 | i32 | fd, buffer ref, len -> bytes read (or -1). |
 | write | i32, ref, i32 | i32 | fd, buffer ref, len -> bytes written (or -1). |
 
+**Buffer layout (v0.1)**: `buffer ref` is a VM `Array` with element size 4 (I32). Each element stores one byte in the low 8 bits. The `len` argument is the number of bytes to read/write; the VM clamps to the array length.
+
 ### Module: `core.log`
 | Symbol | Params | Return | Notes |
 |--------|--------|--------|-------|

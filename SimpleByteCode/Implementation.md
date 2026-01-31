@@ -245,6 +245,7 @@ Work:
 - [DONE] Define host API surface for ref/string/array/list access.
 - [DONE] Decide error propagation (trap code + message).
 - [DONE] Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
+- [DONE] Document `core.fs` buffer layout (Array<i32> with low 8-bit bytes) in `SBC_ABI.md`.
 - [DONE] Define concrete FFI error convention (return codes + trap behavior).
 - [DONE] Define pinning policy (explicitly allowed or explicitly forbidden).
 - [DONE] Parse and validate IMPORTS/EXPORTS sections (names, sig/func ids, flags, reserved).
