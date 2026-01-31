@@ -1,6 +1,7 @@
 #include "vm.h"
 
 #include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -460,6 +461,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<uint32_t> jit_dispatch_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
+  std::vector<std::FILE*> open_files;
   uint64_t compile_tick = 0;
   auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
                                 bool& out_has_ret, std::string& out_error) -> bool {
@@ -614,16 +616,105 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "core.fs") {
-      if (sym == "open" || sym == "read" || sym == "write") {
+      if (sym == "open") {
         if (ret_kind != TypeKind::I32) {
           out_error = "core.fs return type mismatch";
           return false;
         }
-        out_ret = PackI32(-1);
+        if (args.size() != 2) {
+          out_error = "core.fs.open arg count mismatch";
+          return false;
+        }
+        uint32_t path_ref = UnpackRef(args[0]);
+        int32_t flags = UnpackI32(args[1]);
+        if (path_ref == kNullRef) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        HeapObject* path_obj = heap.Get(path_ref);
+        if (!path_obj || path_obj->header.kind != ObjectKind::String) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        std::string path = U16ToAscii(ReadString(path_obj));
+        const char* mode = "rb";
+        if (flags & 0x2) {
+          mode = (flags & 0x1) ? "ab" : "ab";
+        } else if (flags & 0x1) {
+          mode = "wb";
+        } else {
+          mode = "rb";
+        }
+        std::FILE* f = std::fopen(path.c_str(), mode);
+        if (!f) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        open_files.push_back(f);
+        out_ret = PackI32(static_cast<int32_t>(open_files.size() - 1));
+        return true;
+      }
+      if (sym == "read" || sym == "write") {
+        if (ret_kind != TypeKind::I32) {
+          out_error = "core.fs return type mismatch";
+          return false;
+        }
+        if (args.size() != 3) {
+          out_error = "core.fs io arg count mismatch";
+          return false;
+        }
+        int32_t fd = UnpackI32(args[0]);
+        uint32_t buf_ref = UnpackRef(args[1]);
+        int32_t len = UnpackI32(args[2]);
+        if (fd < 0 || static_cast<size_t>(fd) >= open_files.size()) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        std::FILE* f = open_files[static_cast<size_t>(fd)];
+        if (!f || buf_ref == kNullRef || len < 0) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        HeapObject* buf_obj = heap.Get(buf_ref);
+        if (!buf_obj || buf_obj->header.kind != ObjectKind::Array) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        uint32_t length = ReadU32Payload(buf_obj->payload, 0);
+        uint32_t max_len = length;
+        uint32_t req = static_cast<uint32_t>(len);
+        if (req > max_len) req = max_len;
+        std::vector<uint8_t> tmp(req, 0);
+        if (sym == "read") {
+          size_t got = std::fread(tmp.data(), 1, req, f);
+          for (size_t i = 0; i < got; ++i) {
+            WriteU32Payload(buf_obj->payload, 4 + i * 4, tmp[i]);
+          }
+          out_ret = PackI32(static_cast<int32_t>(got));
+          return true;
+        }
+        for (size_t i = 0; i < req; ++i) {
+          tmp[i] = static_cast<uint8_t>(ReadU32Payload(buf_obj->payload, 4 + i * 4));
+        }
+        size_t wrote = std::fwrite(tmp.data(), 1, req, f);
+        out_ret = PackI32(static_cast<int32_t>(wrote));
         return true;
       }
       if (sym == "close") {
         out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.fs.close arg count mismatch";
+          return false;
+        }
+        int32_t fd = UnpackI32(args[0]);
+        if (fd < 0 || static_cast<size_t>(fd) >= open_files.size()) {
+          return true;
+        }
+        std::FILE* f = open_files[static_cast<size_t>(fd)];
+        if (f) {
+          std::fclose(f);
+          open_files[static_cast<size_t>(fd)] = nullptr;
+        }
         return true;
       }
     }
