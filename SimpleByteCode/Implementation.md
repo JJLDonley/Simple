@@ -4,6 +4,167 @@ This document defines the full implementation plan for the Simple VM runtime and
 
 ---
 
+## 9) Pre-Freeze Plan (Primitives, ABI, FFI, Core Library)
+
+### 9.1 Primitive Freeze
+- [ ] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
+- [ ] Add C-style type + opcode mapping table (storage + operator families).
+- [ ] Lock VM type ID codes and version them.
+
+#### C-Style Type + Opcode Mapping (Draft)
+| C-Style Type | VM Storage Type | Opcode Families |
+|-------------|------------------|-----------------|
+| bool | i32 | BoolNot/BoolAnd/BoolOr, CmpEqI32 |
+| char | i32 | ConstChar, StringGetChar |
+| i8 | i32 | ConstI8, Inc/DecI8, NegI8 |
+| u8 | i32 | ConstU8, Inc/DecU8 |
+| i16 | i32 | ConstI16, Inc/DecI16, NegI16 |
+| u16 | i32 | ConstU16, Inc/DecU16 |
+| i32 | i32 | Add/Sub/Mul/Div/ModI32, Cmp*I32, BitwiseI32 |
+| u32 | i32 | Add/Sub/Mul/Div/ModU32, Cmp*U32, ShiftI32 |
+| i64 | i64 | Add/Sub/Mul/Div/ModI64, Cmp*I64, BitwiseI64 |
+| u64 | i64 | Add/Sub/Mul/Div/ModU64, Cmp*U64, ShiftI64 |
+| f32 | f32 | Add/Sub/Mul/DivF32, Cmp*F32 |
+| f64 | f64 | Add/Sub/Mul/DivF64, Cmp*F64 |
+| ref<T> | ref | RefEq/RefNe, IsNull, Load/StoreRef, Array/List ops |
+
+### 9.2 ABI Freeze (SBC + Bytecode)
+- [ ] Freeze opcode IDs, operand widths, stack effects, and trap conditions.
+- [ ] Freeze SBC header fields, section IDs, table layouts, and alignment rules.
+- [ ] Freeze call conventions: arg order, return slots, tailcall rules, `stack_max` meaning.
+- [ ] Freeze const pool formats (string encoding, i128/u128 blobs, f32/f64 encoding).
+- [ ] Define compatibility rules for header version/flags.
+
+### 9.3 FFI ABI Freeze
+- [ ] Finalize import/export tables (names, sig_id, flags).
+- [ ] Finalize FFI flags and error/trap semantics.
+- [ ] Define ref-handle ownership rules across boundary.
+- [ ] Specify host API surface for ref/string/array/list access.
+
+### 9.4 Core Library Contracts
+- [ ] Define core library namespaces and signatures (no implementation yet).
+- [ ] Decide which functions are intrinsic vs bytecode helpers.
+- [ ] Lock error model (trap vs return code) per function family.
+
+### 9.5 Freeze Gates (Tests)
+- [ ] ABI validation tests (opcode IDs, header/section invariants).
+- [ ] FFI table validation tests (bad names/sigs/flags).
+- [ ] Intrinsic ID table validation tests (unknown/unsupported IDs).
+- [ ] Cross-version compatibility test skeleton (header version/flags).
+
+---
+
+## 10) Detailed Implementation Plan (Pre-Freeze)
+
+### Step 1: Primitive Freeze (VM Types)
+Deliverables:
+- Final VM primitive set locked to `i32/i64/f32/f64/ref` (+ `void`).
+- VM type ID codes finalized and documented.
+- C-style type mapping table confirmed (storage + op family).
+
+Work:
+- Add explicit VM type ID constants to SBC docs.
+- Ensure verifier uses only these primitives as stack/local/global types.
+- Update any signatures/metadata that still accept expanded types.
+- Explicitly define struct layout rules (field order, alignment, padding) for FFI structs.
+
+Tests:
+- Loader rejects unknown VM type IDs.
+- Verifier rejects opcodes with mismatched VM types.
+
+### Step 2: Opcode + Bytecode ABI Freeze
+Deliverables:
+- Opcode IDs locked; operand widths + stack effects locked.
+- Trap conditions documented (bounds, null, div-by-zero, type mismatches).
+- Jmp/JmpTable encoding fixed (offsets, table layout).
+
+Work:
+- Freeze `opcode.h` and `SBC_OpCodes.md` to match.
+- Add a check in loader to reject unknown opcodes (if not already).
+- Freeze instruction size table for verifier.
+- Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
+
+Tests:
+- Loader rejects invalid opcode values.
+- Verifier rejects invalid operand widths or malformed instructions.
+
+### Step 3: SBC Format Freeze
+Deliverables:
+- Header fields frozen (version, endian, flags, reserved).
+- Section IDs and table layouts frozen.
+- Alignment rules fixed (table + section alignment).
+
+Work:
+- Update `SBC_Headers.md`, `SBC_Sections.md`, `SBC_Metadata_Tables.md`.
+- Lock const pool formats (string, i128/u128 blobs, f32/f64).
+
+Tests:
+- Existing loader negative tests updated to match frozen rules.
+- Add “unknown section id” and “misaligned section” tests if missing.
+
+### Step 4: Intrinsic ID Freeze
+Deliverables:
+- Intrinsic ID table finalized (IDs + signatures + trap rules).
+- Debug/time/rand/io intrinsics stabilized.
+
+Work:
+- Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
+- Define intrinsic IDs as constants in VM.
+- Ensure `Intrinsic` opcode validates ID + signature.
+
+Tests:
+- Invalid intrinsic ID rejects at verify or runtime.
+- Signature mismatch is rejected by verifier.
+
+### Step 5: FFI ABI Freeze
+Deliverables:
+- Import/export table layout finalized.
+- FFI flags and versioning finalized.
+- Ref handle ownership rules defined.
+
+Work:
+- Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
+- Define host API surface for ref/string/array/list access.
+- Decide error propagation (trap code + message).
+- Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
+- Define concrete FFI error convention (return codes + trap behavior).
+- Define pinning policy (explicitly allowed or explicitly forbidden).
+
+Tests:
+- Loader rejects malformed import/export tables.
+- Verifier rejects call signatures not matching import sigs.
+
+### Step 6: Core Library Contract (No Impl Yet)
+Deliverables:
+- Core library namespaces + signatures frozen.
+- Error model per namespace fixed (trap vs return code).
+
+Work:
+- Enumerate core library functions that are NOT opcode-backed.
+- Decide which are intrinsic vs bytecode helpers.
+- Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
+
+Tests:
+- Intrinsic ID table coverage for declared core functions.
+
+### Step 7: Freeze Gates + Tag
+Deliverables:
+- All freeze-gate tests green.
+- Create a freeze tag (e.g., `vm-freeze-v0.1`).
+
+Work:
+- Run full suite; add missing ABI/FFI tests.
+- Final review of SBC docs vs VM behavior.
+
+Tests:
+- Full test suite pass.
+- ABI validation tests pass.
+- FFI table validation tests pass.
+- Intrinsic ID table validation tests pass.
+- Cross-version compatibility skeleton tests pass.
+
+---
+
 ## 1) Goals
 
 - Portable C++ VM that loads and executes SBC modules.
@@ -341,162 +502,3 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added JIT fallback coverage for typed array/list ops to ensure safe interpreter fallback.
 
 ---
-
-## 9) Pre-Freeze Plan (Primitives, ABI, FFI, Core Library)
-
-### 9.1 Primitive Freeze
-- [ ] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
-- [ ] Add C-style type + opcode mapping table (storage + operator families).
-- [ ] Lock VM type ID codes and version them.
-
-#### C-Style Type + Opcode Mapping (Draft)
-| C-Style Type | VM Storage Type | Opcode Families |
-|-------------|------------------|-----------------|
-| bool | i32 | BoolNot/BoolAnd/BoolOr, CmpEqI32 |
-| char | i32 | ConstChar, StringGetChar |
-| i8 | i32 | ConstI8, Inc/DecI8, NegI8 |
-| u8 | i32 | ConstU8, Inc/DecU8 |
-| i16 | i32 | ConstI16, Inc/DecI16, NegI16 |
-| u16 | i32 | ConstU16, Inc/DecU16 |
-| i32 | i32 | Add/Sub/Mul/Div/ModI32, Cmp*I32, BitwiseI32 |
-| u32 | i32 | Add/Sub/Mul/Div/ModU32, Cmp*U32, ShiftI32 |
-| i64 | i64 | Add/Sub/Mul/Div/ModI64, Cmp*I64, BitwiseI64 |
-| u64 | i64 | Add/Sub/Mul/Div/ModU64, Cmp*U64, ShiftI64 |
-| f32 | f32 | Add/Sub/Mul/DivF32, Cmp*F32 |
-| f64 | f64 | Add/Sub/Mul/DivF64, Cmp*F64 |
-| ref<T> | ref | RefEq/RefNe, IsNull, Load/StoreRef, Array/List ops |
-
-### 9.2 ABI Freeze (SBC + Bytecode)
-- [ ] Freeze opcode IDs, operand widths, stack effects, and trap conditions.
-- [ ] Freeze SBC header fields, section IDs, table layouts, and alignment rules.
-- [ ] Freeze call conventions: arg order, return slots, tailcall rules, `stack_max` meaning.
-- [ ] Freeze const pool formats (string encoding, i128/u128 blobs, f32/f64 encoding).
-- [ ] Define compatibility rules for header version/flags.
-
-### 9.3 FFI ABI Freeze
-- [ ] Finalize import/export tables (names, sig_id, flags).
-- [ ] Finalize FFI flags and error/trap semantics.
-- [ ] Define ref-handle ownership rules across boundary.
-- [ ] Specify host API surface for ref/string/array/list access.
-
-### 9.4 Core Library Contracts
-- [ ] Define core library namespaces and signatures (no implementation yet).
-- [ ] Decide which functions are intrinsic vs bytecode helpers.
-- [ ] Lock error model (trap vs return code) per function family.
-
-### 9.5 Freeze Gates (Tests)
-- [ ] ABI validation tests (opcode IDs, header/section invariants).
-- [ ] FFI table validation tests (bad names/sigs/flags).
-- [ ] Intrinsic ID table validation tests (unknown/unsupported IDs).
-- [ ] Cross-version compatibility test skeleton (header version/flags).
-
----
-
-## 10) Detailed Implementation Plan (Pre-Freeze)
-
-### Step 1: Primitive Freeze (VM Types)
-Deliverables:
-- Final VM primitive set locked to `i32/i64/f32/f64/ref` (+ `void`).
-- VM type ID codes finalized and documented.
-- C-style type mapping table confirmed (storage + op family).
-
-Work:
-- Add explicit VM type ID constants to SBC docs.
-- Ensure verifier uses only these primitives as stack/local/global types.
-- Update any signatures/metadata that still accept expanded types.
- - Explicitly define struct layout rules (field order, alignment, padding) for FFI structs.
-
-Tests:
-- Loader rejects unknown VM type IDs.
-- Verifier rejects opcodes with mismatched VM types.
-
-### Step 2: Opcode + Bytecode ABI Freeze
-Deliverables:
-- Opcode IDs locked; operand widths + stack effects locked.
-- Trap conditions documented (bounds, null, div-by-zero, type mismatches).
-- Jmp/JmpTable encoding fixed (offsets, table layout).
-
-Work:
-- Freeze `opcode.h` and `SBC_OpCodes.md` to match.
-- Add a check in loader to reject unknown opcodes (if not already).
-- Freeze instruction size table for verifier.
- - Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
-
-Tests:
-- Loader rejects invalid opcode values.
-- Verifier rejects invalid operand widths or malformed instructions.
-
-### Step 3: SBC Format Freeze
-Deliverables:
-- Header fields frozen (version, endian, flags, reserved).
-- Section IDs and table layouts frozen.
-- Alignment rules fixed (table + section alignment).
-
-Work:
-- Update `SBC_Headers.md`, `SBC_Sections.md`, `SBC_Metadata_Tables.md`.
-- Lock const pool formats (string, i128/u128 blobs, f32/f64).
-
-Tests:
-- Existing loader negative tests updated to match frozen rules.
-- Add “unknown section id” and “misaligned section” tests if missing.
-
-### Step 4: Intrinsic ID Freeze
-Deliverables:
-- Intrinsic ID table finalized (IDs + signatures + trap rules).
-- Debug/time/rand/io intrinsics stabilized.
-
-Work:
-- Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
-- Define intrinsic IDs as constants in VM.
-- Ensure `Intrinsic` opcode validates ID + signature.
-
-Tests:
-- Invalid intrinsic ID rejects at verify or runtime.
-- Signature mismatch is rejected by verifier.
-
-### Step 5: FFI ABI Freeze
-Deliverables:
-- Import/export table layout finalized.
-- FFI flags and versioning finalized.
-- Ref handle ownership rules defined.
-
-Work:
-- Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
-- Define host API surface for ref/string/array/list access.
-- Decide error propagation (trap code + message).
-- Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
- - Define concrete FFI error convention (return codes + trap behavior).
- - Define pinning policy (explicitly allowed or explicitly forbidden).
-
-Tests:
-- Loader rejects malformed import/export tables.
-- Verifier rejects call signatures not matching import sigs.
-
-### Step 6: Core Library Contract (No Impl Yet)
-Deliverables:
-- Core library namespaces + signatures frozen.
-- Error model per namespace fixed (trap vs return code).
-
-Work:
-- Enumerate core library functions that are NOT opcode-backed.
-- Decide which are intrinsic vs bytecode helpers.
-- Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
-
-Tests:
-- Intrinsic ID table coverage for declared core functions.
-
-### Step 7: Freeze Gates + Tag
-Deliverables:
-- All freeze-gate tests green.
-- Create a freeze tag (e.g., `vm-freeze-v0.1`).
-
-Work:
-- Run full suite; add missing ABI/FFI tests.
-- Final review of SBC docs vs VM behavior.
-
-Tests:
-- Full test suite pass.
-- ABI validation tests pass.
-- FFI table validation tests pass.
-- Intrinsic ID table validation tests pass.
-- Cross-version compatibility skeleton tests pass.
