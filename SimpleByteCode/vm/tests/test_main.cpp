@@ -9963,6 +9963,28 @@ std::vector<uint8_t> BuildImportTailCallModule() {
                                      imports, {});
 }
 
+std::vector<uint8_t> BuildImportArgsCountModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  std::vector<uint8_t> const_pool;
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
+  AppendU32(imports, 0);
+  AppendU32(imports, 0);
+  std::vector<uint32_t> empty_params;
+  return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, empty_params,
+                                     imports, {});
+}
+
 std::vector<uint8_t> BuildBadImportCallParamVerifyModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -20812,6 +20834,36 @@ bool RunImportTailCallTest() {
   return true;
 }
 
+bool RunImportArgsCountTest() {
+  std::vector<uint8_t> module_bytes = BuildImportArgsCountModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecOptions options;
+  options.argv = {"one", "two", "three"};
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module, true, true, options);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadImportCallParamVerifyTest() {
   return RunExpectVerifyFail(BuildBadImportCallParamVerifyModule(), "bad_import_call_param_verify");
 }
@@ -22741,6 +22793,7 @@ int main(int argc, char** argv) {
       {"import_time_mono", RunImportTimeMonoTest},
       {"import_cwd_get", RunImportCwdGetTest},
       {"import_tailcall", RunImportTailCallTest},
+      {"import_args_count", RunImportArgsCountTest},
       {"bad_import_call_param_verify", RunBadImportCallParamVerifyTest},
       {"bad_fields_table_size_load", RunBadFieldsTableSizeLoadTest},
       {"bad_methods_table_size_load", RunBadMethodsTableSizeLoadTest},

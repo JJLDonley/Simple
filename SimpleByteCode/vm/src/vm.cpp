@@ -426,14 +426,18 @@ ExecResult Trap(const std::string& message) {
 } // namespace
 
 ExecResult ExecuteModule(const SbcModule& module) {
-  return ExecuteModule(module, true, true);
+  return ExecuteModule(module, true, true, ExecOptions{});
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify) {
-  return ExecuteModule(module, verify, true);
+  return ExecuteModule(module, verify, true, ExecOptions{});
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) {
+  return ExecuteModule(module, verify, enable_jit, ExecOptions{});
+}
+
+ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, const ExecOptions& options) {
   VerifyResult vr = VerifyModule(module);
   if (verify && !vr.ok) return Trap(vr.error);
   bool have_meta = vr.ok;
@@ -507,11 +511,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
     if (mod == "core.os") {
       if (sym == "args_count") {
         if (ret_kind == TypeKind::I32) {
-          out_ret = PackI32(0);
+          out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
           return true;
         }
         if (ret_kind == TypeKind::I64) {
-          out_ret = PackI64(0);
+          out_ret = PackI64(static_cast<int64_t>(options.argv.size()));
           return true;
         }
         out_error = "core.os.args_count return type mismatch";
@@ -521,6 +525,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (ret_kind != TypeKind::Ref) {
           out_error = "core.os ref return type mismatch";
           return false;
+        }
+        if (sym == "args_get") {
+          if (args.size() != 1) {
+            out_error = "core.os.args_get arg count mismatch";
+            return false;
+          }
+          int32_t index = UnpackI32(args[0]);
+          if (index < 0 || static_cast<size_t>(index) >= options.argv.size()) {
+            out_ret = PackRef(kNullRef);
+            return true;
+          }
+          uint32_t handle = CreateString(heap, AsciiToU16(options.argv[static_cast<size_t>(index)]));
+          out_ret = PackRef(handle);
+          return true;
         }
         if (sym == "env_get") {
           if (args.size() != 1) {
