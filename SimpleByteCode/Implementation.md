@@ -522,6 +522,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR emitter string ops and IR→SBC test for string concat/len path.
 - Added IR emitter `EmitConstString` and IR→SBC test using const-pool-backed strings.
 - Added IR→SBC tests for string get-char and string slice paths.
+- Added IR emitter ref ops (IsNull/RefEq/RefNe) and IR→SBC test.
 
 ## 9) Freeze Status (v0.1)
 

@@ -44,6 +44,9 @@ class IrBuilder {
   void EmitListSetI32();
   void EmitListPushI32();
   void EmitListPopI32();
+  void EmitIsNull();
+  void EmitRefEq();
+  void EmitRefNe();
   void EmitStringLen();
   void EmitStringConcat();
   void EmitStringGetChar();

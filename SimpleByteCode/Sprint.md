@@ -461,3 +461,4 @@
 - Added IR emitter string ops and IR→SBC test for string concat/len path.
 - Added IR emitter `EmitConstString` and IR string test using const-pool IDs.
 - Added IR→SBC tests for string get-char and string slice paths.
+- Added IR emitter ref ops (IsNull/RefEq/RefNe) and IR→SBC test.

@@ -124,6 +124,18 @@ void IrBuilder::EmitListPopI32() {
   EmitOp(OpCode::ListPopI32);
 }
 
+void IrBuilder::EmitIsNull() {
+  EmitOp(OpCode::IsNull);
+}
+
+void IrBuilder::EmitRefEq() {
+  EmitOp(OpCode::RefEq);
+}
+
+void IrBuilder::EmitRefNe() {
+  EmitOp(OpCode::RefNe);
+}
+
 void IrBuilder::EmitStringLen() {
   EmitOp(OpCode::StringLen);
 }

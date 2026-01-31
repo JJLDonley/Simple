@@ -983,6 +983,50 @@ std::vector<uint8_t> BuildIrStringSliceModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrRefOpsModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel ok = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitOp(simplevm::OpCode::ConstNull);
+  builder.EmitIsNull();
+  builder.EmitOp(simplevm::OpCode::ConstNull);
+  builder.EmitOp(simplevm::OpCode::ConstNull);
+  builder.EmitRefEq();
+  builder.EmitBoolAnd();
+  builder.EmitJmpTrue(ok);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(ok, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_ref_ops_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -19616,6 +19660,10 @@ bool RunIrEmitStringSliceTest() {
   return RunExpectExit(BuildIrStringSliceModule(), 3);
 }
 
+bool RunIrEmitRefOpsTest() {
+  return RunExpectExit(BuildIrRefOpsModule(), 1);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30357,6 +30405,7 @@ int main(int argc, char** argv) {
       {"ir_emit_string", RunIrEmitStringTest},
       {"ir_emit_string_get_char", RunIrEmitStringGetCharTest},
       {"ir_emit_string_slice", RunIrEmitStringSliceTest},
+      {"ir_emit_ref_ops", RunIrEmitRefOpsTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
