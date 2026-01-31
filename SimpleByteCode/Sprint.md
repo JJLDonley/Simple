@@ -345,3 +345,4 @@
 - Added loader validation for JMP_TABLE const blob layout; converted blob verify test to load failure.
 - Moved JMP_TABLE kind/blob failures to loader-time checks and updated diagnostics tests accordingly.
 - Removed unused JMP_TABLE runtime helper modules after moving checks to load time.
+- Tightened JMP_TABLE load tests to assert error message content (kind/blob).

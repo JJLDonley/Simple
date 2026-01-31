@@ -21212,6 +21212,10 @@ bool RunBadJmpTableKindLoadTest() {
     std::cerr << "expected load failure\n";
     return false;
   }
+  if (load.error.find("JMP_TABLE const kind mismatch") == std::string::npos) {
+    std::cerr << "expected JMP_TABLE kind error, got: " << load.error << "\n";
+    return false;
+  }
   return true;
 }
 bool RunBadU64VerifyTest() {
@@ -21234,6 +21238,10 @@ bool RunBadJmpTableBlobLoadTest() {
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
   if (load.ok) {
     std::cerr << "expected load failure\n";
+    return false;
+  }
+  if (load.error.find("JMP_TABLE blob") == std::string::npos) {
+    std::cerr << "expected JMP_TABLE blob error, got: " << load.error << "\n";
     return false;
   }
   return true;
