@@ -439,3 +439,4 @@
 - Added scratch_scope unit test to validate ScratchScope RAII reset behavior.
 - Added scratch_arena alignment test.
 - Enforced scratch-scope-only allocations and added scratch_scope_enforced test.
+- Added ScratchArena debug poison on reset and a scratch_poison unit test.

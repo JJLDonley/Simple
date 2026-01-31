@@ -29631,6 +29631,28 @@ bool RunScratchScopeEnforcedTest() {
   return true;
 }
 
+bool RunScratchArenaPoisonTest() {
+  simplevm::ScratchArena arena(8);
+  arena.SetDebugPoison(true);
+  uint8_t* ptr = nullptr;
+  {
+    simplevm::ScratchScope scope(arena);
+    ptr = arena.Allocate(4, 1);
+    if (!ptr) {
+      std::cerr << "scratch arena poison alloc failed\n";
+      return false;
+    }
+    std::memset(ptr, 0xAB, 4);
+  }
+  for (int i = 0; i < 4; ++i) {
+    if (ptr[i] != 0xCD) {
+      std::cerr << "scratch arena poison did not overwrite buffer\n";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool RunHeapClosureMarkTest() {
   simplevm::Heap heap;
   uint32_t target = heap.Allocate(simplevm::ObjectKind::String, 0, 8);
@@ -29972,6 +29994,7 @@ int main(int argc, char** argv) {
       {"scratch_scope", RunScratchScopeTest},
       {"scratch_align", RunScratchArenaAlignmentTest},
       {"scratch_scope_enforced", RunScratchScopeEnforcedTest},
+      {"scratch_poison", RunScratchArenaPoisonTest},
       {"heap_closure_mark", RunHeapClosureMarkTest},
       {"gc_stress", RunGcStressTest},
       {"gc_vm_stress", RunGcVmStressTest},

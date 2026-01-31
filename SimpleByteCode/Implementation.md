@@ -120,6 +120,7 @@ Work (Phase 5b):
   - [DONE] Add scratch arena/scope unit tests.
   - [DONE] Add scratch arena alignment test.
   - [DONE] Enforce scratch scope allocation (no allocations outside scope).
+  - [DONE] Add debug poison mode for arena reset with unit test.
 
 ### Phase 6: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
