@@ -284,7 +284,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (method_id >= module.methods.size()) return Fail("NEW_CLOSURE bad method id");
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewArray) ||
-          opcode == static_cast<uint8_t>(OpCode::NewList)) {
+          opcode == static_cast<uint8_t>(OpCode::NewArrayI64) ||
+          opcode == static_cast<uint8_t>(OpCode::NewArrayF32) ||
+          opcode == static_cast<uint8_t>(OpCode::NewArrayF64) ||
+          opcode == static_cast<uint8_t>(OpCode::NewArrayRef) ||
+          opcode == static_cast<uint8_t>(OpCode::NewList) ||
+          opcode == static_cast<uint8_t>(OpCode::NewListI64) ||
+          opcode == static_cast<uint8_t>(OpCode::NewListF32) ||
+          opcode == static_cast<uint8_t>(OpCode::NewListF64) ||
+          opcode == static_cast<uint8_t>(OpCode::NewListRef)) {
         uint32_t type_id = 0;
         if (!ReadU32(code, pc + 1, &type_id)) return Fail("NEW_ARRAY/LIST type id out of bounds");
         if (type_id >= module.types.size()) return Fail("NEW_ARRAY/LIST bad type id");
@@ -365,7 +373,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ConstString:
         case OpCode::NewObject:
         case OpCode::NewArray:
+        case OpCode::NewArrayI64:
+        case OpCode::NewArrayF32:
+        case OpCode::NewArrayF64:
+        case OpCode::NewArrayRef:
         case OpCode::NewList:
+        case OpCode::NewListI64:
+        case OpCode::NewListF32:
+        case OpCode::NewListF64:
+        case OpCode::NewListRef:
           push_type(ValType::Ref);
           break;
         case OpCode::NewClosure: {
@@ -857,6 +873,46 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::ArrayGetI64: {
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::ArrayGetF32: {
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::ArrayGetF64: {
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ArrayGetRef: {
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Ref);
+          break;
+        }
         case OpCode::ArraySetI32: {
           ValType value = pop_type();
           ValType idx = pop_type();
@@ -866,6 +922,54 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
           if (!r2.ok) return r2;
           VerifyResult r3 = check_type(value, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ArraySetI64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I64, "ARRAY_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ArraySetF32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F32, "ARRAY_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ArraySetF64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F64, "ARRAY_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ArraySetRef: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::Ref, "ARRAY_SET type mismatch");
           if (!r3.ok) return r3;
           break;
         }
@@ -886,6 +990,46 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::I32);
           break;
         }
+        case OpCode::ListGetI64: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::ListGetF32: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::ListGetF64: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ListGetRef: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_GET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_GET type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Ref);
+          break;
+        }
         case OpCode::ListSetI32: {
           ValType value = pop_type();
           ValType idx = pop_type();
@@ -898,6 +1042,54 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r3.ok) return r3;
           break;
         }
+        case OpCode::ListSetI64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I64, "LIST_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListSetF32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F32, "LIST_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListSetF64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F64, "LIST_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListSetRef: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_SET type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::Ref, "LIST_SET type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
         case OpCode::ListPushI32: {
           ValType value = pop_type();
           ValType list = pop_type();
@@ -907,11 +1099,75 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r2.ok) return r2;
           break;
         }
+        case OpCode::ListPushI64: {
+          ValType value = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(value, ValType::I64, "LIST_PUSH type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
+        case OpCode::ListPushF32: {
+          ValType value = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(value, ValType::F32, "LIST_PUSH type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
+        case OpCode::ListPushF64: {
+          ValType value = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(value, ValType::F64, "LIST_PUSH type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
+        case OpCode::ListPushRef: {
+          ValType value = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(value, ValType::Ref, "LIST_PUSH type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
         case OpCode::ListPopI32: {
           ValType list = pop_type();
           VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
           if (!r.ok) return r;
           push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ListPopI64: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::ListPopF32: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::ListPopF64: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ListPopRef: {
+          ValType list = pop_type();
+          VerifyResult r = check_type(list, ValType::Ref, "LIST_POP type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::Ref);
           break;
         }
         case OpCode::ListInsertI32: {
@@ -926,6 +1182,54 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r3.ok) return r3;
           break;
         }
+        case OpCode::ListInsertI64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::I64, "LIST_INSERT type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListInsertF32: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F32, "LIST_INSERT type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListInsertF64: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::F64, "LIST_INSERT type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
+        case OpCode::ListInsertRef: {
+          ValType value = pop_type();
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(value, ValType::Ref, "LIST_INSERT type mismatch");
+          if (!r3.ok) return r3;
+          break;
+        }
         case OpCode::ListRemoveI32: {
           ValType idx = pop_type();
           ValType list = pop_type();
@@ -934,6 +1238,46 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
           if (!r2.ok) return r2;
           push_type(ValType::I32);
+          break;
+        }
+        case OpCode::ListRemoveI64: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_REMOVE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::I64);
+          break;
+        }
+        case OpCode::ListRemoveF32: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_REMOVE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F32);
+          break;
+        }
+        case OpCode::ListRemoveF64: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_REMOVE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::F64);
+          break;
+        }
+        case OpCode::ListRemoveRef: {
+          ValType idx = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_REMOVE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(idx, ValType::I32, "LIST_REMOVE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Ref);
           break;
         }
         case OpCode::ListClear: {

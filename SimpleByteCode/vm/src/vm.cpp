@@ -58,6 +58,14 @@ inline int64_t UnpackI64(Slot value) {
   return static_cast<int64_t>(value);
 }
 
+inline uint32_t UnpackU32Bits(Slot value) {
+  return static_cast<uint32_t>(value);
+}
+
+inline uint64_t UnpackU64Bits(Slot value) {
+  return static_cast<uint64_t>(value);
+}
+
 inline Slot PackF32Bits(uint32_t bits) {
   return static_cast<uint64_t>(bits);
 }
@@ -203,6 +211,17 @@ void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t valu
   payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
   payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
   payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
+void WriteU64Payload(std::vector<uint8_t>& payload, size_t offset, uint64_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+  payload[offset + 4] = static_cast<uint8_t>((value >> 32) & 0xFF);
+  payload[offset + 5] = static_cast<uint8_t>((value >> 40) & 0xFF);
+  payload[offset + 6] = static_cast<uint8_t>((value >> 48) & 0xFF);
+  payload[offset + 7] = static_cast<uint8_t>((value >> 56) & 0xFF);
 }
 
 uint16_t ReadU16Payload(const std::vector<uint8_t>& payload, size_t offset) {
@@ -1184,6 +1203,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         Push(stack, PackRef(handle));
         break;
       }
+      case OpCode::NewArrayI64:
+      case OpCode::NewArrayF64: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t length = ReadU32(module.code, pc);
+        uint32_t size = 4 + length * 8;
+        uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_ARRAY allocation failed");
+        WriteU32Payload(obj->payload, 0, length);
+        Push(stack, PackRef(handle));
+        break;
+      }
+      case OpCode::NewArrayF32:
+      case OpCode::NewArrayRef: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t length = ReadU32(module.code, pc);
+        uint32_t size = 4 + length * 4;
+        uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_ARRAY allocation failed");
+        WriteU32Payload(obj->payload, 0, length);
+        Push(stack, PackRef(handle));
+        break;
+      }
       case OpCode::ArrayLen: {
         Slot v = Pop(stack);
         if (IsNullRef(v)) return Trap("ARRAY_LEN on non-ref");
@@ -1207,6 +1250,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         Push(stack, PackI32(value));
         break;
       }
+      case OpCode::ArrayGetI64: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 8;
+        int64_t value = static_cast<int64_t>(ReadU64Payload(obj->payload, offset));
+        Push(stack, PackI64(value));
+        break;
+      }
+      case OpCode::ArrayGetF32: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        uint32_t bits = ReadU32Payload(obj->payload, offset);
+        Push(stack, PackF32Bits(bits));
+        break;
+      }
+      case OpCode::ArrayGetF64: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 8;
+        uint64_t bits = ReadU64Payload(obj->payload, offset);
+        Push(stack, PackF64Bits(bits));
+        break;
+      }
+      case OpCode::ArrayGetRef: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_GET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_GET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        uint32_t handle = ReadU32Payload(obj->payload, offset);
+        Push(stack, PackRef(handle));
+        break;
+      }
       case OpCode::ArraySetI32: {
         Slot value = Pop(stack);
         Slot idx = Pop(stack);
@@ -1221,7 +1320,89 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         break;
       }
+      case OpCode::ArraySetI64: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
+        break;
+      }
+      case OpCode::ArraySetF32: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
+        break;
+      }
+      case OpCode::ArraySetF64: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
+        break;
+      }
+      case OpCode::ArraySetRef: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("ARRAY_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_SET on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("ARRAY_SET out of bounds");
+        size_t offset = 4 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackRef(value));
+        break;
+      }
       case OpCode::NewList: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t capacity = ReadU32(module.code, pc);
+        uint32_t size = 8 + capacity * 4;
+        uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_LIST allocation failed");
+        WriteU32Payload(obj->payload, 0, 0);
+        WriteU32Payload(obj->payload, 4, capacity);
+        Push(stack, PackRef(handle));
+        break;
+      }
+      case OpCode::NewListI64:
+      case OpCode::NewListF64: {
+        uint32_t type_id = ReadU32(module.code, pc);
+        uint32_t capacity = ReadU32(module.code, pc);
+        uint32_t size = 8 + capacity * 8;
+        uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) return Trap("NEW_LIST allocation failed");
+        WriteU32Payload(obj->payload, 0, 0);
+        WriteU32Payload(obj->payload, 4, capacity);
+        Push(stack, PackRef(handle));
+        break;
+      }
+      case OpCode::NewListF32:
+      case OpCode::NewListRef: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
         uint32_t size = 8 + capacity * 4;
@@ -1256,6 +1437,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         Push(stack, PackI32(value));
         break;
       }
+      case OpCode::ListGetI64: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        int64_t value = static_cast<int64_t>(ReadU64Payload(obj->payload, offset));
+        Push(stack, PackI64(value));
+        break;
+      }
+      case OpCode::ListGetF32: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t bits = ReadU32Payload(obj->payload, offset);
+        Push(stack, PackF32Bits(bits));
+        break;
+      }
+      case OpCode::ListGetF64: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        uint64_t bits = ReadU64Payload(obj->payload, offset);
+        Push(stack, PackF64Bits(bits));
+        break;
+      }
+      case OpCode::ListGetRef: {
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_GET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_GET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_GET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t handle = ReadU32Payload(obj->payload, offset);
+        Push(stack, PackRef(handle));
+        break;
+      }
       case OpCode::ListSetI32: {
         Slot value = Pop(stack);
         Slot idx = Pop(stack);
@@ -1268,6 +1505,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
         size_t offset = 8 + static_cast<size_t>(index) * 4;
         WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+        break;
+      }
+      case OpCode::ListSetI64: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
+        break;
+      }
+      case OpCode::ListSetF32: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
+        break;
+      }
+      case OpCode::ListSetF64: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
+        break;
+      }
+      case OpCode::ListSetRef: {
+        Slot value = Pop(stack);
+        Slot idx = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_SET on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_SET on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_SET out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackRef(value));
         break;
       }
       case OpCode::ListPushI32: {
@@ -1284,6 +1577,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         WriteU32Payload(obj->payload, 0, length + 1);
         break;
       }
+      case OpCode::ListPushI64: {
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_PUSH on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        size_t offset = 8 + static_cast<size_t>(length) * 8;
+        WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListPushF32: {
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_PUSH on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        size_t offset = 8 + static_cast<size_t>(length) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListPushF64: {
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_PUSH on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        size_t offset = 8 + static_cast<size_t>(length) * 8;
+        WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListPushRef: {
+        Slot value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_PUSH on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        size_t offset = 8 + static_cast<size_t>(length) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackRef(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
       case OpCode::ListPopI32: {
         Slot v = Pop(stack);
         if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
@@ -1296,6 +1645,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
         WriteU32Payload(obj->payload, 0, length - 1);
         Push(stack, PackI32(value));
+        break;
+      }
+      case OpCode::ListPopI64: {
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (length == 0) return Trap("LIST_POP empty");
+        uint32_t index = length - 1;
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        int64_t value = static_cast<int64_t>(ReadU64Payload(obj->payload, offset));
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackI64(value));
+        break;
+      }
+      case OpCode::ListPopF32: {
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (length == 0) return Trap("LIST_POP empty");
+        uint32_t index = length - 1;
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t bits = ReadU32Payload(obj->payload, offset);
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackF32Bits(bits));
+        break;
+      }
+      case OpCode::ListPopF64: {
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (length == 0) return Trap("LIST_POP empty");
+        uint32_t index = length - 1;
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        uint64_t bits = ReadU64Payload(obj->payload, offset);
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackF64Bits(bits));
+        break;
+      }
+      case OpCode::ListPopRef: {
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_POP on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_POP on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (length == 0) return Trap("LIST_POP empty");
+        uint32_t index = length - 1;
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t handle = ReadU32Payload(obj->payload, offset);
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackRef(handle));
         break;
       }
       case OpCode::ListInsertI32: {
@@ -1320,6 +1725,94 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         WriteU32Payload(obj->payload, 0, length + 1);
         break;
       }
+      case OpCode::ListInsertI64: {
+        Slot value = Pop(stack);
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_INSERT on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
+        for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
+          size_t from = 8 + static_cast<size_t>(i - 1) * 8;
+          size_t to = 8 + static_cast<size_t>(i) * 8;
+          WriteU64Payload(obj->payload, to, ReadU64Payload(obj->payload, from));
+        }
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListInsertF32: {
+        Slot value = Pop(stack);
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_INSERT on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
+        for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
+          size_t from = 8 + static_cast<size_t>(i - 1) * 4;
+          size_t to = 8 + static_cast<size_t>(i) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListInsertF64: {
+        Slot value = Pop(stack);
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_INSERT on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
+        for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
+          size_t from = 8 + static_cast<size_t>(i - 1) * 8;
+          size_t to = 8 + static_cast<size_t>(i) * 8;
+          WriteU64Payload(obj->payload, to, ReadU64Payload(obj->payload, from));
+        }
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
+      case OpCode::ListInsertRef: {
+        Slot value = Pop(stack);
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_INSERT on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        uint32_t capacity = ReadU32Payload(obj->payload, 4);
+        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
+        for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
+          size_t from = 8 + static_cast<size_t>(i - 1) * 4;
+          size_t to = 8 + static_cast<size_t>(i) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        WriteU32Payload(obj->payload, offset, UnpackRef(value));
+        WriteU32Payload(obj->payload, 0, length + 1);
+        break;
+      }
       case OpCode::ListRemoveI32: {
         Slot idx_val = Pop(stack);
         Slot v = Pop(stack);
@@ -1338,6 +1831,86 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
         }
         WriteU32Payload(obj->payload, 0, length - 1);
         Push(stack, PackI32(removed));
+        break;
+      }
+      case OpCode::ListRemoveI64: {
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_REMOVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        int64_t removed = static_cast<int64_t>(ReadU64Payload(obj->payload, offset));
+        for (uint32_t i = static_cast<uint32_t>(index) + 1; i < length; ++i) {
+          size_t from = 8 + static_cast<size_t>(i) * 8;
+          size_t to = 8 + static_cast<size_t>(i - 1) * 8;
+          WriteU64Payload(obj->payload, to, ReadU64Payload(obj->payload, from));
+        }
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackI64(removed));
+        break;
+      }
+      case OpCode::ListRemoveF32: {
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_REMOVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t removed = ReadU32Payload(obj->payload, offset);
+        for (uint32_t i = static_cast<uint32_t>(index) + 1; i < length; ++i) {
+          size_t from = 8 + static_cast<size_t>(i) * 4;
+          size_t to = 8 + static_cast<size_t>(i - 1) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackF32Bits(removed));
+        break;
+      }
+      case OpCode::ListRemoveF64: {
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_REMOVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 8;
+        uint64_t removed = ReadU64Payload(obj->payload, offset);
+        for (uint32_t i = static_cast<uint32_t>(index) + 1; i < length; ++i) {
+          size_t from = 8 + static_cast<size_t>(i) * 8;
+          size_t to = 8 + static_cast<size_t>(i - 1) * 8;
+          WriteU64Payload(obj->payload, to, ReadU64Payload(obj->payload, from));
+        }
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackF64Bits(removed));
+        break;
+      }
+      case OpCode::ListRemoveRef: {
+        Slot idx_val = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_REMOVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_REMOVE on non-list");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        int32_t index = UnpackI32(idx_val);
+        if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("LIST_REMOVE out of bounds");
+        size_t offset = 8 + static_cast<size_t>(index) * 4;
+        uint32_t removed = ReadU32Payload(obj->payload, offset);
+        for (uint32_t i = static_cast<uint32_t>(index) + 1; i < length; ++i) {
+          size_t from = 8 + static_cast<size_t>(i) * 4;
+          size_t to = 8 + static_cast<size_t>(i - 1) * 4;
+          WriteU32Payload(obj->payload, to, ReadU32Payload(obj->payload, from));
+        }
+        WriteU32Payload(obj->payload, 0, length - 1);
+        Push(stack, PackRef(removed));
         break;
       }
       case OpCode::ListClear: {

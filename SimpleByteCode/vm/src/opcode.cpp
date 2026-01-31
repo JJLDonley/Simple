@@ -235,39 +235,79 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
       *info = {0, 1, 1};
       return true;
     case OpCode::NewArray:
+    case OpCode::NewArrayI64:
+    case OpCode::NewArrayF32:
+    case OpCode::NewArrayF64:
+    case OpCode::NewArrayRef:
       *info = {8, 0, 1};
       return true;
     case OpCode::ArrayLen:
       *info = {0, 1, 1};
       return true;
     case OpCode::ArrayGetI32:
+    case OpCode::ArrayGetI64:
+    case OpCode::ArrayGetF32:
+    case OpCode::ArrayGetF64:
+    case OpCode::ArrayGetRef:
       *info = {0, 2, 1};
       return true;
     case OpCode::ArraySetI32:
+    case OpCode::ArraySetI64:
+    case OpCode::ArraySetF32:
+    case OpCode::ArraySetF64:
+    case OpCode::ArraySetRef:
       *info = {0, 3, 0};
       return true;
     case OpCode::NewList:
+    case OpCode::NewListI64:
+    case OpCode::NewListF32:
+    case OpCode::NewListF64:
+    case OpCode::NewListRef:
       *info = {8, 0, 1};
       return true;
     case OpCode::ListLen:
       *info = {0, 1, 1};
       return true;
     case OpCode::ListGetI32:
+    case OpCode::ListGetI64:
+    case OpCode::ListGetF32:
+    case OpCode::ListGetF64:
+    case OpCode::ListGetRef:
       *info = {0, 2, 1};
       return true;
     case OpCode::ListSetI32:
+    case OpCode::ListSetI64:
+    case OpCode::ListSetF32:
+    case OpCode::ListSetF64:
+    case OpCode::ListSetRef:
       *info = {0, 3, 0};
       return true;
     case OpCode::ListPushI32:
+    case OpCode::ListPushI64:
+    case OpCode::ListPushF32:
+    case OpCode::ListPushF64:
+    case OpCode::ListPushRef:
       *info = {0, 2, 0};
       return true;
     case OpCode::ListPopI32:
+    case OpCode::ListPopI64:
+    case OpCode::ListPopF32:
+    case OpCode::ListPopF64:
+    case OpCode::ListPopRef:
       *info = {0, 1, 1};
       return true;
     case OpCode::ListInsertI32:
+    case OpCode::ListInsertI64:
+    case OpCode::ListInsertF32:
+    case OpCode::ListInsertF64:
+    case OpCode::ListInsertRef:
       *info = {0, 3, 0};
       return true;
     case OpCode::ListRemoveI32:
+    case OpCode::ListRemoveI64:
+    case OpCode::ListRemoveF32:
+    case OpCode::ListRemoveF64:
+    case OpCode::ListRemoveRef:
       *info = {0, 2, 1};
       return true;
     case OpCode::ListClear:

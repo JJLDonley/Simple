@@ -55,6 +55,18 @@ void AppendI64(std::vector<uint8_t>& out, int64_t v) {
   AppendU64(out, static_cast<uint64_t>(v));
 }
 
+void AppendF32(std::vector<uint8_t>& out, float v) {
+  uint32_t bits = 0;
+  std::memcpy(&bits, &v, sizeof(bits));
+  AppendU32(out, bits);
+}
+
+void AppendF64(std::vector<uint8_t>& out, double v) {
+  uint64_t bits = 0;
+  std::memcpy(&bits, &v, sizeof(bits));
+  AppendU64(out, bits);
+}
+
 size_t AppendStringToPool(std::vector<uint8_t>& pool, const std::string& text) {
   size_t offset = pool.size();
   pool.insert(pool.end(), text.begin(), text.end());
@@ -4599,6 +4611,121 @@ std::vector<uint8_t> BuildArrayModule() {
   return BuildModule(code, 0, 0);
 }
 
+std::vector<uint8_t> BuildArrayI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArrayI64));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildArrayF32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArrayF32));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 3.5f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildArrayF64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArrayF64));
+  AppendU32(code, 0);
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 6.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildArrayRefModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArrayRef));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetRef));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t false_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, false_block);
+  }
+  return BuildModule(code, 0, 2);
+}
+
 std::vector<uint8_t> BuildArrayLenModule() {
   using simplevm::OpCode;
   std::vector<uint8_t> code;
@@ -4650,6 +4777,252 @@ std::vector<uint8_t> BuildListModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 1);
+}
+
+std::vector<uint8_t> BuildListI64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListI64));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 20);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 30);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertI64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 2);
+}
+
+std::vector<uint8_t> BuildListF32Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF32));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 1.25f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 2.5f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(code, 3.5f);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertF32));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopF32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF32ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 2);
+}
+
+std::vector<uint8_t> BuildListF64Module() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListF64));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1.5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushF64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 3.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertF64));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 2);
+}
+
+std::vector<uint8_t> BuildListRefModule() {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewListRef));
+  AppendU32(code, 0);
+  AppendU32(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewObject));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 1);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPushRef));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListInsertRef));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListGetRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 2);
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListRemoveRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ListPopRef));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t false_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  for (size_t site : patch_sites) {
+    PatchRel32(code, site, false_block);
+  }
+  return BuildModule(code, 0, 3);
 }
 
 std::vector<uint8_t> BuildListInsertModule() {
@@ -13762,6 +14135,102 @@ bool RunArrayTest() {
   return true;
 }
 
+bool RunArrayI64Test() {
+  std::vector<uint8_t> module_bytes = BuildArrayI64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 42) {
+    std::cerr << "expected 42, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunArrayF32Test() {
+  std::vector<uint8_t> module_bytes = BuildArrayF32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunArrayF64Test() {
+  std::vector<uint8_t> module_bytes = BuildArrayF64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 6) {
+    std::cerr << "expected 6, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunArrayRefTest() {
+  std::vector<uint8_t> module_bytes = BuildArrayRefModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunArrayLenTest() {
   std::vector<uint8_t> module_bytes = BuildArrayLenModule();
   simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
@@ -13806,6 +14275,102 @@ bool RunListTest() {
   }
   if (exec.exit_code != 11) {
     std::cerr << "expected 11, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunListI64Test() {
+  std::vector<uint8_t> module_bytes = BuildListI64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 30) {
+    std::cerr << "expected 30, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunListF32Test() {
+  std::vector<uint8_t> module_bytes = BuildListF32Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunListF64Test() {
+  std::vector<uint8_t> module_bytes = BuildListF64Module();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunListRefTest() {
+  std::vector<uint8_t> module_bytes = BuildListRefModule();
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "expected 1, got " << exec.exit_code << "\n";
     return false;
   }
   return true;
@@ -18081,8 +18646,16 @@ int main(int argc, char** argv) {
       {"upvalue_order", RunUpvalueOrderTest},
       {"new_closure", RunNewClosureTest},
       {"array_i32", RunArrayTest},
+      {"array_i64", RunArrayI64Test},
+      {"array_f32", RunArrayF32Test},
+      {"array_f64", RunArrayF64Test},
+      {"array_ref", RunArrayRefTest},
       {"array_len", RunArrayLenTest},
       {"list_i32", RunListTest},
+      {"list_i64", RunListI64Test},
+      {"list_f32", RunListF32Test},
+      {"list_f64", RunListF64Test},
+      {"list_ref", RunListRefTest},
       {"list_len", RunListLenTest},
       {"list_insert", RunListInsertTest},
       {"list_remove", RunListRemoveTest},
@@ -18358,7 +18931,7 @@ int main(int argc, char** argv) {
   int tCount = 0;
   for (const auto& test : tests) {
     tCount++;
-    std::cout << "running: " << test.name << "\n";
+    // std::cout << "running: " << test.name << "\n";
     std::cout.flush();
     bool ok = test.fn();
     if (!ok) {

@@ -99,6 +99,7 @@ Acceptance:
 ### Phase 5: Extended OpCodes
 - [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
 - [DONE] Arrays / Lists / Strings opcodes.
+- [DONE] Array/List typed variants for I64/F32/F64/REF.
 - [DONE] Conversions / Casts opcodes.
 - [DONE] Intrinsics and syscalls.
 - [DONE] Ensure all opcodes operate on untagged slots only.

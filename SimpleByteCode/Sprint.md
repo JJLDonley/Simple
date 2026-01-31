@@ -272,3 +272,9 @@
 - Included method names (if available) in trap error output and stack traces.
 - Added DEBUG section parsing/validation in loader (header + line bounds + basic symbol checks).
 - Added loader tests for DEBUG section header and line table bounds, plus a positive debug load test.
+- Added array opcodes for I64/F32/F64/REF and list opcodes for I64/F32/F64/REF (new opcode IDs + op info).
+- Implemented VM runtime support for new array/list opcodes, including 8-byte element handling and ref storage.
+- Extended verifier type checks for new array/list opcodes and NEW_ARRAY/NEW_LIST validation.
+- Added array/list tests for I64/F32/F64/REF and fixed ref tests to return I32 via branch on RefEq.
+- Updated opcode docs to note array/list <T> support for I32/I64/F32/F64/REF.
+- Confirmed full test suite pass (387 tests).

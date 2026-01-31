@@ -150,6 +150,8 @@ All comparisons pop two values and push `bool`.
 - `STRING_SLICE`
 - `STRING_CONCAT`
 
+`<T>` supports: `I32`, `I64`, `F32`, `F64`, `REF`.
+
 ---
 
 ## 11. Calls / Frames
