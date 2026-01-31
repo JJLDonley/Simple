@@ -318,3 +318,4 @@
 - Updated implementation plan to reference SBC_ABI.md as the source of truth for intrinsics/FFI/OS contracts.
 - Added missing suggestions to pre-freeze plan (struct layout rules, frozen opcode semantics section, FFI error convention, pinning policy, and explicit freeze-gate tests).
 - Moved and merged pre-freeze plan + detailed plan to the top of Implementation.md.
+- Moved pre-freeze plan into Implementation Phases as Phase 0 and renumbered subsequent phases.
