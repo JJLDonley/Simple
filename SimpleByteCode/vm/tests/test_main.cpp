@@ -494,6 +494,119 @@ std::vector<uint8_t> BuildIrCmpVariantsModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrU64ArithModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstU64(10);
+  builder.EmitConstU64(4);
+  builder.EmitSubU64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_u64_arith_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrF64CmpModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel is_true = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstF64(3.0);
+  builder.EmitConstF64(2.0);
+  builder.EmitCmpGtF64();
+  builder.EmitJmpTrue(is_true);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(is_true, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_f64_cmp_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrU64CmpModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel is_true = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstU64(5);
+  builder.EmitConstU64(7);
+  builder.EmitCmpLtU64();
+  builder.EmitJmpTrue(is_true);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(is_true, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_u64_cmp_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrLocalsModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(1);
@@ -20992,6 +21105,18 @@ bool RunIrEmitCmpVariantsTest() {
   return RunExpectExit(BuildIrCmpVariantsModule(), 1);
 }
 
+bool RunIrEmitU64ArithTest() {
+  return RunExpectExit(BuildIrU64ArithModule(), 6);
+}
+
+bool RunIrEmitF64CmpTest() {
+  return RunExpectExit(BuildIrF64CmpModule(), 1);
+}
+
+bool RunIrEmitU64CmpTest() {
+  return RunExpectExit(BuildIrU64CmpModule(), 1);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -31905,6 +32030,9 @@ int main(int argc, char** argv) {
       {"ir_emit_inc_dec_neg", RunIrEmitIncDecNegTest},
       {"ir_emit_u32_arith", RunIrEmitU32ArithTest},
       {"ir_emit_cmp_variants", RunIrEmitCmpVariantsTest},
+      {"ir_emit_u64_arith", RunIrEmitU64ArithTest},
+      {"ir_emit_f64_cmp", RunIrEmitF64CmpTest},
+      {"ir_emit_u64_cmp", RunIrEmitU64CmpTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},
