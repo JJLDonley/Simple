@@ -495,3 +495,4 @@
 - Split VM tests into modules (core/jit/ir) with a shared test utilities module and a slim test runner.
 - Added per-section test totals and a final aggregate total in the runner output.
 - Updated build scripts and CMake to compile the new test modules.
+- Trimmed test runner output to only list failing test names while keeping section totals.

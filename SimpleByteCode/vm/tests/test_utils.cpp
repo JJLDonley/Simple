@@ -214,7 +214,6 @@ TestResult RunSection(const TestSection& section) {
   size_t failed = 0;
   for (size_t i = 0; i < section.count; ++i) {
     const TestCase& test = section.tests[i];
-    std::cout << "running: " << test.name << "\n";
     if (!test.fn()) {
       ++failed;
       std::cerr << "failed: " << test.name << "\n";
