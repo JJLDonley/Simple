@@ -1,0 +1,558 @@
+#include "ir_lang.h"
+
+#include <cctype>
+#include <sstream>
+#include <unordered_map>
+
+#include "ir_builder.h"
+
+namespace simplevm::irtext {
+namespace {
+
+std::string Trim(const std::string& text) {
+  size_t start = 0;
+  while (start < text.size() && std::isspace(static_cast<unsigned char>(text[start]))) start++;
+  size_t end = text.size();
+  while (end > start && std::isspace(static_cast<unsigned char>(text[end - 1]))) end--;
+  return text.substr(start, end - start);
+}
+
+std::string StripComment(const std::string& line) {
+  size_t cut = line.find_first_of(";#");
+  if (cut == std::string::npos) return line;
+  return line.substr(0, cut);
+}
+
+std::vector<std::string> SplitTokens(const std::string& line) {
+  std::vector<std::string> out;
+  std::istringstream iss(line);
+  std::string tok;
+  while (iss >> tok) {
+    out.push_back(tok);
+  }
+  return out;
+}
+
+bool ParseUint(const std::string& text, uint64_t* out) {
+  if (!out) return false;
+  try {
+    size_t idx = 0;
+    uint64_t value = std::stoull(text, &idx, 0);
+    if (idx != text.size()) return false;
+    *out = value;
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
+bool ParseInt(const std::string& text, int64_t* out) {
+  if (!out) return false;
+  try {
+    size_t idx = 0;
+    int64_t value = std::stoll(text, &idx, 0);
+    if (idx != text.size()) return false;
+    *out = value;
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
+bool ParseFloat(const std::string& text, double* out) {
+  if (!out) return false;
+  try {
+    size_t idx = 0;
+    double value = std::stod(text, &idx);
+    if (idx != text.size()) return false;
+    *out = value;
+    return true;
+  } catch (...) {
+    return false;
+  }
+}
+
+std::string Lower(const std::string& text) {
+  std::string out = text;
+  for (char& ch : out) {
+    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  }
+  return out;
+}
+
+} // namespace
+
+bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* error) {
+  if (!out) {
+    if (error) *error = "output module is null";
+    return false;
+  }
+  out->functions.clear();
+  out->entry_name.clear();
+  out->entry_index = 0;
+
+  IrTextFunction* current = nullptr;
+  std::istringstream input(text);
+  std::string raw;
+  size_t line_no = 0;
+  while (std::getline(input, raw)) {
+    line_no++;
+    std::string line = Trim(StripComment(raw));
+    if (line.empty()) continue;
+
+    if (line.rfind("func ", 0) == 0) {
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() < 2) {
+        if (error) *error = "func missing name at line " + std::to_string(line_no);
+        return false;
+      }
+      out->functions.push_back(IrTextFunction{});
+      current = &out->functions.back();
+      current->name = tokens[1];
+      for (size_t i = 2; i < tokens.size(); ++i) {
+        const std::string& kv = tokens[i];
+        size_t eq = kv.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = kv.substr(0, eq);
+        std::string val = kv.substr(eq + 1);
+        uint64_t num = 0;
+        if (key == "locals" && ParseUint(val, &num)) {
+          current->locals = static_cast<uint16_t>(num);
+        } else if (key == "stack" && ParseUint(val, &num)) {
+          current->stack_max = static_cast<uint32_t>(num);
+        } else if (key == "sig" && ParseUint(val, &num)) {
+          current->sig_id = static_cast<uint32_t>(num);
+        }
+      }
+      continue;
+    }
+
+    if (line == "end") {
+      current = nullptr;
+      continue;
+    }
+
+    if (line.rfind("entry ", 0) == 0) {
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() != 2) {
+        if (error) *error = "entry expects a function name at line " + std::to_string(line_no);
+        return false;
+      }
+      out->entry_name = tokens[1];
+      continue;
+    }
+
+    if (!current) {
+      if (error) *error = "instruction outside func at line " + std::to_string(line_no);
+      return false;
+    }
+
+    if (!line.empty() && line.back() == ':') {
+      IrTextInst inst;
+      inst.kind = InstKind::Label;
+      inst.label = Trim(line.substr(0, line.size() - 1));
+      current->insts.push_back(std::move(inst));
+      continue;
+    }
+
+    std::vector<std::string> tokens = SplitTokens(line);
+    if (tokens.empty()) continue;
+    IrTextInst inst;
+    inst.kind = InstKind::Op;
+    inst.op = tokens[0];
+    for (size_t i = 1; i < tokens.size(); ++i) {
+      inst.args.push_back(tokens[i]);
+    }
+    current->insts.push_back(std::move(inst));
+  }
+
+  if (!out->entry_name.empty()) {
+    for (size_t i = 0; i < out->functions.size(); ++i) {
+      if (out->functions[i].name == out->entry_name) {
+        out->entry_index = static_cast<uint32_t>(i);
+        return true;
+      }
+    }
+    if (error) *error = "entry function not found";
+    return false;
+  }
+  return true;
+}
+
+bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, std::string* error) {
+  if (!out) {
+    if (error) *error = "output module is null";
+    return false;
+  }
+  out->functions.clear();
+  out->entry_method_id = text.entry_index;
+
+  for (const auto& fn : text.functions) {
+    simplevm::IrBuilder builder;
+    std::unordered_map<std::string, IrLabel> labels;
+    for (const auto& inst : fn.insts) {
+      if (inst.kind == InstKind::Label && !inst.label.empty()) {
+        if (labels.find(inst.label) == labels.end()) {
+          labels[inst.label] = builder.CreateLabel();
+        }
+      }
+    }
+
+    for (const auto& inst : fn.insts) {
+      if (inst.kind == InstKind::Label) {
+        auto it = labels.find(inst.label);
+        if (it == labels.end()) {
+          if (error) *error = "label missing: " + inst.label;
+          return false;
+        }
+        if (!builder.BindLabel(it->second, error)) return false;
+        continue;
+      }
+
+      std::string op = Lower(inst.op);
+      if (op == "enter") {
+        uint64_t locals = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &locals)) {
+          if (error) *error = "enter expects locals";
+          return false;
+        }
+        builder.EmitEnter(static_cast<uint16_t>(locals));
+        continue;
+      }
+      if (op == "ret") {
+        builder.EmitRet();
+        continue;
+      }
+      if (op == "nop") {
+        builder.EmitOp(simplevm::OpCode::Nop);
+        continue;
+      }
+      if (op == "pop") {
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "dup") {
+        builder.EmitDup();
+        continue;
+      }
+      if (op == "dup2") {
+        builder.EmitDup2();
+        continue;
+      }
+      if (op == "swap") {
+        builder.EmitSwap();
+        continue;
+      }
+      if (op == "rot") {
+        builder.EmitRot();
+        continue;
+      }
+      if (op == "const.i32") {
+        int64_t value = 0;
+        if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
+          if (error) *error = "const.i32 expects value";
+          return false;
+        }
+        builder.EmitConstI32(static_cast<int32_t>(value));
+        continue;
+      }
+      if (op == "const.i64") {
+        int64_t value = 0;
+        if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
+          if (error) *error = "const.i64 expects value";
+          return false;
+        }
+        builder.EmitConstI64(value);
+        continue;
+      }
+      if (op == "const.u32") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.u32 expects value";
+          return false;
+        }
+        builder.EmitConstU32(static_cast<uint32_t>(value));
+        continue;
+      }
+      if (op == "const.u64") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.u64 expects value";
+          return false;
+        }
+        builder.EmitConstU64(value);
+        continue;
+      }
+      if (op == "const.f32") {
+        double value = 0.0;
+        if (inst.args.size() != 1 || !ParseFloat(inst.args[0], &value)) {
+          if (error) *error = "const.f32 expects value";
+          return false;
+        }
+        builder.EmitConstF32(static_cast<float>(value));
+        continue;
+      }
+      if (op == "const.f64") {
+        double value = 0.0;
+        if (inst.args.size() != 1 || !ParseFloat(inst.args[0], &value)) {
+          if (error) *error = "const.f64 expects value";
+          return false;
+        }
+        builder.EmitConstF64(value);
+        continue;
+      }
+      if (op == "const.bool") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.bool expects value";
+          return false;
+        }
+        builder.EmitConstBool(value != 0);
+        continue;
+      }
+      if (op == "const.null") {
+        builder.EmitConstNull();
+        continue;
+      }
+      if (op == "add.i32") {
+        builder.EmitAddI32();
+        continue;
+      }
+      if (op == "sub.i32") {
+        builder.EmitSubI32();
+        continue;
+      }
+      if (op == "mul.i32") {
+        builder.EmitMulI32();
+        continue;
+      }
+      if (op == "div.i32") {
+        builder.EmitDivI32();
+        continue;
+      }
+      if (op == "mod.i32") {
+        builder.EmitModI32();
+        continue;
+      }
+      if (op == "add.i64") {
+        builder.EmitAddI64();
+        continue;
+      }
+      if (op == "sub.i64") {
+        builder.EmitSubI64();
+        continue;
+      }
+      if (op == "mul.i64") {
+        builder.EmitMulI64();
+        continue;
+      }
+      if (op == "div.i64") {
+        builder.EmitDivI64();
+        continue;
+      }
+      if (op == "mod.i64") {
+        builder.EmitModI64();
+        continue;
+      }
+      if (op == "add.f32") {
+        builder.EmitAddF32();
+        continue;
+      }
+      if (op == "sub.f32") {
+        builder.EmitSubF32();
+        continue;
+      }
+      if (op == "mul.f32") {
+        builder.EmitMulF32();
+        continue;
+      }
+      if (op == "div.f32") {
+        builder.EmitDivF32();
+        continue;
+      }
+      if (op == "add.f64") {
+        builder.EmitAddF64();
+        continue;
+      }
+      if (op == "sub.f64") {
+        builder.EmitSubF64();
+        continue;
+      }
+      if (op == "mul.f64") {
+        builder.EmitMulF64();
+        continue;
+      }
+      if (op == "div.f64") {
+        builder.EmitDivF64();
+        continue;
+      }
+      if (op == "add.u32") {
+        builder.EmitAddU32();
+        continue;
+      }
+      if (op == "sub.u32") {
+        builder.EmitSubU32();
+        continue;
+      }
+      if (op == "mul.u32") {
+        builder.EmitMulU32();
+        continue;
+      }
+      if (op == "div.u32") {
+        builder.EmitDivU32();
+        continue;
+      }
+      if (op == "mod.u32") {
+        builder.EmitModU32();
+        continue;
+      }
+      if (op == "add.u64") {
+        builder.EmitAddU64();
+        continue;
+      }
+      if (op == "sub.u64") {
+        builder.EmitSubU64();
+        continue;
+      }
+      if (op == "mul.u64") {
+        builder.EmitMulU64();
+        continue;
+      }
+      if (op == "div.u64") {
+        builder.EmitDivU64();
+        continue;
+      }
+      if (op == "mod.u64") {
+        builder.EmitModU64();
+        continue;
+      }
+      if (op == "jmp") {
+        if (inst.args.size() != 1) {
+          if (error) *error = "jmp expects label";
+          return false;
+        }
+        builder.EmitJmp(labels[inst.args[0]]);
+        continue;
+      }
+      if (op == "jmp.true") {
+        if (inst.args.size() != 1) {
+          if (error) *error = "jmp.true expects label";
+          return false;
+        }
+        builder.EmitJmpTrue(labels[inst.args[0]]);
+        continue;
+      }
+      if (op == "jmp.false") {
+        if (inst.args.size() != 1) {
+          if (error) *error = "jmp.false expects label";
+          return false;
+        }
+        builder.EmitJmpFalse(labels[inst.args[0]]);
+        continue;
+      }
+      if (op == "jmptable") {
+        if (inst.args.size() < 2) {
+          if (error) *error = "jmptable expects default and cases";
+          return false;
+        }
+        IrLabel def = labels[inst.args[0]];
+        std::vector<IrLabel> cases;
+        for (size_t i = 1; i < inst.args.size(); ++i) {
+          cases.push_back(labels[inst.args[i]]);
+        }
+        builder.EmitJmpTable(cases, def);
+        continue;
+      }
+      if (op == "call") {
+        if (inst.args.size() != 2) {
+          if (error) *error = "call expects func_id arg_count";
+          return false;
+        }
+        uint64_t func_id = 0;
+        uint64_t arg_count = 0;
+        if (!ParseUint(inst.args[0], &func_id) || !ParseUint(inst.args[1], &arg_count)) {
+          if (error) *error = "call expects numeric args";
+          return false;
+        }
+        builder.EmitCall(static_cast<uint32_t>(func_id), static_cast<uint8_t>(arg_count));
+        continue;
+      }
+      if (op == "call.indirect") {
+        if (inst.args.size() != 2) {
+          if (error) *error = "call.indirect expects sig_id arg_count";
+          return false;
+        }
+        uint64_t sig_id = 0;
+        uint64_t arg_count = 0;
+        if (!ParseUint(inst.args[0], &sig_id) || !ParseUint(inst.args[1], &arg_count)) {
+          if (error) *error = "call.indirect expects numeric args";
+          return false;
+        }
+        builder.EmitCallIndirect(static_cast<uint32_t>(sig_id), static_cast<uint8_t>(arg_count));
+        continue;
+      }
+      if (op == "tailcall") {
+        if (inst.args.size() != 2) {
+          if (error) *error = "tailcall expects func_id arg_count";
+          return false;
+        }
+        uint64_t func_id = 0;
+        uint64_t arg_count = 0;
+        if (!ParseUint(inst.args[0], &func_id) || !ParseUint(inst.args[1], &arg_count)) {
+          if (error) *error = "tailcall expects numeric args";
+          return false;
+        }
+        builder.EmitTailCall(static_cast<uint32_t>(func_id), static_cast<uint8_t>(arg_count));
+        continue;
+      }
+      if (op == "conv.i32.i64") {
+        builder.EmitConvI32ToI64();
+        continue;
+      }
+      if (op == "conv.i64.i32") {
+        builder.EmitConvI64ToI32();
+        continue;
+      }
+      if (op == "conv.i32.f32") {
+        builder.EmitConvI32ToF32();
+        continue;
+      }
+      if (op == "conv.i32.f64") {
+        builder.EmitConvI32ToF64();
+        continue;
+      }
+      if (op == "conv.f32.i32") {
+        builder.EmitConvF32ToI32();
+        continue;
+      }
+      if (op == "conv.f64.i32") {
+        builder.EmitConvF64ToI32();
+        continue;
+      }
+      if (op == "conv.f32.f64") {
+        builder.EmitConvF32ToF64();
+        continue;
+      }
+      if (op == "conv.f64.f32") {
+        builder.EmitConvF64ToF32();
+        continue;
+      }
+
+      if (error) *error = "unknown op: " + inst.op;
+      return false;
+    }
+
+    std::vector<uint8_t> code;
+    if (!builder.Finish(&code, error)) return false;
+    simplevm::ir::IrFunction out_fn;
+    out_fn.code = std::move(code);
+    out_fn.local_count = fn.locals;
+    out_fn.stack_max = fn.stack_max;
+    out_fn.sig_id = fn.sig_id;
+    out->functions.push_back(std::move(out_fn));
+  }
+
+  return true;
+}
+
+} // namespace simplevm::irtext

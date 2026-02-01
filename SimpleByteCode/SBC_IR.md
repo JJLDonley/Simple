@@ -86,9 +86,22 @@ Required emitter operations:
 
 - Basic ops: `EmitOp(opcode)`.
 - Locals: `EmitEnter(u16 locals)`.
-- Constants: `EmitConstI32/I64/F32/F64`.
+- Constants: `EmitConstI8/I16/I32/I64/U8/U16/U32/U64/F32/F64/Bool/Char/String/Null`.
 - Calls: `EmitCall`, `EmitCallIndirect`, `EmitTailCall`.
-- Control-flow: `CreateLabel`, `BindLabel`, `EmitJmp/JmpTrue/JmpFalse`.
+- Control-flow: `CreateLabel`, `BindLabel`, `EmitJmp/JmpTrue/JmpFalse`, `EmitJmpTable`.
+- Stack ops: `EmitPop/Dup/Dup2/Swap/Rot`.
+- Arithmetic (signed): `EmitAdd/Sub/Mul/Div/Mod` for I32/I64.
+- Arithmetic (unsigned): `EmitAdd/Sub/Mul/Div/Mod` for U32/U64.
+- Arithmetic (float): `EmitAdd/Sub/Mul/Div` for F32/F64.
+- Comparisons: `EmitCmpEq/Ne/Lt/Le/Gt/Ge` for I32/I64/U32/U64/F32/F64.
+- Bitwise: `EmitAnd/Or/Xor/Shl/Shr` for I32/I64.
+- Unary: `EmitNeg/Inc/Dec` for I32/I64.
+- Conversions: `EmitConvI32ToI64/I32ToF32/I32ToF64/I64ToI32/F32ToI32/F64ToI32/F32ToF64/F64ToF32`.
+- References/objects: `EmitConstNull`, `EmitNewObject`, `EmitNewClosure`, `EmitLoadField`, `EmitStoreField`,
+  `EmitTypeOf`, `EmitIsNull`, `EmitRefEq`, `EmitRefNe`, `EmitLoadUpvalue`, `EmitStoreUpvalue`.
+- Arrays/lists/strings: `EmitNewArray/ArrayLen/ArrayGet*/ArraySet*`, `EmitNewList/ListLen/ListGet*/ListSet*/ListPush*/ListPop*/ListInsert*/ListRemove*/ListClear`,
+  `EmitStringLen/StringConcat/StringGetChar/StringSlice`.
+- Diagnostics/intrinsics: `EmitCallCheck`, `EmitIntrinsic`, `EmitSysCall`.
 - Finalize: `Finish(out_code, out_error)`.
 
 ---
@@ -100,7 +113,32 @@ Required emitter operations:
 
 ---
 
-## 11. Future Extensions
+## 11. Imports + FFI Referencing (v0.1)
+
+- FFI is modeled as **imports**, not special opcodes.
+- The IR emitter emits `CALL/CALL_INDIRECT/TAILCALL` against a method/sig that is mapped to an import.
+- The **compiler supplies** the Imports table (module name, symbol name, and signature id) and the Sig table.
+- At load time, imports are resolved to host functions; at runtime, calls go through the same call path.
+
+Practical flow:
+
+1. Compiler defines `SigSpec` for the host function.
+2. Compiler emits an Import row pointing at `module_name` + `symbol_name` + `sig_id`.
+3. IR emits a `CALL` targeting that function (via method/function table index).
+
+Intrinsics/SysCalls remain VM-owned (`EmitIntrinsic/EmitSysCall`) and are not part of FFI.
+
+---
+
+## 12. Status (Living Notes)
+
+- Implemented: label-based IR builder that emits SBC bytecode, JmpTable fixups, and a broad set of opcode helpers.
+- Implemented: IR→SBC module packing via `IrModule`/`CompileToSbc` with tables supplied by the compiler.
+- Implemented: extensive IR→SBC tests covering control-flow, stack ops, arithmetic, compares, arrays/lists/strings, refs, and closures.
+- Implemented: minimal typed IR text parser/lowerer (v0.1 subset) that lowers into the IR builder.
+- Planned: a true higher-level IR layer (separate from opcode emission) if needed, with its own lowering pass into the IR builder.
+
+## 13. Future Extensions
 
 - SSA-form IR (optional).
 - Optimization passes before bytecode emission.

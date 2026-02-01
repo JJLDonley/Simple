@@ -489,3 +489,4 @@
 - Added IR→SBC tests for unsigned div/add and float sub helper coverage.
 - Added IR→SBC tests for unsigned mul/sub and float mul/div helper coverage.
 - Added IR→SBC tests for i32 arith variants and i64 add/sub coverage.
+- Added a minimal typed IR text parser/lowerer and IR text smoke tests.

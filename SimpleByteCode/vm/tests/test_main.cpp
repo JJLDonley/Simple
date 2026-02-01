@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "opcode.h"
+#include "ir_lang.h"
 #include "ir_builder.h"
 #include "ir_compiler.h"
 #include "sbc_emitter.h"
@@ -22070,6 +22071,103 @@ bool RunIrEmitI64AddSubTest() {
   return RunExpectExit(BuildIrI64AddSubModule(), 8);
 }
 
+bool RunIrTextAddTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 2\n"
+      "  const.i32 3\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n";
+  simplevm::irtext::IrTextModule mod;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &mod, &error)) {
+    std::cerr << "irtext parse failed: " << error << "\n";
+    return false;
+  }
+  simplevm::ir::IrModule lowered;
+  if (!simplevm::irtext::LowerIrTextToModule(mod, &lowered, &error)) {
+    std::cerr << "irtext lower failed: " << error << "\n";
+    return false;
+  }
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(lowered, &out, &error)) {
+    std::cerr << "irtext compile failed: " << error << "\n";
+    return false;
+  }
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(out);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed: " << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 5) {
+    std::cerr << "expected 5, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunIrTextBranchTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.bool 1\n"
+      "  jmp.true L1\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "L1:\n"
+      "  const.i32 7\n"
+      "  ret\n"
+      "end\n";
+  simplevm::irtext::IrTextModule mod;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &mod, &error)) {
+    std::cerr << "irtext parse failed: " << error << "\n";
+    return false;
+  }
+  simplevm::ir::IrModule lowered;
+  if (!simplevm::irtext::LowerIrTextToModule(mod, &lowered, &error)) {
+    std::cerr << "irtext lower failed: " << error << "\n";
+    return false;
+  }
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(lowered, &out, &error)) {
+    std::cerr << "irtext compile failed: " << error << "\n";
+    return false;
+  }
+  simplevm::LoadResult load = simplevm::LoadModuleFromBytes(out);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  simplevm::VerifyResult vr = simplevm::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  simplevm::ExecResult exec = simplevm::ExecuteModule(load.module);
+  if (exec.status != simplevm::ExecStatus::Halted) {
+    std::cerr << "exec failed: " << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -33011,6 +33109,8 @@ int main(int argc, char** argv) {
       {"ir_emit_f64_div", RunIrEmitF64DivTest},
       {"ir_emit_i32_arith2", RunIrEmitI32Arith2Test},
       {"ir_emit_i64_add_sub", RunIrEmitI64AddSubTest},
+      {"ir_text_add", RunIrTextAddTest},
+      {"ir_text_branch", RunIrTextBranchTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},
