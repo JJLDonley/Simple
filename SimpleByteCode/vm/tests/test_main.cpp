@@ -346,6 +346,154 @@ std::vector<uint8_t> BuildIrI64BitwiseModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrConstSmallModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI8(-5);
+  builder.EmitConstU16(10);
+  builder.EmitAddI32();
+  builder.EmitConstChar(65);
+  builder.EmitAddI32();
+  builder.EmitConstU32(2);
+  builder.EmitAddI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_const_small_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrIncDecNegModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(4);
+  builder.EmitIncI32();
+  builder.EmitDecI32();
+  builder.EmitNegI32();
+  builder.EmitConstI32(10);
+  builder.EmitAddI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_inc_dec_neg_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrU32ArithModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstU32(7);
+  builder.EmitConstU32(5);
+  builder.EmitSubU32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_u32_arith_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrCmpVariantsModule() {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel is_true = builder.CreateLabel();
+  simplevm::IrLabel done = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstI32(3);
+  builder.EmitConstI32(3);
+  builder.EmitCmpNeI32();
+  builder.EmitBoolNot();
+  builder.EmitConstI32(3);
+  builder.EmitConstI32(2);
+  builder.EmitCmpGtI32();
+  builder.EmitBoolAnd();
+  builder.EmitJmpTrue(is_true);
+  builder.EmitConstI32(0);
+  builder.EmitJmp(done);
+  builder.BindLabel(is_true, nullptr);
+  builder.EmitConstI32(1);
+  builder.BindLabel(done, nullptr);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_cmp_variants_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrLocalsModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(1);
@@ -20828,6 +20976,22 @@ bool RunIrEmitI64BitwiseTest() {
   return RunExpectExit(BuildIrI64BitwiseModule(), 2);
 }
 
+bool RunIrEmitConstSmallTest() {
+  return RunExpectExit(BuildIrConstSmallModule(), 72);
+}
+
+bool RunIrEmitIncDecNegTest() {
+  return RunExpectExit(BuildIrIncDecNegModule(), 6);
+}
+
+bool RunIrEmitU32ArithTest() {
+  return RunExpectExit(BuildIrU32ArithModule(), 2);
+}
+
+bool RunIrEmitCmpVariantsTest() {
+  return RunExpectExit(BuildIrCmpVariantsModule(), 1);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -31737,6 +31901,10 @@ int main(int argc, char** argv) {
       {"ir_emit_jmp_table", RunIrEmitJmpTableTest},
       {"ir_emit_stack_ops2", RunIrEmitStackOps2Test},
       {"ir_emit_i64_bitwise", RunIrEmitI64BitwiseTest},
+      {"ir_emit_const_small", RunIrEmitConstSmallTest},
+      {"ir_emit_inc_dec_neg", RunIrEmitIncDecNegTest},
+      {"ir_emit_u32_arith", RunIrEmitU32ArithTest},
+      {"ir_emit_cmp_variants", RunIrEmitCmpVariantsTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},

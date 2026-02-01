@@ -459,6 +459,126 @@ void IrBuilder::EmitCmpGeI32() {
   EmitOp(OpCode::CmpGeI32);
 }
 
+void IrBuilder::EmitCmpEqI64() {
+  EmitOp(OpCode::CmpEqI64);
+}
+
+void IrBuilder::EmitCmpNeI64() {
+  EmitOp(OpCode::CmpNeI64);
+}
+
+void IrBuilder::EmitCmpLtI64() {
+  EmitOp(OpCode::CmpLtI64);
+}
+
+void IrBuilder::EmitCmpLeI64() {
+  EmitOp(OpCode::CmpLeI64);
+}
+
+void IrBuilder::EmitCmpGtI64() {
+  EmitOp(OpCode::CmpGtI64);
+}
+
+void IrBuilder::EmitCmpGeI64() {
+  EmitOp(OpCode::CmpGeI64);
+}
+
+void IrBuilder::EmitCmpEqF32() {
+  EmitOp(OpCode::CmpEqF32);
+}
+
+void IrBuilder::EmitCmpNeF32() {
+  EmitOp(OpCode::CmpNeF32);
+}
+
+void IrBuilder::EmitCmpLtF32() {
+  EmitOp(OpCode::CmpLtF32);
+}
+
+void IrBuilder::EmitCmpLeF32() {
+  EmitOp(OpCode::CmpLeF32);
+}
+
+void IrBuilder::EmitCmpGtF32() {
+  EmitOp(OpCode::CmpGtF32);
+}
+
+void IrBuilder::EmitCmpGeF32() {
+  EmitOp(OpCode::CmpGeF32);
+}
+
+void IrBuilder::EmitCmpEqF64() {
+  EmitOp(OpCode::CmpEqF64);
+}
+
+void IrBuilder::EmitCmpNeF64() {
+  EmitOp(OpCode::CmpNeF64);
+}
+
+void IrBuilder::EmitCmpLtF64() {
+  EmitOp(OpCode::CmpLtF64);
+}
+
+void IrBuilder::EmitCmpLeF64() {
+  EmitOp(OpCode::CmpLeF64);
+}
+
+void IrBuilder::EmitCmpGtF64() {
+  EmitOp(OpCode::CmpGtF64);
+}
+
+void IrBuilder::EmitCmpGeF64() {
+  EmitOp(OpCode::CmpGeF64);
+}
+
+void IrBuilder::EmitCmpEqU32() {
+  EmitOp(OpCode::CmpEqU32);
+}
+
+void IrBuilder::EmitCmpNeU32() {
+  EmitOp(OpCode::CmpNeU32);
+}
+
+void IrBuilder::EmitCmpLtU32() {
+  EmitOp(OpCode::CmpLtU32);
+}
+
+void IrBuilder::EmitCmpLeU32() {
+  EmitOp(OpCode::CmpLeU32);
+}
+
+void IrBuilder::EmitCmpGtU32() {
+  EmitOp(OpCode::CmpGtU32);
+}
+
+void IrBuilder::EmitCmpGeU32() {
+  EmitOp(OpCode::CmpGeU32);
+}
+
+void IrBuilder::EmitCmpEqU64() {
+  EmitOp(OpCode::CmpEqU64);
+}
+
+void IrBuilder::EmitCmpNeU64() {
+  EmitOp(OpCode::CmpNeU64);
+}
+
+void IrBuilder::EmitCmpLtU64() {
+  EmitOp(OpCode::CmpLtU64);
+}
+
+void IrBuilder::EmitCmpLeU64() {
+  EmitOp(OpCode::CmpLeU64);
+}
+
+void IrBuilder::EmitCmpGtU64() {
+  EmitOp(OpCode::CmpGtU64);
+}
+
+void IrBuilder::EmitCmpGeU64() {
+  EmitOp(OpCode::CmpGeU64);
+}
+
 void IrBuilder::EmitBoolNot() {
   EmitOp(OpCode::BoolNot);
 }
@@ -507,16 +627,112 @@ void IrBuilder::EmitAddI32() {
   EmitOp(OpCode::AddI32);
 }
 
+void IrBuilder::EmitSubI32() {
+  EmitOp(OpCode::SubI32);
+}
+
+void IrBuilder::EmitMulI32() {
+  EmitOp(OpCode::MulI32);
+}
+
+void IrBuilder::EmitDivI32() {
+  EmitOp(OpCode::DivI32);
+}
+
+void IrBuilder::EmitModI32() {
+  EmitOp(OpCode::ModI32);
+}
+
 void IrBuilder::EmitAddI64() {
   EmitOp(OpCode::AddI64);
+}
+
+void IrBuilder::EmitSubI64() {
+  EmitOp(OpCode::SubI64);
+}
+
+void IrBuilder::EmitMulI64() {
+  EmitOp(OpCode::MulI64);
+}
+
+void IrBuilder::EmitDivI64() {
+  EmitOp(OpCode::DivI64);
+}
+
+void IrBuilder::EmitModI64() {
+  EmitOp(OpCode::ModI64);
 }
 
 void IrBuilder::EmitAddF32() {
   EmitOp(OpCode::AddF32);
 }
 
+void IrBuilder::EmitSubF32() {
+  EmitOp(OpCode::SubF32);
+}
+
+void IrBuilder::EmitMulF32() {
+  EmitOp(OpCode::MulF32);
+}
+
+void IrBuilder::EmitDivF32() {
+  EmitOp(OpCode::DivF32);
+}
+
 void IrBuilder::EmitAddF64() {
   EmitOp(OpCode::AddF64);
+}
+
+void IrBuilder::EmitSubF64() {
+  EmitOp(OpCode::SubF64);
+}
+
+void IrBuilder::EmitMulF64() {
+  EmitOp(OpCode::MulF64);
+}
+
+void IrBuilder::EmitDivF64() {
+  EmitOp(OpCode::DivF64);
+}
+
+void IrBuilder::EmitAddU32() {
+  EmitOp(OpCode::AddU32);
+}
+
+void IrBuilder::EmitSubU32() {
+  EmitOp(OpCode::SubU32);
+}
+
+void IrBuilder::EmitMulU32() {
+  EmitOp(OpCode::MulU32);
+}
+
+void IrBuilder::EmitDivU32() {
+  EmitOp(OpCode::DivU32);
+}
+
+void IrBuilder::EmitModU32() {
+  EmitOp(OpCode::ModU32);
+}
+
+void IrBuilder::EmitAddU64() {
+  EmitOp(OpCode::AddU64);
+}
+
+void IrBuilder::EmitSubU64() {
+  EmitOp(OpCode::SubU64);
+}
+
+void IrBuilder::EmitMulU64() {
+  EmitOp(OpCode::MulU64);
+}
+
+void IrBuilder::EmitDivU64() {
+  EmitOp(OpCode::DivU64);
+}
+
+void IrBuilder::EmitModU64() {
+  EmitOp(OpCode::ModU64);
 }
 
 void IrBuilder::EmitAndI32() {
