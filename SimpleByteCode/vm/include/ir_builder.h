@@ -34,6 +34,9 @@ class IrBuilder {
   void EmitCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
+  void EmitCallCheck();
+  void EmitIntrinsic(uint32_t id);
+  void EmitSysCall(uint32_t id);
   void EmitNewArray(uint32_t type_id, uint32_t length);
   void EmitArrayLen();
   void EmitArrayGetI32();
@@ -71,6 +74,7 @@ class IrBuilder {
   void EmitListInsertI32();
   void EmitListRemoveI32();
   void EmitListClear();
+  void EmitNewClosure(uint32_t method_id, uint8_t upvalue_count);
   void EmitIsNull();
   void EmitRefEq();
   void EmitRefNe();
@@ -86,6 +90,8 @@ class IrBuilder {
   void EmitStoreLocal(uint32_t index);
   void EmitLoadGlobal(uint32_t index);
   void EmitStoreGlobal(uint32_t index);
+  void EmitLoadUpvalue(uint32_t index);
+  void EmitStoreUpvalue(uint32_t index);
   void EmitRet();
   void EmitPop();
   void EmitDup();

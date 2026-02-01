@@ -80,6 +80,20 @@ void IrBuilder::EmitTailCall(uint32_t func_id, uint8_t arg_count) {
   EmitU8(arg_count);
 }
 
+void IrBuilder::EmitCallCheck() {
+  EmitOp(OpCode::CallCheck);
+}
+
+void IrBuilder::EmitIntrinsic(uint32_t id) {
+  EmitOp(OpCode::Intrinsic);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitSysCall(uint32_t id) {
+  EmitOp(OpCode::SysCall);
+  EmitU32(id);
+}
+
 void IrBuilder::EmitNewArray(uint32_t type_id, uint32_t length) {
   EmitOp(OpCode::NewArray);
   EmitU32(type_id);
@@ -232,6 +246,12 @@ void IrBuilder::EmitListClear() {
   EmitOp(OpCode::ListClear);
 }
 
+void IrBuilder::EmitNewClosure(uint32_t method_id, uint8_t upvalue_count) {
+  EmitOp(OpCode::NewClosure);
+  EmitU32(method_id);
+  EmitU8(upvalue_count);
+}
+
 void IrBuilder::EmitIsNull() {
   EmitOp(OpCode::IsNull);
 }
@@ -296,6 +316,16 @@ void IrBuilder::EmitLoadGlobal(uint32_t index) {
 
 void IrBuilder::EmitStoreGlobal(uint32_t index) {
   EmitOp(OpCode::StoreGlobal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitLoadUpvalue(uint32_t index) {
+  EmitOp(OpCode::LoadUpvalue);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitStoreUpvalue(uint32_t index) {
+  EmitOp(OpCode::StoreUpvalue);
   EmitU32(index);
 }
 

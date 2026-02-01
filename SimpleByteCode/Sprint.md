@@ -473,3 +473,7 @@
 - Added IR→SBC tests for array get/set (F32 and Ref).
 - Added IR→SBC tests for list get/set (F32 and Ref).
 - Added IR→SBC tests for list get/set (I64 and F64).
+
+## 2026-02-01
+- Added IR builder support for CallCheck/Intrinsic/SysCall/NewClosure/LoadUpvalue/StoreUpvalue.
+- Added IR→SBC tests for CallCheck/Intrinsic/SysCall verify-fail and NewClosure/upvalue call-indirect paths.
