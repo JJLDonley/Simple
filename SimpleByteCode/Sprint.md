@@ -478,3 +478,4 @@
 - Added IR builder support for CallCheck/Intrinsic/SysCall/NewClosure/LoadUpvalue/StoreUpvalue.
 - Added IR→SBC tests for CallCheck/Intrinsic/SysCall verify-fail and NewClosure/upvalue call-indirect paths.
 - Added IR builder JMP_TABLE support with const-pool table fixups and an IR→SBC JMP_TABLE test.
+- Added IR builder stack ops/bitwise helpers (Dup2/Swap/Rot + i64 bitwise) with IR→SBC tests.

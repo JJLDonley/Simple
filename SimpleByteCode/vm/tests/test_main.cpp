@@ -274,6 +274,78 @@ std::vector<uint8_t> BuildIrJmpTableModule(int32_t index) {
   return out;
 }
 
+std::vector<uint8_t> BuildIrStackOps2Module() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(1);
+  builder.EmitConstI32(2);
+  builder.EmitConstI32(3);
+  builder.EmitRot();
+  builder.EmitSwap();
+  builder.EmitDup2();
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitOp(simplevm::OpCode::AddI32);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_stack_ops2_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrI64BitwiseModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI64(6);
+  builder.EmitConstI64(3);
+  builder.EmitAndI64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_i64_bitwise_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrLocalsModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(1);
@@ -20748,6 +20820,14 @@ bool RunIrEmitJmpTableTest() {
   return RunExpectExit(BuildIrJmpTableModule(1), 2);
 }
 
+bool RunIrEmitStackOps2Test() {
+  return RunExpectExit(BuildIrStackOps2Module(), 10);
+}
+
+bool RunIrEmitI64BitwiseTest() {
+  return RunExpectExit(BuildIrI64BitwiseModule(), 2);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -31655,6 +31735,8 @@ int main(int argc, char** argv) {
       {"ir_emit_add", RunIrEmitAddTest},
       {"ir_emit_jump", RunIrEmitJumpTest},
       {"ir_emit_jmp_table", RunIrEmitJmpTableTest},
+      {"ir_emit_stack_ops2", RunIrEmitStackOps2Test},
+      {"ir_emit_i64_bitwise", RunIrEmitI64BitwiseTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},

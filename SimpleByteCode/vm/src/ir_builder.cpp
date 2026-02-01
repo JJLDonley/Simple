@@ -77,9 +77,48 @@ void IrBuilder::EmitConstBool(bool value) {
   EmitU8(value ? 1 : 0);
 }
 
+void IrBuilder::EmitConstI8(int8_t value) {
+  EmitOp(OpCode::ConstI8);
+  EmitU8(static_cast<uint8_t>(value));
+}
+
+void IrBuilder::EmitConstI16(int16_t value) {
+  EmitOp(OpCode::ConstI16);
+  EmitU16(static_cast<uint16_t>(value));
+}
+
+void IrBuilder::EmitConstU8(uint8_t value) {
+  EmitOp(OpCode::ConstU8);
+  EmitU8(value);
+}
+
+void IrBuilder::EmitConstU16(uint16_t value) {
+  EmitOp(OpCode::ConstU16);
+  EmitU16(value);
+}
+
+void IrBuilder::EmitConstU32(uint32_t value) {
+  EmitOp(OpCode::ConstU32);
+  EmitU32(value);
+}
+
+void IrBuilder::EmitConstU64(uint64_t value) {
+  EmitOp(OpCode::ConstU64);
+  EmitU64(value);
+}
+
+void IrBuilder::EmitConstChar(uint16_t value) {
+  EmitOp(OpCode::ConstChar);
+  EmitU16(value);
+}
+
 void IrBuilder::EmitConstString(uint32_t const_id) {
   EmitOp(OpCode::ConstString);
   EmitU32(const_id);
+}
+
+void IrBuilder::EmitConstNull() {
+  EmitOp(OpCode::ConstNull);
 }
 
 void IrBuilder::EmitCall(uint32_t func_id, uint8_t arg_count) {
@@ -384,12 +423,40 @@ void IrBuilder::EmitDup() {
   EmitOp(OpCode::Dup);
 }
 
+void IrBuilder::EmitDup2() {
+  EmitOp(OpCode::Dup2);
+}
+
+void IrBuilder::EmitSwap() {
+  EmitOp(OpCode::Swap);
+}
+
+void IrBuilder::EmitRot() {
+  EmitOp(OpCode::Rot);
+}
+
 void IrBuilder::EmitCmpEqI32() {
   EmitOp(OpCode::CmpEqI32);
 }
 
 void IrBuilder::EmitCmpLtI32() {
   EmitOp(OpCode::CmpLtI32);
+}
+
+void IrBuilder::EmitCmpNeI32() {
+  EmitOp(OpCode::CmpNeI32);
+}
+
+void IrBuilder::EmitCmpLeI32() {
+  EmitOp(OpCode::CmpLeI32);
+}
+
+void IrBuilder::EmitCmpGtI32() {
+  EmitOp(OpCode::CmpGtI32);
+}
+
+void IrBuilder::EmitCmpGeI32() {
+  EmitOp(OpCode::CmpGeI32);
 }
 
 void IrBuilder::EmitBoolNot() {
@@ -470,6 +537,50 @@ void IrBuilder::EmitShlI32() {
 
 void IrBuilder::EmitShrI32() {
   EmitOp(OpCode::ShrI32);
+}
+
+void IrBuilder::EmitAndI64() {
+  EmitOp(OpCode::AndI64);
+}
+
+void IrBuilder::EmitOrI64() {
+  EmitOp(OpCode::OrI64);
+}
+
+void IrBuilder::EmitXorI64() {
+  EmitOp(OpCode::XorI64);
+}
+
+void IrBuilder::EmitShlI64() {
+  EmitOp(OpCode::ShlI64);
+}
+
+void IrBuilder::EmitShrI64() {
+  EmitOp(OpCode::ShrI64);
+}
+
+void IrBuilder::EmitNegI32() {
+  EmitOp(OpCode::NegI32);
+}
+
+void IrBuilder::EmitNegI64() {
+  EmitOp(OpCode::NegI64);
+}
+
+void IrBuilder::EmitIncI32() {
+  EmitOp(OpCode::IncI32);
+}
+
+void IrBuilder::EmitDecI32() {
+  EmitOp(OpCode::DecI32);
+}
+
+void IrBuilder::EmitIncI64() {
+  EmitOp(OpCode::IncI64);
+}
+
+void IrBuilder::EmitDecI64() {
+  EmitOp(OpCode::DecI64);
 }
 
 void IrBuilder::EmitJmp(IrLabel label) {
