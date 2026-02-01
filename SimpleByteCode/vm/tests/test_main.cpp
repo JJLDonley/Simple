@@ -996,6 +996,137 @@ std::vector<uint8_t> BuildIrU64ModModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrI64MulModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI64(3);
+  builder.EmitConstI64(4);
+  builder.EmitMulI64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_i64_mul_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrI64DivModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI64(9);
+  builder.EmitConstI64(3);
+  builder.EmitDivI64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_i64_div_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrU32ArithModule3() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstU32(2);
+  builder.EmitConstU32(3);
+  builder.EmitAddU32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_u32_arith_module3")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrU64DivModule2() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstU64(12);
+  builder.EmitConstU64(3);
+  builder.EmitDivU64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_u64_div_module2")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrLocalsModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(1);
@@ -21550,6 +21681,22 @@ bool RunIrEmitU64ModTest() {
   return RunExpectExit(BuildIrU64ModModule(), 4);
 }
 
+bool RunIrEmitI64MulTest() {
+  return RunExpectExit(BuildIrI64MulModule(), 12);
+}
+
+bool RunIrEmitI64DivTest() {
+  return RunExpectExit(BuildIrI64DivModule(), 3);
+}
+
+bool RunIrEmitU32Arith3Test() {
+  return RunExpectExit(BuildIrU32ArithModule3(), 5);
+}
+
+bool RunIrEmitU64Div2Test() {
+  return RunExpectExit(BuildIrU64DivModule2(), 4);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -32477,6 +32624,10 @@ int main(int argc, char** argv) {
       {"ir_emit_i64_arith", RunIrEmitI64ArithTest},
       {"ir_emit_u32_mod", RunIrEmitU32ModTest},
       {"ir_emit_u64_mod", RunIrEmitU64ModTest},
+      {"ir_emit_i64_mul", RunIrEmitI64MulTest},
+      {"ir_emit_i64_div", RunIrEmitI64DivTest},
+      {"ir_emit_u32_arith3", RunIrEmitU32Arith3Test},
+      {"ir_emit_u64_div2", RunIrEmitU64Div2Test},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},
