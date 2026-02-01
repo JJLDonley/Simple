@@ -497,3 +497,4 @@
 - Updated build scripts and CMake to compile the new test modules.
 - Trimmed test runner output to only list failing test names while keeping section totals.
 - Expanded `SBC_IR.md` into a full SIR language doc (text form, compiler responsibilities, imports/FFI).
+- Added a typed `<T>`-suffix API table for SIR emitter operations.

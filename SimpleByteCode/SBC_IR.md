@@ -90,27 +90,86 @@ The IR emitter does not bypass verification; the SBC verifier remains authoritat
 
 ## 9. Builder API (v0.1)
 
-Required emitter operations:
+### 9.1 Type Suffix Convention
 
-- Basic ops: `EmitOp(opcode)`.
-- Locals: `EmitEnter(u16 locals)`.
-- Constants: `EmitConstI8/I16/I32/I64/U8/U16/U32/U64/F32/F64/Bool/Char/String/Null`.
-- Calls: `EmitCall`, `EmitCallIndirect`, `EmitTailCall`.
-- Control-flow: `CreateLabel`, `BindLabel`, `EmitJmp/JmpTrue/JmpFalse`, `EmitJmpTable`.
-- Stack ops: `EmitPop/Dup/Dup2/Swap/Rot`.
-- Arithmetic (signed): `EmitAdd/Sub/Mul/Div/Mod` for I32/I64.
-- Arithmetic (unsigned): `EmitAdd/Sub/Mul/Div/Mod` for U32/U64.
-- Arithmetic (float): `EmitAdd/Sub/Mul/Div` for F32/F64.
-- Comparisons: `EmitCmpEq/Ne/Lt/Le/Gt/Ge` for I32/I64/U32/U64/F32/F64.
-- Bitwise: `EmitAnd/Or/Xor/Shl/Shr` for I32/I64.
-- Unary: `EmitNeg/Inc/Dec` for I32/I64.
-- Conversions: `EmitConvI32ToI64/I32ToF32/I32ToF64/I64ToI32/F32ToI32/F64ToI32/F32ToF64/F64ToF32`.
-- References/objects: `EmitConstNull`, `EmitNewObject`, `EmitNewClosure`, `EmitLoadField`, `EmitStoreField`,
-  `EmitTypeOf`, `EmitIsNull`, `EmitRefEq`, `EmitRefNe`, `EmitLoadUpvalue`, `EmitStoreUpvalue`.
-- Arrays/lists/strings: `EmitNewArray/ArrayLen/ArrayGet*/ArraySet*`, `EmitNewList/ListLen/ListGet*/ListSet*/ListPush*/ListPop*/ListInsert*/ListRemove*/ListClear`,
-  `EmitStringLen/StringConcat/StringGetChar/StringSlice`.
-- Diagnostics/intrinsics: `EmitCallCheck`, `EmitIntrinsic`, `EmitSysCall`.
-- Finalize: `Finish(out_code, out_error)`.
+When an operation has multiple typed variants, use `<T>` to indicate the VM type suffix:
+
+- `<T>` ∈ `{I8, I16, I32, I64, I128, U8, U16, U32, U64, U128, F32, F64, Bool, Char, Ref, String}`
+- Example: `EmitAdd<T>` expands to `EmitAddI32`, `EmitAddU64`, etc.
+
+### 9.2 Emitter Operation Table
+
+| Category | Operation | Signature | Notes |
+|---|---|---|---|
+| Core | `EmitOp` | `(opcode)` | Raw opcode emit for custom cases. |
+| Core | `Finish` | `(out_code, out_error)` | Resolves fixups and finalizes bytecode. |
+| Locals | `EmitEnter` | `(u16 locals)` | Must match method `local_count`. |
+| Stack | `EmitPop` | `()` | |
+| Stack | `EmitDup` | `()` | |
+| Stack | `EmitDup2` | `()` | |
+| Stack | `EmitSwap` | `()` | |
+| Stack | `EmitRot` | `()` | |
+| Const | `EmitConst<T>` | `(value)` | Includes `String` and `Null` variants. |
+| Call | `EmitCall` | `(method_id, arg_count)` | `arg_count` is u8. |
+| Call | `EmitCallIndirect` | `(sig_id, arg_count)` | |
+| Call | `EmitTailCall` | `(method_id, arg_count)` | |
+| Control | `CreateLabel` | `()` | Returns label id. |
+| Control | `BindLabel` | `(label)` | Binds label to current offset. |
+| Control | `EmitJmp` | `(label)` | |
+| Control | `EmitJmpTrue` | `(label)` | |
+| Control | `EmitJmpFalse` | `(label)` | |
+| Control | `EmitJmpTable` | `(default_label, case_labels[])` | Emits table into const pool. |
+| Arith | `EmitAdd<T>` | `()` | Typed add. |
+| Arith | `EmitSub<T>` | `()` | |
+| Arith | `EmitMul<T>` | `()` | |
+| Arith | `EmitDiv<T>` | `()` | |
+| Arith | `EmitMod<T>` | `()` | Int/uint only. |
+| Unary | `EmitNeg<T>` | `()` | Numeric only. |
+| Unary | `EmitInc<T>` | `()` | Numeric only. |
+| Unary | `EmitDec<T>` | `()` | Numeric only. |
+| Compare | `EmitCmpEq<T>` | `()` | |
+| Compare | `EmitCmpNe<T>` | `()` | |
+| Compare | `EmitCmpLt<T>` | `()` | |
+| Compare | `EmitCmpLe<T>` | `()` | |
+| Compare | `EmitCmpGt<T>` | `()` | |
+| Compare | `EmitCmpGe<T>` | `()` | |
+| Bitwise | `EmitAnd<T>` | `()` | Int/uint only. |
+| Bitwise | `EmitOr<T>` | `()` | |
+| Bitwise | `EmitXor<T>` | `()` | |
+| Bitwise | `EmitShl<T>` | `()` | |
+| Bitwise | `EmitShr<T>` | `()` | |
+| Conv | `EmitConv<TSrcToTDst>` | `()` | Example: `EmitConvI32ToF64`. |
+| Ref | `EmitConstNull` | `()` | |
+| Ref | `EmitIsNull` | `()` | |
+| Ref | `EmitRefEq` | `()` | |
+| Ref | `EmitRefNe` | `()` | |
+| Object | `EmitNewObject` | `(type_id, field_count)` | |
+| Object | `EmitLoadField<T>` | `(field_id)` | |
+| Object | `EmitStoreField<T>` | `(field_id)` | |
+| Object | `EmitTypeOf` | `()` | |
+| Closure | `EmitNewClosure` | `(func_id, upvalue_count)` | |
+| Closure | `EmitLoadUpvalue` | `(index)` | |
+| Closure | `EmitStoreUpvalue` | `(index)` | |
+| Array | `EmitNewArray<T>` | `(type_id, length)` | |
+| Array | `EmitArrayLen` | `()` | |
+| Array | `EmitArrayGet<T>` | `()` | |
+| Array | `EmitArraySet<T>` | `()` | |
+| List | `EmitNewList<T>` | `(type_id, capacity)` | |
+| List | `EmitListLen` | `()` | |
+| List | `EmitListGet<T>` | `()` | |
+| List | `EmitListSet<T>` | `()` | |
+| List | `EmitListPush<T>` | `()` | |
+| List | `EmitListPop<T>` | `()` | |
+| List | `EmitListInsert<T>` | `()` | |
+| List | `EmitListRemove<T>` | `()` | |
+| List | `EmitListClear` | `()` | |
+| String | `EmitStringLen` | `()` | |
+| String | `EmitStringConcat` | `()` | |
+| String | `EmitStringGetChar` | `()` | |
+| String | `EmitStringSlice` | `()` | |
+| Diag | `EmitCallCheck` | `(sig_id)` | |
+| Diag | `EmitIntrinsic` | `(id)` | |
+| Diag | `EmitSysCall` | `(id)` | |
 
 ---
 
