@@ -490,3 +490,8 @@
 - Added IR→SBC tests for unsigned mul/sub and float mul/div helper coverage.
 - Added IR→SBC tests for i32 arith variants and i64 add/sub coverage.
 - Added a minimal typed IR text parser/lowerer and IR text smoke tests.
+
+## 2026-02-01
+- Split VM tests into modules (core/jit/ir) with a shared test utilities module and a slim test runner.
+- Added per-section test totals and a final aggregate total in the runner output.
+- Updated build scripts and CMake to compile the new test modules.

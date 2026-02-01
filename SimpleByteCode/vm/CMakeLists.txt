@@ -28,7 +28,11 @@ add_executable(simplevm
 )
 
 add_executable(simplevm_tests
+  tests/test_core.cpp
+  tests/test_ir.cpp
+  tests/test_jit.cpp
   tests/test_main.cpp
+  tests/test_utils.cpp
   ${SIMPLEVM_CORE_SRC}
 )
 
