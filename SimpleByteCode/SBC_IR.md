@@ -1,29 +1,35 @@
-# Simple VM IR (Design Requirements)
+# Simple VM IR (SIR) Language
 
-This document defines the Simple VM intermediate representation (IR) used to emit SBC bytecode.
+This document defines the Simple VM intermediate representation (SIR) used to emit SBC bytecode. It is intended
+for language implementers who want a stable, VM-typed IR target.
 
 ---
 
 ## 1. Goals
 
-- Provide a typed, VM-level emission layer similar to CLR IL.
+- Provide a typed, VM-level IR target similar to CLR IL (stack-based, opcode-centric).
 - Emit valid SBC bytecode with verified stack behavior.
 - Remain language-agnostic (compiler enforces language semantics).
+- Keep the IR easy to generate from compilers (no SSA requirement in v0.1).
 
 ---
 
-## 2. IR Model (v0.1)
+## 2. SIR Model (v0.1)
 
-- **Stack-based** instructions.
+- **Stack-based** instruction stream.
 - **VM types only**: `i32/i64/f32/f64/ref` and `void` for signatures.
-- IR is a **structured emitter** (labels + fixups) that writes SBC bytecode.
-- IR does **not** encode SSA or high-level AST semantics.
+- SIR is a **structured emitter** (labels + fixups) that writes SBC bytecode.
+- SIR does **not** encode SSA or high-level AST semantics.
+
+SIR exists in two forms:
+- **Programmatic IR builder** (C++ API) used by compilers.
+- **Optional text form** (for debugging/tests), parsed and lowered into the builder.
 
 ---
 
 ## 3. Instruction Form
 
-IR instructions map **1:1** to SBC opcodes.
+SIR instructions map **1:1** to SBC opcodes.
 
 - Zero-operand ops: `ADD_I32`, `RET`, `POP`, etc.
 - Fixed operands: `ENTER u16`, `CALL idx,u8`, `JMP i32`, `CONST_I32 u32`, etc.
@@ -32,11 +38,13 @@ IR instructions map **1:1** to SBC opcodes.
 
 ## 4. Module/Function Scope
 
-IR is emitted per function and then assembled into an SBC module:
+SIR is emitted per function and then assembled into an SBC module:
 
 - Each IR function emits a linear bytecode stream.
 - Module tables (types/fields/methods/sigs/globals/functions) are supplied by the language compiler.
-- The IR emitter does **not** infer signatures or types; it only emits opcodes.
+- The IR emitter does **not** infer signatures or types; it only emits opcodes and resolves labels.
+
+**Compiler responsibility:** supply all metadata tables and ensure indices used in SIR match those tables.
 
 ---
 
@@ -106,14 +114,81 @@ Required emitter operations:
 
 ---
 
-## 10. Validation
+## 10. SIR Text Form (Optional, v0.1)
+
+The text form is intentionally minimal and **not** required for production compilers. It is used for tests and
+debugging. The parser lowers directly into the IR builder.
+
+### 10.1 File Structure
+
+```
+module <name>
+func <name> locals=<u16> stack=<u16> sig=<sig_id>
+entry <label>
+  <instr>
+  ...
+endfunc
+```
+
+- `sig=<sig_id>` refers to the signature table row supplied by the compiler.
+- `locals=<u16>` and `stack=<u16>` are required for verifier constraints.
+
+### 10.2 Labels
+
+```
+label <name>
+jmp <label>
+jmpt <label>    // jmp_true
+jmpf <label>    // jmp_false
+```
+
+### 10.3 Constants (Examples)
+
+```
+const.i32 123
+const.i64 1000
+const.u32 42
+const.f32 1.5
+const.f64 2.0
+const.bool 1
+const.null
+```
+
+### 10.4 Core Arithmetic (Examples)
+
+```
+add.i32
+sub.i64
+mul.f32
+div.u64
+```
+
+### 10.5 Calls (Examples)
+
+```
+call <method_id> <arg_count>
+call.indirect <sig_id> <arg_count>
+tailcall <method_id> <arg_count>
+```
+
+### 10.6 Structured Jump Table (Example)
+
+```
+jmptable <default_label> <case_count> <label0> <label1> ... <labelN>
+```
+
+**Note:** The current text parser supports a subset of opcodes. Use the programmatic IR builder for full coverage.
+
+---
+
+## 11. Validation
 
 - IR builder enforces label binding and fixup resolution.
 - Runtime correctness is verified by existing SBC verifier.
 
 ---
 
-## 11. Imports + FFI Referencing (v0.1)
+## 12. Imports + FFI Referencing (v0.1)
 
 - FFI is modeled as **imports**, not special opcodes.
 - The IR emitter emits `CALL/CALL_INDIRECT/TAILCALL` against a method/sig that is mapped to an import.
@@ -130,7 +205,20 @@ Intrinsics/SysCalls remain VM-owned (`EmitIntrinsic/EmitSysCall`) and are not pa
 
 ---
 
-## 12. Status (Living Notes)
+## 13. Compiler Responsibilities (Checklist)
+
+When targeting SIR, the compiler must:
+
+1. **Define metadata tables** (Types, Fields, Methods, Signatures, Globals, Functions, Imports/Exports).
+2. **Lower to VM types** (`i32/i64/f32/f64/ref`) and select the matching opcode.
+3. **Emit correct stack behavior** (stack discipline and merge consistency).
+4. **Provide signature IDs** and use them in call opcodes.
+5. **Provide correct indices** for globals, fields, types, strings, and methods.
+6. **Set stack_max/local_count** for each function (verifier enforced).
+
+---
+
+## 14. Status (Living Notes)
 
 - Implemented: label-based IR builder that emits SBC bytecode, JmpTable fixups, and a broad set of opcode helpers.
 - Implemented: IR→SBC module packing via `IrModule`/`CompileToSbc` with tables supplied by the compiler.
@@ -138,7 +226,7 @@ Intrinsics/SysCalls remain VM-owned (`EmitIntrinsic/EmitSysCall`) and are not pa
 - Implemented: minimal typed IR text parser/lowerer (v0.1 subset) that lowers into the IR builder.
 - Planned: a true higher-level IR layer (separate from opcode emission) if needed, with its own lowering pass into the IR builder.
 
-## 13. Future Extensions
+## 15. Future Extensions
 
 - SSA-form IR (optional).
 - Optimization passes before bytecode emission.
