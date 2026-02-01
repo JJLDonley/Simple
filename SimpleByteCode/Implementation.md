@@ -533,6 +533,7 @@ Host API details moved to `SimpleByteCode/SBC_ABI.md`.
 - Added IR→SBC test for list get/set path.
 - Added IR→SBC tests for array get/set (F32 and Ref).
 - Added IR→SBC tests for list get/set (F32 and Ref).
+- Added IR→SBC tests for list get/set (I64 and F64).
 
 ## 9) Freeze Status (v0.1)
 
