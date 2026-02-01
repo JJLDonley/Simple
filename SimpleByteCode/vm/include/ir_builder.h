@@ -68,6 +68,9 @@ class IrBuilder {
   void EmitListSetRef();
   void EmitListPushRef();
   void EmitListPopRef();
+  void EmitListInsertI32();
+  void EmitListRemoveI32();
+  void EmitListClear();
   void EmitIsNull();
   void EmitRefEq();
   void EmitRefNe();

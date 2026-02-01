@@ -220,6 +220,18 @@ void IrBuilder::EmitListPopRef() {
   EmitOp(OpCode::ListPopRef);
 }
 
+void IrBuilder::EmitListInsertI32() {
+  EmitOp(OpCode::ListInsertI32);
+}
+
+void IrBuilder::EmitListRemoveI32() {
+  EmitOp(OpCode::ListRemoveI32);
+}
+
+void IrBuilder::EmitListClear() {
+  EmitOp(OpCode::ListClear);
+}
+
 void IrBuilder::EmitIsNull() {
   EmitOp(OpCode::IsNull);
 }

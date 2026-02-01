@@ -468,3 +468,4 @@
 - Added IR→SBC tests for array/list F64 and ref array paths.
 - Added IR→SBC tests for array F32 and list I64 paths.
 - Added IR→SBC tests for array/list length ops.
+- Added IR emitter list insert/remove/clear ops and IR→SBC tests.

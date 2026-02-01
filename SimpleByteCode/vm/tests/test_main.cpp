@@ -1544,6 +1544,81 @@ std::vector<uint8_t> BuildIrListLenModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrListInsertRemoveModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(1);
+  builder.EmitNewList(0, 4);
+  builder.EmitStoreLocal(0);
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(0);
+  builder.EmitConstI32(9);
+  builder.EmitListInsertI32();
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(0);
+  builder.EmitListRemoveI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 1;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 1);
+  if (!ExpectSbcEqual(out, expected, "ir_list_insert_remove_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrListClearModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(1);
+  builder.EmitNewList(0, 2);
+  builder.EmitStoreLocal(0);
+  builder.EmitLoadLocal(0);
+  builder.EmitConstI32(5);
+  builder.EmitListPushI32();
+  builder.EmitLoadLocal(0);
+  builder.EmitListClear();
+  builder.EmitConstI32(1);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 1;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 1);
+  if (!ExpectSbcEqual(out, expected, "ir_list_clear_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildModuleWithStackMax(const std::vector<uint8_t>& code,
                                              uint32_t global_count,
                                              uint16_t local_count,
@@ -20229,6 +20304,14 @@ bool RunIrEmitListLenTest() {
   return RunExpectExit(BuildIrListLenModule(), 0);
 }
 
+bool RunIrEmitListInsertRemoveTest() {
+  return RunExpectExit(BuildIrListInsertRemoveModule(), 9);
+}
+
+bool RunIrEmitListClearTest() {
+  return RunExpectExit(BuildIrListClearModule(), 1);
+}
+
 bool RunModTest() {
   std::vector<uint8_t> module_bytes = BuildModModule();
   return RunExpectExit(module_bytes, 1);
@@ -30983,6 +31066,8 @@ int main(int argc, char** argv) {
       {"ir_emit_list_i64", RunIrEmitListI64Test},
       {"ir_emit_array_len", RunIrEmitArrayLenTest},
       {"ir_emit_list_len", RunIrEmitListLenTest},
+      {"ir_emit_list_insert_remove", RunIrEmitListInsertRemoveTest},
+      {"ir_emit_list_clear", RunIrEmitListClearTest},
       {"bad_syscall_verify", RunBadSysCallVerifyTest},
       {"bad_merge_verify", RunBadMergeVerifyTest},
       {"bad_merge_height_verify", RunBadMergeHeightVerifyTest},
