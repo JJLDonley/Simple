@@ -1389,6 +1389,77 @@ std::vector<uint8_t> BuildIrF64DivModule() {
   return out;
 }
 
+std::vector<uint8_t> BuildIrI32ArithModule2() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(20);
+  builder.EmitConstI32(3);
+  builder.EmitModI32();
+  builder.EmitConstI32(5);
+  builder.EmitMulI32();
+  builder.EmitConstI32(4);
+  builder.EmitSubI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_i32_arith_module2")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrI64AddSubModule() {
+  simplevm::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI64(10);
+  builder.EmitConstI64(4);
+  builder.EmitSubI64();
+  builder.EmitConstI64(2);
+  builder.EmitAddI64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_i64_add_sub_module")) {
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrLocalsModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(1);
@@ -21991,6 +22062,14 @@ bool RunIrEmitF64DivTest() {
   return RunExpectExit(BuildIrF64DivModule(), 4);
 }
 
+bool RunIrEmitI32Arith2Test() {
+  return RunExpectExit(BuildIrI32ArithModule2(), 6);
+}
+
+bool RunIrEmitI64AddSubTest() {
+  return RunExpectExit(BuildIrI64AddSubModule(), 8);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -32930,6 +33009,8 @@ int main(int argc, char** argv) {
       {"ir_emit_u64_sub", RunIrEmitU64SubTest},
       {"ir_emit_f32_mul", RunIrEmitF32MulTest},
       {"ir_emit_f64_div", RunIrEmitF64DivTest},
+      {"ir_emit_i32_arith2", RunIrEmitI32Arith2Test},
+      {"ir_emit_i64_add_sub", RunIrEmitI64AddSubTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},
