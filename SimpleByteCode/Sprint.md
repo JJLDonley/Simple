@@ -471,3 +471,4 @@
 - Added IR emitter list insert/remove/clear ops and IR→SBC tests.
 - Added IR→SBC test for list get/set path.
 - Added IR→SBC tests for array get/set (F32 and Ref).
+- Added IR→SBC tests for list get/set (F32 and Ref).
