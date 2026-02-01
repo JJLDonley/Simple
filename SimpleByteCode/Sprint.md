@@ -483,3 +483,4 @@
 - Added IR→SBC tests for U64 arithmetic and U64/F64 compare helpers.
 - Added IR→SBC tests for additional F32/F64/U32/U64 arithmetic helper coverage.
 - Added IR→SBC tests for U32/U64 compare helper coverage.
+- Added IR→SBC tests for F32/F64 compare helper coverage.
