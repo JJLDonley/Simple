@@ -98,6 +98,8 @@ bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name);
 
+std::vector<uint8_t> BuildJmpTableModule(int32_t index);
+
 bool ExpectSbcEqual(const std::vector<uint8_t>& got,
                     const std::vector<uint8_t>& expected,
                     const char* name) {
@@ -224,6 +226,49 @@ std::vector<uint8_t> BuildIrJumpModule() {
   }
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_jmp_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrJmpTableModule(int32_t index) {
+  simplevm::IrBuilder builder;
+  simplevm::IrLabel case0 = builder.CreateLabel();
+  simplevm::IrLabel case1 = builder.CreateLabel();
+  simplevm::IrLabel def = builder.CreateLabel();
+  builder.EmitEnter(0);
+  builder.EmitConstI32(index);
+  builder.EmitJmpTable({case0, case1}, def);
+  builder.BindLabel(case0, nullptr);
+  builder.EmitConstI32(1);
+  builder.EmitRet();
+  builder.BindLabel(case1, nullptr);
+  builder.EmitConstI32(2);
+  builder.EmitRet();
+  builder.BindLabel(def, nullptr);
+  builder.EmitConstI32(3);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  simplevm::ir::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  module.const_pool = builder.const_pool();
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildJmpTableModule(index);
+  if (!ExpectSbcEqual(out, expected, "ir_jmp_table_module")) {
     return {};
   }
   return out;
@@ -20699,6 +20744,10 @@ bool RunIrEmitJumpTest() {
   return RunExpectExit(BuildIrJumpModule(), 7);
 }
 
+bool RunIrEmitJmpTableTest() {
+  return RunExpectExit(BuildIrJmpTableModule(1), 2);
+}
+
 bool RunIrEmitLocalsTest() {
   return RunExpectExit(BuildIrLocalsModule(), 9);
 }
@@ -31605,6 +31654,7 @@ int main(int argc, char** argv) {
       {"intrinsic_return_verify", RunIntrinsicReturnVerifyTest},
       {"ir_emit_add", RunIrEmitAddTest},
       {"ir_emit_jump", RunIrEmitJumpTest},
+      {"ir_emit_jmp_table", RunIrEmitJmpTableTest},
       {"ir_emit_locals", RunIrEmitLocalsTest},
       {"ir_emit_call", RunIrEmitCallTest},
       {"ir_emit_callcheck", RunIrEmitCallCheckTest},

@@ -2,7 +2,27 @@
 
 #include <cstring>
 
+#include "sbc_emitter.h"
+
 namespace simplevm {
+namespace {
+
+void AppendConstBlob(std::vector<uint8_t>& pool,
+                     uint32_t kind,
+                     const std::vector<uint8_t>& blob,
+                     uint32_t* out_const_id,
+                     uint32_t* out_payload_offset) {
+  uint32_t const_id = static_cast<uint32_t>(pool.size());
+  simplevm::sbc::AppendU32(pool, kind);
+  uint32_t payload_offset = static_cast<uint32_t>(pool.size() + 4);
+  simplevm::sbc::AppendU32(pool, payload_offset);
+  simplevm::sbc::AppendU32(pool, static_cast<uint32_t>(blob.size()));
+  pool.insert(pool.end(), blob.begin(), blob.end());
+  if (out_const_id) *out_const_id = const_id;
+  if (out_payload_offset) *out_payload_offset = payload_offset;
+}
+
+} // namespace
 
 IrLabel IrBuilder::CreateLabel() {
   IrLabel label{static_cast<uint32_t>(label_offsets_.size())};
@@ -92,6 +112,29 @@ void IrBuilder::EmitIntrinsic(uint32_t id) {
 void IrBuilder::EmitSysCall(uint32_t id) {
   EmitOp(OpCode::SysCall);
   EmitU32(id);
+}
+
+void IrBuilder::EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label) {
+  EmitOp(OpCode::JmpTable);
+  std::vector<uint8_t> blob;
+  simplevm::sbc::AppendU32(blob, static_cast<uint32_t>(cases.size()));
+  for (size_t i = 0; i < cases.size(); ++i) {
+    simplevm::sbc::AppendU32(blob, 0);
+  }
+
+  uint32_t const_id = 0;
+  uint32_t payload_offset = 0;
+  AppendConstBlob(const_pool_, 6, blob, &const_id, &payload_offset);
+  EmitU32(const_id);
+  EmitRel32Fixup(default_label);
+  IrJmpTable table;
+  table.table_base = code_.size();
+  table.payload_offset = payload_offset;
+  table.case_label_ids.reserve(cases.size());
+  for (const auto& label : cases) {
+    table.case_label_ids.push_back(label.id);
+  }
+  jmp_tables_.push_back(std::move(table));
 }
 
 void IrBuilder::EmitNewArray(uint32_t type_id, uint32_t length) {
@@ -462,6 +505,31 @@ bool IrBuilder::Finish(std::vector<uint8_t>* out, std::string* error) {
     code_[fixup.patch_offset + 1] = static_cast<uint8_t>((patch >> 8) & 0xFFu);
     code_[fixup.patch_offset + 2] = static_cast<uint8_t>((patch >> 16) & 0xFFu);
     code_[fixup.patch_offset + 3] = static_cast<uint8_t>((patch >> 24) & 0xFFu);
+  }
+  for (const auto& table : jmp_tables_) {
+    if (table.payload_offset + 8 + table.case_label_ids.size() * 4 > const_pool_.size()) {
+      if (error) *error = "jmp table const pool out of bounds";
+      return false;
+    }
+    for (size_t i = 0; i < table.case_label_ids.size(); ++i) {
+      uint32_t label_id = table.case_label_ids[i];
+      if (label_id >= label_offsets_.size()) {
+        if (error) *error = "label id out of range";
+        return false;
+      }
+      int64_t target = label_offsets_[label_id];
+      if (target < 0) {
+        if (error) *error = "label not bound";
+        return false;
+      }
+      int64_t rel = target - static_cast<int64_t>(table.table_base);
+      uint32_t patch = static_cast<uint32_t>(static_cast<int32_t>(rel));
+      size_t offset = static_cast<size_t>(table.payload_offset) + 8 + i * 4;
+      const_pool_[offset + 0] = static_cast<uint8_t>(patch & 0xFFu);
+      const_pool_[offset + 1] = static_cast<uint8_t>((patch >> 8) & 0xFFu);
+      const_pool_[offset + 2] = static_cast<uint8_t>((patch >> 16) & 0xFFu);
+      const_pool_[offset + 3] = static_cast<uint8_t>((patch >> 24) & 0xFFu);
+    }
   }
   *out = code_;
   return true;

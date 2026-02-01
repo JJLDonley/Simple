@@ -37,6 +37,7 @@ class IrBuilder {
   void EmitCallCheck();
   void EmitIntrinsic(uint32_t id);
   void EmitSysCall(uint32_t id);
+  void EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label);
   void EmitNewArray(uint32_t type_id, uint32_t length);
   void EmitArrayLen();
   void EmitArrayGetI32();
@@ -122,8 +123,15 @@ class IrBuilder {
   void EmitJmpFalse(IrLabel label);
 
   bool Finish(std::vector<uint8_t>* out, std::string* error);
+  const std::vector<uint8_t>& const_pool() const { return const_pool_; }
 
  private:
+  struct IrJmpTable {
+    std::size_t table_base = 0;
+    uint32_t payload_offset = 0;
+    std::vector<uint32_t> case_label_ids;
+  };
+
   void EmitU8(uint8_t value);
   void EmitU16(uint16_t value);
   void EmitU32(uint32_t value);
@@ -135,6 +143,8 @@ class IrBuilder {
   std::vector<uint8_t> code_;
   std::vector<int64_t> label_offsets_;
   std::vector<IrFixup> fixups_;
+  std::vector<uint8_t> const_pool_;
+  std::vector<IrJmpTable> jmp_tables_;
 };
 
 } // namespace simplevm
