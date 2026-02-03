@@ -190,6 +190,20 @@ bool LangParsesArrayListAndIndex() {
   return true;
 }
 
+bool LangParsesAssignments() {
+  const char* src = "main : i32 () { x : i32 = 1; x += 2; x = x * 3; return x; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.size() < 3) return false;
+  if (body[1].kind != Simple::Lang::StmtKind::Assign) return false;
+  if (body[1].assign_op != "+=") return false;
+  if (body[2].kind != Simple::Lang::StmtKind::Assign) return false;
+  if (body[2].assign_op != "=") return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -202,6 +216,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
+  {"lang_parse_assignments", LangParsesAssignments},
 };
 
 } // namespace

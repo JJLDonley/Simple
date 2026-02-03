@@ -60,14 +60,28 @@ struct Expr {
   std::vector<Expr> args;
 };
 
+struct VarDecl {
+  std::string name;
+  Mutability mutability = Mutability::Mutable;
+  TypeRef type;
+  std::vector<Token> init_tokens;
+  bool has_init_expr = false;
+  Expr init_expr;
+};
+
 enum class StmtKind : uint8_t {
   Return,
   Expr,
+  Assign,
+  VarDecl,
 };
 
 struct Stmt {
   StmtKind kind = StmtKind::Expr;
   Expr expr;
+  Expr target;
+  std::string assign_op;
+  VarDecl var_decl;
 };
 
 struct FuncDecl {
@@ -77,13 +91,6 @@ struct FuncDecl {
   TypeRef return_type;
   std::vector<ParamDecl> params;
   std::vector<Stmt> body;
-};
-
-struct VarDecl {
-  std::string name;
-  Mutability mutability = Mutability::Mutable;
-  TypeRef type;
-  std::vector<Token> init_tokens;
 };
 
 struct ArtifactDecl {

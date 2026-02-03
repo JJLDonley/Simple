@@ -410,6 +410,80 @@ bool Parser::ParseStmt(Stmt* out) {
     }
     return true;
   }
+
+  if (Peek().kind == TokenKind::Identifier &&
+      (Peek(1).kind == TokenKind::Colon || Peek(1).kind == TokenKind::DoubleColon)) {
+    Token name_tok = Advance();
+    Mutability mut = Mutability::Mutable;
+    if (Match(TokenKind::Colon)) {
+      mut = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      mut = Mutability::Immutable;
+    }
+    TypeRef type;
+    if (!ParseTypeInner(&type)) return false;
+    if (!Match(TokenKind::Assign)) {
+      error_ = "expected '=' in variable declaration";
+      return false;
+    }
+    Expr init;
+    if (!ParseExpr(&init)) return false;
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after variable declaration";
+      return false;
+    }
+    if (out) {
+      out->kind = StmtKind::VarDecl;
+      out->var_decl.name = name_tok.text;
+      out->var_decl.mutability = mut;
+      out->var_decl.type = std::move(type);
+      out->var_decl.has_init_expr = true;
+      out->var_decl.init_expr = std::move(init);
+    }
+    return true;
+  }
+
+  size_t save = index_;
+  Expr target;
+  if (ParsePostfixExpr(&target)) {
+    const Token& op = Peek();
+    bool is_assign = false;
+    switch (op.kind) {
+      case TokenKind::Assign:
+      case TokenKind::PlusEq:
+      case TokenKind::MinusEq:
+      case TokenKind::StarEq:
+      case TokenKind::SlashEq:
+      case TokenKind::PercentEq:
+      case TokenKind::AmpEq:
+      case TokenKind::PipeEq:
+      case TokenKind::CaretEq:
+      case TokenKind::ShlEq:
+      case TokenKind::ShrEq:
+        is_assign = true;
+        break;
+      default:
+        break;
+    }
+    if (is_assign) {
+      Advance();
+      Expr value;
+      if (!ParseExpr(&value)) return false;
+      if (!Match(TokenKind::Semicolon)) {
+        error_ = "expected ';' after assignment";
+        return false;
+      }
+      if (out) {
+        out->kind = StmtKind::Assign;
+        out->target = std::move(target);
+        out->assign_op = op.text;
+        out->expr = std::move(value);
+      }
+      return true;
+    }
+  }
+  index_ = save;
+
   Expr expr;
   if (!ParseExpr(&expr)) return false;
   if (!Match(TokenKind::Semicolon)) {
