@@ -1237,7 +1237,21 @@ bool CheckExpr(const Expr& expr,
       }
       if (expr.text == "len") return true;
       if (FindLocal(scopes, expr.text)) return true;
-      if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
+      if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
+        if (ctx.modules.find(expr.text) != ctx.modules.end()) {
+          if (error) *error = "module is not a value: " + expr.text;
+          return false;
+        }
+        if (ctx.artifacts.find(expr.text) != ctx.artifacts.end()) {
+          if (error) *error = "type is not a value: " + expr.text;
+          return false;
+        }
+        if (ctx.enum_types.find(expr.text) != ctx.enum_types.end()) {
+          if (error) *error = "enum type is not a value: " + expr.text;
+          return false;
+        }
+        return true;
+      }
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
         return false;
@@ -1282,6 +1296,13 @@ bool CheckExpr(const Expr& expr,
       }
       return true;
     case ExprKind::Member:
+      if (expr.op == "." && !expr.children.empty()) {
+        const Expr& base = expr.children[0];
+        if (base.kind == ExprKind::Identifier &&
+            ctx.enum_types.find(base.text) != ctx.enum_types.end()) {
+          return true;
+        }
+      }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (expr.op == "::" && !expr.children.empty()) {
         const Expr& base = expr.children[0];

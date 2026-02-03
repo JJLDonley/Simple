@@ -288,6 +288,27 @@ bool LangValidateEnumMissingValue() {
   return true;
 }
 
+bool LangValidateEnumTypeNotValue() {
+  const char* src = "Color :: enum { Red = 1 } main : i32 () { x : i32 = Color; return x; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateModuleNotValue() {
+  const char* src = "Math :: module { } main : void () { x : i32 = Math; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactTypeNotValue() {
+  const char* src = "Point :: artifact { x : i32 } main : void () { p : Point = Point; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateTopLevelDuplicate() {
   const char* src = "A :: enum { Red } A :: artifact { x : i32 }";
   std::string error;
@@ -1153,6 +1174,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
   {"lang_validate_enum_missing_value", LangValidateEnumMissingValue},
+  {"lang_validate_enum_type_not_value", LangValidateEnumTypeNotValue},
+  {"lang_validate_module_not_value", LangValidateModuleNotValue},
+  {"lang_validate_artifact_type_not_value", LangValidateArtifactTypeNotValue},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
