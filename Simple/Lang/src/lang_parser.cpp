@@ -960,6 +960,11 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     if (out) *out = std::move(expr);
     return true;
   }
+  if (tok.kind == TokenKind::LParen) {
+    size_t save = index_;
+    if (ParseFnLiteral(out)) return true;
+    index_ = save;
+  }
   if (tok.kind == TokenKind::Identifier) {
     Expr expr;
     expr.kind = ExprKind::Identifier;
@@ -1035,6 +1040,32 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
   }
   error_ = "expected expression";
   return false;
+}
+
+bool Parser::ParseFnLiteral(Expr* out) {
+  if (!Match(TokenKind::LParen)) return false;
+  size_t start_index = index_ - 1;
+  std::vector<ParamDecl> params;
+  if (!Match(TokenKind::RParen)) {
+    for (;;) {
+      ParamDecl param;
+      if (!ParseParam(&param)) return false;
+      params.push_back(std::move(param));
+      if (Match(TokenKind::Comma)) continue;
+      if (Match(TokenKind::RParen)) break;
+      error_ = "expected ',' or ')' after parameter";
+      return false;
+    }
+  }
+  std::vector<Token> body_tokens;
+  if (!ParseBlockTokens(&body_tokens)) return false;
+  body_tokens.insert(body_tokens.begin(), tokens_[start_index]);
+  if (out) {
+    out->kind = ExprKind::FnLiteral;
+    out->fn_params = std::move(params);
+    out->fn_body_tokens = std::move(body_tokens);
+  }
+  return true;
 }
 
 bool Parser::ParseCallArgs(std::vector<Expr>* out) {

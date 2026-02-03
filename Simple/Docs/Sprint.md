@@ -616,3 +616,5 @@
 - Added Simple::Lang parsing for `fn` keyword top-level functions with tests.
 - Allowed `return;` without expression for void functions and added test coverage.
 - Added Simple::Lang parsing for qualified member access using `::` with tests.
+- Added Simple::Lang `fn` literal parsing in expressions with tests.
+- Adjusted `fn` literal test to use procedure type syntax in variable declarations.

@@ -268,6 +268,22 @@ bool LangParsesArtifactLiteral() {
   return true;
 }
 
+bool LangParsesFnLiteral() {
+  const char* src = "main : void () { f : (i32) : i32 = (x : i32) { return x; }; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.empty()) return false;
+  if (body[0].kind != Simple::Lang::StmtKind::VarDecl) return false;
+  if (!body[0].var_decl.has_init_expr) return false;
+  const auto& init = body[0].var_decl.init_expr;
+  if (init.kind != Simple::Lang::ExprKind::FnLiteral) return false;
+  if (init.fn_params.size() != 1) return false;
+  if (init.fn_body_tokens.empty()) return false;
+  return true;
+}
+
 bool LangParsesAssignments() {
   const char* src = "main : i32 () { x : i32 = 1; x += 2; x = x * 3; return x; }";
   Simple::Lang::Program program;
@@ -380,6 +396,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
+  {"lang_parse_fn_literal", LangParsesFnLiteral},
   {"lang_parse_assignments", LangParsesAssignments},
   {"lang_parse_inc_dec", LangParsesIncDec},
   {"lang_parse_if_chain", LangParsesIfChain},

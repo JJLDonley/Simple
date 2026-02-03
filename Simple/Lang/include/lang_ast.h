@@ -47,6 +47,7 @@ enum class ExprKind : uint8_t {
   ArrayLiteral,
   ListLiteral,
   ArtifactLiteral,
+  FnLiteral,
 };
 
 enum class LiteralKind : uint8_t {
@@ -66,6 +67,8 @@ struct Expr {
   std::vector<Expr> args;
   std::vector<std::string> field_names;
   std::vector<Expr> field_values;
+  std::vector<ParamDecl> fn_params;
+  std::vector<Token> fn_body_tokens;
 };
 
 struct VarDecl {

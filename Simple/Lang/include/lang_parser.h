@@ -55,6 +55,7 @@ private:
   bool ParsePrimaryExpr(Expr* out);
   bool ParseCallArgs(std::vector<Expr>* out);
   bool ParseBracketExprList(std::vector<Expr>* out);
+  bool ParseFnLiteral(Expr* out);
   int GetBinaryPrecedence(const Token& tok) const;
 
   std::vector<Token> tokens_;
