@@ -193,6 +193,9 @@ bool CheckCompoundAssignOp(const std::string& op,
                            const TypeRef& lhs,
                            const TypeRef& rhs,
                            std::string* error);
+bool CheckFnLiteralAgainstType(const Expr& fn_expr,
+                               const TypeRef& target_type,
+                               std::string* error);
 
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
@@ -784,6 +787,9 @@ bool CheckStmt(const Stmt& stmt,
         TypeRef value_type;
         bool have_target = InferExprType(stmt.target, ctx, scopes, current_artifact, &target_type);
         bool have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
+        if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
+          if (!CheckFnLiteralAgainstType(stmt.expr, target_type, error)) return false;
+        }
         if (have_target && have_value && !TypeEquals(target_type, value_type)) {
           if (error) *error = "assignment type mismatch";
           return false;
@@ -835,6 +841,11 @@ bool CheckStmt(const Stmt& stmt,
       }
       if (stmt.var_decl.has_init_expr) {
         if (!CheckExpr(stmt.var_decl.init_expr, ctx, scopes, current_artifact, error)) return false;
+        if (stmt.var_decl.init_expr.kind == ExprKind::FnLiteral) {
+          if (!CheckFnLiteralAgainstType(stmt.var_decl.init_expr, stmt.var_decl.type, error)) {
+            return false;
+          }
+        }
         if ((stmt.var_decl.init_expr.kind == ExprKind::ArrayLiteral ||
              stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) &&
             !stmt.var_decl.type.dims.empty()) {
@@ -1329,6 +1340,30 @@ bool CheckCompoundAssignOp(const std::string& op,
       return false;
     }
     return true;
+  }
+  return true;
+}
+
+bool CheckFnLiteralAgainstType(const Expr& fn_expr,
+                               const TypeRef& target_type,
+                               std::string* error) {
+  if (!target_type.is_proc) {
+    if (error) *error = "fn literal requires procedure type";
+    return false;
+  }
+  if (fn_expr.fn_params.size() != target_type.proc_params.size()) {
+    if (error) {
+      *error = "fn literal parameter count mismatch: expected " +
+               std::to_string(target_type.proc_params.size()) + ", got " +
+               std::to_string(fn_expr.fn_params.size());
+    }
+    return false;
+  }
+  for (size_t i = 0; i < fn_expr.fn_params.size(); ++i) {
+    if (!TypeEquals(fn_expr.fn_params[i].type, target_type.proc_params[i])) {
+      if (error) *error = "fn literal parameter type mismatch";
+      return false;
+    }
   }
   return true;
 }
