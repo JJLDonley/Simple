@@ -5472,6 +5472,113 @@ bool RunIrTextArraySetRefOutOfBoundsTrapTest() {
   return RunExpectTrap(module, "ir_text_array_set_ref_oob");
 }
 
+bool RunIrTextArrayGetNegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_get_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_get_neg_idx");
+}
+
+bool RunIrTextArraySetI32NegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.i32 3\n"
+      "  array.set.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_i32_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_i32_neg_idx");
+}
+
+bool RunIrTextArraySetI64NegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.i64 3\n"
+      "  array.set.i64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_i64_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_i64_neg_idx");
+}
+
+bool RunIrTextArraySetF32NegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.f32 1.0\n"
+      "  array.set.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_f32_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_f32_neg_idx");
+}
+
+bool RunIrTextArraySetF64NegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.f64 1.0\n"
+      "  array.set.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_f64_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_f64_neg_idx");
+}
+
+bool RunIrTextArraySetRefNegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.null\n"
+      "  array.set.ref\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_ref_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_ref_neg_idx");
+}
+
 bool RunIrTextListPopEmptyTrapTest() {
   const char* text =
       "func main locals=1 stack=8\n"
@@ -5486,6 +5593,41 @@ bool RunIrTextListPopEmptyTrapTest() {
   auto module = BuildIrTextModule(text, "ir_text_list_pop_empty");
   if (module.empty()) return false;
   return RunExpectTrap(module, "ir_text_list_pop_empty");
+}
+
+bool RunIrTextListGetNegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  list.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_get_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_get_neg_idx");
+}
+
+bool RunIrTextListSetNegativeIndexTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 -1\n"
+      "  const.i32 2\n"
+      "  list.set.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_set_neg_idx");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_set_neg_idx");
 }
 
 bool RunIrTextListInsertI32OutOfBoundsTrapTest() {
@@ -6360,7 +6502,15 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_set_f32_oob", RunIrTextArraySetF32OutOfBoundsTrapTest},
   {"ir_text_array_set_f64_oob", RunIrTextArraySetF64OutOfBoundsTrapTest},
   {"ir_text_array_set_ref_oob", RunIrTextArraySetRefOutOfBoundsTrapTest},
+  {"ir_text_array_get_neg_idx", RunIrTextArrayGetNegativeIndexTrapTest},
+  {"ir_text_array_set_i32_neg_idx", RunIrTextArraySetI32NegativeIndexTrapTest},
+  {"ir_text_array_set_i64_neg_idx", RunIrTextArraySetI64NegativeIndexTrapTest},
+  {"ir_text_array_set_f32_neg_idx", RunIrTextArraySetF32NegativeIndexTrapTest},
+  {"ir_text_array_set_f64_neg_idx", RunIrTextArraySetF64NegativeIndexTrapTest},
+  {"ir_text_array_set_ref_neg_idx", RunIrTextArraySetRefNegativeIndexTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
+  {"ir_text_list_get_neg_idx", RunIrTextListGetNegativeIndexTrapTest},
+  {"ir_text_list_set_neg_idx", RunIrTextListSetNegativeIndexTrapTest},
   {"ir_text_list_insert_i32_oob", RunIrTextListInsertI32OutOfBoundsTrapTest},
   {"ir_text_list_insert_i64_oob", RunIrTextListInsertI64OutOfBoundsTrapTest},
   {"ir_text_list_insert_f32_oob", RunIrTextListInsertF32OutOfBoundsTrapTest},
