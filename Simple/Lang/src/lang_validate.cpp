@@ -1425,6 +1425,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> local_members;
           for (const auto& member : decl.enm.members) {
+            if (!member.has_value) {
+              if (error) *error = "enum member requires explicit value: " + member.name;
+              return false;
+            }
             if (!local_members.insert(member.name).second) {
               if (error) *error = "duplicate enum member: " + member.name;
               return false;

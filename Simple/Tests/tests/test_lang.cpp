@@ -254,28 +254,35 @@ bool LangParsesSelf() {
 }
 
 bool LangValidateEnumQualified() {
-  const char* src = "Color :: enum { Red } main : i32 () { return Color.Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color.Red; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumQualifiedDot() {
-  const char* src = "Color :: enum { Red } main : i32 () { return Color::Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color::Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumUnqualified() {
-  const char* src = "Color :: enum { Red } main : i32 () { return Red; }";
+  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumDuplicateMember() {
-  const char* src = "Color :: enum { Red, Red }";
+  const char* src = "Color :: enum { Red = 1, Red = 2 }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateEnumMissingValue() {
+  const char* src = "Color :: enum { Red }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -1145,6 +1152,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
+  {"lang_validate_enum_missing_value", LangValidateEnumMissingValue},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},

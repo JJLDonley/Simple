@@ -666,3 +666,4 @@
 - Added Simple::Lang boolean-only condition validation for if/if-chain/while/for, with tests.
 - Added Simple::Lang artifact literal field type validation (positional/named), with tests.
 - Added Simple::Lang builtin len() validation for arrays/lists with positive and negative tests.
+- Added Simple::Lang validation requiring explicit enum member values, with updated enum tests and a new missing-value negative test.
