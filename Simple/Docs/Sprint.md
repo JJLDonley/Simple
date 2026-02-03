@@ -633,3 +633,4 @@
 - Scoped `for` loop init/condition/update within a dedicated local scope and added tests.
 - Added Simple::Lang undeclared identifier validation with tests.
 - Added Simple::Lang all-paths return validation for non-void functions with tests.
+- Removed unions from Simple Lang docs and reserved keyword list.

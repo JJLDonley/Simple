@@ -85,7 +85,7 @@ This applies to:
 
 ```
 while, for, break, skip, return, default
-fn, self, artifact, enum, module, union
+fn, self, artifact, enum, module
 ```
 
 ### Operators
@@ -274,9 +274,6 @@ Math :: module {
     }
 }
 ```
-
-#### unions (Reserved)
-Strictly scoped tagged unions declared with `:: union`. The keyword is reserved, and implementation is still deferred.
 
 ---
 
@@ -837,7 +834,7 @@ len : i32 = len(jagged[2])    // Length of second row (6)
 
 1. **Block scope**: Variables declared in a block are only visible within that block
 2. **Shadowing allowed**: Inner scope variables can shadow outer scope variables
-3. **enum and union scoping**: enum values (and union values once implemented) must always be qualified with their type name
+3. **enum scoping**: enum values must always be qualified with their type name
    ```
    Status.Active      // OK
    Active             // ERROR: unqualified enum value
@@ -1626,17 +1623,6 @@ main : i32 () {
 
 ## Future Considerations
 
-### unions (Tagged unions)
-
-```
-Success<T> :: union {
-    Result : bool
-    Data : T
-}
-```
-
-The `:: union` declaration is a strictly scoped tagged union whose variants carry payloads, similar to an algebraic data type or `Result` type. We can refer to variants as `Success<bool>.Result` or `Success<string>.Data`, giving a natural way to express outcomes that include either metadata or typed data. unions are still planned, but no longer blocked by generics.
-
 ### Pattern Matching
 
 ```
@@ -1730,7 +1716,7 @@ generic_arguments ::= "<" type ("," type)* ">"
 
 ```
 while, for, break, skip, return, default, fn, self,
-artifact, enum, module, union,
+artifact, enum, module,
 true, false
 ```
 
@@ -2062,7 +2048,6 @@ This plan covers:
 
 ## Non-Goals
 
-- [ ] Implementing unions (reserved)
 - [ ] Implementing pointers/unsafe system
 - [ ] Pattern matching
 - [ ] Modules/packages/import system
