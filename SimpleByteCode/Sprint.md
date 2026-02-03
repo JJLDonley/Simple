@@ -512,3 +512,4 @@
 - Added SIR text tests for closures/upvalues and invalid newclosure method id.
 - Added SIR text tests for string concat/get-char/slice.
 - Added SIR text tests for array get/set with i64/f32/f64/ref variants.
+- Added SIR text tests for list push/pop with i64/f32/f64/ref variants.

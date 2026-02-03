@@ -4287,6 +4287,116 @@ bool RunIrTextArrayRefTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextListI64Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i64 3\n"
+      "  list.push.i64\n"
+      "  ldloc 0\n"
+      "  list.pop.i64\n"
+      "  conv.i64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_i64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
+bool RunIrTextListF32Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.f32 2.5\n"
+      "  list.push.f32\n"
+      "  ldloc 0\n"
+      "  list.pop.f32\n"
+      "  conv.f32.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_f32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
+bool RunIrTextListF64Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.f64 4.0\n"
+      "  list.push.f64\n"
+      "  ldloc 0\n"
+      "  list.pop.f64\n"
+      "  conv.f64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_f64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 4);
+}
+
+bool RunIrTextListRefTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  newobj 1\n"
+      "  list.push.ref\n"
+      "  ldloc 0\n"
+      "  list.pop.ref\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_list_ref",
+                                            std::move(types), {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4396,6 +4506,10 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_f32", RunIrTextArrayF32Test},
   {"ir_text_array_f64", RunIrTextArrayF64Test},
   {"ir_text_array_ref", RunIrTextArrayRefTest},
+  {"ir_text_list_i64", RunIrTextListI64Test},
+  {"ir_text_list_f32", RunIrTextListF32Test},
+  {"ir_text_list_f64", RunIrTextListF64Test},
+  {"ir_text_list_ref", RunIrTextListRefTest},
 };
 
 static const TestSection kIrSections[] = {
