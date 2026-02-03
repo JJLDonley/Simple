@@ -722,6 +722,10 @@ bool CheckStmt(const Stmt& stmt,
                                             error)) {
             return false;
           }
+        } else if (have_target &&
+                   (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral)) {
+          if (error) *error = "array/list literal requires array or list type";
+          return false;
         }
       }
       return true;
@@ -762,6 +766,10 @@ bool CheckStmt(const Stmt& stmt,
                                             error)) {
             return false;
           }
+        } else if (stmt.var_decl.init_expr.kind == ExprKind::ArrayLiteral ||
+                   stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) {
+          if (error) *error = "array/list literal requires array or list type";
+          return false;
         }
         TypeRef init_type;
         if (InferExprType(stmt.var_decl.init_expr, ctx, scopes, current_artifact, &init_type)) {

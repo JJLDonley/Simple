@@ -804,6 +804,27 @@ bool LangValidateNestedListLiteralElementMismatch() {
   return true;
 }
 
+bool LangValidateArrayLiteralScalarTarget() {
+  const char* src = "main : void () { a : i32 = [1,2]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateListLiteralScalarTarget() {
+  const char* src = "main : void () { a : i32 = []; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateListLiteralOk() {
+  const char* src = "main : void () { a : i32[] = [1,2]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateUnaryTypeMismatch() {
   const char* src = "main : i32 () { return !1; }";
   std::string error;
@@ -1119,6 +1140,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_array_literal_nested_element_mismatch", LangValidateArrayLiteralNestedElementMismatch},
   {"lang_validate_list_literal_element_mismatch", LangValidateListLiteralElementMismatch},
   {"lang_validate_nested_list_literal_element_mismatch", LangValidateNestedListLiteralElementMismatch},
+  {"lang_validate_array_literal_scalar_target", LangValidateArrayLiteralScalarTarget},
+  {"lang_validate_list_literal_scalar_target", LangValidateListLiteralScalarTarget},
+  {"lang_validate_list_literal_ok", LangValidateListLiteralOk},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},
   {"lang_validate_binary_type_mismatch", LangValidateBinaryTypeMismatch},
   {"lang_validate_comparison_type_mismatch", LangValidateComparisonTypeMismatch},
