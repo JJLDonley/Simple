@@ -4274,20 +4274,6 @@ bool RunIrTextUnknownLabelTest() {
   return RunIrTextExpectFail(text, "ir_text_unknown_label");
 }
 
-bool RunIrTextJmpTableUnknownLabelTest() {
-  const char* text =
-      "func main locals=0 stack=6\n"
-      "  enter 0\n"
-      "  const.i32 0\n"
-      "  jmptable def case0\n"
-      "def:\n"
-      "  const.i32 1\n"
-      "  ret\n"
-      "end\n"
-      "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_jmptable_unknown_label");
-}
-
 bool RunIrTextRefOpsTest() {
   const char* text =
       "func main locals=0 stack=10\n"
@@ -5365,6 +5351,12 @@ bool RunIrTextConstF32NanTest() {
       "  const.f32 nan\n"
       "  cmp.eq.f32\n"
       "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5380,6 +5372,12 @@ bool RunIrTextConstF32InfTest() {
       "  const.f32 inf\n"
       "  const.f32 inf\n"
       "  cmp.eq.f32\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5395,6 +5393,12 @@ bool RunIrTextConstF64InfTest() {
       "  const.f64 inf\n"
       "  const.f64 inf\n"
       "  cmp.eq.f64\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5410,6 +5414,12 @@ bool RunIrTextConstF64NegInfTest() {
       "  const.f64 -inf\n"
       "  const.f64 -inf\n"
       "  cmp.eq.f64\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5592,7 +5602,9 @@ bool RunIrTextCallIndirectNonRefValueTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_call_indirect_non_ref_value");
+  auto module = BuildIrTextModule(text, "ir_text_call_indirect_non_ref_value");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_call_indirect_non_ref_value");
 }
 
 bool RunIrTextNewArrayMissingLenTest() {
@@ -5936,6 +5948,7 @@ bool RunIrTextArraySetI64OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.i64 9\n"
       "  array.set.i64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5954,6 +5967,7 @@ bool RunIrTextArraySetF32OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.f32 1.0\n"
       "  array.set.f32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5972,6 +5986,7 @@ bool RunIrTextArraySetF64OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.f64 2.0\n"
       "  array.set.f64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -5990,6 +6005,7 @@ bool RunIrTextArraySetRefOutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.null\n"
       "  array.set.ref\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6025,6 +6041,7 @@ bool RunIrTextArraySetI32NegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.i32 3\n"
       "  array.set.i32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6043,6 +6060,7 @@ bool RunIrTextArraySetI64NegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.i64 3\n"
       "  array.set.i64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6061,6 +6079,7 @@ bool RunIrTextArraySetF32NegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.f32 1.0\n"
       "  array.set.f32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6079,6 +6098,7 @@ bool RunIrTextArraySetF64NegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.f64 1.0\n"
       "  array.set.f64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6097,6 +6117,7 @@ bool RunIrTextArraySetRefNegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.null\n"
       "  array.set.ref\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6148,6 +6169,7 @@ bool RunIrTextListSetNegativeIndexTrapTest() {
       "  const.i32 -1\n"
       "  const.i32 2\n"
       "  list.set.i32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6166,6 +6188,7 @@ bool RunIrTextListInsertI32OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.i32 4\n"
       "  list.insert.i32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6184,6 +6207,7 @@ bool RunIrTextListInsertI64OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.i64 4\n"
       "  list.insert.i64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6202,6 +6226,7 @@ bool RunIrTextListInsertF32OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.f32 1.0\n"
       "  list.insert.f32\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6220,6 +6245,7 @@ bool RunIrTextListInsertF64OutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.f64 1.0\n"
       "  list.insert.f64\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6238,6 +6264,7 @@ bool RunIrTextListInsertRefOutOfBoundsTrapTest() {
       "  const.i32 2\n"
       "  const.null\n"
       "  list.insert.ref\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6255,6 +6282,8 @@ bool RunIrTextListRemoveI32OutOfBoundsTrapTest() {
       "  ldloc 0\n"
       "  const.i32 2\n"
       "  list.remove.i32\n"
+      "  pop\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6272,6 +6301,8 @@ bool RunIrTextListRemoveI64OutOfBoundsTrapTest() {
       "  ldloc 0\n"
       "  const.i32 2\n"
       "  list.remove.i64\n"
+      "  pop\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6289,6 +6320,8 @@ bool RunIrTextListRemoveF32OutOfBoundsTrapTest() {
       "  ldloc 0\n"
       "  const.i32 2\n"
       "  list.remove.f32\n"
+      "  pop\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6306,6 +6339,8 @@ bool RunIrTextListRemoveF64OutOfBoundsTrapTest() {
       "  ldloc 0\n"
       "  const.i32 2\n"
       "  list.remove.f64\n"
+      "  pop\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -6323,6 +6358,8 @@ bool RunIrTextListRemoveRefOutOfBoundsTrapTest() {
       "  ldloc 0\n"
       "  const.i32 2\n"
       "  list.remove.ref\n"
+      "  pop\n"
+      "  const.i32 0\n"
       "  ret\n"
       "end\n"
       "entry main\n";

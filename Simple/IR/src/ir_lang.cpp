@@ -37,6 +37,7 @@ std::vector<std::string> SplitTokens(const std::string& line) {
 
 bool ParseUint(const std::string& text, uint64_t* out) {
   if (!out) return false;
+  if (text.empty() || text[0] == '-') return false;
   try {
     size_t idx = 0;
     uint64_t value = std::stoull(text, &idx, 0);
