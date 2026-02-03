@@ -5285,6 +5285,39 @@ bool RunIrTextCallMissingSigTest() {
   return RunIrTextExpectFail(text, "ir_text_call_missing_sig");
 }
 
+bool RunIrTextConstU128UnsupportedTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u128 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u128_unsupported");
+}
+
+bool RunIrTextConstI128BadTokenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i128 not_a_number\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i128_bad_token");
+}
+
+bool RunIrTextConstU64BadTokenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u64 nope\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u64_bad_token");
+}
+
 bool RunIrTextArrayGetOutOfBoundsTrapTest() {
   const char* text =
       "func main locals=1 stack=8\n"
@@ -6001,6 +6034,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_indirect_bad_sig_id", RunIrTextCallIndirectBadSigIdTextTest},
   {"ir_text_jmptable_missing_label", RunIrTextJmpTableMissingLabelTest},
   {"ir_text_bad_locals_count", RunIrTextBadLocalsCountTest},
+  {"ir_text_const_u128_unsupported", RunIrTextConstU128UnsupportedTest},
+  {"ir_text_const_i128_bad_token", RunIrTextConstI128BadTokenTest},
+  {"ir_text_const_u64_bad_token", RunIrTextConstU64BadTokenTest},
   {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
