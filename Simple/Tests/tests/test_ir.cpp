@@ -5456,6 +5456,77 @@ bool RunIrTextBadSigTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_sig_token");
 }
 
+bool RunIrTextEntryUnknownFuncTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry missing\n";
+  return RunIrTextExpectFail(text, "ir_text_entry_unknown_func");
+}
+
+bool RunIrTextDuplicateFuncTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_duplicate_func");
+}
+
+bool RunIrTextBadLocalsTokenTest() {
+  const char* text =
+      "func main locals=abc stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_locals_token");
+}
+
+bool RunIrTextBadStackTokenTest() {
+  const char* text =
+      "func main locals=0 stack=abc\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_stack_token");
+}
+
+bool RunIrTextNegativeLocalsTest() {
+  const char* text =
+      "func main locals=-1 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_negative_locals");
+}
+
+bool RunIrTextNegativeStackTest() {
+  const char* text =
+      "func main locals=0 stack=-4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_negative_stack");
+}
+
 bool RunIrTextLabelBeforeFuncTest() {
   const char* text =
       "label:\n"
@@ -6613,6 +6684,12 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_entry", RunIrTextDuplicateEntryTest},
   {"ir_text_bad_func_header", RunIrTextBadFuncHeaderTest},
   {"ir_text_bad_sig_token", RunIrTextBadSigTokenTest},
+  {"ir_text_entry_unknown_func", RunIrTextEntryUnknownFuncTest},
+  {"ir_text_duplicate_func", RunIrTextDuplicateFuncTest},
+  {"ir_text_bad_locals_token", RunIrTextBadLocalsTokenTest},
+  {"ir_text_bad_stack_token", RunIrTextBadStackTokenTest},
+  {"ir_text_negative_locals", RunIrTextNegativeLocalsTest},
+  {"ir_text_negative_stack", RunIrTextNegativeStackTest},
   {"ir_text_label_before_func", RunIrTextLabelBeforeFuncTest},
   {"ir_text_duplicate_label", RunIrTextDuplicateLabelTest},
   {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
