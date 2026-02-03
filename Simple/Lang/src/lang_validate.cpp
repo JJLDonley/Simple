@@ -1873,7 +1873,58 @@ bool CheckExpr(const Expr& expr,
         if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       }
       if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
-      if (IsAssignOp(expr.op)) return true;
+      if (IsAssignOp(expr.op)) {
+        TypeRef target_type;
+        TypeRef value_type;
+        bool have_target = InferExprType(expr.children[0], ctx, scopes, current_artifact, &target_type);
+        bool have_value = InferExprType(expr.children[1], ctx, scopes, current_artifact, &value_type);
+        if (expr.op != "=" && have_target && have_value) {
+          if (!CheckCompoundAssignOp(expr.op, target_type, value_type, error)) return false;
+          return true;
+        }
+        if (have_target && expr.children[1].kind == ExprKind::FnLiteral) {
+          if (!CheckFnLiteralAgainstType(expr.children[1], target_type, error)) return false;
+        }
+        if (have_target &&
+            (expr.children[1].kind == ExprKind::ArrayLiteral ||
+             expr.children[1].kind == ExprKind::ListLiteral) &&
+            !target_type.dims.empty()) {
+          if (!CheckArrayLiteralShape(expr.children[1], target_type.dims, 0, error)) {
+            return false;
+          }
+          TypeRef base_type;
+          if (!CloneTypeRef(target_type, &base_type)) return false;
+          base_type.dims.clear();
+          if (!CheckArrayLiteralElementTypes(expr.children[1],
+                                             ctx,
+                                             scopes,
+                                             current_artifact,
+                                             target_type.dims,
+                                             0,
+                                             base_type,
+                                             error)) {
+            return false;
+          }
+          if (!CheckListLiteralElementTypes(expr.children[1],
+                                            ctx,
+                                            scopes,
+                                            current_artifact,
+                                            target_type,
+                                            error)) {
+            return false;
+          }
+        } else if (have_target &&
+                   (expr.children[1].kind == ExprKind::ArrayLiteral ||
+                    expr.children[1].kind == ExprKind::ListLiteral)) {
+          if (error) *error = "array/list literal requires array or list type";
+          return false;
+        }
+        if (have_target && have_value && !TypeEquals(target_type, value_type)) {
+          if (error) *error = "assignment type mismatch";
+          return false;
+        }
+        return true;
+      }
       return CheckBinaryOpTypes(expr, ctx, scopes, current_artifact, error);
     case ExprKind::Call:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;

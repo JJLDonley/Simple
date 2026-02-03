@@ -1008,6 +1008,20 @@ bool LangValidateIndexListTypeMismatch() {
   return true;
 }
 
+bool LangValidateAssignExprStatementMismatch() {
+  const char* src = "main : void () { x : i32 = 0; (x = \"hi\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateAssignExprStatementOk() {
+  const char* src = "main : void () { x : i32 = 0; (x = 1); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateImmutableBaseFieldAssign() {
   const char* src = "Point :: artifact { x : i32 } main : void () { p :: Point = { 1 }; p.x = 2; }";
   std::string error;
@@ -1661,6 +1675,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_index_nested_array_type_ok", LangValidateIndexNestedArrayTypeOk},
   {"lang_validate_index_list_type_ok", LangValidateIndexListTypeOk},
   {"lang_validate_index_list_type_mismatch", LangValidateIndexListTypeMismatch},
+  {"lang_validate_assign_expr_statement_mismatch", LangValidateAssignExprStatementMismatch},
+  {"lang_validate_assign_expr_statement_ok", LangValidateAssignExprStatementOk},
   {"lang_validate_immutable_base_field_assign", LangValidateImmutableBaseFieldAssign},
   {"lang_validate_immutable_base_index_assign", LangValidateImmutableBaseIndexAssign},
   {"lang_validate_immutable_return_assign", LangValidateImmutableReturnAssign},

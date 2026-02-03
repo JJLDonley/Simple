@@ -828,7 +828,7 @@ bool Parser::ParseWhile(Stmt* out) {
 }
 
 bool Parser::ParseExpr(Expr* out) {
-  return ParseBinaryExpr(0, out);
+  return ParseAssignmentExpr(out);
 }
 
 bool Parser::ParseAssignmentExpr(Expr* out) {
@@ -857,7 +857,7 @@ bool Parser::ParseAssignmentExpr(Expr* out) {
     if (is_assign) {
       Advance();
       Expr value;
-      if (!ParseExpr(&value)) return false;
+      if (!ParseAssignmentExpr(&value)) return false;
       Expr expr;
       expr.kind = ExprKind::Binary;
       expr.op = op.text;
@@ -868,7 +868,7 @@ bool Parser::ParseAssignmentExpr(Expr* out) {
     }
   }
   index_ = save;
-  return ParseExpr(out);
+  return ParseBinaryExpr(0, out);
 }
 
 int Parser::GetBinaryPrecedence(const Token& tok) const {
