@@ -4576,6 +4576,62 @@ bool RunIrTextStoreUpvalueTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextTailCallArgsTest() {
+  const char* text =
+      "func add locals=2 stack=8 sig=0\n"
+      "  enter 2\n"
+      "  ldloc 0\n"
+      "  ldloc 1\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=1\n"
+      "  enter 0\n"
+      "  const.i32 2\n"
+      "  const.i32 7\n"
+      "  tailcall 0 2\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 2;
+  sig0.param_types = {0, 0};
+  simplevm::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_tailcall_args", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectExit(module, 9);
+}
+
+bool RunIrTextStoreUpvalueTypeMismatchTest() {
+  const char* text =
+      "func callee locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  stupv 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=1\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  newclosure 0 1\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 0;
+  simplevm::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_stupv_type_mismatch", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_stupv_type_mismatch");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4694,6 +4750,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
   {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},
+  {"ir_text_tailcall_args", RunIrTextTailCallArgsTest},
+  {"ir_text_stupv_type_mismatch", RunIrTextStoreUpvalueTypeMismatchTest},
 };
 
 static const TestSection kIrSections[] = {
