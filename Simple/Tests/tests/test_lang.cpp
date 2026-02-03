@@ -553,6 +553,72 @@ bool LangValidateIndexIntOk() {
   return true;
 }
 
+bool LangValidateCallArgCount() {
+  const char* src = "add : i32 (a : i32, b : i32) { return a; } main : i32 () { return add(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallNonFunction() {
+  const char* src = "x : i32 = 1; main : i32 () { return x(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallModuleFuncCount() {
+  const char* src =
+    "Math :: module { add : i32 (a : i32, b : i32) { return a; } }"
+    "main : i32 () { return Math.add(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallModuleVar() {
+  const char* src =
+    "Math :: module { PI :: f64 = 3.14; }"
+    "main : i32 () { return Math.PI(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallMethodArgCount() {
+  const char* src =
+    "Point :: artifact { x : i32 get : i32 () { return self.x; } }"
+    "main : i32 () { p : Point = { 1 }; return p.get(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallFieldAsMethod() {
+  const char* src =
+    "Point :: artifact { x : i32 }"
+    "main : i32 () { p : Point = { 1 }; return p.x(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallFnLiteralCount() {
+  const char* src =
+    "main : i32 () { f : (i32) : i32 = (x : i32) { return x; }; return f(1, 2); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallFnLiteralOk() {
+  const char* src =
+    "main : i32 () { f : (i32) : i32 = (x : i32) { return x; }; return f(1); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -784,6 +850,14 @@ const TestCase kLangTests[] = {
   {"lang_validate_index_string_literal", LangValidateIndexStringLiteral},
   {"lang_validate_index_literal_base", LangValidateIndexLiteralBase},
   {"lang_validate_index_int_ok", LangValidateIndexIntOk},
+  {"lang_validate_call_arg_count", LangValidateCallArgCount},
+  {"lang_validate_call_non_function", LangValidateCallNonFunction},
+  {"lang_validate_call_module_func_count", LangValidateCallModuleFuncCount},
+  {"lang_validate_call_module_var", LangValidateCallModuleVar},
+  {"lang_validate_call_method_arg_count", LangValidateCallMethodArgCount},
+  {"lang_validate_call_field_as_method", LangValidateCallFieldAsMethod},
+  {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
+  {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

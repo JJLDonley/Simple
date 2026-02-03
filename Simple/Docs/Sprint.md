@@ -646,3 +646,5 @@
 - Added Simple::Lang artifact literal tests for positional/named correctness and error cases.
 - Added Simple::Lang index validation for integer-only indices and non-indexable literal bases.
 - Added Simple::Lang index validation tests (float/string indices, literal base, valid int index).
+- Added Simple::Lang call validation for function/method arity, module calls, and callable proc types.
+- Added Simple::Lang call validation tests for arity mismatch and non-function calls.

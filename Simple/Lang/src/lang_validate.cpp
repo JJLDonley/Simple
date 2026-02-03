@@ -15,6 +15,7 @@ struct ValidateContext {
   std::unordered_map<std::string, const ArtifactDecl*> artifacts;
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
+  std::unordered_map<std::string, const FuncDecl*> functions;
 };
 
 struct LocalInfo {
@@ -161,6 +162,144 @@ const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string
     if (field.name == name) return &field;
   }
   return nullptr;
+}
+
+const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name) {
+  if (!artifact) return nullptr;
+  for (const auto& method : artifact->methods) {
+    if (method.name == name) return &method;
+  }
+  return nullptr;
+}
+
+const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name) {
+  if (!module) return nullptr;
+  for (const auto& fn : module->functions) {
+    if (fn.name == name) return &fn;
+  }
+  return nullptr;
+}
+
+bool CheckCallArgs(const FuncDecl* fn, size_t arg_count, std::string* error) {
+  if (!fn) return false;
+  if (fn->params.size() != arg_count) {
+    if (error) {
+      *error = "call argument count mismatch for " + fn->name + ": expected " +
+               std::to_string(fn->params.size()) + ", got " + std::to_string(arg_count);
+    }
+    return false;
+  }
+  return true;
+}
+
+bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error) {
+  if (!type || !type->is_proc) return false;
+  if (type->proc_params.size() != arg_count) {
+    if (error) {
+      *error = "call argument count mismatch: expected " +
+               std::to_string(type->proc_params.size()) + ", got " + std::to_string(arg_count);
+    }
+    return false;
+  }
+  return true;
+}
+
+bool CheckCallTarget(const Expr& callee,
+                     size_t arg_count,
+                     const ValidateContext& ctx,
+                     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                     const ArtifactDecl* current_artifact,
+                     std::string* error) {
+  if (callee.kind == ExprKind::FnLiteral) {
+    if (callee.fn_params.size() != arg_count) {
+      if (error) {
+        *error = "call argument count mismatch for fn literal: expected " +
+                 std::to_string(callee.fn_params.size()) + ", got " + std::to_string(arg_count);
+      }
+      return false;
+    }
+    return true;
+  }
+  if (callee.kind == ExprKind::Identifier) {
+    auto fn_it = ctx.functions.find(callee.text);
+    if (fn_it != ctx.functions.end()) {
+      return CheckCallArgs(fn_it->second, arg_count, error);
+    }
+    if (const LocalInfo* local = FindLocal(scopes, callee.text)) {
+      if (local->type && local->type->is_proc) {
+        return CheckProcTypeArgs(local->type, arg_count, error);
+      }
+      if (error) *error = "attempt to call non-function: " + callee.text;
+      return false;
+    }
+    auto global_it = ctx.globals.find(callee.text);
+    if (global_it != ctx.globals.end()) {
+      if (global_it->second->type.is_proc) {
+        return CheckProcTypeArgs(&global_it->second->type, arg_count, error);
+      }
+      if (error) *error = "attempt to call non-function: " + callee.text;
+      return false;
+    }
+    return true;
+  }
+  if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
+    const Expr& base = callee.children[0];
+    if (base.kind == ExprKind::Identifier) {
+      if (base.text == "self") {
+        const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
+        if (method) return CheckCallArgs(method, arg_count, error);
+        if (FindArtifactField(current_artifact, callee.text)) {
+          if (error) *error = "attempt to call non-function: self." + callee.text;
+          return false;
+        }
+        return true;
+      }
+      auto module_it = ctx.modules.find(base.text);
+      if (module_it != ctx.modules.end()) {
+        const FuncDecl* fn = FindModuleFunc(module_it->second, callee.text);
+        if (fn) return CheckCallArgs(fn, arg_count, error);
+        if (FindModuleVar(module_it->second, callee.text)) {
+          const VarDecl* var = FindModuleVar(module_it->second, callee.text);
+          if (var && var->type.is_proc) {
+            return CheckProcTypeArgs(&var->type, arg_count, error);
+          }
+          if (error) *error = "attempt to call non-function: " + base.text + "." + callee.text;
+          return false;
+        }
+        return true;
+      }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        if (!local->type) return true;
+        auto artifact_it = ctx.artifacts.find(local->type->name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        if (method) return CheckCallArgs(method, arg_count, error);
+        if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
+          if (field->type.is_proc) {
+            return CheckProcTypeArgs(&field->type, arg_count, error);
+          }
+          if (error) *error = "attempt to call non-function: " + base.text + "." + callee.text;
+          return false;
+        }
+        return true;
+      }
+      auto global_it = ctx.globals.find(base.text);
+      if (global_it != ctx.globals.end()) {
+        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        if (method) return CheckCallArgs(method, arg_count, error);
+        if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
+          if (field->type.is_proc) {
+            return CheckProcTypeArgs(&field->type, arg_count, error);
+          }
+          if (error) *error = "attempt to call non-function: " + base.text + "." + callee.text;
+          return false;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 bool CheckAssignmentTarget(const Expr& target,
@@ -456,6 +595,7 @@ bool CheckExpr(const Expr& expr,
       for (const auto& arg : expr.args) {
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
+      if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
       return true;
     case ExprKind::Member:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
@@ -594,6 +734,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
         break;
       case DeclKind::Function:
         name_ptr = &decl.func.name;
+        ctx.functions[decl.func.name] = &decl.func;
         break;
       case DeclKind::Variable:
         name_ptr = &decl.var.name;
