@@ -132,6 +132,22 @@ bool LangParsesModuleDecl() {
   return true;
 }
 
+bool LangParsesReturnExpr() {
+  const char* src = "main : i32 () { return 1 + 2 * 3; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Function) return false;
+  if (decl.func.body.size() != 1) return false;
+  if (decl.func.body[0].kind != Simple::Lang::StmtKind::Return) return false;
+  const auto& expr = decl.func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (expr.op != "+") return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -140,6 +156,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_var_decl", LangParsesVarDecl},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
+  {"lang_parse_return_expr", LangParsesReturnExpr},
 };
 
 } // namespace

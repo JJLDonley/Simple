@@ -35,7 +35,13 @@ private:
                          Decl* out);
   bool ParseModuleDecl(const Token& name_tok, Decl* out);
   bool ParseBlockTokens(std::vector<Token>* out);
+  bool ParseBlockStmts(std::vector<Stmt>* out);
   bool ParseInitTokens(std::vector<Token>* out);
+  bool ParseStmt(Stmt* out);
+  bool ParseExpr(Expr* out);
+  bool ParseBinaryExpr(int min_prec, Expr* out);
+  bool ParsePrimaryExpr(Expr* out);
+  int GetBinaryPrecedence(const Token& tok) const;
 
   std::vector<Token> tokens_;
   size_t index_ = 0;

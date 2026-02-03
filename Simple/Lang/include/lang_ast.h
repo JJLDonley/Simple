@@ -31,13 +31,45 @@ struct ParamDecl {
   TypeRef type;
 };
 
+enum class ExprKind : uint8_t {
+  Identifier,
+  Literal,
+  Binary,
+};
+
+enum class LiteralKind : uint8_t {
+  Integer,
+  Float,
+  String,
+  Char,
+  Bool,
+};
+
+struct Expr {
+  ExprKind kind = ExprKind::Identifier;
+  std::string text;
+  LiteralKind literal_kind = LiteralKind::Integer;
+  std::string op;
+  std::vector<Expr> children;
+};
+
+enum class StmtKind : uint8_t {
+  Return,
+  Expr,
+};
+
+struct Stmt {
+  StmtKind kind = StmtKind::Expr;
+  Expr expr;
+};
+
 struct FuncDecl {
   std::string name;
   std::vector<std::string> generics;
   Mutability return_mutability = Mutability::Mutable;
   TypeRef return_type;
   std::vector<ParamDecl> params;
-  std::vector<Token> body_tokens;
+  std::vector<Stmt> body;
 };
 
 struct VarDecl {

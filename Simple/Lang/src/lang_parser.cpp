@@ -101,7 +101,7 @@ bool Parser::ParseDecl(Decl* out) {
         out->func.return_type = std::move(return_or_type);
       }
       if (!ParseParamList(&out->func.params)) return false;
-      if (!ParseBlockTokens(&out->func.body_tokens)) return false;
+      if (!ParseBlockStmts(&out->func.body)) return false;
       return true;
     }
     if (out) {
@@ -136,7 +136,7 @@ bool Parser::ParseDecl(Decl* out) {
       out->func.return_type = std::move(return_or_type);
     }
     if (!ParseParamList(&out->func.params)) return false;
-    if (!ParseBlockTokens(&out->func.body_tokens)) return false;
+    if (!ParseBlockStmts(&out->func.body)) return false;
     return true;
   }
 
@@ -255,6 +255,21 @@ bool Parser::ParseBlockTokens(std::vector<Token>* out) {
   return false;
 }
 
+bool Parser::ParseBlockStmts(std::vector<Stmt>* out) {
+  if (!Match(TokenKind::LBrace)) {
+    error_ = "expected '{' to start block";
+    return false;
+  }
+  while (!IsAtEnd()) {
+    if (Match(TokenKind::RBrace)) return true;
+    Stmt stmt;
+    if (!ParseStmt(&stmt)) return false;
+    if (out) out->push_back(std::move(stmt));
+  }
+  error_ = "unterminated block";
+  return false;
+}
+
 bool Parser::ParseInitTokens(std::vector<Token>* out) {
   while (!IsAtEnd()) {
     if (Peek().kind == TokenKind::Semicolon) {
@@ -264,6 +279,113 @@ bool Parser::ParseInitTokens(std::vector<Token>* out) {
     if (out) out->push_back(Advance());
   }
   error_ = "unterminated variable declaration";
+  return false;
+}
+
+bool Parser::ParseStmt(Stmt* out) {
+  if (Match(TokenKind::KwReturn)) {
+    Expr expr;
+    if (!ParseExpr(&expr)) return false;
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after return";
+      return false;
+    }
+    if (out) {
+      out->kind = StmtKind::Return;
+      out->expr = std::move(expr);
+    }
+    return true;
+  }
+  Expr expr;
+  if (!ParseExpr(&expr)) return false;
+  if (!Match(TokenKind::Semicolon)) {
+    error_ = "expected ';' after expression";
+    return false;
+  }
+  if (out) {
+    out->kind = StmtKind::Expr;
+    out->expr = std::move(expr);
+  }
+  return true;
+}
+
+bool Parser::ParseExpr(Expr* out) {
+  return ParseBinaryExpr(0, out);
+}
+
+int Parser::GetBinaryPrecedence(const Token& tok) const {
+  switch (tok.kind) {
+    case TokenKind::Star:
+    case TokenKind::Slash:
+    case TokenKind::Percent:
+      return 20;
+    case TokenKind::Plus:
+    case TokenKind::Minus:
+      return 10;
+    default:
+      return -1;
+  }
+}
+
+bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
+  Expr lhs;
+  if (!ParsePrimaryExpr(&lhs)) return false;
+
+  while (true) {
+    const Token& op = Peek();
+    int prec = GetBinaryPrecedence(op);
+    if (prec < min_prec) break;
+    Advance();
+    Expr rhs;
+    if (!ParseBinaryExpr(prec + 1, &rhs)) return false;
+    Expr combined;
+    combined.kind = ExprKind::Binary;
+    combined.op = op.text;
+    combined.children.push_back(std::move(lhs));
+    combined.children.push_back(std::move(rhs));
+    lhs = std::move(combined);
+  }
+
+  if (out) *out = std::move(lhs);
+  return true;
+}
+
+bool Parser::ParsePrimaryExpr(Expr* out) {
+  const Token& tok = Peek();
+  if (tok.kind == TokenKind::Integer || tok.kind == TokenKind::Float ||
+      tok.kind == TokenKind::String || tok.kind == TokenKind::Char ||
+      tok.kind == TokenKind::KwTrue || tok.kind == TokenKind::KwFalse) {
+    Expr expr;
+    expr.kind = ExprKind::Literal;
+    expr.text = tok.text;
+    if (tok.kind == TokenKind::Integer) expr.literal_kind = LiteralKind::Integer;
+    else if (tok.kind == TokenKind::Float) expr.literal_kind = LiteralKind::Float;
+    else if (tok.kind == TokenKind::String) expr.literal_kind = LiteralKind::String;
+    else if (tok.kind == TokenKind::Char) expr.literal_kind = LiteralKind::Char;
+    else expr.literal_kind = LiteralKind::Bool;
+    Advance();
+    if (out) *out = std::move(expr);
+    return true;
+  }
+  if (tok.kind == TokenKind::Identifier) {
+    Expr expr;
+    expr.kind = ExprKind::Identifier;
+    expr.text = tok.text;
+    Advance();
+    if (out) *out = std::move(expr);
+    return true;
+  }
+  if (Match(TokenKind::LParen)) {
+    Expr expr;
+    if (!ParseExpr(&expr)) return false;
+    if (!Match(TokenKind::RParen)) {
+      error_ = "expected ')' after expression";
+      return false;
+    }
+    if (out) *out = std::move(expr);
+    return true;
+  }
+  error_ = "expected expression";
   return false;
 }
 
