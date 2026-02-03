@@ -661,3 +661,4 @@
 - Added Simple::Lang fixed-size array literal shape validation with tests.
 - Added Simple::Lang index validation for non-indexable bases and non-integer index expressions, with tests.
 - Added Simple::Lang array literal element type validation for fixed-size arrays, with tests.
+- Added Simple::Lang list literal element type validation (including nested lists), with tests.
