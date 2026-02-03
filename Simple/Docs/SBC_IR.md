@@ -86,6 +86,7 @@ The IR emitter does not bypass verification; the SBC verifier remains authoritat
   - Unbound labels.
   - Invalid label binding (out-of-range or duplicate bind).
 - Runtime correctness is verified by the SBC verifier and loader.
+ - SIR text lowering errors include the line number when available.
 
 ---
 

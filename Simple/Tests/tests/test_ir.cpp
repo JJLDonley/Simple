@@ -4297,6 +4297,28 @@ bool RunIrTextBadConstNameTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_const_name");
 }
 
+bool RunIrTextLowerLineNumberTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  bad.op\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::IR::Text::IrTextModule parsed;
+  std::string error;
+  if (!Simple::IR::Text::ParseIrTextModule(text, &parsed, &error)) {
+    std::cerr << "expected lower error, got parse: " << error << "\n";
+    return false;
+  }
+  Simple::IR::IrModule module;
+  if (!Simple::IR::Text::LowerIrTextToModule(parsed, &module, &error)) {
+    return error.find("line 3") != std::string::npos;
+  }
+  std::cerr << "expected lower failure for bad op\n";
+  return false;
+}
+
 bool RunIrTextSyscallNameFailTest() {
   const char* text =
       "imports:\n"
@@ -7302,6 +7324,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
+  {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},

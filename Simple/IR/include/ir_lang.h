@@ -20,6 +20,7 @@ struct IrTextInst {
   std::string op;
   std::vector<std::string> args;
   std::string label;
+  uint32_t line_no = 0;
 };
 
 struct IrTextFunction {
