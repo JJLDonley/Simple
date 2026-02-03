@@ -511,3 +511,4 @@
 - Added SIR text tests for ref equality and typeof with minimal type tables.
 - Added SIR text tests for closures/upvalues and invalid newclosure method id.
 - Added SIR text tests for string concat/get-char/slice.
+- Added SIR text tests for array get/set with i64/f32/f64/ref variants.
