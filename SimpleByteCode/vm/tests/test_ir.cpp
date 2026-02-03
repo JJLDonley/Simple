@@ -4397,6 +4397,48 @@ bool RunIrTextListRefTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextListInsertRemoveTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.i32 9\n"
+      "  list.insert.i32\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  list.remove.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_remove");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 9);
+}
+
+bool RunIrTextListClearTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 1\n"
+      "  list.push.i32\n"
+      "  ldloc 0\n"
+      "  list.clear\n"
+      "  ldloc 0\n"
+      "  list.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_clear");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4510,6 +4552,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_f32", RunIrTextListF32Test},
   {"ir_text_list_f64", RunIrTextListF64Test},
   {"ir_text_list_ref", RunIrTextListRefTest},
+  {"ir_text_list_insert_remove", RunIrTextListInsertRemoveTest},
+  {"ir_text_list_clear", RunIrTextListClearTest},
 };
 
 static const TestSection kIrSections[] = {
