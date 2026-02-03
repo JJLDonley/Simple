@@ -5401,6 +5401,64 @@ bool RunIrTextCallMissingArgsTest() {
   return RunIrTextExpectFail(text, "ir_text_call_missing_args");
 }
 
+bool RunIrTextJmpMissingLabelTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  jmp\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmp_missing_label");
+}
+
+bool RunIrTextJmpExtraOperandTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  jmp done extra\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmp_extra_operand");
+}
+
+bool RunIrTextCallExtraOperandTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  call 0 0 extra\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_extra_operand");
+}
+
+bool RunIrTextCallIndirectExtraOperandTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  call.indirect 0 0 extra\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_indirect_extra_operand");
+}
+
+bool RunIrTextJmpTableMissingDefaultTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  jmptable\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_missing_default");
+}
+
 bool RunIrTextUnknownOpCapsTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -6679,6 +6737,11 @@ static const TestCase kIrTests[] = {
   {"ir_text_newlist_missing_cap", RunIrTextNewListMissingCapTest},
   {"ir_text_enter_missing_count", RunIrTextEnterMissingCountTest},
   {"ir_text_call_missing_args", RunIrTextCallMissingArgsTest},
+  {"ir_text_jmp_missing_label", RunIrTextJmpMissingLabelTest},
+  {"ir_text_jmp_extra_operand", RunIrTextJmpExtraOperandTest},
+  {"ir_text_call_extra_operand", RunIrTextCallExtraOperandTest},
+  {"ir_text_call_indirect_extra_operand", RunIrTextCallIndirectExtraOperandTest},
+  {"ir_text_jmptable_missing_default", RunIrTextJmpTableMissingDefaultTest},
   {"ir_text_unknown_op_caps", RunIrTextUnknownOpCapsTest},
   {"ir_text_missing_entry", RunIrTextMissingEntryTest},
   {"ir_text_duplicate_entry", RunIrTextDuplicateEntryTest},
