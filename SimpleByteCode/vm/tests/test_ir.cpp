@@ -3803,6 +3803,55 @@ bool RunIrTextSysCallMissingIdTest() {
   return RunIrTextExpectFail(text, "ir_text_syscall_missing_id");
 }
 
+bool RunIrTextConstBoolTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.bool 1\n"
+      "  bool.not\n"
+      "  jmp.true is_true\n"
+      "  const.i32 1\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 0\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_bool");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextConstCharTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.char 65\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_char");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 65);
+}
+
+bool RunIrTextArrayLenTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newarray 0 3\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  array.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_len");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
 bool RunIrTextArrayI32Test() {
   const char* text =
       "func main locals=1 stack=12\n"
@@ -5042,6 +5091,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_intrinsic_trap", RunIrTextIntrinsicTrapTest},
   {"ir_text_syscall_verify_fail", RunIrTextSysCallVerifyFailTest},
   {"ir_text_syscall_missing_id", RunIrTextSysCallMissingIdTest},
+  {"ir_text_const_bool", RunIrTextConstBoolTest},
+  {"ir_text_const_char", RunIrTextConstCharTest},
+  {"ir_text_array_len", RunIrTextArrayLenTest},
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
