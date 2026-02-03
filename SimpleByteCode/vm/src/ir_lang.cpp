@@ -851,6 +851,277 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
         builder.EmitSysCall(static_cast<uint32_t>(id));
         continue;
       }
+      if (op == "newobj") {
+        uint64_t type_id = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &type_id)) {
+          if (error) *error = "newobj expects type_id";
+          return false;
+        }
+        builder.EmitNewObject(static_cast<uint32_t>(type_id));
+        continue;
+      }
+      if (op == "ldfld") {
+        uint64_t field_id = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &field_id)) {
+          if (error) *error = "ldfld expects field_id";
+          return false;
+        }
+        builder.EmitLoadField(static_cast<uint32_t>(field_id));
+        continue;
+      }
+      if (op == "stfld") {
+        uint64_t field_id = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &field_id)) {
+          if (error) *error = "stfld expects field_id";
+          return false;
+        }
+        builder.EmitStoreField(static_cast<uint32_t>(field_id));
+        continue;
+      }
+      if (op == "typeof") {
+        builder.EmitTypeOf();
+        continue;
+      }
+      if (op == "isnull") {
+        builder.EmitIsNull();
+        continue;
+      }
+      if (op == "ref.eq") {
+        builder.EmitRefEq();
+        continue;
+      }
+      if (op == "ref.ne") {
+        builder.EmitRefNe();
+        continue;
+      }
+      if (op == "newclosure") {
+        uint64_t method_id = 0;
+        uint64_t upvalues = 0;
+        if (inst.args.size() != 2 || !ParseUint(inst.args[0], &method_id) ||
+            !ParseUint(inst.args[1], &upvalues)) {
+          if (error) *error = "newclosure expects method_id upvalue_count";
+          return false;
+        }
+        builder.EmitNewClosure(static_cast<uint32_t>(method_id),
+                               static_cast<uint8_t>(upvalues));
+        continue;
+      }
+      if (op == "newarray") {
+        uint64_t type_id = 0;
+        uint64_t length = 0;
+        if (inst.args.size() != 2 || !ParseUint(inst.args[0], &type_id) ||
+            !ParseUint(inst.args[1], &length)) {
+          if (error) *error = "newarray expects type_id length";
+          return false;
+        }
+        builder.EmitNewArray(static_cast<uint32_t>(type_id),
+                             static_cast<uint32_t>(length));
+        continue;
+      }
+      if (op == "array.len") {
+        builder.EmitArrayLen();
+        continue;
+      }
+      if (op == "array.get.i32") {
+        builder.EmitArrayGetI32();
+        continue;
+      }
+      if (op == "array.set.i32") {
+        builder.EmitArraySetI32();
+        continue;
+      }
+      if (op == "array.get.i64") {
+        builder.EmitArrayGetI64();
+        continue;
+      }
+      if (op == "array.set.i64") {
+        builder.EmitArraySetI64();
+        continue;
+      }
+      if (op == "array.get.f32") {
+        builder.EmitArrayGetF32();
+        continue;
+      }
+      if (op == "array.set.f32") {
+        builder.EmitArraySetF32();
+        continue;
+      }
+      if (op == "array.get.f64") {
+        builder.EmitArrayGetF64();
+        continue;
+      }
+      if (op == "array.set.f64") {
+        builder.EmitArraySetF64();
+        continue;
+      }
+      if (op == "array.get.ref") {
+        builder.EmitArrayGetRef();
+        continue;
+      }
+      if (op == "array.set.ref") {
+        builder.EmitArraySetRef();
+        continue;
+      }
+      if (op == "newlist") {
+        uint64_t type_id = 0;
+        uint64_t cap = 0;
+        if (inst.args.size() != 2 || !ParseUint(inst.args[0], &type_id) ||
+            !ParseUint(inst.args[1], &cap)) {
+          if (error) *error = "newlist expects type_id capacity";
+          return false;
+        }
+        builder.EmitNewList(static_cast<uint32_t>(type_id),
+                            static_cast<uint32_t>(cap));
+        continue;
+      }
+      if (op == "list.len") {
+        builder.EmitListLen();
+        continue;
+      }
+      if (op == "list.get.i32") {
+        builder.EmitListGetI32();
+        continue;
+      }
+      if (op == "list.set.i32") {
+        builder.EmitListSetI32();
+        continue;
+      }
+      if (op == "list.push.i32") {
+        builder.EmitListPushI32();
+        continue;
+      }
+      if (op == "list.pop.i32") {
+        builder.EmitListPopI32();
+        continue;
+      }
+      if (op == "list.get.i64") {
+        builder.EmitListGetI64();
+        continue;
+      }
+      if (op == "list.set.i64") {
+        builder.EmitListSetI64();
+        continue;
+      }
+      if (op == "list.push.i64") {
+        builder.EmitListPushI64();
+        continue;
+      }
+      if (op == "list.pop.i64") {
+        builder.EmitListPopI64();
+        continue;
+      }
+      if (op == "list.get.f32") {
+        builder.EmitListGetF32();
+        continue;
+      }
+      if (op == "list.set.f32") {
+        builder.EmitListSetF32();
+        continue;
+      }
+      if (op == "list.push.f32") {
+        builder.EmitListPushF32();
+        continue;
+      }
+      if (op == "list.pop.f32") {
+        builder.EmitListPopF32();
+        continue;
+      }
+      if (op == "list.get.f64") {
+        builder.EmitListGetF64();
+        continue;
+      }
+      if (op == "list.set.f64") {
+        builder.EmitListSetF64();
+        continue;
+      }
+      if (op == "list.push.f64") {
+        builder.EmitListPushF64();
+        continue;
+      }
+      if (op == "list.pop.f64") {
+        builder.EmitListPopF64();
+        continue;
+      }
+      if (op == "list.get.ref") {
+        builder.EmitListGetRef();
+        continue;
+      }
+      if (op == "list.set.ref") {
+        builder.EmitListSetRef();
+        continue;
+      }
+      if (op == "list.push.ref") {
+        builder.EmitListPushRef();
+        continue;
+      }
+      if (op == "list.pop.ref") {
+        builder.EmitListPopRef();
+        continue;
+      }
+      if (op == "list.insert.i32") {
+        builder.EmitListInsertI32();
+        continue;
+      }
+      if (op == "list.remove.i32") {
+        builder.EmitListRemoveI32();
+        continue;
+      }
+      if (op == "list.clear") {
+        builder.EmitListClear();
+        continue;
+      }
+      if (op == "string.len") {
+        builder.EmitStringLen();
+        continue;
+      }
+      if (op == "string.concat") {
+        builder.EmitStringConcat();
+        continue;
+      }
+      if (op == "string.get.char") {
+        builder.EmitStringGetChar();
+        continue;
+      }
+      if (op == "string.slice") {
+        builder.EmitStringSlice();
+        continue;
+      }
+      if (op == "ldglob" || op == "load.global") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "ldglob expects index";
+          return false;
+        }
+        builder.EmitLoadGlobal(static_cast<uint32_t>(index));
+        continue;
+      }
+      if (op == "stglob" || op == "store.global") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "stglob expects index";
+          return false;
+        }
+        builder.EmitStoreGlobal(static_cast<uint32_t>(index));
+        continue;
+      }
+      if (op == "ldupv" || op == "load.upvalue") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "ldupv expects index";
+          return false;
+        }
+        builder.EmitLoadUpvalue(static_cast<uint32_t>(index));
+        continue;
+      }
+      if (op == "stupv" || op == "store.upvalue") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "stupv expects index";
+          return false;
+        }
+        builder.EmitStoreUpvalue(static_cast<uint32_t>(index));
+        continue;
+      }
 
       if (error) *error = "unknown op: " + inst.op;
       return false;

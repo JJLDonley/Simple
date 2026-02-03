@@ -230,6 +230,53 @@ call.indirect <sig_id> <arg_count>
 tailcall <method_id> <arg_count>
 ```
 
+### 10.6 Locals/Globals/Upvalues (Examples)
+
+```
+ldloc 0
+stloc 0
+ldglob 1
+stglob 1
+ldupv 0
+stupv 0
+```
+
+### 10.7 Objects/Refs (Examples)
+
+```
+newobj <type_id>
+ldfld <field_id>
+stfld <field_id>
+typeof
+isnull
+ref.eq
+ref.ne
+```
+
+### 10.8 Arrays/Lists/Strings (Examples)
+
+```
+newarray <type_id> <length>
+array.len
+array.get.i32
+array.set.i32
+
+newlist <type_id> <capacity>
+list.len
+list.get.i32
+list.set.i32
+list.push.i32
+list.pop.i32
+list.insert.i32
+list.remove.i32
+list.clear
+
+string.len
+string.concat
+string.get.char
+string.slice
+```
+
 ### 10.6 Structured Jump Table (Example)
 
 ```

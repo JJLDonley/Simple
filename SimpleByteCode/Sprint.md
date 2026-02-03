@@ -6,6 +6,8 @@
 ## 2026-02-03
 - Added SIR text-form tests for add/branch/locals/bitwise+bool paths.
 - Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
+- Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
+- Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).

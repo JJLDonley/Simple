@@ -3668,6 +3668,19 @@ bool RunIrTextBitwiseBoolTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextIntrinsicTrapTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  intrinsic 999\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_intrinsic_trap");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_intrinsic_trap");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -3756,6 +3769,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_branch", RunIrTextBranchTest},
   {"ir_text_locals", RunIrTextLocalsTest},
   {"ir_text_bitwise_bool", RunIrTextBitwiseBoolTest},
+  {"ir_text_intrinsic_trap", RunIrTextIntrinsicTrapTest},
 };
 
 static const TestSection kIrSections[] = {
