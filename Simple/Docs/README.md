@@ -24,6 +24,10 @@ This directory contains the authoritative documentation for the Simple VM stack.
 - `CLI.md`
 - `Lang.md`
 
+## Legacy References
+The `SBC_*` and `Simple_*` documents are legacy references. Their content is merged into the
+module docs above.
+
 ## Project Planning
 - `Implementation.md`: module-based phase plan.
 - `Sprint.md`: chronological change log.
