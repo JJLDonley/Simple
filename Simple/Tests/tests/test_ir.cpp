@@ -4319,6 +4319,48 @@ bool RunIrTextLowerLineNumberTest() {
   return false;
 }
 
+bool RunIrTextLocalTypeNameTest() {
+  const char* text =
+      "func main locals=2 stack=4\n"
+      "  locals: a:i32, b:ref\n"
+      "  enter 2\n"
+      "  const.i32 1\n"
+      "  stloc a\n"
+      "  ldloc a\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_local_type_name");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextLocalTypeBadNameTest() {
+  const char* text =
+      "func main locals=1 stack=4\n"
+      "  locals: a:MissingType\n"
+      "  enter 1\n"
+      "  const.i32 1\n"
+      "  stloc a\n"
+      "  ldloc a\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_local_type_bad_name");
+}
+
+bool RunIrTextUpvalueTypeBadNameTest() {
+  const char* text =
+      "func callee locals=0 stack=6\n"
+      "  upvalues: uv:MissingType\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry callee\n";
+  return RunIrTextExpectFail(text, "ir_text_upvalue_type_bad_name");
+}
+
 bool RunIrTextSyscallNameFailTest() {
   const char* text =
       "imports:\n"
@@ -7325,6 +7367,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
+  {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},
+  {"ir_text_local_type_bad_name", RunIrTextLocalTypeBadNameTest},
+  {"ir_text_upvalue_type_bad_name", RunIrTextUpvalueTypeBadNameTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},

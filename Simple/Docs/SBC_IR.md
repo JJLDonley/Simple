@@ -222,6 +222,7 @@ entry <func_name>
 - `sig=` can be a numeric id or a named sig from the `sigs:` table.
 - `locals=` and `stack=` are required for verifier constraints.
 - `locals:` defines local slot names (count must match `locals=`).
+- `locals:`/`upvalues:` may include optional type names; types must exist in the `types:` table or builtins.
 
 ### 10.2 Labels
 

@@ -498,11 +498,23 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         std::string item = entry;
         std::string name = item;
         size_t colon = item.find(':');
+        std::string type_name;
         if (colon != std::string::npos) {
           name = Trim(item.substr(0, colon));
+          type_name = Trim(item.substr(colon + 1));
         }
         if (name.empty()) continue;
         current->locals_map[name] = index++;
+        if (!type_name.empty()) {
+          if (current->local_type_names.empty()) {
+            current->local_type_names.resize(current->locals);
+          }
+          if (index - 1 >= current->locals) {
+            if (error) *error = "locals name count mismatch at line " + std::to_string(line_no);
+            return false;
+          }
+          current->local_type_names[index - 1] = type_name;
+        }
       }
       if (!current->locals_map.empty() && current->locals_map.size() != current->locals) {
         if (error) *error = "locals name count mismatch at line " + std::to_string(line_no);
@@ -524,11 +536,19 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         std::string item = entry;
         std::string name = item;
         size_t colon = item.find(':');
+        std::string type_name;
         if (colon != std::string::npos) {
           name = Trim(item.substr(0, colon));
+          type_name = Trim(item.substr(colon + 1));
         }
         if (name.empty()) continue;
         current->upvalues_map[name] = index++;
+        if (!type_name.empty()) {
+          if (current->upvalue_type_names.size() < index) {
+            current->upvalue_type_names.resize(index);
+          }
+          current->upvalue_type_names[index - 1] = type_name;
+        }
       }
       continue;
     }
@@ -924,6 +944,18 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     return true;
   };
 
+  auto validate_type_names = [&](const std::vector<std::string>& names,
+                                 const std::string& context) -> bool {
+    for (const auto& name : names) {
+      if (name.empty()) continue;
+      if (type_ids.find(name) == type_ids.end()) {
+        if (error) *error = context + " type not found: " + name;
+        return false;
+      }
+    }
+    return true;
+  };
+
   std::unordered_map<std::string, uint32_t> global_ids;
   for (const auto& glob : text.globals) {
     if (global_ids.find(glob.name) != global_ids.end()) {
@@ -1118,6 +1150,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   };
 
   for (const auto& fn : text.functions) {
+    if (!validate_type_names(fn.local_type_names, "local")) {
+      return false;
+    }
+    if (!validate_type_names(fn.upvalue_type_names, "upvalue")) {
+      return false;
+    }
     uint32_t func_sig_id = fn.sig_id;
     if (fn.sig_is_name) {
       auto sig_it = sig_ids.find(fn.sig_name);

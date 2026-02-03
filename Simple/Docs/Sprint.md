@@ -590,3 +590,4 @@
 - Added SIR type field validation (alignment and bounds) during IR lowering.
 - Added SIR text negative tests for misaligned and out-of-bounds fields.
 - Added line-number context to SIR text lowering errors and a test for bad op diagnostics.
+- Added optional local/upvalue type name validation in SIR text lowering with tests.
