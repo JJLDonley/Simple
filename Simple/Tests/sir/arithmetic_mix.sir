@@ -20,6 +20,7 @@ loop:
   add.i32
   const.i32 3
   mod.i32
+  ldloc 1
   add.i32
   stloc 1
   ldloc 2

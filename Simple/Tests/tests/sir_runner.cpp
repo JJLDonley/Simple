@@ -117,17 +117,17 @@ int RunSirPerfDir(const std::string& dir, size_t iterations, bool verify) {
       std::string text;
       std::string error;
       if (!ReadFileText(path.string(), &text, &error)) {
-        std::cerr << "sir load failed: " << path.string() << " (" << error << ")\n";
+        std::cerr << "sir load failed (" << path.filename().string() << "): " << error << "\n";
         return 2;
       }
       std::vector<uint8_t> bytes;
       if (!CompileSirToSbc(text, path.string(), &bytes, &error)) {
-        std::cerr << error << "\n";
+        std::cerr << "sir compile failed (" << path.filename().string() << "): " << error << "\n";
         return 2;
       }
       last_exit = RunSbcBytes(bytes, verify, &error);
       if (!error.empty() && last_exit != 0) {
-        std::cerr << error << "\n";
+        std::cerr << "sir run failed (" << path.filename().string() << "): " << error << "\n";
         return 2;
       }
     }
