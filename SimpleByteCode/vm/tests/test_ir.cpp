@@ -27,6 +27,26 @@ using simplevm::sbc::BuildModuleWithTables;
 
 std::vector<uint8_t> BuildJmpTableModule(int32_t index);
 
+std::vector<uint8_t> BuildIrTextModule(const std::string& text, const char* name) {
+  simplevm::irtext::IrTextModule parsed;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &parsed, &error)) {
+    std::cerr << "IR text parse failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  if (!simplevm::irtext::LowerIrTextToModule(parsed, &module, &error)) {
+    std::cerr << "IR text lower failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrAddModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(0);
@@ -3569,6 +3589,85 @@ bool RunIrEmitListGetSetF64Test() {
   return RunExpectExit(BuildIrListGetSetF64Module(), 5);
 }
 
+bool RunIrTextAddTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 7\n"
+      "  const.i32 5\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_add");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextBranchTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 3\n"
+      "  const.i32 2\n"
+      "  cmp.gt.i32\n"
+      "  jmp.true is_true\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_branch");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextLocalsTest() {
+  const char* text =
+      "func main locals=1 stack=6\n"
+      "  enter 1\n"
+      "  const.i32 10\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_locals");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextBitwiseBoolTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 6\n"
+      "  const.i32 3\n"
+      "  and.i32\n"
+      "  const.i32 2\n"
+      "  shl.i32\n"
+      "  const.i32 10\n"
+      "  cmp.eq.i32\n"
+      "  bool.not\n"
+      "  jmp.true is_true\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bitwise_bool");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -3653,6 +3752,10 @@ static const TestCase kIrTests[] = {
   {"ir_emit_list_get_set_ref", RunIrEmitListGetSetRefTest},
   {"ir_emit_list_get_set_i64", RunIrEmitListGetSetI64Test},
   {"ir_emit_list_get_set_f64", RunIrEmitListGetSetF64Test},
+  {"ir_text_add", RunIrTextAddTest},
+  {"ir_text_branch", RunIrTextBranchTest},
+  {"ir_text_locals", RunIrTextLocalsTest},
+  {"ir_text_bitwise_bool", RunIrTextBitwiseBoolTest},
 };
 
 static const TestSection kIrSections[] = {

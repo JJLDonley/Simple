@@ -3,6 +3,10 @@
 ## Notes
 - This log must record every VM-related change going forward.
 
+## 2026-02-03
+- Added SIR text-form tests for add/branch/locals/bitwise+bool paths.
+- Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
+
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
 - Implemented initial VM skeleton in `SimpleByteCode/vm/`.

@@ -181,12 +181,11 @@ debugging. The parser lowers directly into the IR builder.
 ### 10.1 File Structure
 
 ```
-module <name>
 func <name> locals=<u16> stack=<u16> sig=<sig_id>
-entry <label>
   <instr>
   ...
-endfunc
+end
+entry <func_name>
 ```
 
 - `sig=<sig_id>` refers to the signature table row supplied by the compiler.
@@ -195,10 +194,11 @@ endfunc
 ### 10.2 Labels
 
 ```
-label <name>
+<label>:
 jmp <label>
-jmpt <label>    // jmp_true
-jmpf <label>    // jmp_false
+jmp.true <label>
+jmp.false <label>
+jmptable <default> <case0> <case1> ...
 ```
 
 ### 10.3 Constants (Examples)

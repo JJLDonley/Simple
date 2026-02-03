@@ -256,6 +256,24 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
         builder.EmitConstI32(static_cast<int32_t>(value));
         continue;
       }
+      if (op == "const.i8") {
+        int64_t value = 0;
+        if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
+          if (error) *error = "const.i8 expects value";
+          return false;
+        }
+        builder.EmitConstI8(static_cast<int8_t>(value));
+        continue;
+      }
+      if (op == "const.i16") {
+        int64_t value = 0;
+        if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
+          if (error) *error = "const.i16 expects value";
+          return false;
+        }
+        builder.EmitConstI16(static_cast<int16_t>(value));
+        continue;
+      }
       if (op == "const.i64") {
         int64_t value = 0;
         if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
@@ -263,6 +281,24 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           return false;
         }
         builder.EmitConstI64(value);
+        continue;
+      }
+      if (op == "const.u8") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.u8 expects value";
+          return false;
+        }
+        builder.EmitConstU8(static_cast<uint8_t>(value));
+        continue;
+      }
+      if (op == "const.u16") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.u16 expects value";
+          return false;
+        }
+        builder.EmitConstU16(static_cast<uint16_t>(value));
         continue;
       }
       if (op == "const.u32") {
@@ -308,6 +344,24 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           return false;
         }
         builder.EmitConstBool(value != 0);
+        continue;
+      }
+      if (op == "const.char") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.char expects value";
+          return false;
+        }
+        builder.EmitConstChar(static_cast<uint16_t>(value));
+        continue;
+      }
+      if (op == "const.string") {
+        uint64_t value = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
+          if (error) *error = "const.string expects const_id";
+          return false;
+        }
+        builder.EmitConstString(static_cast<uint32_t>(value));
         continue;
       }
       if (op == "const.null") {
@@ -426,6 +480,226 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
         builder.EmitModU64();
         continue;
       }
+      if (op == "and.i32") {
+        builder.EmitAndI32();
+        continue;
+      }
+      if (op == "or.i32") {
+        builder.EmitOrI32();
+        continue;
+      }
+      if (op == "xor.i32") {
+        builder.EmitXorI32();
+        continue;
+      }
+      if (op == "shl.i32") {
+        builder.EmitShlI32();
+        continue;
+      }
+      if (op == "shr.i32") {
+        builder.EmitShrI32();
+        continue;
+      }
+      if (op == "and.i64") {
+        builder.EmitAndI64();
+        continue;
+      }
+      if (op == "or.i64") {
+        builder.EmitOrI64();
+        continue;
+      }
+      if (op == "xor.i64") {
+        builder.EmitXorI64();
+        continue;
+      }
+      if (op == "shl.i64") {
+        builder.EmitShlI64();
+        continue;
+      }
+      if (op == "shr.i64") {
+        builder.EmitShrI64();
+        continue;
+      }
+      if (op == "neg.i32") {
+        builder.EmitNegI32();
+        continue;
+      }
+      if (op == "neg.i64") {
+        builder.EmitNegI64();
+        continue;
+      }
+      if (op == "inc.i32") {
+        builder.EmitIncI32();
+        continue;
+      }
+      if (op == "dec.i32") {
+        builder.EmitDecI32();
+        continue;
+      }
+      if (op == "inc.i64") {
+        builder.EmitIncI64();
+        continue;
+      }
+      if (op == "dec.i64") {
+        builder.EmitDecI64();
+        continue;
+      }
+      if (op == "cmp.eq.i32") {
+        builder.EmitCmpEqI32();
+        continue;
+      }
+      if (op == "cmp.ne.i32") {
+        builder.EmitCmpNeI32();
+        continue;
+      }
+      if (op == "cmp.lt.i32") {
+        builder.EmitCmpLtI32();
+        continue;
+      }
+      if (op == "cmp.le.i32") {
+        builder.EmitCmpLeI32();
+        continue;
+      }
+      if (op == "cmp.gt.i32") {
+        builder.EmitCmpGtI32();
+        continue;
+      }
+      if (op == "cmp.ge.i32") {
+        builder.EmitCmpGeI32();
+        continue;
+      }
+      if (op == "cmp.eq.i64") {
+        builder.EmitCmpEqI64();
+        continue;
+      }
+      if (op == "cmp.ne.i64") {
+        builder.EmitCmpNeI64();
+        continue;
+      }
+      if (op == "cmp.lt.i64") {
+        builder.EmitCmpLtI64();
+        continue;
+      }
+      if (op == "cmp.le.i64") {
+        builder.EmitCmpLeI64();
+        continue;
+      }
+      if (op == "cmp.gt.i64") {
+        builder.EmitCmpGtI64();
+        continue;
+      }
+      if (op == "cmp.ge.i64") {
+        builder.EmitCmpGeI64();
+        continue;
+      }
+      if (op == "cmp.eq.u32") {
+        builder.EmitCmpEqU32();
+        continue;
+      }
+      if (op == "cmp.ne.u32") {
+        builder.EmitCmpNeU32();
+        continue;
+      }
+      if (op == "cmp.lt.u32") {
+        builder.EmitCmpLtU32();
+        continue;
+      }
+      if (op == "cmp.le.u32") {
+        builder.EmitCmpLeU32();
+        continue;
+      }
+      if (op == "cmp.gt.u32") {
+        builder.EmitCmpGtU32();
+        continue;
+      }
+      if (op == "cmp.ge.u32") {
+        builder.EmitCmpGeU32();
+        continue;
+      }
+      if (op == "cmp.eq.u64") {
+        builder.EmitCmpEqU64();
+        continue;
+      }
+      if (op == "cmp.ne.u64") {
+        builder.EmitCmpNeU64();
+        continue;
+      }
+      if (op == "cmp.lt.u64") {
+        builder.EmitCmpLtU64();
+        continue;
+      }
+      if (op == "cmp.le.u64") {
+        builder.EmitCmpLeU64();
+        continue;
+      }
+      if (op == "cmp.gt.u64") {
+        builder.EmitCmpGtU64();
+        continue;
+      }
+      if (op == "cmp.ge.u64") {
+        builder.EmitCmpGeU64();
+        continue;
+      }
+      if (op == "cmp.eq.f32") {
+        builder.EmitCmpEqF32();
+        continue;
+      }
+      if (op == "cmp.ne.f32") {
+        builder.EmitCmpNeF32();
+        continue;
+      }
+      if (op == "cmp.lt.f32") {
+        builder.EmitCmpLtF32();
+        continue;
+      }
+      if (op == "cmp.le.f32") {
+        builder.EmitCmpLeF32();
+        continue;
+      }
+      if (op == "cmp.gt.f32") {
+        builder.EmitCmpGtF32();
+        continue;
+      }
+      if (op == "cmp.ge.f32") {
+        builder.EmitCmpGeF32();
+        continue;
+      }
+      if (op == "cmp.eq.f64") {
+        builder.EmitCmpEqF64();
+        continue;
+      }
+      if (op == "cmp.ne.f64") {
+        builder.EmitCmpNeF64();
+        continue;
+      }
+      if (op == "cmp.lt.f64") {
+        builder.EmitCmpLtF64();
+        continue;
+      }
+      if (op == "cmp.le.f64") {
+        builder.EmitCmpLeF64();
+        continue;
+      }
+      if (op == "cmp.gt.f64") {
+        builder.EmitCmpGtF64();
+        continue;
+      }
+      if (op == "cmp.ge.f64") {
+        builder.EmitCmpGeF64();
+        continue;
+      }
+      if (op == "bool.not") {
+        builder.EmitBoolNot();
+        continue;
+      }
+      if (op == "bool.and") {
+        builder.EmitBoolAnd();
+        continue;
+      }
+      if (op == "bool.or") {
+        builder.EmitBoolOr();
+        continue;
+      }
       if (op == "jmp") {
         if (inst.args.size() != 1) {
           if (error) *error = "jmp expects label";
@@ -535,6 +809,46 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
       }
       if (op == "conv.f64.f32") {
         builder.EmitConvF64ToF32();
+        continue;
+      }
+      if (op == "ldloc" || op == "load.local") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "ldloc expects index";
+          return false;
+        }
+        builder.EmitLoadLocal(static_cast<uint32_t>(index));
+        continue;
+      }
+      if (op == "stloc" || op == "store.local") {
+        uint64_t index = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+          if (error) *error = "stloc expects index";
+          return false;
+        }
+        builder.EmitStoreLocal(static_cast<uint32_t>(index));
+        continue;
+      }
+      if (op == "callcheck") {
+        builder.EmitCallCheck();
+        continue;
+      }
+      if (op == "intrinsic") {
+        uint64_t id = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &id)) {
+          if (error) *error = "intrinsic expects id";
+          return false;
+        }
+        builder.EmitIntrinsic(static_cast<uint32_t>(id));
+        continue;
+      }
+      if (op == "syscall") {
+        uint64_t id = 0;
+        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &id)) {
+          if (error) *error = "syscall expects id";
+          return false;
+        }
+        builder.EmitSysCall(static_cast<uint32_t>(id));
         continue;
       }
 
