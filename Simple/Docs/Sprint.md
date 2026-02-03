@@ -610,3 +610,4 @@
 - Added Simple::Lang for-loop parsing with assignment-enabled headers and tests.
 - Added Simple::Lang enum declaration parsing with tests.
 - Added Simple::Lang if/else statement parsing (with else-if nesting) and tests.
+- Added Simple::Lang prefix/postfix ++/-- parsing with tests, including for-loop update support.

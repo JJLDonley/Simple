@@ -227,6 +227,20 @@ bool LangParsesAssignments() {
   return true;
 }
 
+bool LangParsesIncDec() {
+  const char* src = "main : void () { x++; ++x; x--; --x; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.size() != 4) return false;
+  for (const auto& stmt : body) {
+    if (stmt.kind != Simple::Lang::StmtKind::Expr) return false;
+    if (stmt.expr.kind != Simple::Lang::ExprKind::Unary) return false;
+  }
+  return true;
+}
+
 bool LangParsesIfChain() {
   const char* src = "main : i32 () { |> true { return 1; } |> default { return 2; } }";
   Simple::Lang::Program program;
@@ -284,6 +298,17 @@ bool LangParsesForLoop() {
   return true;
 }
 
+bool LangParsesForLoopPostInc() {
+  const char* src = "main : void () { for i = 0; i < 10; i++ { skip; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::ForLoop) return false;
+  if (stmt.loop_step.kind != Simple::Lang::ExprKind::Unary) return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -298,11 +323,13 @@ const TestCase kLangTests[] = {
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_assignments", LangParsesAssignments},
+  {"lang_parse_inc_dec", LangParsesIncDec},
   {"lang_parse_if_chain", LangParsesIfChain},
   {"lang_parse_if_else", LangParsesIfElse},
   {"lang_parse_while_loop", LangParsesWhileLoop},
   {"lang_parse_break_skip", LangParsesBreakSkip},
   {"lang_parse_for_loop", LangParsesForLoop},
+  {"lang_parse_for_loop_post_inc", LangParsesForLoopPostInc},
 };
 
 } // namespace

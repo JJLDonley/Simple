@@ -779,7 +779,8 @@ bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
 
 bool Parser::ParseUnaryExpr(Expr* out) {
   const Token& tok = Peek();
-  if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus) {
+  if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus ||
+      tok.kind == TokenKind::PlusPlus || tok.kind == TokenKind::MinusMinus) {
     Advance();
     Expr operand;
     if (!ParseUnaryExpr(&operand)) return false;
@@ -831,6 +832,14 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       member.text = name.text;
       member.children.push_back(std::move(expr));
       expr = std::move(member);
+      continue;
+    }
+    if (Match(TokenKind::PlusPlus) || Match(TokenKind::MinusMinus)) {
+      Expr unary;
+      unary.kind = ExprKind::Unary;
+      unary.op = "post" + tokens_[index_ - 1].text;
+      unary.children.push_back(std::move(expr));
+      expr = std::move(unary);
       continue;
     }
     break;
