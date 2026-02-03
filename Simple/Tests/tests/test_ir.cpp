@@ -5506,6 +5506,39 @@ bool RunIrTextConstU16OverflowTest() {
   return RunIrTextExpectFail(text, "ir_text_const_u16_overflow");
 }
 
+bool RunIrTextConstI64OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i64 9223372036854775808\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i64_overflow");
+}
+
+bool RunIrTextConstI64UnderflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i64 -9223372036854775809\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i64_underflow");
+}
+
+bool RunIrTextConstU64OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u64 18446744073709551616\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u64_overflow");
+}
+
 bool RunIrTextCallIndirectMissingValueTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -6965,6 +6998,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_u8_overflow", RunIrTextConstU8OverflowTest},
   {"ir_text_const_i16_overflow", RunIrTextConstI16OverflowTest},
   {"ir_text_const_u16_overflow", RunIrTextConstU16OverflowTest},
+  {"ir_text_const_i64_overflow", RunIrTextConstI64OverflowTest},
+  {"ir_text_const_i64_underflow", RunIrTextConstI64UnderflowTest},
+  {"ir_text_const_u64_overflow", RunIrTextConstU64OverflowTest},
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
   {"ir_text_call_indirect_non_ref_value", RunIrTextCallIndirectNonRefValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},

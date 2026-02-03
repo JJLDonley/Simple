@@ -355,6 +355,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "const.i64 expects value";
           return false;
         }
+        if (!FitsSigned<int64_t>(value)) {
+          if (error) *error = "const.i64 out of range";
+          return false;
+        }
         builder.EmitConstI64(value);
         continue;
       }
@@ -401,6 +405,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         uint64_t value = 0;
         if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
           if (error) *error = "const.u64 expects value";
+          return false;
+        }
+        if (!FitsUnsigned<uint64_t>(value)) {
+          if (error) *error = "const.u64 out of range";
           return false;
         }
         builder.EmitConstU64(value);

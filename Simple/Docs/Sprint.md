@@ -568,6 +568,7 @@
 - Added IR text label name validation for definitions and jump/jmptable targets.
 - Added IR text numeric range checks for i8/i16/i32/u8/u16/u32 constants with overflow tests.
 - Added IR text tests for float literal parsing of nan/inf and -inf.
+- Added IR text numeric range checks for i64/u64 constants with overflow tests.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
