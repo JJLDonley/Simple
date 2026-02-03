@@ -80,7 +80,7 @@ bool Parser::ParseProgram(Program* out) {
     if (!ParseDecl(&decl)) return false;
     out->decls.push_back(std::move(decl));
   }
-  return true;
+  return !had_error_;
 }
 
 bool Parser::ParseTypeInner(TypeRef* out) {
@@ -553,10 +553,29 @@ bool Parser::ParseBlockStmts(std::vector<Stmt>* out) {
   while (!IsAtEnd()) {
     if (Match(TokenKind::RBrace)) return true;
     Stmt stmt;
-    if (!ParseStmt(&stmt)) return false;
+    if (!ParseStmt(&stmt)) {
+      had_error_ = true;
+      if (!RecoverStatementInBlock()) return false;
+      continue;
+    }
     if (out) out->push_back(std::move(stmt));
   }
   error_ = "unterminated block";
+  return false;
+}
+
+bool Parser::RecoverStatementInBlock() {
+  while (!IsAtEnd()) {
+    if (Peek().kind == TokenKind::Semicolon) {
+      Advance();
+      return true;
+    }
+    if (Peek().kind == TokenKind::RBrace) {
+      return true;
+    }
+    Advance();
+  }
+  if (error_.empty()) error_ = "unterminated block";
   return false;
 }
 

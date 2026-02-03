@@ -58,10 +58,12 @@ private:
   bool ParseBracketExprList(std::vector<Expr>* out);
   bool ParseFnLiteral(Expr* out);
   int GetBinaryPrecedence(const Token& tok) const;
+  bool RecoverStatementInBlock();
 
   std::vector<Token> tokens_;
   size_t index_ = 0;
   std::string error_;
+  bool had_error_ = false;
 };
 
 bool ParseTypeFromString(const std::string& text, TypeRef* out, std::string* error);

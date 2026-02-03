@@ -211,6 +211,24 @@ bool LangParsesFnKeywordDecl() {
   return true;
 }
 
+bool LangParserRecoversInBlock() {
+  const char* src = "main : void () { +; x : i32 = 1; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Function) return false;
+  bool found_var = false;
+  for (const auto& stmt : decl.func.body) {
+    if (stmt.kind == Simple::Lang::StmtKind::VarDecl && stmt.var_decl.name == "x") {
+      found_var = true;
+      break;
+    }
+  }
+  return found_var;
+}
+
 bool LangParsesVarDecl() {
   const char* src = "count :: i32 = 42;";
   Simple::Lang::Program program;
@@ -1732,6 +1750,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
   {"lang_parse_fn_literal", LangParsesFnLiteral},
   {"lang_parse_assignments", LangParsesAssignments},
+  {"lang_parse_recover_in_block", LangParserRecoversInBlock},
   {"lang_parse_inc_dec", LangParsesIncDec},
   {"lang_parse_if_chain", LangParsesIfChain},
   {"lang_parse_if_else", LangParsesIfElse},

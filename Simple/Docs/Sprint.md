@@ -685,3 +685,4 @@
 - Added Simple::Lang mutability validation for member/index assignment through immutable bases and immutable-return calls, with tests.
 - Added Simple::Lang assignment-expression parsing (right-associative) so `(x = y)` works in expressions, with tests now passing.
 - Marked Simple::Lang plan items complete for expression/assignment type checking and artifact init/self access validation.
+- Added Simple::Lang parser recovery inside blocks and a recovery test to keep parsing after invalid statements.
