@@ -650,3 +650,6 @@
 - Added Simple::Lang call validation tests for arity mismatch and non-function calls.
 - Added Simple::Lang validation requiring `self.` for artifact member access inside methods.
 - Added Simple::Lang tests for `self.` enforcement on fields and methods.
+- Added Simple::Lang expression type inference for literals, identifiers, member access, and calls.
+- Added Simple::Lang validation for type-mismatched variable initializers and assignments.
+- Added Simple::Lang return type mismatch validation with positive/negative tests.

@@ -35,6 +35,71 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
   "bool", "char", "string",
 };
 
+bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
+  if (!out) return false;
+  out->name = src.name;
+  out->type_args.clear();
+  out->dims = src.dims;
+  out->is_proc = src.is_proc;
+  out->proc_return_mutability = src.proc_return_mutability;
+  out->proc_params.clear();
+  out->proc_return.reset();
+  for (const auto& arg : src.type_args) {
+    TypeRef copy;
+    if (!CloneTypeRef(arg, &copy)) return false;
+    out->type_args.push_back(std::move(copy));
+  }
+  for (const auto& param : src.proc_params) {
+    TypeRef copy;
+    if (!CloneTypeRef(param, &copy)) return false;
+    out->proc_params.push_back(std::move(copy));
+  }
+  if (src.proc_return) {
+    TypeRef copy;
+    if (!CloneTypeRef(*src.proc_return, &copy)) return false;
+    out->proc_return = std::make_unique<TypeRef>(std::move(copy));
+  }
+  return true;
+}
+
+bool TypeDimsEqual(const std::vector<TypeDim>& a, const std::vector<TypeDim>& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i].is_list != b[i].is_list) return false;
+    if (a[i].has_size != b[i].has_size) return false;
+    if (a[i].has_size && a[i].size != b[i].size) return false;
+  }
+  return true;
+}
+
+bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b);
+
+bool TypeEquals(const TypeRef& a, const TypeRef& b) {
+  if (a.is_proc != b.is_proc) return false;
+  if (a.is_proc) {
+    if (a.proc_return_mutability != b.proc_return_mutability) return false;
+    if (a.proc_params.size() != b.proc_params.size()) return false;
+    for (size_t i = 0; i < a.proc_params.size(); ++i) {
+      if (!TypeEquals(a.proc_params[i], b.proc_params[i])) return false;
+    }
+    if (!a.proc_return || !b.proc_return) return false;
+    if (!TypeEquals(*a.proc_return, *b.proc_return)) return false;
+  } else {
+    if (a.name != b.name) return false;
+    if (!TypeArgsEqual(a.type_args, b.type_args)) return false;
+    if (!TypeDimsEqual(a.dims, b.dims)) return false;
+  }
+  return true;
+}
+
+bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (!TypeEquals(a[i], b[i])) return false;
+  }
+  return true;
+}
+
 bool CheckTypeRef(const TypeRef& type,
                   const ValidateContext& ctx,
                   const std::unordered_set<std::string>& type_params,
@@ -89,6 +154,115 @@ bool CheckTypeRef(const TypeRef& type,
   return true;
 }
 
+const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                           const std::string& name);
+const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
+const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
+const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
+const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name);
+
+bool InferExprType(const Expr& expr,
+                   const ValidateContext& ctx,
+                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                   const ArtifactDecl* current_artifact,
+                   TypeRef* out) {
+  if (!out) return false;
+  switch (expr.kind) {
+    case ExprKind::Literal:
+      out->is_proc = false;
+      out->type_args.clear();
+      out->dims.clear();
+      switch (expr.literal_kind) {
+        case LiteralKind::Integer: out->name = "i32"; break;
+        case LiteralKind::Float: out->name = "f64"; break;
+        case LiteralKind::String: out->name = "string"; break;
+        case LiteralKind::Char: out->name = "char"; break;
+        case LiteralKind::Bool: out->name = "bool"; break;
+      }
+      return true;
+    case ExprKind::Identifier: {
+      if (expr.text == "self") return false;
+      if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+        if (!local->type) return false;
+        return CloneTypeRef(*local->type, out);
+      }
+      auto global_it = ctx.globals.find(expr.text);
+      if (global_it != ctx.globals.end()) {
+        return CloneTypeRef(global_it->second->type, out);
+      }
+      return false;
+    }
+    case ExprKind::Member: {
+      if (expr.op != "." || expr.children.empty()) return false;
+      const Expr& base = expr.children[0];
+      if (base.kind == ExprKind::Identifier) {
+        if (base.text == "self") {
+          const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+          if (field) return CloneTypeRef(field->type, out);
+          const FuncDecl* method = FindArtifactMethod(current_artifact, expr.text);
+          if (method) return CloneTypeRef(method->return_type, out);
+          return false;
+        }
+        auto module_it = ctx.modules.find(base.text);
+        if (module_it != ctx.modules.end()) {
+          if (const VarDecl* var = FindModuleVar(module_it->second, expr.text)) {
+            return CloneTypeRef(var->type, out);
+          }
+          if (const FuncDecl* fn = FindModuleFunc(module_it->second, expr.text)) {
+            return CloneTypeRef(fn->return_type, out);
+          }
+          return false;
+        }
+        if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+          if (!local->type) return false;
+          auto artifact_it = ctx.artifacts.find(local->type->name);
+          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+            return CloneTypeRef(field->type, out);
+          }
+          if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+            return CloneTypeRef(method->return_type, out);
+          }
+        }
+        auto global_it = ctx.globals.find(base.text);
+        if (global_it != ctx.globals.end()) {
+          auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+            return CloneTypeRef(field->type, out);
+          }
+          if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+            return CloneTypeRef(method->return_type, out);
+          }
+        }
+      }
+      return false;
+    }
+    case ExprKind::Call: {
+      if (expr.children.empty()) return false;
+      const Expr& callee = expr.children[0];
+      if (callee.kind == ExprKind::Identifier) {
+        auto fn_it = ctx.functions.find(callee.text);
+        if (fn_it != ctx.functions.end()) {
+          return CloneTypeRef(fn_it->second->return_type, out);
+        }
+      }
+      if (callee.kind == ExprKind::Member) {
+        TypeRef member_type;
+        if (InferExprType(callee, ctx, scopes, current_artifact, &member_type)) {
+          if (member_type.is_proc && member_type.proc_return) {
+            return CloneTypeRef(*member_type.proc_return, out);
+          }
+          return CloneTypeRef(member_type, out);
+        }
+      }
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+
 bool CollectTypeParams(const std::vector<std::string>& generics,
                         std::unordered_set<std::string>* out,
                         std::string* error) {
@@ -106,6 +280,7 @@ bool CollectTypeParams(const std::vector<std::string>& generics,
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
                const std::unordered_set<std::string>& type_params,
+               const TypeRef* expected_return,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -428,6 +603,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
                const std::unordered_set<std::string>& type_params,
+               const TypeRef* expected_return,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -444,7 +620,17 @@ bool CheckStmt(const Stmt& stmt,
         return false;
       }
       if (stmt.has_return_expr) {
-        return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
+        if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+        if (expected_return) {
+          TypeRef actual;
+          if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
+            if (!TypeEquals(*expected_return, actual)) {
+              if (error) *error = "return type mismatch";
+              return false;
+            }
+          }
+        }
+        return true;
       }
       return true;
     case StmtKind::Expr:
@@ -452,7 +638,18 @@ bool CheckStmt(const Stmt& stmt,
     case StmtKind::Assign:
       if (!CheckExpr(stmt.target, ctx, scopes, current_artifact, error)) return false;
       if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
-      return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
+      if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+      {
+        TypeRef target_type;
+        TypeRef value_type;
+        bool have_target = InferExprType(stmt.target, ctx, scopes, current_artifact, &target_type);
+        bool have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
+        if (have_target && have_value && !TypeEquals(target_type, value_type)) {
+          if (error) *error = "assignment type mismatch";
+          return false;
+        }
+      }
+      return true;
     case StmtKind::VarDecl:
       if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
       {
@@ -463,6 +660,13 @@ bool CheckStmt(const Stmt& stmt,
       }
       if (stmt.var_decl.has_init_expr) {
         if (!CheckExpr(stmt.var_decl.init_expr, ctx, scopes, current_artifact, error)) return false;
+        TypeRef init_type;
+        if (InferExprType(stmt.var_decl.init_expr, ctx, scopes, current_artifact, &init_type)) {
+          if (!TypeEquals(stmt.var_decl.type, init_type)) {
+            if (error) *error = "initializer type mismatch";
+            return false;
+          }
+        }
         if (stmt.var_decl.init_expr.kind == ExprKind::ArtifactLiteral) {
           auto artifact_it = ctx.artifacts.find(stmt.var_decl.type.name);
           if (artifact_it != ctx.artifacts.end()) {
@@ -477,7 +681,15 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckExpr(branch.first, ctx, scopes, current_artifact, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+          if (!CheckStmt(child,
+                         ctx,
+                         type_params,
+                         expected_return,
+                         return_is_void,
+                         loop_depth,
+                         scopes,
+                         current_artifact,
+                         error)) {
             return false;
           }
         }
@@ -486,7 +698,15 @@ bool CheckStmt(const Stmt& stmt,
       if (!stmt.else_branch.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.else_branch) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+          if (!CheckStmt(child,
+                         ctx,
+                         type_params,
+                         expected_return,
+                         return_is_void,
+                         loop_depth,
+                         scopes,
+                         current_artifact,
+                         error)) {
             return false;
           }
         }
@@ -497,7 +717,15 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+        if (!CheckStmt(child,
+                       ctx,
+                       type_params,
+                       expected_return,
+                       return_is_void,
+                       loop_depth,
+                       scopes,
+                       current_artifact,
+                       error)) {
           return false;
         }
       }
@@ -505,7 +733,15 @@ bool CheckStmt(const Stmt& stmt,
       if (!stmt.if_else.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.if_else) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+          if (!CheckStmt(child,
+                         ctx,
+                         type_params,
+                         expected_return,
+                         return_is_void,
+                         loop_depth,
+                         scopes,
+                         current_artifact,
+                         error)) {
             return false;
           }
         }
@@ -519,6 +755,7 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckStmt(child,
                        ctx,
                        type_params,
+                       expected_return,
                        return_is_void,
                        loop_depth + 1,
                        scopes,
@@ -538,6 +775,7 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckStmt(child,
                        ctx,
                        type_params,
+                       expected_return,
                        return_is_void,
                        loop_depth + 1,
                        scopes,
@@ -705,7 +943,17 @@ bool CheckFunctionBody(const FuncDecl& fn,
     if (!AddLocal(scopes, param.name, info, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, type_params, return_is_void, 0, scopes, current_artifact, error)) return false;
+    if (!CheckStmt(stmt,
+                   ctx,
+                   type_params,
+                   &fn.return_type,
+                   return_is_void,
+                   0,
+                   scopes,
+                   current_artifact,
+                   error)) {
+      return false;
+    }
   }
   if (!return_is_void && !StmtsReturn(fn.body)) {
     if (error) *error = "non-void function does not return on all paths";

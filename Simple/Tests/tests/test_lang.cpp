@@ -643,6 +643,34 @@ bool LangValidateArtifactMemberSelfOk() {
   return true;
 }
 
+bool LangValidateTypeMismatchVarInit() {
+  const char* src = "main : void () { x : i32 = \"hi\"; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateTypeMismatchAssign() {
+  const char* src = "main : void () { x : i32 = 1; x = \"hi\"; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateReturnTypeMismatch() {
+  const char* src = "main : i32 () { return \"hi\"; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateReturnTypeMatch() {
+  const char* src = "main : string () { return \"hi\"; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -885,6 +913,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},
   {"lang_validate_artifact_member_requires_self_method", LangValidateArtifactMemberRequiresSelfMethod},
   {"lang_validate_artifact_member_self_ok", LangValidateArtifactMemberSelfOk},
+  {"lang_validate_type_mismatch_var_init", LangValidateTypeMismatchVarInit},
+  {"lang_validate_type_mismatch_assign", LangValidateTypeMismatchAssign},
+  {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
+  {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
