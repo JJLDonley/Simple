@@ -59,6 +59,30 @@ bool LangLexesLiterals() {
   return saw_int && saw_hex && saw_bin && saw_float && saw_string && saw_char;
 }
 
+bool LangLexRejectsInvalidHex() {
+  const char* src = "x : i32 = 0xZZ;";
+  Simple::Lang::Lexer lex(src);
+  return !lex.Lex();
+}
+
+bool LangLexRejectsInvalidBinary() {
+  const char* src = "x : i32 = 0b2;";
+  Simple::Lang::Lexer lex(src);
+  return !lex.Lex();
+}
+
+bool LangLexRejectsInvalidStringEscape() {
+  const char* src = "x : string = \"hi\\q\";";
+  Simple::Lang::Lexer lex(src);
+  return !lex.Lex();
+}
+
+bool LangLexRejectsInvalidCharEscape() {
+  const char* src = "x : char = '\\q';";
+  Simple::Lang::Lexer lex(src);
+  return !lex.Lex();
+}
+
 bool LangParsesTypeLiterals() {
   Simple::Lang::TypeRef type;
   std::string error;
@@ -1301,6 +1325,10 @@ bool LangParsesForLoopPostInc() {
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
+  {"lang_lex_reject_invalid_hex", LangLexRejectsInvalidHex},
+  {"lang_lex_reject_invalid_binary", LangLexRejectsInvalidBinary},
+  {"lang_lex_reject_invalid_string_escape", LangLexRejectsInvalidStringEscape},
+  {"lang_lex_reject_invalid_char_escape", LangLexRejectsInvalidCharEscape},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
   {"lang_parse_func_decl", LangParsesFuncDecl},
   {"lang_parse_fn_keyword", LangParsesFnKeywordDecl},

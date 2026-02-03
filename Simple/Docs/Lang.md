@@ -1259,7 +1259,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] Operators/punctuators (including `:`, `::`, `|>`, `[]`, `()`, `{}`)
 - [x] Single-line and multi-line comments
 - [x] Line/column tracking
-- [ ] Final pass over remaining operators/edge cases (error recovery, invalid tokens)
+- [x] Final pass over remaining operators/edge cases (error recovery, invalid tokens)
 
 ### 2) Parser
 - [x] Declarations: variables, procedures, artifacts, modules, enums
