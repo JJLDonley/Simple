@@ -522,3 +522,6 @@
 - Switched `build.sh` to incremental object builds (no Ninja) to speed dev iterations.
 - Added SIR text verify-fail tests for call param type mismatch and conversion misuse.
 - Added SIR text verify-fail tests for bad call.indirect sig id and invalid function sig id.
+- Added SIR text trap test for global init unsupported const pool kind.
+- Updated test runner to support suite-specific builds via build.sh (--suite core|ir|jit) to speed iterations.
+- Added SIR text verify-fail tests for syscall usage and missing syscall id.

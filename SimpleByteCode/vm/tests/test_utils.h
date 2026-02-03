@@ -48,6 +48,7 @@ std::vector<uint8_t> BuildDebugSection(uint32_t file_count,
 
 std::vector<uint8_t> BuildModuleWithDebugSection(const std::vector<uint8_t>& code,
                                                  const std::vector<uint8_t>& debug_bytes);
+std::vector<uint8_t> BuildJmpTableModule(int32_t index);
 
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);

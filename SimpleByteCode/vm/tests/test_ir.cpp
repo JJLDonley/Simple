@@ -3778,6 +3778,31 @@ bool RunIrTextIntrinsicTrapTest() {
   return RunExpectVerifyFail(module, "ir_text_intrinsic_trap");
 }
 
+bool RunIrTextSysCallVerifyFailTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  syscall 7\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_syscall_verify_fail");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_syscall_verify_fail");
+}
+
+bool RunIrTextSysCallMissingIdTest() {
+  const char* text =
+      "func main locals=0 stack=2\n"
+      "  enter 0\n"
+      "  syscall\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_syscall_missing_id");
+}
+
 bool RunIrTextArrayI32Test() {
   const char* text =
       "func main locals=1 stack=12\n"
@@ -4891,6 +4916,41 @@ bool RunIrTextBadFuncSigIdTest() {
   return RunExpectVerifyFail(module, "ir_text_bad_func_sig");
 }
 
+bool RunIrTextGlobalInitUnsupportedConstTest() {
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 5);
+  AppendU32(const_pool, 0);
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);
+  AppendU32(globals, 0);
+  AppendU32(globals, 0);
+  AppendU32(globals, const_id);
+
+  const char* text =
+      "func main locals=0 stack=4 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModuleWithTablesAndGlobals(text, "ir_text_global_init_unsupported_const",
+                                                      std::move(types), {}, std::move(const_pool),
+                                                      std::move(globals));
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_global_init_unsupported_const");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4980,6 +5040,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_locals", RunIrTextLocalsTest},
   {"ir_text_bitwise_bool", RunIrTextBitwiseBoolTest},
   {"ir_text_intrinsic_trap", RunIrTextIntrinsicTrapTest},
+  {"ir_text_syscall_verify_fail", RunIrTextSysCallVerifyFailTest},
+  {"ir_text_syscall_missing_id", RunIrTextSysCallMissingIdTest},
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
@@ -5020,6 +5082,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_conv_type_mismatch", RunIrTextConvTypeMismatchTest},
   {"ir_text_call_indirect_bad_sig", RunIrTextCallIndirectBadSigIdTest},
   {"ir_text_bad_func_sig", RunIrTextBadFuncSigIdTest},
+  {"ir_text_global_init_unsupported_const", RunIrTextGlobalInitUnsupportedConstTest},
 };
 
 static const TestSection kIrSections[] = {

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 
+#include "opcode.h"
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
@@ -16,9 +17,13 @@ namespace simplevm::tests {
 using simplevm::sbc::AppendU32;
 using simplevm::sbc::AppendU64;
 using simplevm::sbc::AppendStringToPool;
+using simplevm::sbc::AppendU8;
+using simplevm::sbc::AppendU16;
 using simplevm::sbc::BuildModuleWithTablesAndSigAndDebug;
+using simplevm::sbc::BuildModuleWithTables;
 using simplevm::sbc::ReadU32At;
 using simplevm::sbc::WriteU32;
+using simplevm::sbc::AppendI32;
 
 void SetEnvVar(const std::string& name, const std::string& value) {
 #ifdef _WIN32
@@ -137,6 +142,49 @@ std::vector<uint8_t> BuildModuleWithDebugSection(const std::vector<uint8_t>& cod
   std::vector<uint32_t> empty_params;
   return BuildModuleWithTablesAndSigAndDebug(code, const_pool, {}, {}, debug_bytes, 0, 0, 0, 0, 0, 0,
                                              empty_params);
+}
+
+std::vector<uint8_t> BuildJmpTableModule(int32_t index) {
+  using simplevm::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, index);
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpTable));
+  size_t const_id_offset = code.size();
+  AppendU32(code, 0);
+  size_t default_offset = code.size();
+  AppendI32(code, 0);
+  size_t table_base = code.size();
+
+  size_t case0 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t case1 = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t default_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  PatchRel32(code, default_offset, default_block);
+
+  std::vector<uint8_t> blob;
+  AppendU32(blob, 2);
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case0) - static_cast<int64_t>(table_base)));
+  AppendI32(blob, static_cast<int32_t>(static_cast<int64_t>(case1) - static_cast<int64_t>(table_base)));
+
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 6, blob, &const_id);
+  WriteU32(code, const_id_offset, const_id);
+
+  std::vector<uint8_t> empty;
+  return BuildModuleWithTables(code, const_pool, empty, empty, 0, 0);
 }
 
 bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name) {
