@@ -602,3 +602,4 @@
 - Added Simple::Lang top-level parsing (function/variable decls), generic params, and basic tests.
 - Added Simple::Lang parsing for artifact/module declarations with tests.
 - Added Simple::Lang statement/expression parsing (return + basic binary expressions) with tests.
+- Added Simple::Lang parsing for artifact/module members (fields/variables + methods/functions) with tests.

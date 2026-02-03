@@ -162,7 +162,7 @@ bool Parser::ParseArtifactDecl(const Token& name_tok,
     out->artifact.name = name_tok.text;
     out->artifact.generics = std::move(generics);
   }
-  if (!ParseBlockTokens(&out->artifact.body_tokens)) return false;
+  if (!ParseArtifactBody(&out->artifact)) return false;
   return true;
 }
 
@@ -171,7 +171,121 @@ bool Parser::ParseModuleDecl(const Token& name_tok, Decl* out) {
     out->kind = DeclKind::Module;
     out->module.name = name_tok.text;
   }
-  if (!ParseBlockTokens(&out->module.body_tokens)) return false;
+  if (!ParseModuleBody(&out->module)) return false;
+  return true;
+}
+
+bool Parser::ParseArtifactBody(ArtifactDecl* out) {
+  if (!Match(TokenKind::LBrace)) {
+    error_ = "expected '{' to start artifact body";
+    return false;
+  }
+  while (!IsAtEnd()) {
+    if (Match(TokenKind::RBrace)) return true;
+    if (!ParseArtifactMember(out)) return false;
+  }
+  error_ = "unterminated artifact body";
+  return false;
+}
+
+bool Parser::ParseModuleBody(ModuleDecl* out) {
+  if (!Match(TokenKind::LBrace)) {
+    error_ = "expected '{' to start module body";
+    return false;
+  }
+  while (!IsAtEnd()) {
+    if (Match(TokenKind::RBrace)) return true;
+    if (!ParseModuleMember(out)) return false;
+  }
+  error_ = "unterminated module body";
+  return false;
+}
+
+bool Parser::ParseArtifactMember(ArtifactDecl* out) {
+  const Token& name_tok = Peek();
+  if (name_tok.kind != TokenKind::Identifier) {
+    error_ = "expected artifact member name";
+    return false;
+  }
+  Advance();
+
+  Mutability mut = Mutability::Mutable;
+  if (Match(TokenKind::Colon)) {
+    mut = Mutability::Mutable;
+  } else if (Match(TokenKind::DoubleColon)) {
+    mut = Mutability::Immutable;
+  } else {
+    error_ = "expected ':' or '::' after member name";
+    return false;
+  }
+
+  TypeRef type;
+  if (!ParseTypeInner(&type)) return false;
+
+  if (Match(TokenKind::LParen)) {
+    FuncDecl fn;
+    fn.name = name_tok.text;
+    fn.return_mutability = mut;
+    fn.return_type = std::move(type);
+    if (!ParseParamList(&fn.params)) return false;
+    if (!ParseBlockStmts(&fn.body)) return false;
+    if (out) out->methods.push_back(std::move(fn));
+    return true;
+  }
+
+  VarDecl field;
+  field.name = name_tok.text;
+  field.mutability = mut;
+  field.type = std::move(type);
+  if (Match(TokenKind::Semicolon)) {
+    // optional
+  }
+  if (out) out->fields.push_back(std::move(field));
+  return true;
+}
+
+bool Parser::ParseModuleMember(ModuleDecl* out) {
+  const Token& name_tok = Peek();
+  if (name_tok.kind != TokenKind::Identifier) {
+    error_ = "expected module member name";
+    return false;
+  }
+  Advance();
+
+  Mutability mut = Mutability::Mutable;
+  if (Match(TokenKind::Colon)) {
+    mut = Mutability::Mutable;
+  } else if (Match(TokenKind::DoubleColon)) {
+    mut = Mutability::Immutable;
+  } else {
+    error_ = "expected ':' or '::' after member name";
+    return false;
+  }
+
+  TypeRef type;
+  if (!ParseTypeInner(&type)) return false;
+
+  if (Match(TokenKind::LParen)) {
+    FuncDecl fn;
+    fn.name = name_tok.text;
+    fn.return_mutability = mut;
+    fn.return_type = std::move(type);
+    if (!ParseParamList(&fn.params)) return false;
+    if (!ParseBlockStmts(&fn.body)) return false;
+    if (out) out->functions.push_back(std::move(fn));
+    return true;
+  }
+
+  VarDecl var;
+  var.name = name_tok.text;
+  var.mutability = mut;
+  var.type = std::move(type);
+  if (!Match(TokenKind::Assign)) {
+    error_ = "expected '=' in module variable declaration";
+    return false;
+  }
+  if (!ParseInitTokens(&var.init_tokens)) return false;
+  if (out) out->variables.push_back(std::move(var));
   return true;
 }
 

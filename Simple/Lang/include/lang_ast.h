@@ -82,12 +82,14 @@ struct VarDecl {
 struct ArtifactDecl {
   std::string name;
   std::vector<std::string> generics;
-  std::vector<Token> body_tokens;
+  std::vector<VarDecl> fields;
+  std::vector<FuncDecl> methods;
 };
 
 struct ModuleDecl {
   std::string name;
-  std::vector<Token> body_tokens;
+  std::vector<VarDecl> variables;
+  std::vector<FuncDecl> functions;
 };
 
 enum class DeclKind : uint8_t {

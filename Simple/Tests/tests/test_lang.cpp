@@ -109,7 +109,7 @@ bool LangParsesVarDecl() {
 }
 
 bool LangParsesArtifactDecl() {
-  const char* src = "Point :: artifact { x : f32 y : f32 }";
+  const char* src = "Point :: artifact { x : f32 y :: f32 len : i32 () { return 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
@@ -117,11 +117,13 @@ bool LangParsesArtifactDecl() {
   const auto& decl = program.decls[0];
   if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
   if (decl.artifact.name != "Point") return false;
+  if (decl.artifact.fields.size() != 2) return false;
+  if (decl.artifact.methods.size() != 1) return false;
   return true;
 }
 
 bool LangParsesModuleDecl() {
-  const char* src = "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: module { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
@@ -129,6 +131,8 @@ bool LangParsesModuleDecl() {
   const auto& decl = program.decls[0];
   if (decl.kind != Simple::Lang::DeclKind::Module) return false;
   if (decl.module.name != "Math") return false;
+  if (decl.module.variables.size() != 1) return false;
+  if (decl.module.functions.size() != 1) return false;
   return true;
 }
 

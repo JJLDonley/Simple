@@ -34,6 +34,10 @@ private:
                          std::vector<std::string> generics,
                          Decl* out);
   bool ParseModuleDecl(const Token& name_tok, Decl* out);
+  bool ParseArtifactBody(ArtifactDecl* out);
+  bool ParseModuleBody(ModuleDecl* out);
+  bool ParseArtifactMember(ArtifactDecl* out);
+  bool ParseModuleMember(ModuleDecl* out);
   bool ParseBlockTokens(std::vector<Token>* out);
   bool ParseBlockStmts(std::vector<Stmt>* out);
   bool ParseInitTokens(std::vector<Token>* out);
