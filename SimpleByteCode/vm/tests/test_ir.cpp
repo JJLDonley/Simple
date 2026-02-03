@@ -4861,6 +4861,36 @@ bool RunIrTextConvTypeMismatchTest() {
   return RunExpectVerifyFail(module, "ir_text_conv_type_mismatch");
 }
 
+bool RunIrTextCallIndirectBadSigIdTest() {
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  call.indirect 5 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_call_indirect_bad_sig");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_call_indirect_bad_sig");
+}
+
+bool RunIrTextBadFuncSigIdTest() {
+  const char* text =
+      "func main locals=0 stack=4 sig=3\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_bad_func_sig", {sig0});
+  if (module.empty()) return true;
+  return RunExpectVerifyFail(module, "ir_text_bad_func_sig");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4988,6 +5018,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_global_init_f64", RunIrTextGlobalInitF64Test},
   {"ir_text_call_param_type_mismatch", RunIrTextCallParamTypeMismatchTest},
   {"ir_text_conv_type_mismatch", RunIrTextConvTypeMismatchTest},
+  {"ir_text_call_indirect_bad_sig", RunIrTextCallIndirectBadSigIdTest},
+  {"ir_text_bad_func_sig", RunIrTextBadFuncSigIdTest},
 };
 
 static const TestSection kIrSections[] = {

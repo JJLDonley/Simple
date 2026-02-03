@@ -521,3 +521,4 @@
 - Added SIR text tests for globals initialized from const pool (string/f32/f64).
 - Switched `build.sh` to incremental object builds (no Ninja) to speed dev iterations.
 - Added SIR text verify-fail tests for call param type mismatch and conversion misuse.
+- Added SIR text verify-fail tests for bad call.indirect sig id and invalid function sig id.
