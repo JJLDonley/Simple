@@ -74,6 +74,24 @@ std::vector<uint8_t> BuildIrTextModuleWithTables(const std::string& text,
   return out;
 }
 
+bool RunIrTextExpectFail(const char* text, const char* name) {
+  simplevm::irtext::IrTextModule parsed;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &parsed, &error)) {
+    return true;
+  }
+  simplevm::ir::IrModule module;
+  if (!simplevm::irtext::LowerIrTextToModule(parsed, &module, &error)) {
+    return true;
+  }
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    return true;
+  }
+  std::cerr << "expected IR text failure: " << name << "\n";
+  return false;
+}
+
 std::vector<uint8_t> BuildIrAddModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(0);
@@ -3818,6 +3836,28 @@ bool RunIrTextStringLenTest() {
   return RunExpectExit(module, 3);
 }
 
+bool RunIrTextBadOperandTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_operand");
+}
+
+bool RunIrTextUnknownOpTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  wat\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_unknown_op");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -3911,6 +3951,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
+  {"ir_text_bad_operand", RunIrTextBadOperandTest},
+  {"ir_text_unknown_op", RunIrTextUnknownOpTest},
 };
 
 static const TestSection kIrSections[] = {

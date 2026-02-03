@@ -9,6 +9,7 @@
 - Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
 - Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
 - Added SIR text-form tests for array/list/object field/string len paths with required tables.
+- Added SIR text negative tests for unknown ops and missing operands.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
