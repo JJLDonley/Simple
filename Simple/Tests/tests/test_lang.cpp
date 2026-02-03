@@ -295,6 +295,13 @@ bool LangValidateModuleDuplicateMember() {
   return true;
 }
 
+bool LangValidateDuplicateParams() {
+  const char* src = "add : i32 (a : i32, a : i32) { return a; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -484,6 +491,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
   {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
   {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
+  {"lang_validate_duplicate_params", LangValidateDuplicateParams},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

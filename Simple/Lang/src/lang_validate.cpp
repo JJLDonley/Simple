@@ -176,7 +176,12 @@ bool CheckFunctionBody(const FuncDecl& fn,
                        std::string* error) {
   std::vector<std::unordered_set<std::string>> scopes;
   scopes.emplace_back();
+  std::unordered_set<std::string> param_names;
   for (const auto& param : fn.params) {
+    if (!param_names.insert(param.name).second) {
+      if (error) *error = "duplicate parameter name: " + param.name;
+      return false;
+    }
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
