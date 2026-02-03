@@ -518,3 +518,4 @@
 - Fixed SIR call-args tests to use proper signature param counts.
 - Added SIR text tests for tailcall with args and upvalue type mismatch verify-fail.
 - Added SIR text verify-fail tests for bad call arg counts (direct and indirect).
+- Added SIR text tests for globals initialized from const pool (string/f32/f64).

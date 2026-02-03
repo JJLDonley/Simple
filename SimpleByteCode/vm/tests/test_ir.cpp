@@ -4692,6 +4692,135 @@ bool RunIrTextCallIndirectBadArgCountTest() {
   return RunExpectVerifyFail(module, "ir_text_call_indirect_bad_arg_count");
 }
 
+bool RunIrTextGlobalInitStringTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "ok"));
+  uint32_t str_const = 0;
+  AppendConstString(const_pool, str_off, &str_const);
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Ref));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);
+  AppendU32(globals, 1);
+  AppendU32(globals, 0);
+  AppendU32(globals, str_const);
+
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  ldglob 0\n"
+      "  string.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModuleWithTablesAndGlobals(text, "ir_text_global_init_string",
+                                                      std::move(types), {}, std::move(const_pool),
+                                                      std::move(globals));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
+bool RunIrTextGlobalInitF32Test() {
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 3);
+  AppendF32(const_pool, 4.5f);
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::F32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);
+  AppendU32(globals, 1);
+  AppendU32(globals, 0);
+  AppendU32(globals, const_id);
+
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  ldglob 0\n"
+      "  conv.f32.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModuleWithTablesAndGlobals(text, "ir_text_global_init_f32",
+                                                      std::move(types), {}, std::move(const_pool),
+                                                      std::move(globals));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 4);
+}
+
+bool RunIrTextGlobalInitF64Test() {
+  std::vector<uint8_t> const_pool;
+  uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+  AppendU32(const_pool, 4);
+  AppendF64(const_pool, 6.0);
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::F64));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 8);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);
+  AppendU32(globals, 1);
+  AppendU32(globals, 0);
+  AppendU32(globals, const_id);
+
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  ldglob 0\n"
+      "  conv.f64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModuleWithTablesAndGlobals(text, "ir_text_global_init_f64",
+                                                      std::move(types), {}, std::move(const_pool),
+                                                      std::move(globals));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 6);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4814,6 +4943,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_stupv_type_mismatch", RunIrTextStoreUpvalueTypeMismatchTest},
   {"ir_text_call_bad_arg_count", RunIrTextCallBadArgCountTest},
   {"ir_text_call_indirect_bad_arg_count", RunIrTextCallIndirectBadArgCountTest},
+  {"ir_text_global_init_string", RunIrTextGlobalInitStringTest},
+  {"ir_text_global_init_f32", RunIrTextGlobalInitF32Test},
+  {"ir_text_global_init_f64", RunIrTextGlobalInitF64Test},
 };
 
 static const TestSection kIrSections[] = {
