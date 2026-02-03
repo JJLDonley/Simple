@@ -685,6 +685,48 @@ bool LangValidateReturnTypeMatch() {
   return true;
 }
 
+bool LangValidateGenericTypeArgsMismatch() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { x : Box = { 1 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericTypeArgsWrongCount() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { x : Box<i32, i32> = { 1 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateNonGenericTypeArgs() {
+  const char* src = "Point :: artifact { x : i32 } main : void () { p : Point<i32> = { 1 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateEnumTypeArgsRejected() {
+  const char* src = "Color :: enum { Red } main : void () { c : Color<i32> = Color.Red; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateModuleNotType() {
+  const char* src = "Math :: module { pi : i32 = 3; } main : void () { x : Math = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateFunctionNotType() {
+  const char* src = "fn Foo : i32 () { return 0; } main : void () { x : Foo = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateUnaryTypeMismatch() {
   const char* src = "main : i32 () { return !1; }";
   std::string error;
@@ -983,6 +1025,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_type_mismatch_assign", LangValidateTypeMismatchAssign},
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
+  {"lang_validate_generic_type_args_mismatch", LangValidateGenericTypeArgsMismatch},
+  {"lang_validate_generic_type_args_wrong_count", LangValidateGenericTypeArgsWrongCount},
+  {"lang_validate_non_generic_type_args", LangValidateNonGenericTypeArgs},
+  {"lang_validate_enum_type_args_rejected", LangValidateEnumTypeArgsRejected},
+  {"lang_validate_module_not_type", LangValidateModuleNotType},
+  {"lang_validate_function_not_type", LangValidateFunctionNotType},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},
   {"lang_validate_binary_type_mismatch", LangValidateBinaryTypeMismatch},
   {"lang_validate_comparison_type_mismatch", LangValidateComparisonTypeMismatch},

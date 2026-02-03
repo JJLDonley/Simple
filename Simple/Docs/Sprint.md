@@ -657,3 +657,4 @@
 - Added Simple::Lang bitwise/shift operator precedence parsing with tests.
 - Added Simple::Lang operator type validation for unary/binary ops with tests.
 - Added Simple::Lang array type parsing for hex/binary size literals with tests.
+- Added Simple::Lang generic type arity validation and disallowed non-type symbols in type positions, with tests.

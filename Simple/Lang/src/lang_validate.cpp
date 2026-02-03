@@ -13,6 +13,7 @@ struct ValidateContext {
   std::unordered_set<std::string> enum_types;
   std::unordered_set<std::string> top_level;
   std::unordered_map<std::string, const ArtifactDecl*> artifacts;
+  std::unordered_map<std::string, size_t> artifact_generics;
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
   std::unordered_map<std::string, const FuncDecl*> functions;
@@ -135,6 +136,33 @@ bool CheckTypeRef(const TypeRef& type,
   if (!is_primitive && !is_type_param && !is_user_type) {
     if (error) *error = "unknown type: " + type.name;
     return false;
+  }
+
+  if (is_user_type && !is_type_param) {
+    if (ctx.modules.find(type.name) != ctx.modules.end()) {
+      if (error) *error = "module is not a type: " + type.name;
+      return false;
+    }
+    if (ctx.functions.find(type.name) != ctx.functions.end()) {
+      if (error) *error = "function is not a type: " + type.name;
+      return false;
+    }
+    if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
+      if (!type.type_args.empty()) {
+        if (error) *error = "enum type cannot have type arguments: " + type.name;
+        return false;
+      }
+    }
+    auto art_it = ctx.artifact_generics.find(type.name);
+    if (art_it != ctx.artifact_generics.end()) {
+      const size_t expected = art_it->second;
+      if (type.type_args.size() != expected) {
+        if (error) {
+          *error = "generic type argument count mismatch for " + type.name;
+        }
+        return false;
+      }
+    }
   }
 
   if (!type.type_args.empty()) {
@@ -1123,6 +1151,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Artifact:
         name_ptr = &decl.artifact.name;
         ctx.artifacts[decl.artifact.name] = &decl.artifact;
+        ctx.artifact_generics[decl.artifact.name] = decl.artifact.generics.size();
         break;
       case DeclKind::Module:
         name_ptr = &decl.module.name;
