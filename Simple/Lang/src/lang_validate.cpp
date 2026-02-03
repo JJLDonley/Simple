@@ -151,8 +151,15 @@ bool ValidateProgram(const Program& program, std::string* error) {
     switch (decl.kind) {
       case DeclKind::Enum:
         ctx.top_level.insert(decl.enm.name);
-        for (const auto& member : decl.enm.members) {
-          ctx.enum_members.insert(member.name);
+        {
+          std::unordered_set<std::string> local_members;
+          for (const auto& member : decl.enm.members) {
+            if (!local_members.insert(member.name).second) {
+              if (error) *error = "duplicate enum member: " + member.name;
+              return false;
+            }
+            ctx.enum_members.insert(member.name);
+          }
         }
         break;
       case DeclKind::Artifact:

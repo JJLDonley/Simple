@@ -621,3 +621,4 @@
 - Added `fn : <ret>` type shorthand parsing (procedure type sugar) with tests.
 - Added parsing for `self` identifiers in expressions with tests.
 - Added Simple::Lang enum qualification validation pass with tests.
+- Added Simple::Lang enum duplicate-member validation with tests.
