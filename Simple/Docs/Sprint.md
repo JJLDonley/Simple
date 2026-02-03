@@ -618,3 +618,4 @@
 - Added Simple::Lang parsing for qualified member access using `::` with tests.
 - Added Simple::Lang `fn` literal parsing in expressions with tests.
 - Adjusted `fn` literal test to use procedure type syntax in variable declarations.
+- Added `fn : <ret>` type shorthand parsing (procedure type sugar) with tests.

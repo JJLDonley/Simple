@@ -52,6 +52,24 @@ bool Parser::ParseProgram(Program* out) {
 }
 
 bool Parser::ParseTypeInner(TypeRef* out) {
+  if (Match(TokenKind::KwFn)) {
+    TypeRef proc;
+    proc.is_proc = true;
+    if (Match(TokenKind::Colon)) {
+      proc.proc_return_mutability = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      proc.proc_return_mutability = Mutability::Immutable;
+    } else {
+      error_ = "expected ':' or '::' after 'fn' in type";
+      return false;
+    }
+    TypeRef ret;
+    if (!ParseTypeInner(&ret)) return false;
+    proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
+    if (!ParseTypeDims(&proc)) return false;
+    if (out) *out = std::move(proc);
+    return true;
+  }
   if (Match(TokenKind::LParen)) {
     TypeRef proc;
     proc.is_proc = true;

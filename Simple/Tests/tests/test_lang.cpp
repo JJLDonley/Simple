@@ -82,6 +82,13 @@ bool LangParsesTypeLiterals() {
   if (!proc.proc_return) return false;
   if (proc.proc_return->name != "bool") return false;
 
+  Simple::Lang::TypeRef fn_ret;
+  if (!Simple::Lang::ParseTypeFromString("fn : i32", &fn_ret, &error)) return false;
+  if (!fn_ret.is_proc) return false;
+  if (!fn_ret.proc_return) return false;
+  if (fn_ret.proc_return->name != "i32") return false;
+  if (!fn_ret.proc_params.empty()) return false;
+
   return true;
 }
 
