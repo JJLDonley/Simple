@@ -321,6 +321,11 @@ bool CheckExpr(const Expr& expr,
                const ArtifactDecl* current_artifact,
                std::string* error);
 
+bool CheckArrayLiteralShape(const Expr& expr,
+                            const std::vector<TypeDim>& dims,
+                            size_t dim_index,
+                            std::string* error);
+
 bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
@@ -676,6 +681,11 @@ bool CheckStmt(const Stmt& stmt,
           if (error) *error = "assignment type mismatch";
           return false;
         }
+        if (have_target &&
+            (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral) &&
+            !target_type.dims.empty()) {
+          if (!CheckArrayLiteralShape(stmt.expr, target_type.dims, 0, error)) return false;
+        }
       }
       return true;
     case StmtKind::VarDecl:
@@ -688,6 +698,13 @@ bool CheckStmt(const Stmt& stmt,
       }
       if (stmt.var_decl.has_init_expr) {
         if (!CheckExpr(stmt.var_decl.init_expr, ctx, scopes, current_artifact, error)) return false;
+        if ((stmt.var_decl.init_expr.kind == ExprKind::ArrayLiteral ||
+             stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) &&
+            !stmt.var_decl.type.dims.empty()) {
+          if (!CheckArrayLiteralShape(stmt.var_decl.init_expr, stmt.var_decl.type.dims, 0, error)) {
+            return false;
+          }
+        }
         TypeRef init_type;
         if (InferExprType(stmt.var_decl.init_expr, ctx, scopes, current_artifact, &init_type)) {
           if (!TypeEquals(stmt.var_decl.type, init_type)) {
@@ -855,6 +872,38 @@ bool IsNumericTypeName(const std::string& name) {
 
 bool IsScalarType(const TypeRef& type) {
   return !type.is_proc && type.dims.empty() && type.type_args.empty();
+}
+
+bool CheckArrayLiteralShape(const Expr& expr,
+                            const std::vector<TypeDim>& dims,
+                            size_t dim_index,
+                            std::string* error) {
+  if (dim_index >= dims.size()) return true;
+  const TypeDim& dim = dims[dim_index];
+  if (!dim.has_size) return true;
+
+  if (expr.kind == ExprKind::ListLiteral) {
+    if (dim.size != 0) {
+      if (error) *error = "array literal size does not match fixed dimensions";
+      return false;
+    }
+    return true;
+  }
+
+  if (expr.kind != ExprKind::ArrayLiteral) {
+    if (error) *error = "array literal size does not match fixed dimensions";
+    return false;
+  }
+  if (expr.children.size() != dim.size) {
+    if (error) *error = "array literal size does not match fixed dimensions";
+    return false;
+  }
+  if (dim_index + 1 < dims.size()) {
+    for (const auto& child : expr.children) {
+      if (!CheckArrayLiteralShape(child, dims, dim_index + 1, error)) return false;
+    }
+  }
+  return true;
 }
 
 bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
