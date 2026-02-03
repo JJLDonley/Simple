@@ -5159,6 +5159,46 @@ bool RunIrTextListGetNonRefTest() {
   return RunIrTextExpectFail(text, "ir_text_list_get_non_ref");
 }
 
+bool RunIrTextCallIndirectBadSigIdTextTest() {
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  call.indirect 5 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_indirect_bad_sig_id");
+}
+
+bool RunIrTextJmpTableMissingLabelTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  jmptable def case0 case1\n"
+      "def:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "case0:\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_missing_label");
+}
+
+bool RunIrTextBadLocalsCountTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 1\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_locals_count");
+}
+
 bool RunIrTextListClearTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -5794,6 +5834,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_jmp_non_bool_cond", RunIrTextJmpNonBoolCondTest},
   {"ir_text_array_get_non_ref", RunIrTextArrayGetNonRefTest},
   {"ir_text_list_get_non_ref", RunIrTextListGetNonRefTest},
+  {"ir_text_call_indirect_bad_sig_id", RunIrTextCallIndirectBadSigIdTextTest},
+  {"ir_text_jmptable_missing_label", RunIrTextJmpTableMissingLabelTest},
+  {"ir_text_bad_locals_count", RunIrTextBadLocalsCountTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
