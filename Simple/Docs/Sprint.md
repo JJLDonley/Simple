@@ -670,3 +670,4 @@
 - Added Simple::Lang validation rejecting module/artifact/enum types as values (except enum qualification), with new tests.
 - Added Simple::Lang validation for unknown module/artifact member access with new negative tests.
 - Added Simple::Lang validation for unknown enum members with a new negative test.
+- Added Simple::Lang inc/dec validation for assignment targets and immutability, plus invalid-target tests.

@@ -622,7 +622,9 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     return true;
   }
-  return true;
+  if (target.kind == ExprKind::Index) return true;
+  if (error) *error = "invalid assignment target";
+  return false;
 }
 
 bool ValidateArtifactLiteral(const Expr& expr,
@@ -1263,6 +1265,9 @@ bool CheckExpr(const Expr& expr,
       return true;
     case ExprKind::Unary:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") {
+        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      }
       return CheckUnaryOpTypes(expr, ctx, scopes, current_artifact, error);
     case ExprKind::Binary:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;

@@ -513,6 +513,20 @@ bool LangValidateImmutableModuleAssign() {
   return true;
 }
 
+bool LangValidateIncDecImmutableLocal() {
+  const char* src = "main : void () { x :: i32 = 1; x++; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIncDecInvalidTarget() {
+  const char* src = "main : void () { (1 + 2)++; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateUnknownModuleMember() {
   const char* src =
     "Math :: module { x : i32 = 1; }"
@@ -1229,6 +1243,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_field_assign", LangValidateImmutableFieldAssign},
   {"lang_validate_immutable_self_field_assign", LangValidateImmutableSelfFieldAssign},
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
+  {"lang_validate_incdec_immutable_local", LangValidateIncDecImmutableLocal},
+  {"lang_validate_incdec_invalid_target", LangValidateIncDecInvalidTarget},
   {"lang_validate_unknown_module_member", LangValidateUnknownModuleMember},
   {"lang_validate_mutable_field_assign_ok", LangValidateMutableFieldAssignOk},
   {"lang_validate_unknown_artifact_member", LangValidateUnknownArtifactMember},
