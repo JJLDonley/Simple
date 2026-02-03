@@ -288,6 +288,17 @@ bool LangValidateLocalDuplicateShadowAllowed() {
   return true;
 }
 
+bool LangValidateForLoopScope() {
+  const char* src =
+    "main : void () {"
+    "  for i = 0; i < 1; i = i + 1 { i : i32 = 2; }"
+    "  i : i32 = 3;"
+    "}";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateArtifactDuplicateMember() {
   const char* src = "Thing :: artifact { x : i32 x : i32 }";
   std::string error;
@@ -532,6 +543,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
+  {"lang_validate_for_loop_scope", LangValidateForLoopScope},
   {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
   {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
   {"lang_validate_duplicate_params", LangValidateDuplicateParams},

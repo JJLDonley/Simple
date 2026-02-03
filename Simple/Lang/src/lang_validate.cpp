@@ -116,16 +116,17 @@ bool CheckStmt(const Stmt& stmt,
       }
       scopes.pop_back();
       return true;
-    case StmtKind::ForLoop:
+    case StmtKind::ForLoop: {
+      scopes.emplace_back();
       if (!CheckExpr(stmt.loop_iter, ctx, scopes, error)) return false;
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
-      scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child, ctx, return_is_void, loop_depth + 1, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
+    }
     case StmtKind::Break:
       if (loop_depth == 0) {
         if (error) *error = "break used outside of loop";
