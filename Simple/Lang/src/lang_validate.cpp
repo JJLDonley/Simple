@@ -473,6 +473,18 @@ bool InferExprType(const Expr& expr,
       if (!SubstituteTypeParams(info.return_type, mapping, &resolved)) return false;
       return CloneTypeRef(resolved, out);
     }
+    case ExprKind::Index: {
+      TypeRef base_type;
+      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) return false;
+      if (base_type.dims.empty()) return false;
+      TypeRef result;
+      if (!CloneTypeRef(base_type, &result)) return false;
+      result.dims.erase(result.dims.begin());
+      result.is_proc = false;
+      result.proc_params.clear();
+      result.proc_return.reset();
+      return CloneTypeRef(result, out);
+    }
     default:
       return false;
   }

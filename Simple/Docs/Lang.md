@@ -1285,7 +1285,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [ ] Mutability rules (`:` vs `::`)
 - [ ] Full type checking for expressions/assignments
 - [ ] Artifact initialization rules + `self` access validation
-- [ ] Array/list indexing type checks
+- [x] Array/list indexing type checks
 - [x] Procedure type checking + call argument validation
 - [ ] Generics rules (if retained)
 

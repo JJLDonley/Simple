@@ -973,6 +973,41 @@ bool LangValidateReturnTypeMatch() {
   return true;
 }
 
+bool LangValidateIndexTypeOk() {
+  const char* src = "main : void () { arr : i32[2] = [1,2]; x : i32 = arr[0]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexTypeMismatch() {
+  const char* src = "main : void () { arr : i32[2] = [1,2]; x : f64 = arr[0]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexNestedArrayTypeOk() {
+  const char* src = "main : void () { arr : i32[2][2] = [[1,2],[3,4]]; row : i32[2] = arr[0]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexListTypeOk() {
+  const char* src = "main : void () { list : string[] = [\"a\"]; s : string = list[0]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexListTypeMismatch() {
+  const char* src = "main : void () { list : string[] = [\"a\"]; x : i32 = list[0]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateCallArgTypeMismatch() {
   const char* src = "add : i32 (a : i32, b : i32) { return a + b; } main : void () { add(1, \"hi\"); }";
   std::string error;
@@ -1600,6 +1635,11 @@ const TestCase kLangTests[] = {
   {"lang_validate_compound_assign_invalid_type", LangValidateCompoundAssignInvalidType},
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
+  {"lang_validate_index_type_ok", LangValidateIndexTypeOk},
+  {"lang_validate_index_type_mismatch", LangValidateIndexTypeMismatch},
+  {"lang_validate_index_nested_array_type_ok", LangValidateIndexNestedArrayTypeOk},
+  {"lang_validate_index_list_type_ok", LangValidateIndexListTypeOk},
+  {"lang_validate_index_list_type_mismatch", LangValidateIndexListTypeMismatch},
   {"lang_validate_call_arg_type_mismatch", LangValidateCallArgTypeMismatch},
   {"lang_validate_call_arg_type_ok", LangValidateCallArgTypeOk},
   {"lang_validate_generic_call_explicit", LangValidateGenericCallExplicit},
