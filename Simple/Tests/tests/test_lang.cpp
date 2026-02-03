@@ -72,6 +72,16 @@ bool LangParsesTypeLiterals() {
   if (!arr.dims[0].has_size || arr.dims[0].size != 10) return false;
   if (!arr.dims[1].is_list) return false;
 
+  Simple::Lang::TypeRef hex_arr;
+  if (!Simple::Lang::ParseTypeFromString("i32[0x10]", &hex_arr, &error)) return false;
+  if (hex_arr.dims.size() != 1) return false;
+  if (!hex_arr.dims[0].has_size || hex_arr.dims[0].size != 16) return false;
+
+  Simple::Lang::TypeRef bin_arr;
+  if (!Simple::Lang::ParseTypeFromString("i32[0b1010]", &bin_arr, &error)) return false;
+  if (bin_arr.dims.size() != 1) return false;
+  if (!bin_arr.dims[0].has_size || bin_arr.dims[0].size != 10) return false;
+
   Simple::Lang::TypeRef generic;
   if (!Simple::Lang::ParseTypeFromString("Map<string, i32>", &generic, &error)) return false;
   if (generic.type_args.size() != 2) return false;

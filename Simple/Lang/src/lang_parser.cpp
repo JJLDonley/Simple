@@ -2,6 +2,38 @@
 
 #include "lang_lexer.h"
 
+#include <limits>
+#include <stdexcept>
+
+namespace {
+
+bool ParseIntegerLiteral(const std::string& text, uint64_t* out) {
+  if (!out) return false;
+  try {
+    if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+      *out = static_cast<uint64_t>(std::stoull(text.substr(2), nullptr, 16));
+      return true;
+    }
+    if (text.size() > 2 && text[0] == '0' && (text[1] == 'b' || text[1] == 'B')) {
+      uint64_t value = 0;
+      for (size_t i = 2; i < text.size(); ++i) {
+        char c = text[i];
+        if (c != '0' && c != '1') return false;
+        if (value > (std::numeric_limits<uint64_t>::max() >> 1)) return false;
+        value = (value << 1) | static_cast<uint64_t>(c - '0');
+      }
+      *out = value;
+      return true;
+    }
+    *out = static_cast<uint64_t>(std::stoull(text, nullptr, 10));
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
+} // namespace
+
 namespace Simple::Lang {
 
 Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
@@ -1155,7 +1187,10 @@ bool Parser::ParseTypeDims(TypeRef* out) {
     }
     dim.has_size = true;
     dim.is_list = false;
-    dim.size = static_cast<uint64_t>(std::stoull(size_tok.text));
+    if (!ParseIntegerLiteral(size_tok.text, &dim.size)) {
+      error_ = "invalid array size literal";
+      return false;
+    }
     Advance();
     if (!Match(TokenKind::RBracket)) {
       error_ = "expected ']' after array size";

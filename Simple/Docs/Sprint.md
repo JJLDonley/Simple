@@ -656,3 +656,4 @@
 - Added Simple::Lang lexer support for hex and binary integer literals with tests.
 - Added Simple::Lang bitwise/shift operator precedence parsing with tests.
 - Added Simple::Lang operator type validation for unary/binary ops with tests.
+- Added Simple::Lang array type parsing for hex/binary size literals with tests.
