@@ -2,8 +2,7 @@ func main locals=4 stack=12
   enter 4
   const.i32 10000
   stloc 0
-  ldloc 0
-  newarray 0
+  newarray 0 10000
   stloc 1
   const.i32 0
   stloc 2
