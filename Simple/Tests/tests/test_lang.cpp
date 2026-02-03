@@ -1,5 +1,6 @@
 #include "lang_lexer.h"
 #include "lang_parser.h"
+#include "lang_validate.h"
 #include "test_utils.h"
 
 #include <vector>
@@ -238,6 +239,20 @@ bool LangParsesSelf() {
   return true;
 }
 
+bool LangValidateEnumQualified() {
+  const char* src = "Color :: enum { Red } main : i32 () { return Color::Red; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateEnumUnqualified() {
+  const char* src = "Color :: enum { Red } main : i32 () { return Red; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -419,6 +434,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
+  {"lang_validate_enum_qualified", LangValidateEnumQualified},
+  {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

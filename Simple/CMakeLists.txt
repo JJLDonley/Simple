@@ -25,6 +25,7 @@ set(SIMPLEVM_CORE_SRC
   ${SIMPLEVM_IR_ROOT}/src/ir_lang.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_lexer.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_parser.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/lang_validate.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/opcode.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_loader.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_verifier.cpp
