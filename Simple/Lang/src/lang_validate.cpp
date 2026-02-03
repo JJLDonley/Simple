@@ -1075,9 +1075,17 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Index:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
-      if (expr.children[0].kind == ExprKind::Literal) {
-        if (error) *error = "indexing is only valid on arrays and lists";
-        return false;
+      {
+        TypeRef base_type;
+        if (InferExprType(expr.children[0], ctx, scopes, current_artifact, &base_type)) {
+          if (base_type.dims.empty()) {
+            if (error) *error = "indexing is only valid on arrays and lists";
+            return false;
+          }
+        } else if (expr.children[0].kind == ExprKind::Literal) {
+          if (error) *error = "indexing is only valid on arrays and lists";
+          return false;
+        }
       }
       if (expr.children[1].kind == ExprKind::Literal) {
         switch (expr.children[1].literal_kind) {
@@ -1087,6 +1095,14 @@ bool CheckExpr(const Expr& expr,
           default:
             if (error) *error = "index must be an integer";
             return false;
+        }
+      } else {
+        TypeRef index_type;
+        if (InferExprType(expr.children[1], ctx, scopes, current_artifact, &index_type)) {
+          if (!IsIntegerTypeName(index_type.name) && index_type.name != "char") {
+            if (error) *error = "index must be an integer";
+            return false;
+          }
         }
       }
       return true;

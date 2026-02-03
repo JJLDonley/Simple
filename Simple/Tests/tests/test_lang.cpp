@@ -567,6 +567,20 @@ bool LangValidateIndexIntOk() {
   return true;
 }
 
+bool LangValidateIndexNonIndexableVar() {
+  const char* src = "main : i32 () { x : i32 = 1; return x[0]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexNonIntegerExpr() {
+  const char* src = "main : i32 () { a : i32[] = []; return a[true]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateCallArgCount() {
   const char* src = "add : i32 (a : i32, b : i32) { return a; } main : i32 () { return add(1); }";
   std::string error;
@@ -1045,6 +1059,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_index_string_literal", LangValidateIndexStringLiteral},
   {"lang_validate_index_literal_base", LangValidateIndexLiteralBase},
   {"lang_validate_index_int_ok", LangValidateIndexIntOk},
+  {"lang_validate_index_non_indexable_var", LangValidateIndexNonIndexableVar},
+  {"lang_validate_index_non_integer_expr", LangValidateIndexNonIntegerExpr},
   {"lang_validate_call_arg_count", LangValidateCallArgCount},
   {"lang_validate_call_non_function", LangValidateCallNonFunction},
   {"lang_validate_call_module_func_count", LangValidateCallModuleFuncCount},
