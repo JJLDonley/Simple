@@ -638,3 +638,6 @@
 - Added Simple::Lang validation for var/param/return type usage across functions, modules, and artifacts.
 - Added Simple::Lang validation tests for unknown types, void value types, primitive type args, and type params.
 - Reworked `Simple/Docs/Lang.md` implementation plan to be dependency-ordered and SIR-targeted with status.
+- Added Simple::Lang mutability validation for locals, params, artifact fields, and module members.
+- Added Simple::Lang assignment validation for immutable locals and fields (including `self`).
+- Added Simple::Lang tests for immutable assignments and mutable field assignment success.

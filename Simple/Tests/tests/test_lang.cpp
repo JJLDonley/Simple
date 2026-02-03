@@ -424,6 +424,55 @@ bool LangValidateTypeParamWithArgs() {
   return true;
 }
 
+bool LangValidateImmutableVarAssign() {
+  const char* src = "main : void () { x :: i32 = 1; x = 2; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateImmutableParamAssign() {
+  const char* src = "main : void (x :: i32) { x = 2; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateImmutableFieldAssign() {
+  const char* src =
+    "Point :: artifact { x :: i32 }"
+    "main : void () { p : Point = { 1 }; p.x = 2; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateImmutableSelfFieldAssign() {
+  const char* src =
+    "Point :: artifact { x :: i32 set : void () { self.x = 1; } }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateImmutableModuleAssign() {
+  const char* src =
+    "Math :: module { PI :: f64 = 3.14; }"
+    "main : void () { Math.PI = 0.0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateMutableFieldAssignOk() {
+  const char* src =
+    "Point :: artifact { x : i32 }"
+    "main : void () { p : Point = { 1 }; p.x = 2; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -639,6 +688,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_primitive_type_args", LangValidatePrimitiveTypeArgs},
   {"lang_validate_type_param_ok", LangValidateTypeParamOk},
   {"lang_validate_type_param_with_args", LangValidateTypeParamWithArgs},
+  {"lang_validate_immutable_var_assign", LangValidateImmutableVarAssign},
+  {"lang_validate_immutable_param_assign", LangValidateImmutableParamAssign},
+  {"lang_validate_immutable_field_assign", LangValidateImmutableFieldAssign},
+  {"lang_validate_immutable_self_field_assign", LangValidateImmutableSelfFieldAssign},
+  {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
+  {"lang_validate_mutable_field_assign_ok", LangValidateMutableFieldAssignOk},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

@@ -1,5 +1,6 @@
 #include "lang_validate.h"
 
+#include <unordered_map>
 #include <unordered_set>
 
 #include "lang_parser.h"
@@ -11,6 +12,14 @@ struct ValidateContext {
   std::unordered_set<std::string> enum_members;
   std::unordered_set<std::string> enum_types;
   std::unordered_set<std::string> top_level;
+  std::unordered_map<std::string, const ArtifactDecl*> artifacts;
+  std::unordered_map<std::string, const ModuleDecl*> modules;
+  std::unordered_map<std::string, const VarDecl*> globals;
+};
+
+struct LocalInfo {
+  Mutability mutability = Mutability::Mutable;
+  const TypeRef* type = nullptr;
 };
 
 enum class TypeUse : uint8_t {
@@ -98,33 +107,133 @@ bool CheckStmt(const Stmt& stmt,
                const std::unordered_set<std::string>& type_params,
                bool return_is_void,
                int loop_depth,
-               std::vector<std::unordered_set<std::string>>& scopes,
+               std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+               const ArtifactDecl* current_artifact,
                std::string* error);
 
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
-               const std::vector<std::unordered_set<std::string>>& scopes,
+               const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                std::string* error);
 
 bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
-bool HasLocal(const std::vector<std::unordered_set<std::string>>& scopes,
-              const std::string& name) {
+const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                           const std::string& name) {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-    if (it->find(name) != it->end()) return true;
+    auto found = it->find(name);
+    if (found != it->end()) return &found->second;
   }
-  return false;
+  return nullptr;
 }
 
-bool AddLocal(std::vector<std::unordered_set<std::string>>& scopes,
+bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
               const std::string& name,
+              const LocalInfo& info,
               std::string* error) {
   if (scopes.empty()) scopes.emplace_back();
   auto& current = scopes.back();
-  if (!current.insert(name).second) {
+  if (!current.emplace(name, info).second) {
     if (error) *error = "duplicate local declaration: " + name;
     return false;
+  }
+  return true;
+}
+
+bool IsAssignOp(const std::string& op) {
+  return op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" ||
+         op == "%=" || op == "&=" || op == "|=" || op == "^=" || op == "<<=" || op == ">>=";
+}
+
+const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name) {
+  if (!module) return nullptr;
+  for (const auto& var : module->variables) {
+    if (var.name == name) return &var;
+  }
+  return nullptr;
+}
+
+const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name) {
+  if (!artifact) return nullptr;
+  for (const auto& field : artifact->fields) {
+    if (field.name == name) return &field;
+  }
+  return nullptr;
+}
+
+bool CheckAssignmentTarget(const Expr& target,
+                           const ValidateContext& ctx,
+                           const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                           const ArtifactDecl* current_artifact,
+                           std::string* error) {
+  if (target.kind == ExprKind::Identifier) {
+    if (target.text == "self") {
+      if (error) *error = "cannot assign to self";
+      return false;
+    }
+    if (const LocalInfo* local = FindLocal(scopes, target.text)) {
+      if (local->mutability == Mutability::Immutable) {
+        if (error) *error = "cannot assign to immutable local: " + target.text;
+        return false;
+      }
+      return true;
+    }
+    auto global_it = ctx.globals.find(target.text);
+    if (global_it != ctx.globals.end()) {
+      if (global_it->second->mutability == Mutability::Immutable) {
+        if (error) *error = "cannot assign to immutable variable: " + target.text;
+        return false;
+      }
+      return true;
+    }
+    return true;
+  }
+  if (target.kind == ExprKind::Member && target.op == "." && !target.children.empty()) {
+    const Expr& base = target.children[0];
+    if (base.kind == ExprKind::Identifier) {
+      if (base.text == "self") {
+        const VarDecl* field = FindArtifactField(current_artifact, target.text);
+        if (field && field->mutability == Mutability::Immutable) {
+          if (error) *error = "cannot assign to immutable field: self." + target.text;
+          return false;
+        }
+        return true;
+      }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        if (!local->type) return true;
+        auto artifact_it = ctx.artifacts.find(local->type->name);
+        const VarDecl* field = FindArtifactField(
+          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second,
+          target.text);
+        if (field && field->mutability == Mutability::Immutable) {
+          if (error) *error = "cannot assign to immutable field: " + base.text + "." + target.text;
+          return false;
+        }
+        return true;
+      }
+      auto module_it = ctx.modules.find(base.text);
+      if (module_it != ctx.modules.end()) {
+        const VarDecl* field = FindModuleVar(module_it->second, target.text);
+        if (field && field->mutability == Mutability::Immutable) {
+          if (error) *error = "cannot assign to immutable module member: " + base.text + "." + target.text;
+          return false;
+        }
+        return true;
+      }
+      auto global_it = ctx.globals.find(base.text);
+      if (global_it != ctx.globals.end()) {
+        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+        const VarDecl* field = FindArtifactField(
+          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second,
+          target.text);
+        if (field && field->mutability == Mutability::Immutable) {
+          if (error) *error = "cannot assign to immutable field: " + base.text + "." + target.text;
+          return false;
+        }
+      }
+    }
+    return true;
   }
   return true;
 }
@@ -134,7 +243,8 @@ bool CheckStmt(const Stmt& stmt,
                const std::unordered_set<std::string>& type_params,
                bool return_is_void,
                int loop_depth,
-               std::vector<std::unordered_set<std::string>>& scopes,
+               std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+               const ArtifactDecl* current_artifact,
                std::string* error) {
   switch (stmt.kind) {
     case StmtKind::Return:
@@ -154,10 +264,16 @@ bool CheckStmt(const Stmt& stmt,
       return CheckExpr(stmt.expr, ctx, scopes, error);
     case StmtKind::Assign:
       if (!CheckExpr(stmt.target, ctx, scopes, error)) return false;
+      if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
       return CheckExpr(stmt.expr, ctx, scopes, error);
     case StmtKind::VarDecl:
-      if (!AddLocal(scopes, stmt.var_decl.name, error)) return false;
       if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
+      {
+        LocalInfo info;
+        info.mutability = stmt.var_decl.mutability;
+        info.type = &stmt.var_decl.type;
+        if (!AddLocal(scopes, stmt.var_decl.name, info, error)) return false;
+      }
       if (stmt.var_decl.has_init_expr) {
         return CheckExpr(stmt.var_decl.init_expr, ctx, scopes, error);
       }
@@ -167,14 +283,18 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+            return false;
+          }
         }
         scopes.pop_back();
       }
       if (!stmt.else_branch.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.else_branch) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+            return false;
+          }
         }
         scopes.pop_back();
       }
@@ -183,13 +303,17 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+          return false;
+        }
       }
       scopes.pop_back();
       if (!stmt.if_else.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.if_else) {
-          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
+            return false;
+          }
         }
         scopes.pop_back();
       }
@@ -198,7 +322,16 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth + 1, scopes, error)) return false;
+        if (!CheckStmt(child,
+                       ctx,
+                       type_params,
+                       return_is_void,
+                       loop_depth + 1,
+                       scopes,
+                       current_artifact,
+                       error)) {
+          return false;
+        }
       }
       scopes.pop_back();
       return true;
@@ -208,7 +341,16 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth + 1, scopes, error)) return false;
+        if (!CheckStmt(child,
+                       ctx,
+                       type_params,
+                       return_is_void,
+                       loop_depth + 1,
+                       scopes,
+                       current_artifact,
+                       error)) {
+          return false;
+        }
       }
       scopes.pop_back();
       return true;
@@ -231,12 +373,12 @@ bool CheckStmt(const Stmt& stmt,
 
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
-               const std::vector<std::unordered_set<std::string>>& scopes,
+               const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                std::string* error) {
   switch (expr.kind) {
     case ExprKind::Identifier:
       if (expr.text == "self") return true;
-      if (HasLocal(scopes, expr.text)) return true;
+      if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
@@ -249,8 +391,11 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Unary:
       return CheckExpr(expr.children[0], ctx, scopes, error);
     case ExprKind::Binary:
-      return CheckExpr(expr.children[0], ctx, scopes, error) &&
-             CheckExpr(expr.children[1], ctx, scopes, error);
+      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
+      if (IsAssignOp(expr.op)) {
+        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, nullptr, error)) return false;
+      }
+      return CheckExpr(expr.children[1], ctx, scopes, error);
     case ExprKind::Call:
       if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
       for (const auto& arg : expr.args) {
@@ -320,8 +465,9 @@ bool StmtsReturn(const std::vector<Stmt>& stmts) {
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        const std::unordered_set<std::string>& type_params,
+                       const ArtifactDecl* current_artifact,
                        std::string* error) {
-  std::vector<std::unordered_set<std::string>> scopes;
+  std::vector<std::unordered_map<std::string, LocalInfo>> scopes;
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
@@ -332,10 +478,13 @@ bool CheckFunctionBody(const FuncDecl& fn,
       return false;
     }
     if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
-    if (!AddLocal(scopes, param.name, error)) return false;
+    LocalInfo info;
+    info.mutability = param.mutability;
+    info.type = &param.type;
+    if (!AddLocal(scopes, param.name, info, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, type_params, return_is_void, 0, scopes, error)) return false;
+    if (!CheckStmt(stmt, ctx, type_params, return_is_void, 0, scopes, current_artifact, error)) return false;
   }
   if (!return_is_void && !StmtsReturn(fn.body)) {
     if (error) *error = "non-void function does not return on all paths";
@@ -367,15 +516,18 @@ bool ValidateProgram(const Program& program, std::string* error) {
         break;
       case DeclKind::Artifact:
         name_ptr = &decl.artifact.name;
+        ctx.artifacts[decl.artifact.name] = &decl.artifact;
         break;
       case DeclKind::Module:
         name_ptr = &decl.module.name;
+        ctx.modules[decl.module.name] = &decl.module;
         break;
       case DeclKind::Function:
         name_ptr = &decl.func.name;
         break;
       case DeclKind::Variable:
         name_ptr = &decl.var.name;
+        ctx.globals[decl.var.name] = &decl.var;
         break;
     }
     if (name_ptr && !ctx.top_level.insert(*name_ptr).second) {
@@ -390,7 +542,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> type_params;
           if (!CollectTypeParams(decl.func.generics, &type_params, error)) return false;
-          if (!CheckFunctionBody(decl.func, ctx, type_params, error)) return false;
+          if (!CheckFunctionBody(decl.func, ctx, type_params, nullptr, error)) return false;
         }
         break;
       case DeclKind::Artifact:
@@ -412,7 +564,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             }
           }
           for (const auto& method : decl.artifact.methods) {
-            if (!CheckFunctionBody(method, ctx, type_params, error)) return false;
+            if (!CheckFunctionBody(method, ctx, type_params, &decl.artifact, error)) return false;
           }
         }
         break;
@@ -437,7 +589,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
         for (const auto& fn : decl.module.functions) {
           std::unordered_set<std::string> type_params;
           if (!CollectTypeParams(fn.generics, &type_params, error)) return false;
-          if (!CheckFunctionBody(fn, ctx, type_params, error)) return false;
+          if (!CheckFunctionBody(fn, ctx, type_params, nullptr, error)) return false;
         }
         break;
       case DeclKind::Enum:
