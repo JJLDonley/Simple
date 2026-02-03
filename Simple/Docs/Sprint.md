@@ -688,3 +688,4 @@
 - Added Simple::Lang parser recovery inside blocks and a recovery test to keep parsing after invalid statements.
 - Added Simple::Lang AST coverage test for all primitive type literals, arrays/lists, and procedure types.
 - Added Simple::Lang generic artifact validation (type argument substitution for fields/method returns) with new tests.
+- Added Simple::Lang SIR emitter for basic i32 locals/assign/return/arithmetic with new IR emission tests.

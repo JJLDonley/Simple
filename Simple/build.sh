@@ -47,6 +47,7 @@ SOURCES=(
   "$ROOT_DIR/Lang/src/lang_lexer.cpp"
   "$ROOT_DIR/Lang/src/lang_parser.cpp"
   "$ROOT_DIR/Lang/src/lang_validate.cpp"
+  "$ROOT_DIR/Lang/src/lang_sir.cpp"
   "$BYTE_DIR/src/opcode.cpp"
   "$BYTE_DIR/src/sbc_loader.cpp"
   "$BYTE_DIR/src/sbc_verifier.cpp"

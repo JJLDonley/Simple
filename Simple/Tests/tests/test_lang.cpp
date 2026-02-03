@@ -1,9 +1,13 @@
 #include "lang_lexer.h"
 #include "lang_parser.h"
+#include "lang_sir.h"
 #include "lang_validate.h"
+#include "ir_lang.h"
+#include "ir_compiler.h"
 #include "test_utils.h"
 
 #include <unordered_map>
+#include <string>
 #include <vector>
 
 namespace Simple::VM::Tests {
@@ -16,6 +20,33 @@ bool ExpectTokenKinds(const std::vector<Simple::Lang::Token>& tokens,
     if (tokens[i].kind != kinds[i]) return false;
   }
   return true;
+}
+
+bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
+  Simple::IR::Text::IrTextModule text;
+  std::string error;
+  if (!Simple::IR::Text::ParseIrTextModule(sir, &text, &error)) return false;
+  Simple::IR::IrModule module;
+  if (!Simple::IR::Text::LowerIrTextToModule(text, &module, &error)) return false;
+  std::vector<uint8_t> sbc;
+  if (!Simple::IR::CompileToSbc(module, &sbc, &error)) return false;
+  return RunExpectExit(sbc, expected);
+}
+
+bool LangSirEmitsReturnI32() {
+  const char* src = "main : i32 () { return 40 + 2; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangSirEmitsLocalAssign() {
+  const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 3);
 }
 
 bool LangLexesKeywordsAndOps() {
@@ -1721,6 +1752,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
+  {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
+  {"lang_sir_emit_local_assign", LangSirEmitsLocalAssign},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
