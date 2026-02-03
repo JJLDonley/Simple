@@ -514,3 +514,5 @@
 - Added SIR text tests for array get/set with i64/f32/f64/ref variants.
 - Added SIR text tests for list push/pop with i64/f32/f64/ref variants.
 - Added SIR text tests for list insert/remove and clear (i32 path).
+- Added SIR text tests for calls with args, call.indirect args, and store-upvalue paths.
+- Fixed SIR call-args tests to use proper signature param counts.

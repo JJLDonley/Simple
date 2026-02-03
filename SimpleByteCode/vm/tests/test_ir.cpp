@@ -103,6 +103,29 @@ std::vector<uint8_t> BuildIrTextModuleWithTablesAndGlobals(const std::string& te
   return out;
 }
 
+std::vector<uint8_t> BuildIrTextModuleWithSigs(const std::string& text,
+                                               const char* name,
+                                               std::vector<simplevm::sbc::SigSpec> sig_specs) {
+  simplevm::irtext::IrTextModule parsed;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &parsed, &error)) {
+    std::cerr << "IR text parse failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  if (!simplevm::irtext::LowerIrTextToModule(parsed, &module, &error)) {
+    std::cerr << "IR text lower failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  module.sig_specs = std::move(sig_specs);
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  return out;
+}
+
 bool RunIrTextExpectFail(const char* text, const char* name) {
   simplevm::irtext::IrTextModule parsed;
   std::string error;
@@ -4439,6 +4462,120 @@ bool RunIrTextListClearTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextCallArgsTest() {
+  const char* text =
+      "func add locals=2 stack=8 sig=0\n"
+      "  enter 2\n"
+      "  ldloc 0\n"
+      "  ldloc 1\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=1\n"
+      "  enter 0\n"
+      "  const.i32 4\n"
+      "  const.i32 5\n"
+      "  call 0 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 2;
+  sig0.param_types = {0, 0};
+  simplevm::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_args", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectExit(module, 9);
+}
+
+bool RunIrTextCallIndirectArgsTest() {
+  const char* text =
+      "func callee locals=2 stack=8 sig=0\n"
+      "  enter 2\n"
+      "  ldloc 0\n"
+      "  ldloc 1\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=1 stack=10 sig=1\n"
+      "  enter 1\n"
+      "  newclosure 0 0\n"
+      "  stloc 0\n"
+      "  const.i32 6\n"
+      "  const.i32 7\n"
+      "  ldloc 0\n"
+      "  call.indirect 0 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 2;
+  sig0.param_types = {0, 0};
+  simplevm::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_indirect_args", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectExit(module, 13);
+}
+
+bool RunIrTextStoreUpvalueTest() {
+  const char* text =
+      "func callee locals=0 stack=10 sig=0\n"
+      "  enter 0\n"
+      "  newobj 1\n"
+      "  stupv 0\n"
+      "  ldupv 0\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  newclosure 0 1\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_store_upvalue",
+                                            std::move(types), {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4554,6 +4691,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_ref", RunIrTextListRefTest},
   {"ir_text_list_insert_remove", RunIrTextListInsertRemoveTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
+  {"ir_text_call_args", RunIrTextCallArgsTest},
+  {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
+  {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},
 };
 
 static const TestSection kIrSections[] = {
