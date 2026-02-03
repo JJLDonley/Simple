@@ -47,6 +47,33 @@ std::vector<uint8_t> BuildIrTextModule(const std::string& text, const char* name
   return out;
 }
 
+std::vector<uint8_t> BuildIrTextModuleWithTables(const std::string& text,
+                                                 const char* name,
+                                                 std::vector<uint8_t> types,
+                                                 std::vector<uint8_t> fields,
+                                                 std::vector<uint8_t> const_pool) {
+  simplevm::irtext::IrTextModule parsed;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &parsed, &error)) {
+    std::cerr << "IR text parse failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  if (!simplevm::irtext::LowerIrTextToModule(parsed, &module, &error)) {
+    std::cerr << "IR text lower failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  module.types_bytes = std::move(types);
+  module.fields_bytes = std::move(fields);
+  module.const_pool = std::move(const_pool);
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  return out;
+}
+
 std::vector<uint8_t> BuildIrAddModule() {
   simplevm::IrBuilder builder;
   builder.EmitEnter(0);
@@ -3681,6 +3708,116 @@ bool RunIrTextIntrinsicTrapTest() {
   return RunExpectVerifyFail(module, "ir_text_intrinsic_trap");
 }
 
+bool RunIrTextArrayI32Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newarray 0 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.i32 7\n"
+      "  array.set.i32\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_i32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
+bool RunIrTextListI32Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 5\n"
+      "  list.push.i32\n"
+      "  ldloc 0\n"
+      "  const.i32 6\n"
+      "  list.push.i32\n"
+      "  ldloc 0\n"
+      "  list.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_i32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
+bool RunIrTextObjectFieldTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newobj 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 42\n"
+      "  stfld 0\n"
+      "  ldloc 0\n"
+      "  ldfld 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 1);
+
+  std::vector<uint8_t> fields;
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+  AppendU32(fields, 0);
+  AppendU32(fields, 1);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_object_field",
+                                            std::move(types), std::move(fields),
+                                            std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextStringLenTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "hey"));
+  uint32_t const_id = 0;
+  AppendConstString(const_pool, str_offset, &const_id);
+  std::string text = "func main locals=0 stack=4\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(const_id) + "\n";
+  text += "  string.len\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_len",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -3770,6 +3907,10 @@ static const TestCase kIrTests[] = {
   {"ir_text_locals", RunIrTextLocalsTest},
   {"ir_text_bitwise_bool", RunIrTextBitwiseBoolTest},
   {"ir_text_intrinsic_trap", RunIrTextIntrinsicTrapTest},
+  {"ir_text_array_i32", RunIrTextArrayI32Test},
+  {"ir_text_list_i32", RunIrTextListI32Test},
+  {"ir_text_object_field", RunIrTextObjectFieldTest},
+  {"ir_text_string_len", RunIrTextStringLenTest},
 };
 
 static const TestSection kIrSections[] = {

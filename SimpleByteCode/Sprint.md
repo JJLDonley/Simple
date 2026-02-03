@@ -8,6 +8,7 @@
 - Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
 - Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
 - Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
+- Added SIR text-form tests for array/list/object field/string len paths with required tables.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
@@ -504,3 +505,6 @@
 - Trimmed test runner output to only list failing test names while keeping section totals.
 - Expanded `SBC_IR.md` into a full SIR language doc (text form, compiler responsibilities, imports/FFI).
 - Added a typed `<T>`-suffix API table for SIR emitter operations.
+
+## 2026-02-03
+- Added IR text tests for arithmetic, branching, and locals + bitwise paths.

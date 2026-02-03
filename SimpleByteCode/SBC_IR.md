@@ -251,6 +251,7 @@ typeof
 isnull
 ref.eq
 ref.ne
+newclosure <method_id> <upvalue_count>
 ```
 
 ### 10.8 Arrays/Lists/Strings (Examples)
