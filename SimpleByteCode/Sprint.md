@@ -3,16 +3,6 @@
 ## Notes
 - This log must record every VM-related change going forward.
 
-## 2026-02-03
-- Added SIR text-form tests for add/branch/locals/bitwise+bool paths.
-- Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
-- Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
-- Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
-- Added SIR text-form tests for array/list/object field/string len paths with required tables.
-- Added SIR text negative tests for unknown ops and missing operands.
-- Added SIR text globals test and label validation/negative tests for unknown labels and jmptable label errors.
-- Added SIR text tests for ref equality and typeof with minimal type tables.
-
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
 - Implemented initial VM skeleton in `SimpleByteCode/vm/`.
@@ -511,3 +501,12 @@
 
 ## 2026-02-03
 - Added IR text tests for arithmetic, branching, and locals + bitwise paths.
+- Added SIR text-form tests for add/branch/locals/bitwise+bool paths.
+- Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
+- Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
+- Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
+- Added SIR text-form tests for array/list/object field/string len paths with required tables.
+- Added SIR text negative tests for unknown ops and missing operands.
+- Added SIR text globals test and label validation/negative tests for unknown labels and jmptable label errors.
+- Added SIR text tests for ref equality and typeof with minimal type tables.
+- Added SIR text tests for closures/upvalues and invalid newclosure method id.

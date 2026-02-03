@@ -4027,6 +4027,71 @@ bool RunIrTextTypeOfTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextClosureUpvalueTest() {
+  const char* text =
+      "func callee locals=0 stack=10 sig=0\n"
+      "  enter 0\n"
+      "  ldupv 0\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  newobj 1\n"
+      "  newclosure 0 1\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_closure_upvalue",
+                                            std::move(types), {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextBadNewClosureTest() {
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  newclosure 99 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bad_newclosure");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_bad_newclosure");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4127,6 +4192,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
   {"ir_text_ref_ops", RunIrTextRefOpsTest},
   {"ir_text_typeof", RunIrTextTypeOfTest},
+  {"ir_text_closure_upvalue", RunIrTextClosureUpvalueTest},
+  {"ir_text_bad_newclosure", RunIrTextBadNewClosureTest},
 };
 
 static const TestSection kIrSections[] = {
