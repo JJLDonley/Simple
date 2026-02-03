@@ -5861,6 +5861,39 @@ bool RunIrTextBadStackTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_stack_token");
 }
 
+bool RunIrTextLocalsOverflowTest() {
+  const char* text =
+      "func main locals=70000 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_locals_overflow");
+}
+
+bool RunIrTextStackOverflowTest() {
+  const char* text =
+      "func main locals=0 stack=4294967296\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_stack_overflow");
+}
+
+bool RunIrTextSigOverflowTest() {
+  const char* text =
+      "func main locals=0 stack=4 sig=4294967296\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_sig_overflow");
+}
+
 bool RunIrTextNegativeLocalsTest() {
   const char* text =
       "func main locals=-1 stack=4\n"
@@ -7098,6 +7131,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_func", RunIrTextDuplicateFuncTest},
   {"ir_text_bad_locals_token", RunIrTextBadLocalsTokenTest},
   {"ir_text_bad_stack_token", RunIrTextBadStackTokenTest},
+  {"ir_text_locals_overflow", RunIrTextLocalsOverflowTest},
+  {"ir_text_stack_overflow", RunIrTextStackOverflowTest},
+  {"ir_text_sig_overflow", RunIrTextSigOverflowTest},
   {"ir_text_negative_locals", RunIrTextNegativeLocalsTest},
   {"ir_text_negative_stack", RunIrTextNegativeStackTest},
   {"ir_text_label_before_func", RunIrTextLabelBeforeFuncTest},

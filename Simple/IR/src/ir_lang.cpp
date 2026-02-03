@@ -157,6 +157,10 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
             if (error) *error = "invalid locals value at line " + std::to_string(line_no);
             return false;
           }
+          if (!FitsUnsigned<uint16_t>(num)) {
+            if (error) *error = "locals out of range at line " + std::to_string(line_no);
+            return false;
+          }
           current->locals = static_cast<uint16_t>(num);
           locals_set = true;
         } else if (key == "stack") {
@@ -164,11 +168,19 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
             if (error) *error = "invalid stack value at line " + std::to_string(line_no);
             return false;
           }
+          if (!FitsUnsigned<uint32_t>(num)) {
+            if (error) *error = "stack out of range at line " + std::to_string(line_no);
+            return false;
+          }
           current->stack_max = static_cast<uint32_t>(num);
           stack_set = true;
         } else if (key == "sig") {
           if (!ParseUint(val, &num)) {
             if (error) *error = "invalid sig value at line " + std::to_string(line_no);
+            return false;
+          }
+          if (!FitsUnsigned<uint32_t>(num)) {
+            if (error) *error = "sig out of range at line " + std::to_string(line_no);
             return false;
           }
           current->sig_id = static_cast<uint32_t>(num);
