@@ -546,16 +546,16 @@
 - Adjusted compare/bool/ref tests to return i32 via control-flow (verifier-safe).
 - Added IR text negative tests for type mismatches across bool/cmp/shift/list/array ops.
 - Extended IR text failure helper to treat verifier rejection as expected failure.
-- Verified full test suite passes (736/736).
 - Added IR text negative tests for call arg-count, call.indirect arg-count, non-bool jumps, and non-ref array/list access.
 - Added IR text negative tests for call.indirect bad sig id, jmptable missing label, and locals count mismatch.
-- Added IR text negative tests for call arg-count and non-ref array/list access.
 - Added IR text tests for stack underflow, jump-to-end, and mid-instruction jump rejection.
 - Added IR text negative tests for jmptable arity, unsupported const.i128, missing const pool for strings, and missing sig id.
 
 - Added IR text runtime trap tests for array get out-of-bounds and list pop on empty list.
 
 - Added IR text runtime trap tests for string.get.char and string.slice out-of-bounds.
+
+- Added IR text runtime trap tests for array.set (i64/f32/f64/ref) out-of-bounds.
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 

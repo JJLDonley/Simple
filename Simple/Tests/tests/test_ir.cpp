@@ -5351,6 +5351,38 @@ bool RunIrTextNewListMissingCapTest() {
   return RunIrTextExpectFail(text, "ir_text_newlist_missing_cap");
 }
 
+bool RunIrTextEnterMissingCountTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_enter_missing_count");
+}
+
+bool RunIrTextCallMissingArgsTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  call 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_missing_args");
+}
+
+bool RunIrTextUnknownOpCapsTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  ADD.I32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_unknown_op_caps");
+}
+
 bool RunIrTextArrayGetOutOfBoundsTrapTest() {
   const char* text =
       "func main locals=1 stack=8\n"
@@ -5366,6 +5398,78 @@ bool RunIrTextArrayGetOutOfBoundsTrapTest() {
   auto module = BuildIrTextModule(text, "ir_text_array_get_oob");
   if (module.empty()) return false;
   return RunExpectTrap(module, "ir_text_array_get_oob");
+}
+
+bool RunIrTextArraySetI64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.i64 9\n"
+      "  array.set.i64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_i64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_i64_oob");
+}
+
+bool RunIrTextArraySetF32OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.f32 1.0\n"
+      "  array.set.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_f32_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_f32_oob");
+}
+
+bool RunIrTextArraySetF64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.f64 2.0\n"
+      "  array.set.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_f64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_f64_oob");
+}
+
+bool RunIrTextArraySetRefOutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.null\n"
+      "  array.set.ref\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_ref_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_set_ref_oob");
 }
 
 bool RunIrTextListPopEmptyTrapTest() {
@@ -6073,7 +6177,14 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},
   {"ir_text_newlist_missing_cap", RunIrTextNewListMissingCapTest},
+  {"ir_text_enter_missing_count", RunIrTextEnterMissingCountTest},
+  {"ir_text_call_missing_args", RunIrTextCallMissingArgsTest},
+  {"ir_text_unknown_op_caps", RunIrTextUnknownOpCapsTest},
   {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
+  {"ir_text_array_set_i64_oob", RunIrTextArraySetI64OutOfBoundsTrapTest},
+  {"ir_text_array_set_f32_oob", RunIrTextArraySetF32OutOfBoundsTrapTest},
+  {"ir_text_array_set_f64_oob", RunIrTextArraySetF64OutOfBoundsTrapTest},
+  {"ir_text_array_set_ref_oob", RunIrTextArraySetRefOutOfBoundsTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
   {"ir_text_string_slice_oob", RunIrTextStringSliceOobTrapTest},
