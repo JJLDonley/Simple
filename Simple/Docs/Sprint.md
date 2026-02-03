@@ -606,3 +606,4 @@
 - Added Simple::Lang expression parsing for unary ops, calls, member access, and comparison/logical operators.
 - Added Simple::Lang parsing for array/list literals and index expressions with tests.
 - Added Simple::Lang assignment statements and local variable declarations with tests.
+- Added Simple::Lang control flow parsing (|> chains, while, break/skip) with tests.

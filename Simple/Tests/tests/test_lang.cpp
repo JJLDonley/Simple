@@ -204,6 +204,41 @@ bool LangParsesAssignments() {
   return true;
 }
 
+bool LangParsesIfChain() {
+  const char* src = "main : i32 () { |> true { return 1; } |> default { return 2; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::IfChain) return false;
+  if (stmt.if_branches.size() != 1) return false;
+  if (stmt.else_branch.empty()) return false;
+  return true;
+}
+
+bool LangParsesWhileLoop() {
+  const char* src = "main : void () { while x < 10 { x = x + 1; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::WhileLoop) return false;
+  return true;
+}
+
+bool LangParsesBreakSkip() {
+  const char* src = "main : void () { while true { break; skip; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& loop = program.decls[0].func.body[0];
+  if (loop.kind != Simple::Lang::StmtKind::WhileLoop) return false;
+  if (loop.loop_body.size() != 2) return false;
+  if (loop.loop_body[0].kind != Simple::Lang::StmtKind::Break) return false;
+  if (loop.loop_body[1].kind != Simple::Lang::StmtKind::Skip) return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -217,6 +252,9 @@ const TestCase kLangTests[] = {
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_assignments", LangParsesAssignments},
+  {"lang_parse_if_chain", LangParsesIfChain},
+  {"lang_parse_while_loop", LangParsesWhileLoop},
+  {"lang_parse_break_skip", LangParsesBreakSkip},
 };
 
 } // namespace

@@ -74,6 +74,10 @@ enum class StmtKind : uint8_t {
   Expr,
   Assign,
   VarDecl,
+  IfChain,
+  WhileLoop,
+  Break,
+  Skip,
 };
 
 struct Stmt {
@@ -82,6 +86,10 @@ struct Stmt {
   Expr target;
   std::string assign_op;
   VarDecl var_decl;
+  std::vector<std::pair<Expr, std::vector<Stmt>>> if_branches;
+  std::vector<Stmt> else_branch;
+  Expr loop_cond;
+  std::vector<Stmt> loop_body;
 };
 
 struct FuncDecl {

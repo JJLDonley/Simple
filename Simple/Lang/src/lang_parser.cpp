@@ -411,6 +411,36 @@ bool Parser::ParseStmt(Stmt* out) {
     return true;
   }
 
+  if (Peek().kind == TokenKind::PipeGt) {
+    return ParseIfChain(out);
+  }
+
+  if (Peek().kind == TokenKind::KwWhile) {
+    return ParseWhile(out);
+  }
+
+  if (Match(TokenKind::KwBreak)) {
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after break";
+      return false;
+    }
+    if (out) {
+      out->kind = StmtKind::Break;
+    }
+    return true;
+  }
+
+  if (Match(TokenKind::KwSkip)) {
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after skip";
+      return false;
+    }
+    if (out) {
+      out->kind = StmtKind::Skip;
+    }
+    return true;
+  }
+
   if (Peek().kind == TokenKind::Identifier &&
       (Peek(1).kind == TokenKind::Colon || Peek(1).kind == TokenKind::DoubleColon)) {
     Token name_tok = Advance();
@@ -493,6 +523,52 @@ bool Parser::ParseStmt(Stmt* out) {
   if (out) {
     out->kind = StmtKind::Expr;
     out->expr = std::move(expr);
+  }
+  return true;
+}
+
+bool Parser::ParseIfChain(Stmt* out) {
+  if (!Match(TokenKind::PipeGt)) {
+    error_ = "expected '|>' to start if chain";
+    return false;
+  }
+  Expr first_cond;
+  if (!ParseExpr(&first_cond)) return false;
+  std::vector<Stmt> then_body;
+  if (!ParseBlockStmts(&then_body)) return false;
+  if (out) {
+    out->kind = StmtKind::IfChain;
+    out->if_branches.push_back({std::move(first_cond), std::move(then_body)});
+  }
+  while (Match(TokenKind::PipeGt)) {
+    if (Match(TokenKind::KwDefault)) {
+      std::vector<Stmt> else_body;
+      if (!ParseBlockStmts(&else_body)) return false;
+      if (out) out->else_branch = std::move(else_body);
+      break;
+    }
+    Expr cond;
+    if (!ParseExpr(&cond)) return false;
+    std::vector<Stmt> body;
+    if (!ParseBlockStmts(&body)) return false;
+    if (out) out->if_branches.push_back({std::move(cond), std::move(body)});
+  }
+  return true;
+}
+
+bool Parser::ParseWhile(Stmt* out) {
+  if (!Match(TokenKind::KwWhile)) {
+    error_ = "expected 'while'";
+    return false;
+  }
+  Expr cond;
+  if (!ParseExpr(&cond)) return false;
+  std::vector<Stmt> body;
+  if (!ParseBlockStmts(&body)) return false;
+  if (out) {
+    out->kind = StmtKind::WhileLoop;
+    out->loop_cond = std::move(cond);
+    out->loop_body = std::move(body);
   }
   return true;
 }

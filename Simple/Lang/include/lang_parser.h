@@ -42,6 +42,8 @@ private:
   bool ParseBlockStmts(std::vector<Stmt>* out);
   bool ParseInitTokens(std::vector<Token>* out);
   bool ParseStmt(Stmt* out);
+  bool ParseIfChain(Stmt* out);
+  bool ParseWhile(Stmt* out);
   bool ParseExpr(Expr* out);
   bool ParseBinaryExpr(int min_prec, Expr* out);
   bool ParseUnaryExpr(Expr* out);
