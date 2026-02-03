@@ -35,7 +35,45 @@ This document defines the full implementation plan for the Simple VM runtime and
 
 ---
 
-## 4) Implementation Phases (VM)
+## 4) Modules, Docs, and Phase Plans
+
+This plan is organized per Simple module. Each module lists:
+- **Docs**: the source-of-truth documents.
+- **Phase Plan**: ordered implementation phases.
+- **Status**: current state and near-term work.
+- **Future**: items explicitly deferred.
+
+### 4.1 Module: Simple::Byte (SBC Format, Loader, Verifier)
+
+Docs:
+- `Simple/Docs/SBC_Headers.md`
+- `Simple/Docs/SBC_Encoding.md`
+- `Simple/Docs/SBC_Sections.md`
+- `Simple/Docs/SBC_Metadata_Tables.md`
+- `Simple/Docs/SBC_OpCodes.md`
+- `Simple/Docs/SBC_Rules.md`
+
+Phase Plan:
+1) SBC header/section parsing and validation.
+2) Table decoding + heap decoding.
+3) Verifier: structural + type safety rules.
+4) Loader/verifier diagnostics and error context.
+
+Status:
+- Loader/verifier are implemented and covered by negative tests.
+- Opcode IDs and operand widths are locked for v0.1.
+
+Future:
+- Additional metadata table evolution (only if new VM features require it).
+
+### 4.2 Module: Simple::VM (Runtime + GC + JIT)
+
+Docs:
+- `Simple/Docs/SBC_Runtime.md`
+- `Simple/Docs/SBC_Debug.md`
+- `Simple/Docs/SBC_ABI.md` (ABI/FFI surface)
+
+Phase Plan: (details below)
 
 ### Phase 1: Foundations
 - [DONE] Implement module loader with strict validation per SBC docs.
@@ -318,6 +356,74 @@ Tests:
 - [DONE] `ir_emit_jump` (relative jump fixup).
 
 ---
+
+### 4.3 Module: Simple::IR (SIR Text + IR Compiler)
+
+Docs:
+- `Simple/Docs/SBC_IR.md`
+
+Phase Plan:
+1) SIR text grammar + tokenizer.
+2) SIR metadata tables (types/sigs/consts/imports/globals/upvalues).
+3) Name resolution + type validation.
+4) Lowering to SBC via emitter.
+5) SIR diagnostics + line/column mapping.
+6) SIR perf harness + real-program suite.
+
+Status:
+- SIR text, metadata tables, name resolution, and lowering are implemented.
+- Diagnostics include line context; perf harness runs .sir programs.
+
+Future:
+- Optional ergonomics (macros/includes) only if needed for authoring.
+
+### 4.4 Module: Simple::CLI (Runner + Tools)
+
+Docs:
+- `Simple/VM/README.md` (runtime usage)
+
+Phase Plan:
+1) CLI entry for VM run + verify.
+2) SIR perf runner + reporting.
+3) Diagnostics flags and output control.
+
+Status:
+- Test runners and perf harness are implemented.
+
+Future:
+- Dedicated `simplevm` CLI binary once core stabilizes.
+
+### 4.5 Module: Simple::Tests
+
+Docs:
+- `Simple/Docs/Sprint.md`
+
+Phase Plan:
+1) Core/IR/JIT test suites split by module.
+2) SIR text fixtures for real-program coverage.
+3) Negative tests for loader/verifier/runtime traps.
+
+Status:
+- Test suites are split and running; SIR perf suite exists.
+
+Future:
+- Expand perf baselines and regression thresholds.
+
+### 4.6 Module: Simple::Lang (Future Consumer)
+
+Docs:
+- `Simple/Docs/Simple_Programming_Language_Document.md`
+- `Simple/Docs/Simple_Implementation_Document.md`
+
+Phase Plan:
+1) Language front-end lowering to SIR.
+2) Standard library layered via ABI/FFI.
+
+Status:
+- Intentionally deferred until SIR + ABI are locked.
+
+Future:
+- Build Simple compiler as a consumer of SIR.
 
 ## 5) Testing Strategy
 

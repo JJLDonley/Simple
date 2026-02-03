@@ -593,3 +593,4 @@
 - Added optional local/upvalue type name validation in SIR text lowering with tests.
 - Added new .sir perf programs: gcd_iter, dot_product, float_accum, string_concat.
 - Fixed SIR perf CLI parsing to support --iters without crashing.
+- Formalized module-based phase plans in `Simple/Docs/Implementation.md` and added `Simple/Docs/README.md` index.
