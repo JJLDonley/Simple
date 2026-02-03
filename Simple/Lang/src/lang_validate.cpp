@@ -16,6 +16,7 @@ struct ValidateContext {
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
                bool return_is_void,
+               int loop_depth,
                std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error);
 
@@ -47,6 +48,7 @@ bool AddLocal(std::vector<std::unordered_set<std::string>>& scopes,
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
                bool return_is_void,
+               int loop_depth,
                std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error) {
   switch (stmt.kind) {
@@ -79,14 +81,14 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
       if (!stmt.else_branch.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.else_branch) {
-          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -95,13 +97,13 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
       }
       scopes.pop_back();
       if (!stmt.if_else.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.if_else) {
-          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -110,7 +112,7 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, loop_depth + 1, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
@@ -120,12 +122,21 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, loop_depth + 1, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
     case StmtKind::Break:
+      if (loop_depth == 0) {
+        if (error) *error = "break used outside of loop";
+        return false;
+      }
+      return true;
     case StmtKind::Skip:
+      if (loop_depth == 0) {
+        if (error) *error = "skip used outside of loop";
+        return false;
+      }
       return true;
   }
   return true;
@@ -207,7 +218,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, return_is_void, scopes, error)) return false;
+    if (!CheckStmt(stmt, ctx, return_is_void, 0, scopes, error)) return false;
   }
   return true;
 }
