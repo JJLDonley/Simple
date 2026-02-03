@@ -202,6 +202,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
   out->types.clear();
   out->sigs.clear();
   out->consts.clear();
+  out->globals.clear();
   out->imports.clear();
   out->entry_name.clear();
   out->entry_index = 0;
@@ -214,6 +215,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     Types,
     Sigs,
     Consts,
+    Globals,
     Imports,
   };
   Section section = Section::None;
@@ -242,6 +244,10 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     }
     if (line == "imports:") {
       section = Section::Imports;
+      continue;
+    }
+    if (line == "globals:") {
+      section = Section::Globals;
       continue;
     }
 
@@ -351,6 +357,32 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         }
         imp.id = static_cast<uint32_t>(num);
         out->imports.push_back(std::move(imp));
+        continue;
+      }
+    }
+
+    if (section == Section::Globals) {
+      if (line.rfind("global ", 0) == 0) {
+        std::vector<std::string> tokens = SplitTokens(line);
+        if (tokens.size() < 3) {
+          if (error) *error = "global expects name and type at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextGlobal glob;
+        glob.name = tokens[1];
+        glob.type = tokens[2];
+        for (size_t i = 3; i < tokens.size(); ++i) {
+          const std::string& kv = tokens[i];
+          size_t eq = kv.find('=');
+          if (eq == std::string::npos) continue;
+          std::string key = kv.substr(0, eq);
+          std::string val = kv.substr(eq + 1);
+          if (key == "init") {
+            glob.has_init = true;
+            glob.init = val;
+          }
+        }
+        out->globals.push_back(std::move(glob));
         continue;
       }
     }
@@ -535,6 +567,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   std::vector<uint8_t> const_pool;
   auto add_name = [&](const std::string& name) -> uint32_t {
     return static_cast<uint32_t>(Simple::Byte::sbc::AppendStringToPool(const_pool, name));
+  };
+  auto append_const_f32 = [&](float value) -> uint32_t {
+    uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+    uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    Simple::Byte::sbc::AppendU32(const_pool, 3);
+    Simple::Byte::sbc::AppendU32(const_pool, bits);
+    return const_id;
+  };
+  auto append_const_f64 = [&](double value) -> uint32_t {
+    uint32_t const_id = static_cast<uint32_t>(const_pool.size());
+    uint64_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    Simple::Byte::sbc::AppendU32(const_pool, 4);
+    Simple::Byte::sbc::AppendU64(const_pool, bits);
+    return const_id;
   };
 
   struct TypeBuildRow {
@@ -726,6 +774,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
 
   std::unordered_map<std::string, IrTextConst> const_map;
   std::unordered_map<std::string, uint32_t> const_string_ids;
+  std::unordered_map<std::string, uint32_t> const_f32_ids;
+  std::unordered_map<std::string, uint32_t> const_f64_ids;
   for (const auto& c : text.consts) {
     if (const_map.find(c.name) != const_map.end()) {
       if (error) *error = "duplicate const name: " + c.name;
@@ -744,6 +794,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       uint32_t const_id = 0;
       Simple::Byte::sbc::AppendConstString(const_pool, str_offset, &const_id);
       const_string_ids[c.name] = const_id;
+    } else if (kind == "f32") {
+      double parsed = 0.0;
+      if (!ParseFloat(c.value, &parsed)) {
+        if (error) *error = "const f32 parse failed: " + c.name;
+        return false;
+      }
+      const_f32_ids[c.name] = append_const_f32(static_cast<float>(parsed));
+    } else if (kind == "f64") {
+      double parsed = 0.0;
+      if (!ParseFloat(c.value, &parsed)) {
+        if (error) *error = "const f64 parse failed: " + c.name;
+        return false;
+      }
+      const_f64_ids[c.name] = append_const_f64(parsed);
     }
     const_map[c.name] = c;
   }
@@ -791,11 +855,6 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
 
   out->const_pool = const_pool;
 
-  std::unordered_map<std::string, uint32_t> func_ids;
-  for (size_t i = 0; i < text.functions.size(); ++i) {
-    func_ids[text.functions[i].name] = static_cast<uint32_t>(i);
-  }
-
   auto resolve_type_id = [&](const std::string& token, uint32_t* out_id) -> bool {
     uint64_t value = 0;
     if (ParseUint(token, &value)) {
@@ -808,6 +867,59 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     *out_id = it->second;
     return true;
   };
+
+  std::unordered_map<std::string, uint32_t> global_ids;
+  for (const auto& glob : text.globals) {
+    if (global_ids.find(glob.name) != global_ids.end()) {
+      if (error) *error = "duplicate global name: " + glob.name;
+      return false;
+    }
+    uint32_t type_id = 0;
+    if (!resolve_type_id(glob.type, &type_id)) {
+      if (error) *error = "global type not found: " + glob.type;
+      return false;
+    }
+    uint32_t init_const_id = 0xFFFFFFFFu;
+    if (glob.has_init) {
+      uint64_t value = 0;
+      if (ParseUint(glob.init, &value)) {
+        if (!FitsUnsigned<uint32_t>(value)) {
+          if (error) *error = "global init const id out of range: " + glob.name;
+          return false;
+        }
+        init_const_id = static_cast<uint32_t>(value);
+      } else {
+        auto str_it = const_string_ids.find(glob.init);
+        if (str_it != const_string_ids.end()) {
+          init_const_id = str_it->second;
+        } else {
+          auto f32_it = const_f32_ids.find(glob.init);
+          if (f32_it != const_f32_ids.end()) {
+            init_const_id = f32_it->second;
+          } else {
+            auto f64_it = const_f64_ids.find(glob.init);
+            if (f64_it != const_f64_ids.end()) {
+              init_const_id = f64_it->second;
+            } else {
+              if (error) *error = "global init const not found: " + glob.init;
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    Simple::Byte::sbc::AppendU32(out->globals_bytes, add_name(glob.name));
+    Simple::Byte::sbc::AppendU32(out->globals_bytes, type_id);
+    Simple::Byte::sbc::AppendU32(out->globals_bytes, 1);
+    Simple::Byte::sbc::AppendU32(out->globals_bytes, init_const_id);
+    global_ids[glob.name] = static_cast<uint32_t>(global_ids.size());
+  }
+
+  std::unordered_map<std::string, uint32_t> func_ids;
+  for (size_t i = 0; i < text.functions.size(); ++i) {
+    func_ids[text.functions[i].name] = static_cast<uint32_t>(i);
+  }
 
   auto resolve_sig_id = [&](const std::string& token, uint32_t* out_id) -> bool {
     uint64_t value = 0;
@@ -844,6 +956,19 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     }
     auto it = fn.locals_map.find(token);
     if (it == fn.locals_map.end()) return false;
+    *out_id = it->second;
+    return true;
+  };
+
+  auto resolve_global = [&](const std::string& token, uint32_t* out_id) -> bool {
+    uint64_t value = 0;
+    if (ParseUint(token, &value)) {
+      if (!FitsUnsigned<uint32_t>(value)) return false;
+      *out_id = static_cast<uint32_t>(value);
+      return true;
+    }
+    auto it = global_ids.find(token);
+    if (it == global_ids.end()) return false;
     *out_id = it->second;
     return true;
   };
@@ -2130,21 +2255,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op == "ldglob" || op == "load.global") {
-        uint64_t index = 0;
-        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+        uint32_t index = 0;
+        if (inst.args.size() != 1 || !resolve_global(inst.args[0], &index)) {
           if (error) *error = "ldglob expects index";
           return false;
         }
-        builder.EmitLoadGlobal(static_cast<uint32_t>(index));
+        builder.EmitLoadGlobal(index);
         continue;
       }
       if (op == "stglob" || op == "store.global") {
-        uint64_t index = 0;
-        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+        uint32_t index = 0;
+        if (inst.args.size() != 1 || !resolve_global(inst.args[0], &index)) {
           if (error) *error = "stglob expects index";
           return false;
         }
-        builder.EmitStoreGlobal(static_cast<uint32_t>(index));
+        builder.EmitStoreGlobal(index);
         continue;
       }
       if (op == "ldupv" || op == "load.upvalue") {

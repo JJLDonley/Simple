@@ -192,6 +192,7 @@ instructions to reference types, sigs, fields, consts, and imports by name.
 | `consts:` | `const <Name> <kind> <value>` | `const greet string "hi"` | `kind` ∈ `{i8,i16,i32,i64,u8,u16,u32,u64,f32,f64,bool,char,string}`. |
 | `imports:` | `syscall <Name> <id>` | `syscall write 7` | Enables `syscall <Name>` in code. |
 |  | `intrinsic <Name> <id>` | `intrinsic log 3` | Enables `intrinsic <Name>` in code. |
+| `globals:` | `global <Name> <Type> [init=<ConstName|ConstId>]` | `global g i32 init=max` | `init` only supports `string/f32/f64` consts. |
 
 ### 10.2 File Structure
 
@@ -206,6 +207,8 @@ consts:
 imports:
   syscall <Name> <id>
   intrinsic <Name> <id>
+globals:
+  global <Name> <Type> [init=<ConstName|ConstId>]
 func <name> locals=<u16> stack=<u16> sig=<sig_id|sig_name>
   locals: <name[:type]>, <name[:type]>, ...
   <instr>
@@ -255,6 +258,7 @@ When tables are present, the following operands may use **names** instead of num
 - `ldfld/stfld` field names, using `Type.field` when ambiguous.
 - `const.*` named constants from `consts:`.
 - `const.string` string constants from `consts:`.
+- `ldglob/stglob` global names from `globals:`.
 - `call/tailcall` function names.
 - `call.indirect` signature names from `sigs:`.
 - `intrinsic/syscall` names from `imports:`.

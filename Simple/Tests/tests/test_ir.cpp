@@ -4353,6 +4353,57 @@ bool RunIrTextGlobalTest() {
   return RunExpectExit(module, 8);
 }
 
+bool RunIrTextNamedGlobalsTest() {
+  const char* text =
+      "globals:\n"
+      "  global g i32\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 9\n"
+      "  stglob g\n"
+      "  ldglob g\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_named_globals");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 9);
+}
+
+bool RunIrTextNamedGlobalsInitTest() {
+  const char* text =
+      "consts:\n"
+      "  const greet string \"hi\"\n"
+      "  const kf f32 2.5\n"
+      "globals:\n"
+      "  global gs string init=greet\n"
+      "  global gf f32 init=kf\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  ldglob gf\n"
+      "  pop\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_named_globals_init");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextNamedGlobalsBadNameTest() {
+  const char* text =
+      "globals:\n"
+      "  global g i32\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  ldglob missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_named_globals_bad_name");
+}
+
 bool RunIrTextUnknownLabelTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -7168,6 +7219,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_bad_operand", RunIrTextBadOperandTest},
   {"ir_text_unknown_op", RunIrTextUnknownOpTest},
   {"ir_text_global", RunIrTextGlobalTest},
+  {"ir_text_named_globals", RunIrTextNamedGlobalsTest},
+  {"ir_text_named_globals_init", RunIrTextNamedGlobalsInitTest},
+  {"ir_text_named_globals_bad_name", RunIrTextNamedGlobalsBadNameTest},
   {"ir_text_unknown_label", RunIrTextUnknownLabelTest},
   {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
   {"ir_text_ref_null", RunIrTextRefNullTest},

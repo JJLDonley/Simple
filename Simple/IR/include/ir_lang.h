@@ -58,6 +58,13 @@ struct IrTextConst {
   std::string value;
 };
 
+struct IrTextGlobal {
+  std::string name;
+  std::string type;
+  bool has_init = false;
+  std::string init;
+};
+
 struct IrTextImport {
   std::string kind; // syscall | intrinsic
   std::string name;
@@ -68,6 +75,7 @@ struct IrTextModule {
   std::vector<IrTextType> types;
   std::vector<IrTextSig> sigs;
   std::vector<IrTextConst> consts;
+  std::vector<IrTextGlobal> globals;
   std::vector<IrTextImport> imports;
   std::vector<IrTextFunction> functions;
   std::string entry_name;

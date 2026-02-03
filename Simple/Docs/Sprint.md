@@ -583,3 +583,5 @@
 - Added SIR text metadata tables (types/sigs/consts/imports) with name-based resolution for locals/types/fields/consts/sigs/functions.
 - Added SIR text tests for named tables, bad type/field/const names, and syscall name trap behavior.
 - Updated SIR docs with metadata table syntax and name-resolution rules.
+- Added SIR text globals table with name-based ldglob/stglob and init const handling (string/f32/f64).
+- Added SIR text tests for named globals, global init via consts, and bad global names.
