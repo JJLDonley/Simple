@@ -5252,6 +5252,23 @@ bool RunIrTextJmpTableArityMismatchTest() {
   return RunIrTextExpectFail(text, "ir_text_jmptable_arity_mismatch");
 }
 
+bool RunIrTextJmpTableNonI32IndexTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.f32 1.0\n"
+      "  jmptable def case0\n"
+      "def:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "case0:\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_non_i32_index");
+}
+
 bool RunIrTextConstI128UnsupportedTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -5327,6 +5344,18 @@ bool RunIrTextCallIndirectMissingValueTest() {
       "end\n"
       "entry main\n";
   return RunIrTextExpectFail(text, "ir_text_call_indirect_missing_value");
+}
+
+bool RunIrTextCallIndirectNonRefValueTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_indirect_non_ref_value");
 }
 
 bool RunIrTextNewArrayMissingLenTest() {
@@ -6530,6 +6559,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_i128_bad_token", RunIrTextConstI128BadTokenTest},
   {"ir_text_const_u64_bad_token", RunIrTextConstU64BadTokenTest},
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
+  {"ir_text_call_indirect_non_ref_value", RunIrTextCallIndirectNonRefValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},
   {"ir_text_newlist_missing_cap", RunIrTextNewListMissingCapTest},
   {"ir_text_enter_missing_count", RunIrTextEnterMissingCountTest},
@@ -6568,6 +6598,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_jump_to_end", RunIrTextJumpToEndTest},
   {"ir_text_jump_mid_instruction", RunIrTextJumpMidInstructionTest},
   {"ir_text_jmptable_arity_mismatch", RunIrTextJmpTableArityMismatchTest},
+  {"ir_text_jmptable_non_i32_index", RunIrTextJmpTableNonI32IndexTest},
   {"ir_text_const_i128_unsupported", RunIrTextConstI128UnsupportedTest},
   {"ir_text_const_string_missing_pool", RunIrTextConstStringMissingPoolTest},
   {"ir_text_call_missing_sig", RunIrTextCallMissingSigTest},

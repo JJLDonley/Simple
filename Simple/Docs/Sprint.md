@@ -559,6 +559,7 @@
 - Added IR text runtime trap tests for list insert/remove out-of-bounds (i32/i64/f32/f64/ref).
 - Added IR text runtime trap tests for negative indices on array/list get/set across types.
 - Added IR text negative tests for label placement, duplicate labels, and jmptable unknown labels.
+- Added IR text negative tests for call.indirect non-ref values and jmptable non-i32 indices.
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 
