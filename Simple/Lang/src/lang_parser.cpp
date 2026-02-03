@@ -52,6 +52,36 @@ bool Parser::ParseProgram(Program* out) {
 }
 
 bool Parser::ParseTypeInner(TypeRef* out) {
+  if (Match(TokenKind::LParen)) {
+    TypeRef proc;
+    proc.is_proc = true;
+    if (!Match(TokenKind::RParen)) {
+      for (;;) {
+        TypeRef param;
+        if (!ParseTypeInner(&param)) return false;
+        proc.proc_params.push_back(std::move(param));
+        if (Match(TokenKind::Comma)) continue;
+        if (Match(TokenKind::RParen)) break;
+        error_ = "expected ',' or ')' in procedure type";
+        return false;
+      }
+    }
+    if (Match(TokenKind::Colon)) {
+      proc.proc_return_mutability = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      proc.proc_return_mutability = Mutability::Immutable;
+    } else {
+      error_ = "expected ':' or '::' before procedure return type";
+      return false;
+    }
+    TypeRef ret;
+    if (!ParseTypeInner(&ret)) return false;
+    proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
+    if (!ParseTypeDims(&proc)) return false;
+    if (out) *out = std::move(proc);
+    return true;
+  }
+
   const Token& tok = Peek();
   if (tok.kind != TokenKind::Identifier) {
     error_ = "expected type name";
@@ -64,7 +94,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeArgs(&out->type_args)) return false;
   }
 
-  if (!ParseTypeDims(&out->dims)) return false;
+  if (!ParseTypeDims(out)) return false;
   return true;
 }
 
@@ -992,13 +1022,18 @@ bool Parser::ParseTypeArgs(std::vector<TypeRef>* out) {
   return true;
 }
 
-bool Parser::ParseTypeDims(std::vector<TypeDim>* out) {
+bool Parser::ParseTypeDims(TypeRef* out) {
+  if (!out) return false;
   while (Match(TokenKind::LBracket)) {
+    if (out->is_proc) {
+      error_ = "procedure types cannot have array/list dimensions";
+      return false;
+    }
     TypeDim dim;
     if (Match(TokenKind::RBracket)) {
       dim.is_list = true;
       dim.has_size = false;
-      out->push_back(dim);
+      out->dims.push_back(dim);
       continue;
     }
     const Token& size_tok = Peek();
@@ -1014,7 +1049,7 @@ bool Parser::ParseTypeDims(std::vector<TypeDim>* out) {
       error_ = "expected ']' after array size";
       return false;
     }
-    out->push_back(dim);
+    out->dims.push_back(dim);
   }
   return true;
 }

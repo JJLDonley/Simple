@@ -612,3 +612,4 @@
 - Added Simple::Lang if/else statement parsing (with else-if nesting) and tests.
 - Added Simple::Lang prefix/postfix ++/-- parsing with tests, including for-loop update support.
 - Added Simple::Lang artifact literal parsing (positional + named fields) with tests.
+- Added Simple::Lang procedure type parsing in TypeRef with tests.

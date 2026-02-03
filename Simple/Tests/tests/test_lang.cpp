@@ -73,6 +73,15 @@ bool LangParsesTypeLiterals() {
   if (generic.type_args[0].name != "string") return false;
   if (generic.type_args[1].name != "i32") return false;
 
+  Simple::Lang::TypeRef proc;
+  if (!Simple::Lang::ParseTypeFromString("(i32, string) :: bool", &proc, &error)) return false;
+  if (!proc.is_proc) return false;
+  if (proc.proc_params.size() != 2) return false;
+  if (proc.proc_params[0].name != "i32") return false;
+  if (proc.proc_params[1].name != "string") return false;
+  if (!proc.proc_return) return false;
+  if (proc.proc_return->name != "bool") return false;
+
   return true;
 }
 

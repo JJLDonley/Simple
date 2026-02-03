@@ -25,7 +25,7 @@ private:
 
   bool ParseTypeInner(TypeRef* out);
   bool ParseTypeArgs(std::vector<TypeRef>* out);
-  bool ParseTypeDims(std::vector<TypeDim>* out);
+  bool ParseTypeDims(TypeRef* out);
   bool ParseDecl(Decl* out);
   bool ParseGenerics(std::vector<std::string>* out);
   bool ParseParamList(std::vector<ParamDecl>* out);

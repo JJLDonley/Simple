@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,6 +24,10 @@ struct TypeRef {
   std::string name;
   std::vector<TypeRef> type_args;
   std::vector<TypeDim> dims;
+  bool is_proc = false;
+  Mutability proc_return_mutability = Mutability::Mutable;
+  std::vector<TypeRef> proc_params;
+  std::unique_ptr<TypeRef> proc_return;
 };
 
 struct ParamDecl {
