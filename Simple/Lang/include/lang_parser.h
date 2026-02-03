@@ -44,7 +44,10 @@ private:
   bool ParseStmt(Stmt* out);
   bool ParseExpr(Expr* out);
   bool ParseBinaryExpr(int min_prec, Expr* out);
+  bool ParseUnaryExpr(Expr* out);
+  bool ParsePostfixExpr(Expr* out);
   bool ParsePrimaryExpr(Expr* out);
+  bool ParseCallArgs(std::vector<Expr>* out);
   int GetBinaryPrecedence(const Token& tok) const;
 
   std::vector<Token> tokens_;

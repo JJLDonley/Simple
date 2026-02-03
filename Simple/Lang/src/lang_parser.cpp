@@ -429,6 +429,18 @@ bool Parser::ParseExpr(Expr* out) {
 
 int Parser::GetBinaryPrecedence(const Token& tok) const {
   switch (tok.kind) {
+    case TokenKind::OrOr:
+      return 1;
+    case TokenKind::AndAnd:
+      return 2;
+    case TokenKind::EqEq:
+    case TokenKind::NotEq:
+      return 3;
+    case TokenKind::Lt:
+    case TokenKind::Le:
+    case TokenKind::Gt:
+    case TokenKind::Ge:
+      return 4;
     case TokenKind::Star:
     case TokenKind::Slash:
     case TokenKind::Percent:
@@ -443,7 +455,7 @@ int Parser::GetBinaryPrecedence(const Token& tok) const {
 
 bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
   Expr lhs;
-  if (!ParsePrimaryExpr(&lhs)) return false;
+  if (!ParseUnaryExpr(&lhs)) return false;
 
   while (true) {
     const Token& op = Peek();
@@ -461,6 +473,54 @@ bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
   }
 
   if (out) *out = std::move(lhs);
+  return true;
+}
+
+bool Parser::ParseUnaryExpr(Expr* out) {
+  const Token& tok = Peek();
+  if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus) {
+    Advance();
+    Expr operand;
+    if (!ParseUnaryExpr(&operand)) return false;
+    Expr expr;
+    expr.kind = ExprKind::Unary;
+    expr.op = tok.text;
+    expr.children.push_back(std::move(operand));
+    if (out) *out = std::move(expr);
+    return true;
+  }
+  return ParsePostfixExpr(out);
+}
+
+bool Parser::ParsePostfixExpr(Expr* out) {
+  Expr expr;
+  if (!ParsePrimaryExpr(&expr)) return false;
+  for (;;) {
+    if (Match(TokenKind::LParen)) {
+      Expr call;
+      call.kind = ExprKind::Call;
+      call.children.push_back(std::move(expr));
+      if (!ParseCallArgs(&call.args)) return false;
+      expr = std::move(call);
+      continue;
+    }
+    if (Match(TokenKind::Dot)) {
+      const Token& name = Peek();
+      if (name.kind != TokenKind::Identifier) {
+        error_ = "expected member name after '.'";
+        return false;
+      }
+      Advance();
+      Expr member;
+      member.kind = ExprKind::Member;
+      member.text = name.text;
+      member.children.push_back(std::move(expr));
+      expr = std::move(member);
+      continue;
+    }
+    break;
+  }
+  if (out) *out = std::move(expr);
   return true;
 }
 
@@ -501,6 +561,20 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
   }
   error_ = "expected expression";
   return false;
+}
+
+bool Parser::ParseCallArgs(std::vector<Expr>* out) {
+  if (Match(TokenKind::RParen)) return true;
+  for (;;) {
+    Expr arg;
+    if (!ParseExpr(&arg)) return false;
+    if (out) out->push_back(std::move(arg));
+    if (Match(TokenKind::Comma)) continue;
+    if (Match(TokenKind::RParen)) break;
+    error_ = "expected ',' or ')' in call arguments";
+    return false;
+  }
+  return true;
 }
 
 bool Parser::ParseTypeArgs(std::vector<TypeRef>* out) {

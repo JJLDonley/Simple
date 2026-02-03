@@ -35,6 +35,9 @@ enum class ExprKind : uint8_t {
   Identifier,
   Literal,
   Binary,
+  Unary,
+  Call,
+  Member,
 };
 
 enum class LiteralKind : uint8_t {
@@ -51,6 +54,7 @@ struct Expr {
   LiteralKind literal_kind = LiteralKind::Integer;
   std::string op;
   std::vector<Expr> children;
+  std::vector<Expr> args;
 };
 
 enum class StmtKind : uint8_t {

@@ -152,6 +152,30 @@ bool LangParsesReturnExpr() {
   return true;
 }
 
+bool LangParsesCallAndMember() {
+  const char* src = "main : i32 () { return foo(1, 2).bar + 3; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& decl = program.decls[0];
+  const auto& expr = decl.func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary) return false;
+  const auto& left = expr.children[0];
+  if (left.kind != Simple::Lang::ExprKind::Member) return false;
+  return true;
+}
+
+bool LangParsesComparisons() {
+  const char* src = "main : bool () { return 1 + 2 * 3 == 7 && 4 < 5; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& expr = program.decls[0].func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (expr.op != "&&") return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -161,6 +185,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
+  {"lang_parse_call_member", LangParsesCallAndMember},
+  {"lang_parse_comparisons", LangParsesComparisons},
 };
 
 } // namespace
