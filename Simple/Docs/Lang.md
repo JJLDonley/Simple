@@ -1282,7 +1282,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] `break`/`skip` only inside loops
 - [x] Return checks (void/non-void, all paths for if/else/|>)
 - [x] Enum dot qualification enforced (`Enum.Value`)
-- [ ] Mutability rules (`:` vs `::`)
+- [x] Mutability rules (`:` vs `::`)
 - [ ] Full type checking for expressions/assignments
 - [ ] Artifact initialization rules + `self` access validation
 - [x] Array/list indexing type checks

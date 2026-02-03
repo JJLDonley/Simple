@@ -1,5 +1,6 @@
 #include "lang_validate.h"
 
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -28,6 +29,7 @@ struct LocalInfo {
 struct CallTargetInfo {
   std::vector<TypeRef> params;
   TypeRef return_type;
+  Mutability return_mutability = Mutability::Mutable;
   std::vector<std::string> type_params;
   bool is_proc = false;
 };
@@ -748,6 +750,7 @@ bool GetCallTargetInfo(const Expr& callee,
   if (callee.kind == ExprKind::FnLiteral) {
     out->params.clear();
     out->return_type = TypeRef{};
+    out->return_mutability = Mutability::Mutable;
     out->type_params.clear();
     out->is_proc = true;
     for (const auto& param : callee.fn_params) {
@@ -762,6 +765,7 @@ bool GetCallTargetInfo(const Expr& callee,
     if (fn_it != ctx.functions.end()) {
       out->params.clear();
       if (!CloneTypeRef(fn_it->second->return_type, &out->return_type)) return false;
+      out->return_mutability = fn_it->second->return_mutability;
       out->type_params = fn_it->second->generics;
       out->is_proc = false;
       for (const auto& param : fn_it->second->params) {
@@ -777,6 +781,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (local->type->proc_return) {
           if (!CloneTypeRef(*local->type->proc_return, &out->return_type)) return false;
         }
+        out->return_mutability = local->type->proc_return_mutability;
         out->type_params.clear();
         out->is_proc = true;
         return true;
@@ -790,6 +795,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (global_it->second->type.proc_return) {
           if (!CloneTypeRef(*global_it->second->type.proc_return, &out->return_type)) return false;
         }
+        out->return_mutability = global_it->second->type.proc_return_mutability;
         out->type_params.clear();
         out->is_proc = true;
         return true;
@@ -806,6 +812,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (!method) return false;
         out->params.clear();
         if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+        out->return_mutability = method->return_mutability;
         out->type_params = method->generics;
         out->is_proc = false;
         for (const auto& param : method->params) {
@@ -821,6 +828,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (fn) {
           out->params.clear();
           if (!CloneTypeRef(fn->return_type, &out->return_type)) return false;
+          out->return_mutability = fn->return_mutability;
           out->type_params = fn->generics;
           out->is_proc = false;
           for (const auto& param : fn->params) {
@@ -836,6 +844,7 @@ bool GetCallTargetInfo(const Expr& callee,
           if (var->type.proc_return) {
             if (!CloneTypeRef(*var->type.proc_return, &out->return_type)) return false;
           }
+          out->return_mutability = var->type.proc_return_mutability;
           out->type_params.clear();
           out->is_proc = true;
           return true;
@@ -849,6 +858,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (method) {
           out->params.clear();
           if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          out->return_mutability = method->return_mutability;
           out->type_params = method->generics;
           out->is_proc = false;
           for (const auto& param : method->params) {
@@ -864,6 +874,7 @@ bool GetCallTargetInfo(const Expr& callee,
           if (field->type.proc_return) {
             if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
           }
+          out->return_mutability = field->type.proc_return_mutability;
           out->type_params.clear();
           out->is_proc = true;
           return true;
@@ -877,6 +888,7 @@ bool GetCallTargetInfo(const Expr& callee,
         if (method) {
           out->params.clear();
           if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          out->return_mutability = method->return_mutability;
           out->type_params = method->generics;
           out->is_proc = false;
           for (const auto& param : method->params) {
@@ -892,6 +904,7 @@ bool GetCallTargetInfo(const Expr& callee,
           if (field->type.proc_return) {
             if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
           }
+          out->return_mutability = field->type.proc_return_mutability;
           out->type_params.clear();
           out->is_proc = true;
           return true;
@@ -962,6 +975,59 @@ bool CheckAssignmentTarget(const Expr& target,
                            const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                            const ArtifactDecl* current_artifact,
                            std::string* error) {
+  std::function<bool(const Expr&)> is_mutable_expr = [&](const Expr& expr) -> bool {
+    if (expr.kind == ExprKind::Identifier) {
+      if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+        return local->mutability == Mutability::Mutable;
+      }
+      auto global_it = ctx.globals.find(expr.text);
+      if (global_it != ctx.globals.end()) {
+        return global_it->second->mutability == Mutability::Mutable;
+      }
+      return true;
+    }
+    if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
+      const Expr& base = expr.children[0];
+      if (base.kind == ExprKind::Identifier) {
+        if (base.text == "self") {
+          const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+          if (field) return field->mutability == Mutability::Mutable;
+          return true;
+        }
+        auto module_it = ctx.modules.find(base.text);
+        if (module_it != ctx.modules.end()) {
+          const VarDecl* var = FindModuleVar(module_it->second, expr.text);
+          if (var) return var->mutability == Mutability::Mutable;
+          return true;
+        }
+        if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+          auto artifact_it = ctx.artifacts.find(local->type ? local->type->name : "");
+          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          const VarDecl* field = FindArtifactField(artifact, expr.text);
+          if (field) return field->mutability == Mutability::Mutable;
+          return true;
+        }
+        auto global_it = ctx.globals.find(base.text);
+        if (global_it != ctx.globals.end()) {
+          auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+          const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          const VarDecl* field = FindArtifactField(artifact, expr.text);
+          if (field) return field->mutability == Mutability::Mutable;
+        }
+      }
+      return true;
+    }
+    if (expr.kind == ExprKind::Call) {
+      CallTargetInfo info;
+      if (!GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact, &info, nullptr)) return true;
+      return info.return_mutability == Mutability::Mutable;
+    }
+    if (expr.kind == ExprKind::Index) {
+      if (expr.children.empty()) return true;
+      return is_mutable_expr(expr.children[0]);
+    }
+    return true;
+  };
   if (target.kind == ExprKind::Identifier) {
     if (target.text == "self") {
       if (error) *error = "cannot assign to self";
@@ -990,6 +1056,10 @@ bool CheckAssignmentTarget(const Expr& target,
   }
   if (target.kind == ExprKind::Member && target.op == "." && !target.children.empty()) {
     const Expr& base = target.children[0];
+    if (!is_mutable_expr(base)) {
+      if (error) *error = "cannot assign through immutable value";
+      return false;
+    }
     if (base.kind == ExprKind::Identifier) {
       if (base.text == "self") {
         const VarDecl* field = FindArtifactField(current_artifact, target.text);
@@ -1048,7 +1118,13 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     return true;
   }
-  if (target.kind == ExprKind::Index) return true;
+  if (target.kind == ExprKind::Index) {
+    if (!target.children.empty() && !is_mutable_expr(target.children[0])) {
+      if (error) *error = "cannot assign through immutable value";
+      return false;
+    }
+    return true;
+  }
   if (error) *error = "invalid assignment target";
   return false;
 }

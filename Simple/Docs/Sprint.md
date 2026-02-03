@@ -682,3 +682,4 @@
 - Extended parser type tests for list types and invalid array sizes; marked array/list type parsing complete.
 - Added Simple::Lang generic call parsing with type arguments, generic inference for calls, and call argument type validation with new tests.
 - Added Simple::Lang index expression type inference for arrays/lists with new index type tests.
+- Added Simple::Lang mutability validation for member/index assignment through immutable bases and immutable-return calls, with tests.
