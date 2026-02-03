@@ -5357,6 +5357,67 @@ bool RunIrTextConstF64BadTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_const_f64_bad_token");
 }
 
+bool RunIrTextConstF32NanTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.f32 nan\n"
+      "  const.f32 nan\n"
+      "  cmp.eq.f32\n"
+      "  bool.not\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_f32_nan");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextConstF32InfTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.f32 inf\n"
+      "  const.f32 inf\n"
+      "  cmp.eq.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_f32_inf");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextConstF64InfTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.f64 inf\n"
+      "  const.f64 inf\n"
+      "  cmp.eq.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_f64_inf");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextConstF64NegInfTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.f64 -inf\n"
+      "  const.f64 -inf\n"
+      "  cmp.eq.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_const_f64_neg_inf");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 bool RunIrTextConstU32NegativeTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -6892,6 +6953,10 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_u64_bad_token", RunIrTextConstU64BadTokenTest},
   {"ir_text_const_i32_bad_token", RunIrTextConstI32BadTokenTest},
   {"ir_text_const_f64_bad_token", RunIrTextConstF64BadTokenTest},
+  {"ir_text_const_f32_nan", RunIrTextConstF32NanTest},
+  {"ir_text_const_f32_inf", RunIrTextConstF32InfTest},
+  {"ir_text_const_f64_inf", RunIrTextConstF64InfTest},
+  {"ir_text_const_f64_neg_inf", RunIrTextConstF64NegInfTest},
   {"ir_text_const_u32_negative", RunIrTextConstU32NegativeTest},
   {"ir_text_const_i32_overflow", RunIrTextConstI32OverflowTest},
   {"ir_text_const_i32_underflow", RunIrTextConstI32UnderflowTest},
