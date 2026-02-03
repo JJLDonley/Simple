@@ -25,6 +25,9 @@ bool CheckExpr(const Expr& expr,
                const std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error);
 
+bool StmtReturns(const Stmt& stmt);
+bool StmtsReturn(const std::vector<Stmt>& stmts);
+
 bool HasLocal(const std::vector<std::unordered_set<std::string>>& scopes,
               const std::string& name) {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
@@ -206,6 +209,31 @@ bool CheckExpr(const Expr& expr,
   return true;
 }
 
+bool StmtReturns(const Stmt& stmt) {
+  switch (stmt.kind) {
+    case StmtKind::Return:
+      return true;
+    case StmtKind::IfChain:
+      if (stmt.if_branches.empty() || stmt.else_branch.empty()) return false;
+      for (const auto& branch : stmt.if_branches) {
+        if (!StmtsReturn(branch.second)) return false;
+      }
+      return StmtsReturn(stmt.else_branch);
+    case StmtKind::IfStmt:
+      if (stmt.if_then.empty() || stmt.if_else.empty()) return false;
+      return StmtsReturn(stmt.if_then) && StmtsReturn(stmt.if_else);
+    default:
+      return false;
+  }
+}
+
+bool StmtsReturn(const std::vector<Stmt>& stmts) {
+  for (const auto& stmt : stmts) {
+    if (StmtReturns(stmt)) return true;
+  }
+  return false;
+}
+
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        std::string* error) {
@@ -213,7 +241,6 @@ bool CheckFunctionBody(const FuncDecl& fn,
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
-  bool saw_return = false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
       if (error) *error = "duplicate parameter name: " + param.name;
@@ -222,11 +249,10 @@ bool CheckFunctionBody(const FuncDecl& fn,
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (stmt.kind == StmtKind::Return) saw_return = true;
     if (!CheckStmt(stmt, ctx, return_is_void, 0, scopes, error)) return false;
   }
-  if (!return_is_void && !saw_return) {
-    if (error) *error = "non-void function must return a value";
+  if (!return_is_void && !StmtsReturn(fn.body)) {
+    if (error) *error = "non-void function does not return on all paths";
     return false;
   }
   return true;

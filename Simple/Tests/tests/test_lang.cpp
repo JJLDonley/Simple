@@ -341,6 +341,26 @@ bool LangValidateNonVoidNoReturn() {
   return true;
 }
 
+bool LangValidateNonVoidAllPathsReturn() {
+  const char* src =
+    "main : i32 () {"
+    "  if true { return 1; } else { return 2; }"
+    "}";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateNonVoidMissingPath() {
+  const char* src =
+    "main : i32 () {"
+    "  if true { return 1; }"
+    "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateBreakOutsideLoop() {
   const char* src = "main : void () { break; }";
   std::string error;
@@ -557,6 +577,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_void_return_value", LangValidateVoidReturnValue},
   {"lang_validate_nonvoid_missing_return", LangValidateNonVoidMissingReturn},
   {"lang_validate_nonvoid_no_return", LangValidateNonVoidNoReturn},
+  {"lang_validate_nonvoid_all_paths", LangValidateNonVoidAllPathsReturn},
+  {"lang_validate_nonvoid_missing_path", LangValidateNonVoidMissingPath},
   {"lang_validate_break_outside_loop", LangValidateBreakOutsideLoop},
   {"lang_validate_skip_outside_loop", LangValidateSkipOutsideLoop},
   {"lang_validate_undeclared_identifier", LangValidateUndeclaredIdentifier},
