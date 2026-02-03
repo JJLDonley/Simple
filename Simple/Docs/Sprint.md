@@ -585,3 +585,5 @@
 - Updated SIR docs with metadata table syntax and name-resolution rules.
 - Added SIR text globals table with name-based ldglob/stglob and init const handling (string/f32/f64).
 - Added SIR text tests for named globals, global init via consts, and bad global names.
+- Added SIR text upvalues list with name-based ldupv/stupv.
+- Added SIR text tests for named upvalues in closure capture scenarios.

@@ -211,6 +211,7 @@ globals:
   global <Name> <Type> [init=<ConstName|ConstId>]
 func <name> locals=<u16> stack=<u16> sig=<sig_id|sig_name>
   locals: <name[:type]>, <name[:type]>, ...
+  upvalues: <name[:type]>, <name[:type]>, ...
   <instr>
   ...
 end
@@ -259,6 +260,7 @@ When tables are present, the following operands may use **names** instead of num
 - `const.*` named constants from `consts:`.
 - `const.string` string constants from `consts:`.
 - `ldglob/stglob` global names from `globals:`.
+- `ldupv/stupv` upvalue names from `upvalues:` within the function.
 - `call/tailcall` function names.
 - `call.indirect` signature names from `sigs:`.
 - `intrinsic/syscall` names from `imports:`.

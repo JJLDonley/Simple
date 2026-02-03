@@ -6755,6 +6755,60 @@ bool RunIrTextStoreUpvalueTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextNamedUpvalueTest() {
+  const char* text =
+      "func callee locals=0 stack=10 sig=0\n"
+      "  upvalues: uv\n"
+      "  enter 0\n"
+      "  newobj 1\n"
+      "  stupv uv\n"
+      "  ldupv uv\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  newclosure 0 1\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::Unspecified));
+  AppendU8(types, 1);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_named_upvalue",
+                                            std::move(types), {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 bool RunIrTextTailCallArgsTest() {
   const char* text =
       "func add locals=2 stack=8 sig=0\n"
@@ -7362,6 +7416,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
   {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},
+  {"ir_text_named_upvalue", RunIrTextNamedUpvalueTest},
   {"ir_text_tailcall_args", RunIrTextTailCallArgsTest},
   {"ir_text_stupv_type_mismatch", RunIrTextStoreUpvalueTypeMismatchTest},
   {"ir_text_call_bad_arg_count", RunIrTextCallBadArgCountTest},

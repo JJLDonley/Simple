@@ -30,6 +30,7 @@ struct IrTextFunction {
   std::string sig_name;
   bool sig_is_name = false;
   std::unordered_map<std::string, uint16_t> locals_map;
+  std::unordered_map<std::string, uint16_t> upvalues_map;
   std::vector<IrTextInst> insts;
 };
 

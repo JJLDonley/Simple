@@ -511,6 +511,28 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
       continue;
     }
 
+    if (line.rfind("upvalues:", 0) == 0) {
+      std::string rest = Trim(line.substr(9));
+      if (rest.empty()) {
+        if (error) *error = "upvalues expects names at line " + std::to_string(line_no);
+        return false;
+      }
+      std::vector<std::string> parts = SplitCommaList(rest);
+      uint16_t index = 0;
+      for (const auto& entry : parts) {
+        if (entry.empty()) continue;
+        std::string item = entry;
+        std::string name = item;
+        size_t colon = item.find(':');
+        if (colon != std::string::npos) {
+          name = Trim(item.substr(0, colon));
+        }
+        if (name.empty()) continue;
+        current->upvalues_map[name] = index++;
+      }
+      continue;
+    }
+
     if (!line.empty() && line.back() == ':') {
       IrTextInst inst;
       inst.kind = InstKind::Label;
@@ -956,6 +978,19 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     }
     auto it = fn.locals_map.find(token);
     if (it == fn.locals_map.end()) return false;
+    *out_id = it->second;
+    return true;
+  };
+
+  auto resolve_upvalue = [&](const IrTextFunction& fn, const std::string& token, uint32_t* out_id) -> bool {
+    uint64_t value = 0;
+    if (ParseUint(token, &value)) {
+      if (!FitsUnsigned<uint32_t>(value)) return false;
+      *out_id = static_cast<uint32_t>(value);
+      return true;
+    }
+    auto it = fn.upvalues_map.find(token);
+    if (it == fn.upvalues_map.end()) return false;
     *out_id = it->second;
     return true;
   };
@@ -2273,21 +2308,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op == "ldupv" || op == "load.upvalue") {
-        uint64_t index = 0;
-        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+        uint32_t index = 0;
+        if (inst.args.size() != 1 || !resolve_upvalue(fn, inst.args[0], &index)) {
           if (error) *error = "ldupv expects index";
           return false;
         }
-        builder.EmitLoadUpvalue(static_cast<uint32_t>(index));
+        builder.EmitLoadUpvalue(index);
         continue;
       }
       if (op == "stupv" || op == "store.upvalue") {
-        uint64_t index = 0;
-        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &index)) {
+        uint32_t index = 0;
+        if (inst.args.size() != 1 || !resolve_upvalue(fn, inst.args[0], &index)) {
           if (error) *error = "stupv expects index";
           return false;
         }
-        builder.EmitStoreUpvalue(static_cast<uint32_t>(index));
+        builder.EmitStoreUpvalue(index);
         continue;
       }
 
