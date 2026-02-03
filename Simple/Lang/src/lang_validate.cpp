@@ -172,6 +172,13 @@ const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::stri
   return nullptr;
 }
 
+bool IsArtifactMemberName(const ArtifactDecl* artifact, const std::string& name) {
+  if (!artifact) return false;
+  if (FindArtifactField(artifact, name)) return true;
+  if (FindArtifactMethod(artifact, name)) return true;
+  return false;
+}
+
 const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name) {
   if (!module) return nullptr;
   for (const auto& fn : module->functions) {
@@ -571,6 +578,10 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
         return true;
+      }
+      if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
+        if (error) *error = "artifact members must be accessed via self: " + expr.text;
+        return false;
       }
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;

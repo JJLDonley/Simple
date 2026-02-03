@@ -648,3 +648,5 @@
 - Added Simple::Lang index validation tests (float/string indices, literal base, valid int index).
 - Added Simple::Lang call validation for function/method arity, module calls, and callable proc types.
 - Added Simple::Lang call validation tests for arity mismatch and non-function calls.
+- Added Simple::Lang validation requiring `self.` for artifact member access inside methods.
+- Added Simple::Lang tests for `self.` enforcement on fields and methods.
