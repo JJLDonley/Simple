@@ -908,6 +908,22 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       Advance();
       Expr member;
       member.kind = ExprKind::Member;
+      member.op = ".";
+      member.text = name.text;
+      member.children.push_back(std::move(expr));
+      expr = std::move(member);
+      continue;
+    }
+    if (Match(TokenKind::DoubleColon)) {
+      const Token& name = Peek();
+      if (name.kind != TokenKind::Identifier) {
+        error_ = "expected member name after '::'";
+        return false;
+      }
+      Advance();
+      Expr member;
+      member.kind = ExprKind::Member;
+      member.op = "::";
       member.text = name.text;
       member.children.push_back(std::move(expr));
       expr = std::move(member);

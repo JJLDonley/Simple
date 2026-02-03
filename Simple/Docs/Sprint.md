@@ -615,3 +615,4 @@
 - Added Simple::Lang procedure type parsing in TypeRef with tests.
 - Added Simple::Lang parsing for `fn` keyword top-level functions with tests.
 - Allowed `return;` without expression for void functions and added test coverage.
+- Added Simple::Lang parsing for qualified member access using `::` with tests.

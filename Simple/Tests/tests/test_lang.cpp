@@ -213,6 +213,18 @@ bool LangParsesCallAndMember() {
   return true;
 }
 
+bool LangParsesQualifiedMember() {
+  const char* src = "main : i32 () { return Math::PI; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& expr = program.decls[0].func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Member) return false;
+  if (expr.op != "::") return false;
+  if (expr.text != "PI") return false;
+  return true;
+}
+
 bool LangParsesComparisons() {
   const char* src = "main : bool () { return 1 + 2 * 3 == 7 && 4 < 5; }";
   Simple::Lang::Program program;
@@ -364,6 +376,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
+  {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
