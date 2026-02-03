@@ -1268,7 +1268,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] Parameter lists with mutability
 - [x] Type grammar locked for all type literals (`i8..i128`, `u8..u128`, `f32`, `f64`, `bool`, `char`, `string`)
 - [x] Array/list type syntax and constraints fully parsed
-- [ ] Generics parsing (type params/args) if kept
+- [x] Generics parsing (type params/args) if kept
 - [ ] Parser error recovery pass
 
 ### 3) AST
@@ -1286,7 +1286,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [ ] Full type checking for expressions/assignments
 - [ ] Artifact initialization rules + `self` access validation
 - [ ] Array/list indexing type checks
-- [ ] Procedure type checking + call argument validation
+- [x] Procedure type checking + call argument validation
 - [ ] Generics rules (if retained)
 
 ### 5) SIR Text Emission

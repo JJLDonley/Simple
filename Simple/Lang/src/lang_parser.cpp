@@ -950,6 +950,22 @@ bool Parser::ParsePostfixExpr(Expr* out) {
   Expr expr;
   if (!ParsePrimaryExpr(&expr)) return false;
   for (;;) {
+    if (Peek().kind == TokenKind::Lt && LooksLikeTypeArgsForCall()) {
+      std::vector<TypeRef> type_args;
+      if (!Match(TokenKind::Lt)) return false;
+      if (!ParseTypeArgs(&type_args)) return false;
+      if (!Match(TokenKind::LParen)) {
+        error_ = "expected '(' after type arguments";
+        return false;
+      }
+      Expr call;
+      call.kind = ExprKind::Call;
+      call.children.push_back(std::move(expr));
+      call.type_args = std::move(type_args);
+      if (!ParseCallArgs(&call.args)) return false;
+      expr = std::move(call);
+      continue;
+    }
     if (Match(TokenKind::LParen)) {
       Expr call;
       call.kind = ExprKind::Call;
@@ -1003,6 +1019,28 @@ bool Parser::ParsePostfixExpr(Expr* out) {
   }
   if (out) *out = std::move(expr);
   return true;
+}
+
+bool Parser::LooksLikeTypeArgsForCall() const {
+  if (Peek().kind != TokenKind::Lt) return false;
+  size_t i = index_;
+  int depth = 0;
+  for (; i < tokens_.size(); ++i) {
+    const TokenKind kind = tokens_[i].kind;
+    if (kind == TokenKind::Lt) {
+      depth++;
+      continue;
+    }
+    if (kind == TokenKind::Gt) {
+      depth--;
+      if (depth == 0) break;
+      continue;
+    }
+    if (kind == TokenKind::End) return false;
+  }
+  if (i >= tokens_.size() || tokens_[i].kind != TokenKind::Gt) return false;
+  if (i + 1 >= tokens_.size()) return false;
+  return tokens_[i + 1].kind == TokenKind::LParen;
 }
 
 bool Parser::ParsePrimaryExpr(Expr* out) {

@@ -65,6 +65,7 @@ struct Expr {
   std::string op;
   std::vector<Expr> children;
   std::vector<Expr> args;
+  std::vector<TypeRef> type_args;
   std::vector<std::string> field_names;
   std::vector<Expr> field_values;
   std::vector<ParamDecl> fn_params;

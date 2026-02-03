@@ -680,3 +680,4 @@
 - Added Simple::Lang fn literal type checking against procedure types with new positive/negative tests.
 - Expanded type literal parsing tests to cover all primitive types and marked type-grammar phase complete.
 - Extended parser type tests for list types and invalid array sizes; marked array/list type parsing complete.
+- Added Simple::Lang generic call parsing with type arguments, generic inference for calls, and call argument type validation with new tests.

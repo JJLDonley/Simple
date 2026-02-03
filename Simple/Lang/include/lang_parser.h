@@ -52,6 +52,7 @@ private:
   bool ParseBinaryExpr(int min_prec, Expr* out);
   bool ParseUnaryExpr(Expr* out);
   bool ParsePostfixExpr(Expr* out);
+  bool LooksLikeTypeArgsForCall() const;
   bool ParsePrimaryExpr(Expr* out);
   bool ParseCallArgs(std::vector<Expr>* out);
   bool ParseBracketExprList(std::vector<Expr>* out);

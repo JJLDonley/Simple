@@ -973,6 +973,65 @@ bool LangValidateReturnTypeMatch() {
   return true;
 }
 
+bool LangValidateCallArgTypeMismatch() {
+  const char* src = "add : i32 (a : i32, b : i32) { return a + b; } main : void () { add(1, \"hi\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallArgTypeOk() {
+  const char* src = "add : i32 (a : i32, b : i32) { return a + b; } main : void () { add(1, 2); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericCallExplicit() {
+  const char* src =
+      "identity<T> : T (value : T) { return value; } "
+      "main : void () { x : i32 = identity<i32>(10); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericCallInferred() {
+  const char* src =
+      "identity<T> : T (value : T) { return value; } "
+      "main : void () { x : i32 = identity(10); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericCallInferFail() {
+  const char* src =
+      "identity<T> : T (value : T) { return value; } "
+      "main : void () { x : i32 = identity(); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericCallTypeMismatch() {
+  const char* src =
+      "identity<T> : T (value : T) { return value; } "
+      "main : void () { x : i32 = identity<i32>(\"hi\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateNonGenericCallTypeArgs() {
+  const char* src =
+      "add : i32 (a : i32) { return a; } "
+      "main : void () { x : i32 = add<i32>(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateGenericTypeArgsMismatch() {
   const char* src = "Box<T> :: artifact { value : T } main : void () { x : Box = { 1 }; }";
   std::string error;
@@ -1541,6 +1600,13 @@ const TestCase kLangTests[] = {
   {"lang_validate_compound_assign_invalid_type", LangValidateCompoundAssignInvalidType},
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
+  {"lang_validate_call_arg_type_mismatch", LangValidateCallArgTypeMismatch},
+  {"lang_validate_call_arg_type_ok", LangValidateCallArgTypeOk},
+  {"lang_validate_generic_call_explicit", LangValidateGenericCallExplicit},
+  {"lang_validate_generic_call_inferred", LangValidateGenericCallInferred},
+  {"lang_validate_generic_call_infer_fail", LangValidateGenericCallInferFail},
+  {"lang_validate_generic_call_type_mismatch", LangValidateGenericCallTypeMismatch},
+  {"lang_validate_non_generic_call_type_args", LangValidateNonGenericCallTypeArgs},
   {"lang_validate_generic_type_args_mismatch", LangValidateGenericTypeArgsMismatch},
   {"lang_validate_generic_type_args_wrong_count", LangValidateGenericTypeArgsWrongCount},
   {"lang_validate_non_generic_type_args", LangValidateNonGenericTypeArgs},

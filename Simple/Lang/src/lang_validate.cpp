@@ -25,6 +25,25 @@ struct LocalInfo {
   const TypeRef* type = nullptr;
 };
 
+struct CallTargetInfo {
+  std::vector<TypeRef> params;
+  TypeRef return_type;
+  std::vector<std::string> type_params;
+  bool is_proc = false;
+};
+
+bool InferExprType(const Expr& expr,
+                   const ValidateContext& ctx,
+                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                   const ArtifactDecl* current_artifact,
+                   TypeRef* out);
+bool GetCallTargetInfo(const Expr& callee,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       CallTargetInfo* out,
+                       std::string* error);
+
 enum class TypeUse : uint8_t {
   Value,
   Return,
@@ -64,6 +83,18 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   return true;
 }
 
+bool CloneTypeVector(const std::vector<TypeRef>& src, std::vector<TypeRef>* out) {
+  if (!out) return false;
+  out->clear();
+  out->reserve(src.size());
+  for (const auto& item : src) {
+    TypeRef copy;
+    if (!CloneTypeRef(item, &copy)) return false;
+    out->push_back(std::move(copy));
+  }
+  return true;
+}
+
 bool TypeDimsEqual(const std::vector<TypeDim>& a, const std::vector<TypeDim>& b) {
   if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
@@ -98,6 +129,108 @@ bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b)
   if (a.size() != b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
     if (!TypeEquals(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+bool ApplyTypeSubstitution(TypeRef* type,
+                           const std::unordered_map<std::string, TypeRef>& mapping) {
+  if (!type) return false;
+  for (auto& arg : type->type_args) {
+    if (!ApplyTypeSubstitution(&arg, mapping)) return false;
+  }
+  if (type->is_proc) {
+    for (auto& param : type->proc_params) {
+      if (!ApplyTypeSubstitution(&param, mapping)) return false;
+    }
+    if (type->proc_return) {
+      if (!ApplyTypeSubstitution(type->proc_return.get(), mapping)) return false;
+    }
+  }
+  auto it = mapping.find(type->name);
+  if (it == mapping.end()) return true;
+  TypeRef replacement;
+  if (!CloneTypeRef(it->second, &replacement)) return false;
+  if (!type->dims.empty()) {
+    replacement.dims.insert(replacement.dims.end(), type->dims.begin(), type->dims.end());
+  }
+  *type = std::move(replacement);
+  return true;
+}
+
+bool SubstituteTypeParams(const TypeRef& src,
+                          const std::unordered_map<std::string, TypeRef>& mapping,
+                          TypeRef* out) {
+  if (!out) return false;
+  if (!CloneTypeRef(src, out)) return false;
+  return ApplyTypeSubstitution(out, mapping);
+}
+
+bool UnifyTypeParams(const TypeRef& param,
+                     const TypeRef& arg,
+                     const std::unordered_set<std::string>& type_params,
+                     std::unordered_map<std::string, TypeRef>* mapping) {
+  if (!mapping) return false;
+  if (type_params.find(param.name) != type_params.end()) {
+    if (!param.dims.empty()) {
+      if (!TypeDimsEqual(param.dims, arg.dims)) return false;
+      TypeRef base;
+      if (!CloneTypeRef(arg, &base)) return false;
+      base.dims.clear();
+      auto it = mapping->find(param.name);
+      if (it == mapping->end()) {
+        (*mapping)[param.name] = std::move(base);
+        return true;
+      }
+      return TypeEquals(it->second, base);
+    }
+    auto it = mapping->find(param.name);
+    if (it == mapping->end()) {
+      TypeRef copy;
+      if (!CloneTypeRef(arg, &copy)) return false;
+      (*mapping)[param.name] = std::move(copy);
+      return true;
+    }
+    return TypeEquals(it->second, arg);
+  }
+  if (param.is_proc != arg.is_proc) return false;
+  if (!TypeDimsEqual(param.dims, arg.dims)) return false;
+  if (param.name != arg.name) return false;
+  if (param.type_args.size() != arg.type_args.size()) return false;
+  for (size_t i = 0; i < param.type_args.size(); ++i) {
+    if (!UnifyTypeParams(param.type_args[i], arg.type_args[i], type_params, mapping)) return false;
+  }
+  if (param.is_proc) {
+    if (param.proc_params.size() != arg.proc_params.size()) return false;
+    for (size_t i = 0; i < param.proc_params.size(); ++i) {
+      if (!UnifyTypeParams(param.proc_params[i], arg.proc_params[i], type_params, mapping)) return false;
+    }
+    if (param.proc_return && arg.proc_return) {
+      if (!UnifyTypeParams(*param.proc_return, *arg.proc_return, type_params, mapping)) return false;
+    } else if (param.proc_return || arg.proc_return) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool InferTypeArgsFromCall(const std::vector<TypeRef>& param_types,
+                           const std::vector<Expr>& call_args,
+                           const std::unordered_set<std::string>& type_params,
+                           const ValidateContext& ctx,
+                           const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                           const ArtifactDecl* current_artifact,
+                           std::unordered_map<std::string, TypeRef>* out_mapping) {
+  if (!out_mapping) return false;
+  out_mapping->clear();
+  if (param_types.size() != call_args.size()) return false;
+  for (size_t i = 0; i < param_types.size(); ++i) {
+    TypeRef arg_type;
+    if (!InferExprType(call_args[i], ctx, scopes, current_artifact, &arg_type)) return false;
+    if (!UnifyTypeParams(param_types[i], arg_type, type_params, out_mapping)) return false;
+  }
+  for (const auto& name : type_params) {
+    if (out_mapping->find(name) == out_mapping->end()) return false;
   }
   return true;
 }
@@ -314,21 +447,31 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
-        auto fn_it = ctx.functions.find(callee.text);
-        if (fn_it != ctx.functions.end()) {
-          return CloneTypeRef(fn_it->second->return_type, out);
+      }
+      CallTargetInfo info;
+      if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, nullptr)) return false;
+      if (info.type_params.empty()) {
+        return CloneTypeRef(info.return_type, out);
+      }
+      std::unordered_map<std::string, TypeRef> mapping;
+      if (!expr.type_args.empty()) {
+        if (expr.type_args.size() != info.type_params.size()) return false;
+        for (size_t i = 0; i < info.type_params.size(); ++i) {
+          TypeRef copy;
+          if (!CloneTypeRef(expr.type_args[i], &copy)) return false;
+          mapping[info.type_params[i]] = std::move(copy);
+        }
+      } else {
+        std::unordered_set<std::string> type_param_set(info.type_params.begin(),
+                                                       info.type_params.end());
+        if (!InferTypeArgsFromCall(info.params, expr.args, type_param_set,
+                                   ctx, scopes, current_artifact, &mapping)) {
+          return false;
         }
       }
-      if (callee.kind == ExprKind::Member) {
-        TypeRef member_type;
-        if (InferExprType(callee, ctx, scopes, current_artifact, &member_type)) {
-          if (member_type.is_proc && member_type.proc_return) {
-            return CloneTypeRef(*member_type.proc_return, out);
-          }
-          return CloneTypeRef(member_type, out);
-        }
-      }
-      return false;
+      TypeRef resolved;
+      if (!SubstituteTypeParams(info.return_type, mapping, &resolved)) return false;
+      return CloneTypeRef(resolved, out);
     }
     default:
       return false;
@@ -578,6 +721,225 @@ bool CheckCallTarget(const Expr& callee,
           return false;
         }
       }
+    }
+  }
+  return true;
+}
+
+bool GetCallTargetInfo(const Expr& callee,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       CallTargetInfo* out,
+                       std::string* error) {
+  if (!out) return false;
+  if (callee.kind == ExprKind::FnLiteral) {
+    out->params.clear();
+    out->return_type = TypeRef{};
+    out->type_params.clear();
+    out->is_proc = true;
+    for (const auto& param : callee.fn_params) {
+      TypeRef copy;
+      if (!CloneTypeRef(param.type, &copy)) return false;
+      out->params.push_back(std::move(copy));
+    }
+    return true;
+  }
+  if (callee.kind == ExprKind::Identifier) {
+    auto fn_it = ctx.functions.find(callee.text);
+    if (fn_it != ctx.functions.end()) {
+      out->params.clear();
+      if (!CloneTypeRef(fn_it->second->return_type, &out->return_type)) return false;
+      out->type_params = fn_it->second->generics;
+      out->is_proc = false;
+      for (const auto& param : fn_it->second->params) {
+        TypeRef copy;
+        if (!CloneTypeRef(param.type, &copy)) return false;
+        out->params.push_back(std::move(copy));
+      }
+      return true;
+    }
+    if (const LocalInfo* local = FindLocal(scopes, callee.text)) {
+      if (local->type && local->type->is_proc) {
+        if (!CloneTypeVector(local->type->proc_params, &out->params)) return false;
+        if (local->type->proc_return) {
+          if (!CloneTypeRef(*local->type->proc_return, &out->return_type)) return false;
+        }
+        out->type_params.clear();
+        out->is_proc = true;
+        return true;
+      }
+      return false;
+    }
+    auto global_it = ctx.globals.find(callee.text);
+    if (global_it != ctx.globals.end()) {
+      if (global_it->second->type.is_proc) {
+        if (!CloneTypeVector(global_it->second->type.proc_params, &out->params)) return false;
+        if (global_it->second->type.proc_return) {
+          if (!CloneTypeRef(*global_it->second->type.proc_return, &out->return_type)) return false;
+        }
+        out->type_params.clear();
+        out->is_proc = true;
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+  if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
+    const Expr& base = callee.children[0];
+    if (base.kind == ExprKind::Identifier) {
+      if (base.text == "self") {
+        const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
+        if (!method) return false;
+        out->params.clear();
+        if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+        out->type_params = method->generics;
+        out->is_proc = false;
+        for (const auto& param : method->params) {
+          TypeRef copy;
+          if (!CloneTypeRef(param.type, &copy)) return false;
+          out->params.push_back(std::move(copy));
+        }
+        return true;
+      }
+      auto module_it = ctx.modules.find(base.text);
+      if (module_it != ctx.modules.end()) {
+        const FuncDecl* fn = FindModuleFunc(module_it->second, callee.text);
+        if (fn) {
+          out->params.clear();
+          if (!CloneTypeRef(fn->return_type, &out->return_type)) return false;
+          out->type_params = fn->generics;
+          out->is_proc = false;
+          for (const auto& param : fn->params) {
+            TypeRef copy;
+            if (!CloneTypeRef(param.type, &copy)) return false;
+            out->params.push_back(std::move(copy));
+          }
+          return true;
+        }
+        const VarDecl* var = FindModuleVar(module_it->second, callee.text);
+        if (var && var->type.is_proc) {
+          if (!CloneTypeVector(var->type.proc_params, &out->params)) return false;
+          if (var->type.proc_return) {
+            if (!CloneTypeRef(*var->type.proc_return, &out->return_type)) return false;
+          }
+          out->type_params.clear();
+          out->is_proc = true;
+          return true;
+        }
+      }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        if (!local->type) return false;
+        auto artifact_it = ctx.artifacts.find(local->type->name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        if (method) {
+          out->params.clear();
+          if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          out->type_params = method->generics;
+          out->is_proc = false;
+          for (const auto& param : method->params) {
+            TypeRef copy;
+            if (!CloneTypeRef(param.type, &copy)) return false;
+            out->params.push_back(std::move(copy));
+          }
+          return true;
+        }
+        const VarDecl* field = FindArtifactField(artifact, callee.text);
+        if (field && field->type.is_proc) {
+          if (!CloneTypeVector(field->type.proc_params, &out->params)) return false;
+          if (field->type.proc_return) {
+            if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
+          }
+          out->type_params.clear();
+          out->is_proc = true;
+          return true;
+        }
+      }
+      auto global_it = ctx.globals.find(base.text);
+      if (global_it != ctx.globals.end()) {
+        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
+        if (method) {
+          out->params.clear();
+          if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          out->type_params = method->generics;
+          out->is_proc = false;
+          for (const auto& param : method->params) {
+            TypeRef copy;
+            if (!CloneTypeRef(param.type, &copy)) return false;
+            out->params.push_back(std::move(copy));
+          }
+          return true;
+        }
+        const VarDecl* field = FindArtifactField(artifact, callee.text);
+        if (field && field->type.is_proc) {
+          if (!CloneTypeVector(field->type.proc_params, &out->params)) return false;
+          if (field->type.proc_return) {
+            if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
+          }
+          out->type_params.clear();
+          out->is_proc = true;
+          return true;
+        }
+      }
+    }
+  }
+  if (error) *error = "attempt to call non-function";
+  return false;
+}
+
+bool CheckCallArgTypes(const Expr& call_expr,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       std::string* error) {
+  if (call_expr.kind != ExprKind::Call || call_expr.children.empty()) return true;
+  const Expr& callee = call_expr.children[0];
+  CallTargetInfo info;
+  if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, error)) return true;
+  if (!info.type_params.empty() && !call_expr.type_args.empty()) {
+    if (call_expr.type_args.size() != info.type_params.size()) {
+      if (error) {
+        *error = "generic type argument count mismatch: expected " +
+                 std::to_string(info.type_params.size()) + ", got " +
+                 std::to_string(call_expr.type_args.size());
+      }
+      return false;
+    }
+  } else if (info.type_params.empty() && !call_expr.type_args.empty()) {
+    if (error) *error = "non-generic call cannot take type arguments";
+    return false;
+  }
+
+  std::unordered_map<std::string, TypeRef> mapping;
+  if (!info.type_params.empty()) {
+    std::unordered_set<std::string> type_param_set(info.type_params.begin(), info.type_params.end());
+    if (!call_expr.type_args.empty()) {
+      for (size_t i = 0; i < info.type_params.size(); ++i) {
+        TypeRef copy;
+        if (!CloneTypeRef(call_expr.type_args[i], &copy)) return false;
+        mapping[info.type_params[i]] = std::move(copy);
+      }
+    } else {
+      if (!InferTypeArgsFromCall(info.params, call_expr.args, type_param_set,
+                                 ctx, scopes, current_artifact, &mapping)) {
+        if (error) *error = "cannot infer type arguments for call";
+        return false;
+      }
+    }
+  }
+
+  for (size_t i = 0; i < info.params.size() && i < call_expr.args.size(); ++i) {
+    TypeRef expected;
+    if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
+    TypeRef actual;
+    if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) continue;
+    if (!TypeEquals(expected, actual)) {
+      if (error) *error = "call argument type mismatch";
+      return false;
     }
   }
   return true;
@@ -1498,6 +1860,11 @@ bool CheckExpr(const Expr& expr,
           if (error && error->empty()) *error = "f64 expects string argument";
           return false;
         }
+      }
+      if (!(expr.children[0].kind == ExprKind::Identifier &&
+            (expr.children[0].text == "len" || expr.children[0].text == "str" ||
+             expr.children[0].text == "i32" || expr.children[0].text == "f64"))) {
+        if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
       }
       return true;
     case ExprKind::Member:
