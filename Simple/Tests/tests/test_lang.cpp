@@ -555,6 +555,41 @@ bool LangValidateImmutableModuleAssign() {
   return true;
 }
 
+bool LangValidateAssignToFunctionFail() {
+  const char* src =
+    "add : i32 (a : i32, b : i32) { return a + b; }"
+    "main : void () { add = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateAssignToModuleFunctionFail() {
+  const char* src =
+    "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "main : void () { Math.add = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateAssignToArtifactMethodFail() {
+  const char* src =
+    "Point :: artifact { x : i32 get : i32 () { return x; } }"
+    "main : void () { p : Point = { 1 }; p.get = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateAssignToSelfMethodFail() {
+  const char* src =
+    "Point :: artifact { x : i32 get : i32 () { return x; } set : void () { self.get = 1; } }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateIncDecImmutableLocal() {
   const char* src = "main : void () { x :: i32 = 1; x++; }";
   std::string error;
@@ -1317,6 +1352,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_field_assign", LangValidateImmutableFieldAssign},
   {"lang_validate_immutable_self_field_assign", LangValidateImmutableSelfFieldAssign},
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
+  {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
+  {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
+  {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
+  {"lang_validate_assign_to_self_method_fail", LangValidateAssignToSelfMethodFail},
   {"lang_validate_incdec_immutable_local", LangValidateIncDecImmutableLocal},
   {"lang_validate_incdec_invalid_target", LangValidateIncDecInvalidTarget},
   {"lang_validate_unknown_module_member", LangValidateUnknownModuleMember},

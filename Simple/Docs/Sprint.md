@@ -674,3 +674,4 @@
 - Allowed zero-initialized variables (no initializer) for local, module, and global declarations with new parse/validate tests.
 - Allowed zero-initialized globals/modules/locals and added compound assignment validation with new tests.
 - Extended len() validation to accept strings and added a new string len test.
+- Added Simple::Lang validation to reject assignments to functions/methods with new tests.

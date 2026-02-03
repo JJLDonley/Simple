@@ -578,6 +578,10 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       return true;
     }
+    if (ctx.functions.find(target.text) != ctx.functions.end()) {
+      if (error) *error = "cannot assign to function: " + target.text;
+      return false;
+    }
     return true;
   }
   if (target.kind == ExprKind::Member && target.op == "." && !target.children.empty()) {
@@ -585,6 +589,10 @@ bool CheckAssignmentTarget(const Expr& target,
     if (base.kind == ExprKind::Identifier) {
       if (base.text == "self") {
         const VarDecl* field = FindArtifactField(current_artifact, target.text);
+        if (!field && FindArtifactMethod(current_artifact, target.text)) {
+          if (error) *error = "cannot assign to method: self." + target.text;
+          return false;
+        }
         if (field && field->mutability == Mutability::Immutable) {
           if (error) *error = "cannot assign to immutable field: self." + target.text;
           return false;
@@ -594,9 +602,12 @@ bool CheckAssignmentTarget(const Expr& target,
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
         if (!local->type) return true;
         auto artifact_it = ctx.artifacts.find(local->type->name);
-        const VarDecl* field = FindArtifactField(
-          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second,
-          target.text);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const VarDecl* field = FindArtifactField(artifact, target.text);
+        if (!field && FindArtifactMethod(artifact, target.text)) {
+          if (error) *error = "cannot assign to method: " + base.text + "." + target.text;
+          return false;
+        }
         if (field && field->mutability == Mutability::Immutable) {
           if (error) *error = "cannot assign to immutable field: " + base.text + "." + target.text;
           return false;
@@ -606,6 +617,10 @@ bool CheckAssignmentTarget(const Expr& target,
       auto module_it = ctx.modules.find(base.text);
       if (module_it != ctx.modules.end()) {
         const VarDecl* field = FindModuleVar(module_it->second, target.text);
+        if (!field && FindModuleFunc(module_it->second, target.text)) {
+          if (error) *error = "cannot assign to function: " + base.text + "." + target.text;
+          return false;
+        }
         if (field && field->mutability == Mutability::Immutable) {
           if (error) *error = "cannot assign to immutable module member: " + base.text + "." + target.text;
           return false;
@@ -615,9 +630,12 @@ bool CheckAssignmentTarget(const Expr& target,
       auto global_it = ctx.globals.find(base.text);
       if (global_it != ctx.globals.end()) {
         auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
-        const VarDecl* field = FindArtifactField(
-          artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second,
-          target.text);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const VarDecl* field = FindArtifactField(artifact, target.text);
+        if (!field && FindArtifactMethod(artifact, target.text)) {
+          if (error) *error = "cannot assign to method: " + base.text + "." + target.text;
+          return false;
+        }
         if (field && field->mutability == Mutability::Immutable) {
           if (error) *error = "cannot assign to immutable field: " + base.text + "." + target.text;
           return false;
