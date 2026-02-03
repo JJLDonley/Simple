@@ -587,3 +587,5 @@
 - Added SIR text tests for named globals, global init via consts, and bad global names.
 - Added SIR text upvalues list with name-based ldupv/stupv.
 - Added SIR text tests for named upvalues in closure capture scenarios.
+- Added SIR type field validation (alignment and bounds) during IR lowering.
+- Added SIR text negative tests for misaligned and out-of-bounds fields.

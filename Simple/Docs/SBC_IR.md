@@ -187,7 +187,7 @@ instructions to reference types, sigs, fields, consts, and imports by name.
 | Section | Row Form | Example | Notes |
 |---|---|---|---|
 | `types:` | `type <Name> size=<bytes> kind=<kind>` | `type Color size=16 kind=artifact` | `kind` ∈ `{i32,i64,f32,f64,ref,artifact}`. Artifact implies ref-like object. |
-|  | `field <name> <type> offset=<bytes>` | `field r i32 offset=0` | Fields belong to the most recent `type`. |
+|  | `field <name> <type> offset=<bytes>` | `field r i32 offset=0` | Offsets must be 4-byte aligned and within `type.size`. |
 | `sigs:` | `sig <Name>: (<params>) -> <ret>` | `sig main: () -> i32` | `<ret>` can be `void`. |
 | `consts:` | `const <Name> <kind> <value>` | `const greet string "hi"` | `kind` ∈ `{i8,i16,i32,i64,u8,u16,u32,u64,f32,f64,bool,char,string}`. |
 | `imports:` | `syscall <Name> <id>` | `syscall write 7` | Enables `syscall <Name>` in code. |

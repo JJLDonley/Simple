@@ -689,6 +689,24 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     return false;
   };
 
+  auto field_type_size = [&](uint32_t type_id) -> uint32_t {
+    if (type_id >= types.size()) return 0;
+    Simple::Byte::TypeKind kind = static_cast<Simple::Byte::TypeKind>(types[type_id].kind);
+    switch (kind) {
+      case Simple::Byte::TypeKind::I32:
+      case Simple::Byte::TypeKind::F32:
+        return 4;
+      case Simple::Byte::TypeKind::I64:
+      case Simple::Byte::TypeKind::F64:
+        return 8;
+      case Simple::Byte::TypeKind::Ref:
+        return 4;
+      case Simple::Byte::TypeKind::Unspecified:
+      default:
+        return types[type_id].size;
+    }
+  };
+
   for (const auto& type : text.types) {
     Simple::Byte::TypeKind kind = Simple::Byte::TypeKind::Unspecified;
     uint8_t flags = 0;
@@ -743,9 +761,23 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (error) *error = "field type not found: " + field.type;
         return false;
       }
+      uint32_t field_type_id = field_type_it->second;
+      uint32_t field_size = field_type_size(field_type_id);
+      if (field_size == 0) {
+        if (error) *error = "field size invalid: " + field.type;
+        return false;
+      }
+      if ((field.offset % 4) != 0) {
+        if (error) *error = "field offset not aligned: " + field.name;
+        return false;
+      }
+      if (field.offset + field_size > types[type_id].size) {
+        if (error) *error = "field out of bounds: " + field.name;
+        return false;
+      }
       FieldBuildRow row;
       row.name_str = add_name(field.name);
-      row.type_id = field_type_it->second;
+      row.type_id = field_type_id;
       row.offset = field.offset;
       row.flags = 0;
       uint32_t field_id = static_cast<uint32_t>(fields.size());

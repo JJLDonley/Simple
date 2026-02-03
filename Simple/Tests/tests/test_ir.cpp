@@ -4254,6 +4254,38 @@ bool RunIrTextBadFieldNameTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_field_name");
 }
 
+bool RunIrTextFieldMisalignedTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=8 kind=artifact\n"
+      "  field a i32 offset=2\n"
+      "sigs:\n"
+      "  sig main: () -> i32\n"
+      "func main locals=0 stack=4 sig=main\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_field_misaligned");
+}
+
+bool RunIrTextFieldOutOfBoundsTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=8 kind=artifact\n"
+      "  field a i64 offset=4\n"
+      "sigs:\n"
+      "  sig main: () -> i32\n"
+      "func main locals=0 stack=4 sig=main\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_field_oob");
+}
+
 bool RunIrTextBadConstNameTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -7267,6 +7299,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_named_tables", RunIrTextNamedTablesTest},
   {"ir_text_bad_type_name", RunIrTextBadTypeNameTest},
   {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},
+  {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
+  {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
