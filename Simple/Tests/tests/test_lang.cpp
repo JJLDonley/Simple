@@ -506,12 +506,30 @@ bool LangValidateImmutableModuleAssign() {
   return true;
 }
 
+bool LangValidateUnknownModuleMember() {
+  const char* src =
+    "Math :: module { x : i32 = 1; }"
+    "main : i32 () { return Math.y; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateMutableFieldAssignOk() {
   const char* src =
     "Point :: artifact { x : i32 }"
     "main : void () { p : Point = { 1 }; p.x = 2; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateUnknownArtifactMember() {
+  const char* src =
+    "Point :: artifact { x : i32 }"
+    "main : i32 () { p : Point = { 1 }; return p.y; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
@@ -1203,7 +1221,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_field_assign", LangValidateImmutableFieldAssign},
   {"lang_validate_immutable_self_field_assign", LangValidateImmutableSelfFieldAssign},
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
+  {"lang_validate_unknown_module_member", LangValidateUnknownModuleMember},
   {"lang_validate_mutable_field_assign_ok", LangValidateMutableFieldAssignOk},
+  {"lang_validate_unknown_artifact_member", LangValidateUnknownArtifactMember},
   {"lang_validate_self_outside_method", LangValidateSelfOutsideMethod},
   {"lang_validate_artifact_literal_too_many_positional", LangValidateArtifactLiteralTooManyPositional},
   {"lang_validate_artifact_literal_duplicate_named", LangValidateArtifactLiteralDuplicateNamed},

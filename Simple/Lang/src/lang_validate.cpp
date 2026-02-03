@@ -1304,6 +1304,32 @@ bool CheckExpr(const Expr& expr,
         }
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (expr.op == "." && !expr.children.empty()) {
+        const Expr& base = expr.children[0];
+        if (base.kind == ExprKind::Identifier) {
+          auto module_it = ctx.modules.find(base.text);
+          if (module_it != ctx.modules.end()) {
+            if (!FindModuleVar(module_it->second, expr.text) &&
+                !FindModuleFunc(module_it->second, expr.text)) {
+              if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              return false;
+            }
+            return true;
+          }
+        }
+        TypeRef base_type;
+        if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+          auto artifact_it = ctx.artifacts.find(base_type.name);
+          if (artifact_it != ctx.artifacts.end()) {
+            const ArtifactDecl* artifact = artifact_it->second;
+            if (!FindArtifactField(artifact, expr.text) &&
+                !FindArtifactMethod(artifact, expr.text)) {
+              if (error) *error = "unknown artifact member: " + base_type.name + "." + expr.text;
+              return false;
+            }
+          }
+        }
+      }
       if (expr.op == "::" && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
