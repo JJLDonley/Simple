@@ -15,6 +15,7 @@ struct ValidateContext {
 
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
+               bool return_is_void,
                std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error);
 
@@ -45,10 +46,19 @@ bool AddLocal(std::vector<std::unordered_set<std::string>>& scopes,
 
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
+               bool return_is_void,
                std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error) {
   switch (stmt.kind) {
     case StmtKind::Return:
+      if (return_is_void && stmt.has_return_expr) {
+        if (error) *error = "void function cannot return a value";
+        return false;
+      }
+      if (!return_is_void && !stmt.has_return_expr) {
+        if (error) *error = "non-void function must return a value";
+        return false;
+      }
       if (stmt.has_return_expr) {
         return CheckExpr(stmt.expr, ctx, scopes, error);
       }
@@ -69,14 +79,14 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
         }
         scopes.pop_back();
       }
       if (!stmt.else_branch.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.else_branch) {
-          if (!CheckStmt(child, ctx, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -85,13 +95,13 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
       }
       scopes.pop_back();
       if (!stmt.if_else.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.if_else) {
-          if (!CheckStmt(child, ctx, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -100,7 +110,7 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
@@ -110,7 +120,7 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, return_is_void, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
@@ -188,6 +198,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
   std::vector<std::unordered_set<std::string>> scopes;
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
+  const bool return_is_void = fn.return_type.name == "void";
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
       if (error) *error = "duplicate parameter name: " + param.name;
@@ -196,7 +207,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, scopes, error)) return false;
+    if (!CheckStmt(stmt, ctx, return_is_void, scopes, error)) return false;
   }
   return true;
 }

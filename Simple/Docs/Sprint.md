@@ -627,3 +627,4 @@
 - Added Simple::Lang module/artifact duplicate-member validation with tests.
 - Added Simple::Lang duplicate parameter validation with tests.
 - Enforced enum member access to use `::` and added validation tests for `Enum.Value`.
+- Added Simple::Lang return validation for void/non-void functions with tests.

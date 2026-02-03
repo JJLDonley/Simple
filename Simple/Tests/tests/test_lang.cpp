@@ -309,6 +309,20 @@ bool LangValidateDuplicateParams() {
   return true;
 }
 
+bool LangValidateVoidReturnValue() {
+  const char* src = "main : void () { return 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateNonVoidMissingReturn() {
+  const char* src = "main : i32 () { return; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -500,6 +514,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
   {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
   {"lang_validate_duplicate_params", LangValidateDuplicateParams},
+  {"lang_validate_void_return_value", LangValidateVoidReturnValue},
+  {"lang_validate_nonvoid_missing_return", LangValidateNonVoidMissingReturn},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
