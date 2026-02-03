@@ -608,3 +608,4 @@
 - Added Simple::Lang assignment statements and local variable declarations with tests.
 - Added Simple::Lang control flow parsing (|> chains, while, break/skip) with tests.
 - Added Simple::Lang for-loop parsing with assignment-enabled headers and tests.
+- Added Simple::Lang enum declaration parsing with tests.

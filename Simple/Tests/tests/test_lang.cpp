@@ -136,6 +136,29 @@ bool LangParsesModuleDecl() {
   return true;
 }
 
+bool LangParsesEnumDecl() {
+  const char* src =
+    "Status :: enum { Pending = 1, Active = 2 }"
+    "Color :: enum { Red, Green, Blue }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 2) return false;
+  const auto& status = program.decls[0];
+  if (status.kind != Simple::Lang::DeclKind::Enum) return false;
+  if (status.enm.name != "Status") return false;
+  if (status.enm.members.size() != 2) return false;
+  if (!status.enm.members[0].has_value) return false;
+  if (status.enm.members[0].value_text != "1") return false;
+  if (!status.enm.members[1].has_value) return false;
+  const auto& color = program.decls[1];
+  if (color.kind != Simple::Lang::DeclKind::Enum) return false;
+  if (color.enm.name != "Color") return false;
+  if (color.enm.members.size() != 3) return false;
+  if (color.enm.members[0].has_value) return false;
+  return true;
+}
+
 bool LangParsesReturnExpr() {
   const char* src = "main : i32 () { return 1 + 2 * 3; }";
   Simple::Lang::Program program;
@@ -257,6 +280,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_var_decl", LangParsesVarDecl},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
+  {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_comparisons", LangParsesComparisons},

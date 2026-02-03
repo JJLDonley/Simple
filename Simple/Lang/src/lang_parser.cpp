@@ -89,6 +89,13 @@ bool Parser::ParseDecl(Decl* out) {
     if (Match(TokenKind::KwModule)) {
       return ParseModuleDecl(name_tok, out);
     }
+    if (Match(TokenKind::KwEnum)) {
+      if (!generics.empty()) {
+        error_ = "enum declarations do not support generics";
+        return false;
+      }
+      return ParseEnumDecl(name_tok, out);
+    }
     Mutability mut = Mutability::Immutable;
     TypeRef return_or_type;
     if (!ParseTypeInner(&return_or_type)) return false;
@@ -173,6 +180,45 @@ bool Parser::ParseModuleDecl(const Token& name_tok, Decl* out) {
   }
   if (!ParseModuleBody(&out->module)) return false;
   return true;
+}
+
+bool Parser::ParseEnumDecl(const Token& name_tok, Decl* out) {
+  if (out) {
+    out->kind = DeclKind::Enum;
+    out->enm.name = name_tok.text;
+  }
+  if (!Match(TokenKind::LBrace)) {
+    error_ = "expected '{' to start enum body";
+    return false;
+  }
+  if (Match(TokenKind::RBrace)) return true;
+  while (!IsAtEnd()) {
+    const Token& member_tok = Peek();
+    if (member_tok.kind != TokenKind::Identifier) {
+      error_ = "expected enum member name";
+      return false;
+    }
+    Advance();
+    EnumMember member;
+    member.name = member_tok.text;
+    if (Match(TokenKind::Assign)) {
+      const Token& value_tok = Peek();
+      if (value_tok.kind != TokenKind::Integer) {
+        error_ = "expected integer literal for enum value";
+        return false;
+      }
+      member.has_value = true;
+      member.value_text = value_tok.text;
+      Advance();
+    }
+    if (out) out->enm.members.push_back(std::move(member));
+    if (Match(TokenKind::Comma)) continue;
+    if (Match(TokenKind::RBrace)) return true;
+    error_ = "expected ',' or '}' after enum member";
+    return false;
+  }
+  error_ = "unterminated enum body";
+  return false;
 }
 
 bool Parser::ParseArtifactBody(ArtifactDecl* out) {

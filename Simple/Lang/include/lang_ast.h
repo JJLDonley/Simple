@@ -117,11 +117,23 @@ struct ModuleDecl {
   std::vector<FuncDecl> functions;
 };
 
+struct EnumMember {
+  std::string name;
+  bool has_value = false;
+  std::string value_text;
+};
+
+struct EnumDecl {
+  std::string name;
+  std::vector<EnumMember> members;
+};
+
 enum class DeclKind : uint8_t {
   Function,
   Variable,
   Artifact,
   Module,
+  Enum,
 };
 
 struct Decl {
@@ -130,6 +142,7 @@ struct Decl {
   VarDecl var;
   ArtifactDecl artifact;
   ModuleDecl module;
+  EnumDecl enm;
 };
 
 struct Program {
