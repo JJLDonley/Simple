@@ -49,6 +49,7 @@ SOURCES=(
   "$BYTE_DIR/src/sbc_verifier.cpp"
   "$TEST_DIR/test_main.cpp"
   "$TEST_DIR/test_utils.cpp"
+  "$TEST_DIR/sir_runner.cpp"
 )
 
 TEST_DEFINES=()

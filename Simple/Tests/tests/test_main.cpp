@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "sir_runner.h"
 #include "test_utils.h"
 
 namespace Simple::VM::Tests {
@@ -37,6 +38,39 @@ int RunBenchLoop(size_t iterations);
 } // namespace Simple::VM::Tests
 
 int main(int argc, char** argv) {
+  if (argc > 1 && std::string(argv[1]) == "--sir") {
+    if (argc < 3) {
+      std::cerr << "usage: simplevm_tests --sir <file.sir> [--no-verify]\n";
+      return 2;
+    }
+    const std::string path = argv[2];
+    bool verify = true;
+    if (argc > 3 && std::string(argv[3]) == "--no-verify") {
+      verify = false;
+    }
+    return Simple::VM::Tests::RunSirFile(path, verify);
+  }
+  if (argc > 1 && std::string(argv[1]) == "--perf") {
+    if (argc < 3) {
+      std::cerr << "usage: simplevm_tests --perf <dir> [iters] [--no-verify]\n";
+      return 2;
+    }
+    const std::string dir = argv[2];
+    size_t iterations = 100;
+    bool verify = true;
+    if (argc > 3) {
+      if (std::string(argv[3]) == "--no-verify") {
+        verify = false;
+      } else {
+        iterations = static_cast<size_t>(std::stoul(argv[3]));
+      }
+    }
+    if (argc > 4 && std::string(argv[4]) == "--no-verify") {
+      verify = false;
+    }
+    return Simple::VM::Tests::RunSirPerfDir(dir, iterations, verify);
+  }
+
   if (argc > 1 && std::string(argv[1]) == "--bench") {
 #if SIMPLEVM_TEST_INCLUDE_JIT
     size_t iterations = 1000;

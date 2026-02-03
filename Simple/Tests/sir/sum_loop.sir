@@ -1,0 +1,27 @@
+func main locals=3 stack=10
+  enter 3
+  const.i32 100000
+  stloc 0
+  const.i32 0
+  stloc 1
+  const.i32 0
+  stloc 2
+loop:
+  ldloc 2
+  ldloc 0
+  cmp.lt.i32
+  jmp.false done
+  ldloc 1
+  ldloc 2
+  add.i32
+  stloc 1
+  ldloc 2
+  const.i32 1
+  add.i32
+  stloc 2
+  jmp loop
+done:
+  ldloc 1
+  ret
+end
+entry main

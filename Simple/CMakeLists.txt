@@ -37,6 +37,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_ir.cpp
   ${SIMPLEVM_TEST_ROOT}/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_main.cpp
+  ${SIMPLEVM_TEST_ROOT}/sir_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/test_utils.cpp
   ${SIMPLEVM_CORE_SRC}
 )

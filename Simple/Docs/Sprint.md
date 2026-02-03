@@ -573,8 +573,7 @@
 - Fixed IR text trap tests to return i32 after set/remove ops and adjusted call.indirect non-ref test to expect trap.
 - Added IR text negative tests and parser bounds checks for locals/stack/sig overflow.
 - Added IR text negative tests for invalid hex in locals/stack and negative hex sig.
+- Added .sir runner and perf harness (IR text -> SBC -> run) with sample .sir programs.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
-
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
-
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
