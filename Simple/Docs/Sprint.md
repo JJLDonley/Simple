@@ -1,0 +1,537 @@
+# Sprint Log - Simple VM
+
+## Notes
+- This log must record every VM-related change going forward.
+
+## 2026-01-29
+- Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
+- Implemented initial VM skeleton in `SimpleByteCode/vm/`.
+- Added loader for SBC header/sections/tables.
+- Added basic verifier (instruction boundary + simple stack checks).
+- Added interpreter core with minimal opcode support (i32/bool, locals, calls, control flow).
+- Added `build.sh` using g++ for local build.
+- Added VM README.
+- Added implementation plan `SimpleByteCode/Implementation.md`.
+- Removed committed VM binary `SimpleByteCode/vm/bin/simplevm`.
+- Expanded loader validation (section IDs, bounds, table index checks).
+- Expanded verifier checks for locals/globals and call signature validation.
+- Added VM test harness and initial bytecode test (CONST_I32 + ADD_I32).
+- Updated build script to compile test binary.
+- Added `SimpleByteCode/vm/.gitignore` to prevent committing built binaries.
+- Implemented global storage in VM with LOAD_GLOBAL/STORE_GLOBAL support.
+- Added global read/write test to the VM test harness.
+- Updated VM build script to auto-run tests after build.
+- Routed VM execution through verifier by default; added `--no-verify` option path.
+- Implemented stack ops (POP/DUP/DUP2/SWAP/ROT) and small const variants (I8/I16/U8/U16).
+- Added tests for DUP, SWAP, and ROT behaviors.
+- Added full i32 comparison opcodes (EQ/NE/LT/LE/GT/GE) and branch coverage tests.
+- Fixed comparison test to return i32 exit code instead of bool.
+- Updated test harness to print per-test results.
+- Added MOD_I32 opcode and tests for POP, DUP2, MOD, and boolean ops with branching.
+- Added local load/store and loop execution tests; added JMP bounds checks.
+- Added heap object scaffolding and reference opcodes (ConstNull/NewObject/IsNull/RefEq/RefNe) with tests.
+- Added array opcodes (NEW_ARRAY/ARRAY_LEN/ARRAY_GET_I32/ARRAY_SET_I32) with VM support and tests.
+- Added list opcodes (NEW_LIST/LIST_LEN/LIST_GET_I32/LIST_SET_I32/LIST_PUSH_I32/LIST_POP_I32) with VM support and tests.
+- Fixed list and core test local-count mismatches after adding list support.
+- Added string ops (CONST_STRING/STRING_LEN/STRING_CONCAT) with const pool support and tests.
+- Added basic GC root marking/sweep pass and a GC smoke test.
+- Added field ops (NEW_OBJECT/LOAD_FIELD/STORE_FIELD/TYPEOF) with tests and custom type/field tables.
+- Fixed field test stack order for TYPEOF.
+- Added verifier checks for object/field/string indices and a negative field-id verify test.
+- Added verifier coverage for bad CONST_STRING indices.
+- Added negative runtime tests for array bounds and list pop underflow.
+- Added tests for ARRAY_LEN, LIST_LEN, and list overflow trapping.
+- Added basic type-stack verification and a bad-type verifier test.
+- Added CallCheck opcode and verifier/type-stack support for it.
+- Added merge-point type validation and a bad-merge verifier test.
+- Fixed verifier control-flow merge handling for non-fallthrough ops (JMP/RET/etc.).
+- Added ConstU32/ConstChar support and debug/intrinsic op handling with tests for constants, debug no-ops, and intrinsic/syscall traps.
+- Implemented CALL_INDIRECT and TAILCALL execution with verifier stack tracking and added multi-function tests.
+- Added list insert/remove/clear and string get/slice opcodes with verifier checks, runtime support, and tests.
+- Added trap tests for list insert/remove and string get/slice bounds errors.
+- Added CALL_INDIRECT verify/trap tests for arg mismatch, bad function index, and invalid runtime function value.
+- Added verifier rejection tests for CALL and TAILCALL arg-count mismatches.
+- Added ConstI64/ConstU64/ConstF32/ConstF64 runtime handling with new tests.
+- Added I64 arithmetic and comparison opcodes with verifier support and tests.
+- Added F32/F64 arithmetic and comparison opcodes with verifier support and tests.
+- Added CONST_I128/CONST_U128 handling via const pool blobs with verifier support and tests.
+- Added numeric conversion opcodes (int/float) with verifier checks, runtime support, and tests.
+- Added conversion misuse tests: verifier rejection and runtime trap (no-verify) for bad conversion types.
+- Added return-type verification (void vs typed) with a negative test for missing return value.
+- Adjusted trap test builders and field type metadata to satisfy return-type verification (HALT for trap paths, I32 ret type).
+- Added U32/U64 arithmetic/compare opcodes with verifier/runtime support and tests; added negative CONST_I128/U128 tests; extended return type mapping for bool.
+- Added I32/I64 bitwise ops with tests, plus a return-ref verification test.
+- Added unsigned edge-case tests for U32/U64 div-by-zero and overflow wrap behavior.
+- Added negative tests for bitwise ops (verify failure and no-verify runtime trap).
+- Added unsigned compare min/max ordering tests for U32/U64.
+- Added shift masking tests for large shift counts on I32/I64.
+- Added unsigned-op wrong-type tests (verify failures + no-verify runtime traps).
+- Added verifier tracking for uninitialized locals with a negative test.
+- Updated bad_call_indirect_type test to avoid uninitialized local under new verifier rules.
+- Added verifier enforcement for function stack_max with a negative test.
+- Added verifier negative test for jump targets landing mid-instruction.
+- Added verifier negative test for out-of-bounds jump targets and a positive jump-to-end test.
+- Allowed jump targets at function end boundary in verifier.
+- Added unsigned compare boundary tests for U32/U64 max vs zero and equality.
+- Added verifier negative test for signature param_count exceeding local_count.
+- Added verifier tracking for uninitialized globals with a negative test.
+- Updated bad_call_indirect_type test to use initialized global under new verifier rule.
+- Added loader validation for global init const ids with a negative load test.
+- Tightened const pool validation for string null-termination and 16-byte I128/U128 blobs with load-time tests.
+- Added positive load tests for valid CONST_STRING and I128 blob lengths.
+- Added runtime initialization for globals from const pool (string/f32/f64) with a string init test.
+- Added global init tests for F32/F64 const pool values.
+- Added loader validation for field offsets against type size with a negative load test.
+- Added loader validation for field size bounds with a negative load test.
+- Added loader validation for TYPE const ids with a negative load test.
+- Added runtime trap test for unsupported TYPE global init consts.
+- Added loader validation for signature call_conv and method flags with negative load tests.
+- Added loader validation for header flags with a negative load test.
+- Added loader validation for field offset alignment with a negative load test.
+- Added loader validation for stack_max > 0 with a negative load test.
+- Added loader validation for entry_method_id presence in functions table with a negative load test.
+- Added loader validation for function code_offset matching method code_offset with a negative load test.
+- Added loader validation for duplicate method code offsets with a negative load test.
+- Added loader validation for overlapping function code ranges with a negative load test.
+- Added no-verify runtime trap test for out-of-bounds JMP.
+- Added no-verify runtime trap tests for out-of-bounds JmpTrue/JmpFalse.
+- Wired packed signature param type lists into loader/verifier with a negative CALL param type test.
+- Added negative verifier tests for CALL_INDIRECT and TAILCALL param type mismatches.
+- Added loader negative tests for missing/out-of-range signature param type lists.
+- Added loader negative test for misaligned signature param type list size.
+- Added loader negative test for signature param type id out of range.
+- Added positive CALL/CALL_INDIRECT tests for typed parameters.
+- Added loader negative test for truncated signature table size.
+- Added loader negative test for misaligned section offsets.
+- Added loader negative test for overlapping sections.
+- Added loader negative test for unknown section ids.
+- Added loader negative test for duplicate section ids.
+- Added loader negative test for section table out-of-bounds via header count.
+- Added loader negative test for invalid header endianness.
+- Added CMake + Windows build scripts for cross-platform builds.
+- Added loader negative test for unsupported header flags.
+- Added loader negative tests for bad magic/version/reserved, section count/offset issues, and table size mismatches.
+- Added loader negative tests for invalid type/field/global/function/method references.
+- Added loader negative tests for missing CODE/FUNCTIONS sections.
+- Added loader negative tests for const pool string/i128 offsets and truncated F64.
+- Added verifier tests for merge height mismatch and stack underflow.
+- Added verifier test for merge type mismatch between ref and i32.
+- Added verifier tests for string op type mismatches.
+- Added verifier type-mismatch tests for ref ops, field ops, array/list ops, and STRING_LEN.
+- Added verifier type-mismatch tests for BOOL ops and JMP condition.
+- Added verifier type-mismatch tests for array/list ops with wrong container types.
+- Added verifier test for JMP_FALSE non-bool condition.
+- Added verifier tests for STRING_GET_CHAR and STRING_SLICE index type mismatches.
+- Added verifier tests for REF_EQ/REF_NE mixed ref vs non-ref operands.
+- Added verifier tests for mixed BOOL_AND/BOOL_OR operand types.
+- Added runtime trap tests for ARRAY_SET and LIST_GET/LIST_SET out-of-bounds indices.
+- Added runtime trap tests for negative indices in ARRAY_GET/ARRAY_SET and LIST_GET/LIST_SET.
+- Added runtime trap tests for negative indices in STRING_GET_CHAR and STRING_SLICE.
+- Added runtime trap tests for null refs across array/list/string ops.
+- Implemented heap free-list reuse with alive tracking; added heap reuse test.
+- Added NEW_CLOSURE execution + verifier validation, with positive and negative tests.
+- Added closure upvalue marking in GC and a heap closure mark test.
+- Added GC stress test to validate mark/sweep behavior on many objects.
+- Added VM-level GC stress test with allocation loop.
+- Implemented LOAD_UPVALUE/STORE_UPVALUE with closure-aware CALL_INDIRECT, plus tests.
+- NEW_CLOSURE now captures upvalues from stack; added verifier/type tests for upvalues.
+- Added upvalue capture test for non-null ref objects.
+- Added upvalue capture ordering test for multiple captures.
+- Added NEG_I32/NEG_I64 opcodes with verifier/runtime support and tests.
+- Added NEG_F32/NEG_F64 opcodes with verifier/runtime support and tests.
+- Added INC/DEC opcodes for I32/I64 with verifier/runtime support and tests.
+- Added INC/DEC opcodes for F32/F64 with verifier/runtime support and tests.
+- Added INC/DEC opcodes for U32/U64 with verifier/runtime support and tests.
+- Added U32/U64 INC/DEC wraparound tests at numeric bounds.
+- Added INC/DEC opcodes for I8/I16/U8/U16 with verifier/runtime support and tests.
+- Added NEG opcodes for I8/I16/U8/U16 with verifier/runtime support and tests.
+- Added JMP_TABLE opcode with const pool jump table entries, verifier/VM support, and tests.
+- Added basic JIT tier tracking scaffolding with hotness thresholds and a tiering test.
+- Exposed per-function call counts in ExecResult and validated counts in the JIT tier test.
+- Added JMP_TABLE runtime trap tests for bad kind, malformed blob, and out-of-bounds targets.
+- Added NEG I8/I16 wraparound boundary tests.
+- Added NEG U32/U64 opcodes with verifier/runtime support and tests.
+- Added NEG U32/U64 wraparound boundary tests.
+- Added JIT tier stubs in call paths (Tier0/Tier1 placeholder hooks).
+- Added JMP_TABLE default-target boundary tests (jump to end/start).
+- Added NEG U8/U16 wraparound boundary tests.
+- Added per-opcode hotness counters in ExecResult with JIT test coverage.
+- Added JMP_TABLE empty-table test (default target when count=0).
+- Added JIT compile event counters and verified Tier0+Tier1 promotions in tests.
+- Added JMP_TABLE verifier test for blob size/count mismatch.
+- Added opcode hotness threshold promoting functions to Tier0.
+- Added JMP_TABLE verifier test for out-of-bounds targets.
+- Added JIT compile tick timestamps per tier with test coverage.
+- Added JMP_TABLE verifier test for default target out-of-bounds.
+- Added opcode-hotness Tier0 promotion coverage to JIT tier test.
+
+## 2026-01-30
+- Added JIT dispatch counters in ExecResult and incremented them on JIT stub call paths; extended JIT tier test to assert dispatches.
+- Added JIT dispatch test coverage for CALL_INDIRECT tier promotion and dispatch counts.
+- Added JIT dispatch test coverage for TAILCALL tier promotion and dispatch counts.
+- Added JIT opcode-hot promotion test for a non-entry callee with Tier0 dispatch coverage.
+- Added JIT opcode-hot callee dispatch test (second call after hotness promotion).
+- Added JIT opcode-hot callee dispatch test for CALL_INDIRECT.
+- Added JIT opcode-hot callee dispatch test for TAILCALL via helper trampoline.
+- Added JIT mixed-promotion dispatch test covering Tier1 call-count and Tier0 opcode-hot promotions in one module.
+- Added JIT entry-only opcode-hot promotion test (no calls).
+- Added JIT compile tick ordering test (Tier0 tick before Tier1 for same callee).
+- Added JIT opcode-hot callee Tier0 compile tick test (no extra calls).
+- Added minimal Tier0 compiled path for simple const/nop/ret functions, with compile eligibility checks and compiled execution for Call/CallIndirect/TailCall.
+- Added JIT compiled execution counters and asserted compiled execution in JIT tier test.
+- Added compiled-exec assertions for CALL_INDIRECT and TAILCALL JIT dispatch tests.
+- Added compiled-exec assertions to opcode-hot dispatch tests (call, call_indirect, tailcall).
+- Marked opcode-hot promotions as compiled-eligible and restored compiled-exec assertions for opcode-hot dispatch tests.
+- Extended compiled eligibility/execution to support i32 locals (LOAD_LOCAL/STORE_LOCAL) and added compiled-locals JIT test.
+- Extended compiled path to support basic i32 arithmetic (add/sub/mul/div/mod) and added compiled arithmetic JIT test.
+- Fixed JIT tier module call-count loop and compiled arithmetic entry return to preserve expected results.
+- Added opcode-hot compiled arithmetic JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled arithmetic coverage for CALL_INDIRECT path.
+- Added opcode-hot compiled arithmetic coverage for TAILCALL via helper trampoline.
+- Added compiled locals+arithmetic JIT module/test to validate LOAD/STORE + arithmetic in compiled path.
+- Added opcode-hot locals+arithmetic compiled JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot locals+arithmetic compiled JIT coverage for CALL_INDIRECT path.
+- Added compiled i32 compare support and a JIT compare test using CmpEq/CmpLt/CmpGe ops.
+- Added opcode-hot compiled i32 compare JIT test (Tier0 promotion with compiled exec assertions).
+- Added compiled BOOL ops support (BoolNot/BoolAnd/BoolOr) and a JIT bool ops test.
+- Added opcode-hot compiled bool ops JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled bool ops coverage for CALL_INDIRECT path.
+- Added opcode-hot compiled bool ops coverage for TAILCALL via helper trampoline.
+- Added compiled locals compare+bool chain JIT test to validate LOAD/STORE with CMP/BOOL ops.
+- Added opcode-hot locals compare+bool chain JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot locals compare+bool chain coverage for CALL_INDIRECT path.
+- Added opcode-hot locals compare+bool chain coverage for TAILCALL via helper trampoline.
+- Allowed compiled locals to store/load bools and added compiled/opcode-hot local-bool store tests.
+- Added opcode-hot local-bool store coverage for CALL_INDIRECT path.
+- Added opcode-hot local-bool store coverage for TAILCALL via helper trampoline.
+- Added compiled local-bool AND/OR chain JIT test using stored bool locals.
+- Added opcode-hot local-bool AND/OR chain JIT test with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot local-bool AND/OR chain coverage for CALL_INDIRECT path.
+- Added opcode-hot local-bool AND/OR chain coverage for TAILCALL via helper trampoline.
+- Added opcode-hot compare+bool chain coverage for CALL_INDIRECT path.
+- Added opcode-hot compare+bool chain coverage for TAILCALL via helper trampoline.
+- Added compiled compare+bool chain coverage for CALL_INDIRECT path (Tier1 promotion).
+- Added compiled compare+bool chain coverage for TAILCALL via helper trampoline (Tier1 promotion).
+- Added minimal compiled support for JmpTrue/JmpFalse and a compiled branch JIT test.
+- Added opcode-hot compiled branch JIT test with Tier0 promotion and compiled exec assertions.
+- Added minimal compiled support for unconditional JMP and a compiled loop JIT test.
+- Added opcode-hot compiled loop JIT test with Tier0 promotion and compiled exec assertions.
+- Added compiled loop coverage for CALL_INDIRECT path (Tier1 promotion).
+- Added JIT enable/disable switch for differential testing and a basic JIT vs interpreter differential test.
+- Expanded JIT differential tests to cover branches, loops, and compare+bool operations.
+- Added JIT differential tests for CALL_INDIRECT and TAILCALL compiled paths.
+- Added Tier1 compiled execution counters and a Tier1 exec count test.
+- Added Tier1 exec count assertions for compiled indirect and tailcall compare+bool tests.
+- Added Tier1 exec count assertions for compiled branch and loop tests.
+- Added Tier1 exec count assertions for compiled indirect loop test.
+- Added a simple benchmark mode (--bench) for loop modules to compare no-JIT vs JIT execution time.
+- Added Tier1 skip-NOP test using the existing tier1 exec counter.
+- Added compiled branch coverage for CALL_INDIRECT path with Tier1 exec assertions.
+- Added compiled branch coverage for TAILCALL via helper trampoline with Tier1 exec assertions.
+- Added opcode-hot compiled branch coverage for CALL_INDIRECT path with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled loop coverage for CALL_INDIRECT and TAILCALL paths with Tier0 promotion and compiled exec assertions.
+- Added opcode-hot compiled branch coverage for TAILCALL path with Tier0 promotion and compiled exec assertions.
+- Added a small SBC generator tool and generated sample add/loop SBC fixtures for real-module testing.
+- Extended SBC generator to emit iterative/recursive Fibonacci modules and a UUID-length module (constant UUID in const pool).
+- Generated SBC fixtures for fib_iter, fib_rec, and uuid_len modules for real-module testing.
+- Fixed CALL/CALL_INDIRECT stack-base handling so recursive calls preserve caller stack values (fixes fib_rec crash).
+- Added recursive CALL regression test to validate stack preservation through recursion.
+- Stabilized JIT execution by falling back to interpreter when compiled execution fails.
+- Added opcode-hot JIT test to ensure unsupported opcodes never enter compiled execution.
+- Added JIT-disabled test to ensure no tiers/compiled execs when JIT is off.
+- Added recursive CALL JIT test to ensure recursion stays stable with JIT enabled.
+- Added JIT compiled-fallback test to ensure failed compiled runs fall back once and then stay interpreter-only.
+- Added JIT compiled-fallback tailcall test to validate fallback behavior for tailcalls.
+- Added JIT compiled-fallback indirect test to validate fallback behavior for indirect calls.
+- Added Tier1 JIT fallback test to ensure Tier1 failures fall back to interpreter safely.
+- Prevented failed JIT stubs from re-enabling after fallback by disabling compiled stubs permanently.
+- Added Tier1 JIT fallback indirect test to ensure indirect Tier1 failures fall back safely.
+- Added Tier1 JIT fallback tailcall test to ensure tailcall Tier1 failures fall back safely.
+- Added JIT fallback test to ensure direct-failure stubs stay disabled for subsequent indirect calls.
+- Added JIT fallback test to ensure indirect-failure stubs stay disabled for subsequent direct calls.
+- Added opcode-hot JIT fallback test to ensure opcode-hot compiled failures fall back safely.
+- Added fixture-based tests to run real SBC files (add/loop/fib/uuid) through loader/verifier/VM.
+- Expanded JIT-disabled test to assert no compile or dispatch counts when JIT is off.
+- Added JIT tests to ensure functions with parameters never enter compiled execution (call-count and opcode-hot paths).
+- Added JIT tests to ensure disabled stubs remain interpreter-only after fallback (Tier1 and opcode-hot paths).
+- Added JIT test to validate dispatch counts remain tracked after fallback disables compilation.
+
+## 2026-01-31
+- Updated `SimpleByteCode/Implementation.md` to add a typed runtime refactor phase and mark each phase with [DONE]/[CHANGE]/[NEW] status.
+- Added verifier metadata outputs for VM types, locals/global ref bitmaps, and safepoint stack maps.
+- Added verifier metadata test to validate locals/global ref bits and stack map capture.
+- Added verifier metadata test to ensure non-ref globals do not set ref bitmap bits.
+- Refactored VM runtime to use untagged Slot storage for stack/locals/globals, removing ValueKind checks in interpreter and JIT paths.
+- Added slot pack/unpack helpers for i32/i64/f32/f64/ref and updated call frames to store untagged locals.
+- Switched GC root scanning to verifier-provided ref bitmaps + stack maps and only collect at safepoints with stack maps.
+- Adjusted bad call-indirect type test to fail verification (ConstF32) under typed runtime rules.
+- Added per-test "running" output in the test harness for easier hang diagnostics.
+- Added LINE opcode tracking in VM and trap errors now include function index + line/column with a simple stack trace.
+- Added diagnostic test to assert LINE data appears in trap error strings.
+- Added per-function PC offsets to trap errors and extended diagnostics test coverage.
+- Included method names (if available) in trap error output and stack traces.
+- Added DEBUG section parsing/validation in loader (header + line bounds + basic symbol checks).
+- Added loader tests for DEBUG section header and line table bounds, plus a positive debug load test.
+- Added array opcodes for I64/F32/F64/REF and list opcodes for I64/F32/F64/REF (new opcode IDs + op info).
+- Implemented VM runtime support for new array/list opcodes, including 8-byte element handling and ref storage.
+- Extended verifier type checks for new array/list opcodes and NEW_ARRAY/NEW_LIST validation.
+- Added array/list tests for I64/F32/F64/REF and fixed ref tests to return I32 via branch on RefEq.
+- Updated opcode docs to note array/list <T> support for I32/I64/F32/F64/REF.
+- Confirmed full test suite pass (387 tests).
+- Added verifier diagnostics with function name (if available), pc, and opcode in verification error messages.
+- Routed common verifier failures (jumps, CALL/CALL_INDIRECT/TAILCALL checks, stack merge/overflow, return mismatches) through contextual diagnostics.
+- Added opcode name strings and surfaced names in verifier errors.
+- Added method-name context to loader table validation errors for methods/functions.
+- Added last-opcode trace to runtime trap output (hex + opcode name).
+- Added opcode name strings and surfaced names in JIT compiled error messages.
+- Added runtime trap operand dumps for CALL/JMP/JMP_TABLE (with last-op opcode name).
+- Added diagnostic test coverage for trap operand dumps (jmp/jmp_table/call).
+- Updated implementation plan diagnostics section for opcode/operand hints.
+- Refactored VM locals to use a shared arena (frame stores base/count; arena shrinks on return/tailcall).
+- Updated GC root scanning and local load/store to use arena indexing.
+- Added locals arena preservation test across call boundaries.
+- Updated implementation plan to mark locals arena as done.
+- Added pre-freeze coverage matrix to implementation plan.
+- Added locals arena tailcall preservation test and a named-method loader error test.
+- Added missing opcode coverage tests for cmp variants, xor, extra u32/u64/f32/f64 arithmetic, LEAVE, and list set ops (I64/F32/F64/REF).
+- Updated implementation notes to reflect expanded opcode test coverage.
+- Added negative verifier tests for array/list set value mismatches across I64/F32/F64/REF.
+- Expanded bench runs to cover single-type, mixed-op, and call-heavy cases for both nojit/jit modes.
+- Added runtime trap tests for typed list set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added runtime trap tests for typed array set ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added runtime trap tests for typed array/list get ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added runtime trap tests for typed list pop/insert/remove ops (I64/F32/F64/REF) covering null/out-of-bounds/negative index.
+- Added JIT fallback coverage for typed array/list ops (Tier0 dispatch with no compiled execs).
+- Added pre-freeze ABI checklist and core library/OS roadmap to implementation plan.
+- Outlined intrinsic libraries and FFI ABI surface in the implementation plan.
+- Added concrete intrinsic ID table and FFI ABI table layouts/flags to the implementation plan.
+- Removed array/list intrinsics from the table since they are opcode-backed; replaced with core.math intrinsics.
+- Removed string intrinsics from the table since strings are opcode-backed.
+- Expanded intrinsic table with debug logging, math min/max for floats, time, rand, and basic IO intrinsics.
+- Added a dedicated pre-freeze plan section (primitives/ABI/FFI/core library + freeze gates) to the implementation plan.
+- Added a draft C-style type + opcode mapping table (storage + operator families).
+- Added a detailed pre-freeze implementation plan with steps, deliverables, and tests.
+- Added a draft C ABI host API surface for ref/string/blob/array/list access.
+- Expanded host API draft with type discovery + struct read/write and tiered recommendations.
+- Added `SimpleByteCode/SBC_ABI.md` with intrinsic IDs, FFI tables, and host API details; implementation plan now references it.
+- Added OS-specific core library contracts (core.os/core.fs/core.log) as FFI-backed entries in SBC_ABI.md.
+- Updated implementation plan to reference SBC_ABI.md as the source of truth for intrinsics/FFI/OS contracts.
+- Added missing suggestions to pre-freeze plan (struct layout rules, frozen opcode semantics section, FFI error convention, pinning policy, and explicit freeze-gate tests).
+- Moved and merged pre-freeze plan + detailed plan to the top of Implementation.md.
+- Moved pre-freeze plan into Implementation Phases as Phase 0 and renumbered subsequent phases.
+- Added TypeKind enum for VM type validation in loader.
+- Added loader validation for type kind range and size matching for I32/I64/F32/F64.
+- Added loader negative tests for invalid type kind and size mismatches.
+- Added loader validation for Ref type size (allow 0/4/8) with a negative test for invalid size.
+- Added loader validation to disallow fields on primitive value types with a negative test.
+- Added loader validation to disallow fields on Ref type rows with a negative test.
+- Added positive loader test for valid Ref type size (0).
+- Added verifier negative test for unknown opcode values.
+- Added loader opcode scan to reject unknown opcodes and operand overrun; moved unknown-opcode test to load failure.
+- Updated SBC type table docs to lock VM type kind values and size/field rules.
+- Added frozen VM type ID table to SBC_Encoding.md.
+- Implemented loader opcode scan to validate operand widths/alignments via OpInfo.
+- Added loader negative test for operand overrun (malformed instruction length).
+- Marked loader opcode scan + operand-width gate as DONE in implementation plan.
+- Added frozen semantics section to SBC_OpCodes.md (operand widths, stack effects, traps).
+- Documented OpInfo operand widths as ABI-frozen in opcode header.
+- Added loader negative test for misaligned instruction boundary (trailing byte).
+- Marked opcode frozen-semantics doc as DONE in implementation plan.
+- No new changes; waiting on next implementation target selection.
+- Tightened loader tests to assert specific error messages for unknown opcodes and operand overruns.
+- Pause: no new work selected; awaiting next concrete task.
+- Tightened bad_code_alignment_load to assert operand-bounds error message.
+- Included intrinsic/syscall IDs in trap messages for diagnostics.
+- Added loader validation for JMP_TABLE const blob layout; converted blob verify test to load failure.
+- Moved JMP_TABLE kind/blob failures to loader-time checks and updated diagnostics tests accordingly.
+- Removed unused JMP_TABLE runtime helper modules after moving checks to load time.
+- Tightened JMP_TABLE load tests to assert error message content (kind/blob).
+- Added intrinsic ID validation in verifier against SBC_ABI table and a negative verify test; intrinsic trap uses a valid ID.
+- Added intrinsic signature validation in verifier (param/return types) with new verify tests.
+- Added intrinsic signature validation (param/return) in verifier with updated intrinsic tests.
+- Added verifier gate rejecting SYS_CALL with a negative verify test.
+- Introduced intrinsic ID constants header and wired verifier tables to it.
+- Documented SysCall IDs as reserved in SBC_ABI.md.
+- Updated implementation plan to reserve SYS_CALL in v0.1 and mark verifier gate as done.
+- Added import/export section parsing + validation with table-size load tests; documented section IDs in SBC_Sections.md.
+- Added loader negative tests for import/export name offsets, sig/function IDs, flags, and reserved fields.
+- Documented import/export table validation rules in SBC_ABI.md.
+- Marked import/export validation as DONE in FFI ABI freeze section.
+- Added loader duplicate-name checks for imports/exports with negative tests.
+- Documented duplicate import/export name rejection in SBC_ABI.md.
+- Documented IMPORTS/EXPORTS tables in SBC_Metadata_Tables.md.
+- Marked import-call signature verification as blocked pending import-call opcode/resolution.
+- Added import-call strategy options to the FFI ABI freeze plan.
+- Implemented option-2 import mapping: imports append to functions list; CALL/TailCall/CallIndirect trap on import.
+- Added import_call_trap test and documented import function-id mapping in SBC_ABI.md.
+- Added import mapping into function list with import-call traps and updated section ID range for imports/exports.
+- Marked import-call strategy Option B as chosen in the implementation plan.
+- Documented import-mapped CALL behavior in SBC_OpCodes.md.
+- Added import_call_indirect_trap test for CALL_INDIRECT on imports.
+- Added opcode/method context to loader and verifier scan errors; expanded JIT error formatting with operand dumps for call/jump ops.
+- Reused call argument buffers and JIT local/stack scratch vectors to cut per-call allocations.
+- Added verifier test for import CALL arg-count mismatch.
+- Added loader validation for signature return type IDs with a negative load test.
+- Marked VM type-ID validation coverage as done in the implementation plan.
+- Added loader negative test for invalid signature call_conv.
+- Marked Phase 9.1 primitive freeze items as DONE in the implementation plan.
+- Documented FFI error convention and pinning policy in SBC_ABI.md; marked FFI ABI work items as DONE.
+- Documented core library namespaces (opcode vs intrinsic vs FFI) and marked core library contract items as DONE.
+- Implemented core intrinsic handlers (math/time/rand/io/log) with a runtime test.
+- Ran full test suite for freeze gate (all tests passed).
+- Added v0.1 freeze summary to Implementation.md and vm/README.md.
+- Implemented core library import handling for core.os/core.fs/core.log and updated import call tests to succeed.
+- Implemented core.os time/cwd/env/sleep handlers with ASCII string conversion and added import_time_mono/import_cwd_get tests.
+- Added TAILCALL support for imports with a passing import_tailcall test.
+- Added ExecOptions argv injection for core.os args_count/args_get and a passing import_args_count test.
+- Added import_args_get_char test to validate core.os args_get string content via StringGetChar.
+- Added env_get tests for hit/miss cases using host env variables.
+- Added args_get bounds tests for negative and out-of-range indices.
+- Added core.fs stub tests for open/read/write/close return behavior.
+- Added core.fs round-trip test (open/write/read/close) using Array<i32> byte buffers.
+- Implemented core.fs open/read/write/close with Array<i32> byte-buffer semantics (u8 stored in each element).
+- Documented core.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
+- Set import method local_count from signature param_count to satisfy verifier rules.
+- Fixed core.fs round-trip test call targets/signature param list and added close+reopen for read path.
+- Added core.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
+- Redirected core.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
+- Added core.fs negative tests for bad fd reads and null-buffer writes.
+- Added core.fs negative tests for non-array read buffers and bad-fd write/close paths.
+- Added core.fs write clamp (len > buffer size) and close-twice tests.
+- Added core.fs open-null-path and read-zero-len tests.
+- Added core.fs read-after-close test.
+- Added core.fs write-after-close test.
+- Added core.fs reopen and write-zero-len tests.
+- Added core.fs read-zero-buffer test (len > 0 with zero-length buffer).
+- Added core.fs write-zero-buffer test (len > 0 with zero-length buffer).
+- Added core.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
+- Added core.fs write-after-readonly-open test (open flags=0 then write returns -1).
+- Added core.fs open/close loop test to exercise repeated fd usage.
+- Added core.fs open/close stress loop test (50 iterations).
+- Added core.fs write clamp count test (len > buffer size returns clamped count and correct data).
+- Added core.fs read-zero-len preserve test (len=0 leaves buffer unchanged).
+- Added core.fs read/write reopen cycle test (AB then CD).
+- Added core.fs read-zero-len with non-empty buffer test (len=0 preserves data).
+- Added core.fs persist write/read test (write, close, reopen, read).
+
+## 2026-01-31
+- Fixed core.fs read-zero-len non-empty buffer test to create an empty file before read and validate preservation.
+- Added core.log import test to validate log(ref, i32) call path.
+- Added loader negative tests for imports/exports requiring a const pool.
+- Marked section-id/misaligned-section loader tests as Phase 9 complete in implementation plan.
+- Marked intrinsic ID coverage and core.log import smoke test as Phase 9 complete.
+- Full VM test suite pass (569 tests).
+- Documented VM type IDs in SBC metadata docs and FFI struct layout rules in SBC ABI docs.
+- Verifier now maps types to VM primitives using TypeKind (with legacy size fallback).
+- Regenerated SBC fixtures with TypeKind i32 metadata and updated object type flags for field tests.
+- Clarified verifier type mapping uses TypeKind only, with `Unspecified + ref_type` treated as `ref` (no size fallback).
+- Expanded `SBC_OpCodes.md` with explicit opcode listings (including typed array/list variants) and aligned naming with `opcode.h`.
+- Documented v0.1 freeze notes for header layout, section IDs, and const pool formats.
+- Marked Phase 9 opcode/format/intrinsic work items as done in `SimpleByteCode/Implementation.md`.
+- Added cross-version loader tests for past and current header versions (reject 0x0000, accept 0x0001).
+- Marked cross-version compatibility skeleton tests as done in `SimpleByteCode/Implementation.md`.
+- Reviewed SBC docs vs VM behavior for freeze alignment; marked Phase 9 freeze gate tests as done.
+- Full VM test suite pass (571 tests).
+- Added ScratchArena/ScratchScope utility and switched core.fs temp buffers to use arena allocations.
+- Added scratch_arena unit test.
+- Added frozen opcode ID table to `SimpleByteCode/SBC_OpCodes.md`.
+- Documented opcode ID table source-of-truth link to `SimpleByteCode/vm/include/opcode.h`.
+- Added scratch_scope unit test to validate ScratchScope RAII reset behavior.
+- Added scratch_arena alignment test.
+- Enforced scratch-scope-only allocations and added scratch_scope_enforced test.
+- Added ScratchArena debug poison on reset and a scratch_poison unit test.
+- Added VM IR builder (label/fixup emitter) and IR emission tests (add/jump).
+- Added `SimpleByteCode/SBC_IR.md` spec document for VM IR.
+- Formalized Simple IR spec (module scope, stack discipline, labels/fixups, error model, builder API).
+- Added standardized SBC emitter helpers (`sbc_emitter.h`) and migrated `gen_sbc` to use them.
+- Migrated `SimpleByteCode/vm/tests/test_main.cpp` to use `sbc_emitter.h` and removed duplicated module builders.
+- Added `AppendI64` helper to the standardized SBC emitter.
+- Full VM test suite pass (578 tests).
+- Added `ir_compiler` (IR→SBC) library API and `BuildModuleFromSections` emitter path.
+- Wired IR tests to compile through `ir_compiler` instead of building modules directly.
+- Added IR→SBC golden comparisons using `sbc_emitter` and aligned default const pool in `ir_compiler`.
+- Extended IR emitter API with locals/globals/ret/stack ops and added IR→SBC tests for locals and calls.
+- Added IR emitter bool const and IR→SBC tests for globals, stack ops, and conditional branches.
+- Added IR emitter comparisons/boolean ops and IR→SBC tests for compare + bool paths.
+- Added IR emitter conversion ops and IR→SBC tests for i32↔i64 and i32↔f64 conversions.
+- Added IR emitter float add/convert ops and IR→SBC tests for f32/f64 paths.
+- Added IR emitter i32 bitwise/shift ops and IR→SBC tests.
+- Added IR→SBC tests for call_indirect and tailcall paths.
+- Added IR emitter array/list ops (i32) and IR→SBC tests for array/list paths.
+- Added IR emitter string ops and IR→SBC test for string concat/len path.
+- Added IR emitter `EmitConstString` and IR string test using const-pool IDs.
+- Added IR→SBC tests for string get-char and string slice paths.
+- Added IR emitter ref ops (IsNull/RefEq/RefNe) and IR→SBC test.
+- Added IR emitter field/object ops and IR→SBC tests (field + typeof).
+- Added IR→SBC tests for field/object and typeof paths.
+- Added IR emitter typed array/list ops and IR→SBC tests for I64/F32/Ref containers.
+- Added IR→SBC tests for array/list F64 and ref array paths.
+- Added IR→SBC tests for array F32 and list I64 paths.
+- Added IR→SBC tests for array/list length ops.
+- Added IR emitter list insert/remove/clear ops and IR→SBC tests.
+- Added IR→SBC test for list get/set path.
+- Added IR→SBC tests for array get/set (F32 and Ref).
+- Added IR→SBC tests for list get/set (F32 and Ref).
+- Added IR→SBC tests for list get/set (I64 and F64).
+
+## 2026-02-01
+- Added IR builder support for CallCheck/Intrinsic/SysCall/NewClosure/LoadUpvalue/StoreUpvalue.
+- Added IR→SBC tests for CallCheck/Intrinsic/SysCall verify-fail and NewClosure/upvalue call-indirect paths.
+- Added IR builder JMP_TABLE support with const-pool table fixups and an IR→SBC JMP_TABLE test.
+- Added IR builder stack ops/bitwise helpers (Dup2/Swap/Rot + i64 bitwise) with IR→SBC tests.
+- Added IR builder helpers for small consts, arithmetic, and compare variants with IR→SBC tests.
+- Added IR→SBC tests for U64 arithmetic and U64/F64 compare helpers.
+- Added IR→SBC tests for additional F32/F64/U32/U64 arithmetic helper coverage.
+- Added IR→SBC tests for U32/U64 compare helper coverage.
+- Added IR→SBC tests for F32/F64 compare helper coverage.
+- Added IR→SBC tests for i64 arithmetic and unsigned mod helpers.
+- Added IR→SBC tests for i64 mul/div and extra unsigned arithmetic coverage.
+- Added IR→SBC tests for unsigned div/add and float sub helper coverage.
+- Added IR→SBC tests for unsigned mul/sub and float mul/div helper coverage.
+- Added IR→SBC tests for i32 arith variants and i64 add/sub coverage.
+- Added a minimal typed IR text parser/lowerer and IR text smoke tests.
+
+## 2026-02-01
+- Split VM tests into modules (core/jit/ir) with a shared test utilities module and a slim test runner.
+- Added per-section test totals and a final aggregate total in the runner output.
+- Updated build scripts and CMake to compile the new test modules.
+- Trimmed test runner output to only list failing test names while keeping section totals.
+- Expanded `SBC_IR.md` into a full SIR language doc (text form, compiler responsibilities, imports/FFI).
+- Added a typed `<T>`-suffix API table for SIR emitter operations.
+
+## 2026-02-03
+- Added IR text tests for arithmetic, branching, and locals + bitwise paths.
+- Added SIR text-form tests for add/branch/locals/bitwise+bool paths.
+- Aligned SIR text form doc examples with actual parser syntax (func/end, label:, jmptable).
+- Expanded SIR text parser with refs/objects/arrays/lists/strings/globals/upvalues mnemonics and added intrinsic trap text test.
+- Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
+- Added SIR text-form tests for array/list/object field/string len paths with required tables.
+- Added SIR text negative tests for unknown ops and missing operands.
+- Added SIR text globals test and label validation/negative tests for unknown labels and jmptable label errors.
+- Added SIR text tests for ref equality and typeof with minimal type tables.
+- Added SIR text tests for closures/upvalues and invalid newclosure method id.
+- Added SIR text tests for string concat/get-char/slice.
+- Added SIR text tests for array get/set with i64/f32/f64/ref variants.
+- Added SIR text tests for list push/pop with i64/f32/f64/ref variants.
+- Added SIR text tests for list insert/remove and clear (i32 path).
+- Added SIR text tests for calls with args, call.indirect args, and store-upvalue paths.
+- Fixed SIR call-args tests to use proper signature param counts.
+- Added SIR text tests for tailcall with args and upvalue type mismatch verify-fail.
+- Added SIR text verify-fail tests for bad call arg counts (direct and indirect).
+- Added SIR text tests for globals initialized from const pool (string/f32/f64).
+- Switched `build.sh` to incremental object builds (no Ninja) to speed dev iterations.
+- Added SIR text verify-fail tests for call param type mismatch and conversion misuse.
+- Added SIR text verify-fail tests for bad call.indirect sig id and invalid function sig id.
+- Added SIR text trap test for global init unsupported const pool kind.
+- Updated test runner to support suite-specific builds via build.sh (--suite core|ir|jit) to speed iterations.
+- Added SIR text verify-fail tests for syscall usage and missing syscall id.
+- Added SIR text tests for const.bool/const.char and array.len.
+- Added SIR text tests for bool.and/or, unsigned compares, and callcheck.
+- Reorganized Simple layout.
+## 2026-02-03
+- Moved test suite under `Simple/Tests/` and updated build/CMake paths accordingly.
+- Added IR builder support for additional unary ops (neg/inc/dec across int/uint/float widths).
+- Extended IR text parser with new op mnemonics for the added unary ops.
+- Added IR text tests for small-type ops, unsigned wide ops, and float inc/dec behavior.
+- Updated `SBC_IR.md` examples (unary ops) and corrected jmptable text form.
+- Verified full test suite passes (716/716).
