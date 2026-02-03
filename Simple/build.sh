@@ -16,9 +16,9 @@ if [[ "${1:-}" == "--suite" && -n "${2:-}" ]]; then
 fi
 
 case "$SUITE" in
-  all|core|ir|jit) ;;
+  all|core|ir|jit|lang) ;;
   *)
-    echo "unknown suite: $SUITE (expected: all|core|ir|jit)" >&2
+    echo "unknown suite: $SUITE (expected: all|core|ir|jit|lang)" >&2
     exit 1
     ;;
 esac
@@ -44,12 +44,15 @@ SOURCES=(
   "$IR_DIR/src/ir_builder.cpp"
   "$IR_DIR/src/ir_compiler.cpp"
   "$IR_DIR/src/ir_lang.cpp"
+  "$ROOT_DIR/Lang/src/lang_lexer.cpp"
+  "$ROOT_DIR/Lang/src/lang_parser.cpp"
   "$BYTE_DIR/src/opcode.cpp"
   "$BYTE_DIR/src/sbc_loader.cpp"
   "$BYTE_DIR/src/sbc_verifier.cpp"
   "$TEST_DIR/test_main.cpp"
   "$TEST_DIR/test_utils.cpp"
   "$TEST_DIR/sir_runner.cpp"
+  "$TEST_DIR/test_lang.cpp"
 )
 
 TEST_DEFINES=()
@@ -70,6 +73,9 @@ case "$SUITE" in
   jit)
     TEST_DEFINES+=("-DTEST_SUITE_JIT")
     SOURCES+=("$TEST_DIR/test_jit.cpp")
+    ;;
+  lang)
+    TEST_DEFINES+=("-DTEST_SUITE_LANG")
     ;;
 esac
 
@@ -100,6 +106,7 @@ for src in "${SOURCES[@]}"; do
     g++ -std=c++17 -O2 -Wall -Wextra \
       -I"$VM_DIR/include" \
       -I"$IR_DIR/include" \
+      -I"$ROOT_DIR/Lang/include" \
       -I"$BYTE_DIR/include" \
       "${TEST_DEFINES[@]}" -MMD -MP -c "$src" -o "$obj"
   fi
@@ -108,6 +115,7 @@ done
 g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$VM_DIR/include" \
   -I"$IR_DIR/include" \
+  -I"$ROOT_DIR/Lang/include" \
   -I"$BYTE_DIR/include" \
   "${TEST_DEFINES[@]}" \
   "${OBJECTS[@]}" \

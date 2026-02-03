@@ -598,3 +598,4 @@
 - Added module docs under `Simple/Docs/VM.md`, `Byte.md`, `IR.md`, `CLI.md`, `Lang.md` and linked in README.
 - Merged legacy SBC/Simple docs into module docs while keeping originals as references.
 - Froze SBC ABI/FFI for v0.1 and documented status in VM module docs.
+- Implemented Simple::Lang frontend scaffolding (lexer/parser/type AST) with initial lang tests and build integration.
