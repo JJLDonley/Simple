@@ -176,12 +176,12 @@ bool CheckExpr(const Expr& expr,
       return true;
     case ExprKind::Member:
       if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
-      if (expr.op == "." && !expr.children.empty()) {
+      if (expr.op == "::" && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
             ctx.enum_types.find(base.text) != ctx.enum_types.end() &&
             ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
-          if (error) *error = "enum members must be qualified with '::': " + base.text + "::" + expr.text;
+          if (error) *error = "enum members must be qualified with '.': " + base.text + "." + expr.text;
           return false;
         }
       }

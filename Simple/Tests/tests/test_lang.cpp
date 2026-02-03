@@ -240,14 +240,14 @@ bool LangParsesSelf() {
 }
 
 bool LangValidateEnumQualified() {
-  const char* src = "Color :: enum { Red } main : i32 () { return Color::Red; }";
+  const char* src = "Color :: enum { Red } main : i32 () { return Color.Red; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateEnumQualifiedDot() {
-  const char* src = "Color :: enum { Red } main : i32 () { return Color.Red; }";
+  const char* src = "Color :: enum { Red } main : i32 () { return Color::Red; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
