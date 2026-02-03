@@ -871,6 +871,34 @@ bool LangValidateForConditionTypeMismatch() {
   return true;
 }
 
+bool LangValidateLenArrayOk() {
+  const char* src = "main : i32 () { a : i32[3] = [1,2,3]; return len(a); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateLenListOk() {
+  const char* src = "main : i32 () { a : i32[] = [1,2,3]; return len(a); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateLenScalarFail() {
+  const char* src = "main : i32 () { x : i32 = 1; return len(x); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateLenArgCountFail() {
+  const char* src = "main : i32 () { a : i32[] = []; return len(a, a); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateUnaryTypeMismatch() {
   const char* src = "main : i32 () { return !1; }";
   std::string error;
@@ -1195,6 +1223,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_if_chain_condition_type_mismatch", LangValidateIfChainConditionTypeMismatch},
   {"lang_validate_while_condition_type_mismatch", LangValidateWhileConditionTypeMismatch},
   {"lang_validate_for_condition_type_mismatch", LangValidateForConditionTypeMismatch},
+  {"lang_validate_len_array_ok", LangValidateLenArrayOk},
+  {"lang_validate_len_list_ok", LangValidateLenListOk},
+  {"lang_validate_len_scalar_fail", LangValidateLenScalarFail},
+  {"lang_validate_len_arg_count_fail", LangValidateLenArgCountFail},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},
   {"lang_validate_binary_type_mismatch", LangValidateBinaryTypeMismatch},
   {"lang_validate_comparison_type_mismatch", LangValidateComparisonTypeMismatch},

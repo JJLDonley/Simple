@@ -270,6 +270,15 @@ bool InferExprType(const Expr& expr,
       if (expr.children.empty()) return false;
       const Expr& callee = expr.children[0];
       if (callee.kind == ExprKind::Identifier) {
+        if (callee.text == "len") {
+          out->name = "i32";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
         auto fn_it = ctx.functions.find(callee.text);
         if (fn_it != ctx.functions.end()) {
           return CloneTypeRef(fn_it->second->return_type, out);
@@ -1226,6 +1235,7 @@ bool CheckExpr(const Expr& expr,
         if (error) *error = "artifact members must be accessed via self: " + expr.text;
         return false;
       }
+      if (expr.text == "len") return true;
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
@@ -1253,6 +1263,23 @@ bool CheckExpr(const Expr& expr,
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
       if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
+      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "len") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for len: expected 1, got " +
+                              std::to_string(expr.args.size());
+          return false;
+        }
+        TypeRef arg_type;
+        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (arg_type.dims.empty()) {
+            if (error) *error = "len expects array or list argument";
+            return false;
+          }
+        } else {
+          if (error && error->empty()) *error = "len expects array or list argument";
+          return false;
+        }
+      }
       return true;
     case ExprKind::Member:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;

@@ -665,3 +665,4 @@
 - Added Simple::Lang validation to reject array/list literals for scalar targets and added list literal positive test.
 - Added Simple::Lang boolean-only condition validation for if/if-chain/while/for, with tests.
 - Added Simple::Lang artifact literal field type validation (positional/named), with tests.
+- Added Simple::Lang builtin len() validation for arrays/lists with positive and negative tests.
