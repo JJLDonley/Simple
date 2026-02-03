@@ -896,6 +896,48 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     if (out) *out = std::move(expr);
     return true;
   }
+  if (Match(TokenKind::LBrace)) {
+    Expr expr;
+    expr.kind = ExprKind::ArtifactLiteral;
+    bool seen_named = false;
+    if (Match(TokenKind::RBrace)) {
+      if (out) *out = std::move(expr);
+      return true;
+    }
+    while (!IsAtEnd()) {
+      if (Match(TokenKind::Dot)) {
+        const Token& field_tok = Peek();
+        if (field_tok.kind != TokenKind::Identifier) {
+          error_ = "expected field name after '.' in artifact literal";
+          return false;
+        }
+        Advance();
+        if (!Match(TokenKind::Assign)) {
+          error_ = "expected '=' after artifact field name";
+          return false;
+        }
+        Expr value;
+        if (!ParseExpr(&value)) return false;
+        expr.field_names.push_back(field_tok.text);
+        expr.field_values.push_back(std::move(value));
+        seen_named = true;
+      } else {
+        if (seen_named) {
+          error_ = "positional values must come before named fields in artifact literal";
+          return false;
+        }
+        Expr value;
+        if (!ParseExpr(&value)) return false;
+        expr.children.push_back(std::move(value));
+      }
+      if (Match(TokenKind::Comma)) continue;
+      if (Match(TokenKind::RBrace)) break;
+      error_ = "expected ',' or '}' in artifact literal";
+      return false;
+    }
+    if (out) *out = std::move(expr);
+    return true;
+  }
   error_ = "expected expression";
   return false;
 }
