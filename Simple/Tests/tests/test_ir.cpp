@@ -5383,6 +5383,44 @@ bool RunIrTextUnknownOpCapsTest() {
   return RunIrTextExpectFail(text, "ir_text_unknown_op_caps");
 }
 
+bool RunIrTextLabelBeforeFuncTest() {
+  const char* text =
+      "label:\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_label_before_func");
+}
+
+bool RunIrTextDuplicateLabelTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "dup:\n"
+      "  const.i32 1\n"
+      "dup:\n"
+      "  const.i32 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_duplicate_label");
+}
+
+bool RunIrTextJmpTableUnknownLabelTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  jmptable 0 missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_unknown_label");
+}
+
 bool RunIrTextArrayGetOutOfBoundsTrapTest() {
   const char* text =
       "func main locals=1 stack=8\n"
@@ -6497,6 +6535,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_enter_missing_count", RunIrTextEnterMissingCountTest},
   {"ir_text_call_missing_args", RunIrTextCallMissingArgsTest},
   {"ir_text_unknown_op_caps", RunIrTextUnknownOpCapsTest},
+  {"ir_text_label_before_func", RunIrTextLabelBeforeFuncTest},
+  {"ir_text_duplicate_label", RunIrTextDuplicateLabelTest},
+  {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
   {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
   {"ir_text_array_set_i64_oob", RunIrTextArraySetI64OutOfBoundsTrapTest},
   {"ir_text_array_set_f32_oob", RunIrTextArraySetF32OutOfBoundsTrapTest},
