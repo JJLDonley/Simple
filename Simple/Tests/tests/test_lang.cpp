@@ -108,12 +108,38 @@ bool LangParsesVarDecl() {
   return true;
 }
 
+bool LangParsesArtifactDecl() {
+  const char* src = "Point :: artifact { x : f32 y : f32 }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
+  if (decl.artifact.name != "Point") return false;
+  return true;
+}
+
+bool LangParsesModuleDecl() {
+  const char* src = "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Module) return false;
+  if (decl.module.name != "Math") return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
   {"lang_parse_func_decl", LangParsesFuncDecl},
   {"lang_parse_var_decl", LangParsesVarDecl},
+  {"lang_parse_artifact_decl", LangParsesArtifactDecl},
+  {"lang_parse_module_decl", LangParsesModuleDecl},
 };
 
 } // namespace

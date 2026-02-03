@@ -47,15 +47,30 @@ struct VarDecl {
   std::vector<Token> init_tokens;
 };
 
+struct ArtifactDecl {
+  std::string name;
+  std::vector<std::string> generics;
+  std::vector<Token> body_tokens;
+};
+
+struct ModuleDecl {
+  std::string name;
+  std::vector<Token> body_tokens;
+};
+
 enum class DeclKind : uint8_t {
   Function,
   Variable,
+  Artifact,
+  Module,
 };
 
 struct Decl {
   DeclKind kind = DeclKind::Variable;
   FuncDecl func;
   VarDecl var;
+  ArtifactDecl artifact;
+  ModuleDecl module;
 };
 
 struct Program {

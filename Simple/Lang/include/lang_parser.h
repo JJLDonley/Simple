@@ -30,6 +30,10 @@ private:
   bool ParseGenerics(std::vector<std::string>* out);
   bool ParseParamList(std::vector<ParamDecl>* out);
   bool ParseParam(ParamDecl* out);
+  bool ParseArtifactDecl(const Token& name_tok,
+                         std::vector<std::string> generics,
+                         Decl* out);
+  bool ParseModuleDecl(const Token& name_tok, Decl* out);
   bool ParseBlockTokens(std::vector<Token>* out);
   bool ParseInitTokens(std::vector<Token>* out);
 

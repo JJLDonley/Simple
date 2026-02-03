@@ -82,12 +82,44 @@ bool Parser::ParseDecl(Decl* out) {
     if (!ParseGenerics(&generics)) return false;
   }
 
+  if (Match(TokenKind::DoubleColon)) {
+    if (Match(TokenKind::KwArtifact)) {
+      return ParseArtifactDecl(name_tok, std::move(generics), out);
+    }
+    if (Match(TokenKind::KwModule)) {
+      return ParseModuleDecl(name_tok, out);
+    }
+    Mutability mut = Mutability::Immutable;
+    TypeRef return_or_type;
+    if (!ParseTypeInner(&return_or_type)) return false;
+    if (Match(TokenKind::LParen)) {
+      if (out) {
+        out->kind = DeclKind::Function;
+        out->func.name = name_tok.text;
+        out->func.generics = std::move(generics);
+        out->func.return_mutability = mut;
+        out->func.return_type = std::move(return_or_type);
+      }
+      if (!ParseParamList(&out->func.params)) return false;
+      if (!ParseBlockTokens(&out->func.body_tokens)) return false;
+      return true;
+    }
+    if (out) {
+      out->kind = DeclKind::Variable;
+      out->var.name = name_tok.text;
+      out->var.mutability = mut;
+      out->var.type = std::move(return_or_type);
+    }
+    if (!Match(TokenKind::Assign)) {
+      error_ = "expected '=' in variable declaration";
+      return false;
+    }
+    if (!ParseInitTokens(&out->var.init_tokens)) return false;
+    return true;
+  }
+
   Mutability mut = Mutability::Mutable;
-  if (Match(TokenKind::Colon)) {
-    mut = Mutability::Mutable;
-  } else if (Match(TokenKind::DoubleColon)) {
-    mut = Mutability::Immutable;
-  } else {
+  if (!Match(TokenKind::Colon)) {
     error_ = "expected ':' or '::' after identifier";
     return false;
   }
@@ -119,6 +151,27 @@ bool Parser::ParseDecl(Decl* out) {
     return false;
   }
   if (!ParseInitTokens(&out->var.init_tokens)) return false;
+  return true;
+}
+
+bool Parser::ParseArtifactDecl(const Token& name_tok,
+                               std::vector<std::string> generics,
+                               Decl* out) {
+  if (out) {
+    out->kind = DeclKind::Artifact;
+    out->artifact.name = name_tok.text;
+    out->artifact.generics = std::move(generics);
+  }
+  if (!ParseBlockTokens(&out->artifact.body_tokens)) return false;
+  return true;
+}
+
+bool Parser::ParseModuleDecl(const Token& name_tok, Decl* out) {
+  if (out) {
+    out->kind = DeclKind::Module;
+    out->module.name = name_tok.text;
+  }
+  if (!ParseBlockTokens(&out->module.body_tokens)) return false;
   return true;
 }
 
