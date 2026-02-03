@@ -38,6 +38,9 @@ enum class ExprKind : uint8_t {
   Unary,
   Call,
   Member,
+  Index,
+  ArrayLiteral,
+  ListLiteral,
 };
 
 enum class LiteralKind : uint8_t {

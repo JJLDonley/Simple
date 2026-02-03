@@ -176,6 +176,20 @@ bool LangParsesComparisons() {
   return true;
 }
 
+bool LangParsesArrayListAndIndex() {
+  const char* src = "main : i32 () { return [1,2,3][0] + [][0]; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& expr = program.decls[0].func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary) return false;
+  const auto& left = expr.children[0];
+  if (left.kind != Simple::Lang::ExprKind::Index) return false;
+  const auto& list_index = expr.children[1];
+  if (list_index.kind != Simple::Lang::ExprKind::Index) return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -187,6 +201,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_comparisons", LangParsesComparisons},
+  {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
 };
 
 } // namespace

@@ -504,6 +504,20 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       expr = std::move(call);
       continue;
     }
+    if (Match(TokenKind::LBracket)) {
+      Expr index;
+      index.kind = ExprKind::Index;
+      index.children.push_back(std::move(expr));
+      Expr idx_expr;
+      if (!ParseExpr(&idx_expr)) return false;
+      if (!Match(TokenKind::RBracket)) {
+        error_ = "expected ']' after index expression";
+        return false;
+      }
+      index.children.push_back(std::move(idx_expr));
+      expr = std::move(index);
+      continue;
+    }
     if (Match(TokenKind::Dot)) {
       const Token& name = Peek();
       if (name.kind != TokenKind::Identifier) {
@@ -559,6 +573,19 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     if (out) *out = std::move(expr);
     return true;
   }
+  if (Match(TokenKind::LBracket)) {
+    std::vector<Expr> elements;
+    if (!ParseBracketExprList(&elements)) return false;
+    Expr expr;
+    if (elements.empty()) {
+      expr.kind = ExprKind::ListLiteral;
+    } else {
+      expr.kind = ExprKind::ArrayLiteral;
+    }
+    expr.children = std::move(elements);
+    if (out) *out = std::move(expr);
+    return true;
+  }
   error_ = "expected expression";
   return false;
 }
@@ -572,6 +599,20 @@ bool Parser::ParseCallArgs(std::vector<Expr>* out) {
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RParen)) break;
     error_ = "expected ',' or ')' in call arguments";
+    return false;
+  }
+  return true;
+}
+
+bool Parser::ParseBracketExprList(std::vector<Expr>* out) {
+  if (Match(TokenKind::RBracket)) return true;
+  for (;;) {
+    Expr element;
+    if (!ParseExpr(&element)) return false;
+    if (out) out->push_back(std::move(element));
+    if (Match(TokenKind::Comma)) continue;
+    if (Match(TokenKind::RBracket)) break;
+    error_ = "expected ',' or ']' in list";
     return false;
   }
   return true;
