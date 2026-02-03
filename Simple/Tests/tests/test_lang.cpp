@@ -246,6 +246,13 @@ bool LangValidateEnumQualified() {
   return true;
 }
 
+bool LangValidateEnumQualifiedDot() {
+  const char* src = "Color :: enum { Red } main : i32 () { return Color.Red; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateEnumUnqualified() {
   const char* src = "Color :: enum { Red } main : i32 () { return Red; }";
   std::string error;
@@ -484,6 +491,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
+  {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},

@@ -626,3 +626,4 @@
 - Added Simple::Lang local-scope duplicate validation with block-level shadowing tests.
 - Added Simple::Lang module/artifact duplicate-member validation with tests.
 - Added Simple::Lang duplicate parameter validation with tests.
+- Enforced enum member access to use `::` and added validation tests for `Enum.Value`.

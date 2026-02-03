@@ -9,6 +9,7 @@ namespace {
 
 struct ValidateContext {
   std::unordered_set<std::string> enum_members;
+  std::unordered_set<std::string> enum_types;
   std::unordered_set<std::string> top_level;
 };
 
@@ -147,7 +148,17 @@ bool CheckExpr(const Expr& expr,
       }
       return true;
     case ExprKind::Member:
-      return CheckExpr(expr.children[0], ctx, scopes, error);
+      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
+      if (expr.op == "." && !expr.children.empty()) {
+        const Expr& base = expr.children[0];
+        if (base.kind == ExprKind::Identifier &&
+            ctx.enum_types.find(base.text) != ctx.enum_types.end() &&
+            ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
+          if (error) *error = "enum members must be qualified with '::': " + base.text + "::" + expr.text;
+          return false;
+        }
+      }
+      return true;
     case ExprKind::Index:
       return CheckExpr(expr.children[0], ctx, scopes, error) &&
              CheckExpr(expr.children[1], ctx, scopes, error);
@@ -209,6 +220,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             ctx.enum_members.insert(member.name);
           }
         }
+        ctx.enum_types.insert(decl.enm.name);
         break;
       case DeclKind::Artifact:
         name_ptr = &decl.artifact.name;
