@@ -3,6 +3,7 @@
 #include "lang_validate.h"
 #include "test_utils.h"
 
+#include <unordered_map>
 #include <vector>
 
 namespace Simple::VM::Tests {
@@ -208,6 +209,73 @@ bool LangParsesFnKeywordDecl() {
   if (decl.func.body.empty()) return false;
   if (decl.func.body[0].kind != Simple::Lang::StmtKind::Return) return false;
   if (decl.func.body[0].has_return_expr) return false;
+  return true;
+}
+
+bool LangAstTypeCoverage() {
+  const char* src =
+      "a : i8; b : u8; c : i16; d : u16; e : i32; f : u32; g : i64; h : u64; "
+      "i : i128; j : u128; k : f32; l : f64; m : bool; n : char; o : string; "
+      "arr : i32[2]; list : i32[]; grid : i32[][]; "
+      "proc : fn : i32; proc2 : (i32, f64) :: bool;";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  std::unordered_map<std::string, const Simple::Lang::VarDecl*> vars;
+  for (const auto& decl : program.decls) {
+    if (decl.kind != Simple::Lang::DeclKind::Variable) continue;
+    vars.emplace(decl.var.name, &decl.var);
+  }
+  const char* primitives[] = {
+    "i8","u8","i16","u16","i32","u32","i64","u64","i128","u128","f32","f64","bool","char","string"
+  };
+  const char* names[] = {
+    "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o"
+  };
+  for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+    auto it = vars.find(names[i]);
+    if (it == vars.end()) return false;
+    if (it->second->type.name != primitives[i]) return false;
+  }
+  {
+    auto it = vars.find("arr");
+    if (it == vars.end()) return false;
+    if (it->second->type.name != "i32") return false;
+    if (it->second->type.dims.size() != 1) return false;
+    if (!it->second->type.dims[0].has_size || it->second->type.dims[0].size != 2) return false;
+  }
+  {
+    auto it = vars.find("list");
+    if (it == vars.end()) return false;
+    if (it->second->type.name != "i32") return false;
+    if (it->second->type.dims.size() != 1) return false;
+    if (!it->second->type.dims[0].is_list) return false;
+  }
+  {
+    auto it = vars.find("grid");
+    if (it == vars.end()) return false;
+    if (it->second->type.name != "i32") return false;
+    if (it->second->type.dims.size() != 2) return false;
+    if (!it->second->type.dims[0].is_list || !it->second->type.dims[1].is_list) return false;
+  }
+  {
+    auto it = vars.find("proc");
+    if (it == vars.end()) return false;
+    if (!it->second->type.is_proc) return false;
+    if (!it->second->type.proc_return) return false;
+    if (it->second->type.proc_return->name != "i32") return false;
+    if (!it->second->type.proc_params.empty()) return false;
+  }
+  {
+    auto it = vars.find("proc2");
+    if (it == vars.end()) return false;
+    if (!it->second->type.is_proc) return false;
+    if (it->second->type.proc_params.size() != 2) return false;
+    if (it->second->type.proc_params[0].name != "i32") return false;
+    if (it->second->type.proc_params[1].name != "f64") return false;
+    if (!it->second->type.proc_return) return false;
+    if (it->second->type.proc_return->name != "bool") return false;
+  }
   return true;
 }
 
@@ -1750,6 +1818,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
   {"lang_parse_fn_literal", LangParsesFnLiteral},
   {"lang_parse_assignments", LangParsesAssignments},
+  {"lang_ast_type_coverage", LangAstTypeCoverage},
   {"lang_parse_recover_in_block", LangParserRecoversInBlock},
   {"lang_parse_inc_dec", LangParsesIncDec},
   {"lang_parse_if_chain", LangParsesIfChain},

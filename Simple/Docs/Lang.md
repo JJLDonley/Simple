@@ -1274,7 +1274,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 ### 3) AST
 - [x] Nodes for current declarations/statements/expressions
 - [x] Source spans on nodes used in diagnostics
-- [ ] Complete type node coverage for all type literals and container types
+- [x] Complete type node coverage for all type literals and container types
 
 ### 4) Semantic Validation
 - [x] Scope building + identifier resolution
