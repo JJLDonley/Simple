@@ -525,6 +525,34 @@ bool LangValidateArtifactLiteralNamedOk() {
   return true;
 }
 
+bool LangValidateIndexFloatLiteral() {
+  const char* src = "main : i32 () { return [1,2,3][1.5]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexStringLiteral() {
+  const char* src = "main : i32 () { return [1,2,3][\"no\"]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexLiteralBase() {
+  const char* src = "main : i32 () { return 123[0]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIndexIntOk() {
+  const char* src = "main : i32 () { return [1,2,3][1]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -752,6 +780,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_artifact_literal_unknown_field", LangValidateArtifactLiteralUnknownField},
   {"lang_validate_artifact_literal_positional_then_named_duplicate", LangValidateArtifactLiteralPositionalThenNamedDuplicate},
   {"lang_validate_artifact_literal_named_ok", LangValidateArtifactLiteralNamedOk},
+  {"lang_validate_index_float_literal", LangValidateIndexFloatLiteral},
+  {"lang_validate_index_string_literal", LangValidateIndexStringLiteral},
+  {"lang_validate_index_literal_base", LangValidateIndexLiteralBase},
+  {"lang_validate_index_int_ok", LangValidateIndexIntOk},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

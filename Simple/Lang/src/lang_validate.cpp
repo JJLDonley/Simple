@@ -470,8 +470,23 @@ bool CheckExpr(const Expr& expr,
       }
       return true;
     case ExprKind::Index:
-      return CheckExpr(expr.children[0], ctx, scopes, current_artifact, error) &&
-             CheckExpr(expr.children[1], ctx, scopes, current_artifact, error);
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
+      if (expr.children[0].kind == ExprKind::Literal) {
+        if (error) *error = "indexing is only valid on arrays and lists";
+        return false;
+      }
+      if (expr.children[1].kind == ExprKind::Literal) {
+        switch (expr.children[1].literal_kind) {
+          case LiteralKind::Integer:
+          case LiteralKind::Char:
+            break;
+          default:
+            if (error) *error = "index must be an integer";
+            return false;
+        }
+      }
+      return true;
     case ExprKind::ArrayLiteral:
     case ExprKind::ListLiteral:
       for (const auto& child : expr.children) {

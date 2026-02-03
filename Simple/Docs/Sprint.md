@@ -644,3 +644,5 @@
 - Added Simple::Lang validation for `self` usage only within artifact methods.
 - Added Simple::Lang artifact literal validation for field counts, duplicate fields, and unknown fields.
 - Added Simple::Lang artifact literal tests for positional/named correctness and error cases.
+- Added Simple::Lang index validation for integer-only indices and non-indexable literal bases.
+- Added Simple::Lang index validation tests (float/string indices, literal base, valid int index).
