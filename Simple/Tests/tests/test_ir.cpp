@@ -5539,6 +5539,39 @@ bool RunIrTextConstU64OverflowTest() {
   return RunIrTextExpectFail(text, "ir_text_const_u64_overflow");
 }
 
+bool RunIrTextConstU32BadHexTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u32 0xZZ\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u32_bad_hex");
+}
+
+bool RunIrTextConstI32BadHexTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0xZZ\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i32_bad_hex");
+}
+
+bool RunIrTextConstU32NegativeHexTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u32 -0x1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u32_negative_hex");
+}
+
 bool RunIrTextCallIndirectMissingValueTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -7001,6 +7034,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_i64_overflow", RunIrTextConstI64OverflowTest},
   {"ir_text_const_i64_underflow", RunIrTextConstI64UnderflowTest},
   {"ir_text_const_u64_overflow", RunIrTextConstU64OverflowTest},
+  {"ir_text_const_u32_bad_hex", RunIrTextConstU32BadHexTest},
+  {"ir_text_const_i32_bad_hex", RunIrTextConstI32BadHexTest},
+  {"ir_text_const_u32_negative_hex", RunIrTextConstU32NegativeHexTest},
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
   {"ir_text_call_indirect_non_ref_value", RunIrTextCallIndirectNonRefValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},
