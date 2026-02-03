@@ -1,0 +1,12 @@
+consts:
+  const hello string "hello "
+  const world string "world"
+func main locals=0 stack=8
+  enter 0
+  const.string hello
+  const.string world
+  string.concat
+  string.len
+  ret
+end
+entry main
