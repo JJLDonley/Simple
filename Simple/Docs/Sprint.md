@@ -676,3 +676,4 @@
 - Extended len() validation to accept strings and added a new string len test.
 - Added Simple::Lang validation to reject assignments to functions/methods with new tests.
 - Added Simple::Lang lexer negative tests for invalid hex/binary literals and invalid escapes; updated lexer plan status.
+- Added Simple::Lang conversion builtin validation (str/i32/f64) with new positive/negative tests.

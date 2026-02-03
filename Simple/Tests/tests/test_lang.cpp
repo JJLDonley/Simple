@@ -1081,6 +1081,55 @@ bool LangValidateLenStringOk() {
   return true;
 }
 
+bool LangValidateStrFromI32Ok() {
+  const char* src = "main : string () { x : i32 = 1; return str(x); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateStrFromBoolOk() {
+  const char* src = "main : string () { return str(true); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateStrFromStringFail() {
+  const char* src = "main : string () { s : string = \"hi\"; return str(s); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateI32FromStringOk() {
+  const char* src = "main : i32 () { s : string = \"42\"; return i32(s); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateI32FromI32Fail() {
+  const char* src = "main : i32 () { x : i32 = 1; return i32(x); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateF64FromStringOk() {
+  const char* src = "main : f64 () { s : string = \"1.5\"; return f64(s); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateF64FromF64Fail() {
+  const char* src = "main : f64 () { x : f64 = 1.0; return f64(x); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateLenScalarFail() {
   const char* src = "main : i32 () { x : i32 = 1; return len(x); }";
   std::string error;
@@ -1446,6 +1495,13 @@ const TestCase kLangTests[] = {
   {"lang_validate_len_array_ok", LangValidateLenArrayOk},
   {"lang_validate_len_list_ok", LangValidateLenListOk},
   {"lang_validate_len_string_ok", LangValidateLenStringOk},
+  {"lang_validate_str_from_i32_ok", LangValidateStrFromI32Ok},
+  {"lang_validate_str_from_bool_ok", LangValidateStrFromBoolOk},
+  {"lang_validate_str_from_string_fail", LangValidateStrFromStringFail},
+  {"lang_validate_i32_from_string_ok", LangValidateI32FromStringOk},
+  {"lang_validate_i32_from_i32_fail", LangValidateI32FromI32Fail},
+  {"lang_validate_f64_from_string_ok", LangValidateF64FromStringOk},
+  {"lang_validate_f64_from_f64_fail", LangValidateF64FromF64Fail},
   {"lang_validate_len_scalar_fail", LangValidateLenScalarFail},
   {"lang_validate_len_arg_count_fail", LangValidateLenArgCountFail},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},

@@ -284,6 +284,33 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
+        if (callee.text == "str") {
+          out->name = "string";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
+        if (callee.text == "i32") {
+          out->name = "i32";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
+        if (callee.text == "f64") {
+          out->name = "f64";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
         auto fn_it = ctx.functions.find(callee.text);
         if (fn_it != ctx.functions.end()) {
           return CloneTypeRef(fn_it->second->return_type, out);
@@ -1324,7 +1351,7 @@ bool CheckExpr(const Expr& expr,
         if (error) *error = "artifact members must be accessed via self: " + expr.text;
         return false;
       }
-      if (expr.text == "len") return true;
+      if (expr.text == "len" || expr.text == "str" || expr.text == "i32" || expr.text == "f64") return true;
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
@@ -1383,6 +1410,57 @@ bool CheckExpr(const Expr& expr,
           }
         } else {
           if (error && error->empty()) *error = "len expects array, list, or string argument";
+          return false;
+        }
+      }
+      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "str") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for str: expected 1, got " +
+                              std::to_string(expr.args.size());
+          return false;
+        }
+        TypeRef arg_type;
+        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name)) {
+            if (error) *error = "str expects numeric or bool argument";
+            return false;
+          }
+        } else {
+          if (error && error->empty()) *error = "str expects numeric or bool argument";
+          return false;
+        }
+      }
+      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "i32") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for i32: expected 1, got " +
+                              std::to_string(expr.args.size());
+          return false;
+        }
+        TypeRef arg_type;
+        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (!IsStringTypeName(arg_type.name)) {
+            if (error) *error = "i32 expects string argument";
+            return false;
+          }
+        } else {
+          if (error && error->empty()) *error = "i32 expects string argument";
+          return false;
+        }
+      }
+      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "f64") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for f64: expected 1, got " +
+                              std::to_string(expr.args.size());
+          return false;
+        }
+        TypeRef arg_type;
+        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (!IsStringTypeName(arg_type.name)) {
+            if (error) *error = "f64 expects string argument";
+            return false;
+          }
+        } else {
+          if (error && error->empty()) *error = "f64 expects string argument";
           return false;
         }
       }
