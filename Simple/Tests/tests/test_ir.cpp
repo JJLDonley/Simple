@@ -147,6 +147,14 @@ bool RunIrTextExpectFail(const char* text, const char* name) {
   if (!Simple::IR::CompileToSbc(module, &out, &error)) {
     return true;
   }
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(out);
+  if (!load.ok) {
+    return true;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    return true;
+  }
   std::cerr << "expected IR text failure: " << name << "\n";
   return false;
 }
@@ -399,6 +407,96 @@ std::vector<uint8_t> BuildIrIncDecNegModule() {
   }
   std::vector<uint8_t> expected = BuildModule(code, 0, 0);
   if (!ExpectSbcEqual(out, expected, "ir_inc_dec_neg_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrIncDecNegWideModule() {
+  Simple::IR::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstU32(1);
+  builder.EmitIncU32();
+  builder.EmitDecU32();
+  builder.EmitPop();
+  builder.EmitConstU64(0);
+  builder.EmitNegU64();
+  builder.EmitPop();
+  builder.EmitConstF32(1.5f);
+  builder.EmitIncF32();
+  builder.EmitPop();
+  builder.EmitConstF64(2.5);
+  builder.EmitDecF64();
+  builder.EmitPop();
+  builder.EmitConstI8(-3);
+  builder.EmitNegI8();
+  builder.EmitPop();
+  builder.EmitConstU16(2);
+  builder.EmitDecU16();
+  builder.EmitPop();
+  builder.EmitConstI32(6);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  Simple::IR::IrModule module;
+  Simple::IR::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_inc_dec_neg_wide_module")) {
+    return {};
+  }
+  return out;
+}
+
+std::vector<uint8_t> BuildIrListInsertRemoveI64Module() {
+  Simple::IR::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitNewList(0, 4);
+  builder.EmitDup();
+  builder.EmitConstI32(0);
+  builder.EmitConstI64(9);
+  builder.EmitListInsertI64();
+  builder.EmitDup();
+  builder.EmitConstI32(1);
+  builder.EmitConstI64(4);
+  builder.EmitListInsertI64();
+  builder.EmitConstI32(0);
+  builder.EmitListRemoveI64();
+  builder.EmitConvI64ToI32();
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) {
+    std::cerr << "IR finish failed: " << error << "\n";
+    return {};
+  }
+  Simple::IR::IrModule module;
+  Simple::IR::IrFunction func;
+  func.code = code;
+  func.local_count = 0;
+  func.stack_max = 8;
+  module.functions.push_back(std::move(func));
+  module.entry_method_id = 0;
+  std::vector<uint8_t> out;
+  if (!Simple::IR::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed: " << error << "\n";
+    return {};
+  }
+  std::vector<uint8_t> expected = BuildModule(code, 0, 0);
+  if (!ExpectSbcEqual(out, expected, "ir_list_insert_remove_i64_module")) {
     return {};
   }
   return out;
@@ -3389,6 +3487,14 @@ bool RunIrEmitIncDecNegTest() {
   return RunExpectExit(BuildIrIncDecNegModule(), 6);
 }
 
+bool RunIrEmitIncDecNegWideTest() {
+  return RunExpectExit(BuildIrIncDecNegWideModule(), 6);
+}
+
+bool RunIrEmitListInsertRemoveI64Test() {
+  return RunExpectExit(BuildIrListInsertRemoveI64Module(), 9);
+}
+
 bool RunIrEmitU32ArithTest() {
   return RunExpectExit(BuildIrU32ArithModule(), 2);
 }
@@ -4654,6 +4760,405 @@ bool RunIrTextListInsertRemoveTest() {
   return RunExpectExit(module, 9);
 }
 
+bool RunIrTextListInsertRemoveF32Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.f32 3.5\n"
+      "  list.insert.f32\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  list.remove.f32\n"
+      "  conv.f32.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_remove_f32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
+bool RunIrTextListInsertRemoveI64Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.i64 12\n"
+      "  list.insert.i64\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  list.remove.i64\n"
+      "  conv.i64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_remove_i64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextListInsertRemoveRefTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.null\n"
+      "  list.insert.ref\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  list.remove.ref\n"
+      "  pop\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_remove_ref");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextListInsertRemoveF64Test() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.f64 7.5\n"
+      "  list.insert.f64\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  list.remove.f64\n"
+      "  conv.f64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_remove_f64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
+bool RunIrTextConvChainTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 7\n"
+      "  conv.i32.f64\n"
+      "  conv.f64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_conv_chain");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
+bool RunIrTextBitwiseI32Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 6\n"
+      "  const.i32 3\n"
+      "  and.i32\n"
+      "  const.i32 4\n"
+      "  or.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bitwise_i32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 6);
+}
+
+bool RunIrTextBitwiseI64Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i64 6\n"
+      "  const.i64 3\n"
+      "  and.i64\n"
+      "  const.i64 4\n"
+      "  or.i64\n"
+      "  conv.i64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bitwise_i64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 6);
+}
+
+bool RunIrTextShiftI32Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  const.i32 3\n"
+      "  shl.i32\n"
+      "  const.i32 2\n"
+      "  shr.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_shift_i32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
+bool RunIrTextShiftI64Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i64 1\n"
+      "  const.i64 4\n"
+      "  shl.i64\n"
+      "  const.i64 2\n"
+      "  shr.i64\n"
+      "  conv.i64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_shift_i64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 4);
+}
+
+bool RunIrTextCompareI32Test() {
+  const char* text =
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 4\n"
+      "  const.i32 4\n"
+      "  cmp.eq.i32\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_compare_i32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCompareU64Test() {
+  const char* text =
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.u64 5\n"
+      "  const.u64 7\n"
+      "  cmp.lt.u64\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_compare_u64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextBoolOpsTest() {
+  const char* text =
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.bool 1\n"
+      "  const.bool 0\n"
+      "  bool.or\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bool_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextRefNullTest() {
+  const char* text =
+      "func main locals=0 stack=8 sig=0\n"
+      "  enter 0\n"
+      "  const.null\n"
+      "  isnull\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_ref_null");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextBoolTypeMismatchTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  const.i32 0\n"
+      "  bool.and\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bool_type_mismatch");
+}
+
+bool RunIrTextCompareTypeMismatchTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  const.i64 2\n"
+      "  cmp.eq.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_cmp_type_mismatch");
+}
+
+bool RunIrTextShiftTypeMismatchTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i64 1\n"
+      "  const.i32 1\n"
+      "  shl.i64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_shift_type_mismatch");
+}
+
+bool RunIrTextListInsertTypeMismatchTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.i32 9\n"
+      "  list.insert.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_list_insert_type_mismatch");
+}
+
+bool RunIrTextArraySetTypeMismatchTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.i32 1\n"
+      "  array.set.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_array_set_type_mismatch");
+}
+
+bool RunIrTextCallArgCountMismatchTest() {
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  call 1 2\n"
+      "  ret\n"
+      "end\n"
+      "func target locals=0 stack=4 sig=0\n"
+      "  enter 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_arg_count_mismatch");
+}
+
+bool RunIrTextCallIndirectArgCountMismatchTest() {
+  const char* text =
+      "func main locals=1 stack=6 sig=0\n"
+      "  enter 1\n"
+      "  const.null\n"
+      "  call.indirect 0 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_indirect_arg_count_mismatch");
+}
+
+bool RunIrTextJmpNonBoolCondTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  jmp.true ok\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmp_non_bool_cond");
+}
+
+bool RunIrTextArrayGetNonRefTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  const.i32 0\n"
+      "  array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_array_get_non_ref");
+}
+
+bool RunIrTextListGetNonRefTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  const.i32 0\n"
+      "  list.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_list_get_non_ref");
+}
+
 bool RunIrTextListClearTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -5147,6 +5652,8 @@ static const TestCase kIrTests[] = {
   {"ir_emit_i64_bitwise", RunIrEmitI64BitwiseTest},
   {"ir_emit_const_small", RunIrEmitConstSmallTest},
   {"ir_emit_inc_dec_neg", RunIrEmitIncDecNegTest},
+  {"ir_emit_inc_dec_neg_wide", RunIrEmitIncDecNegWideTest},
+  {"ir_emit_list_insert_remove_i64", RunIrEmitListInsertRemoveI64Test},
   {"ir_emit_u32_arith", RunIrEmitU32ArithTest},
   {"ir_emit_cmp_variants", RunIrEmitCmpVariantsTest},
   {"ir_emit_u64_arith", RunIrEmitU64ArithTest},
@@ -5248,7 +5755,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_global", RunIrTextGlobalTest},
   {"ir_text_unknown_label", RunIrTextUnknownLabelTest},
   {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
-  {"ir_text_ref_ops", RunIrTextRefOpsTest},
+  {"ir_text_ref_null", RunIrTextRefNullTest},
   {"ir_text_typeof", RunIrTextTypeOfTest},
   {"ir_text_closure_upvalue", RunIrTextClosureUpvalueTest},
   {"ir_text_bad_newclosure", RunIrTextBadNewClosureTest},
@@ -5264,6 +5771,29 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_f64", RunIrTextListF64Test},
   {"ir_text_list_ref", RunIrTextListRefTest},
   {"ir_text_list_insert_remove", RunIrTextListInsertRemoveTest},
+  {"ir_text_list_insert_remove_f32", RunIrTextListInsertRemoveF32Test},
+  {"ir_text_list_insert_remove_i64", RunIrTextListInsertRemoveI64Test},
+  {"ir_text_list_insert_remove_ref", RunIrTextListInsertRemoveRefTest},
+  {"ir_text_list_insert_remove_f64", RunIrTextListInsertRemoveF64Test},
+  {"ir_text_conv_chain", RunIrTextConvChainTest},
+  {"ir_text_bitwise_i32", RunIrTextBitwiseI32Test},
+  {"ir_text_bitwise_i64", RunIrTextBitwiseI64Test},
+  {"ir_text_shift_i32", RunIrTextShiftI32Test},
+  {"ir_text_shift_i64", RunIrTextShiftI64Test},
+  {"ir_text_compare_i32", RunIrTextCompareI32Test},
+  {"ir_text_compare_u64", RunIrTextCompareU64Test},
+  {"ir_text_bool_ops", RunIrTextBoolOpsTest},
+  {"ir_text_ref_ops", RunIrTextRefOpsTest},
+  {"ir_text_bool_type_mismatch", RunIrTextBoolTypeMismatchTest},
+  {"ir_text_cmp_type_mismatch", RunIrTextCompareTypeMismatchTest},
+  {"ir_text_shift_type_mismatch", RunIrTextShiftTypeMismatchTest},
+  {"ir_text_list_insert_type_mismatch", RunIrTextListInsertTypeMismatchTest},
+  {"ir_text_array_set_type_mismatch", RunIrTextArraySetTypeMismatchTest},
+  {"ir_text_call_arg_count_mismatch", RunIrTextCallArgCountMismatchTest},
+  {"ir_text_call_indirect_arg_count_mismatch", RunIrTextCallIndirectArgCountMismatchTest},
+  {"ir_text_jmp_non_bool_cond", RunIrTextJmpNonBoolCondTest},
+  {"ir_text_array_get_non_ref", RunIrTextArrayGetNonRefTest},
+  {"ir_text_list_get_non_ref", RunIrTextListGetNonRefTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},

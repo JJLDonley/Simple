@@ -84,6 +84,14 @@ class IrBuilder {
   void EmitListPopRef();
   void EmitListInsertI32();
   void EmitListRemoveI32();
+  void EmitListInsertI64();
+  void EmitListRemoveI64();
+  void EmitListInsertF32();
+  void EmitListRemoveF32();
+  void EmitListInsertF64();
+  void EmitListRemoveF64();
+  void EmitListInsertRef();
+  void EmitListRemoveRef();
   void EmitListClear();
   void EmitNewClosure(uint32_t method_id, uint8_t upvalue_count);
   void EmitIsNull();

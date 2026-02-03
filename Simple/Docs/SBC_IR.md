@@ -209,10 +209,14 @@ Labels referenced by `jmp*` and `jmptable` must be defined in the same function.
 const.i32 123
 const.i64 1000
 const.u32 42
+const.i8 -5
+const.u16 12
+const.char 65
 const.f32 1.5
 const.f64 2.0
 const.bool 1
 const.null
+const.string 7
 ```
 
 ### 10.4 Core Arithmetic (Examples)
@@ -228,9 +232,31 @@ inc.i8
 dec.u16
 inc.f32
 dec.f64
+and.i32
+or.i64
+xor.i32
+shl.i32
+shr.i64
+cmp.eq.i32
+cmp.lt.u64
+bool.not
+bool.and
 ```
 
-### 10.5 Calls (Examples)
+### 10.5 Conversions (Examples)
+
+```
+conv.i32.i64
+conv.i64.i32
+conv.i32.f32
+conv.i32.f64
+conv.f32.i32
+conv.f64.i32
+conv.f32.f64
+conv.f64.f32
+```
+
+### 10.6 Calls (Examples)
 
 ```
 call <method_id> <arg_count>
@@ -238,7 +264,7 @@ call.indirect <sig_id> <arg_count>
 tailcall <method_id> <arg_count>
 ```
 
-### 10.6 Locals/Globals/Upvalues (Examples)
+### 10.7 Locals/Globals/Upvalues (Examples)
 
 ```
 ldloc 0
@@ -249,7 +275,7 @@ ldupv 0
 stupv 0
 ```
 
-### 10.7 Objects/Refs (Examples)
+### 10.8 Objects/Refs (Examples)
 
 ```
 newobj <type_id>
@@ -262,7 +288,7 @@ ref.ne
 newclosure <method_id> <upvalue_count>
 ```
 
-### 10.8 Arrays/Lists/Strings (Examples)
+### 10.9 Arrays/Lists/Strings (Examples)
 
 ```
 newarray <type_id> <length>
@@ -286,7 +312,7 @@ string.get.char
 string.slice
 ```
 
-### 10.6 Structured Jump Table (Example)
+### 10.10 Structured Jump Table (Example)
 
 ```
 jmptable <default_label> <label0> <label1> ... <labelN>

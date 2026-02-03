@@ -535,3 +535,40 @@
 - Added IR text tests for small-type ops, unsigned wide ops, and float inc/dec behavior.
 - Updated `SBC_IR.md` examples (unary ops) and corrected jmptable text form.
 - Verified full test suite passes (716/716).
+
+## 2026-02-03 (cont.)
+- Added IR builder support for neg/inc/dec across small/unsigned/float widths and exposed text mnemonics for them.
+- Added IR emit test for wide/small neg/inc/dec coverage (`ir_emit_inc_dec_neg_wide`).
+- Verified full test suite passes (717/717).
+
+## 2026-02-03 (cont.)
+- Added IR builder emitters and text parsing for list insert/remove across i64/f32/f64/ref.
+- Added IR emit/test coverage for list insert/remove i64 and IR text coverage for list insert/remove f32.
+- Verified full test suite passes (719/719).
+
+## 2026-02-03 (cont.)
+- Added IR text tests for list insert/remove across i64/f64/ref and fixed ref test stack cleanup.
+- Verified full test suite passes (722/722).
+
+## 2026-02-03 (cont.)
+- Expanded SIR text docs with constants, conversions, bitwise/compare/bool examples and renumbered sections.
+- Verified IR and full test suites remain green (722/722).
+
+## 2026-02-03 (cont.)
+- Added IR text tests for conversions, bitwise ops, and shifts (i32/i64).
+- Fixed shift test operand typing for i64 shifts.
+- Verified full test suite passes (727/727).
+
+## 2026-02-03 (cont.)
+- Added IR text tests for comparisons (i32/u64), bool ops, ref null checks, and bitwise/shift coverage.
+- Adjusted compare/bool/ref tests to return i32 via control-flow (verifier-safe).
+- Verified full test suite passes (731/731).
+
+## 2026-02-03 (cont.)
+- Added IR text negative tests for type mismatches across bool/cmp/shift/list/array ops.
+- Extended IR text failure helper to treat verifier rejection as expected failure.
+- Verified full test suite passes (736/736).
+
+## 2026-02-03 (cont.)
+- Added IR text negative tests for call arg-count, call.indirect arg-count, non-bool jumps, and non-ref array/list access.
+- Verified full test suite passes (741/741).

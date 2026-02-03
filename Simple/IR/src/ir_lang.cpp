@@ -1187,6 +1187,38 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitListRemoveI32();
         continue;
       }
+      if (op == "list.insert.i64") {
+        builder.EmitListInsertI64();
+        continue;
+      }
+      if (op == "list.remove.i64") {
+        builder.EmitListRemoveI64();
+        continue;
+      }
+      if (op == "list.insert.f32") {
+        builder.EmitListInsertF32();
+        continue;
+      }
+      if (op == "list.remove.f32") {
+        builder.EmitListRemoveF32();
+        continue;
+      }
+      if (op == "list.insert.f64") {
+        builder.EmitListInsertF64();
+        continue;
+      }
+      if (op == "list.remove.f64") {
+        builder.EmitListRemoveF64();
+        continue;
+      }
+      if (op == "list.insert.ref") {
+        builder.EmitListInsertRef();
+        continue;
+      }
+      if (op == "list.remove.ref") {
+        builder.EmitListRemoveRef();
+        continue;
+      }
       if (op == "list.clear") {
         builder.EmitListClear();
         continue;

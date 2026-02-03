@@ -324,6 +324,38 @@ void IrBuilder::EmitListRemoveI32() {
   EmitOp(OpCode::ListRemoveI32);
 }
 
+void IrBuilder::EmitListInsertI64() {
+  EmitOp(OpCode::ListInsertI64);
+}
+
+void IrBuilder::EmitListRemoveI64() {
+  EmitOp(OpCode::ListRemoveI64);
+}
+
+void IrBuilder::EmitListInsertF32() {
+  EmitOp(OpCode::ListInsertF32);
+}
+
+void IrBuilder::EmitListRemoveF32() {
+  EmitOp(OpCode::ListRemoveF32);
+}
+
+void IrBuilder::EmitListInsertF64() {
+  EmitOp(OpCode::ListInsertF64);
+}
+
+void IrBuilder::EmitListRemoveF64() {
+  EmitOp(OpCode::ListRemoveF64);
+}
+
+void IrBuilder::EmitListInsertRef() {
+  EmitOp(OpCode::ListInsertRef);
+}
+
+void IrBuilder::EmitListRemoveRef() {
+  EmitOp(OpCode::ListRemoveRef);
+}
+
 void IrBuilder::EmitListClear() {
   EmitOp(OpCode::ListClear);
 }
