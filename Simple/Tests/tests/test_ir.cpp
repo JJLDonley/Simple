@@ -5547,6 +5547,55 @@ bool RunIrTextBadSigTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_sig_token");
 }
 
+bool RunIrTextInvalidLabelNameTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "bad-label:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_invalid_label_name");
+}
+
+bool RunIrTextLabelStartsWithDigitTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "1bad:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_label_starts_with_digit");
+}
+
+bool RunIrTextJmpInvalidLabelTokenTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  jmp bad-label\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmp_invalid_label");
+}
+
+bool RunIrTextJmpTableInvalidLabelTokenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  jmptable def bad-label\n"
+      "def:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_invalid_label");
+}
+
 bool RunIrTextEntryUnknownFuncTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -6783,6 +6832,10 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_entry", RunIrTextDuplicateEntryTest},
   {"ir_text_bad_func_header", RunIrTextBadFuncHeaderTest},
   {"ir_text_bad_sig_token", RunIrTextBadSigTokenTest},
+  {"ir_text_invalid_label_name", RunIrTextInvalidLabelNameTest},
+  {"ir_text_label_starts_with_digit", RunIrTextLabelStartsWithDigitTest},
+  {"ir_text_jmp_invalid_label", RunIrTextJmpInvalidLabelTokenTest},
+  {"ir_text_jmptable_invalid_label", RunIrTextJmpTableInvalidLabelTokenTest},
   {"ir_text_entry_unknown_func", RunIrTextEntryUnknownFuncTest},
   {"ir_text_duplicate_func", RunIrTextDuplicateFuncTest},
   {"ir_text_bad_locals_token", RunIrTextBadLocalsTokenTest},

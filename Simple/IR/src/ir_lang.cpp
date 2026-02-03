@@ -3,6 +3,7 @@
 #include <cctype>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "ir_builder.h"
 
@@ -78,6 +79,17 @@ std::string Lower(const std::string& text) {
     ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
   }
   return out;
+}
+
+bool IsValidLabelName(const std::string& name) {
+  if (name.empty()) return false;
+  unsigned char first = static_cast<unsigned char>(name[0]);
+  if (!(std::isalpha(first) || first == '_')) return false;
+  for (size_t i = 1; i < name.size(); ++i) {
+    unsigned char ch = static_cast<unsigned char>(name[i]);
+    if (!(std::isalnum(ch) || ch == '_')) return false;
+  }
+  return true;
 }
 
 } // namespace
@@ -185,6 +197,10 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
       IrTextInst inst;
       inst.kind = InstKind::Label;
       inst.label = Trim(line.substr(0, line.size() - 1));
+      if (!IsValidLabelName(inst.label)) {
+        if (error) *error = "invalid label name at line " + std::to_string(line_no);
+        return false;
+      }
       current->insts.push_back(std::move(inst));
       continue;
     }
@@ -836,6 +852,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "jmp expects label";
           return false;
         }
+        if (!IsValidLabelName(inst.args[0])) {
+          if (error) *error = "invalid label: " + inst.args[0];
+          return false;
+        }
         auto it = labels.find(inst.args[0]);
         if (it == labels.end()) {
           if (error) *error = "unknown label: " + inst.args[0];
@@ -847,6 +867,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "jmp.true") {
         if (inst.args.size() != 1) {
           if (error) *error = "jmp.true expects label";
+          return false;
+        }
+        if (!IsValidLabelName(inst.args[0])) {
+          if (error) *error = "invalid label: " + inst.args[0];
           return false;
         }
         auto it = labels.find(inst.args[0]);
@@ -862,6 +886,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "jmp.false expects label";
           return false;
         }
+        if (!IsValidLabelName(inst.args[0])) {
+          if (error) *error = "invalid label: " + inst.args[0];
+          return false;
+        }
         auto it = labels.find(inst.args[0]);
         if (it == labels.end()) {
           if (error) *error = "unknown label: " + inst.args[0];
@@ -875,6 +903,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "jmptable expects default and cases";
           return false;
         }
+        if (!IsValidLabelName(inst.args[0])) {
+          if (error) *error = "invalid label: " + inst.args[0];
+          return false;
+        }
         auto def_it = labels.find(inst.args[0]);
         if (def_it == labels.end()) {
           if (error) *error = "unknown label: " + inst.args[0];
@@ -883,6 +915,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         IrLabel def = def_it->second;
         std::vector<IrLabel> cases;
         for (size_t i = 1; i < inst.args.size(); ++i) {
+          if (!IsValidLabelName(inst.args[i])) {
+            if (error) *error = "invalid label: " + inst.args[i];
+            return false;
+          }
           auto it = labels.find(inst.args[i]);
           if (it == labels.end()) {
             if (error) *error = "unknown label: " + inst.args[i];
