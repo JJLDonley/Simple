@@ -563,6 +563,7 @@
 - Added IR text negative tests for missing/duplicate entry and bad func header/sig tokens.
 - Added IR text negative tests for unknown entry targets, duplicate funcs, and invalid locals/stack tokens.
 - Added IR text negative tests for missing/extra operands on jmp/call/call.indirect and jmptable missing default.
+- Added IR text negative tests for bad numeric literals (i32/f64) and negative u32 constants.
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 

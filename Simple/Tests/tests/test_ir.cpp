@@ -5335,6 +5335,39 @@ bool RunIrTextConstU64BadTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_const_u64_bad_token");
 }
 
+bool RunIrTextConstI32BadTokenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 nope\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i32_bad_token");
+}
+
+bool RunIrTextConstF64BadTokenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.f64 nope\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_f64_bad_token");
+}
+
+bool RunIrTextConstU32NegativeTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u32 -1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u32_negative");
+}
+
 bool RunIrTextCallIndirectMissingValueTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -6731,6 +6764,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_u128_unsupported", RunIrTextConstU128UnsupportedTest},
   {"ir_text_const_i128_bad_token", RunIrTextConstI128BadTokenTest},
   {"ir_text_const_u64_bad_token", RunIrTextConstU64BadTokenTest},
+  {"ir_text_const_i32_bad_token", RunIrTextConstI32BadTokenTest},
+  {"ir_text_const_f64_bad_token", RunIrTextConstF64BadTokenTest},
+  {"ir_text_const_u32_negative", RunIrTextConstU32NegativeTest},
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
   {"ir_text_call_indirect_non_ref_value", RunIrTextCallIndirectNonRefValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},
