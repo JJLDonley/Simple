@@ -705,7 +705,12 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           if (error) *error = "jmp expects label";
           return false;
         }
-        builder.EmitJmp(labels[inst.args[0]]);
+        auto it = labels.find(inst.args[0]);
+        if (it == labels.end()) {
+          if (error) *error = "unknown label: " + inst.args[0];
+          return false;
+        }
+        builder.EmitJmp(it->second);
         continue;
       }
       if (op == "jmp.true") {
@@ -713,7 +718,12 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           if (error) *error = "jmp.true expects label";
           return false;
         }
-        builder.EmitJmpTrue(labels[inst.args[0]]);
+        auto it = labels.find(inst.args[0]);
+        if (it == labels.end()) {
+          if (error) *error = "unknown label: " + inst.args[0];
+          return false;
+        }
+        builder.EmitJmpTrue(it->second);
         continue;
       }
       if (op == "jmp.false") {
@@ -721,7 +731,12 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           if (error) *error = "jmp.false expects label";
           return false;
         }
-        builder.EmitJmpFalse(labels[inst.args[0]]);
+        auto it = labels.find(inst.args[0]);
+        if (it == labels.end()) {
+          if (error) *error = "unknown label: " + inst.args[0];
+          return false;
+        }
+        builder.EmitJmpFalse(it->second);
         continue;
       }
       if (op == "jmptable") {
@@ -729,10 +744,20 @@ bool LowerIrTextToModule(const IrTextModule& text, simplevm::ir::IrModule* out, 
           if (error) *error = "jmptable expects default and cases";
           return false;
         }
-        IrLabel def = labels[inst.args[0]];
+        auto def_it = labels.find(inst.args[0]);
+        if (def_it == labels.end()) {
+          if (error) *error = "unknown label: " + inst.args[0];
+          return false;
+        }
+        IrLabel def = def_it->second;
         std::vector<IrLabel> cases;
         for (size_t i = 1; i < inst.args.size(); ++i) {
-          cases.push_back(labels[inst.args[i]]);
+          auto it = labels.find(inst.args[i]);
+          if (it == labels.end()) {
+            if (error) *error = "unknown label: " + inst.args[i];
+            return false;
+          }
+          cases.push_back(it->second);
         }
         builder.EmitJmpTable(cases, def);
         continue;

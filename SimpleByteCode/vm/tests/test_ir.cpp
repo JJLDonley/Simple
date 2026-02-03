@@ -74,6 +74,35 @@ std::vector<uint8_t> BuildIrTextModuleWithTables(const std::string& text,
   return out;
 }
 
+std::vector<uint8_t> BuildIrTextModuleWithTablesAndGlobals(const std::string& text,
+                                                           const char* name,
+                                                           std::vector<uint8_t> types,
+                                                           std::vector<uint8_t> fields,
+                                                           std::vector<uint8_t> const_pool,
+                                                           std::vector<uint8_t> globals) {
+  simplevm::irtext::IrTextModule parsed;
+  std::string error;
+  if (!simplevm::irtext::ParseIrTextModule(text, &parsed, &error)) {
+    std::cerr << "IR text parse failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  simplevm::ir::IrModule module;
+  if (!simplevm::irtext::LowerIrTextToModule(parsed, &module, &error)) {
+    std::cerr << "IR text lower failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  module.types_bytes = std::move(types);
+  module.fields_bytes = std::move(fields);
+  module.const_pool = std::move(const_pool);
+  module.globals_bytes = std::move(globals);
+  std::vector<uint8_t> out;
+  if (!simplevm::ir::CompileToSbc(module, &out, &error)) {
+    std::cerr << "IR compile failed (" << name << "): " << error << "\n";
+    return {};
+  }
+  return out;
+}
+
 bool RunIrTextExpectFail(const char* text, const char* name) {
   simplevm::irtext::IrTextModule parsed;
   std::string error;
@@ -3858,6 +3887,65 @@ bool RunIrTextUnknownOpTest() {
   return RunIrTextExpectFail(text, "ir_text_unknown_op");
 }
 
+bool RunIrTextGlobalTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 5\n"
+      "  stglob 0\n"
+      "  ldglob 0\n"
+      "  const.i32 3\n"
+      "  add.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(simplevm::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> globals;
+  AppendU32(globals, 0);              // name_str
+  AppendU32(globals, 0);              // type_id
+  AppendU32(globals, 0);              // flags
+  AppendU32(globals, 0xFFFFFFFFu);    // init_const_id
+
+  auto module = BuildIrTextModuleWithTablesAndGlobals(text, "ir_text_global",
+                                                      std::move(types), {}, {}, std::move(globals));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 8);
+}
+
+bool RunIrTextUnknownLabelTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  jmp missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_unknown_label");
+}
+
+bool RunIrTextJmpTableUnknownLabelTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  jmptable def case0\n"
+      "def:\n"
+      "  const.i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jmptable_unknown_label");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -3953,6 +4041,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},
   {"ir_text_unknown_op", RunIrTextUnknownOpTest},
+  {"ir_text_global", RunIrTextGlobalTest},
+  {"ir_text_unknown_label", RunIrTextUnknownLabelTest},
+  {"ir_text_jmptable_unknown_label", RunIrTextJmpTableUnknownLabelTest},
 };
 
 static const TestSection kIrSections[] = {

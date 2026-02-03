@@ -10,6 +10,7 @@
 - Documented text-form mnemonics for locals/globals/upvalues, objects/refs, arrays/lists/strings.
 - Added SIR text-form tests for array/list/object field/string len paths with required tables.
 - Added SIR text negative tests for unknown ops and missing operands.
+- Added SIR text globals test and label validation/negative tests for unknown labels and jmptable label errors.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).

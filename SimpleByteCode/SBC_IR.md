@@ -201,6 +201,8 @@ jmp.false <label>
 jmptable <default> <case0> <case1> ...
 ```
 
+Labels referenced by `jmp*` and `jmptable` must be defined in the same function. Unknown labels are errors.
+
 ### 10.3 Constants (Examples)
 
 ```
