@@ -155,6 +155,30 @@ bool LangParsesVarDecl() {
   return true;
 }
 
+bool LangParsesVarDeclNoInit() {
+  const char* src = "count :: i32;";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Variable) return false;
+  if (decl.var.name != "count") return false;
+  return true;
+}
+
+bool LangParsesLocalVarDeclNoInit() {
+  const char* src = "main : void () { x : i32; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::VarDecl) return false;
+  if (stmt.var_decl.name != "x") return false;
+  if (stmt.var_decl.has_init_expr) return false;
+  return true;
+}
+
 bool LangParsesArtifactDecl() {
   const char* src = "Point :: artifact { x : f32 y :: f32 len : i32 () { return 1; } }";
   Simple::Lang::Program program;
@@ -359,6 +383,24 @@ bool LangValidateModuleDuplicateMember() {
   const char* src = "Math :: module { x : i32 = 1; x : i32 = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateModuleVarNoInit() {
+  const char* src =
+    "Math :: module { x : i32; }"
+    "main : i32 () { return 0; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGlobalVarNoInit() {
+  const char* src =
+    "g : i32;"
+    "main : i32 () { return g; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
@@ -1200,6 +1242,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_func_decl", LangParsesFuncDecl},
   {"lang_parse_fn_keyword", LangParsesFnKeywordDecl},
   {"lang_parse_var_decl", LangParsesVarDecl},
+  {"lang_parse_var_decl_no_init", LangParsesVarDeclNoInit},
+  {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
@@ -1223,6 +1267,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_for_loop_scope", LangValidateForLoopScope},
   {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
   {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
+  {"lang_validate_module_var_no_init", LangValidateModuleVarNoInit},
+  {"lang_validate_global_var_no_init", LangValidateGlobalVarNoInit},
   {"lang_validate_duplicate_params", LangValidateDuplicateParams},
   {"lang_validate_void_return_value", LangValidateVoidReturnValue},
   {"lang_validate_nonvoid_missing_return", LangValidateNonVoidMissingReturn},

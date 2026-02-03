@@ -238,11 +238,14 @@ bool Parser::ParseDecl(Decl* out) {
       out->var.mutability = mut;
       out->var.type = std::move(return_or_type);
     }
-    if (!Match(TokenKind::Assign)) {
-      error_ = "expected '=' in variable declaration";
+    if (Match(TokenKind::Assign)) {
+      if (!ParseInitTokens(&out->var.init_tokens)) return false;
+    } else if (Match(TokenKind::Semicolon)) {
+      // zero-initialized
+    } else {
+      error_ = "expected '=' or ';' in variable declaration";
       return false;
     }
-    if (!ParseInitTokens(&out->var.init_tokens)) return false;
     return true;
   }
 
@@ -274,11 +277,14 @@ bool Parser::ParseDecl(Decl* out) {
     out->var.mutability = mut;
     out->var.type = std::move(return_or_type);
   }
-  if (!Match(TokenKind::Assign)) {
-    error_ = "expected '=' in variable declaration";
+  if (Match(TokenKind::Assign)) {
+    if (!ParseInitTokens(&out->var.init_tokens)) return false;
+  } else if (Match(TokenKind::Semicolon)) {
+    // zero-initialized
+  } else {
+    error_ = "expected '=' or ';' in variable declaration";
     return false;
   }
-  if (!ParseInitTokens(&out->var.init_tokens)) return false;
   return true;
 }
 
@@ -447,11 +453,14 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
   var.name = name_tok.text;
   var.mutability = mut;
   var.type = std::move(type);
-  if (!Match(TokenKind::Assign)) {
-    error_ = "expected '=' in module variable declaration";
+  if (Match(TokenKind::Assign)) {
+    if (!ParseInitTokens(&var.init_tokens)) return false;
+  } else if (Match(TokenKind::Semicolon)) {
+    // zero-initialized
+  } else {
+    error_ = "expected '=' or ';' in module variable declaration";
     return false;
   }
-  if (!ParseInitTokens(&var.init_tokens)) return false;
   if (out) out->variables.push_back(std::move(var));
   return true;
 }
@@ -635,14 +644,19 @@ bool Parser::ParseStmt(Stmt* out) {
     }
     TypeRef type;
     if (!ParseTypeInner(&type)) return false;
-    if (!Match(TokenKind::Assign)) {
-      error_ = "expected '=' in variable declaration";
-      return false;
-    }
+    bool has_init = false;
     Expr init;
-    if (!ParseExpr(&init)) return false;
-    if (!Match(TokenKind::Semicolon)) {
-      error_ = "expected ';' after variable declaration";
+    if (Match(TokenKind::Assign)) {
+      has_init = true;
+      if (!ParseExpr(&init)) return false;
+      if (!Match(TokenKind::Semicolon)) {
+        error_ = "expected ';' after variable declaration";
+        return false;
+      }
+    } else if (Match(TokenKind::Semicolon)) {
+      has_init = false;
+    } else {
+      error_ = "expected '=' or ';' in variable declaration";
       return false;
     }
     if (out) {
@@ -650,8 +664,8 @@ bool Parser::ParseStmt(Stmt* out) {
       out->var_decl.name = name_tok.text;
       out->var_decl.mutability = mut;
       out->var_decl.type = std::move(type);
-      out->var_decl.has_init_expr = true;
-      out->var_decl.init_expr = std::move(init);
+      out->var_decl.has_init_expr = has_init;
+      if (has_init) out->var_decl.init_expr = std::move(init);
     }
     return true;
   }

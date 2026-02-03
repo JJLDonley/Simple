@@ -671,3 +671,4 @@
 - Added Simple::Lang validation for unknown module/artifact member access with new negative tests.
 - Added Simple::Lang validation for unknown enum members with a new negative test.
 - Added Simple::Lang inc/dec validation for assignment targets and immutability, plus invalid-target tests.
+- Allowed zero-initialized variables (no initializer) for local, module, and global declarations with new parse/validate tests.
