@@ -660,3 +660,4 @@
 - Added Simple::Lang generic type arity validation and disallowed non-type symbols in type positions, with tests.
 - Added Simple::Lang fixed-size array literal shape validation with tests.
 - Added Simple::Lang index validation for non-indexable bases and non-integer index expressions, with tests.
+- Added Simple::Lang array literal element type validation for fixed-size arrays, with tests.

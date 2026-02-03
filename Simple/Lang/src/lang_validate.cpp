@@ -326,6 +326,15 @@ bool CheckArrayLiteralShape(const Expr& expr,
                             size_t dim_index,
                             std::string* error);
 
+bool CheckArrayLiteralElementTypes(const Expr& expr,
+                                   const ValidateContext& ctx,
+                                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                                   const ArtifactDecl* current_artifact,
+                                   const std::vector<TypeDim>& dims,
+                                   size_t dim_index,
+                                   const TypeRef& element_type,
+                                   std::string* error);
+
 bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
@@ -685,6 +694,19 @@ bool CheckStmt(const Stmt& stmt,
             (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral) &&
             !target_type.dims.empty()) {
           if (!CheckArrayLiteralShape(stmt.expr, target_type.dims, 0, error)) return false;
+          TypeRef base_type;
+          if (!CloneTypeRef(target_type, &base_type)) return false;
+          base_type.dims.clear();
+          if (!CheckArrayLiteralElementTypes(stmt.expr,
+                                             ctx,
+                                             scopes,
+                                             current_artifact,
+                                             target_type.dims,
+                                             0,
+                                             base_type,
+                                             error)) {
+            return false;
+          }
         }
       }
       return true;
@@ -702,6 +724,19 @@ bool CheckStmt(const Stmt& stmt,
              stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) &&
             !stmt.var_decl.type.dims.empty()) {
           if (!CheckArrayLiteralShape(stmt.var_decl.init_expr, stmt.var_decl.type.dims, 0, error)) {
+            return false;
+          }
+          TypeRef base_type;
+          if (!CloneTypeRef(stmt.var_decl.type, &base_type)) return false;
+          base_type.dims.clear();
+          if (!CheckArrayLiteralElementTypes(stmt.var_decl.init_expr,
+                                             ctx,
+                                             scopes,
+                                             current_artifact,
+                                             stmt.var_decl.type.dims,
+                                             0,
+                                             base_type,
+                                             error)) {
             return false;
           }
         }
@@ -901,6 +936,48 @@ bool CheckArrayLiteralShape(const Expr& expr,
   if (dim_index + 1 < dims.size()) {
     for (const auto& child : expr.children) {
       if (!CheckArrayLiteralShape(child, dims, dim_index + 1, error)) return false;
+    }
+  }
+  return true;
+}
+
+bool CheckArrayLiteralElementTypes(const Expr& expr,
+                                   const ValidateContext& ctx,
+                                   const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                                   const ArtifactDecl* current_artifact,
+                                   const std::vector<TypeDim>& dims,
+                                   size_t dim_index,
+                                   const TypeRef& element_type,
+                                   std::string* error) {
+  if (expr.kind == ExprKind::ListLiteral) return true;
+  if (expr.kind != ExprKind::ArrayLiteral) return true;
+  if (dims.empty()) return true;
+
+  if (dim_index + 1 >= dims.size()) {
+    for (const auto& child : expr.children) {
+      TypeRef child_type;
+      if (!InferExprType(child, ctx, scopes, current_artifact, &child_type)) {
+        if (error && error->empty()) *error = "array literal element type mismatch";
+        return false;
+      }
+      if (!TypeEquals(element_type, child_type)) {
+        if (error) *error = "array literal element type mismatch";
+        return false;
+      }
+    }
+    return true;
+  }
+
+  for (const auto& child : expr.children) {
+    if (!CheckArrayLiteralElementTypes(child,
+                                       ctx,
+                                       scopes,
+                                       current_artifact,
+                                       dims,
+                                       dim_index + 1,
+                                       element_type,
+                                       error)) {
+      return false;
     }
   }
   return true;

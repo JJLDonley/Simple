@@ -776,6 +776,20 @@ bool LangValidateArrayLiteralEmptyMismatch() {
   return true;
 }
 
+bool LangValidateArrayLiteralElementMismatch() {
+  const char* src = "main : void () { a : i32[2] = [1, true]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArrayLiteralNestedElementMismatch() {
+  const char* src = "main : void () { a : i32[2][2] = [[1,2],[3,4]]; b : i32[2][2] = [[1,2],[3,true]]; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateUnaryTypeMismatch() {
   const char* src = "main : i32 () { return !1; }";
   std::string error;
@@ -1087,6 +1101,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_array_literal_nested_mismatch", LangValidateArrayLiteralNestedMismatch},
   {"lang_validate_array_literal_non_array_child", LangValidateArrayLiteralNonArrayChild},
   {"lang_validate_array_literal_empty_mismatch", LangValidateArrayLiteralEmptyMismatch},
+  {"lang_validate_array_literal_element_mismatch", LangValidateArrayLiteralElementMismatch},
+  {"lang_validate_array_literal_nested_element_mismatch", LangValidateArrayLiteralNestedElementMismatch},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},
   {"lang_validate_binary_type_mismatch", LangValidateBinaryTypeMismatch},
   {"lang_validate_comparison_type_mismatch", LangValidateComparisonTypeMismatch},
