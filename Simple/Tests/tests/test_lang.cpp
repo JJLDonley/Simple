@@ -220,6 +220,24 @@ bool LangParsesCallAndMember() {
   return true;
 }
 
+bool LangParsesSelf() {
+  const char* src = "Point :: artifact { x : i32 get : i32 () { return self.x; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
+  if (decl.artifact.methods.empty()) return false;
+  const auto& stmt = decl.artifact.methods[0].body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::Return) return false;
+  const auto& expr = stmt.expr;
+  if (expr.kind != Simple::Lang::ExprKind::Member) return false;
+  if (expr.children.empty()) return false;
+  if (expr.children[0].kind != Simple::Lang::ExprKind::Identifier) return false;
+  if (expr.children[0].text != "self") return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -399,6 +417,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
+  {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},

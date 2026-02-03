@@ -983,7 +983,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     if (ParseFnLiteral(out)) return true;
     index_ = save;
   }
-  if (tok.kind == TokenKind::Identifier) {
+  if (tok.kind == TokenKind::Identifier || tok.kind == TokenKind::KwSelf) {
     Expr expr;
     expr.kind = ExprKind::Identifier;
     expr.text = tok.text;
