@@ -580,3 +580,6 @@
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
+- Added SIR text metadata tables (types/sigs/consts/imports) with name-based resolution for locals/types/fields/consts/sigs/functions.
+- Added SIR text tests for named tables, bad type/field/const names, and syscall name trap behavior.
+- Updated SIR docs with metadata table syntax and name-resolution rules.

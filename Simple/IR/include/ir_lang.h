@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "ir_compiler.h"
@@ -26,10 +27,48 @@ struct IrTextFunction {
   uint16_t locals = 0;
   uint32_t stack_max = 8;
   uint32_t sig_id = 0;
+  std::string sig_name;
+  bool sig_is_name = false;
+  std::unordered_map<std::string, uint16_t> locals_map;
   std::vector<IrTextInst> insts;
 };
 
+struct IrTextField {
+  std::string name;
+  std::string type;
+  uint32_t offset = 0;
+};
+
+struct IrTextType {
+  std::string name;
+  std::string kind;
+  uint32_t size = 0;
+  std::vector<IrTextField> fields;
+};
+
+struct IrTextSig {
+  std::string name;
+  std::string ret;
+  std::vector<std::string> params;
+};
+
+struct IrTextConst {
+  std::string name;
+  std::string kind;
+  std::string value;
+};
+
+struct IrTextImport {
+  std::string kind; // syscall | intrinsic
+  std::string name;
+  uint32_t id = 0;
+};
+
 struct IrTextModule {
+  std::vector<IrTextType> types;
+  std::vector<IrTextSig> sigs;
+  std::vector<IrTextConst> consts;
+  std::vector<IrTextImport> imports;
   std::vector<IrTextFunction> functions;
   std::string entry_name;
   uint32_t entry_index = 0;

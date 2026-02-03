@@ -17,7 +17,8 @@ for language implementers who want a stable, VM-typed IR target.
 ## 2. SIR Model (v0.1)
 
 - **Stack-based** instruction stream.
-- **VM types only**: `i32/i64/f32/f64/ref` and `void` for signatures.
+- **VM types only** (lowering target): `i32/i64/f32/f64/ref` and `void` for signatures.
+  SIR text may declare stricter types (e.g., `u8`, `bool`, `char`, `string`) that lower to VM types.
 - SIR is a **structured emitter** (labels + fixups) that writes SBC bytecode.
 - SIR does **not** encode SSA or high-level AST semantics.
 
@@ -178,18 +179,44 @@ When an operation has multiple typed variants, use `<T>` to indicate the VM type
 The text form is intentionally minimal and **not** required for production compilers. It is used for tests and
 debugging. The parser lowers directly into the IR builder.
 
-### 10.1 File Structure
+### 10.1 Metadata Tables (Optional, Recommended)
+
+SIR text can embed compact metadata tables at the top of the file. These tables map names to IDs and allow
+instructions to reference types, sigs, fields, consts, and imports by name.
+
+| Section | Row Form | Example | Notes |
+|---|---|---|---|
+| `types:` | `type <Name> size=<bytes> kind=<kind>` | `type Color size=16 kind=artifact` | `kind` ∈ `{i32,i64,f32,f64,ref,artifact}`. Artifact implies ref-like object. |
+|  | `field <name> <type> offset=<bytes>` | `field r i32 offset=0` | Fields belong to the most recent `type`. |
+| `sigs:` | `sig <Name>: (<params>) -> <ret>` | `sig main: () -> i32` | `<ret>` can be `void`. |
+| `consts:` | `const <Name> <kind> <value>` | `const greet string "hi"` | `kind` ∈ `{i8,i16,i32,i64,u8,u16,u32,u64,f32,f64,bool,char,string}`. |
+| `imports:` | `syscall <Name> <id>` | `syscall write 7` | Enables `syscall <Name>` in code. |
+|  | `intrinsic <Name> <id>` | `intrinsic log 3` | Enables `intrinsic <Name>` in code. |
+
+### 10.2 File Structure
 
 ```
-func <name> locals=<u16> stack=<u16> sig=<sig_id>
+types:
+  type <Name> size=<bytes> kind=<kind>
+  field <name> <type> offset=<bytes>
+sigs:
+  sig <Name>: (<params>) -> <ret>
+consts:
+  const <Name> <kind> <value>
+imports:
+  syscall <Name> <id>
+  intrinsic <Name> <id>
+func <name> locals=<u16> stack=<u16> sig=<sig_id|sig_name>
+  locals: <name[:type]>, <name[:type]>, ...
   <instr>
   ...
 end
 entry <func_name>
 ```
 
-- `sig=<sig_id>` refers to the signature table row supplied by the compiler.
-- `locals=<u16>` and `stack=<u16>` are required for verifier constraints.
+- `sig=` can be a numeric id or a named sig from the `sigs:` table.
+- `locals=` and `stack=` are required for verifier constraints.
+- `locals:` defines local slot names (count must match `locals=`).
 
 ### 10.2 Labels
 
@@ -219,7 +246,20 @@ const.null
 const.string 7
 ```
 
-### 10.4 Core Arithmetic (Examples)
+### 10.4 Name Resolution (Examples)
+
+When tables are present, the following operands may use **names** instead of numeric ids:
+
+- `ldloc/stloc` local names from `locals:`.
+- `newobj/newarray/newlist` type names from `types:`.
+- `ldfld/stfld` field names, using `Type.field` when ambiguous.
+- `const.*` named constants from `consts:`.
+- `const.string` string constants from `consts:`.
+- `call/tailcall` function names.
+- `call.indirect` signature names from `sigs:`.
+- `intrinsic/syscall` names from `imports:`.
+
+### 10.5 Core Arithmetic (Examples)
 
 ```
 add.i32

@@ -4188,6 +4188,96 @@ bool RunIrTextObjectFieldTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextNamedTablesTest() {
+  const char* text =
+      "types:\n"
+      "  type Color size=16 kind=artifact\n"
+      "  field r i32 offset=0\n"
+      "  field g i32 offset=4\n"
+      "  field b i32 offset=8\n"
+      "  field a i32 offset=12\n"
+      "sigs:\n"
+      "  sig main: () -> i32\n"
+      "consts:\n"
+      "  const max i32 255\n"
+      "  const greet string \"hi\"\n"
+      "imports:\n"
+      "  intrinsic log 3\n"
+      "func main locals=1 stack=10 sig=main\n"
+      "  locals: c\n"
+      "  enter 1\n"
+      "  newobj Color\n"
+      "  stloc c\n"
+      "  ldloc c\n"
+      "  const.i32 max\n"
+      "  stfld Color.r\n"
+      "  ldloc c\n"
+      "  ldfld Color.r\n"
+      "  const.string greet\n"
+      "  pop\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_named_tables");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 255);
+}
+
+bool RunIrTextBadTypeNameTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  newobj MissingType\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_type_name");
+}
+
+bool RunIrTextBadFieldNameTest() {
+  const char* text =
+      "types:\n"
+      "  type Color size=16 kind=artifact\n"
+      "  field r i32 offset=0\n"
+      "sigs:\n"
+      "  sig main: () -> i32\n"
+      "func main locals=1 stack=6 sig=main\n"
+      "  locals: c\n"
+      "  enter 1\n"
+      "  newobj Color\n"
+      "  stloc c\n"
+      "  ldloc c\n"
+      "  ldfld Color.g\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_field_name");
+}
+
+bool RunIrTextBadConstNameTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.i32 MissingConst\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_bad_const_name");
+}
+
+bool RunIrTextSyscallNameFailTest() {
+  const char* text =
+      "imports:\n"
+      "  syscall demo 7\n"
+      "func main locals=0 stack=2\n"
+      "  enter 0\n"
+      "  syscall demo\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_syscall_name_fail");
+}
+
 bool RunIrTextStringLenTest() {
   std::vector<uint8_t> const_pool;
   uint32_t str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "hey"));
@@ -5270,7 +5360,7 @@ bool RunIrTextConstStringMissingPoolTest() {
   const char* text =
       "func main locals=0 stack=6\n"
       "  enter 0\n"
-      "  const.string 0\n"
+      "  const.string missing_str\n"
       "  ret\n"
       "end\n"
       "entry main\n";
@@ -7069,6 +7159,11 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
+  {"ir_text_named_tables", RunIrTextNamedTablesTest},
+  {"ir_text_bad_type_name", RunIrTextBadTypeNameTest},
+  {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},
+  {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
+  {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},
   {"ir_text_unknown_op", RunIrTextUnknownOpTest},
