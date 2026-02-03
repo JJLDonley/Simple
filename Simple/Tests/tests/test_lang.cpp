@@ -675,6 +675,41 @@ bool LangValidateReturnTypeMatch() {
   return true;
 }
 
+bool LangValidateUnaryTypeMismatch() {
+  const char* src = "main : i32 () { return !1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateBinaryTypeMismatch() {
+  const char* src = "main : i32 () { return 1 + 2.0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateComparisonTypeMismatch() {
+  const char* src = "main : bool () { return 1 < true; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateBitwiseTypeMismatch() {
+  const char* src = "main : i32 () { return 1 & 2.0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateModuloFloatMismatch() {
+  const char* src = "main : f64 () { return 1.0 % 2.0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -938,6 +973,11 @@ const TestCase kLangTests[] = {
   {"lang_validate_type_mismatch_assign", LangValidateTypeMismatchAssign},
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
+  {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},
+  {"lang_validate_binary_type_mismatch", LangValidateBinaryTypeMismatch},
+  {"lang_validate_comparison_type_mismatch", LangValidateComparisonTypeMismatch},
+  {"lang_validate_bitwise_type_mismatch", LangValidateBitwiseTypeMismatch},
+  {"lang_validate_modulo_float_mismatch", LangValidateModuloFloatMismatch},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_bitwise_precedence", LangParsesBitwisePrecedence},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
