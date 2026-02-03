@@ -1,4 +1,6 @@
-# SBC ABI (Draft)
+# SBC ABI (v0.1 Frozen)
+
+**Status: Frozen for v0.1.**
 
 This document defines the stable ABI for SBC modules, intrinsics, and host FFI.
 

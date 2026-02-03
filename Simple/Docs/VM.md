@@ -12,6 +12,7 @@ are managed by GC, and tiered JIT can optimize hot methods.
 - Interpreter, verifier integration, and untagged slot runtime.  
 - Heap objects and GC safepoints with ref bitmaps/stack maps.  
 - Tiered JIT path and runtime trap diagnostics.  
+- ABI/FFI surface frozen for v0.1 (see `Docs/legacy/SBC_ABI.md`).  
 
 **Implementation Plan**  
 1) Core runtime + call frames.  
