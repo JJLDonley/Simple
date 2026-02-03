@@ -230,11 +230,41 @@ bool ValidateProgram(const Program& program, std::string* error) {
         if (!CheckFunctionBody(decl.func, ctx, error)) return false;
         break;
       case DeclKind::Artifact:
+        {
+          std::unordered_set<std::string> names;
+          for (const auto& field : decl.artifact.fields) {
+            if (!names.insert(field.name).second) {
+              if (error) *error = "duplicate artifact member: " + field.name;
+              return false;
+            }
+          }
+          for (const auto& method : decl.artifact.methods) {
+            if (!names.insert(method.name).second) {
+              if (error) *error = "duplicate artifact member: " + method.name;
+              return false;
+            }
+          }
+        }
         for (const auto& method : decl.artifact.methods) {
           if (!CheckFunctionBody(method, ctx, error)) return false;
         }
         break;
       case DeclKind::Module:
+        {
+          std::unordered_set<std::string> names;
+          for (const auto& var : decl.module.variables) {
+            if (!names.insert(var.name).second) {
+              if (error) *error = "duplicate module member: " + var.name;
+              return false;
+            }
+          }
+          for (const auto& fn : decl.module.functions) {
+            if (!names.insert(fn.name).second) {
+              if (error) *error = "duplicate module member: " + fn.name;
+              return false;
+            }
+          }
+        }
         for (const auto& fn : decl.module.functions) {
           if (!CheckFunctionBody(fn, ctx, error)) return false;
         }

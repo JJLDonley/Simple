@@ -281,6 +281,20 @@ bool LangValidateLocalDuplicateShadowAllowed() {
   return true;
 }
 
+bool LangValidateArtifactDuplicateMember() {
+  const char* src = "Thing :: artifact { x : i32 x : i32 }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateModuleDuplicateMember() {
+  const char* src = "Math :: module { x : i32 = 1; x : i32 = 2; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -468,6 +482,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
   {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
+  {"lang_validate_artifact_duplicate_member", LangValidateArtifactDuplicateMember},
+  {"lang_validate_module_duplicate_member", LangValidateModuleDuplicateMember},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

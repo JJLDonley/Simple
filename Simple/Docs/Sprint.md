@@ -624,3 +624,4 @@
 - Added Simple::Lang enum duplicate-member validation with tests.
 - Added Simple::Lang top-level duplicate declaration validation with tests.
 - Added Simple::Lang local-scope duplicate validation with block-level shadowing tests.
+- Added Simple::Lang module/artifact duplicate-member validation with tests.
