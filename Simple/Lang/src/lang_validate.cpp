@@ -149,13 +149,15 @@ bool CheckExpr(const Expr& expr,
                std::string* error) {
   switch (expr.kind) {
     case ExprKind::Identifier:
+      if (expr.text == "self") return true;
       if (HasLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
         return false;
       }
-      return true;
+      if (error) *error = "undeclared identifier: " + expr.text;
+      return false;
     case ExprKind::Literal:
       return true;
     case ExprKind::Unary:

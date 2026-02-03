@@ -631,3 +631,4 @@
 - Added Simple::Lang validation for break/skip outside loops with tests.
 - Added Simple::Lang validation to require a return in non-void functions with tests.
 - Scoped `for` loop init/condition/update within a dedicated local scope and added tests.
+- Added Simple::Lang undeclared identifier validation with tests.

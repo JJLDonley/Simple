@@ -291,8 +291,8 @@ bool LangValidateLocalDuplicateShadowAllowed() {
 bool LangValidateForLoopScope() {
   const char* src =
     "main : void () {"
-    "  for i = 0; i < 1; i = i + 1 { i : i32 = 2; }"
-    "  i : i32 = 3;"
+    "  x : i32 = 0;"
+    "  for x = x; x < 1; x = x + 1 { x : i32 = 2; }"
     "}";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -350,6 +350,13 @@ bool LangValidateBreakOutsideLoop() {
 
 bool LangValidateSkipOutsideLoop() {
   const char* src = "main : void () { skip; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateUndeclaredIdentifier() {
+  const char* src = "main : i32 () { return foo; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -552,6 +559,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_nonvoid_no_return", LangValidateNonVoidNoReturn},
   {"lang_validate_break_outside_loop", LangValidateBreakOutsideLoop},
   {"lang_validate_skip_outside_loop", LangValidateSkipOutsideLoop},
+  {"lang_validate_undeclared_identifier", LangValidateUndeclaredIdentifier},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
