@@ -653,3 +653,4 @@
 - Added Simple::Lang expression type inference for literals, identifiers, member access, and calls.
 - Added Simple::Lang validation for type-mismatched variable initializers and assignments.
 - Added Simple::Lang return type mismatch validation with positive/negative tests.
+- Added Simple::Lang lexer support for hex and binary integer literals with tests.

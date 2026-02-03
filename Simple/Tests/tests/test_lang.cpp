@@ -38,21 +38,25 @@ bool LangLexesKeywordsAndOps() {
 }
 
 bool LangLexesLiterals() {
-  const char* src = "x : i32 = 42; y : f32 = 3.5; s : string = \"hi\\n\"; c : char = '\\n';";
+  const char* src = "x : i32 = 42; h : i32 = 0x2A; b : i32 = 0b1010; y : f32 = 3.5; s : string = \"hi\\n\"; c : char = '\\n';";
   Simple::Lang::Lexer lex(src);
   if (!lex.Lex()) return false;
   const auto& toks = lex.Tokens();
   bool saw_int = false;
+  bool saw_hex = false;
+  bool saw_bin = false;
   bool saw_float = false;
   bool saw_string = false;
   bool saw_char = false;
   for (const auto& tok : toks) {
     if (tok.kind == Simple::Lang::TokenKind::Integer) saw_int = true;
+    if (tok.kind == Simple::Lang::TokenKind::Integer && tok.text == "0x2A") saw_hex = true;
+    if (tok.kind == Simple::Lang::TokenKind::Integer && tok.text == "0b1010") saw_bin = true;
     if (tok.kind == Simple::Lang::TokenKind::Float) saw_float = true;
     if (tok.kind == Simple::Lang::TokenKind::String) saw_string = true;
     if (tok.kind == Simple::Lang::TokenKind::Char) saw_char = true;
   }
-  return saw_int && saw_float && saw_string && saw_char;
+  return saw_int && saw_hex && saw_bin && saw_float && saw_string && saw_char;
 }
 
 bool LangParsesTypeLiterals() {

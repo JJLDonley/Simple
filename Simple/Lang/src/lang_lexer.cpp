@@ -379,6 +379,36 @@ bool Lexer::LexNumber() {
   size_t start = index_;
   bool is_float = false;
 
+  if (Peek() == '0' && (Peek(1) == 'x' || Peek(1) == 'X')) {
+    Advance();
+    Advance();
+    if (!std::isxdigit(static_cast<unsigned char>(Peek()))) {
+      error_ = "invalid hex literal";
+      return false;
+    }
+    while (std::isxdigit(static_cast<unsigned char>(Peek()))) {
+      Advance();
+    }
+    std::string text = source_.substr(start, index_ - start);
+    AddToken(TokenKind::Integer, text);
+    return true;
+  }
+
+  if (Peek() == '0' && (Peek(1) == 'b' || Peek(1) == 'B')) {
+    Advance();
+    Advance();
+    if (Peek() != '0' && Peek() != '1') {
+      error_ = "invalid binary literal";
+      return false;
+    }
+    while (Peek() == '0' || Peek() == '1') {
+      Advance();
+    }
+    std::string text = source_.substr(start, index_ - start);
+    AddToken(TokenKind::Integer, text);
+    return true;
+  }
+
   while (std::isdigit(static_cast<unsigned char>(Peek()))) {
     Advance();
   }
