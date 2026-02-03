@@ -44,6 +44,7 @@ private:
   bool ParseInitTokens(std::vector<Token>* out);
   bool ParseStmt(Stmt* out);
   bool ParseIfChain(Stmt* out);
+  bool ParseIfStmt(Stmt* out);
   bool ParseWhile(Stmt* out);
   bool ParseFor(Stmt* out);
   bool ParseExpr(Expr* out);

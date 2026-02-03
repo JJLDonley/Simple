@@ -239,6 +239,18 @@ bool LangParsesIfChain() {
   return true;
 }
 
+bool LangParsesIfElse() {
+  const char* src = "main : i32 () { if x < 1 { return 1; } else { return 2; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::IfStmt) return false;
+  if (stmt.if_then.size() != 1) return false;
+  if (stmt.if_else.size() != 1) return false;
+  return true;
+}
+
 bool LangParsesWhileLoop() {
   const char* src = "main : void () { while x < 10 { x = x + 1; } }";
   Simple::Lang::Program program;
@@ -287,6 +299,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_assignments", LangParsesAssignments},
   {"lang_parse_if_chain", LangParsesIfChain},
+  {"lang_parse_if_else", LangParsesIfElse},
   {"lang_parse_while_loop", LangParsesWhileLoop},
   {"lang_parse_break_skip", LangParsesBreakSkip},
   {"lang_parse_for_loop", LangParsesForLoop},

@@ -461,6 +461,10 @@ bool Parser::ParseStmt(Stmt* out) {
     return ParseIfChain(out);
   }
 
+  if (Peek().kind == TokenKind::KwIf) {
+    return ParseIfStmt(out);
+  }
+
   if (Peek().kind == TokenKind::KwWhile) {
     return ParseWhile(out);
   }
@@ -631,6 +635,34 @@ bool Parser::ParseIfChain(Stmt* out) {
     std::vector<Stmt> body;
     if (!ParseBlockStmts(&body)) return false;
     if (out) out->if_branches.push_back({std::move(cond), std::move(body)});
+  }
+  return true;
+}
+
+bool Parser::ParseIfStmt(Stmt* out) {
+  if (!Match(TokenKind::KwIf)) {
+    error_ = "expected 'if'";
+    return false;
+  }
+  Expr cond;
+  if (!ParseExpr(&cond)) return false;
+  std::vector<Stmt> then_body;
+  if (!ParseBlockStmts(&then_body)) return false;
+  std::vector<Stmt> else_body;
+  if (Match(TokenKind::KwElse)) {
+    if (Peek().kind == TokenKind::KwIf) {
+      Stmt nested;
+      if (!ParseIfStmt(&nested)) return false;
+      else_body.push_back(std::move(nested));
+    } else {
+      if (!ParseBlockStmts(&else_body)) return false;
+    }
+  }
+  if (out) {
+    out->kind = StmtKind::IfStmt;
+    out->if_cond = std::move(cond);
+    out->if_then = std::move(then_body);
+    out->if_else = std::move(else_body);
   }
   return true;
 }

@@ -20,6 +20,8 @@ enum class TokenKind : uint8_t {
   KwBreak,
   KwSkip,
   KwReturn,
+  KwIf,
+  KwElse,
   KwDefault,
   KwFn,
   KwSelf,

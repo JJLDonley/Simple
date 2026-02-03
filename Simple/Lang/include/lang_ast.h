@@ -75,6 +75,7 @@ enum class StmtKind : uint8_t {
   Assign,
   VarDecl,
   IfChain,
+  IfStmt,
   WhileLoop,
   ForLoop,
   Break,
@@ -89,6 +90,9 @@ struct Stmt {
   VarDecl var_decl;
   std::vector<std::pair<Expr, std::vector<Stmt>>> if_branches;
   std::vector<Stmt> else_branch;
+  Expr if_cond;
+  std::vector<Stmt> if_then;
+  std::vector<Stmt> if_else;
   Expr loop_cond;
   std::vector<Stmt> loop_body;
   Expr loop_iter;

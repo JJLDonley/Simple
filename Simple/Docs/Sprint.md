@@ -609,3 +609,4 @@
 - Added Simple::Lang control flow parsing (|> chains, while, break/skip) with tests.
 - Added Simple::Lang for-loop parsing with assignment-enabled headers and tests.
 - Added Simple::Lang enum declaration parsing with tests.
+- Added Simple::Lang if/else statement parsing (with else-if nesting) and tests.

@@ -13,6 +13,8 @@ const std::unordered_map<std::string, TokenKind> kKeywords = {
   {"break", TokenKind::KwBreak},
   {"skip", TokenKind::KwSkip},
   {"return", TokenKind::KwReturn},
+  {"if", TokenKind::KwIf},
+  {"else", TokenKind::KwElse},
   {"default", TokenKind::KwDefault},
   {"fn", TokenKind::KwFn},
   {"self", TokenKind::KwSelf},
@@ -50,6 +52,8 @@ const char* ToString(TokenKind kind) {
     case TokenKind::KwBreak: return "break";
     case TokenKind::KwSkip: return "skip";
     case TokenKind::KwReturn: return "return";
+    case TokenKind::KwIf: return "if";
+    case TokenKind::KwElse: return "else";
     case TokenKind::KwDefault: return "default";
     case TokenKind::KwFn: return "fn";
     case TokenKind::KwSelf: return "self";
