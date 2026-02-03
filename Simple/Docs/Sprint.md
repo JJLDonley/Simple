@@ -577,3 +577,7 @@
 - Added IR text negative tests for call.indirect bad sig id, jmptable missing label, and locals count mismatch.
 - Added IR text negative tests for call arg-count and non-ref array/list access.
 - Verified full test suite passes (744/744).
+
+## 2026-02-03 (cont.)
+- Added IR text tests for stack underflow, jump-to-end, and mid-instruction jump rejection.
+- Verified full test suite passes (747/747).

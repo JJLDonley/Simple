@@ -5199,6 +5199,45 @@ bool RunIrTextBadLocalsCountTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_locals_count");
 }
 
+bool RunIrTextStackUnderflowTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  pop\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_stack_underflow");
+}
+
+bool RunIrTextJumpToEndTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  jmp done\n"
+      "done:\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_jump_to_end");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextJumpMidInstructionTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  jmp target\n"
+      "  const.i32 1\n"
+      "target:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jump_mid_instruction");
+}
+
 bool RunIrTextListClearTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -5837,6 +5876,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_indirect_bad_sig_id", RunIrTextCallIndirectBadSigIdTextTest},
   {"ir_text_jmptable_missing_label", RunIrTextJmpTableMissingLabelTest},
   {"ir_text_bad_locals_count", RunIrTextBadLocalsCountTest},
+  {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},
+  {"ir_text_jump_to_end", RunIrTextJumpToEndTest},
+  {"ir_text_jump_mid_instruction", RunIrTextJumpMidInstructionTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
