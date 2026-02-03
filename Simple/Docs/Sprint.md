@@ -672,3 +672,4 @@
 - Added Simple::Lang validation for unknown enum members with a new negative test.
 - Added Simple::Lang inc/dec validation for assignment targets and immutability, plus invalid-target tests.
 - Allowed zero-initialized variables (no initializer) for local, module, and global declarations with new parse/validate tests.
+- Allowed zero-initialized globals/modules/locals and added compound assignment validation with new tests.

@@ -189,6 +189,10 @@ const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
 const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
 const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
 const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name);
+bool CheckCompoundAssignOp(const std::string& op,
+                           const TypeRef& lhs,
+                           const TypeRef& rhs,
+                           std::string* error);
 
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
@@ -739,6 +743,11 @@ bool CheckStmt(const Stmt& stmt,
           if (error) *error = "assignment type mismatch";
           return false;
         }
+        if (have_target && have_value && stmt.assign_op != "=") {
+          std::string op = stmt.assign_op;
+          if (!op.empty() && op.back() == '=') op.pop_back();
+          if (!CheckCompoundAssignOp(op, target_type, value_type, error)) return false;
+        }
         if (have_target &&
             (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral) &&
             !target_type.dims.empty()) {
@@ -1217,6 +1226,65 @@ bool CheckBinaryOpTypes(const Expr& expr,
     return true;
   }
 
+  return true;
+}
+
+bool CheckCompoundAssignOp(const std::string& op,
+                           const TypeRef& lhs,
+                           const TypeRef& rhs,
+                           std::string* error) {
+  if (!RequireScalar(lhs, op, error)) return false;
+  if (!RequireScalar(rhs, op, error)) return false;
+  if (!TypeEquals(lhs, rhs)) {
+    if (error) *error = "assignment type mismatch";
+    return false;
+  }
+  if (op == "&&" || op == "||") {
+    if (!IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires bool operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "==" || op == "!=") {
+    if (IsStringTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' does not support string operands";
+      return false;
+    }
+    if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "<" || op == "<=" || op == ">" || op == ">=") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "+" || op == "-" || op == "*" || op == "/") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "%") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '%' requires integer operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires integer operands";
+      return false;
+    }
+    return true;
+  }
   return true;
 }
 

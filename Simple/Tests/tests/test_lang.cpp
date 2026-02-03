@@ -812,6 +812,27 @@ bool LangValidateTypeMismatchAssign() {
   return true;
 }
 
+bool LangValidateCompoundAssignNumericOk() {
+  const char* src = "main : void () { x : i32 = 1; x += 2; x <<= 1; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCompoundAssignTypeMismatch() {
+  const char* src = "main : void () { x : i32 = 1; x += 1.0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCompoundAssignInvalidType() {
+  const char* src = "main : void () { x : bool = true; x += false; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateReturnTypeMismatch() {
   const char* src = "main : i32 () { return \"hi\"; }";
   std::string error;
@@ -1321,6 +1342,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_artifact_member_self_ok", LangValidateArtifactMemberSelfOk},
   {"lang_validate_type_mismatch_var_init", LangValidateTypeMismatchVarInit},
   {"lang_validate_type_mismatch_assign", LangValidateTypeMismatchAssign},
+  {"lang_validate_compound_assign_numeric_ok", LangValidateCompoundAssignNumericOk},
+  {"lang_validate_compound_assign_type_mismatch", LangValidateCompoundAssignTypeMismatch},
+  {"lang_validate_compound_assign_invalid_type", LangValidateCompoundAssignInvalidType},
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
   {"lang_validate_generic_type_args_mismatch", LangValidateGenericTypeArgsMismatch},
