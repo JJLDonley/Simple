@@ -634,3 +634,7 @@
 - Added Simple::Lang undeclared identifier validation with tests.
 - Added Simple::Lang all-paths return validation for non-void functions with tests.
 - Removed unions from Simple Lang docs and reserved keyword list.
+- Added Simple::Lang type validation for primitives, user types, generics, and void-only returns.
+- Added Simple::Lang validation for var/param/return type usage across functions, modules, and artifacts.
+- Added Simple::Lang validation tests for unknown types, void value types, primitive type args, and type params.
+- Reworked `Simple/Docs/Lang.md` implementation plan to be dependency-ordered and SIR-targeted with status.

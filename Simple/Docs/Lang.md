@@ -1207,243 +1207,107 @@ error[E0001]: type mismatch
 
 ---
 
-## Implementation Plan
+## Implementation Plan (Lang Module → SIR Text)
 
-### Phase 1: Minimal Compiler (MVP)
+This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC and executes. This plan is ordered by dependency and reflects current progress.
 
-**Features:**
-- Variables (mutable and immutable)
-- Primitive types (i32, f64, bool, string)
-- Binary expressions (arithmetic, comparison)
-- Simple if statements
-- Procedure definitions and calls
-- Print statement (built-in)
+### Phase 1: Frontend Foundations
 
-**Deliverable:** Hello World program
+**Goal:** A reliable lexer/parser/AST that covers the core grammar.
 
-```
-main : i32 () {
-    print("Hello, World!")
-    return 0
-}
-```
+**Status:** IN PROGRESS  
+**Done:** core keywords/tokens, numeric/string/char literals, comments, if/else/|>, artifact/enum/module decls, fn literals, postfix ++/--, dot member access, enum dot qualification.  
+**Next:** finalize remaining tokens/operators, lock full type syntax, finish error recovery.
 
-### Phase 2: Control Flow
+### Phase 2: Semantic Validation
 
-**Features:**
-- If-else chains (`|>`)
-- While loops
-- For loops (traditional C-style)
-- Break and skip
-- Return statements
+**Goal:** A consistent, typed AST with correct scoping/returns.
 
-**Deliverable:** FizzBuzz program
+**Status:** IN PROGRESS  
+**Done:** duplicate top-level/member/param/local checks; break/skip-in-loop; return rules (void/non-void); enum dot qualification; disallow `::` in expression access.  
+**Next:** full type checking, mutability rules, array/list indexing types, artifact init checks, procedure type checking, generics rules.
 
-### Phase 3: artifacts and Methods
+### Phase 3: SIR Text Emission
 
-**Features:**
-- artifact definitions
-- artifact instantiation
-- Member access
-- Method calls
+**Goal:** Emit SIR text for all supported constructs and run through VM SIR pipeline.
 
-**Deliverable:** Point/Rectangle example
+**Status:** IN PROGRESS  
+**Done:** SIR emitter/IR builder infrastructure and IR tests.  
+**Next:** language → SIR mapping for expressions, control flow, artifacts, enums, arrays/lists, fn values.
 
-### Phase 4: Advanced Features
+### Phase 4: End-to-End Tests
 
-**Features:**
-- modules
-- enums
-- Arrays and lists
-- First-class procedures
-- Generics
+**Goal:** Language tests compile to SIR, then SIR → SBC → VM run.
 
-**Deliverable:** Full language support
+**Status:** TODO  
+**Next:** golden language fixtures, performance fixtures, runtime behavior tests.
 
-### Phase 5: Optimization and Tooling
+### Phase 5: Tooling + UX
 
-**Features:**
-- Error recovery in parser
-- Better error messages
-- Basic optimizations
-- Standard library
-- Language server protocol (LSP)
-- Debugger support
+**Goal:** CLI workflow and diagnostics suitable for v0.1.
+
+**Status:** TODO  
+**Next:** consistent error format, source spans, `simple build/run/check` wired to SIR.
 
 ---
 
-## Detailed Implementation Plan (Implementation Document)
+## Detailed Plan (Dependency Ordered)
 
-This plan follows the language specification and compiler architecture in this document. Each checklist item should be completed and verified before advancing to the next dependent item.
+### 1) Lexer
+- [x] Keywords: `while`, `for`, `break`, `skip`, `return`, `if`, `else`, `default`, `fn`, `self`, `artifact`, `enum`, `module`, `true`, `false`
+- [x] Literals: integer, float, string, char
+- [x] Operators/punctuators (including `:`, `::`, `|>`, `[]`, `()`, `{}`)
+- [x] Single-line and multi-line comments
+- [x] Line/column tracking
+- [ ] Final pass over remaining operators/edge cases (error recovery, invalid tokens)
 
-### Compiler Pipeline Checklists
+### 2) Parser
+- [x] Declarations: variables, procedures, artifacts, modules, enums
+- [x] Statements: if/else, `|>`, while/for, return, break/skip, blocks
+- [x] Expressions: precedence, calls, member access (`.` only), fn literals, artifact literals
+- [x] Parameter lists with mutability
+- [ ] Type grammar locked for all type literals (`i8..i128`, `u8..u128`, `f32`, `f64`, `bool`, `char`, `string`)
+- [ ] Array/list type syntax and constraints fully parsed
+- [ ] Generics parsing (type params/args) if kept
+- [ ] Parser error recovery pass
 
-#### 1) Lexer (Tokenization)
-- [ ] Recognize all keywords: `while`, `for`, `break`, `skip`, `return`, `default`, `Fn`, `self`, `Artifact`, `Enum`, `Module`, `Union`
-- [ ] Recognize literals: integers (decimal/hex/binary), floats, strings, characters, booleans
-- [ ] Recognize operators and punctuators (including `::`, `|>`, `<`, `>`, `[]`, `()`, `{}`)
-- [ ] Emit distinct tokens for `:` vs `::`
-- [ ] Handle single-line and multi-line comments
-- [ ] Track line/column for diagnostics
-- [ ] Emit EOF token
+### 3) AST
+- [x] Nodes for current declarations/statements/expressions
+- [x] Source spans on nodes used in diagnostics
+- [ ] Complete type node coverage for all type literals and container types
 
-#### 2) Parser (Recursive Descent + Precedence Climbing)
-- [ ] Parse program structure: `declaration*`
-- [ ] Parse declarations: variables, procedures, artifacts, modules, enums
-- [ ] Parse parameter lists with mutability (`:` and `::`)
-- [ ] Parse types (primitive, arrays, lists, procedure types, user-defined)
-- [ ] Parse generic parameters and generic arguments (`<T>`, `<T, U>`, `Type<...>`)
-- [ ] Parse statements: assignment, if, if-else chain, while, for, return, break, skip, block
-- [ ] Parse expressions with precedence and associativity as specified
-- [ ] Parse artifact literals and array literals (positional + named fields)
-- [ ] Validate grammar error recovery (Phase 5)
+### 4) Semantic Validation
+- [x] Scope building + identifier resolution
+- [x] Duplicate checks (top-level, member, param, local)
+- [x] `break`/`skip` only inside loops
+- [x] Return checks (void/non-void, all paths for if/else/|>)
+- [x] Enum dot qualification enforced (`Enum.Value`)
+- [ ] Mutability rules (`:` vs `::`)
+- [ ] Full type checking for expressions/assignments
+- [ ] Artifact initialization rules + `self` access validation
+- [ ] Array/list indexing type checks
+- [ ] Procedure type checking + call argument validation
+- [ ] Generics rules (if retained)
 
-#### 3) AST Construction
-- [ ] Implement AST nodes for all declarations, statements, and expressions
-- [ ] Implement type nodes including `GenericInstance` and `TypeParameter`
-- [ ] Preserve source spans for diagnostics
-- [ ] Normalize operator precedence in AST (no ambiguity after parse)
+### 5) SIR Text Emission
+- [x] SIR emitter/IR builder APIs exist
+- [x] SIR text compiler exists (SIR → SBC)
+- [ ] Language → SIR mapping for expressions
+- [ ] Control flow emission (if/|>/loops/break/skip)
+- [ ] Artifact/enum emission + member access
+- [ ] Arrays/lists + literals
+- [ ] Fn values and calls
 
-#### 4) Semantic Analysis
-- [ ] Build nested scopes and symbol table
-- [ ] Enforce explicit type declarations
-- [ ] Resolve identifiers and qualify enum values
-- [ ] Enforce mutability rules (`:` vs `::`)
-- [ ] Enforce type checking for expressions and assignments
-- [ ] Validate procedure rules (return types, return paths)
-- [ ] Validate artifact rules (member initialization, `self` access)
-- [ ] Validate generic rules (type parameter scope, instantiation, inference)
-- [ ] Validate array sizes as compile-time constants
-- [ ] Validate list and array indexing types
+### 6) Tooling + CLI
+- [ ] `simple build` emits `.sir`
+- [ ] `simple run` uses VM to compile SIR → SBC and execute
+- [ ] `simple check` syntax/semantic checks only
+- [ ] Diagnostic format + source span reporting
 
-#### 5) Bytecode Generation
-- [ ] Emit VM instructions for primitives, arrays, lists, artifacts, modules, enums
-- [ ] Emit closures for `Fn` procedures
-- [ ] Monomorphize generics into concrete bytecode
-- [ ] Emit globals and locals with stable slot indexes
-- [ ] Emit control flow: if, if-else chain, while, for, break, skip
-- [ ] Emit expression evaluation (binary, unary, call, index, member)
-- [ ] Emit artifact initialization (positional and named)
-- [ ] Emit array and list literals
-- [ ] Emit return statements and default returns for `void`
-
-#### 6) Bytecode Packaging
-- [ ] Build module header and section tables
-- [ ] Define entry point (`main : i32 ()`)
-- [ ] Write module to disk as `.sbc`
-
-#### 7) Diagnostics and Errors
-- [ ] Uniform error format (`error[E0001]: ...`)
-- [ ] Report line/column and highlight ranges
-- [ ] Distinguish syntax vs semantic errors
-
-#### 8) CLI Commands
-- [ ] `simple build` emits `.sbc`
-- [ ] `simple run` compiles + executes on the VM
-- [ ] `simple check` validates syntax only
-
-### Language Feature Checklists
-
-#### Variables and Mutability
-- [ ] Mutable variable declarations (`:`)
-- [ ] Immutable variable declarations (`::`)
-- [ ] Zero-initialization of unassigned variables
-
-#### Types
-- [ ] Primitive types (`i8..i128`, `u8..u128`, `f32`, `f64`, `bool`, `char`, `string`)
-- [ ] Fixed-size arrays (`T[N]`, `T[N][M]`, `T[N][M][P]`)
-- [ ] Dynamic lists (`T[]`, `T[][]`, `T[][][]`)
-- [ ] Procedure types (`(params) : return`, `(params) :: return`)
-- [ ] User-defined types: artifacts, modules, enums
-- [ ] Generics: type parameters, type arguments, generic instantiation
-
-#### Expressions
-- [ ] Literals (int, float, string, char, bool)
-- [ ] Identifiers and member access
-- [ ] Unary operators (prefix/postfix)
-- [ ] Binary operators (arithmetic, comparison, logical, bitwise)
-- [ ] Calls and argument lists
-- [ ] Index expressions
-- [ ] Artifact literals with positional and named fields
-- [ ] Array literals
-
-#### Statements
-- [ ] Variable declarations
-- [ ] Assignment statements and compound assignments
-- [ ] If statements
-- [ ] If-else chains (`|>`)
-- [ ] While loops
-- [ ] For loops
-- [ ] Return statements
-- [ ] Break and skip
-- [ ] Blocks and expression statements
-
-#### Procedures and First-Class `Fn`
-- [ ] Procedure declarations with mutable/immutable return types
-- [ ] Parameter mutability (`:` and `::`)
-- [ ] First-class procedure values (`Fn`) with correct type checking
-- [ ] Lambda expressions
-
-#### Artifacts
-- [ ] Artifact declarations (including generics)
-- [ ] Member declarations with mutability
-- [ ] Methods with `self` access
-- [ ] Instantiation with brace syntax
-
-#### Modules
-- [ ] Module declarations
-- [ ] Static member access
-
-#### Enums
-- [ ] Enum declarations (with optional explicit values)
-- [ ] Strict scoping (`Type.Member`)
-
-#### Generics
-- [ ] Generic artifacts
-- [ ] Generic procedures
-- [ ] Type argument inference at call sites
-- [ ] Invariance rules
-
-#### Standard Library
-- [ ] Built-ins: `print`, `println`
-- [ ] Conversions: `str(i32)`, `str(f64)`, `str(bool)`, `i32(string)`, `f64(string)`
-- [ ] `len<T>` for lists and `len` for strings
-- [ ] Standard modules: `IO`, `Math`, `String`
-
-### Phase Milestone Checklists
-
-#### Phase 1: Minimal Compiler (MVP)
-- [ ] Lexer supports primitives, literals, operators for MVP
-- [ ] Parser supports variable declarations, simple expressions, procedures
-- [ ] Semantic checks for explicit typing and returns
-- [ ] Codegen for variables, arithmetic, procedure calls, `print`
-- [ ] Hello World program compiles and runs
-
-#### Phase 2: Control Flow
-- [ ] Parser supports `|>`, `while`, `for`, `break`, `skip`
-- [ ] Codegen for branching and looping
-- [ ] FizzBuzz program compiles and runs
-
-#### Phase 3: Artifacts and Methods
-- [ ] Artifact declarations and members
-- [ ] Artifact instantiation and member access
-- [ ] Method calls with `self`
-- [ ] Point/Rectangle example compiles and runs
-
-#### Phase 4: Advanced Features
-- [ ] Modules and enums
-- [ ] Arrays and lists
-- [ ] First-class procedures (`Fn`)
-- [ ] Generics for artifacts and procedures
-- [ ] Full language support examples compile and run
-
-#### Phase 5: Optimization and Tooling
-- [ ] Error recovery in parser
-- [ ] Improved diagnostics
-- [ ] Optimization passes (AST and bytecode)
-- [ ] Standard library modules wired to VM runtime
-- [ ] CLI tools stable
-- [ ] Optional LSP and debugger hooks
+### 7) End-to-End Tests
+- [ ] Language fixtures → SIR → SBC → run
+- [ ] Negative tests for parser/semantic errors
+- [ ] Performance fixtures via SIR runner
 
 ## Standard Library
 

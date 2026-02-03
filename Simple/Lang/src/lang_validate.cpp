@@ -13,8 +13,89 @@ struct ValidateContext {
   std::unordered_set<std::string> top_level;
 };
 
+enum class TypeUse : uint8_t {
+  Value,
+  Return,
+};
+
+const std::unordered_set<std::string> kPrimitiveTypes = {
+  "i8", "i16", "i32", "i64", "i128",
+  "u8", "u16", "u32", "u64", "u128",
+  "f32", "f64",
+  "bool", "char", "string",
+};
+
+bool CheckTypeRef(const TypeRef& type,
+                  const ValidateContext& ctx,
+                  const std::unordered_set<std::string>& type_params,
+                  TypeUse use,
+                  std::string* error) {
+  if (type.is_proc) {
+    for (const auto& param : type.proc_params) {
+      if (!CheckTypeRef(param, ctx, type_params, TypeUse::Value, error)) return false;
+    }
+    if (!type.proc_return) {
+      if (error) *error = "procedure type missing return type";
+      return false;
+    }
+    return CheckTypeRef(*type.proc_return, ctx, type_params, TypeUse::Return, error);
+  }
+
+  if (type.name == "void") {
+    if (use != TypeUse::Return) {
+      if (error) *error = "void is only valid as a return type";
+      return false;
+    }
+    if (!type.type_args.empty()) {
+      if (error) *error = "void cannot have type arguments";
+      return false;
+    }
+    return true;
+  }
+
+  const bool is_primitive = kPrimitiveTypes.find(type.name) != kPrimitiveTypes.end();
+  const bool is_type_param = type_params.find(type.name) != type_params.end();
+  const bool is_user_type = ctx.top_level.find(type.name) != ctx.top_level.end();
+
+  if (!is_primitive && !is_type_param && !is_user_type) {
+    if (error) *error = "unknown type: " + type.name;
+    return false;
+  }
+
+  if (!type.type_args.empty()) {
+    if (is_primitive) {
+      if (error) *error = "primitive type cannot have type arguments: " + type.name;
+      return false;
+    }
+    if (is_type_param) {
+      if (error) *error = "type parameter cannot have type arguments: " + type.name;
+      return false;
+    }
+    for (const auto& arg : type.type_args) {
+      if (!CheckTypeRef(arg, ctx, type_params, TypeUse::Value, error)) return false;
+    }
+  }
+
+  return true;
+}
+
+bool CollectTypeParams(const std::vector<std::string>& generics,
+                        std::unordered_set<std::string>* out,
+                        std::string* error) {
+  if (!out) return false;
+  out->clear();
+  for (const auto& name : generics) {
+    if (!out->insert(name).second) {
+      if (error) *error = "duplicate generic parameter: " + name;
+      return false;
+    }
+  }
+  return true;
+}
+
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
+               const std::unordered_set<std::string>& type_params,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_set<std::string>>& scopes,
@@ -50,6 +131,7 @@ bool AddLocal(std::vector<std::unordered_set<std::string>>& scopes,
 
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
+               const std::unordered_set<std::string>& type_params,
                bool return_is_void,
                int loop_depth,
                std::vector<std::unordered_set<std::string>>& scopes,
@@ -75,6 +157,7 @@ bool CheckStmt(const Stmt& stmt,
       return CheckExpr(stmt.expr, ctx, scopes, error);
     case StmtKind::VarDecl:
       if (!AddLocal(scopes, stmt.var_decl.name, error)) return false;
+      if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
       if (stmt.var_decl.has_init_expr) {
         return CheckExpr(stmt.var_decl.init_expr, ctx, scopes, error);
       }
@@ -84,14 +167,14 @@ bool CheckStmt(const Stmt& stmt,
         if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
       if (!stmt.else_branch.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.else_branch) {
-          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -100,13 +183,13 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
       }
       scopes.pop_back();
       if (!stmt.if_else.empty()) {
         scopes.emplace_back();
         for (const auto& child : stmt.if_else) {
-          if (!CheckStmt(child, ctx, return_is_void, loop_depth, scopes, error)) return false;
+          if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, error)) return false;
         }
         scopes.pop_back();
       }
@@ -115,7 +198,7 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, return_is_void, loop_depth + 1, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth + 1, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
@@ -125,7 +208,7 @@ bool CheckStmt(const Stmt& stmt,
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
       if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, return_is_void, loop_depth + 1, scopes, error)) return false;
+        if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth + 1, scopes, error)) return false;
       }
       scopes.pop_back();
       return true;
@@ -236,20 +319,23 @@ bool StmtsReturn(const std::vector<Stmt>& stmts) {
 
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
+                       const std::unordered_set<std::string>& type_params,
                        std::string* error) {
   std::vector<std::unordered_set<std::string>> scopes;
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
+  if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
       if (error) *error = "duplicate parameter name: " + param.name;
       return false;
     }
+    if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, return_is_void, 0, scopes, error)) return false;
+    if (!CheckStmt(stmt, ctx, type_params, return_is_void, 0, scopes, error)) return false;
   }
   if (!return_is_void && !StmtsReturn(fn.body)) {
     if (error) *error = "non-void function does not return on all paths";
@@ -301,16 +387,23 @@ bool ValidateProgram(const Program& program, std::string* error) {
   for (const auto& decl : program.decls) {
     switch (decl.kind) {
       case DeclKind::Function:
-        if (!CheckFunctionBody(decl.func, ctx, error)) return false;
+        {
+          std::unordered_set<std::string> type_params;
+          if (!CollectTypeParams(decl.func.generics, &type_params, error)) return false;
+          if (!CheckFunctionBody(decl.func, ctx, type_params, error)) return false;
+        }
         break;
       case DeclKind::Artifact:
         {
+          std::unordered_set<std::string> type_params;
+          if (!CollectTypeParams(decl.artifact.generics, &type_params, error)) return false;
           std::unordered_set<std::string> names;
           for (const auto& field : decl.artifact.fields) {
             if (!names.insert(field.name).second) {
               if (error) *error = "duplicate artifact member: " + field.name;
               return false;
             }
+            if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
           }
           for (const auto& method : decl.artifact.methods) {
             if (!names.insert(method.name).second) {
@@ -318,9 +411,9 @@ bool ValidateProgram(const Program& program, std::string* error) {
               return false;
             }
           }
-        }
-        for (const auto& method : decl.artifact.methods) {
-          if (!CheckFunctionBody(method, ctx, error)) return false;
+          for (const auto& method : decl.artifact.methods) {
+            if (!CheckFunctionBody(method, ctx, type_params, error)) return false;
+          }
         }
         break;
       case DeclKind::Module:
@@ -331,6 +424,8 @@ bool ValidateProgram(const Program& program, std::string* error) {
               if (error) *error = "duplicate module member: " + var.name;
               return false;
             }
+            std::unordered_set<std::string> type_params;
+            if (!CheckTypeRef(var.type, ctx, type_params, TypeUse::Value, error)) return false;
           }
           for (const auto& fn : decl.module.functions) {
             if (!names.insert(fn.name).second) {
@@ -340,11 +435,17 @@ bool ValidateProgram(const Program& program, std::string* error) {
           }
         }
         for (const auto& fn : decl.module.functions) {
-          if (!CheckFunctionBody(fn, ctx, error)) return false;
+          std::unordered_set<std::string> type_params;
+          if (!CollectTypeParams(fn.generics, &type_params, error)) return false;
+          if (!CheckFunctionBody(fn, ctx, type_params, error)) return false;
         }
         break;
       case DeclKind::Enum:
       case DeclKind::Variable:
+        if (decl.kind == DeclKind::Variable) {
+          std::unordered_set<std::string> type_params;
+          if (!CheckTypeRef(decl.var.type, ctx, type_params, TypeUse::Value, error)) return false;
+        }
         break;
     }
   }

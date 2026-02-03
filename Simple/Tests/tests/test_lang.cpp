@@ -382,6 +382,48 @@ bool LangValidateUndeclaredIdentifier() {
   return true;
 }
 
+bool LangValidateUnknownType() {
+  const char* src = "main : i32 () { x : NotAType = 1; return 0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateVoidValueType() {
+  const char* src = "main : i32 () { x : void = 1; return 0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateVoidParamType() {
+  const char* src = "main : i32 (x : void) { return 0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidatePrimitiveTypeArgs() {
+  const char* src = "main : i32 () { x : i32<i32> = 1; return 0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateTypeParamOk() {
+  const char* src = "id<T> : T (v : T) { return v; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateTypeParamWithArgs() {
+  const char* src = "id<T> : i32 (v : T<i32>) { return 0; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -591,6 +633,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_break_outside_loop", LangValidateBreakOutsideLoop},
   {"lang_validate_skip_outside_loop", LangValidateSkipOutsideLoop},
   {"lang_validate_undeclared_identifier", LangValidateUndeclaredIdentifier},
+  {"lang_validate_unknown_type", LangValidateUnknownType},
+  {"lang_validate_void_value_type", LangValidateVoidValueType},
+  {"lang_validate_void_param_type", LangValidateVoidParamType},
+  {"lang_validate_primitive_type_args", LangValidatePrimitiveTypeArgs},
+  {"lang_validate_type_param_ok", LangValidateTypeParamOk},
+  {"lang_validate_type_param_with_args", LangValidateTypeParamWithArgs},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
