@@ -52,21 +52,34 @@ int main(int argc, char** argv) {
   }
   if (argc > 1 && std::string(argv[1]) == "--perf") {
     if (argc < 3) {
-      std::cerr << "usage: simplevm_tests --perf <dir> [iters] [--no-verify]\n";
+      std::cerr << "usage: simplevm_tests --perf <dir> [--iters N] [--no-verify]\n";
       return 2;
     }
     const std::string dir = argv[2];
     size_t iterations = 100;
     bool verify = true;
-    if (argc > 3) {
-      if (std::string(argv[3]) == "--no-verify") {
+    for (int i = 3; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (arg == "--no-verify") {
         verify = false;
-      } else {
-        iterations = static_cast<size_t>(std::stoul(argv[3]));
+        continue;
       }
-    }
-    if (argc > 4 && std::string(argv[4]) == "--no-verify") {
-      verify = false;
+      if (arg == "--iters" && i + 1 < argc) {
+        try {
+          iterations = static_cast<size_t>(std::stoul(argv[i + 1]));
+        } catch (...) {
+          std::cerr << "invalid --iters value\n";
+          return 2;
+        }
+        ++i;
+        continue;
+      }
+      try {
+        iterations = static_cast<size_t>(std::stoul(arg));
+      } catch (...) {
+        std::cerr << "usage: simplevm_tests --perf <dir> [--iters N] [--no-verify]\n";
+        return 2;
+      }
     }
     return Simple::VM::Tests::RunSirPerfDir(dir, iterations, verify);
   }
