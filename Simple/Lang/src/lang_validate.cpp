@@ -114,6 +114,7 @@ bool CheckStmt(const Stmt& stmt,
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
                const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+               const ArtifactDecl* current_artifact,
                std::string* error);
 
 bool StmtReturns(const Stmt& stmt);
@@ -238,6 +239,46 @@ bool CheckAssignmentTarget(const Expr& target,
   return true;
 }
 
+bool ValidateArtifactLiteral(const Expr& expr,
+                             const ArtifactDecl* artifact,
+                             std::string* error) {
+  if (!artifact) return true;
+  const size_t field_count = artifact->fields.size();
+  if (expr.children.size() > field_count) {
+    if (error) *error = "too many positional values in artifact literal";
+    return false;
+  }
+  std::unordered_set<std::string> seen;
+  for (const auto& name : expr.field_names) {
+    if (!seen.insert(name).second) {
+      if (error) *error = "duplicate named field in artifact literal: " + name;
+      return false;
+    }
+  }
+  for (size_t i = 0; i < expr.children.size(); ++i) {
+    if (i >= field_count) break;
+    const auto& field = artifact->fields[i];
+    if (seen.find(field.name) != seen.end()) {
+      if (error) *error = "field specified twice in artifact literal: " + field.name;
+      return false;
+    }
+    seen.insert(field.name);
+  }
+  if (!expr.field_names.empty()) {
+    std::unordered_set<std::string> valid;
+    for (const auto& field : artifact->fields) {
+      valid.insert(field.name);
+    }
+    for (const auto& name : expr.field_names) {
+      if (valid.find(name) == valid.end()) {
+        if (error) *error = "unknown artifact field: " + name;
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
                const std::unordered_set<std::string>& type_params,
@@ -257,15 +298,15 @@ bool CheckStmt(const Stmt& stmt,
         return false;
       }
       if (stmt.has_return_expr) {
-        return CheckExpr(stmt.expr, ctx, scopes, error);
+        return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
       }
       return true;
     case StmtKind::Expr:
-      return CheckExpr(stmt.expr, ctx, scopes, error);
+      return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
     case StmtKind::Assign:
-      if (!CheckExpr(stmt.target, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.target, ctx, scopes, current_artifact, error)) return false;
       if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
-      return CheckExpr(stmt.expr, ctx, scopes, error);
+      return CheckExpr(stmt.expr, ctx, scopes, current_artifact, error);
     case StmtKind::VarDecl:
       if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
       {
@@ -275,12 +316,19 @@ bool CheckStmt(const Stmt& stmt,
         if (!AddLocal(scopes, stmt.var_decl.name, info, error)) return false;
       }
       if (stmt.var_decl.has_init_expr) {
-        return CheckExpr(stmt.var_decl.init_expr, ctx, scopes, error);
+        if (!CheckExpr(stmt.var_decl.init_expr, ctx, scopes, current_artifact, error)) return false;
+        if (stmt.var_decl.init_expr.kind == ExprKind::ArtifactLiteral) {
+          auto artifact_it = ctx.artifacts.find(stmt.var_decl.type.name);
+          if (artifact_it != ctx.artifacts.end()) {
+            if (!ValidateArtifactLiteral(stmt.var_decl.init_expr, artifact_it->second, error)) return false;
+          }
+        }
+        return true;
       }
       return true;
     case StmtKind::IfChain:
       for (const auto& branch : stmt.if_branches) {
-        if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
+        if (!CheckExpr(branch.first, ctx, scopes, current_artifact, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
           if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
@@ -300,7 +348,7 @@ bool CheckStmt(const Stmt& stmt,
       }
       return true;
     case StmtKind::IfStmt:
-      if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
         if (!CheckStmt(child, ctx, type_params, return_is_void, loop_depth, scopes, current_artifact, error)) {
@@ -319,7 +367,7 @@ bool CheckStmt(const Stmt& stmt,
       }
       return true;
     case StmtKind::WhileLoop:
-      if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
@@ -337,9 +385,9 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::ForLoop: {
       scopes.emplace_back();
-      if (!CheckExpr(stmt.loop_iter, ctx, scopes, error)) return false;
-      if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
-      if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(stmt.loop_step, ctx, scopes, current_artifact, error)) return false;
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
                        ctx,
@@ -374,10 +422,17 @@ bool CheckStmt(const Stmt& stmt,
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
                const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+               const ArtifactDecl* current_artifact,
                std::string* error) {
   switch (expr.kind) {
     case ExprKind::Identifier:
-      if (expr.text == "self") return true;
+      if (expr.text == "self") {
+        if (!current_artifact) {
+          if (error) *error = "self used outside of artifact method";
+          return false;
+        }
+        return true;
+      }
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
@@ -389,21 +444,21 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Literal:
       return true;
     case ExprKind::Unary:
-      return CheckExpr(expr.children[0], ctx, scopes, error);
+      return CheckExpr(expr.children[0], ctx, scopes, current_artifact, error);
     case ExprKind::Binary:
-      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (IsAssignOp(expr.op)) {
-        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, nullptr, error)) return false;
+        if (!CheckAssignmentTarget(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       }
-      return CheckExpr(expr.children[1], ctx, scopes, error);
+      return CheckExpr(expr.children[1], ctx, scopes, current_artifact, error);
     case ExprKind::Call:
-      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       for (const auto& arg : expr.args) {
-        if (!CheckExpr(arg, ctx, scopes, error)) return false;
+        if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
       return true;
     case ExprKind::Member:
-      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (expr.op == "::" && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
@@ -415,20 +470,20 @@ bool CheckExpr(const Expr& expr,
       }
       return true;
     case ExprKind::Index:
-      return CheckExpr(expr.children[0], ctx, scopes, error) &&
-             CheckExpr(expr.children[1], ctx, scopes, error);
+      return CheckExpr(expr.children[0], ctx, scopes, current_artifact, error) &&
+             CheckExpr(expr.children[1], ctx, scopes, current_artifact, error);
     case ExprKind::ArrayLiteral:
     case ExprKind::ListLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, scopes, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, current_artifact, error)) return false;
       }
       return true;
     case ExprKind::ArtifactLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, scopes, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, current_artifact, error)) return false;
       }
       for (const auto& field_value : expr.field_values) {
-        if (!CheckExpr(field_value, ctx, scopes, error)) return false;
+        if (!CheckExpr(field_value, ctx, scopes, current_artifact, error)) return false;
       }
       return true;
     case ExprKind::FnLiteral:

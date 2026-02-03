@@ -473,6 +473,58 @@ bool LangValidateMutableFieldAssignOk() {
   return true;
 }
 
+bool LangValidateSelfOutsideMethod() {
+  const char* src = "main : void () { self; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralTooManyPositional() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { 1, 2, 3 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralDuplicateNamed() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { .x = 1, .x = 2 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralUnknownField() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { .z = 1 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralPositionalThenNamedDuplicate() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { 1, .x = 2 }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralNamedOk() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { .x = 1 }; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
@@ -694,6 +746,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_self_field_assign", LangValidateImmutableSelfFieldAssign},
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
   {"lang_validate_mutable_field_assign_ok", LangValidateMutableFieldAssignOk},
+  {"lang_validate_self_outside_method", LangValidateSelfOutsideMethod},
+  {"lang_validate_artifact_literal_too_many_positional", LangValidateArtifactLiteralTooManyPositional},
+  {"lang_validate_artifact_literal_duplicate_named", LangValidateArtifactLiteralDuplicateNamed},
+  {"lang_validate_artifact_literal_unknown_field", LangValidateArtifactLiteralUnknownField},
+  {"lang_validate_artifact_literal_positional_then_named_duplicate", LangValidateArtifactLiteralPositionalThenNamedDuplicate},
+  {"lang_validate_artifact_literal_named_ok", LangValidateArtifactLiteralNamedOk},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},

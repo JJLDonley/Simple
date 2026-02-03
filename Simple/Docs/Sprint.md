@@ -641,3 +641,6 @@
 - Added Simple::Lang mutability validation for locals, params, artifact fields, and module members.
 - Added Simple::Lang assignment validation for immutable locals and fields (including `self`).
 - Added Simple::Lang tests for immutable assignments and mutable field assignment success.
+- Added Simple::Lang validation for `self` usage only within artifact methods.
+- Added Simple::Lang artifact literal validation for field counts, duplicate fields, and unknown fields.
+- Added Simple::Lang artifact literal tests for positional/named correctness and error cases.
