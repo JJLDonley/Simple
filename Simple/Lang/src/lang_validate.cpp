@@ -342,6 +342,12 @@ bool CheckListLiteralElementTypes(const Expr& expr,
                                   const TypeRef& list_type,
                                   std::string* error);
 
+bool CheckBoolCondition(const Expr& expr,
+                        const ValidateContext& ctx,
+                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                        const ArtifactDecl* current_artifact,
+                        std::string* error);
+
 bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
@@ -790,6 +796,7 @@ bool CheckStmt(const Stmt& stmt,
     case StmtKind::IfChain:
       for (const auto& branch : stmt.if_branches) {
         if (!CheckExpr(branch.first, ctx, scopes, current_artifact, error)) return false;
+        if (!CheckBoolCondition(branch.first, ctx, scopes, current_artifact, error)) return false;
         scopes.emplace_back();
         for (const auto& child : branch.second) {
           if (!CheckStmt(child,
@@ -826,6 +833,7 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::IfStmt:
       if (!CheckExpr(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckBoolCondition(stmt.if_cond, ctx, scopes, current_artifact, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
         if (!CheckStmt(child,
@@ -861,6 +869,7 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::WhileLoop:
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
       scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
@@ -881,6 +890,7 @@ bool CheckStmt(const Stmt& stmt,
       scopes.emplace_back();
       if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(stmt.loop_step, ctx, scopes, current_artifact, error)) return false;
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
@@ -1038,6 +1048,21 @@ bool CheckListLiteralElementTypes(const Expr& expr,
     }
     if (!TypeEquals(element_type, child_type)) {
       if (error) *error = "list literal element type mismatch";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CheckBoolCondition(const Expr& expr,
+                        const ValidateContext& ctx,
+                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                        const ArtifactDecl* current_artifact,
+                        std::string* error) {
+  TypeRef cond_type;
+  if (InferExprType(expr, ctx, scopes, current_artifact, &cond_type)) {
+    if (!IsBoolTypeName(cond_type.name)) {
+      if (error) *error = "condition must be bool";
       return false;
     }
   }
