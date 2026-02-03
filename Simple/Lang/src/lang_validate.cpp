@@ -617,6 +617,9 @@ bool CheckAssignmentTarget(const Expr& target,
 
 bool ValidateArtifactLiteral(const Expr& expr,
                              const ArtifactDecl* artifact,
+                             const ValidateContext& ctx,
+                             const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                             const ArtifactDecl* current_artifact,
                              std::string* error) {
   if (!artifact) return true;
   const size_t field_count = artifact->fields.size();
@@ -639,16 +642,37 @@ bool ValidateArtifactLiteral(const Expr& expr,
       return false;
     }
     seen.insert(field.name);
+    TypeRef value_type;
+    if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {
+      if (!TypeEquals(field.type, value_type)) {
+        if (error) *error = "artifact field type mismatch: " + field.name;
+        return false;
+      }
+    }
   }
   if (!expr.field_names.empty()) {
     std::unordered_set<std::string> valid;
+    std::unordered_map<std::string, const VarDecl*> field_map;
     for (const auto& field : artifact->fields) {
       valid.insert(field.name);
+      field_map[field.name] = &field;
     }
     for (const auto& name : expr.field_names) {
       if (valid.find(name) == valid.end()) {
         if (error) *error = "unknown artifact field: " + name;
         return false;
+      }
+    }
+    for (size_t i = 0; i < expr.field_names.size(); ++i) {
+      const auto& name = expr.field_names[i];
+      auto it = field_map.find(name);
+      if (it == field_map.end()) continue;
+      TypeRef value_type;
+      if (InferExprType(expr.field_values[i], ctx, scopes, current_artifact, &value_type)) {
+        if (!TypeEquals(it->second->type, value_type)) {
+          if (error) *error = "artifact field type mismatch: " + name;
+          return false;
+        }
       }
     }
   }
@@ -787,7 +811,14 @@ bool CheckStmt(const Stmt& stmt,
         if (stmt.var_decl.init_expr.kind == ExprKind::ArtifactLiteral) {
           auto artifact_it = ctx.artifacts.find(stmt.var_decl.type.name);
           if (artifact_it != ctx.artifacts.end()) {
-            if (!ValidateArtifactLiteral(stmt.var_decl.init_expr, artifact_it->second, error)) return false;
+            if (!ValidateArtifactLiteral(stmt.var_decl.init_expr,
+                                         artifact_it->second,
+                                         ctx,
+                                         scopes,
+                                         current_artifact,
+                                         error)) {
+              return false;
+            }
           }
         }
         return true;

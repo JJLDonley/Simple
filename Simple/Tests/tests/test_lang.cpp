@@ -539,6 +539,24 @@ bool LangValidateArtifactLiteralNamedOk() {
   return true;
 }
 
+bool LangValidateArtifactLiteralTypeMismatchPositional() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { 1, true }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactLiteralTypeMismatchNamed() {
+  const char* src =
+    "Point :: artifact { x : i32 y : i32 }"
+    "main : void () { p : Point = { .y = true }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateIndexFloatLiteral() {
   const char* src = "main : i32 () { return [1,2,3][1.5]; }";
   std::string error;
@@ -1132,6 +1150,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_artifact_literal_unknown_field", LangValidateArtifactLiteralUnknownField},
   {"lang_validate_artifact_literal_positional_then_named_duplicate", LangValidateArtifactLiteralPositionalThenNamedDuplicate},
   {"lang_validate_artifact_literal_named_ok", LangValidateArtifactLiteralNamedOk},
+  {"lang_validate_artifact_literal_type_mismatch_positional", LangValidateArtifactLiteralTypeMismatchPositional},
+  {"lang_validate_artifact_literal_type_mismatch_named", LangValidateArtifactLiteralTypeMismatchNamed},
   {"lang_validate_index_float_literal", LangValidateIndexFloatLiteral},
   {"lang_validate_index_string_literal", LangValidateIndexStringLiteral},
   {"lang_validate_index_literal_base", LangValidateIndexLiteralBase},
