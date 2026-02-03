@@ -17,6 +17,13 @@ This directory contains the authoritative documentation for the Simple VM stack.
 - `SBC_IR.md`: SIR (Simple IR) text format and lowering rules.
 - `Modules.md`: module-by-module overview and plans.
 
+## Module Docs (Simple::)
+- `VM.md`
+- `Byte.md`
+- `IR.md`
+- `CLI.md`
+- `Lang.md`
+
 ## Project Planning
 - `Implementation.md`: module-based phase plan.
 - `Sprint.md`: chronological change log.

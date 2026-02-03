@@ -595,3 +595,4 @@
 - Fixed SIR perf CLI parsing to support --iters without crashing.
 - Formalized module-based phase plans in `Simple/Docs/Implementation.md` and added `Simple/Docs/README.md` index.
 - Added `Simple/Docs/Modules.md` with consistent module documentation format.
+- Added module docs under `Simple/Docs/VM.md`, `Byte.md`, `IR.md`, `CLI.md`, `Lang.md` and linked in README.
