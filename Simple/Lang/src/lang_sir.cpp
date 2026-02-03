@@ -25,6 +25,10 @@ struct EmitState {
   std::unordered_map<std::string, uint16_t> local_indices;
   uint16_t next_local = 0;
 
+  std::unordered_map<std::string, uint32_t> func_ids;
+  std::unordered_map<std::string, TypeRef> func_returns;
+  std::unordered_map<std::string, std::vector<TypeRef>> func_params;
+
   uint32_t stack_cur = 0;
   uint32_t stack_max = 0;
   bool saw_return = false;
@@ -477,6 +481,47 @@ bool EmitExpr(EmitState& st,
       }
       return EmitConstForType(st, *use_type, expr, error);
     }
+    case ExprKind::Call: {
+      if (expr.children.empty()) {
+        if (error) *error = "call missing callee";
+        return false;
+      }
+      const Expr& callee = expr.children[0];
+      if (callee.kind != ExprKind::Identifier) {
+        if (error) *error = "call target not supported in SIR emission";
+        return false;
+      }
+      const std::string& name = callee.text;
+      auto id_it = st.func_ids.find(name);
+      if (id_it == st.func_ids.end()) {
+        if (error) *error = "unknown function '" + name + "'";
+        return false;
+      }
+      auto params_it = st.func_params.find(name);
+      if (params_it == st.func_params.end()) {
+        if (error) *error = "missing signature for '" + name + "'";
+        return false;
+      }
+      const auto& params = params_it->second;
+      if (expr.args.size() != params.size()) {
+        if (error) *error = "call argument count mismatch for '" + name + "'";
+        return false;
+      }
+      for (size_t i = 0; i < params.size(); ++i) {
+        if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+      }
+      (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+      if (st.stack_cur >= params.size()) {
+        st.stack_cur -= static_cast<uint32_t>(params.size());
+      } else {
+        st.stack_cur = 0;
+      }
+      auto ret_it = st.func_returns.find(name);
+      if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+        PushStack(st, 1);
+      }
+      return true;
+    }
     case ExprKind::Unary:
       return EmitUnary(st, expr, expected, error);
     case ExprKind::Binary:
@@ -680,10 +725,6 @@ bool EmitFunction(EmitState& st, const FuncDecl& fn, std::string* out, std::stri
     if (error) *error = "generic functions not supported in SIR emission";
     return false;
   }
-  if (!fn.params.empty()) {
-    if (error) *error = "function parameters not supported in SIR emission";
-    return false;
-  }
   if (!IsSupportedType(fn.return_type)) {
     if (error) *error = "unsupported return type for function '" + fn.name + "'";
     return false;
@@ -701,11 +742,21 @@ bool EmitFunction(EmitState& st, const FuncDecl& fn, std::string* out, std::stri
   for (const auto& stmt : fn.body) {
     if (stmt.kind == StmtKind::VarDecl) locals_count++;
   }
+  uint16_t param_count = static_cast<uint16_t>(fn.params.size());
+  uint16_t total_locals = static_cast<uint16_t>(locals_count + param_count);
   std::ostringstream func_out;
   st.out = &func_out;
 
-  (*st.out) << "func " << fn.name << " locals=" << locals_count << " stack=0 sig=" << fn.name << "\n";
-  (*st.out) << "  enter " << locals_count << "\n";
+  (*st.out) << "func " << fn.name << " locals=" << total_locals << " stack=0 sig=" << fn.name << "\n";
+  (*st.out) << "  enter " << total_locals << "\n";
+
+  for (const auto& param : fn.params) {
+    uint16_t index = st.next_local++;
+    st.local_indices.emplace(param.name, index);
+    TypeRef cloned;
+    if (!CloneTypeRef(param.type, &cloned)) return false;
+    st.local_types.emplace(param.name, std::move(cloned));
+  }
 
   for (const auto& stmt : fn.body) {
     if (!EmitStmt(st, stmt, error)) {
@@ -728,7 +779,7 @@ bool EmitFunction(EmitState& st, const FuncDecl& fn, std::string* out, std::stri
   std::string body = func_body.substr(header_end + 1);
 
   header = "func " + fn.name +
-           " locals=" + std::to_string(locals_count) +
+           " locals=" + std::to_string(total_locals) +
            " stack=" + std::to_string(st.stack_max > 0 ? st.stack_max : 8) +
            " sig=" + fn.name;
 
@@ -758,10 +809,30 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return false;
   }
 
+  for (size_t i = 0; i < functions.size(); ++i) {
+    st.func_ids[functions[i]->name] = static_cast<uint32_t>(i);
+    TypeRef ret;
+    if (!CloneTypeRef(functions[i]->return_type, &ret)) return false;
+    st.func_returns.emplace(functions[i]->name, std::move(ret));
+    std::vector<TypeRef> params;
+    params.reserve(functions[i]->params.size());
+    for (const auto& param : functions[i]->params) {
+      TypeRef cloned;
+      if (!CloneTypeRef(param.type, &cloned)) return false;
+      params.push_back(std::move(cloned));
+    }
+    st.func_params.emplace(functions[i]->name, std::move(params));
+  }
+
   std::ostringstream result;
   result << "sigs:\n";
   for (const auto* fn : functions) {
-    result << "  sig " << fn->name << ": () -> " << fn->return_type.name << "\n";
+    result << "  sig " << fn->name << ": (";
+    for (size_t i = 0; i < fn->params.size(); ++i) {
+      if (i > 0) result << ", ";
+      result << fn->params[i].type.name;
+    }
+    result << ") -> " << fn->return_type.name << "\n";
   }
 
   std::vector<std::string> function_text;

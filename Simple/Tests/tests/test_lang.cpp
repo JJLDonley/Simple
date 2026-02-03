@@ -66,6 +66,16 @@ bool LangSirEmitsWhileLoop() {
   return RunSirTextExpectExit(sir, 10);
 }
 
+bool LangSirEmitsFunctionCall() {
+  const char* src =
+      "add : i32 (a : i32, b : i32) { return a + b; }"
+      "main : i32 () { return add(20, 22); }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangLexesKeywordsAndOps() {
   const char* src = "fn main :: void() { return; }";
   Simple::Lang::Lexer lex(src);
@@ -1773,6 +1783,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_local_assign", LangSirEmitsLocalAssign},
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},
+  {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
