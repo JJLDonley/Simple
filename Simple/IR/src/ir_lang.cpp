@@ -91,6 +91,9 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
   out->entry_name.clear();
   out->entry_index = 0;
 
+  bool entry_set = false;
+  std::unordered_set<std::string> func_names;
+
   IrTextFunction* current = nullptr;
   std::istringstream input(text);
   std::string raw;
@@ -106,9 +109,17 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         if (error) *error = "func missing name at line " + std::to_string(line_no);
         return false;
       }
+      const std::string& func_name = tokens[1];
+      if (func_names.find(func_name) != func_names.end()) {
+        if (error) *error = "duplicate func name at line " + std::to_string(line_no);
+        return false;
+      }
+      func_names.insert(func_name);
       out->functions.push_back(IrTextFunction{});
       current = &out->functions.back();
-      current->name = tokens[1];
+      current->name = func_name;
+      bool locals_set = false;
+      bool stack_set = false;
       for (size_t i = 2; i < tokens.size(); ++i) {
         const std::string& kv = tokens[i];
         size_t eq = kv.find('=');
@@ -116,13 +127,31 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         std::string key = kv.substr(0, eq);
         std::string val = kv.substr(eq + 1);
         uint64_t num = 0;
-        if (key == "locals" && ParseUint(val, &num)) {
+        if (key == "locals") {
+          if (!ParseUint(val, &num)) {
+            if (error) *error = "invalid locals value at line " + std::to_string(line_no);
+            return false;
+          }
           current->locals = static_cast<uint16_t>(num);
-        } else if (key == "stack" && ParseUint(val, &num)) {
+          locals_set = true;
+        } else if (key == "stack") {
+          if (!ParseUint(val, &num)) {
+            if (error) *error = "invalid stack value at line " + std::to_string(line_no);
+            return false;
+          }
           current->stack_max = static_cast<uint32_t>(num);
-        } else if (key == "sig" && ParseUint(val, &num)) {
+          stack_set = true;
+        } else if (key == "sig") {
+          if (!ParseUint(val, &num)) {
+            if (error) *error = "invalid sig value at line " + std::to_string(line_no);
+            return false;
+          }
           current->sig_id = static_cast<uint32_t>(num);
         }
+      }
+      if (!locals_set || !stack_set) {
+        if (error) *error = "func missing locals/stack at line " + std::to_string(line_no);
+        return false;
       }
       continue;
     }
@@ -138,7 +167,12 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         if (error) *error = "entry expects a function name at line " + std::to_string(line_no);
         return false;
       }
+      if (entry_set) {
+        if (error) *error = "duplicate entry at line " + std::to_string(line_no);
+        return false;
+      }
       out->entry_name = tokens[1];
+      entry_set = true;
       continue;
     }
 
@@ -166,17 +200,18 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     current->insts.push_back(std::move(inst));
   }
 
-  if (!out->entry_name.empty()) {
-    for (size_t i = 0; i < out->functions.size(); ++i) {
-      if (out->functions[i].name == out->entry_name) {
-        out->entry_index = static_cast<uint32_t>(i);
-        return true;
-      }
-    }
-    if (error) *error = "entry function not found";
+  if (out->entry_name.empty()) {
+    if (error) *error = "entry missing";
     return false;
   }
-  return true;
+  for (size_t i = 0; i < out->functions.size(); ++i) {
+    if (out->functions[i].name == out->entry_name) {
+      out->entry_index = static_cast<uint32_t>(i);
+      return true;
+    }
+  }
+  if (error) *error = "entry function not found";
+  return false;
 }
 
 bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, std::string* error) {
