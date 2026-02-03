@@ -148,9 +148,10 @@ bool CheckFunctionBody(const FuncDecl& fn,
 bool ValidateProgram(const Program& program, std::string* error) {
   ValidateContext ctx;
   for (const auto& decl : program.decls) {
+    const std::string* name_ptr = nullptr;
     switch (decl.kind) {
       case DeclKind::Enum:
-        ctx.top_level.insert(decl.enm.name);
+        name_ptr = &decl.enm.name;
         {
           std::unordered_set<std::string> local_members;
           for (const auto& member : decl.enm.members) {
@@ -163,17 +164,21 @@ bool ValidateProgram(const Program& program, std::string* error) {
         }
         break;
       case DeclKind::Artifact:
-        ctx.top_level.insert(decl.artifact.name);
+        name_ptr = &decl.artifact.name;
         break;
       case DeclKind::Module:
-        ctx.top_level.insert(decl.module.name);
+        name_ptr = &decl.module.name;
         break;
       case DeclKind::Function:
-        ctx.top_level.insert(decl.func.name);
+        name_ptr = &decl.func.name;
         break;
       case DeclKind::Variable:
-        ctx.top_level.insert(decl.var.name);
+        name_ptr = &decl.var.name;
         break;
+    }
+    if (name_ptr && !ctx.top_level.insert(*name_ptr).second) {
+      if (error) *error = "duplicate top-level declaration: " + *name_ptr;
+      return false;
     }
   }
 

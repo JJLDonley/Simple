@@ -622,3 +622,4 @@
 - Added parsing for `self` identifiers in expressions with tests.
 - Added Simple::Lang enum qualification validation pass with tests.
 - Added Simple::Lang enum duplicate-member validation with tests.
+- Added Simple::Lang top-level duplicate declaration validation with tests.

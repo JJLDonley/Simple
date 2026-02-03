@@ -260,6 +260,13 @@ bool LangValidateEnumDuplicateMember() {
   return true;
 }
 
+bool LangValidateTopLevelDuplicate() {
+  const char* src = "A :: enum { Red } A :: artifact { x : i32 }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -444,6 +451,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
+  {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
