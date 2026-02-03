@@ -49,6 +49,23 @@ bool LangSirEmitsLocalAssign() {
   return RunSirTextExpectExit(sir, 3);
 }
 
+bool LangSirEmitsIfElse() {
+  const char* src = "main : i32 () { x : i32 = 1; if x == 1 { return 7; } else { return 9; } }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsWhileLoop() {
+  const char* src =
+      "main : i32 () { i : i32 = 0; sum : i32 = 0; while i < 5 { sum = sum + i; i = i + 1; } return sum; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 10);
+}
+
 bool LangLexesKeywordsAndOps() {
   const char* src = "fn main :: void() { return; }";
   Simple::Lang::Lexer lex(src);
@@ -1754,6 +1771,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_sir_emit_local_assign", LangSirEmitsLocalAssign},
+  {"lang_sir_emit_if_else", LangSirEmitsIfElse},
+  {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},

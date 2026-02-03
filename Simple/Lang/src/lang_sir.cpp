@@ -29,6 +29,13 @@ struct EmitState {
   uint32_t stack_max = 0;
   bool saw_return = false;
   std::string current_func;
+
+  uint32_t label_counter = 0;
+  struct LoopLabels {
+    std::string break_label;
+    std::string continue_label;
+  };
+  std::vector<LoopLabels> loop_stack;
 };
 
 bool IsIntegralType(const std::string& name) {
@@ -102,6 +109,20 @@ std::string EscapeStringLiteral(const std::string& value, std::string* error) {
     }
   }
   return out;
+}
+
+std::string NewLabel(EmitState& st, const std::string& prefix) {
+  return prefix + std::to_string(st.label_counter++);
+}
+
+const char* NormalizeNumericOpType(const std::string& name) {
+  if (name == "i8" || name == "i16" || name == "i32" || name == "char") return "i32";
+  if (name == "u8" || name == "u16" || name == "u32") return "u32";
+  if (name == "i64") return "i64";
+  if (name == "u64") return "u64";
+  if (name == "f32") return "f32";
+  if (name == "f64") return "f64";
+  return nullptr;
 }
 
 bool PushStack(EmitState& st, uint32_t count) {
@@ -249,6 +270,36 @@ bool EmitExpr(EmitState& st,
               const TypeRef* expected,
               std::string* error);
 
+bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
+
+bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
+  if (expr.children.size() != 2) {
+    if (error) *error = "assignment missing operands";
+    return false;
+  }
+  const Expr& target = expr.children[0];
+  if (target.kind != ExprKind::Identifier) {
+    if (error) *error = "assignment target not supported in SIR emission";
+    return false;
+  }
+  auto it = st.local_indices.find(target.text);
+  if (it == st.local_indices.end()) {
+    if (error) *error = "unknown local '" + target.text + "'";
+    return false;
+  }
+  auto type_it = st.local_types.find(target.text);
+  if (type_it == st.local_types.end()) {
+    if (error) *error = "unknown type for local '" + target.text + "'";
+    return false;
+  }
+  if (!EmitExpr(st, expr.children[1], &type_it->second, error)) return false;
+  (*st.out) << "  stloc " << it->second << "\n";
+  PopStack(st, 1);
+  (*st.out) << "  ldloc " << it->second << "\n";
+  PushStack(st, 1);
+  return true;
+}
+
 bool EmitUnary(EmitState& st,
                const Expr& expr,
                const TypeRef* expected,
@@ -285,6 +336,55 @@ bool EmitBinary(EmitState& st,
   if (!InferExprType(expr.children[0], st, &left_type, error)) return false;
   TypeRef right_type;
   if (!InferExprType(expr.children[1], st, &right_type, error)) return false;
+  if (left_type.name != right_type.name && !expected) {
+    if (error) *error = "operand type mismatch for '" + expr.op + "'";
+    return false;
+  }
+
+  if (expr.op == "=") {
+    if (expected) {
+      if (error) *error = "assignment expression not supported in typed context";
+      return false;
+    }
+    return EmitAssignmentExpr(st, expr, error);
+  }
+
+  if (expr.op == "&&" || expr.op == "||") {
+    TypeRef bool_type;
+    bool_type.name = "bool";
+    if (!EmitExpr(st, expr.children[0], &bool_type, error)) return false;
+    std::string short_label = NewLabel(st, expr.op == "&&" ? "and_false_" : "or_true_");
+    std::string end_label = NewLabel(st, "bool_end_");
+    if (expr.op == "&&") {
+      (*st.out) << "  jmp.false " << short_label << "\n";
+      PopStack(st, 1);
+      if (!EmitExpr(st, expr.children[1], &bool_type, error)) return false;
+      (*st.out) << "  jmp.false " << short_label << "\n";
+      PopStack(st, 1);
+      (*st.out) << "  const.bool 1\n";
+      PushStack(st, 1);
+      (*st.out) << "  jmp " << end_label << "\n";
+      (*st.out) << short_label << ":\n";
+      (*st.out) << "  const.bool 0\n";
+      PushStack(st, 1);
+      (*st.out) << end_label << ":\n";
+      return true;
+    }
+    (*st.out) << "  jmp.true " << short_label << "\n";
+    PopStack(st, 1);
+    if (!EmitExpr(st, expr.children[1], &bool_type, error)) return false;
+    (*st.out) << "  jmp.true " << short_label << "\n";
+    PopStack(st, 1);
+    (*st.out) << "  const.bool 0\n";
+    PushStack(st, 1);
+    (*st.out) << "  jmp " << end_label << "\n";
+    (*st.out) << short_label << ":\n";
+    (*st.out) << "  const.bool 1\n";
+    PushStack(st, 1);
+    (*st.out) << end_label << ":\n";
+    return true;
+  }
+
   TypeRef type;
   if (!CloneTypeRef(left_type, &type)) {
     if (error) *error = "failed to clone type";
@@ -296,31 +396,50 @@ bool EmitBinary(EmitState& st,
       return false;
     }
   }
-  if (left_type.name != right_type.name && !expected) {
-    if (error) *error = "operand type mismatch for '" + expr.op + "'";
+
+  const char* op_type = NormalizeNumericOpType(type.name);
+  if (!op_type) {
+    if (error) *error = "unsupported operand type for '" + expr.op + "'";
     return false;
   }
+
   if (!EmitExpr(st, expr.children[0], &type, error)) return false;
   if (!EmitExpr(st, expr.children[1], &type, error)) return false;
   PopStack(st, 1);
+  if (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
+      expr.op == ">" || expr.op == ">=") {
+    if (type.name == "bool") {
+      if (error) *error = "bool comparisons not supported in SIR emission";
+      return false;
+    }
+    const char* cmp = nullptr;
+    if (expr.op == "==") cmp = "cmp.eq.";
+    else if (expr.op == "!=") cmp = "cmp.ne.";
+    else if (expr.op == "<") cmp = "cmp.lt.";
+    else if (expr.op == "<=") cmp = "cmp.le.";
+    else if (expr.op == ">") cmp = "cmp.gt.";
+    else if (expr.op == ">=") cmp = "cmp.ge.";
+    (*st.out) << "  " << cmp << op_type << "\n";
+    return true;
+  }
   if (expr.op == "+") {
-    (*st.out) << "  add." << type.name << "\n";
+    (*st.out) << "  add." << op_type << "\n";
     return true;
   }
   if (expr.op == "-") {
-    (*st.out) << "  sub." << type.name << "\n";
+    (*st.out) << "  sub." << op_type << "\n";
     return true;
   }
   if (expr.op == "*") {
-    (*st.out) << "  mul." << type.name << "\n";
+    (*st.out) << "  mul." << op_type << "\n";
     return true;
   }
   if (expr.op == "/") {
-    (*st.out) << "  div." << type.name << "\n";
+    (*st.out) << "  div." << op_type << "\n";
     return true;
   }
   if (expr.op == "%" && IsIntegralType(type.name)) {
-    (*st.out) << "  mod." << type.name << "\n";
+    (*st.out) << "  mod." << op_type << "\n";
     return true;
   }
   if (error) *error = "unsupported binary operator '" + expr.op + "'";
@@ -385,6 +504,35 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   expr.literal_kind = LiteralKind::Integer;
   expr.text = "0";
   return EmitConstForType(st, type, expr, error);
+}
+
+bool EmitBlock(EmitState& st, const std::vector<Stmt>& body, std::string* error) {
+  for (const auto& stmt : body) {
+    if (!EmitStmt(st, stmt, error)) return false;
+  }
+  return true;
+}
+
+bool EmitIfChain(EmitState& st,
+                 const std::vector<std::pair<Expr, std::vector<Stmt>>>& branches,
+                 const std::vector<Stmt>& else_branch,
+                 std::string* error) {
+  std::string end_label = NewLabel(st, "if_end_");
+  for (size_t i = 0; i < branches.size(); ++i) {
+    const auto& branch = branches[i];
+    std::string next_label = NewLabel(st, "if_next_");
+    if (!EmitExpr(st, branch.first, nullptr, error)) return false;
+    (*st.out) << "  jmp.false " << next_label << "\n";
+    PopStack(st, 1);
+    if (!EmitBlock(st, branch.second, error)) return false;
+    (*st.out) << "  jmp " << end_label << "\n";
+    (*st.out) << next_label << ":\n";
+  }
+  if (!else_branch.empty()) {
+    if (!EmitBlock(st, else_branch, error)) return false;
+  }
+  (*st.out) << end_label << ":\n";
+  return true;
 }
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
@@ -452,6 +600,75 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       st.saw_return = true;
       return true;
     }
+    case StmtKind::IfChain:
+      return EmitIfChain(st, stmt.if_branches, stmt.else_branch, error);
+    case StmtKind::IfStmt: {
+      std::string else_label = NewLabel(st, "if_else_");
+      std::string end_label = NewLabel(st, "if_end_");
+      if (!EmitExpr(st, stmt.if_cond, nullptr, error)) return false;
+      (*st.out) << "  jmp.false " << else_label << "\n";
+      PopStack(st, 1);
+      if (!EmitBlock(st, stmt.if_then, error)) return false;
+      (*st.out) << "  jmp " << end_label << "\n";
+      (*st.out) << else_label << ":\n";
+      if (!stmt.if_else.empty()) {
+        if (!EmitBlock(st, stmt.if_else, error)) return false;
+      }
+      (*st.out) << end_label << ":\n";
+      return true;
+    }
+    case StmtKind::WhileLoop: {
+      std::string start_label = NewLabel(st, "while_start_");
+      std::string end_label = NewLabel(st, "while_end_");
+      st.loop_stack.push_back({end_label, start_label});
+      (*st.out) << start_label << ":\n";
+      if (!EmitExpr(st, stmt.loop_cond, nullptr, error)) return false;
+      (*st.out) << "  jmp.false " << end_label << "\n";
+      PopStack(st, 1);
+      if (!EmitBlock(st, stmt.loop_body, error)) return false;
+      (*st.out) << "  jmp " << start_label << "\n";
+      (*st.out) << end_label << ":\n";
+      st.loop_stack.pop_back();
+      return true;
+    }
+    case StmtKind::ForLoop: {
+      std::string start_label = NewLabel(st, "for_start_");
+      std::string step_label = NewLabel(st, "for_step_");
+      std::string end_label = NewLabel(st, "for_end_");
+      if (!EmitExpr(st, stmt.loop_iter, nullptr, error)) return false;
+      (*st.out) << "  pop\n";
+      PopStack(st, 1);
+      st.loop_stack.push_back({end_label, step_label});
+      (*st.out) << start_label << ":\n";
+      if (!EmitExpr(st, stmt.loop_cond, nullptr, error)) return false;
+      (*st.out) << "  jmp.false " << end_label << "\n";
+      PopStack(st, 1);
+      if (!EmitBlock(st, stmt.loop_body, error)) return false;
+      (*st.out) << step_label << ":\n";
+      if (!EmitExpr(st, stmt.loop_step, nullptr, error)) return false;
+      (*st.out) << "  pop\n";
+      PopStack(st, 1);
+      (*st.out) << "  jmp " << start_label << "\n";
+      (*st.out) << end_label << ":\n";
+      st.loop_stack.pop_back();
+      return true;
+    }
+    case StmtKind::Break: {
+      if (st.loop_stack.empty()) {
+        if (error) *error = "break outside loop";
+        return false;
+      }
+      (*st.out) << "  jmp " << st.loop_stack.back().break_label << "\n";
+      return true;
+    }
+    case StmtKind::Skip: {
+      if (st.loop_stack.empty()) {
+        if (error) *error = "skip outside loop";
+        return false;
+      }
+      (*st.out) << "  jmp " << st.loop_stack.back().continue_label << "\n";
+      return true;
+    }
     default:
       if (error) *error = "statement not supported for SIR emission";
       return false;
@@ -478,6 +695,8 @@ bool EmitFunction(EmitState& st, const FuncDecl& fn, std::string* out, std::stri
   st.stack_cur = 0;
   st.stack_max = 0;
   st.saw_return = false;
+  st.label_counter = 0;
+  st.loop_stack.clear();
   uint16_t locals_count = 0;
   for (const auto& stmt : fn.body) {
     if (stmt.kind == StmtKind::VarDecl) locals_count++;
