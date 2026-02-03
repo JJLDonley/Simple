@@ -615,7 +615,7 @@
 - Added Simple::Lang procedure type parsing in TypeRef with tests.
 - Added Simple::Lang parsing for `fn` keyword top-level functions with tests.
 - Allowed `return;` without expression for void functions and added test coverage.
-- Added Simple::Lang parsing for qualified member access using `::` with tests.
+- Added Simple::Lang parsing for qualified member access using `.` with tests.
 - Added Simple::Lang `fn` literal parsing in expressions with tests.
 - Adjusted `fn` literal test to use procedure type syntax in variable declarations.
 - Added `fn : <ret>` type shorthand parsing (procedure type sugar) with tests.
@@ -626,7 +626,7 @@
 - Added Simple::Lang local-scope duplicate validation with block-level shadowing tests.
 - Added Simple::Lang module/artifact duplicate-member validation with tests.
 - Added Simple::Lang duplicate parameter validation with tests.
-- Enforced enum member access to use `.` and added validation tests for `Enum::Value`.
+- Enforced `.` as the only member access and rejected `::` in expressions, with tests.
 - Added Simple::Lang return validation for void/non-void functions with tests.
 - Added Simple::Lang validation for break/skip outside loops with tests.
 - Added Simple::Lang validation to require a return in non-void functions with tests.

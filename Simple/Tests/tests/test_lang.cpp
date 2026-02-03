@@ -383,14 +383,22 @@ bool LangValidateUndeclaredIdentifier() {
 }
 
 bool LangParsesQualifiedMember() {
-  const char* src = "main : i32 () { return Math::PI; }";
+  const char* src = "main : i32 () { return Math.PI; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
   const auto& expr = program.decls[0].func.body[0].expr;
   if (expr.kind != Simple::Lang::ExprKind::Member) return false;
-  if (expr.op != "::") return false;
+  if (expr.op != ".") return false;
   if (expr.text != "PI") return false;
+  return true;
+}
+
+bool LangRejectsDoubleColonMember() {
+  const char* src = "main : i32 () { return Math::PI; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
   return true;
 }
 
@@ -563,6 +571,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_self", LangParsesSelf},
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
+  {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
