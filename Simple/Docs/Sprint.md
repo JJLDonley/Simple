@@ -572,6 +572,7 @@
 - Added IR text negative tests for invalid hex literals and negative hex for unsigned constants.
 - Fixed IR text trap tests to return i32 after set/remove ops and adjusted call.indirect non-ref test to expect trap.
 - Added IR text negative tests and parser bounds checks for locals/stack/sig overflow.
+- Added IR text negative tests for invalid hex in locals/stack and negative hex sig.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
