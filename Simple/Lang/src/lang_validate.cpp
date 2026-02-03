@@ -12,65 +12,106 @@ struct ValidateContext {
   std::unordered_set<std::string> top_level;
 };
 
+bool CheckStmt(const Stmt& stmt,
+               const ValidateContext& ctx,
+               std::vector<std::unordered_set<std::string>>& scopes,
+               std::string* error);
+
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
-               const std::unordered_set<std::string>& locals,
+               const std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error);
+
+bool HasLocal(const std::vector<std::unordered_set<std::string>>& scopes,
+              const std::string& name) {
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    if (it->find(name) != it->end()) return true;
+  }
+  return false;
+}
+
+bool AddLocal(std::vector<std::unordered_set<std::string>>& scopes,
+              const std::string& name,
+              std::string* error) {
+  if (scopes.empty()) scopes.emplace_back();
+  auto& current = scopes.back();
+  if (!current.insert(name).second) {
+    if (error) *error = "duplicate local declaration: " + name;
+    return false;
+  }
+  return true;
+}
 
 bool CheckStmt(const Stmt& stmt,
                const ValidateContext& ctx,
-               std::unordered_set<std::string>& locals,
+               std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error) {
   switch (stmt.kind) {
     case StmtKind::Return:
       if (stmt.has_return_expr) {
-        return CheckExpr(stmt.expr, ctx, locals, error);
+        return CheckExpr(stmt.expr, ctx, scopes, error);
       }
       return true;
     case StmtKind::Expr:
-      return CheckExpr(stmt.expr, ctx, locals, error);
+      return CheckExpr(stmt.expr, ctx, scopes, error);
     case StmtKind::Assign:
-      if (!CheckExpr(stmt.target, ctx, locals, error)) return false;
-      return CheckExpr(stmt.expr, ctx, locals, error);
+      if (!CheckExpr(stmt.target, ctx, scopes, error)) return false;
+      return CheckExpr(stmt.expr, ctx, scopes, error);
     case StmtKind::VarDecl:
-      locals.insert(stmt.var_decl.name);
+      if (!AddLocal(scopes, stmt.var_decl.name, error)) return false;
       if (stmt.var_decl.has_init_expr) {
-        return CheckExpr(stmt.var_decl.init_expr, ctx, locals, error);
+        return CheckExpr(stmt.var_decl.init_expr, ctx, scopes, error);
       }
       return true;
     case StmtKind::IfChain:
       for (const auto& branch : stmt.if_branches) {
-        if (!CheckExpr(branch.first, ctx, locals, error)) return false;
+        if (!CheckExpr(branch.first, ctx, scopes, error)) return false;
+        scopes.emplace_back();
         for (const auto& child : branch.second) {
-          if (!CheckStmt(child, ctx, locals, error)) return false;
+          if (!CheckStmt(child, ctx, scopes, error)) return false;
         }
+        scopes.pop_back();
       }
-      for (const auto& child : stmt.else_branch) {
-        if (!CheckStmt(child, ctx, locals, error)) return false;
+      if (!stmt.else_branch.empty()) {
+        scopes.emplace_back();
+        for (const auto& child : stmt.else_branch) {
+          if (!CheckStmt(child, ctx, scopes, error)) return false;
+        }
+        scopes.pop_back();
       }
       return true;
     case StmtKind::IfStmt:
-      if (!CheckExpr(stmt.if_cond, ctx, locals, error)) return false;
+      if (!CheckExpr(stmt.if_cond, ctx, scopes, error)) return false;
+      scopes.emplace_back();
       for (const auto& child : stmt.if_then) {
-        if (!CheckStmt(child, ctx, locals, error)) return false;
+        if (!CheckStmt(child, ctx, scopes, error)) return false;
       }
-      for (const auto& child : stmt.if_else) {
-        if (!CheckStmt(child, ctx, locals, error)) return false;
+      scopes.pop_back();
+      if (!stmt.if_else.empty()) {
+        scopes.emplace_back();
+        for (const auto& child : stmt.if_else) {
+          if (!CheckStmt(child, ctx, scopes, error)) return false;
+        }
+        scopes.pop_back();
       }
       return true;
     case StmtKind::WhileLoop:
-      if (!CheckExpr(stmt.loop_cond, ctx, locals, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
+      scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, locals, error)) return false;
+        if (!CheckStmt(child, ctx, scopes, error)) return false;
       }
+      scopes.pop_back();
       return true;
     case StmtKind::ForLoop:
-      if (!CheckExpr(stmt.loop_iter, ctx, locals, error)) return false;
-      if (!CheckExpr(stmt.loop_cond, ctx, locals, error)) return false;
-      if (!CheckExpr(stmt.loop_step, ctx, locals, error)) return false;
+      if (!CheckExpr(stmt.loop_iter, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.loop_cond, ctx, scopes, error)) return false;
+      if (!CheckExpr(stmt.loop_step, ctx, scopes, error)) return false;
+      scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
-        if (!CheckStmt(child, ctx, locals, error)) return false;
+        if (!CheckStmt(child, ctx, scopes, error)) return false;
       }
+      scopes.pop_back();
       return true;
     case StmtKind::Break:
     case StmtKind::Skip:
@@ -81,11 +122,11 @@ bool CheckStmt(const Stmt& stmt,
 
 bool CheckExpr(const Expr& expr,
                const ValidateContext& ctx,
-               const std::unordered_set<std::string>& locals,
+               const std::vector<std::unordered_set<std::string>>& scopes,
                std::string* error) {
   switch (expr.kind) {
     case ExprKind::Identifier:
-      if (locals.find(expr.text) != locals.end()) return true;
+      if (HasLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) return true;
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
@@ -95,33 +136,33 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Literal:
       return true;
     case ExprKind::Unary:
-      return CheckExpr(expr.children[0], ctx, locals, error);
+      return CheckExpr(expr.children[0], ctx, scopes, error);
     case ExprKind::Binary:
-      return CheckExpr(expr.children[0], ctx, locals, error) &&
-             CheckExpr(expr.children[1], ctx, locals, error);
+      return CheckExpr(expr.children[0], ctx, scopes, error) &&
+             CheckExpr(expr.children[1], ctx, scopes, error);
     case ExprKind::Call:
-      if (!CheckExpr(expr.children[0], ctx, locals, error)) return false;
+      if (!CheckExpr(expr.children[0], ctx, scopes, error)) return false;
       for (const auto& arg : expr.args) {
-        if (!CheckExpr(arg, ctx, locals, error)) return false;
+        if (!CheckExpr(arg, ctx, scopes, error)) return false;
       }
       return true;
     case ExprKind::Member:
-      return CheckExpr(expr.children[0], ctx, locals, error);
+      return CheckExpr(expr.children[0], ctx, scopes, error);
     case ExprKind::Index:
-      return CheckExpr(expr.children[0], ctx, locals, error) &&
-             CheckExpr(expr.children[1], ctx, locals, error);
+      return CheckExpr(expr.children[0], ctx, scopes, error) &&
+             CheckExpr(expr.children[1], ctx, scopes, error);
     case ExprKind::ArrayLiteral:
     case ExprKind::ListLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, locals, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, error)) return false;
       }
       return true;
     case ExprKind::ArtifactLiteral:
       for (const auto& child : expr.children) {
-        if (!CheckExpr(child, ctx, locals, error)) return false;
+        if (!CheckExpr(child, ctx, scopes, error)) return false;
       }
       for (const auto& field_value : expr.field_values) {
-        if (!CheckExpr(field_value, ctx, locals, error)) return false;
+        if (!CheckExpr(field_value, ctx, scopes, error)) return false;
       }
       return true;
     case ExprKind::FnLiteral:
@@ -133,12 +174,13 @@ bool CheckExpr(const Expr& expr,
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        std::string* error) {
-  std::unordered_set<std::string> locals;
+  std::vector<std::unordered_set<std::string>> scopes;
+  scopes.emplace_back();
   for (const auto& param : fn.params) {
-    locals.insert(param.name);
+    if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
-    if (!CheckStmt(stmt, ctx, locals, error)) return false;
+    if (!CheckStmt(stmt, ctx, scopes, error)) return false;
   }
   return true;
 }

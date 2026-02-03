@@ -267,6 +267,20 @@ bool LangValidateTopLevelDuplicate() {
   return true;
 }
 
+bool LangValidateLocalDuplicateSameScope() {
+  const char* src = "main : void () { x : i32 = 1; x : i32 = 2; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateLocalDuplicateShadowAllowed() {
+  const char* src = "main : void () { x : i32 = 1; if true { x : i32 = 2; } }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangParsesQualifiedMember() {
   const char* src = "main : i32 () { return Math::PI; }";
   Simple::Lang::Program program;
@@ -452,6 +466,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
+  {"lang_validate_local_duplicate_same_scope", LangValidateLocalDuplicateSameScope},
+  {"lang_validate_local_duplicate_shadow_allowed", LangValidateLocalDuplicateShadowAllowed},
   {"lang_parse_comparisons", LangParsesComparisons},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
