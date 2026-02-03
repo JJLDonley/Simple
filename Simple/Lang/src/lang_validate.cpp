@@ -210,6 +210,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
+  bool saw_return = false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
       if (error) *error = "duplicate parameter name: " + param.name;
@@ -218,7 +219,12 @@ bool CheckFunctionBody(const FuncDecl& fn,
     if (!AddLocal(scopes, param.name, error)) return false;
   }
   for (const auto& stmt : fn.body) {
+    if (stmt.kind == StmtKind::Return) saw_return = true;
     if (!CheckStmt(stmt, ctx, return_is_void, 0, scopes, error)) return false;
+  }
+  if (!return_is_void && !saw_return) {
+    if (error) *error = "non-void function must return a value";
+    return false;
   }
   return true;
 }

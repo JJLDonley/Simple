@@ -323,6 +323,13 @@ bool LangValidateNonVoidMissingReturn() {
   return true;
 }
 
+bool LangValidateNonVoidNoReturn() {
+  const char* src = "main : i32 () { x : i32 = 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateBreakOutsideLoop() {
   const char* src = "main : void () { break; }";
   std::string error;
@@ -530,6 +537,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_duplicate_params", LangValidateDuplicateParams},
   {"lang_validate_void_return_value", LangValidateVoidReturnValue},
   {"lang_validate_nonvoid_missing_return", LangValidateNonVoidMissingReturn},
+  {"lang_validate_nonvoid_no_return", LangValidateNonVoidNoReturn},
   {"lang_validate_break_outside_loop", LangValidateBreakOutsideLoop},
   {"lang_validate_skip_outside_loop", LangValidateSkipOutsideLoop},
   {"lang_parse_comparisons", LangParsesComparisons},
