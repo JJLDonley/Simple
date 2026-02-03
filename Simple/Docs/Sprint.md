@@ -566,6 +566,7 @@
 - Added IR text negative tests for bad numeric literals (i32/f64) and negative u32 constants.
 - Added IR text negative tests for invalid label names and invalid label tokens in jumps/jmptable.
 - Added IR text label name validation for definitions and jump/jmptable targets.
+- Added IR text numeric range checks for i8/i16/i32/u8/u16/u32 constants with overflow tests.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.

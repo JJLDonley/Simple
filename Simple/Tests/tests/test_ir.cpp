@@ -5368,6 +5368,83 @@ bool RunIrTextConstU32NegativeTest() {
   return RunIrTextExpectFail(text, "ir_text_const_u32_negative");
 }
 
+bool RunIrTextConstI32OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 2147483648\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i32_overflow");
+}
+
+bool RunIrTextConstI32UnderflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i32 -2147483649\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i32_underflow");
+}
+
+bool RunIrTextConstU32OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u32 4294967296\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u32_overflow");
+}
+
+bool RunIrTextConstI8OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i8 128\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i8_overflow");
+}
+
+bool RunIrTextConstU8OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u8 256\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u8_overflow");
+}
+
+bool RunIrTextConstI16OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.i16 32768\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_i16_overflow");
+}
+
+bool RunIrTextConstU16OverflowTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  const.u16 65536\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_const_u16_overflow");
+}
+
 bool RunIrTextCallIndirectMissingValueTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -6816,6 +6893,13 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_i32_bad_token", RunIrTextConstI32BadTokenTest},
   {"ir_text_const_f64_bad_token", RunIrTextConstF64BadTokenTest},
   {"ir_text_const_u32_negative", RunIrTextConstU32NegativeTest},
+  {"ir_text_const_i32_overflow", RunIrTextConstI32OverflowTest},
+  {"ir_text_const_i32_underflow", RunIrTextConstI32UnderflowTest},
+  {"ir_text_const_u32_overflow", RunIrTextConstU32OverflowTest},
+  {"ir_text_const_i8_overflow", RunIrTextConstI8OverflowTest},
+  {"ir_text_const_u8_overflow", RunIrTextConstU8OverflowTest},
+  {"ir_text_const_i16_overflow", RunIrTextConstI16OverflowTest},
+  {"ir_text_const_u16_overflow", RunIrTextConstU16OverflowTest},
   {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
   {"ir_text_call_indirect_non_ref_value", RunIrTextCallIndirectNonRefValueTest},
   {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},

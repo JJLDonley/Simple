@@ -1,6 +1,7 @@
 #include "ir_lang.h"
 
 #include <cctype>
+#include <limits>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -71,6 +72,17 @@ bool ParseFloat(const std::string& text, double* out) {
   } catch (...) {
     return false;
   }
+}
+
+template <typename T>
+bool FitsSigned(int64_t value) {
+  return value >= static_cast<int64_t>(std::numeric_limits<T>::min()) &&
+         value <= static_cast<int64_t>(std::numeric_limits<T>::max());
+}
+
+template <typename T>
+bool FitsUnsigned(uint64_t value) {
+  return value <= static_cast<uint64_t>(std::numeric_limits<T>::max());
 }
 
 std::string Lower(const std::string& text) {
@@ -304,6 +316,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "const.i32 expects value";
           return false;
         }
+        if (!FitsSigned<int32_t>(value)) {
+          if (error) *error = "const.i32 out of range";
+          return false;
+        }
         builder.EmitConstI32(static_cast<int32_t>(value));
         continue;
       }
@@ -313,6 +329,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "const.i8 expects value";
           return false;
         }
+        if (!FitsSigned<int8_t>(value)) {
+          if (error) *error = "const.i8 out of range";
+          return false;
+        }
         builder.EmitConstI8(static_cast<int8_t>(value));
         continue;
       }
@@ -320,6 +340,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         int64_t value = 0;
         if (inst.args.size() != 1 || !ParseInt(inst.args[0], &value)) {
           if (error) *error = "const.i16 expects value";
+          return false;
+        }
+        if (!FitsSigned<int16_t>(value)) {
+          if (error) *error = "const.i16 out of range";
           return false;
         }
         builder.EmitConstI16(static_cast<int16_t>(value));
@@ -340,6 +364,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "const.u8 expects value";
           return false;
         }
+        if (!FitsUnsigned<uint8_t>(value)) {
+          if (error) *error = "const.u8 out of range";
+          return false;
+        }
         builder.EmitConstU8(static_cast<uint8_t>(value));
         continue;
       }
@@ -349,6 +377,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (error) *error = "const.u16 expects value";
           return false;
         }
+        if (!FitsUnsigned<uint16_t>(value)) {
+          if (error) *error = "const.u16 out of range";
+          return false;
+        }
         builder.EmitConstU16(static_cast<uint16_t>(value));
         continue;
       }
@@ -356,6 +388,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         uint64_t value = 0;
         if (inst.args.size() != 1 || !ParseUint(inst.args[0], &value)) {
           if (error) *error = "const.u32 expects value";
+          return false;
+        }
+        if (!FitsUnsigned<uint32_t>(value)) {
+          if (error) *error = "const.u32 out of range";
           return false;
         }
         builder.EmitConstU32(static_cast<uint32_t>(value));
