@@ -673,3 +673,4 @@
 - Added Simple::Lang inc/dec validation for assignment targets and immutability, plus invalid-target tests.
 - Allowed zero-initialized variables (no initializer) for local, module, and global declarations with new parse/validate tests.
 - Allowed zero-initialized globals/modules/locals and added compound assignment validation with new tests.
+- Extended len() validation to accept strings and added a new string len test.

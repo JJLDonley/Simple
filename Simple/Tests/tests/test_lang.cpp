@@ -1015,6 +1015,13 @@ bool LangValidateLenListOk() {
   return true;
 }
 
+bool LangValidateLenStringOk() {
+  const char* src = "main : i32 () { s : string = \"hi\"; return len(s); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateLenScalarFail() {
   const char* src = "main : i32 () { x : i32 = 1; return len(x); }";
   std::string error;
@@ -1371,6 +1378,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_for_condition_type_mismatch", LangValidateForConditionTypeMismatch},
   {"lang_validate_len_array_ok", LangValidateLenArrayOk},
   {"lang_validate_len_list_ok", LangValidateLenListOk},
+  {"lang_validate_len_string_ok", LangValidateLenStringOk},
   {"lang_validate_len_scalar_fail", LangValidateLenScalarFail},
   {"lang_validate_len_arg_count_fail", LangValidateLenArgCountFail},
   {"lang_validate_unary_type_mismatch", LangValidateUnaryTypeMismatch},

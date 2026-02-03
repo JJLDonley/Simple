@@ -1359,12 +1359,12 @@ bool CheckExpr(const Expr& expr,
         }
         TypeRef arg_type;
         if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (arg_type.dims.empty()) {
-            if (error) *error = "len expects array or list argument";
+          if (arg_type.dims.empty() && arg_type.name != "string") {
+            if (error) *error = "len expects array, list, or string argument";
             return false;
           }
         } else {
-          if (error && error->empty()) *error = "len expects array or list argument";
+          if (error && error->empty()) *error = "len expects array, list, or string argument";
           return false;
         }
       }
