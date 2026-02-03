@@ -4092,6 +4092,83 @@ bool RunIrTextBadNewClosureTest() {
   return RunExpectVerifyFail(module, "ir_text_bad_newclosure");
 }
 
+bool RunIrTextStringConcatTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t left_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t left_id = 0;
+  AppendConstString(const_pool, left_off, &left_id);
+  uint32_t right_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "!"));
+  uint32_t right_id = 0;
+  AppendConstString(const_pool, right_off, &right_id);
+
+  std::string text = "func main locals=0 stack=8\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(left_id) + "\n";
+  text += "  const.string " + std::to_string(right_id) + "\n";
+  text += "  string.concat\n";
+  text += "  string.len\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_concat",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
+bool RunIrTextStringGetCharTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "abc"));
+  uint32_t str_id = 0;
+  AppendConstString(const_pool, str_off, &str_id);
+
+  std::string text = "func main locals=0 stack=10\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(str_id) + "\n";
+  text += "  const.i32 1\n";
+  text += "  string.get.char\n";
+  text += "  const.i32 98\n";
+  text += "  cmp.eq.i32\n";
+  text += "  jmp.true ok\n";
+  text += "  const.i32 0\n";
+  text += "  jmp done\n";
+  text += "ok:\n";
+  text += "  const.i32 1\n";
+  text += "done:\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_get_char",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextStringSliceTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hello"));
+  uint32_t str_id = 0;
+  AppendConstString(const_pool, str_off, &str_id);
+
+  std::string text = "func main locals=0 stack=10\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(str_id) + "\n";
+  text += "  const.i32 1\n";
+  text += "  const.i32 4\n";
+  text += "  string.slice\n";
+  text += "  string.len\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_slice",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 3);
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4194,6 +4271,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_typeof", RunIrTextTypeOfTest},
   {"ir_text_closure_upvalue", RunIrTextClosureUpvalueTest},
   {"ir_text_bad_newclosure", RunIrTextBadNewClosureTest},
+  {"ir_text_string_concat", RunIrTextStringConcatTest},
+  {"ir_text_string_get_char", RunIrTextStringGetCharTest},
+  {"ir_text_string_slice", RunIrTextStringSliceTest},
 };
 
 static const TestSection kIrSections[] = {

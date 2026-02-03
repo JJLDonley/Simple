@@ -510,3 +510,4 @@
 - Added SIR text globals test and label validation/negative tests for unknown labels and jmptable label errors.
 - Added SIR text tests for ref equality and typeof with minimal type tables.
 - Added SIR text tests for closures/upvalues and invalid newclosure method id.
+- Added SIR text tests for string concat/get-char/slice.
