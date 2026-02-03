@@ -558,3 +558,5 @@
 - Added IR text runtime trap tests for string.get.char and string.slice out-of-bounds.
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
+
+- Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.

@@ -5318,6 +5318,39 @@ bool RunIrTextConstU64BadTokenTest() {
   return RunIrTextExpectFail(text, "ir_text_const_u64_bad_token");
 }
 
+bool RunIrTextCallIndirectMissingValueTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  call.indirect 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_call_indirect_missing_value");
+}
+
+bool RunIrTextNewArrayMissingLenTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  newarray 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_newarray_missing_len");
+}
+
+bool RunIrTextNewListMissingCapTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  newlist 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_newlist_missing_cap");
+}
+
 bool RunIrTextArrayGetOutOfBoundsTrapTest() {
   const char* text =
       "func main locals=1 stack=8\n"
@@ -6037,6 +6070,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_u128_unsupported", RunIrTextConstU128UnsupportedTest},
   {"ir_text_const_i128_bad_token", RunIrTextConstI128BadTokenTest},
   {"ir_text_const_u64_bad_token", RunIrTextConstU64BadTokenTest},
+  {"ir_text_call_indirect_missing_value", RunIrTextCallIndirectMissingValueTest},
+  {"ir_text_newarray_missing_len", RunIrTextNewArrayMissingLenTest},
+  {"ir_text_newlist_missing_cap", RunIrTextNewListMissingCapTest},
   {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
