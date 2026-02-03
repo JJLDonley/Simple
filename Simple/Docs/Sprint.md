@@ -554,3 +554,5 @@
 - Added IR text negative tests for jmptable arity, unsupported const.i128, missing const pool for strings, and missing sig id.
 
 - Added IR text runtime trap tests for array get out-of-bounds and list pop on empty list.
+
+- Added IR text runtime trap tests for string.get.char and string.slice out-of-bounds.

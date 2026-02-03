@@ -5318,6 +5318,51 @@ bool RunIrTextListPopEmptyTrapTest() {
   return RunExpectTrap(module, "ir_text_list_pop_empty");
 }
 
+bool RunIrTextStringGetCharOobTrapTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t str_id = 0;
+  AppendConstString(const_pool, str_off, &str_id);
+
+  std::string text = "func main locals=0 stack=8\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(str_id) + "\n";
+  text += "  const.i32 5\n";
+  text += "  string.get.char\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_get_char_oob",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_string_get_char_oob");
+}
+
+bool RunIrTextStringSliceOobTrapTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hello"));
+  uint32_t str_id = 0;
+  AppendConstString(const_pool, str_off, &str_id);
+
+  std::string text = "func main locals=0 stack=10\n";
+  text += "  enter 0\n";
+  text += "  const.string " + std::to_string(str_id) + "\n";
+  text += "  const.i32 2\n";
+  text += "  const.i32 99\n";
+  text += "  string.slice\n";
+  text += "  pop\n";
+  text += "  const.i32 0\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_slice_oob",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_string_slice_oob");
+}
+
 bool RunIrTextListClearTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -5958,6 +6003,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_bad_locals_count", RunIrTextBadLocalsCountTest},
   {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
+  {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
+  {"ir_text_string_slice_oob", RunIrTextStringSliceOobTrapTest},
   {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},
   {"ir_text_jump_to_end", RunIrTextJumpToEndTest},
   {"ir_text_jump_mid_instruction", RunIrTextJumpMidInstructionTest},
