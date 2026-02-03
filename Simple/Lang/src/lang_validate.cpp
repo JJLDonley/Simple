@@ -11,6 +11,7 @@ namespace {
 struct ValidateContext {
   std::unordered_set<std::string> enum_members;
   std::unordered_set<std::string> enum_types;
+  std::unordered_map<std::string, std::unordered_set<std::string>> enum_members_by_type;
   std::unordered_set<std::string> top_level;
   std::unordered_map<std::string, const ArtifactDecl*> artifacts;
   std::unordered_map<std::string, size_t> artifact_generics;
@@ -1300,6 +1301,13 @@ bool CheckExpr(const Expr& expr,
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
             ctx.enum_types.find(base.text) != ctx.enum_types.end()) {
+          auto members_it = ctx.enum_members_by_type.find(base.text);
+          if (members_it != ctx.enum_members_by_type.end()) {
+            if (members_it->second.find(expr.text) == members_it->second.end()) {
+              if (error) *error = "unknown enum member: " + base.text + "." + expr.text;
+              return false;
+            }
+          }
           return true;
         }
       }
@@ -1482,6 +1490,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             }
             ctx.enum_members.insert(member.name);
           }
+          ctx.enum_members_by_type[decl.enm.name] = std::move(local_members);
         }
         ctx.enum_types.insert(decl.enm.name);
         break;

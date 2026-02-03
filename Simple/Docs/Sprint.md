@@ -669,3 +669,4 @@
 - Added Simple::Lang validation requiring explicit enum member values, with updated enum tests and a new missing-value negative test.
 - Added Simple::Lang validation rejecting module/artifact/enum types as values (except enum qualification), with new tests.
 - Added Simple::Lang validation for unknown module/artifact member access with new negative tests.
+- Added Simple::Lang validation for unknown enum members with a new negative test.

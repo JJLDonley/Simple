@@ -295,6 +295,13 @@ bool LangValidateEnumTypeNotValue() {
   return true;
 }
 
+bool LangValidateEnumUnknownMember() {
+  const char* src = "Color :: enum { Red = 1 } main : i32 () { return Color.Blue; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateModuleNotValue() {
   const char* src = "Math :: module { } main : void () { x : i32 = Math; }";
   std::string error;
@@ -1193,6 +1200,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_enum_duplicate", LangValidateEnumDuplicateMember},
   {"lang_validate_enum_missing_value", LangValidateEnumMissingValue},
   {"lang_validate_enum_type_not_value", LangValidateEnumTypeNotValue},
+  {"lang_validate_enum_unknown_member", LangValidateEnumUnknownMember},
   {"lang_validate_module_not_value", LangValidateModuleNotValue},
   {"lang_validate_artifact_type_not_value", LangValidateArtifactTypeNotValue},
   {"lang_validate_top_level_duplicate", LangValidateTopLevelDuplicate},
