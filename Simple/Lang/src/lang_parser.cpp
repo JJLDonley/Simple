@@ -99,6 +99,47 @@ bool Parser::ParseTypeInner(TypeRef* out) {
 }
 
 bool Parser::ParseDecl(Decl* out) {
+  if (Match(TokenKind::KwFn)) {
+    const Token& name_tok = Peek();
+    if (name_tok.kind != TokenKind::Identifier) {
+      error_ = "expected function name after 'fn'";
+      return false;
+    }
+    Advance();
+
+    std::vector<std::string> generics;
+    if (Match(TokenKind::Lt)) {
+      if (!ParseGenerics(&generics)) return false;
+    }
+
+    Mutability mut = Mutability::Immutable;
+    if (Match(TokenKind::Colon)) {
+      mut = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      mut = Mutability::Immutable;
+    } else {
+      error_ = "expected ':' or '::' after function name";
+      return false;
+    }
+
+    TypeRef return_type;
+    if (!ParseTypeInner(&return_type)) return false;
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after function return type";
+      return false;
+    }
+    if (out) {
+      out->kind = DeclKind::Function;
+      out->func.name = name_tok.text;
+      out->func.generics = std::move(generics);
+      out->func.return_mutability = mut;
+      out->func.return_type = std::move(return_type);
+    }
+    if (!ParseParamList(&out->func.params)) return false;
+    if (!ParseBlockStmts(&out->func.body)) return false;
+    return true;
+  }
+
   const Token& name_tok = Peek();
   if (name_tok.kind == TokenKind::End) return false;
   if (name_tok.kind != TokenKind::Identifier) {
@@ -474,6 +515,13 @@ bool Parser::ParseInitTokens(std::vector<Token>* out) {
 
 bool Parser::ParseStmt(Stmt* out) {
   if (Match(TokenKind::KwReturn)) {
+    if (Match(TokenKind::Semicolon)) {
+      if (out) {
+        out->kind = StmtKind::Return;
+        out->has_return_expr = false;
+      }
+      return true;
+    }
     Expr expr;
     if (!ParseExpr(&expr)) return false;
     if (!Match(TokenKind::Semicolon)) {
@@ -482,6 +530,7 @@ bool Parser::ParseStmt(Stmt* out) {
     }
     if (out) {
       out->kind = StmtKind::Return;
+      out->has_return_expr = true;
       out->expr = std::move(expr);
     }
     return true;

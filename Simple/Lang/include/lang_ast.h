@@ -92,6 +92,7 @@ enum class StmtKind : uint8_t {
 
 struct Stmt {
   StmtKind kind = StmtKind::Expr;
+  bool has_return_expr = false;
   Expr expr;
   Expr target;
   std::string assign_op;

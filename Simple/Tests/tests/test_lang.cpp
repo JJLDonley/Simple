@@ -103,6 +103,22 @@ bool LangParsesFuncDecl() {
   return true;
 }
 
+bool LangParsesFnKeywordDecl() {
+  const char* src = "fn main :: void () { return; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Function) return false;
+  if (decl.func.name != "main") return false;
+  if (decl.func.return_type.name != "void") return false;
+  if (decl.func.body.empty()) return false;
+  if (decl.func.body[0].kind != Simple::Lang::StmtKind::Return) return false;
+  if (decl.func.body[0].has_return_expr) return false;
+  return true;
+}
+
 bool LangParsesVarDecl() {
   const char* src = "count :: i32 = 42;";
   Simple::Lang::Program program;
@@ -341,6 +357,7 @@ const TestCase kLangTests[] = {
   {"lang_lex_literals", LangLexesLiterals},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
   {"lang_parse_func_decl", LangParsesFuncDecl},
+  {"lang_parse_fn_keyword", LangParsesFnKeywordDecl},
   {"lang_parse_var_decl", LangParsesVarDecl},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
