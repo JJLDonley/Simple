@@ -1,0 +1,41 @@
+func main locals=4 stack=12
+  enter 4
+  const.i32 5000
+  stloc 0
+  newlist 0 5000
+  stloc 1
+  const.i32 0
+  stloc 2
+  const.i32 0
+  stloc 3
+push_loop:
+  ldloc 2
+  ldloc 0
+  cmp.lt.i32
+  jmp.false pop_loop
+  ldloc 1
+  ldloc 2
+  list.push.i32
+  ldloc 2
+  const.i32 1
+  add.i32
+  stloc 2
+  jmp push_loop
+pop_loop:
+  ldloc 1
+  list.pop.i32
+  ldloc 3
+  add.i32
+  stloc 3
+  ldloc 2
+  const.i32 1
+  sub.i32
+  stloc 2
+  ldloc 2
+  const.i32 0
+  cmp.gt.i32
+  jmp.true pop_loop
+  ldloc 3
+  ret
+end
+entry main

@@ -1,0 +1,44 @@
+func main locals=4 stack=12
+  enter 4
+  const.i32 20000
+  stloc 0
+  const.i32 0
+  stloc 1
+  const.i32 0
+  stloc 2
+  const.i32 0
+  stloc 3
+loop:
+  ldloc 2
+  ldloc 0
+  cmp.lt.i32
+  jmp.false done
+  ldloc 2
+  const.i32 1
+  and.i32
+  const.i32 0
+  cmp.eq.i32
+  jmp.false odd
+  ldloc 1
+  ldloc 2
+  add.i32
+  stloc 1
+  jmp next
+odd:
+  ldloc 3
+  ldloc 2
+  add.i32
+  stloc 3
+next:
+  ldloc 2
+  const.i32 1
+  add.i32
+  stloc 2
+  jmp loop
+done:
+  ldloc 1
+  ldloc 3
+  add.i32
+  ret
+end
+entry main
