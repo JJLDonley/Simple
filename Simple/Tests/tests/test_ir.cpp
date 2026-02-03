@@ -5488,6 +5488,181 @@ bool RunIrTextListPopEmptyTrapTest() {
   return RunExpectTrap(module, "ir_text_list_pop_empty");
 }
 
+bool RunIrTextListInsertI32OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.i32 4\n"
+      "  list.insert.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_i32_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_insert_i32_oob");
+}
+
+bool RunIrTextListInsertI64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.i64 4\n"
+      "  list.insert.i64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_i64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_insert_i64_oob");
+}
+
+bool RunIrTextListInsertF32OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.f32 1.0\n"
+      "  list.insert.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_f32_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_insert_f32_oob");
+}
+
+bool RunIrTextListInsertF64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.f64 1.0\n"
+      "  list.insert.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_f64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_insert_f64_oob");
+}
+
+bool RunIrTextListInsertRefOutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  const.null\n"
+      "  list.insert.ref\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_insert_ref_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_insert_ref_oob");
+}
+
+bool RunIrTextListRemoveI32OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  list.remove.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_remove_i32_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_remove_i32_oob");
+}
+
+bool RunIrTextListRemoveI64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  list.remove.i64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_remove_i64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_remove_i64_oob");
+}
+
+bool RunIrTextListRemoveF32OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  list.remove.f32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_remove_f32_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_remove_f32_oob");
+}
+
+bool RunIrTextListRemoveF64OutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  list.remove.f64\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_remove_f64_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_remove_f64_oob");
+}
+
+bool RunIrTextListRemoveRefOutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  list.remove.ref\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_remove_ref_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_remove_ref_oob");
+}
+
 bool RunIrTextStringGetCharOobTrapTest() {
   std::vector<uint8_t> const_pool;
   uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
@@ -6186,6 +6361,16 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_set_f64_oob", RunIrTextArraySetF64OutOfBoundsTrapTest},
   {"ir_text_array_set_ref_oob", RunIrTextArraySetRefOutOfBoundsTrapTest},
   {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
+  {"ir_text_list_insert_i32_oob", RunIrTextListInsertI32OutOfBoundsTrapTest},
+  {"ir_text_list_insert_i64_oob", RunIrTextListInsertI64OutOfBoundsTrapTest},
+  {"ir_text_list_insert_f32_oob", RunIrTextListInsertF32OutOfBoundsTrapTest},
+  {"ir_text_list_insert_f64_oob", RunIrTextListInsertF64OutOfBoundsTrapTest},
+  {"ir_text_list_insert_ref_oob", RunIrTextListInsertRefOutOfBoundsTrapTest},
+  {"ir_text_list_remove_i32_oob", RunIrTextListRemoveI32OutOfBoundsTrapTest},
+  {"ir_text_list_remove_i64_oob", RunIrTextListRemoveI64OutOfBoundsTrapTest},
+  {"ir_text_list_remove_f32_oob", RunIrTextListRemoveF32OutOfBoundsTrapTest},
+  {"ir_text_list_remove_f64_oob", RunIrTextListRemoveF64OutOfBoundsTrapTest},
+  {"ir_text_list_remove_ref_oob", RunIrTextListRemoveRefOutOfBoundsTrapTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
   {"ir_text_string_slice_oob", RunIrTextStringSliceOobTrapTest},
   {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},

@@ -556,6 +556,7 @@
 - Added IR text runtime trap tests for string.get.char and string.slice out-of-bounds.
 
 - Added IR text runtime trap tests for array.set (i64/f32/f64/ref) out-of-bounds.
+- Added IR text runtime trap tests for list insert/remove out-of-bounds (i32/i64/f32/f64/ref).
 
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 
