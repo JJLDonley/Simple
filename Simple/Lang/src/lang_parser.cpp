@@ -419,6 +419,10 @@ bool Parser::ParseStmt(Stmt* out) {
     return ParseWhile(out);
   }
 
+  if (Peek().kind == TokenKind::KwFor) {
+    return ParseFor(out);
+  }
+
   if (Match(TokenKind::KwBreak)) {
     if (!Match(TokenKind::Semicolon)) {
       error_ = "expected ';' after break";
@@ -527,6 +531,35 @@ bool Parser::ParseStmt(Stmt* out) {
   return true;
 }
 
+bool Parser::ParseFor(Stmt* out) {
+  if (!Match(TokenKind::KwFor)) {
+    error_ = "expected 'for'";
+    return false;
+  }
+  Expr iter;
+  if (!ParseAssignmentExpr(&iter)) return false;
+  if (!Match(TokenKind::Semicolon)) {
+    error_ = "expected ';' after for iterator";
+    return false;
+  }
+  Expr cond;
+  if (!ParseExpr(&cond)) return false;
+  if (!Match(TokenKind::Semicolon)) {
+    error_ = "expected ';' after for condition";
+    return false;
+  }
+  Expr step;
+  if (!ParseAssignmentExpr(&step)) return false;
+  if (!ParseBlockStmts(&out->loop_body)) return false;
+  if (out) {
+    out->kind = StmtKind::ForLoop;
+    out->loop_iter = std::move(iter);
+    out->loop_cond = std::move(cond);
+    out->loop_step = std::move(step);
+  }
+  return true;
+}
+
 bool Parser::ParseIfChain(Stmt* out) {
   if (!Match(TokenKind::PipeGt)) {
     error_ = "expected '|>' to start if chain";
@@ -575,6 +608,46 @@ bool Parser::ParseWhile(Stmt* out) {
 
 bool Parser::ParseExpr(Expr* out) {
   return ParseBinaryExpr(0, out);
+}
+
+bool Parser::ParseAssignmentExpr(Expr* out) {
+  size_t save = index_;
+  Expr target;
+  if (ParsePostfixExpr(&target)) {
+    const Token& op = Peek();
+    bool is_assign = false;
+    switch (op.kind) {
+      case TokenKind::Assign:
+      case TokenKind::PlusEq:
+      case TokenKind::MinusEq:
+      case TokenKind::StarEq:
+      case TokenKind::SlashEq:
+      case TokenKind::PercentEq:
+      case TokenKind::AmpEq:
+      case TokenKind::PipeEq:
+      case TokenKind::CaretEq:
+      case TokenKind::ShlEq:
+      case TokenKind::ShrEq:
+        is_assign = true;
+        break;
+      default:
+        break;
+    }
+    if (is_assign) {
+      Advance();
+      Expr value;
+      if (!ParseExpr(&value)) return false;
+      Expr expr;
+      expr.kind = ExprKind::Binary;
+      expr.op = op.text;
+      expr.children.push_back(std::move(target));
+      expr.children.push_back(std::move(value));
+      if (out) *out = std::move(expr);
+      return true;
+    }
+  }
+  index_ = save;
+  return ParseExpr(out);
 }
 
 int Parser::GetBinaryPrecedence(const Token& tok) const {

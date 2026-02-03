@@ -239,6 +239,16 @@ bool LangParsesBreakSkip() {
   return true;
 }
 
+bool LangParsesForLoop() {
+  const char* src = "main : void () { for i = 0; i < 10; i = i + 1 { skip; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::ForLoop) return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
@@ -255,6 +265,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_if_chain", LangParsesIfChain},
   {"lang_parse_while_loop", LangParsesWhileLoop},
   {"lang_parse_break_skip", LangParsesBreakSkip},
+  {"lang_parse_for_loop", LangParsesForLoop},
 };
 
 } // namespace
