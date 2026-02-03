@@ -1143,6 +1143,52 @@ bool LangValidateCallArgTypeOk() {
   return true;
 }
 
+bool LangValidateGenericArtifactLiteralOk() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericArtifactLiteralMismatch() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { \"hi\" }; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericFieldAccessOk() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; x : i32 = b.value; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericFieldAccessMismatch() {
+  const char* src = "Box<T> :: artifact { value : T } main : void () { b : Box<i32> = { 1 }; x : f64 = b.value; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericMethodReturnOk() {
+  const char* src =
+      "Box<T> :: artifact { value : T; get : T () { return self.value; } } "
+      "main : void () { b : Box<i32> = { 1 }; x : i32 = b.get(); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateGenericMethodReturnMismatch() {
+  const char* src =
+      "Box<T> :: artifact { value : T; get : T () { return self.value; } } "
+      "main : void () { b : Box<i32> = { 1 }; x : f64 = b.get(); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateGenericCallExplicit() {
   const char* src =
       "identity<T> : T (value : T) { return value; } "
@@ -1768,6 +1814,12 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_return_assign", LangValidateImmutableReturnAssign},
   {"lang_validate_call_arg_type_mismatch", LangValidateCallArgTypeMismatch},
   {"lang_validate_call_arg_type_ok", LangValidateCallArgTypeOk},
+  {"lang_validate_generic_artifact_literal_ok", LangValidateGenericArtifactLiteralOk},
+  {"lang_validate_generic_artifact_literal_mismatch", LangValidateGenericArtifactLiteralMismatch},
+  {"lang_validate_generic_field_access_ok", LangValidateGenericFieldAccessOk},
+  {"lang_validate_generic_field_access_mismatch", LangValidateGenericFieldAccessMismatch},
+  {"lang_validate_generic_method_return_ok", LangValidateGenericMethodReturnOk},
+  {"lang_validate_generic_method_return_mismatch", LangValidateGenericMethodReturnMismatch},
   {"lang_validate_generic_call_explicit", LangValidateGenericCallExplicit},
   {"lang_validate_generic_call_inferred", LangValidateGenericCallInferred},
   {"lang_validate_generic_call_infer_fail", LangValidateGenericCallInferFail},

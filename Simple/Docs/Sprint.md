@@ -687,3 +687,4 @@
 - Marked Simple::Lang plan items complete for expression/assignment type checking and artifact init/self access validation.
 - Added Simple::Lang parser recovery inside blocks and a recovery test to keep parsing after invalid statements.
 - Added Simple::Lang AST coverage test for all primitive type literals, arrays/lists, and procedure types.
+- Added Simple::Lang generic artifact validation (type argument substitution for fields/method returns) with new tests.

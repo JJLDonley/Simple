@@ -168,6 +168,28 @@ bool SubstituteTypeParams(const TypeRef& src,
   return ApplyTypeSubstitution(out, mapping);
 }
 
+bool BuildArtifactTypeParamMap(const TypeRef& instance_type,
+                               const ArtifactDecl* artifact,
+                               std::unordered_map<std::string, TypeRef>* out,
+                               std::string* error) {
+  if (!out) return false;
+  out->clear();
+  if (!artifact) return false;
+  if (artifact->generics.empty()) return true;
+  if (instance_type.type_args.size() != artifact->generics.size()) {
+    if (error) {
+      *error = "generic type argument count mismatch for " + artifact->name;
+    }
+    return false;
+  }
+  for (size_t i = 0; i < artifact->generics.size(); ++i) {
+    TypeRef copy;
+    if (!CloneTypeRef(instance_type.type_args[i], &copy)) return false;
+    (*out)[artifact->generics[i]] = std::move(copy);
+  }
+  return true;
+}
+
 bool UnifyTypeParams(const TypeRef& param,
                      const TypeRef& arg,
                      const std::unordered_set<std::string>& type_params,
@@ -388,22 +410,38 @@ bool InferExprType(const Expr& expr,
           if (!local->type) return false;
           auto artifact_it = ctx.artifacts.find(local->type->name);
           const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, nullptr)) return false;
+          }
           if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
-            return CloneTypeRef(field->type, out);
+            TypeRef resolved;
+            if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
+            return CloneTypeRef(resolved, out);
           }
           if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
-            return CloneTypeRef(method->return_type, out);
+            TypeRef resolved;
+            if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
+            return CloneTypeRef(resolved, out);
           }
         }
         auto global_it = ctx.globals.find(base.text);
         if (global_it != ctx.globals.end()) {
           auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
           const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, nullptr)) return false;
+          }
           if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
-            return CloneTypeRef(field->type, out);
+            TypeRef resolved;
+            if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
+            return CloneTypeRef(resolved, out);
           }
           if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
-            return CloneTypeRef(method->return_type, out);
+            TypeRef resolved;
+            if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
+            return CloneTypeRef(resolved, out);
           }
         }
       }
@@ -498,6 +536,27 @@ bool CollectTypeParams(const std::vector<std::string>& generics,
   if (!out) return false;
   out->clear();
   for (const auto& name : generics) {
+    if (!out->insert(name).second) {
+      if (error) *error = "duplicate generic parameter: " + name;
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CollectTypeParamsMerged(const std::vector<std::string>& a,
+                             const std::vector<std::string>& b,
+                             std::unordered_set<std::string>* out,
+                             std::string* error) {
+  if (!out) return false;
+  out->clear();
+  for (const auto& name : a) {
+    if (!out->insert(name).second) {
+      if (error) *error = "duplicate generic parameter: " + name;
+      return false;
+    }
+  }
+  for (const auto& name : b) {
     if (!out->insert(name).second) {
       if (error) *error = "duplicate generic parameter: " + name;
       return false;
@@ -856,27 +915,40 @@ bool GetCallTargetInfo(const Expr& callee,
         const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
         const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
         if (method) {
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, error)) return false;
+          }
           out->params.clear();
-          if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          TypeRef resolved_return;
+          if (!SubstituteTypeParams(method->return_type, mapping, &resolved_return)) return false;
+          if (!CloneTypeRef(resolved_return, &out->return_type)) return false;
           out->return_mutability = method->return_mutability;
           out->type_params = method->generics;
           out->is_proc = false;
           for (const auto& param : method->params) {
             TypeRef copy;
-            if (!CloneTypeRef(param.type, &copy)) return false;
+            if (!SubstituteTypeParams(param.type, mapping, &copy)) return false;
             out->params.push_back(std::move(copy));
           }
           return true;
         }
         const VarDecl* field = FindArtifactField(artifact, callee.text);
         if (field && field->type.is_proc) {
-          if (!CloneTypeVector(field->type.proc_params, &out->params)) return false;
-          if (field->type.proc_return) {
-            if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(*local->type, artifact, &mapping, error)) return false;
           }
-          out->return_mutability = field->type.proc_return_mutability;
+          TypeRef resolved_field;
+          if (!SubstituteTypeParams(field->type, mapping, &resolved_field)) return false;
+          out->params.clear();
           out->type_params.clear();
           out->is_proc = true;
+          out->return_mutability = resolved_field.proc_return_mutability;
+          if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
+          if (resolved_field.proc_return) {
+            if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
+          }
           return true;
         }
       }
@@ -886,27 +958,40 @@ bool GetCallTargetInfo(const Expr& callee,
         const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
         const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
         if (method) {
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, error)) return false;
+          }
           out->params.clear();
-          if (!CloneTypeRef(method->return_type, &out->return_type)) return false;
+          TypeRef resolved_return;
+          if (!SubstituteTypeParams(method->return_type, mapping, &resolved_return)) return false;
+          if (!CloneTypeRef(resolved_return, &out->return_type)) return false;
           out->return_mutability = method->return_mutability;
           out->type_params = method->generics;
           out->is_proc = false;
           for (const auto& param : method->params) {
             TypeRef copy;
-            if (!CloneTypeRef(param.type, &copy)) return false;
+            if (!SubstituteTypeParams(param.type, mapping, &copy)) return false;
             out->params.push_back(std::move(copy));
           }
           return true;
         }
         const VarDecl* field = FindArtifactField(artifact, callee.text);
         if (field && field->type.is_proc) {
-          if (!CloneTypeVector(field->type.proc_params, &out->params)) return false;
-          if (field->type.proc_return) {
-            if (!CloneTypeRef(*field->type.proc_return, &out->return_type)) return false;
+          std::unordered_map<std::string, TypeRef> mapping;
+          if (artifact && !artifact->generics.empty()) {
+            if (!BuildArtifactTypeParamMap(global_it->second->type, artifact, &mapping, error)) return false;
           }
-          out->return_mutability = field->type.proc_return_mutability;
+          TypeRef resolved_field;
+          if (!SubstituteTypeParams(field->type, mapping, &resolved_field)) return false;
+          out->params.clear();
           out->type_params.clear();
           out->is_proc = true;
+          out->return_mutability = resolved_field.proc_return_mutability;
+          if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
+          if (resolved_field.proc_return) {
+            if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
+          }
           return true;
         }
       }
@@ -1131,6 +1216,7 @@ bool CheckAssignmentTarget(const Expr& target,
 
 bool ValidateArtifactLiteral(const Expr& expr,
                              const ArtifactDecl* artifact,
+                             const std::unordered_map<std::string, TypeRef>& type_mapping,
                              const ValidateContext& ctx,
                              const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                              const ArtifactDecl* current_artifact,
@@ -1158,7 +1244,9 @@ bool ValidateArtifactLiteral(const Expr& expr,
     seen.insert(field.name);
     TypeRef value_type;
     if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {
-      if (!TypeEquals(field.type, value_type)) {
+      TypeRef expected;
+      if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
+      if (!TypeEquals(expected, value_type)) {
         if (error) *error = "artifact field type mismatch: " + field.name;
         return false;
       }
@@ -1183,7 +1271,9 @@ bool ValidateArtifactLiteral(const Expr& expr,
       if (it == field_map.end()) continue;
       TypeRef value_type;
       if (InferExprType(expr.field_values[i], ctx, scopes, current_artifact, &value_type)) {
-        if (!TypeEquals(it->second->type, value_type)) {
+        TypeRef expected;
+        if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
+        if (!TypeEquals(expected, value_type)) {
           if (error) *error = "artifact field type mismatch: " + name;
           return false;
         }
@@ -1338,8 +1428,16 @@ bool CheckStmt(const Stmt& stmt,
         if (stmt.var_decl.init_expr.kind == ExprKind::ArtifactLiteral) {
           auto artifact_it = ctx.artifacts.find(stmt.var_decl.type.name);
           if (artifact_it != ctx.artifacts.end()) {
+            std::unordered_map<std::string, TypeRef> mapping;
+            if (!BuildArtifactTypeParamMap(stmt.var_decl.type,
+                                           artifact_it->second,
+                                           &mapping,
+                                           error)) {
+              return false;
+            }
             if (!ValidateArtifactLiteral(stmt.var_decl.init_expr,
                                          artifact_it->second,
+                                         mapping,
                                          ctx,
                                          scopes,
                                          current_artifact,
@@ -2256,7 +2354,14 @@ bool ValidateProgram(const Program& program, std::string* error) {
             }
           }
           for (const auto& method : decl.artifact.methods) {
-            if (!CheckFunctionBody(method, ctx, type_params, &decl.artifact, error)) return false;
+            std::unordered_set<std::string> method_params;
+            if (!CollectTypeParamsMerged(decl.artifact.generics,
+                                         method.generics,
+                                         &method_params,
+                                         error)) {
+              return false;
+            }
+            if (!CheckFunctionBody(method, ctx, method_params, &decl.artifact, error)) return false;
           }
         }
         break;

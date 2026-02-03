@@ -1287,7 +1287,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] Artifact initialization rules + `self` access validation
 - [x] Array/list indexing type checks
 - [x] Procedure type checking + call argument validation
-- [ ] Generics rules (if retained)
+- [x] Generics rules (if retained)
 
 ### 5) SIR Text Emission
 - [x] SIR emitter/IR builder APIs exist
