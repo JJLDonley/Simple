@@ -706,6 +706,23 @@ bool LangParsesComparisons() {
   return true;
 }
 
+bool LangParsesBitwisePrecedence() {
+  const char* src = "main : i32 () { return 1 | 2 ^ 3 & 4 << 1; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& expr = program.decls[0].func.body[0].expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (expr.op != "|") return false;
+  const auto& rhs = expr.children[1];
+  if (rhs.kind != Simple::Lang::ExprKind::Binary || rhs.op != "^") return false;
+  const auto& rhs_rhs = rhs.children[1];
+  if (rhs_rhs.kind != Simple::Lang::ExprKind::Binary || rhs_rhs.op != "&") return false;
+  const auto& shift = rhs_rhs.children[1];
+  if (shift.kind != Simple::Lang::ExprKind::Binary || shift.op != "<<") return false;
+  return true;
+}
+
 bool LangParsesArrayListAndIndex() {
   const char* src = "main : i32 () { return [1,2,3][0] + [][0]; }";
   Simple::Lang::Program program;
@@ -922,6 +939,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_return_type_mismatch", LangValidateReturnTypeMismatch},
   {"lang_validate_return_type_match", LangValidateReturnTypeMatch},
   {"lang_parse_comparisons", LangParsesComparisons},
+  {"lang_parse_bitwise_precedence", LangParsesBitwisePrecedence},
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
   {"lang_parse_fn_literal", LangParsesFnLiteral},

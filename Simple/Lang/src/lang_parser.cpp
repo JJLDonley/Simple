@@ -831,20 +831,29 @@ int Parser::GetBinaryPrecedence(const Token& tok) const {
       return 1;
     case TokenKind::AndAnd:
       return 2;
+    case TokenKind::Pipe:
+      return 3;
+    case TokenKind::Caret:
+      return 4;
+    case TokenKind::Amp:
+      return 5;
     case TokenKind::EqEq:
     case TokenKind::NotEq:
-      return 3;
+      return 6;
     case TokenKind::Lt:
     case TokenKind::Le:
     case TokenKind::Gt:
     case TokenKind::Ge:
-      return 4;
+      return 7;
+    case TokenKind::Shl:
+    case TokenKind::Shr:
+      return 8;
+    case TokenKind::Plus:
+    case TokenKind::Minus:
+      return 9;
     case TokenKind::Star:
     case TokenKind::Slash:
     case TokenKind::Percent:
-      return 20;
-    case TokenKind::Plus:
-    case TokenKind::Minus:
       return 10;
     default:
       return -1;
