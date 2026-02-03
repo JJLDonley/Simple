@@ -15,6 +15,7 @@ public:
   const std::string& Error() const { return error_; }
 
   bool ParseType(TypeRef* out);
+  bool ParseProgram(Program* out);
 
 private:
   const Token& Peek(size_t offset = 0) const;
@@ -25,6 +26,12 @@ private:
   bool ParseTypeInner(TypeRef* out);
   bool ParseTypeArgs(std::vector<TypeRef>* out);
   bool ParseTypeDims(std::vector<TypeDim>* out);
+  bool ParseDecl(Decl* out);
+  bool ParseGenerics(std::vector<std::string>* out);
+  bool ParseParamList(std::vector<ParamDecl>* out);
+  bool ParseParam(ParamDecl* out);
+  bool ParseBlockTokens(std::vector<Token>* out);
+  bool ParseInitTokens(std::vector<Token>* out);
 
   std::vector<Token> tokens_;
   size_t index_ = 0;
@@ -32,5 +39,6 @@ private:
 };
 
 bool ParseTypeFromString(const std::string& text, TypeRef* out, std::string* error);
+bool ParseProgramFromString(const std::string& text, Program* out, std::string* error);
 
 } // namespace Simple::Lang

@@ -599,3 +599,4 @@
 - Merged legacy SBC/Simple docs into module docs while keeping originals as references.
 - Froze SBC ABI/FFI for v0.1 and documented status in VM module docs.
 - Implemented Simple::Lang frontend scaffolding (lexer/parser/type AST) with initial lang tests and build integration.
+- Added Simple::Lang top-level parsing (function/variable decls), generic params, and basic tests.

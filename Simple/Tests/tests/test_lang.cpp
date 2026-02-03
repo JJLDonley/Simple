@@ -76,10 +76,44 @@ bool LangParsesTypeLiterals() {
   return true;
 }
 
+bool LangParsesFuncDecl() {
+  const char* src = "add : i32 (a : i32, b :: i32) { return a + b; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Function) return false;
+  if (decl.func.name != "add") return false;
+  if (decl.func.return_type.name != "i32") return false;
+  if (decl.func.params.size() != 2) return false;
+  if (decl.func.params[0].name != "a") return false;
+  if (decl.func.params[0].mutability != Simple::Lang::Mutability::Mutable) return false;
+  if (decl.func.params[1].name != "b") return false;
+  if (decl.func.params[1].mutability != Simple::Lang::Mutability::Immutable) return false;
+  return true;
+}
+
+bool LangParsesVarDecl() {
+  const char* src = "count :: i32 = 42;";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Variable) return false;
+  if (decl.var.name != "count") return false;
+  if (decl.var.mutability != Simple::Lang::Mutability::Immutable) return false;
+  if (decl.var.type.name != "i32") return false;
+  return true;
+}
+
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
   {"lang_lex_literals", LangLexesLiterals},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
+  {"lang_parse_func_decl", LangParsesFuncDecl},
+  {"lang_parse_var_decl", LangParsesVarDecl},
 };
 
 } // namespace
