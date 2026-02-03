@@ -576,6 +576,7 @@
 - Added .sir runner and perf harness (IR text -> SBC -> run) with sample .sir programs.
 - Added additional .sir real-program benchmarks (sum_array, list_stack, branch_heavy, arithmetic_mix).
 - Improved .sir perf error reporting and fixed arithmetic_mix stack underflow in perf runs.
+- Added color_avg .sir program that averages RGBA arrays and packs into a 32-bit color.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
