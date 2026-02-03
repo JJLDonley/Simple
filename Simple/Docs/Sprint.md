@@ -552,3 +552,5 @@
 - Added IR text negative tests for call arg-count and non-ref array/list access.
 - Added IR text tests for stack underflow, jump-to-end, and mid-instruction jump rejection.
 - Added IR text negative tests for jmptable arity, unsupported const.i128, missing const pool for strings, and missing sig id.
+
+- Added IR text runtime trap tests for array get out-of-bounds and list pop on empty list.

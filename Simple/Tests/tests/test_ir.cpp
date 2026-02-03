@@ -5285,6 +5285,39 @@ bool RunIrTextCallMissingSigTest() {
   return RunIrTextExpectFail(text, "ir_text_call_missing_sig");
 }
 
+bool RunIrTextArrayGetOutOfBoundsTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 2\n"
+      "  array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_get_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_get_oob");
+}
+
+bool RunIrTextListPopEmptyTrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newlist 0 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  list.pop.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_pop_empty");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_pop_empty");
+}
+
 bool RunIrTextListClearTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -5923,6 +5956,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_indirect_bad_sig_id", RunIrTextCallIndirectBadSigIdTextTest},
   {"ir_text_jmptable_missing_label", RunIrTextJmpTableMissingLabelTest},
   {"ir_text_bad_locals_count", RunIrTextBadLocalsCountTest},
+  {"ir_text_array_get_oob", RunIrTextArrayGetOutOfBoundsTrapTest},
+  {"ir_text_list_pop_empty", RunIrTextListPopEmptyTrapTest},
   {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},
   {"ir_text_jump_to_end", RunIrTextJumpToEndTest},
   {"ir_text_jump_mid_instruction", RunIrTextJumpMidInstructionTest},
