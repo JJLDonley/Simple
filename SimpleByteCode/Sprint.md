@@ -526,3 +526,4 @@
 - Updated test runner to support suite-specific builds via build.sh (--suite core|ir|jit) to speed iterations.
 - Added SIR text verify-fail tests for syscall usage and missing syscall id.
 - Added SIR text tests for const.bool/const.char and array.len.
+- Added SIR text tests for bool.and/or, unsigned compares, and callcheck.

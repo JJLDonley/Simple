@@ -3852,6 +3852,69 @@ bool RunIrTextArrayLenTest() {
   return RunExpectExit(module, 3);
 }
 
+bool RunIrTextBoolAndOrTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.bool 1\n"
+      "  const.bool 0\n"
+      "  bool.and\n"
+      "  bool.not\n"
+      "  const.bool 1\n"
+      "  bool.or\n"
+      "  jmp.true is_true\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_bool_and_or");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCmpUnsignedTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.u32 0\n"
+      "  const.u32 1\n"
+      "  cmp.lt.u32\n"
+      "  const.u64 2\n"
+      "  const.u64 1\n"
+      "  cmp.gt.u64\n"
+      "  bool.and\n"
+      "  jmp.true is_true\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_cmp_unsigned");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCallCheckTest() {
+  const char* text =
+      "func main locals=0 stack=4 sig=0\n"
+      "  enter 0\n"
+      "  callcheck 0\n"
+      "  const.i32 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_callcheck");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
 bool RunIrTextArrayI32Test() {
   const char* text =
       "func main locals=1 stack=12\n"
@@ -5094,6 +5157,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_bool", RunIrTextConstBoolTest},
   {"ir_text_const_char", RunIrTextConstCharTest},
   {"ir_text_array_len", RunIrTextArrayLenTest},
+  {"ir_text_bool_and_or", RunIrTextBoolAndOrTest},
+  {"ir_text_cmp_unsigned", RunIrTextCmpUnsignedTest},
+  {"ir_text_callcheck", RunIrTextCallCheckTest},
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
