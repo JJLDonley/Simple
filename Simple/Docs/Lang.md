@@ -1283,8 +1283,8 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] Return checks (void/non-void, all paths for if/else/|>)
 - [x] Enum dot qualification enforced (`Enum.Value`)
 - [x] Mutability rules (`:` vs `::`)
-- [ ] Full type checking for expressions/assignments
-- [ ] Artifact initialization rules + `self` access validation
+- [x] Full type checking for expressions/assignments
+- [x] Artifact initialization rules + `self` access validation
 - [x] Array/list indexing type checks
 - [x] Procedure type checking + call argument validation
 - [ ] Generics rules (if retained)
