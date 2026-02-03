@@ -125,6 +125,17 @@ bool LangParsesTypeLiterals() {
   if (!arr.dims[0].has_size || arr.dims[0].size != 10) return false;
   if (!arr.dims[1].is_list) return false;
 
+  Simple::Lang::TypeRef list_type;
+  if (!Simple::Lang::ParseTypeFromString("i32[]", &list_type, &error)) return false;
+  if (list_type.dims.size() != 1) return false;
+  if (!list_type.dims[0].is_list) return false;
+
+  Simple::Lang::TypeRef list2_type;
+  if (!Simple::Lang::ParseTypeFromString("i32[][]", &list2_type, &error)) return false;
+  if (list2_type.dims.size() != 2) return false;
+  if (!list2_type.dims[0].is_list) return false;
+  if (!list2_type.dims[1].is_list) return false;
+
   Simple::Lang::TypeRef hex_arr;
   if (!Simple::Lang::ParseTypeFromString("i32[0x10]", &hex_arr, &error)) return false;
   if (hex_arr.dims.size() != 1) return false;
@@ -158,6 +169,12 @@ bool LangParsesTypeLiterals() {
   if (!fn_ret.proc_params.empty()) return false;
 
   return true;
+}
+
+bool LangRejectsBadArraySize() {
+  Simple::Lang::TypeRef type;
+  std::string error;
+  return !Simple::Lang::ParseTypeFromString("i32[foo]", &type, &error);
 }
 
 bool LangParsesFuncDecl() {
@@ -1429,6 +1446,7 @@ const TestCase kLangTests[] = {
   {"lang_lex_reject_invalid_string_escape", LangLexRejectsInvalidStringEscape},
   {"lang_lex_reject_invalid_char_escape", LangLexRejectsInvalidCharEscape},
   {"lang_parse_type_literals", LangParsesTypeLiterals},
+  {"lang_parse_bad_array_size", LangRejectsBadArraySize},
   {"lang_parse_func_decl", LangParsesFuncDecl},
   {"lang_parse_fn_keyword", LangParsesFnKeywordDecl},
   {"lang_parse_var_decl", LangParsesVarDecl},

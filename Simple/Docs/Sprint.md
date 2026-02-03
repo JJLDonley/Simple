@@ -679,3 +679,4 @@
 - Added Simple::Lang conversion builtin validation (str/i32/f64) with new positive/negative tests.
 - Added Simple::Lang fn literal type checking against procedure types with new positive/negative tests.
 - Expanded type literal parsing tests to cover all primitive types and marked type-grammar phase complete.
+- Extended parser type tests for list types and invalid array sizes; marked array/list type parsing complete.
