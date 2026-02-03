@@ -4821,6 +4821,46 @@ bool RunIrTextGlobalInitF64Test() {
   return RunExpectExit(module, 6);
 }
 
+bool RunIrTextCallParamTypeMismatchTest() {
+  const char* text =
+      "func callee locals=1 stack=6 sig=0\n"
+      "  enter 1\n"
+      "  ldloc 0\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=6 sig=1\n"
+      "  enter 0\n"
+      "  const.bool 1\n"
+      "  call 0 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  simplevm::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 1;
+  sig0.param_types = {0};
+  simplevm::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_param_type_mismatch", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_call_param_type_mismatch");
+}
+
+bool RunIrTextConvTypeMismatchTest() {
+  const char* text =
+      "func main locals=0 stack=6 sig=0\n"
+      "  enter 0\n"
+      "  const.i32 1\n"
+      "  conv.f32.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_conv_type_mismatch");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_conv_type_mismatch");
+}
+
 static const TestCase kIrTests[] = {
   {"ir_emit_add", RunIrEmitAddTest},
   {"ir_emit_jump", RunIrEmitJumpTest},
@@ -4946,6 +4986,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_global_init_string", RunIrTextGlobalInitStringTest},
   {"ir_text_global_init_f32", RunIrTextGlobalInitF32Test},
   {"ir_text_global_init_f64", RunIrTextGlobalInitF64Test},
+  {"ir_text_call_param_type_mismatch", RunIrTextCallParamTypeMismatchTest},
+  {"ir_text_conv_type_mismatch", RunIrTextConvTypeMismatchTest},
 };
 
 static const TestSection kIrSections[] = {
