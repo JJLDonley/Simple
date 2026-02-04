@@ -38,6 +38,21 @@ namespace Simple::Lang {
 
 Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
 
+std::string Parser::ErrorWithLocation() const {
+  if (error_.empty()) return error_;
+  if (tokens_.empty()) return error_;
+  uint32_t line = 1;
+  uint32_t col = 1;
+  if (!IsAtEnd()) {
+    line = Peek().line;
+    col = Peek().column;
+  } else if (index_ > 0) {
+    line = tokens_[index_ - 1].line;
+    col = tokens_[index_ - 1].column;
+  }
+  return std::to_string(line) + ":" + std::to_string(col) + ": " + error_;
+}
+
 const Token& Parser::Peek(size_t offset) const {
   if (index_ + offset >= tokens_.size()) return tokens_.back();
   return tokens_[index_ + offset];
@@ -1311,7 +1326,7 @@ bool ParseProgramFromString(const std::string& text, Program* out, std::string* 
   }
   Parser parser(lexer.Tokens());
   if (!parser.ParseProgram(out)) {
-    if (error) *error = parser.Error();
+    if (error) *error = parser.ErrorWithLocation();
     return false;
   }
   return true;

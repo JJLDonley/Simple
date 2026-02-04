@@ -274,7 +274,7 @@ bool Lexer::Lex() {
         AddSimpleToken(TokenKind::At);
         break;
       default:
-        error_ = "unexpected character '" + std::string(1, c) + "'";
+        SetErrorHere("unexpected character '" + std::string(1, c) + "'");
         return false;
     }
   }
@@ -360,6 +360,14 @@ void Lexer::AddSimpleToken(TokenKind kind) {
   AddToken(kind, std::string(1, c));
 }
 
+void Lexer::SetErrorHere(const std::string& msg) {
+  SetErrorAt(msg, line_, column_ > 0 ? column_ : 1u);
+}
+
+void Lexer::SetErrorAt(const std::string& msg, uint32_t line, uint32_t col) {
+  error_ = std::to_string(line) + ":" + std::to_string(col) + ": " + msg;
+}
+
 bool Lexer::LexIdentifierOrKeyword() {
   size_t start = index_;
   while (IsIdentPart(Peek())) {
@@ -383,7 +391,7 @@ bool Lexer::LexNumber() {
     Advance();
     Advance();
     if (!std::isxdigit(static_cast<unsigned char>(Peek()))) {
-      error_ = "invalid hex literal";
+      SetErrorHere("invalid hex literal");
       return false;
     }
     while (std::isxdigit(static_cast<unsigned char>(Peek()))) {
@@ -398,7 +406,7 @@ bool Lexer::LexNumber() {
     Advance();
     Advance();
     if (Peek() != '0' && Peek() != '1') {
-      error_ = "invalid binary literal";
+      SetErrorHere("invalid binary literal");
       return false;
     }
     while (Peek() == '0' || Peek() == '1') {
@@ -426,7 +434,7 @@ bool Lexer::LexNumber() {
       Advance();
     }
     if (!std::isdigit(static_cast<unsigned char>(Peek()))) {
-      error_ = "invalid float literal";
+      SetErrorHere("invalid float literal");
       return false;
     }
     while (std::isdigit(static_cast<unsigned char>(Peek()))) {
@@ -459,14 +467,14 @@ bool Lexer::LexString() {
         case '"': value.push_back('"'); break;
         case '\\': value.push_back('\\'); break;
         default:
-          error_ = "invalid string escape at " + std::to_string(start_line) + ":" + std::to_string(start_col);
+          SetErrorAt("invalid string escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
           return false;
       }
     } else {
       value.push_back(c);
     }
   }
-  error_ = "unterminated string literal";
+  SetErrorHere("unterminated string literal");
   return false;
 }
 
@@ -476,7 +484,7 @@ bool Lexer::LexChar() {
   Advance();
   char value = '\0';
   if (IsAtEnd()) {
-    error_ = "unterminated char literal";
+    SetErrorHere("unterminated char literal");
     return false;
   }
   char c = Advance();
@@ -489,14 +497,14 @@ bool Lexer::LexChar() {
       case '\'': value = '\''; break;
       case '\\': value = '\\'; break;
       default:
-        error_ = "invalid char escape at " + std::to_string(start_line) + ":" + std::to_string(start_col);
+        SetErrorAt("invalid char escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
         return false;
     }
   } else {
     value = c;
   }
   if (Peek() != '\'') {
-    error_ = "unterminated char literal";
+    SetErrorHere("unterminated char literal");
     return false;
   }
   Advance();

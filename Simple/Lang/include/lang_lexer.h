@@ -25,6 +25,8 @@ private:
   void SkipWhitespaceAndComments();
   void AddToken(TokenKind kind, const std::string& text);
   void AddSimpleToken(TokenKind kind);
+  void SetErrorHere(const std::string& msg);
+  void SetErrorAt(const std::string& msg, uint32_t line, uint32_t col);
 
   bool LexIdentifierOrKeyword();
   bool LexNumber();

@@ -723,3 +723,4 @@
 - Added .simple fixture programs: sum_loop, sum_array, point_sum, list_len.
 - Added Simple language fixture tests for new .simple programs.
 - Added .simple negative fixtures (missing return, type mismatch) with error substring checks.
+- Added lexer and parser error location prefixes (line:col) and a parse-error location test.

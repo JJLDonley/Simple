@@ -13,6 +13,7 @@ public:
   explicit Parser(std::vector<Token> tokens);
 
   const std::string& Error() const { return error_; }
+  std::string ErrorWithLocation() const;
 
   bool ParseType(TypeRef* out);
   bool ParseProgram(Program* out);
