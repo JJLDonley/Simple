@@ -55,6 +55,22 @@ bool LangSimpleFixtureMath() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/math.simple", 0);
 }
 
+bool LangSimpleFixtureSumLoop() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/sum_loop.simple", 4950);
+}
+
+bool LangSimpleFixtureSumArray() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/sum_array.simple", 6);
+}
+
+bool LangSimpleFixturePointSum() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/point_sum.simple", 7);
+}
+
+bool LangSimpleFixtureListLen() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/list_len.simple", 4);
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -2044,6 +2060,10 @@ const TestCase kLangTests[] = {
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_simple_fixture_hello", LangSimpleFixtureHello},
   {"lang_simple_fixture_math", LangSimpleFixtureMath},
+  {"lang_simple_fixture_sum_loop", LangSimpleFixtureSumLoop},
+  {"lang_simple_fixture_sum_array", LangSimpleFixtureSumArray},
+  {"lang_simple_fixture_point_sum", LangSimpleFixturePointSum},
+  {"lang_simple_fixture_list_len", LangSimpleFixtureListLen},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

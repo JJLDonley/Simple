@@ -720,3 +720,5 @@
 - Added Simple::Lang tests for implicit main return and missing semicolon on same line.
 - Added CLI subcommands: `simplevm build/run/check` with `.simple/.sir/.sbc` support and uniform error prefixing.
 - Added Simple language fixture tests for `hello.simple` and `math.simple`.
+- Added .simple fixture programs: sum_loop, sum_array, point_sum, list_len.
+- Added Simple language fixture tests for new .simple programs.
