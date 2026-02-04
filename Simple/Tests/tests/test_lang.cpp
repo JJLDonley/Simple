@@ -116,6 +116,36 @@ bool LangSirEmitsLen() {
   return RunSirTextExpectExit(sir, 4);
 }
 
+bool LangSirEmitsArtifactLiteralAndMember() {
+  const char* src =
+      "Point :: artifact { x : i32 y : i32 }"
+      "main : i32 () { p : Point = { 1, 2 }; return p.x + p.y; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 3);
+}
+
+bool LangSirEmitsArtifactMemberAssign() {
+  const char* src =
+      "Point :: artifact { x : i32 y : i32 }"
+      "main : i32 () { p : Point = { 1, 2 }; p.y = 7; return p.y; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsEnumValue() {
+  const char* src =
+      "Color :: enum { Red = 1, Green = 2, Blue = 3 }"
+      "main : i32 () { return Color.Green; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 2);
+}
+
 bool LangLexesKeywordsAndOps() {
   const char* src = "fn main :: void() { return; }";
   Simple::Lang::Lexer lex(src);
@@ -1829,6 +1859,9 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_list_literal_index", LangSirEmitsListLiteralIndex},
   {"lang_sir_emit_list_assign", LangSirEmitsListAssign},
   {"lang_sir_emit_len", LangSirEmitsLen},
+  {"lang_sir_emit_artifact_literal_member", LangSirEmitsArtifactLiteralAndMember},
+  {"lang_sir_emit_artifact_member_assign", LangSirEmitsArtifactMemberAssign},
+  {"lang_sir_emit_enum_value", LangSirEmitsEnumValue},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},

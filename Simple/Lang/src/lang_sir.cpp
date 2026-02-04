@@ -29,6 +29,22 @@ struct EmitState {
   std::unordered_map<std::string, TypeRef> func_returns;
   std::unordered_map<std::string, std::vector<TypeRef>> func_params;
 
+  struct FieldLayout {
+    uint32_t offset = 0;
+    std::string name;
+    TypeRef type;
+    std::string sir_type;
+  };
+  struct ArtifactLayout {
+    uint32_t size = 0;
+    std::vector<FieldLayout> fields;
+    std::unordered_map<std::string, size_t> field_index;
+  };
+
+  std::unordered_map<std::string, const ArtifactDecl*> artifacts;
+  std::unordered_map<std::string, ArtifactLayout> artifact_layouts;
+  std::unordered_map<std::string, std::unordered_map<std::string, int64_t>> enum_values;
+
   uint32_t stack_cur = 0;
   uint32_t stack_max = 0;
   bool saw_return = false;
@@ -60,10 +76,11 @@ bool IsSupportedType(const TypeRef& type) {
   if (type.is_proc) return false;
   if (!type.dims.empty()) {
     if (type.name == "void") return false;
-    return IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string";
+    return true;
   }
-  return IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string" ||
-         type.name == "void";
+  if (type.name == "void") return true;
+  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string") return true;
+  return true;
 }
 
 bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
@@ -118,6 +135,30 @@ std::string EscapeStringLiteral(const std::string& value, std::string* error) {
   return out;
 }
 
+bool ParseIntegerLiteralText(const std::string& text, int64_t* out) {
+  if (!out) return false;
+  try {
+    if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+      *out = static_cast<int64_t>(std::stoull(text.substr(2), nullptr, 16));
+      return true;
+    }
+    if (text.size() > 2 && text[0] == '0' && (text[1] == 'b' || text[1] == 'B')) {
+      uint64_t value = 0;
+      for (size_t i = 2; i < text.size(); ++i) {
+        char c = text[i];
+        if (c != '0' && c != '1') return false;
+        value = (value << 1) | static_cast<uint64_t>(c - '0');
+      }
+      *out = static_cast<int64_t>(value);
+      return true;
+    }
+    *out = static_cast<int64_t>(std::stoll(text, nullptr, 10));
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
 std::string NewLabel(EmitState& st, const std::string& prefix) {
   return prefix + std::to_string(st.label_counter++);
 }
@@ -163,6 +204,40 @@ bool CloneElementType(const TypeRef& container, TypeRef* out) {
   return true;
 }
 
+uint32_t FieldSizeForType(const TypeRef& type) {
+  if (!type.dims.empty()) return 4;
+  if (type.name == "string") return 4;
+  if (type.name == "bool" || type.name == "char" || type.name == "i8" || type.name == "i16" ||
+      type.name == "i32" || type.name == "u8" || type.name == "u16" || type.name == "u32") {
+    return 4;
+  }
+  if (type.name == "i64" || type.name == "u64" || type.name == "f64") return 8;
+  if (type.name == "f32") return 4;
+  return 4;
+}
+
+uint32_t FieldAlignForType(const TypeRef& type) {
+  uint32_t size = FieldSizeForType(type);
+  if (size == 0) return 1;
+  if (size > 8) return 8;
+  return size;
+}
+
+uint32_t AlignTo(uint32_t value, uint32_t align) {
+  if (align <= 1) return value;
+  uint32_t mask = align - 1;
+  return (value + mask) & ~mask;
+}
+
+std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
+  if (!type.dims.empty()) return "ref";
+  if (type.name == "string") return "string";
+  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
+  if (st.artifacts.find(type.name) != st.artifacts.end()) return "ref";
+  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  return "ref";
+}
+
 bool PushStack(EmitState& st, uint32_t count) {
   st.stack_cur += count;
   if (st.stack_cur > st.stack_max) st.stack_max = st.stack_cur;
@@ -198,6 +273,7 @@ bool InferExprType(const Expr& expr,
                    const EmitState& st,
                    TypeRef* out,
                    std::string* error);
+bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error);
 
 bool InferLiteralType(const Expr& expr, TypeRef* out) {
   switch (expr.literal_kind) {
@@ -277,6 +353,37 @@ bool InferExprType(const Expr& expr,
         return false;
       }
       return true;
+    }
+    case ExprKind::ArtifactLiteral:
+      if (error) *error = "artifact literal requires expected type";
+      return false;
+    case ExprKind::Member: {
+      if (expr.children.empty()) {
+        if (error) *error = "member access missing base";
+        return false;
+      }
+      const Expr& base = expr.children[0];
+      if (base.kind == ExprKind::Identifier) {
+        auto enum_it = st.enum_values.find(base.text);
+        if (enum_it != st.enum_values.end()) {
+          out->name = base.text;
+          return true;
+        }
+      }
+      TypeRef base_type;
+      if (!InferExprType(base, st, &base_type, error)) return false;
+      auto layout_it = st.artifact_layouts.find(base_type.name);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "member access base is not an artifact";
+        return false;
+      }
+      const auto& layout = layout_it->second;
+      auto field_it = layout.field_index.find(expr.text);
+      if (field_it == layout.field_index.end()) {
+        if (error) *error = "unknown field '" + expr.text + "'";
+        return false;
+      }
+      return CloneTypeRef(layout.fields[field_it->second].type, out);
     }
     default:
       if (error) *error = "expression not supported for SIR emission";
@@ -681,6 +788,84 @@ bool EmitExpr(EmitState& st,
       PushStack(st, 1);
       return true;
     }
+    case ExprKind::ArtifactLiteral: {
+      if (!expected) {
+        if (error) *error = "artifact literal requires expected type";
+        return false;
+      }
+      auto layout_it = st.artifact_layouts.find(expected->name);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "artifact literal expects artifact type";
+        return false;
+      }
+      const auto& layout = layout_it->second;
+      std::vector<const Expr*> field_exprs(layout.fields.size(), nullptr);
+      if (!expr.children.empty()) {
+        if (expr.children.size() > layout.fields.size()) {
+          if (error) *error = "artifact literal has too many positional values";
+          return false;
+        }
+        for (size_t i = 0; i < expr.children.size(); ++i) {
+          field_exprs[i] = &expr.children[i];
+        }
+      }
+      for (size_t i = 0; i < expr.field_names.size(); ++i) {
+        const std::string& field = expr.field_names[i];
+        auto field_it = layout.field_index.find(field);
+        if (field_it == layout.field_index.end()) {
+          if (error) *error = "unknown artifact field '" + field + "'";
+          return false;
+        }
+        size_t index = field_it->second;
+        field_exprs[index] = &expr.field_values[i];
+      }
+      (*st.out) << "  newobj " << expected->name << "\n";
+      PushStack(st, 1);
+      for (size_t i = 0; i < layout.fields.size(); ++i) {
+        const auto& field = layout.fields[i];
+        (*st.out) << "  dup\n";
+        PushStack(st, 1);
+        if (field_exprs[i]) {
+          if (!EmitExpr(st, *field_exprs[i], &field.type, error)) return false;
+        } else {
+          if (!EmitDefaultInit(st, field.type, error)) return false;
+        }
+        (*st.out) << "  stfld " << expected->name << "." << field.name << "\n";
+        PopStack(st, 2);
+      }
+      return true;
+    }
+    case ExprKind::Member: {
+      if (expr.children.empty()) {
+        if (error) *error = "member access missing base";
+        return false;
+      }
+      const Expr& base = expr.children[0];
+      if (base.kind == ExprKind::Identifier) {
+        auto enum_it = st.enum_values.find(base.text);
+        if (enum_it != st.enum_values.end()) {
+          auto member_it = enum_it->second.find(expr.text);
+          if (member_it == enum_it->second.end()) {
+            if (error) *error = "unknown enum member '" + expr.text + "'";
+            return false;
+          }
+          (*st.out) << "  const.i32 " << member_it->second << "\n";
+          return PushStack(st, 1);
+        }
+      }
+      TypeRef base_type;
+      if (!InferExprType(base, st, &base_type, error)) return false;
+      auto layout_it = st.artifact_layouts.find(base_type.name);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "member access base is not an artifact";
+        return false;
+      }
+      if (!EmitExpr(st, base, &base_type, error)) return false;
+      (*st.out) << "  ldfld " << base_type.name << "." << expr.text << "\n";
+      PopStack(st, 1);
+      PushStack(st, 1);
+      return true;
+    }
     default:
       if (error) *error = "expression not supported for SIR emission";
       return false;
@@ -691,6 +876,14 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   if (!IsSupportedType(type) || type.name == "void") {
     if (error) *error = "unsupported default init type '" + type.name + "'";
     return false;
+  }
+  if (st.artifacts.find(type.name) != st.artifacts.end()) {
+    (*st.out) << "  const.null\n";
+    return PushStack(st, 1);
+  }
+  if (st.enum_values.find(type.name) != st.enum_values.end()) {
+    (*st.out) << "  const.i32 0\n";
+    return PushStack(st, 1);
   }
   if (!type.dims.empty()) {
     (*st.out) << "  const.null\n";
@@ -818,6 +1011,31 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           (*st.out) << "  array.set." << op_suffix << "\n";
         }
         PopStack(st, 3);
+        return true;
+      }
+      if (stmt.target.kind == ExprKind::Member) {
+        if (stmt.target.children.empty()) {
+          if (error) *error = "member assignment missing base";
+          return false;
+        }
+        const Expr& base = stmt.target.children[0];
+        TypeRef base_type;
+        if (!InferExprType(base, st, &base_type, error)) return false;
+        auto layout_it = st.artifact_layouts.find(base_type.name);
+        if (layout_it == st.artifact_layouts.end()) {
+          if (error) *error = "member assignment base is not an artifact";
+          return false;
+        }
+        auto field_it = layout_it->second.field_index.find(stmt.target.text);
+        if (field_it == layout_it->second.field_index.end()) {
+          if (error) *error = "unknown field '" + stmt.target.text + "'";
+          return false;
+        }
+        const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
+        if (!EmitExpr(st, base, &base_type, error)) return false;
+        if (!EmitExpr(st, stmt.expr, &field_type, error)) return false;
+        (*st.out) << "  stfld " << base_type.name << "." << stmt.target.text << "\n";
+        PopStack(st, 2);
         return true;
       }
       if (error) *error = "assignment target not supported in SIR emission";
@@ -995,12 +1213,32 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   st.error = error;
 
   std::vector<const FuncDecl*> functions;
+  std::vector<const ArtifactDecl*> artifacts;
+  std::vector<const EnumDecl*> enums;
   for (const auto& decl : program.decls) {
-    if (decl.kind != DeclKind::Function) {
-      if (error) *error = "only top-level functions are supported in SIR emission";
+    if (decl.kind == DeclKind::Function) {
+      functions.push_back(&decl.func);
+    } else if (decl.kind == DeclKind::Artifact) {
+      artifacts.push_back(&decl.artifact);
+      st.artifacts.emplace(decl.artifact.name, &decl.artifact);
+    } else if (decl.kind == DeclKind::Enum) {
+      enums.push_back(&decl.enm);
+      std::unordered_map<std::string, int64_t> values;
+      for (const auto& member : decl.enm.members) {
+        int64_t value = 0;
+        if (member.has_value) {
+          if (!ParseIntegerLiteralText(member.value_text, &value)) {
+            if (error) *error = "invalid enum value for " + decl.enm.name + "." + member.name;
+            return false;
+          }
+        }
+        values.emplace(member.name, value);
+      }
+      st.enum_values.emplace(decl.enm.name, std::move(values));
+    } else {
+      if (error) *error = "only top-level functions, artifacts, and enums are supported in SIR emission";
       return false;
     }
-    functions.push_back(&decl.func);
   }
   if (functions.empty()) {
     if (error) *error = "program has no functions";
@@ -1022,7 +1260,46 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.func_params.emplace(functions[i]->name, std::move(params));
   }
 
+  for (const auto* artifact : artifacts) {
+    EmitState::ArtifactLayout layout;
+    uint32_t offset = 0;
+    uint32_t max_align = 1;
+    layout.fields.reserve(artifact->fields.size());
+    for (const auto& field : artifact->fields) {
+      EmitState::FieldLayout field_layout;
+      field_layout.name = field.name;
+      if (!CloneTypeRef(field.type, &field_layout.type)) return false;
+      field_layout.sir_type = FieldSirTypeName(field.type, st);
+      uint32_t align = FieldAlignForType(field.type);
+      uint32_t size = FieldSizeForType(field.type);
+      offset = AlignTo(offset, align);
+      field_layout.offset = offset;
+      offset += size;
+      if (align > max_align) max_align = align;
+      layout.field_index[field.name] = layout.fields.size();
+      layout.fields.push_back(std::move(field_layout));
+    }
+    layout.size = AlignTo(offset, max_align);
+    st.artifact_layouts.emplace(artifact->name, std::move(layout));
+  }
+
   std::ostringstream result;
+  if (!artifacts.empty() || !enums.empty()) {
+    result << "types:\n";
+    for (const auto* artifact : artifacts) {
+      auto it = st.artifact_layouts.find(artifact->name);
+      if (it == st.artifact_layouts.end()) return false;
+      const auto& layout = it->second;
+      result << "  type " << artifact->name << " size=" << layout.size << " kind=artifact\n";
+      for (const auto& field : layout.fields) {
+        result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
+      }
+    }
+    for (const auto* enm : enums) {
+      result << "  type " << enm->name << " size=4 kind=i32\n";
+    }
+  }
+
   result << "sigs:\n";
   for (const auto* fn : functions) {
     result << "  sig " << fn->name << ": (";

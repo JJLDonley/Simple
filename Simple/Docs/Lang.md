@@ -1296,7 +1296,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] Basic direct function calls (no fn values)
 - [ ] Language → SIR mapping for expressions
 - [x] Control flow emission (if/|>/loops/break/skip)
-- [ ] Artifact/enum emission + member access
+- [x] Artifact/enum emission + member access
 - [x] Arrays/lists + literals
 - [ ] Fn values and calls
 
