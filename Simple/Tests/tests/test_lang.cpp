@@ -71,6 +71,18 @@ bool LangSimpleFixtureListLen() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/list_len.simple", 4);
 }
 
+bool LangSimpleBadMissingReturn() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/missing_return.simple",
+      "non-void function does not return on all paths");
+}
+
+bool LangSimpleBadTypeMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/type_mismatch.simple",
+      "type mismatch");
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -2064,6 +2076,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_sum_array", LangSimpleFixtureSumArray},
   {"lang_simple_fixture_point_sum", LangSimpleFixturePointSum},
   {"lang_simple_fixture_list_len", LangSimpleFixtureListLen},
+  {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
+  {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

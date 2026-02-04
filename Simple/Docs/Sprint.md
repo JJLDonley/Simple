@@ -722,3 +722,4 @@
 - Added Simple language fixture tests for `hello.simple` and `math.simple`.
 - Added .simple fixture programs: sum_loop, sum_array, point_sum, list_len.
 - Added Simple language fixture tests for new .simple programs.
+- Added .simple negative fixtures (missing return, type mismatch) with error substring checks.
