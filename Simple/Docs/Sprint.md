@@ -718,3 +718,5 @@
 - Allowed optional semicolons for top-level variable declarations when the next token starts on a new line.
 - main : i32() now permits implicit return 0 in validation and SIR emission.
 - Added Simple::Lang tests for implicit main return and missing semicolon on same line.
+- Added CLI subcommands: `simplevm build/run/check` with `.simple/.sir/.sbc` support and uniform error prefixing.
+- Added Simple language fixture tests for `hello.simple` and `math.simple`.

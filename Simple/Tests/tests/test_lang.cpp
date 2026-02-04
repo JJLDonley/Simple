@@ -34,12 +34,25 @@ bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
   return RunExpectExit(sbc, expected);
 }
 
+bool RunSimpleFileExpectExit(const std::string& path, int32_t expected) {
+  int exit_code = Simple::VM::Tests::RunSimpleFile(path, true);
+  return exit_code == expected;
+}
+
 bool LangSirEmitsReturnI32() {
   const char* src = "main : i32 () { return 40 + 2; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangSimpleFixtureHello() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/hello.simple", 0);
+}
+
+bool LangSimpleFixtureMath() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/math.simple", 0);
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2029,6 +2042,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
   {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
+  {"lang_simple_fixture_hello", LangSimpleFixtureHello},
+  {"lang_simple_fixture_math", LangSimpleFixtureMath},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
