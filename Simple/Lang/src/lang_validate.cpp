@@ -2404,7 +2404,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> type_params;
           if (!CollectTypeParams(decl.func.generics, &type_params, error)) return false;
-          if (!CheckFunctionBody(decl.func, ctx, type_params, nullptr, error)) return false;
+          if (!CheckFunctionBody(decl.func, ctx, type_params, nullptr, error)) {
+            if (error && !error->empty()) {
+              *error = "in function '" + decl.func.name + "': " + *error;
+            }
+            return false;
+          }
         }
         break;
       case DeclKind::Artifact:
@@ -2433,7 +2438,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
                                          error)) {
               return false;
             }
-            if (!CheckFunctionBody(method, ctx, method_params, &decl.artifact, error)) return false;
+            if (!CheckFunctionBody(method, ctx, method_params, &decl.artifact, error)) {
+              if (error && !error->empty()) {
+                *error = "in function '" + decl.artifact.name + "." + method.name + "': " + *error;
+              }
+              return false;
+            }
           }
         }
         break;
@@ -2458,7 +2468,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
         for (const auto& fn : decl.module.functions) {
           std::unordered_set<std::string> type_params;
           if (!CollectTypeParams(fn.generics, &type_params, error)) return false;
-          if (!CheckFunctionBody(fn, ctx, type_params, nullptr, error)) return false;
+          if (!CheckFunctionBody(fn, ctx, type_params, nullptr, error)) {
+            if (error && !error->empty()) {
+              *error = "in function '" + decl.module.name + "." + fn.name + "': " + *error;
+            }
+            return false;
+          }
         }
         break;
       case DeclKind::Enum:

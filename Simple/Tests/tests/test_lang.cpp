@@ -178,6 +178,12 @@ bool LangSimpleBadSelfOutsideArtifact() {
       "self");
 }
 
+bool LangSimpleBadModuleFuncReturnMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/module_func_return_mismatch.simple",
+      "Math.bad");
+}
+
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
   const std::string cmd = "Simple/bin/simplevm emit -ir Simple/Tests/simple/hello.simple --out " + out_path;
@@ -2226,6 +2232,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
   {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
+  {"lang_simple_bad_module_func_return_mismatch", LangSimpleBadModuleFuncReturnMismatch},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

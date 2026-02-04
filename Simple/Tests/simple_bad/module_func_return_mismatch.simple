@@ -1,0 +1,9 @@
+Math :: module {
+  bad : i32 () {
+    return "nope"
+  }
+}
+
+main : i32 () {
+  return Math.bad()
+}

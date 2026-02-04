@@ -741,3 +741,5 @@
 - Added .simple negative fixture for self used outside artifact.
 - Added SIR emission for artifact method calls (implicit self param lowering) and method signature handling.
 - Added CLI tests for emit/check/run using simplevm binary.
+- Added validator error context for top-level functions, artifact methods, and module functions.
+- Added negative .simple fixture for module function return mismatch.
