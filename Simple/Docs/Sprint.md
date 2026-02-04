@@ -760,3 +760,4 @@
 - Added array nested fixture and array/list literal negative fixtures (size/type mismatch, non-container indexing).
 - Added .simple negative fixture for artifact member access without self.
 - Added CLI test to validate error formatting for `simplevm check` on .simple files.
+- Added list nested fixture and negative fixtures for unknown enum/module/artifact members.

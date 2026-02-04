@@ -84,6 +84,10 @@ bool LangSimpleFixtureListLen() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/list_len.simple", 4);
 }
 
+bool LangSimpleFixtureListNested() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/list_nested.simple", 3);
+}
+
 bool LangSimpleFixtureAddFn() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/add_fn.simple", 42);
 }
@@ -258,6 +262,24 @@ bool LangSimpleBadArtifactMemberNoSelf() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/artifact_member_without_self.simple",
       "artifact members must be accessed via self");
+}
+
+bool LangSimpleBadEnumUnknownMember() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/enum_unknown_member.simple",
+      "unknown enum member");
+}
+
+bool LangSimpleBadModuleUnknownMember() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/module_unknown_member.simple",
+      "unknown module member");
+}
+
+bool LangSimpleBadArtifactUnknownMember() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/artifact_unknown_member.simple",
+      "unknown artifact member");
 }
 
 bool LangSimpleBadArraySizeMismatch() {
@@ -2380,6 +2402,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_sum_array", LangSimpleFixtureSumArray},
   {"lang_simple_fixture_point_sum", LangSimpleFixturePointSum},
   {"lang_simple_fixture_list_len", LangSimpleFixtureListLen},
+  {"lang_simple_fixture_list_nested", LangSimpleFixtureListNested},
   {"lang_simple_fixture_add_fn", LangSimpleFixtureAddFn},
   {"lang_simple_fixture_if_else", LangSimpleFixtureIfElse},
   {"lang_simple_fixture_for_loop", LangSimpleFixtureForLoop},
@@ -2401,6 +2424,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
+  {"lang_simple_bad_enum_unknown_member", LangSimpleBadEnumUnknownMember},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
   {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
@@ -2415,6 +2439,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_module_as_type", LangSimpleBadModuleAsType},
   {"lang_simple_bad_function_as_type", LangSimpleBadFunctionAsType},
   {"lang_simple_bad_artifact_member_no_self", LangSimpleBadArtifactMemberNoSelf},
+  {"lang_simple_bad_module_unknown_member", LangSimpleBadModuleUnknownMember},
+  {"lang_simple_bad_artifact_unknown_member", LangSimpleBadArtifactUnknownMember},
   {"lang_simple_bad_array_size_mismatch", LangSimpleBadArraySizeMismatch},
   {"lang_simple_bad_array_elem_type_mismatch", LangSimpleBadArrayElemTypeMismatch},
   {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},

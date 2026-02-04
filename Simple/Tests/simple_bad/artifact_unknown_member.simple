@@ -1,0 +1,6 @@
+Point :: artifact { x : i32 }
+
+main : i32 () {
+  p : Point = { 1 }
+  return p.y
+}
