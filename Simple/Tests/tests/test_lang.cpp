@@ -320,6 +320,12 @@ bool LangSimpleBadArrayMissingDim() {
       "array/list literal requires array or list type");
 }
 
+bool LangSimpleBadMissingSemicolonSameLine() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/missing_semicolon_same_line.simple",
+      "expected ';'");
+}
+
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
@@ -2462,6 +2468,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},
   {"lang_simple_bad_index_non_container", LangSimpleBadIndexNonContainer},
   {"lang_simple_bad_array_missing_dim", LangSimpleBadArrayMissingDim},
+  {"lang_simple_bad_missing_semicolon_same_line", LangSimpleBadMissingSemicolonSameLine},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

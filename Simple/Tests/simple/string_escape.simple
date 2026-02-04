@@ -1,0 +1,4 @@
+main : i32 () {
+  IO.print("hello\n")
+  IO.print("tab\tend")
+}

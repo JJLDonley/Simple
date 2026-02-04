@@ -762,3 +762,5 @@
 - Added CLI test to validate error formatting for `simplevm check` on .simple files.
 - Added list nested fixture and negative fixtures for unknown enum/module/artifact members.
 - Added empty array/list fixtures and a negative fixture for array literal used without array/list type.
+- Added .simple fixtures for implicit main return, string escape output, and same-line semicolon usage.
+- Added negative .simple fixture for missing semicolon on same line and a validation test for the error.
