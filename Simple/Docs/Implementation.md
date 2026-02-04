@@ -95,7 +95,7 @@ Checklist:
 - [x] JIT tiering with interpreter fallback.
 - [x] Trap diagnostics include opcode + PC + method context.
 - [x] Validate IMPORTS/EXPORTS tables and signatures.
-- [ ] Emit/import-call strategy for externs at runtime (FFI plumbing).
+- [x] Emit/import-call strategy for externs at runtime (FFI plumbing).
 
 Future:
 - Generational GC (young/old) and advanced optimizations.

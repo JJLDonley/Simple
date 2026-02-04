@@ -516,6 +516,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       ret_kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
     }
+    if (options.import_resolver) {
+      Slot custom_ret = out_ret;
+      bool custom_has_ret = out_has_ret;
+      std::string custom_error;
+      if (options.import_resolver(mod, sym, args, custom_ret, custom_has_ret, custom_error)) {
+        out_ret = custom_ret;
+        out_has_ret = custom_has_ret;
+        return true;
+      }
+      if (!custom_error.empty()) {
+        out_error = custom_error;
+        return false;
+      }
+    }
     if (mod == "core.os") {
       if (sym == "args_count") {
         if (ret_kind == TypeKind::I32) {

@@ -2,6 +2,7 @@
 #define SIMPLE_VM_H
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -46,6 +47,10 @@ struct ExecResult {
 
 struct ExecOptions {
   std::vector<std::string> argv;
+  std::function<bool(const std::string& module, const std::string& symbol,
+                     const std::vector<uint64_t>& args, uint64_t& out_ret,
+                     bool& out_has_ret, std::string& out_error)>
+      import_resolver;
 };
 
 ExecResult ExecuteModule(const SbcModule& module);

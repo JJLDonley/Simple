@@ -781,3 +781,5 @@
 - Added reserved stdlib modules (Math/Time/File) with intrinsics/import bindings, fixtures, and a StdLib.md layout doc.
 - Added Math.PI stdlib fixture and test coverage.
 - Added CLI diagnostic range highlights with source/caret context and updated error-format tests.
+- Added VM import resolver hook to bind non-core FFI imports at runtime.
+- Added import_call_host test to validate custom import resolver handling.

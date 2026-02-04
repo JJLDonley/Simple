@@ -6226,6 +6226,76 @@ std::vector<uint8_t> BuildImportCallModule() {
                                      imports, {});
 }
 
+std::vector<uint8_t> BuildImportCallHostModule() {
+  using Simple::Byte::OpCode;
+  using Simple::Byte::sbc::BuildModuleFromSections;
+  using Simple::Byte::sbc::SectionData;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 41);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 1);
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+
+  std::vector<uint8_t> types;
+  AppendU32(types, 0);
+  AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::I32));
+  AppendU8(types, 0);
+  AppendU16(types, 0);
+  AppendU32(types, 4);
+  AppendU32(types, 0);
+  AppendU32(types, 0);
+
+  std::vector<uint8_t> methods;
+  AppendU32(methods, 0);
+  AppendU32(methods, 0);
+  AppendU32(methods, 0);
+  AppendU16(methods, 0);
+  AppendU16(methods, 0);
+
+  std::vector<uint8_t> sigs;
+  AppendU32(sigs, 0);
+  AppendU16(sigs, 0);
+  AppendU16(sigs, 0);
+  AppendU32(sigs, 0);
+  AppendU32(sigs, 0);
+  AppendU16(sigs, 1);
+  AppendU16(sigs, 0);
+  AppendU32(sigs, 0);
+  AppendU32(sigs, 0);
+
+  std::vector<uint8_t> const_pool;
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "host"));
+  uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "add1"));
+
+  std::vector<uint8_t> functions;
+  AppendU32(functions, 0);
+  AppendU32(functions, 0);
+  AppendU32(functions, static_cast<uint32_t>(code.size()));
+  AppendU32(functions, 8);
+
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off);
+  AppendU32(imports, sym_off);
+  AppendU32(imports, 1);
+  AppendU32(imports, 0);
+
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, {}, 0, 0});
+  sections.push_back({3, methods, 1, 0});
+  sections.push_back({4, sigs, 2, 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, {}, 0, 0});
+  sections.push_back({7, functions, 1, 0});
+  sections.push_back({10, imports, static_cast<uint32_t>(imports.size() / 16), 0});
+  sections.push_back({8, code, 0, 0});
+  return BuildModuleFromSections(sections);
+}
+
 std::vector<uint8_t> BuildImportCallIndirectModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> code;
@@ -19514,6 +19584,50 @@ bool RunImportCallTest() {
   return true;
 }
 
+bool RunImportCallHostResolverTest() {
+  std::vector<uint8_t> module_bytes = BuildImportCallHostModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecOptions options;
+  options.import_resolver =
+      [](const std::string& mod, const std::string& sym, const std::vector<uint64_t>& args,
+         uint64_t& out_ret, bool& out_has_ret, std::string& out_error) -> bool {
+        if (mod != "host" || sym != "add1") {
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "host.add1 arg count mismatch";
+          return false;
+        }
+        int32_t value = static_cast<int32_t>(static_cast<uint32_t>(args[0]));
+        out_ret = static_cast<uint32_t>(value + 1);
+        out_has_ret = true;
+        return true;
+      };
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed status " << static_cast<int>(exec.status);
+    if (!exec.error.empty()) {
+      std::cerr << ": " << exec.error;
+    }
+    std::cerr << "\n";
+    return false;
+  }
+  if (exec.exit_code != 42) {
+    std::cerr << "expected 42, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunImportCallIndirectTest() {
   std::vector<uint8_t> module_bytes = BuildImportCallIndirectModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -22910,6 +23024,7 @@ static const TestCase kCoreTests[] = {
   {"bad_import_duplicate_load", RunBadImportDuplicateLoadTest},
   {"bad_export_duplicate_load", RunBadExportDuplicateLoadTest},
   {"import_call", RunImportCallTest},
+  {"import_call_host", RunImportCallHostResolverTest},
   {"import_call_indirect", RunImportCallIndirectTest},
   {"import_time_mono", RunImportTimeMonoTest},
   {"import_cwd_get", RunImportCwdGetTest},
