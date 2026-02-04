@@ -735,3 +735,5 @@
 - Added simplevm emit command for .simple/.sir outputs and standardized CLI error formatting.
 - Added io_print.simple fixture and test for IO.print/println in Simple fixtures.
 - Added fn_literal.simple fixture and test for function literal calls in Simple fixtures.
+- Added .simple fixtures: array_assign, list_index, string_len.
+- Added .simple negative fixtures: break_outside_loop and module_var_access.

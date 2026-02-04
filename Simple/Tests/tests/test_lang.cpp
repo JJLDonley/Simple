@@ -103,6 +103,18 @@ bool LangSimpleFixtureFnLiteral() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/fn_literal.simple", 42);
 }
 
+bool LangSimpleFixtureArrayAssign() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/array_assign.simple", 9);
+}
+
+bool LangSimpleFixtureListIndex() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/list_index.simple", 6);
+}
+
+bool LangSimpleFixtureStringLen() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/string_len.simple", 5);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -125,6 +137,18 @@ bool LangSimpleBadEnumUnqualified() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/enum_unqualified.simple",
       "enum");
+}
+
+bool LangSimpleBadBreakOutsideLoop() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/break_outside_loop.simple",
+      "break");
+}
+
+bool LangSimpleBadModuleVarAccess() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/module_var_access.simple",
+      "module");
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2137,10 +2161,15 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_module_access", LangSimpleFixtureModuleAccess},
   {"lang_simple_fixture_io_print", LangSimpleFixtureIoPrint},
   {"lang_simple_fixture_fn_literal", LangSimpleFixtureFnLiteral},
+  {"lang_simple_fixture_array_assign", LangSimpleFixtureArrayAssign},
+  {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
+  {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
+  {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
+  {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
