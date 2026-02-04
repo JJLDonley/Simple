@@ -15,14 +15,7 @@ are managed by GC, and tiered JIT can optimize hot methods.
 - ABI/FFI surface frozen for v0.1 (see `Docs/legacy/SBC_ABI.md`).  
 
 **Implementation Plan**  
-1) Core runtime + call frames.  
-2) Heap + GC root tracking.  
-3) Extended opcodes (objects/arrays/lists/strings).  
-4) Tiered JIT + diagnostics.  
-
-**Future Plan**  
-- Optional GC enhancements (arena/young/old) after v0.1 stability.  
-- Additional JIT optimizations as workloads demand.  
+See `Simple/Docs/Implementation.md` (Module: Simple::VM).
 
 ---
 

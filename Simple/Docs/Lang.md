@@ -1,27 +1,6 @@
-# Simple::Lang
+# Simple Language
 
-**Scope**  
-Language frontend(s) that target SIR.
-
-**How It Works**  
-Language compilers lower source -> SIR text (or direct emitter API) and rely on the VM for
-verification and execution.
-
-**What Works (Current)**  
-- Not implemented (intentional).
-
-**Implementation Plan**  
-1) Build Simple language front-end targeting SIR.  
-2) Layer standard library using ABI/FFI.  
-
-**Future Plan**  
-- Full language toolchain and packaging.  
-
----
-
-## Language Specification (Legacy Reference)
-
-### Simple Language Spec
+**Note:** This document consolidates the Simple language specification. Implementation plans live in `Simple/Docs/Implementation.md`.
 
 # Simple Programming Language
 ## Grammar and Design Specification
@@ -85,7 +64,7 @@ This applies to:
 
 ```
 while, for, break, skip, return, default
-fn, self, artifact, enum, module
+fn, self, artifact, enum, module, union
 ```
 
 ### Operators
@@ -274,6 +253,9 @@ Math :: module {
     }
 }
 ```
+
+#### unions (Reserved)
+Strictly scoped tagged unions declared with `:: union`. The keyword is reserved, and implementation is still deferred.
 
 ---
 
@@ -558,6 +540,9 @@ expression_statement ::= expression
 block ::= "{" statement* "}"
 ```
 
+Semicolons are optional at statement boundaries. A newline or `}` terminates a statement.
+Use `;` to place multiple statements on the same line.
+
 ### Control Flow
 
 #### Simple If
@@ -834,7 +819,7 @@ len : i32 = len(jagged[2])    // Length of second row (6)
 
 1. **Block scope**: Variables declared in a block are only visible within that block
 2. **Shadowing allowed**: Inner scope variables can shadow outer scope variables
-3. **enum scoping**: enum values must always be qualified with their type name
+3. **enum and union scoping**: enum values (and union values once implemented) must always be qualified with their type name
    ```
    Status.Active      // OK
    Active             // ERROR: unqualified enum value
@@ -1020,25 +1005,25 @@ The full opcode list and encoding rules live in `Simple_VM_Opcode_Spec.md`.
 Source Code (.simple)
     ↓
 ┌─────────────┐
-│   Lexer     │ -> Tokens
+│   Lexer     │ → Tokens
 └─────────────┘
     ↓
 ┌─────────────┐
-│   Parser    │ -> Abstract Syntax Tree (AST)
+│   Parser    │ → Abstract Syntax Tree (AST)
 └─────────────┘
     ↓
 ┌─────────────┐
-│   Semantic  │ -> Annotated AST
+│   Semantic  │ → Annotated AST
 │   Analyzer  │   (Type checking, scope resolution)
 └─────────────┘
     ↓
 ┌─────────────┐
-│  Bytecode   │ -> Simple bytecode
+│  Bytecode   │ → Simple bytecode
 │  Emitter    │
 └─────────────┘
     ↓
 ┌─────────────┐
-│  VM Image   │ -> .sbc module
+│  VM Image   │ → .sbc module
 │  Packager   │
 └─────────────┘
 ```
@@ -1171,6 +1156,8 @@ main : i32 () {
 }
 ```
 
+If `main` omits an explicit return, the compiler inserts `return 0`.
+
 ### Error Handling
 
 **Error Types:**
@@ -1204,204 +1191,6 @@ error[E0001]: type mismatch
 - Optional JIT/AOT compilation
 - Garbage collection / refcount tuning
 - Native code generation hooks
-
----
-
-## Standard Library
-
-### Built-in Procedures
-
-```
-str : string (value : i32)
-str : string (value : f64)
-str : string (value : bool)
-
-i32 : i32 (value : string)
-f64 : f64 (value : string)
-
-len<T> : i32 (arr : T[])       // Length of 1D list
-len<T> : i32 (arr : T[][])     // Length of outer dimension (number of rows)
-len : i32 (str : string)       // Length of string
-```
-
-### Standard modules
-
-```
-IO :: module {
-    read_file :: string (path : string)
-    write_file : void (path : string, content : string)
-    print<T> : void (value : T)
-    println<T> : void (value : T)
-}
-
-Math :: module {
-    abs :: f64 (x : f64)
-    sqrt :: f64 (x : f64)
-    pow :: f64 (base : f64, exp : f64)
-    sin :: f64 (x : f64)
-    cos :: f64 (x : f64)
-}
-
-String :: module {
-    concat :: string (a : string, b : string)
-    substring :: string (s : string, start : i32, length : i32)
-    to_upper :: string (s : string)
-    to_lower :: string (s : string)
-}
-```
-
----
-
-## Example Programs
-
-### Hello World
-
-```
-main : i32 () {
-    IO.println("Hello, World!")
-    return 0
-}
-```
-
-### FizzBuzz
-
-```
-main : i32 () {
-    for (i : i32 = 1; i <= 100; i++) {
-        |> i % 15 == 0 { IO.println("FizzBuzz") }
-        |> i % 3 == 0 { IO.println("Fizz") }
-        |> i % 5 == 0 { IO.println("Buzz") }
-        |> default { IO.println(str(i)) }
-    }
-    return 0
-}
-```
-
-### artifact Example
-
-```
-Point :: artifact {
-    x : f64
-    y : f64
-    
-    distance :: f64 () {
-        return Math.sqrt(self.x * self.x + self.y * self.y)
-    }
-    
-    move : void (dx : f64, dy : f64) {
-        self.x = self.x + dx
-        self.y = self.y + dy
-    }
-}
-
-main : i32 () {
-    p : Point = { 3.0, 4.0 }
-    IO.println("Distance: " + str(p.distance()))
-    
-    p.move(1.0, 1.0)
-    IO.println("New position: (" + str(p.x) + ", " + str(p.y) + ")")
-    
-    return 0
-}
-```
-
-### First-Class Procedures
-
-```
-apply : i32 (operation : fn : i32, a : i32, b : i32) {
-    return operation(a, b)
-}
-
-main : i32 () {
-    add : fn : i32 = (x : i32, y : i32) { return x + y }
-    multiply : fn : i32 = (x : i32, y : i32) { return x * y }
-    
-    sum : i32 = apply(add, 5, 3)
-    product : i32 = apply(multiply, 5, 3)
-    
-    IO.println("Sum: " + str(sum))
-    IO.println("Product: " + str(product))
-    
-    return 0
-}
-```
-
-### Generics
-
-```
-swap<T> : void (a : T, b : T) {
-    temp : T = a
-    a = b
-    b = temp
-}
-
-Box<T> :: artifact {
-    value : T
-    
-    get :: T () {
-        return self.value
-    }
-}
-
-main : i32 () {
-    i : i32 = 1
-    j : i32 = 2
-    swap<i32>(i, j)
-
-    box : Box<string> = { "hello" }
-    IO.println(box.get())
-    return 0
-}
-```
-
-### module Example
-
-```
-Math :: module {
-    PI :: f64 = 3.14159265359
-    E :: f64 = 2.71828182846
-    
-    abs :: f64 (x : f64) {
-        |> x < 0.0 { return -x }
-        |> default { return x }
-    }
-    
-    max :: i32 (a : i32, b : i32) {
-        |> a > b { return a }
-        |> default { return b }
-    }
-}
-
-main : i32 () {
-    IO.println("PI = " + str(Math.PI))
-    IO.println("abs(-5.5) = " + str(Math.abs(-5.5)))
-    IO.println("max(10, 20) = " + str(Math.max(10, 20)))
-    return 0
-}
-```
-
----
-
-## Future Considerations
-
-### Pattern Matching
-
-```
-|> value is Point(x, y) { IO.println("Point at " + str(x) + ", " + str(y)) }
-|> value is Status.Active { IO.println("Active status") }
-|> default { IO.println("Unknown") }
-```
-
-### modules/Packages
-
-```
-import Math
-import IO.File
-
-// Or
-using Math
-using IO.File
-```
 
 ---
 
@@ -1477,7 +1266,7 @@ generic_arguments ::= "<" type ("," type)* ">"
 
 ```
 while, for, break, skip, return, default, fn, self,
-artifact, enum, module,
+artifact, enum, module, union,
 true, false
 ```
 
@@ -1507,159 +1296,3 @@ simple check program.simple
 
 **Version:** 1.0  
 **Last Updated:** 2026-01-29
-
-
----
-
-### Simple Implementation Notes
-
-# Simple Programming Language
-## Implementation Document
-
-**Version:** 1.0  
-**Target Platform:** Simple VM (portable C++ runtime)  
-**File Extension:** `.simple`
-
----
-
-## Table of Contents
-
-1. [Purpose](#purpose)
-2. [Scope](#scope)
-3. [Implementation Phases](#implementation-phases)
-4. [Compiler Pipeline Checklists](#compiler-pipeline-checklists)
-5. [Language Feature Checklists](#language-feature-checklists)
-6. [Phase Milestone Checklists](#phase-milestone-checklists)
-7. [Non-Goals](#non-goals)
-
----
-
-## Purpose
-
-This document defines the detailed implementation plan and verification checklists for the Simple programming language. It follows the language specification in `Simple_Programming_Language_Document.md` and is intended to guide implementation and validation of each compiler phase and language feature.
-
-## Scope
-
-This plan covers:
-- The compiler pipeline (lexer -> parser -> AST -> semantic analysis -> bytecode emission -> bytecode packaging)
-- Language features as specified (types, statements, expressions, artifacts, modules, enums, generics, standard library)
-- CLI tooling and diagnostics
-
-## Unified Implementation Plan (Merged)
-
-### Phase 0: VM Core + Bytecode Spec (Runtime Foundation)
-- [x] Define bytecode header, versioning, and section layout
-- [x] Define opcode enum and operand decoding rules
-- [x] Define metadata tables and indexing rules
-- [x] Implement verifier (stack/type safety)
-- [x] Implement fetch/decode/execute loop
-- [x] Implement call frames, locals, globals, and value stack
-- [x] Implement core opcodes: const/load/store/arithmetic/compare/branch/call/ret
-- [x] Implement heap objects: string, array, list, artifact, closure
-- [x] Implement tracing GC (mark-sweep or generational)
-- [x] Implement tiered JIT (tier 0 quick, tier 1 optimizing)
-- [x] Implement debug hooks (line info, traps)
-- **Milestone:** Minimal VM runs a hand-written bytecode "hello"
-
-### Phase 1: Minimal Compiler (MVP)
-**Compiler Pipeline**
-- [x] Lexer supports primitives, literals, operators for MVP
-- [x] Parser supports variable declarations, simple expressions, procedures
-- [x] Semantic checks for explicit typing and returns
-- [x] Codegen for variables, arithmetic, procedure calls, `IO.print<T>`
-- [x] Bytecode packaging: define entry point (`main : i32 ()`) and write `.sbc`
-
-**Language Features**
-- [x] Mutable variable declarations (`:`)
-- [x] Immutable variable declarations (`::`)
-- [x] Zero-initialization of unassigned variables
-- [x] Primitive types (`i32`, `f64`, `bool`, `string`)
-- [x] Literals (int, float, string, char, bool)
-- [x] Binary operators (arithmetic, comparison)
-- [x] Procedure declarations/calls with parameter mutability
-- [x] Built-ins: `IO.print<T>`, `IO.println<T>`
-
-**Diagnostics/CLI**
-- [ ] Uniform error format (`error[E0001]: ...`)
-- [ ] Report line/column and highlight ranges
-- [ ] `simple emit -ir` emits `.sir`
-- [ ] `simple emit -sbc` emits `.sbc`
-- [ ] `simple build` compiles VM + the bytecode into a single executible
-- [ ] `simple run` compiles + executes on the VM
-- [ ] `simple check` validates syntax only
-
-- **Milestone:** Hello World program compiles and runs
-
-### Phase 2: Control Flow
-**Compiler Pipeline**
-- [x] Parser supports `|>`, `while`, `for`, `break`, `skip`
-- [x] Codegen for branching and looping
-
-**Language Features**
-- [x] If statements
-- [x] If-else chains (`|>`)
-- [x] While loops
-- [x] For loops
-- [x] Return statements
-- [x] Break and skip
-
-- **Milestone:** FizzBuzz program compiles and runs
-
-### Phase 3: Artifacts and Methods
-**Compiler Pipeline**
-- [x] Artifact initialization (positional and named)
-- [x] Member access and method calls with `self`
-
-**Language Features**
-- [x] Artifact declarations (including generics)
-- [x] Member declarations with mutability
-- [x] Methods with `self` access
-- [x] Instantiation with brace syntax
-
-- **Milestone:** Point/Rectangle example compiles and runs
-
-### Phase 4: Advanced Features
-**Compiler Pipeline**
-- [x] Emit arrays/lists + literals
-- [x] Emit index expressions
-- [x] Emit closures for `Fn` procedures
-- [x] Monomorphize generics into concrete bytecode
-
-**Language Features**
-- [x] Modules and static member access
-- [x] Enums with strict scoping (`Type.Member`)
-- [x] Fixed-size arrays (`T[N]`, `T[N][M]`, `T[N][M][P]`)
-- [x] Dynamic lists (`T[]`, `T[][]`, `T[][][]`)
-- [x] Procedure types (`(params) : return`, `(params) :: return`)
-- [x] First-class procedure values (`Fn`) + lambdas
-- [x] Generics: type parameters, type arguments, inference, invariance
-
-- **Milestone:** Full language support examples compile and run
-
-### Phase 5: Optimization, Tooling, and UX
-**Compiler Pipeline**
-- [x] Error recovery in parser
-- [ ] Improved diagnostics
-- [ ] Optimization passes (AST and bytecode)
-- [ ] Standard library modules wired to VM runtime
-- [ ] CLI tools stable
-
-**Tooling**
-- [ ] Optional LSP and debugger hooks
-
----
-
----
-
-## Non-Goals
-
-- [ ] Implementing pointers/unsafe system
-- [ ] Pattern matching
-- [ ] Modules/packages/import system
-
----
-
-**End of Implementation Document**
-
-
----

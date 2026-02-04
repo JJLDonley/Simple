@@ -409,21 +409,133 @@ Status:
 Future:
 - Expand perf baselines and regression thresholds.
 
-### 4.6 Module: Simple::Lang (Future Consumer)
+### 4.6 Module: Simple::Lang (Language Front-End)
 
 Docs:
-- `Simple/Docs/Simple_Programming_Language_Document.md`
-- `Simple/Docs/Simple_Implementation_Document.md`
+- `Simple/Docs/Lang.md` (authoritative language spec)
 
-Phase Plan:
-1) Language front-end lowering to SIR.
-2) Standard library layered via ABI/FFI.
+Unified Implementation Plan (Merged)
 
-Status:
-- Intentionally deferred until SIR + ABI are locked.
+Phase 1: Minimal Compiler (MVP)
+- Variables (mutable/immutable)
+- Primitive types (i32, f64, bool, string)
+- Binary expressions (arithmetic, comparison)
+- Simple if statements
+- Procedure definitions and calls
+- Built-ins: IO.print/IO.println
+- Deliverable: Hello World compiles and runs
 
-Future:
-- Build Simple compiler as a consumer of SIR.
+Phase 2: Control Flow
+- If-else chains (|>)
+- While/for loops
+- Break/skip
+- Deliverable: FizzBuzz compiles and runs
+
+Phase 3: Artifacts and Methods
+- Artifact definitions/instantiation
+- Member access and method calls
+- Deliverable: Point/Rectangle example compiles and runs
+
+Phase 4: Advanced Features
+- Modules and enums
+- Arrays and lists
+- First-class procedures (Fn)
+- Generics
+- Imports/extern declarations (optional alias)
+- FFI signatures + VM dlopen/dlsym plumbing
+- Deliverable: Full language support compiles and runs
+
+Phase 5: Optimization and Tooling
+- Error recovery in parser
+- Improved diagnostics
+- Basic optimizations
+- Standard library wiring
+- LSP/debugger hooks (optional)
+
+Compiler Pipeline Checklist
+1) Lexer
+- [ ] Recognize all keywords (while/for/break/skip/return/default/fn/self/artifact/enum/module/true/false/import/extern/as)
+- [ ] Recognize literals (int/float/string/char/bool)
+- [ ] Recognize operators/punctuators (including ::, |>, [], (), {})
+- [ ] Emit distinct tokens for : vs ::
+- [ ] Single-line/multi-line comments
+- [ ] Line/column tracking
+- [ ] Emit EOF token
+
+2) Parser
+- [ ] Parse program structure (declaration*)
+- [ ] Parse declarations (variables/procedures/artifacts/modules/enums)
+- [x] Parse imports (import "lib" [as Alias])
+- [x] Parse extern declarations (extern [Module.]Name : Return (params...))
+- [ ] Parse parameter lists with mutability
+- [ ] Parse types (primitive/arrays/lists/proc/user-defined)
+- [ ] Parse generic params and args
+- [ ] Parse statements (assign/if/|>/while/for/return/break/skip/block)
+- [ ] Parse expressions (precedence/associativity)
+- [ ] Parse artifact/array literals
+- [ ] Error recovery (Phase 5)
+
+3) AST
+- [ ] Full nodes for declarations/statements/expressions
+- [ ] Type nodes including generic instances/params
+- [ ] Preserve source spans
+- [ ] Normalize precedence
+- [ ] ImportDecl/ExternDecl nodes
+
+4) Semantic Analysis
+- [ ] Build scopes/symbol table
+- [ ] Enforce explicit typing
+- [ ] Resolve identifiers + enum qualification
+- [ ] Mutability rules (: vs ::)
+- [ ] Type checking for expressions/assignments
+- [ ] Procedure rules (returns/all paths)
+- [ ] Artifact rules (init/self access)
+- [ ] Generic rules (scope/instantiation/inference)
+- [ ] Validate array sizes (compile-time)
+- [ ] Validate list/array indexing
+- [x] Validate import/extern declarations and extern call signatures
+
+5) Bytecode/SIR Generation
+- [ ] Emit VM instructions for primitives/arrays/lists/artifacts/modules/enums
+- [ ] Emit closures for Fn procedures
+- [ ] Monomorphize generics
+- [ ] Emit globals/locals with stable slots
+- [ ] Emit control flow (if/|>/while/for/break/skip)
+- [ ] Emit expression evaluation (binary/unary/call/index/member)
+- [ ] Emit artifact init (positional/named)
+- [ ] Emit array/list literals
+- [ ] Emit return/default return
+- [ ] Emit extern tables and FFI call sites (dlopen/dlsym bindings)
+
+6) Bytecode Packaging
+- [ ] Build module header + section tables
+- [ ] Define entry point (main : i32 ())
+- [ ] Write module to disk (.sbc)
+
+7) Diagnostics
+- [ ] Uniform error format (error[E0001]: ...)
+- [ ] Line/column + range highlights
+- [ ] Distinguish syntax vs semantic errors
+
+8) CLI
+- [ ] simple build emits .sbc
+- [ ] simple run compiles + executes on VM
+- [ ] simple check validates syntax only
+
+Language Feature Checklist
+- Variables/mutability, Types, Expressions, Statements, Procedures/Fn, Artifacts, Modules, Enums, Generics, Standard Library
+
+Phase Milestones
+- Phase 1: Hello World
+- Phase 2: FizzBuzz
+- Phase 3: Point/Rectangle
+- Phase 4: Full language examples
+- Phase 5: Tooling/optimization/diagnostics
+
+Non-Goals
+- Pointers/unsafe
+- Pattern matching
+- Packages/import system beyond basic import/extern
 
 ## 5) Testing Strategy
 

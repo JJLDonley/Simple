@@ -14,14 +14,7 @@ parses SIR, validates types/labels/metadata, and emits SBC via the bytecode emit
 - Line-aware diagnostics and perf harness for .sir programs.  
 
 **Implementation Plan**  
-1) Parser + tokenizer.  
-2) Metadata tables + name resolution.  
-3) Validation + lowering to SBC.  
-4) Diagnostics and perf harness.  
-
-**Future Plan**  
-- Optional authoring ergonomics (includes/macros) if needed.  
-- Additional metadata conveniences only if VM requires it.  
+See `Simple/Docs/Implementation.md` (Module: Simple::IR).
 
 ---
 

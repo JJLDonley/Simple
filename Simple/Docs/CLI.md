@@ -12,8 +12,4 @@ diagnostics and perf reporting.
 - SIR runner for IR text → SBC → VM execution.  
 
 **Implementation Plan**  
-1) Stable CLI arguments and help text.  
-2) Diagnostics flags and output control.  
-
-**Future Plan**  
-- Dedicated `simplevm` runtime CLI once v0.1 freezes.  
+See `Simple/Docs/Implementation.md` (Module: Simple::CLI).

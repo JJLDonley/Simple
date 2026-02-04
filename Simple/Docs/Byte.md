@@ -13,14 +13,7 @@ sections, tables, heaps, and code; the verifier enforces structural and type saf
 - Verifier enforces stack/type safety and control-flow validity.  
 
 **Implementation Plan**  
-1) Header + section table parsing/validation.  
-2) Metadata + heap decoding.  
-3) Verifier rules (stack/type/CF).  
-4) Diagnostics and error context.  
-
-**Future Plan**  
-- Extend metadata only if new VM features require it.  
-- ABI-compatible changes only behind version bumps.  
+See `Simple/Docs/Implementation.md` (Module: Simple::Byte).
 
 ---
 

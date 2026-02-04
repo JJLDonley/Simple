@@ -774,3 +774,5 @@
 - Updated language implementation plan to include import/extern and FFI emission tasks.
 - Added .simple fixtures for import declaration and extern declaration, plus a negative extern arg-count fixture with tests.
 - Updated language spec to document import/extern syntax and marked parser/validator tasks complete in the plan.
+- Consolidated language spec into Lang.md and moved language implementation plan into Implementation.md.
+- Removed module-specific plan sections from VM/Byte/IR/CLI docs to keep plans centralized.
