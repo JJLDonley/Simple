@@ -95,6 +95,10 @@ bool LangSimpleFixtureModuleAccess() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/module_access.simple", 5);
 }
 
+bool LangSimpleFixtureIoPrint() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/io_print.simple", 0);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -2127,6 +2131,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_while_break", LangSimpleFixtureWhileBreak},
   {"lang_simple_fixture_enum_value", LangSimpleFixtureEnumValue},
   {"lang_simple_fixture_module_access", LangSimpleFixtureModuleAccess},
+  {"lang_simple_fixture_io_print", LangSimpleFixtureIoPrint},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},

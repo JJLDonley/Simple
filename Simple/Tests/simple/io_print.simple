@@ -1,0 +1,5 @@
+main : i32 () {
+  IO.print("hi")
+  IO.println(42)
+  return 0
+}

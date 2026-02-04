@@ -732,3 +732,5 @@
 - Adjusted for_loop.simple fixture to match current for-loop syntax (no parens, explicit init).
 - Added .simple fixtures for enum values and module member access.
 - Added negative .simple fixture for unqualified enum use.
+- Added simplevm emit command for .simple/.sir outputs and standardized CLI error formatting.
+- Added io_print.simple fixture and test for IO.print/println in Simple fixtures.

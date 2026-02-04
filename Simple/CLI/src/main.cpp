@@ -89,18 +89,24 @@ std::string ReplaceExt(const std::string& path, const char* ext) {
 }
 } // namespace
 
+void PrintError(const std::string& message) {
+  std::cerr << "error[E0001]: " << message << "\n";
+}
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     std::cerr << "usage:\n"
               << "  simplevm run <module.sbc|file.sir|file.simple> [--no-verify]\n"
               << "  simplevm build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
+              << "  simplevm emit -ir <file.simple> [--out <file.sir>]\n"
+              << "  simplevm emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
               << "  simplevm check <file.sbc|file.sir|file.simple>\n"
               << "  simplevm <module.sbc|file.sir|file.simple> [--no-verify]\n";
     return 1;
   }
 
   const std::string cmd = argv[1];
-  const bool is_command = (cmd == "run" || cmd == "build" || cmd == "check");
+  const bool is_command = (cmd == "run" || cmd == "build" || cmd == "check" || cmd == "emit");
   const std::string path = is_command ? (argc > 2 ? argv[2] : "") : cmd;
   bool verify = true;
   for (int i = 2; i < argc; ++i) {
@@ -110,7 +116,7 @@ int main(int argc, char** argv) {
   }
 
   if (is_command && path.empty()) {
-    std::cerr << "error: missing input file\n";
+    PrintError("missing input file");
     return 1;
   }
 
@@ -119,11 +125,11 @@ int main(int argc, char** argv) {
     std::string error;
     if (HasExt(path, ".simple")) {
       if (!ReadFileText(path, &text, &error)) {
-        std::cerr << "error: " << error << "\n";
+        PrintError(error);
         return 1;
       }
       if (!Simple::Lang::ValidateProgramFromString(text, &error)) {
-        std::cerr << "error: " << error << "\n";
+        PrintError(error);
         return 1;
       }
       return 0;
@@ -131,31 +137,111 @@ int main(int argc, char** argv) {
     if (HasExt(path, ".sir")) {
       Simple::IR::Text::IrTextModule parsed;
       if (!ReadFileText(path, &text, &error)) {
-        std::cerr << "error: " << error << "\n";
+        PrintError(error);
         return 1;
       }
       if (!Simple::IR::Text::ParseIrTextModule(text, &parsed, &error)) {
-        std::cerr << "error: IR text parse failed (" << path << "): " << error << "\n";
+        PrintError("IR text parse failed (" + path + "): " + error);
         return 1;
       }
       Simple::IR::IrModule module;
       if (!Simple::IR::Text::LowerIrTextToModule(parsed, &module, &error)) {
-        std::cerr << "error: IR text lower failed (" << path << "): " << error << "\n";
+        PrintError("IR text lower failed (" + path + "): " + error);
         return 1;
       }
       return 0;
     }
     Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromFile(path);
     if (!load.ok) {
-      std::cerr << "error: load failed: " << load.error << "\n";
+      PrintError("load failed: " + load.error);
       return 1;
     }
     Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
     if (!vr.ok) {
-      std::cerr << "error: verify failed: " << vr.error << "\n";
+      PrintError("verify failed: " + vr.error);
       return 1;
     }
     return 0;
+  }
+
+  if (cmd == "emit") {
+    if (argc < 4) {
+      PrintError("emit expects -ir or -sbc and an input file");
+      return 1;
+    }
+    const std::string mode = argv[2];
+    const std::string emit_path = argv[3];
+    std::string out_path;
+    for (int i = 4; i < argc; ++i) {
+      if (std::string(argv[i]) == "--out" && i + 1 < argc) {
+        out_path = argv[i + 1];
+        ++i;
+      }
+    }
+
+    std::string text;
+    std::string error;
+    if (mode == "-ir") {
+      if (!HasExt(emit_path, ".simple")) {
+        PrintError("emit -ir expects .simple input");
+        return 1;
+      }
+      if (out_path.empty()) out_path = ReplaceExt(emit_path, ".sir");
+      if (!ReadFileText(emit_path, &text, &error)) {
+        PrintError(error);
+        return 1;
+      }
+      std::string sir;
+      if (!Simple::Lang::EmitSirFromString(text, &sir, &error)) {
+        PrintError("simple compile failed (" + emit_path + "): " + error);
+        return 1;
+      }
+      std::vector<uint8_t> bytes(sir.begin(), sir.end());
+      if (!WriteFileBytes(out_path, bytes, &error)) {
+        PrintError(error);
+        return 1;
+      }
+      return 0;
+    }
+    if (mode == "-sbc") {
+      if (out_path.empty()) out_path = ReplaceExt(emit_path, ".sbc");
+      std::vector<uint8_t> bytes;
+      if (HasExt(emit_path, ".simple")) {
+        if (!ReadFileText(emit_path, &text, &error) ||
+            !CompileSimpleToSbc(text, emit_path, &bytes, &error)) {
+          PrintError(error);
+          return 1;
+        }
+      } else if (HasExt(emit_path, ".sir")) {
+        if (!ReadFileText(emit_path, &text, &error) ||
+            !CompileSirToSbc(text, emit_path, &bytes, &error)) {
+          PrintError(error);
+          return 1;
+        }
+      } else {
+        PrintError("emit -sbc expects .simple or .sir input");
+        return 1;
+      }
+      if (verify) {
+        Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(bytes);
+        if (!load.ok) {
+          PrintError("load failed: " + load.error);
+          return 1;
+        }
+        Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+        if (!vr.ok) {
+          PrintError("verify failed: " + vr.error);
+          return 1;
+        }
+      }
+      if (!WriteFileBytes(out_path, bytes, &error)) {
+        PrintError(error);
+        return 1;
+      }
+      return 0;
+    }
+    PrintError("emit expects -ir or -sbc");
+    return 1;
   }
 
   if (cmd == "build") {
@@ -173,32 +259,32 @@ int main(int argc, char** argv) {
     std::string error;
     if (HasExt(path, ".simple")) {
       if (!ReadFileText(path, &text, &error) || !CompileSimpleToSbc(text, path, &bytes, &error)) {
-        std::cerr << "error: " << error << "\n";
+        PrintError(error);
         return 1;
       }
     } else if (HasExt(path, ".sir")) {
       if (!ReadFileText(path, &text, &error) || !CompileSirToSbc(text, path, &bytes, &error)) {
-        std::cerr << "error: " << error << "\n";
+        PrintError(error);
         return 1;
       }
     } else {
-      std::cerr << "error: build expects .simple or .sir input\n";
+      PrintError("build expects .simple or .sir input");
       return 1;
     }
     if (verify) {
       Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(bytes);
       if (!load.ok) {
-        std::cerr << "error: load failed: " << load.error << "\n";
+        PrintError("load failed: " + load.error);
         return 1;
       }
       Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
       if (!vr.ok) {
-        std::cerr << "error: verify failed: " << vr.error << "\n";
+        PrintError("verify failed: " + vr.error);
         return 1;
       }
     }
     if (!WriteFileBytes(out_path, bytes, &error)) {
-      std::cerr << "error: " << error << "\n";
+      PrintError(error);
       return 1;
     }
     return 0;
@@ -206,7 +292,7 @@ int main(int argc, char** argv) {
 
   if (cmd == "run") {
     if (path.empty()) {
-      std::cerr << "error: missing input file\n";
+      PrintError("missing input file");
       return 1;
     }
   }
@@ -217,14 +303,14 @@ int main(int argc, char** argv) {
   if (HasExt(path, ".simple")) {
     std::string text;
     if (!ReadFileText(path, &text, &error) || !CompileSimpleToSbc(text, path, &bytes, &error)) {
-      std::cerr << "error: " << error << "\n";
+      PrintError(error);
       return 1;
     }
     load = Simple::Byte::LoadModuleFromBytes(bytes);
   } else if (HasExt(path, ".sir")) {
     std::string text;
     if (!ReadFileText(path, &text, &error) || !CompileSirToSbc(text, path, &bytes, &error)) {
-      std::cerr << "error: " << error << "\n";
+      PrintError(error);
       return 1;
     }
     load = Simple::Byte::LoadModuleFromBytes(bytes);
@@ -232,21 +318,21 @@ int main(int argc, char** argv) {
     load = Simple::Byte::LoadModuleFromFile(path);
   }
   if (!load.ok) {
-    std::cerr << "error: load failed: " << load.error << "\n";
+    PrintError("load failed: " + load.error);
     return 1;
   }
 
   if (verify) {
     Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
     if (!vr.ok) {
-      std::cerr << "error: verify failed: " << vr.error << "\n";
+      PrintError("verify failed: " + vr.error);
       return 1;
     }
   }
 
   Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, verify);
   if (exec.status == Simple::VM::ExecStatus::Trapped) {
-    std::cerr << "error: runtime trap: " << exec.error << "\n";
+    PrintError("runtime trap: " + exec.error);
     return 1;
   }
 
