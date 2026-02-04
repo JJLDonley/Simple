@@ -138,7 +138,10 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "$BYTE_DIR/src/sbc_verifier.cpp" \
   -o "$OUT_DIR/simplevm"
 
+cp "$OUT_DIR/simplevm" "$OUT_DIR/simple"
+
 echo "built: $OUT_DIR/simplevm"
+echo "built: $OUT_DIR/simple"
 echo "built: $OUT_DIR/simplevm_tests_$SUITE"
 
 echo "running: $OUT_DIR/simplevm_tests_$SUITE"

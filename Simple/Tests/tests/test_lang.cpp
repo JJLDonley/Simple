@@ -288,6 +288,10 @@ bool LangCliRunSimple() {
   return RunCommand("Simple/bin/simplevm run Simple/Tests/simple/hello.simple");
 }
 
+bool LangCliRunSimpleAlias() {
+  return RunCommand("Simple/bin/simple run Simple/Tests/simple/hello.simple");
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -2347,6 +2351,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
+  {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

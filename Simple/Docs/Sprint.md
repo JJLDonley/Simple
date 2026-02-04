@@ -754,3 +754,4 @@
 - Added language unit test asserting validation errors include source locations.
 - Added enum explicit-value fixture and tests.
 - Added .simple negative fixtures for unknown type and enum type used as value.
+- Added `simple` CLI alias (copy of `simplevm`) and a test to run it.
