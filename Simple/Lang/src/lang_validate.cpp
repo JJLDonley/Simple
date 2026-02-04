@@ -34,6 +34,11 @@ struct CallTargetInfo {
   bool is_proc = false;
 };
 
+void PrefixErrorLocation(uint32_t line, uint32_t column, std::string* error) {
+  if (!error || error->empty() || line == 0) return;
+  *error = std::to_string(line) + ":" + std::to_string(column) + ": " + *error;
+}
+
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -71,6 +76,8 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
   out->proc_return.reset();
+  out->line = src.line;
+  out->column = src.column;
   for (const auto& arg : src.type_args) {
     TypeRef copy;
     if (!CloneTypeRef(arg, &copy)) return false;
@@ -274,6 +281,7 @@ bool CheckTypeRef(const TypeRef& type,
     }
     if (!type.proc_return) {
       if (error) *error = "procedure type missing return type";
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     return CheckTypeRef(*type.proc_return, ctx, type_params, TypeUse::Return, error);
@@ -282,10 +290,12 @@ bool CheckTypeRef(const TypeRef& type,
   if (type.name == "void") {
     if (use != TypeUse::Return) {
       if (error) *error = "void is only valid as a return type";
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     if (!type.type_args.empty()) {
       if (error) *error = "void cannot have type arguments";
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     return true;
@@ -297,21 +307,25 @@ bool CheckTypeRef(const TypeRef& type,
 
   if (!is_primitive && !is_type_param && !is_user_type) {
     if (error) *error = "unknown type: " + type.name;
+    PrefixErrorLocation(type.line, type.column, error);
     return false;
   }
 
   if (is_user_type && !is_type_param) {
     if (ctx.modules.find(type.name) != ctx.modules.end()) {
       if (error) *error = "module is not a type: " + type.name;
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     if (ctx.functions.find(type.name) != ctx.functions.end()) {
       if (error) *error = "function is not a type: " + type.name;
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
       if (!type.type_args.empty()) {
         if (error) *error = "enum type cannot have type arguments: " + type.name;
+        PrefixErrorLocation(type.line, type.column, error);
         return false;
       }
     }
@@ -322,6 +336,7 @@ bool CheckTypeRef(const TypeRef& type,
         if (error) {
           *error = "generic type argument count mismatch for " + type.name;
         }
+        PrefixErrorLocation(type.line, type.column, error);
         return false;
       }
     }
@@ -330,10 +345,12 @@ bool CheckTypeRef(const TypeRef& type,
   if (!type.type_args.empty()) {
     if (is_primitive) {
       if (error) *error = "primitive type cannot have type arguments: " + type.name;
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     if (is_type_param) {
       if (error) *error = "type parameter cannot have type arguments: " + type.name;
+      PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
     for (const auto& arg : type.type_args) {
@@ -1952,12 +1969,14 @@ bool CheckExpr(const Expr& expr,
       if (expr.text == "self") {
         if (!current_artifact) {
           if (error) *error = "self used outside of artifact method";
+          PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
         return true;
       }
       if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
         if (error) *error = "artifact members must be accessed via self: " + expr.text;
+        PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
       if (expr.text == "len" || expr.text == "str" || expr.text == "i32" || expr.text == "f64") return true;
@@ -1965,23 +1984,28 @@ bool CheckExpr(const Expr& expr,
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
           if (error) *error = "module is not a value: " + expr.text;
+          PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
         if (ctx.artifacts.find(expr.text) != ctx.artifacts.end()) {
           if (error) *error = "type is not a value: " + expr.text;
+          PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
         if (ctx.enum_types.find(expr.text) != ctx.enum_types.end()) {
           if (error) *error = "enum type is not a value: " + expr.text;
+          PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }
         return true;
       }
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
+        PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
       if (error) *error = "undeclared identifier: " + expr.text;
+      PrefixErrorLocation(expr.line, expr.column, error);
       return false;
     case ExprKind::Literal:
       return true;
@@ -2173,6 +2197,7 @@ bool CheckExpr(const Expr& expr,
           if (members_it != ctx.enum_members_by_type.end()) {
             if (members_it->second.find(expr.text) == members_it->second.end()) {
               if (error) *error = "unknown enum member: " + base.text + "." + expr.text;
+              PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
           }
@@ -2184,6 +2209,7 @@ bool CheckExpr(const Expr& expr,
             if (!FindModuleVar(module_it->second, expr.text) &&
                 !FindModuleFunc(module_it->second, expr.text)) {
               if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
             return true;
@@ -2199,6 +2225,7 @@ bool CheckExpr(const Expr& expr,
             if (!FindModuleVar(module_it->second, expr.text) &&
                 !FindModuleFunc(module_it->second, expr.text)) {
               if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
             return true;
@@ -2212,6 +2239,7 @@ bool CheckExpr(const Expr& expr,
             if (!FindArtifactField(artifact, expr.text) &&
                 !FindArtifactMethod(artifact, expr.text)) {
               if (error) *error = "unknown artifact member: " + base_type.name + "." + expr.text;
+              PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
           }

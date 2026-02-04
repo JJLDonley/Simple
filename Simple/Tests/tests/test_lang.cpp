@@ -359,6 +359,14 @@ bool LangParseErrorIncludesLocation() {
   return error.find(':') != std::string::npos;
 }
 
+bool LangValidateErrorIncludesLocation() {
+  const char* src = "main : i32 () { return missing }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("undeclared identifier") != std::string::npos &&
+         error.find(':') != std::string::npos;
+}
+
 bool LangSirEmitsIncDec() {
   const char* src =
       "main : i32 () {"
@@ -2278,6 +2286,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_parse_error_includes_location", LangParseErrorIncludesLocation},
+  {"lang_validate_error_includes_location", LangValidateErrorIncludesLocation},
   {"lang_simple_fixture_hello", LangSimpleFixtureHello},
   {"lang_simple_fixture_math", LangSimpleFixtureMath},
   {"lang_simple_fixture_sum_loop", LangSimpleFixtureSumLoop},

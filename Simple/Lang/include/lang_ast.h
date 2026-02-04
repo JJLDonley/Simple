@@ -28,6 +28,8 @@ struct TypeRef {
   Mutability proc_return_mutability = Mutability::Mutable;
   std::vector<TypeRef> proc_params;
   std::unique_ptr<TypeRef> proc_return;
+  uint32_t line = 0;
+  uint32_t column = 0;
 };
 
 struct ParamDecl {
@@ -70,6 +72,8 @@ struct Expr {
   std::vector<Expr> field_values;
   std::vector<ParamDecl> fn_params;
   std::vector<Token> fn_body_tokens;
+  uint32_t line = 0;
+  uint32_t column = 0;
 };
 
 struct VarDecl {

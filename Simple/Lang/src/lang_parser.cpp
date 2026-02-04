@@ -164,6 +164,8 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     return false;
   }
   out->name = tok.text;
+  out->line = tok.line;
+  out->column = tok.column;
   Advance();
 
   if (Match(TokenKind::Lt)) {
@@ -1050,6 +1052,8 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       member.kind = ExprKind::Member;
       member.op = ".";
       member.text = name.text;
+      member.line = name.line;
+      member.column = name.column;
       member.children.push_back(std::move(expr));
       expr = std::move(member);
       continue;
@@ -1107,6 +1111,8 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     else if (tok.kind == TokenKind::String) expr.literal_kind = LiteralKind::String;
     else if (tok.kind == TokenKind::Char) expr.literal_kind = LiteralKind::Char;
     else expr.literal_kind = LiteralKind::Bool;
+    expr.line = tok.line;
+    expr.column = tok.column;
     Advance();
     if (out) *out = std::move(expr);
     return true;
@@ -1120,6 +1126,8 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     Expr expr;
     expr.kind = ExprKind::Identifier;
     expr.text = tok.text;
+    expr.line = tok.line;
+    expr.column = tok.column;
     Advance();
     if (out) *out = std::move(expr);
     return true;

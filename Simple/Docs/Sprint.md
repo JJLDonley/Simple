@@ -750,3 +750,5 @@
 - Added `simplevm build -d/-s` support to emit a standalone executable (embedded SBC + VM).
 - Added CLI test for dynamic executable build.
 - Added CLI test for static executable build.
+- Added line/column prefixes for validation errors tied to type/identifier/member locations.
+- Added language unit test asserting validation errors include source locations.
