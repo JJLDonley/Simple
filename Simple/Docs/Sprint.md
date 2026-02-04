@@ -746,3 +746,4 @@
 - Added SIR string escaping for control bytes using \\xHH and extended IR const-string parsing to accept \\xHH.
 - Added CLI tests for `simplevm check` on .sir/.sbc and `simplevm build` on .simple.
 - Added SIR emission test for IO.print with newline escapes.
+- Added new .simple negative fixtures for len invalid arg, non-int index, immutable assignment, unknown identifier, and call arg count.

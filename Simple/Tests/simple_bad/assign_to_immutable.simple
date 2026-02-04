@@ -1,0 +1,5 @@
+main : i32 () {
+  x :: i32 = 1
+  x = 2
+  return x
+}

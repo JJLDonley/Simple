@@ -178,6 +178,36 @@ bool LangSimpleBadSelfOutsideArtifact() {
       "self");
 }
 
+bool LangSimpleBadLenInvalidArg() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/len_invalid_arg.simple",
+      "len");
+}
+
+bool LangSimpleBadIndexNonInt() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/index_non_int.simple",
+      "index");
+}
+
+bool LangSimpleBadAssignToImmutable() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/assign_to_immutable.simple",
+      "immutable");
+}
+
+bool LangSimpleBadUnknownIdentifier() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/unknown_identifier.simple",
+      "undeclared identifier");
+}
+
+bool LangSimpleBadCallArgCount() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/call_arg_count.simple",
+      "argument count");
+}
+
 bool LangSimpleBadModuleFuncReturnMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/module_func_return_mismatch.simple",
@@ -2258,6 +2288,11 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
   {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
+  {"lang_simple_bad_len_invalid_arg", LangSimpleBadLenInvalidArg},
+  {"lang_simple_bad_index_non_int", LangSimpleBadIndexNonInt},
+  {"lang_simple_bad_assign_to_immutable", LangSimpleBadAssignToImmutable},
+  {"lang_simple_bad_unknown_identifier", LangSimpleBadUnknownIdentifier},
+  {"lang_simple_bad_call_arg_count", LangSimpleBadCallArgCount},
   {"lang_simple_bad_module_func_return_mismatch", LangSimpleBadModuleFuncReturnMismatch},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
