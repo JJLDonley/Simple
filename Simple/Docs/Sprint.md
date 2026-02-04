@@ -761,3 +761,4 @@
 - Added .simple negative fixture for artifact member access without self.
 - Added CLI test to validate error formatting for `simplevm check` on .simple files.
 - Added list nested fixture and negative fixtures for unknown enum/module/artifact members.
+- Added empty array/list fixtures and a negative fixture for array literal used without array/list type.

@@ -88,6 +88,14 @@ bool LangSimpleFixtureListNested() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/list_nested.simple", 3);
 }
 
+bool LangSimpleFixtureArrayEmpty() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/array_empty.simple", 0);
+}
+
+bool LangSimpleFixtureListEmpty() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/list_empty.simple", 0);
+}
+
 bool LangSimpleFixtureAddFn() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/add_fn.simple", 42);
 }
@@ -304,6 +312,12 @@ bool LangSimpleBadIndexNonContainer() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/index_non_container.simple",
       "indexing is only valid");
+}
+
+bool LangSimpleBadArrayMissingDim() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/array_missing_dim.simple",
+      "array/list literal requires array or list type");
 }
 
 bool LangCliCheckSimpleErrorFormat() {
@@ -2403,6 +2417,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_point_sum", LangSimpleFixturePointSum},
   {"lang_simple_fixture_list_len", LangSimpleFixtureListLen},
   {"lang_simple_fixture_list_nested", LangSimpleFixtureListNested},
+  {"lang_simple_fixture_array_empty", LangSimpleFixtureArrayEmpty},
+  {"lang_simple_fixture_list_empty", LangSimpleFixtureListEmpty},
   {"lang_simple_fixture_add_fn", LangSimpleFixtureAddFn},
   {"lang_simple_fixture_if_else", LangSimpleFixtureIfElse},
   {"lang_simple_fixture_for_loop", LangSimpleFixtureForLoop},
@@ -2445,6 +2461,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_array_elem_type_mismatch", LangSimpleBadArrayElemTypeMismatch},
   {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},
   {"lang_simple_bad_index_non_container", LangSimpleBadIndexNonContainer},
+  {"lang_simple_bad_array_missing_dim", LangSimpleBadArrayMissingDim},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
