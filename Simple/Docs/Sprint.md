@@ -708,3 +708,4 @@
 - Added Simple::Lang SIR emission for enum values (Enum.Value) with a new IR emission test.
 - Added Simple::Lang IO.print/println validation (generic call typing) and SIR emission mapping to intrinsics with new tests.
 - Added print_any intrinsic with strict scalar-only IO.print/println lowering and a validation test rejecting array args.
+- Implemented print_any output formatting for scalar values and strings (strict ref handling).
