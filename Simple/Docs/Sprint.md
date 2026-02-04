@@ -790,3 +790,4 @@
 - Added core.dl import alias (core_dl) and documentation updates.
 - Added a tiny test shared library and a core_dl .simple fixture to validate dlopen/dlsym/close.
 - Added reserved Core.* namespaces (Core.DL/Core.Os/Core.Fs/Core.Log) with validation and SIR emission support.
+- Fixed core_dl_open.simple fixture (removed unsupported := assignment).
