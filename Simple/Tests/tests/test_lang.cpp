@@ -206,6 +206,22 @@ bool LangCliCheckSimple() {
   return RunCommand("Simple/bin/simplevm check Simple/Tests/simple/hello.simple");
 }
 
+bool LangCliCheckSir() {
+  return RunCommand("Simple/bin/simplevm check Simple/Tests/sir/fib_iter.sir");
+}
+
+bool LangCliCheckSbc() {
+  return RunCommand("Simple/bin/simplevm check Simple/Tests/tests/fixtures/add_i32.sbc");
+}
+
+bool LangCliBuildSimple() {
+  const std::string out_path = TempPath("simple_build_hello.sbc");
+  const std::string cmd = "Simple/bin/simplevm build Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  std::ifstream in(out_path, std::ios::binary);
+  return in.good() && in.peek() != std::ifstream::traits_type::eof();
+}
+
 bool LangCliRunSimple() {
   return RunCommand("Simple/bin/simplevm run Simple/Tests/simple/hello.simple");
 }
@@ -261,6 +277,15 @@ bool LangSirEmitsIoPrintI32() {
   std::string error;
   if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 2);
+}
+
+bool LangSirEmitsIoPrintNewline() {
+  const char* src =
+      "main : i32 () { IO.print(\"hello\\n\"); return 3; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 3);
 }
 
 bool LangSirImplicitMainReturn() {
@@ -2203,6 +2228,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
   {"lang_sir_emit_io_print_string", LangSirEmitsIoPrintString},
   {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
+  {"lang_sir_emit_io_print_newline", LangSirEmitsIoPrintNewline},
   {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_parse_error_includes_location", LangParseErrorIncludesLocation},
@@ -2236,6 +2262,9 @@ const TestCase kLangTests[] = {
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
+  {"lang_cli_check_sir", LangCliCheckSir},
+  {"lang_cli_check_sbc", LangCliCheckSbc},
+  {"lang_cli_build_simple", LangCliBuildSimple},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},

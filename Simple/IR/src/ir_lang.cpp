@@ -201,6 +201,28 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
           case 'n': unescaped.push_back('\n'); break;
           case 'r': unescaped.push_back('\r'); break;
           case 't': unescaped.push_back('\t'); break;
+          case 'x': {
+            if (i + 2 >= value.size()) {
+              if (error) *error = "const string invalid escape";
+              return false;
+            }
+            auto hex = [](char c) -> int {
+              if (c >= '0' && c <= '9') return c - '0';
+              if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+              if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+              return -1;
+            };
+            int hi = hex(value[i + 1]);
+            int lo = hex(value[i + 2]);
+            if (hi < 0 || lo < 0) {
+              if (error) *error = "const string invalid escape";
+              return false;
+            }
+            uint8_t byte = static_cast<uint8_t>((hi << 4) | lo);
+            unescaped.push_back(static_cast<char>(byte));
+            i += 2;
+            break;
+          }
           case '\\': unescaped.push_back('\\'); break;
           case '"':
             if (quote == '"') unescaped.push_back('"');

@@ -226,6 +226,8 @@ instructions to reference types, sigs, fields, consts, and imports by name.
 |  | `intrinsic <Name> <id>` | `intrinsic log 3` | Enables `intrinsic <Name>` in code. |
 | `globals:` | `global <Name> <Type> [init=<ConstName|ConstId>]` | `global g i32 init=max` | `init` only supports `string/f32/f64` consts. |
 
+**String escapes:** SIR strings support `\\n`, `\\r`, `\\t`, `\\\"`, `\\\\`, and hex bytes via `\\xHH`.
+
 ### 10.2 File Structure
 
 ```

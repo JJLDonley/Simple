@@ -743,3 +743,6 @@
 - Added CLI tests for emit/check/run using simplevm binary.
 - Added validator error context for top-level functions, artifact methods, and module functions.
 - Added negative .simple fixture for module function return mismatch.
+- Added SIR string escaping for control bytes using \\xHH and extended IR const-string parsing to accept \\xHH.
+- Added CLI tests for `simplevm check` on .sir/.sbc and `simplevm build` on .simple.
+- Added SIR emission test for IO.print with newline escapes.

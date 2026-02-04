@@ -158,6 +158,7 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
 }
 
 std::string EscapeStringLiteral(const std::string& value, std::string* error) {
+  (void)error;
   std::string out;
   out.reserve(value.size());
   for (char ch : value) {
@@ -179,8 +180,12 @@ std::string EscapeStringLiteral(const std::string& value, std::string* error) {
         break;
       default:
         if (static_cast<unsigned char>(ch) < 0x20) {
-          if (error) *error = "string literal contains control characters unsupported in SIR";
-          return {};
+          static const char kHex[] = "0123456789ABCDEF";
+          unsigned char byte = static_cast<unsigned char>(ch);
+          out += "\\x";
+          out.push_back(kHex[(byte >> 4) & 0xF]);
+          out.push_back(kHex[byte & 0xF]);
+          break;
         }
         out.push_back(ch);
         break;
