@@ -185,7 +185,40 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
       if (error) *error = "const string missing closing quote";
       return false;
     }
+    char quote = value.front();
     value = value.substr(1, value.size() - 2);
+    std::string unescaped;
+    unescaped.reserve(value.size());
+    for (size_t i = 0; i < value.size(); ++i) {
+      char c = value[i];
+      if (c == '\\') {
+        if (i + 1 >= value.size()) {
+          if (error) *error = "const string invalid escape";
+          return false;
+        }
+        char esc = value[++i];
+        switch (esc) {
+          case 'n': unescaped.push_back('\n'); break;
+          case 'r': unescaped.push_back('\r'); break;
+          case 't': unescaped.push_back('\t'); break;
+          case '\\': unescaped.push_back('\\'); break;
+          case '"':
+            if (quote == '"') unescaped.push_back('"');
+            else unescaped.push_back('"');
+            break;
+          case '\'':
+            if (quote == '\'') unescaped.push_back('\'');
+            else unescaped.push_back('\'');
+            break;
+          default:
+            if (error) *error = "const string invalid escape";
+            return false;
+        }
+      } else {
+        unescaped.push_back(c);
+      }
+    }
+    value = std::move(unescaped);
   }
   out->value = value;
   return true;

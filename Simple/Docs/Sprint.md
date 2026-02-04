@@ -713,3 +713,4 @@
 - Added Simple fixture runner (Simple→SIR→SBC→VM) with CLI flags and a hello.simple fixture.
 - build.sh now builds the CLI executable alongside test binaries.
 - CLI now accepts .simple and .sir inputs (compiles to SBC before execution).
+- SIR string emission now escapes control chars; IR parser unescapes const strings to support \\n, \\t, \\r.

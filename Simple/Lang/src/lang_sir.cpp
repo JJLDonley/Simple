@@ -153,15 +153,25 @@ std::string EscapeStringLiteral(const std::string& value, std::string* error) {
   for (char ch : value) {
     switch (ch) {
       case '\n':
+        out += "\\n";
+        break;
       case '\r':
+        out += "\\r";
+        break;
       case '\t':
-        if (error) *error = "string literal contains control characters unsupported in SIR";
-        return {};
+        out += "\\t";
+        break;
       case '"':
+        out += "\\\"";
+        break;
       case '\\':
-        if (error) *error = "string literal contains characters unsupported in SIR";
-        return {};
+        out += "\\\\";
+        break;
       default:
+        if (static_cast<unsigned char>(ch) < 0x20) {
+          if (error) *error = "string literal contains control characters unsupported in SIR";
+          return {};
+        }
         out.push_back(ch);
         break;
     }
