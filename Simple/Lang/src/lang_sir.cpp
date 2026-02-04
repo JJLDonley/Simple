@@ -536,6 +536,30 @@ bool EmitExpr(EmitState& st,
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
 
+bool EmitIndexSetOp(EmitState& st,
+                    const TypeRef& container_type,
+                    const char* op_suffix) {
+  if (container_type.dims.front().is_list) {
+    (*st.out) << "  list.set." << op_suffix << "\n";
+  } else {
+    (*st.out) << "  array.set." << op_suffix << "\n";
+  }
+  PopStack(st, 3);
+  return true;
+}
+
+bool EmitIndexGetOp(EmitState& st,
+                    const TypeRef& container_type,
+                    const char* op_suffix) {
+  if (container_type.dims.front().is_list) {
+    (*st.out) << "  list.get." << op_suffix << "\n";
+  } else {
+    (*st.out) << "  array.get." << op_suffix << "\n";
+  }
+  PopStack(st, 2);
+  return PushStack(st, 1);
+}
+
 const char* AssignOpToBinaryOp(const std::string& op) {
   if (op == "+=") return "+";
   if (op == "-=") return "-";
@@ -632,16 +656,171 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     return false;
   }
   const Expr& target = expr.children[0];
-  if (target.kind != ExprKind::Identifier) {
-    if (error) *error = "assignment target not supported in SIR emission";
-    return false;
+  if (target.kind == ExprKind::Identifier) {
+    auto type_it = st.local_types.find(target.text);
+    if (type_it == st.local_types.end()) {
+      if (error) *error = "unknown type for local '" + target.text + "'";
+      return false;
+    }
+    return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
   }
-  auto type_it = st.local_types.find(target.text);
-  if (type_it == st.local_types.end()) {
-    if (error) *error = "unknown type for local '" + target.text + "'";
-    return false;
+  if (target.kind == ExprKind::Index) {
+    if (target.children.size() != 2) {
+      if (error) *error = "index assignment expects target and index";
+      return false;
+    }
+    TypeRef container_type;
+    if (!InferExprType(target.children[0], st, &container_type, error)) return false;
+    if (container_type.dims.empty()) {
+      if (error) *error = "index assignment expects array or list target";
+      return false;
+    }
+    TypeRef element_type;
+    if (!CloneElementType(container_type, &element_type)) {
+      if (error) *error = "failed to resolve index element type";
+      return false;
+    }
+    const char* op_suffix = VmOpSuffixForType(element_type);
+    if (!op_suffix) {
+      if (error) *error = "unsupported index assignment element type for SIR emission";
+      return false;
+    }
+    if (!EmitExpr(st, target.children[0], &container_type, error)) return false;
+    TypeRef index_type;
+    index_type.name = "i32";
+    if (!EmitExpr(st, target.children[1], &index_type, error)) return false;
+    if (expr.op != "=") {
+      if (!EmitDup2(st)) return false;
+      if (!EmitIndexGetOp(st, container_type, op_suffix)) return false;
+      if (!EmitExpr(st, expr.children[1], &element_type, error)) return false;
+      PopStack(st, 1);
+      const char* bin_op = AssignOpToBinaryOp(expr.op);
+      if (!bin_op) {
+        if (error) *error = "unsupported assignment operator '" + expr.op + "'";
+        return false;
+      }
+      const char* op_type = nullptr;
+      if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+          std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+        op_type = NormalizeBitwiseOpType(element_type.name);
+      } else {
+        op_type = NormalizeNumericOpType(element_type.name);
+      }
+      if (!op_type) {
+        if (error) *error = "unsupported operand type for '" + expr.op + "'";
+        return false;
+      }
+      if (std::string(bin_op) == "+") {
+        (*st.out) << "  add." << op_type << "\n";
+      } else if (std::string(bin_op) == "-") {
+        (*st.out) << "  sub." << op_type << "\n";
+      } else if (std::string(bin_op) == "*") {
+        (*st.out) << "  mul." << op_type << "\n";
+      } else if (std::string(bin_op) == "/") {
+        (*st.out) << "  div." << op_type << "\n";
+      } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
+        (*st.out) << "  mod." << op_type << "\n";
+      } else if (std::string(bin_op) == "&") {
+        (*st.out) << "  and." << op_type << "\n";
+      } else if (std::string(bin_op) == "|") {
+        (*st.out) << "  or." << op_type << "\n";
+      } else if (std::string(bin_op) == "^") {
+        (*st.out) << "  xor." << op_type << "\n";
+      } else if (std::string(bin_op) == "<<") {
+        (*st.out) << "  shl." << op_type << "\n";
+      } else if (std::string(bin_op) == ">>") {
+        (*st.out) << "  shr." << op_type << "\n";
+      } else {
+        if (error) *error = "unsupported assignment operator '" + expr.op + "'";
+        return false;
+      }
+      if (!EmitDup(st)) return false;
+      if (!EmitIndexSetOp(st, container_type, op_suffix)) return false;
+      return true;
+    }
+    if (!EmitExpr(st, expr.children[1], &element_type, error)) return false;
+    if (!EmitDup(st)) return false;
+    if (!EmitIndexSetOp(st, container_type, op_suffix)) return false;
+    return true;
   }
-  return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
+  if (target.kind == ExprKind::Member) {
+    if (target.children.empty()) {
+      if (error) *error = "member assignment missing base";
+      return false;
+    }
+    const Expr& base = target.children[0];
+    TypeRef base_type;
+    if (!InferExprType(base, st, &base_type, error)) return false;
+    auto layout_it = st.artifact_layouts.find(base_type.name);
+    if (layout_it == st.artifact_layouts.end()) {
+      if (error) *error = "member assignment base is not an artifact";
+      return false;
+    }
+    auto field_it = layout_it->second.field_index.find(target.text);
+    if (field_it == layout_it->second.field_index.end()) {
+      if (error) *error = "unknown field '" + target.text + "'";
+      return false;
+    }
+    const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
+    if (!EmitExpr(st, base, &base_type, error)) return false;
+    if (expr.op != "=") {
+      if (!EmitDup(st)) return false;
+      (*st.out) << "  ldfld " << base_type.name << "." << target.text << "\n";
+      if (!EmitExpr(st, expr.children[1], &field_type, error)) return false;
+      PopStack(st, 1);
+      const char* bin_op = AssignOpToBinaryOp(expr.op);
+      if (!bin_op) {
+        if (error) *error = "unsupported assignment operator '" + expr.op + "'";
+        return false;
+      }
+      const char* op_type = nullptr;
+      if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+          std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+        op_type = NormalizeBitwiseOpType(field_type.name);
+      } else {
+        op_type = NormalizeNumericOpType(field_type.name);
+      }
+      if (!op_type) {
+        if (error) *error = "unsupported operand type for '" + expr.op + "'";
+        return false;
+      }
+      if (std::string(bin_op) == "+") {
+        (*st.out) << "  add." << op_type << "\n";
+      } else if (std::string(bin_op) == "-") {
+        (*st.out) << "  sub." << op_type << "\n";
+      } else if (std::string(bin_op) == "*") {
+        (*st.out) << "  mul." << op_type << "\n";
+      } else if (std::string(bin_op) == "/") {
+        (*st.out) << "  div." << op_type << "\n";
+      } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
+        (*st.out) << "  mod." << op_type << "\n";
+      } else if (std::string(bin_op) == "&") {
+        (*st.out) << "  and." << op_type << "\n";
+      } else if (std::string(bin_op) == "|") {
+        (*st.out) << "  or." << op_type << "\n";
+      } else if (std::string(bin_op) == "^") {
+        (*st.out) << "  xor." << op_type << "\n";
+      } else if (std::string(bin_op) == "<<") {
+        (*st.out) << "  shl." << op_type << "\n";
+      } else if (std::string(bin_op) == ">>") {
+        (*st.out) << "  shr." << op_type << "\n";
+      } else {
+        if (error) *error = "unsupported assignment operator '" + expr.op + "'";
+        return false;
+      }
+      if (!EmitDup(st)) return false;
+      (*st.out) << "  stfld " << base_type.name << "." << target.text << "\n";
+      PopStack(st, 2);
+      return true;
+    }
+    if (!EmitExpr(st, expr.children[1], &field_type, error)) return false;
+    if (!EmitDup(st)) return false;
+    (*st.out) << "  stfld " << base_type.name << "." << target.text << "\n";
+    PopStack(st, 2);
+    return true;
+  }
+  if (error) *error = "assignment target not supported in SIR emission";
+  return false;
 }
 
 bool EmitUnary(EmitState& st,
@@ -655,48 +834,171 @@ bool EmitUnary(EmitState& st,
   TypeRef operand_type;
   if (!InferExprType(expr.children[0], st, &operand_type, error)) return false;
   const TypeRef* use_type = expected ? expected : &operand_type;
-  if (!EmitExpr(st, expr.children[0], use_type, error)) return false;
-  if ((expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") &&
-      expr.children[0].kind != ExprKind::Identifier) {
-    if (error) *error = "inc/dec target not supported in SIR emission";
-    return false;
-  }
   if (expr.op == "++" || expr.op == "--") {
-    auto it = st.local_indices.find(expr.children[0].text);
-    if (it == st.local_indices.end()) {
-      if (error) *error = "unknown local '" + expr.children[0].text + "'";
-      return false;
-    }
     const char* op_name = expr.op == "++" ? IncOpForType(use_type->name) : DecOpForType(use_type->name);
     if (!op_name) {
       if (error) *error = "unsupported inc/dec type '" + use_type->name + "'";
       return false;
     }
-    (*st.out) << "  " << op_name << "\n";
-    (*st.out) << "  dup\n";
-    PushStack(st, 1);
-    (*st.out) << "  stloc " << it->second << "\n";
-    PopStack(st, 1);
-    return true;
+    if (expr.children[0].kind == ExprKind::Identifier) {
+      auto it = st.local_indices.find(expr.children[0].text);
+      if (it == st.local_indices.end()) {
+        if (error) *error = "unknown local '" + expr.children[0].text + "'";
+        return false;
+      }
+      (*st.out) << "  ldloc " << it->second << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  " << op_name << "\n";
+      (*st.out) << "  dup\n";
+      PushStack(st, 1);
+      (*st.out) << "  stloc " << it->second << "\n";
+      PopStack(st, 1);
+      return true;
+    }
+    if (expr.children[0].kind == ExprKind::Index) {
+      const Expr& target = expr.children[0];
+      if (target.children.size() != 2) {
+        if (error) *error = "index expression expects target and index";
+        return false;
+      }
+      TypeRef container_type;
+      if (!InferExprType(target.children[0], st, &container_type, error)) return false;
+      if (container_type.dims.empty()) {
+        if (error) *error = "indexing is only valid on arrays and lists";
+        return false;
+      }
+      TypeRef element_type;
+      if (!CloneElementType(container_type, &element_type)) {
+        if (error) *error = "failed to resolve index element type";
+        return false;
+      }
+      const char* op_suffix = VmOpSuffixForType(element_type);
+      if (!op_suffix) {
+        if (error) *error = "unsupported index element type for SIR emission";
+        return false;
+      }
+      if (!EmitExpr(st, target.children[0], &container_type, error)) return false;
+      TypeRef index_type;
+      index_type.name = "i32";
+      if (!EmitExpr(st, target.children[1], &index_type, error)) return false;
+      if (!EmitIndexGetOp(st, container_type, op_suffix)) return false;
+      (*st.out) << "  " << op_name << "\n";
+      if (!EmitDup(st)) return false;
+      if (!EmitExpr(st, target.children[0], &container_type, error)) return false;
+      if (!EmitExpr(st, target.children[1], &index_type, error)) return false;
+      (*st.out) << "  rot\n";
+      return EmitIndexSetOp(st, container_type, op_suffix);
+    }
+    if (expr.children[0].kind == ExprKind::Member) {
+      const Expr& target = expr.children[0];
+      if (target.children.empty()) {
+        if (error) *error = "member access missing base";
+        return false;
+      }
+      const Expr& base = target.children[0];
+      TypeRef base_type;
+      if (!InferExprType(base, st, &base_type, error)) return false;
+      auto layout_it = st.artifact_layouts.find(base_type.name);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "member access base is not an artifact";
+        return false;
+      }
+      if (!EmitExpr(st, base, &base_type, error)) return false;
+      (*st.out) << "  ldfld " << base_type.name << "." << target.text << "\n";
+      (*st.out) << "  " << op_name << "\n";
+      if (!EmitDup(st)) return false;
+      if (!EmitExpr(st, base, &base_type, error)) return false;
+      (*st.out) << "  swap\n";
+      (*st.out) << "  stfld " << base_type.name << "." << target.text << "\n";
+      PopStack(st, 2);
+      return true;
+    }
+    if (error) *error = "inc/dec target not supported in SIR emission";
+    return false;
   }
   if (expr.op == "post++" || expr.op == "post--") {
-    auto it = st.local_indices.find(expr.children[0].text);
-    if (it == st.local_indices.end()) {
-      if (error) *error = "unknown local '" + expr.children[0].text + "'";
-      return false;
-    }
     const char* op_name = expr.op == "post++" ? IncOpForType(use_type->name) : DecOpForType(use_type->name);
     if (!op_name) {
       if (error) *error = "unsupported inc/dec type '" + use_type->name + "'";
       return false;
     }
-    (*st.out) << "  dup\n";
-    PushStack(st, 1);
-    (*st.out) << "  " << op_name << "\n";
-    (*st.out) << "  stloc " << it->second << "\n";
-    PopStack(st, 1);
-    return true;
+    if (expr.children[0].kind == ExprKind::Identifier) {
+      auto it = st.local_indices.find(expr.children[0].text);
+      if (it == st.local_indices.end()) {
+        if (error) *error = "unknown local '" + expr.children[0].text + "'";
+        return false;
+      }
+      (*st.out) << "  ldloc " << it->second << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  dup\n";
+      PushStack(st, 1);
+      (*st.out) << "  " << op_name << "\n";
+      (*st.out) << "  stloc " << it->second << "\n";
+      PopStack(st, 1);
+      return true;
+    }
+    if (expr.children[0].kind == ExprKind::Index) {
+      const Expr& target = expr.children[0];
+      if (target.children.size() != 2) {
+        if (error) *error = "index expression expects target and index";
+        return false;
+      }
+      TypeRef container_type;
+      if (!InferExprType(target.children[0], st, &container_type, error)) return false;
+      if (container_type.dims.empty()) {
+        if (error) *error = "indexing is only valid on arrays and lists";
+        return false;
+      }
+      TypeRef element_type;
+      if (!CloneElementType(container_type, &element_type)) {
+        if (error) *error = "failed to resolve index element type";
+        return false;
+      }
+      const char* op_suffix = VmOpSuffixForType(element_type);
+      if (!op_suffix) {
+        if (error) *error = "unsupported index element type for SIR emission";
+        return false;
+      }
+      if (!EmitExpr(st, target.children[0], &container_type, error)) return false;
+      TypeRef index_type;
+      index_type.name = "i32";
+      if (!EmitExpr(st, target.children[1], &index_type, error)) return false;
+      if (!EmitIndexGetOp(st, container_type, op_suffix)) return false;
+      if (!EmitDup(st)) return false;
+      (*st.out) << "  " << op_name << "\n";
+      if (!EmitExpr(st, target.children[0], &container_type, error)) return false;
+      if (!EmitExpr(st, target.children[1], &index_type, error)) return false;
+      (*st.out) << "  rot\n";
+      return EmitIndexSetOp(st, container_type, op_suffix);
+    }
+    if (expr.children[0].kind == ExprKind::Member) {
+      const Expr& target = expr.children[0];
+      if (target.children.empty()) {
+        if (error) *error = "member access missing base";
+        return false;
+      }
+      const Expr& base = target.children[0];
+      TypeRef base_type;
+      if (!InferExprType(base, st, &base_type, error)) return false;
+      auto layout_it = st.artifact_layouts.find(base_type.name);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "member access base is not an artifact";
+        return false;
+      }
+      if (!EmitExpr(st, base, &base_type, error)) return false;
+      (*st.out) << "  ldfld " << base_type.name << "." << target.text << "\n";
+      if (!EmitDup(st)) return false;
+      (*st.out) << "  " << op_name << "\n";
+      if (!EmitExpr(st, base, &base_type, error)) return false;
+      (*st.out) << "  swap\n";
+      (*st.out) << "  stfld " << base_type.name << "." << target.text << "\n";
+      PopStack(st, 2);
+      return true;
+    }
+    if (error) *error = "inc/dec target not supported in SIR emission";
+    return false;
   }
+  if (!EmitExpr(st, expr.children[0], use_type, error)) return false;
   if (expr.op == "-" && IsNumericType(use_type->name)) {
     (*st.out) << "  neg." << use_type->name << "\n";
     return true;

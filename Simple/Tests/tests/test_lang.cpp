@@ -144,6 +144,35 @@ bool LangSirEmitsMemberCompoundAssign() {
   return RunSirTextExpectExit(sir, 3);
 }
 
+bool LangSirEmitsIndexIncDec() {
+  const char* src =
+      "main : i32 () {"
+      "  values : i32[1] = [1];"
+      "  x : i32 = values[0]++;"
+      "  y : i32 = ++values[0];"
+      "  return x + y + values[0];"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsMemberIncDec() {
+  const char* src =
+      "Point :: artifact { x : i32 }"
+      "main : i32 () {"
+      "  p : Point = { 1 };"
+      "  a : i32 = p.x++;"
+      "  b : i32 = ++p.x;"
+      "  return a + b + p.x;"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
 bool LangSirEmitsArrayLiteralIndex() {
   const char* src = "main : i32 () { values : i32[3] = [1, 2, 3]; return values[1]; }";
   std::string sir;
@@ -1939,6 +1968,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
   {"lang_sir_emit_index_compound_assign", LangSirEmitsIndexCompoundAssign},
   {"lang_sir_emit_member_compound_assign", LangSirEmitsMemberCompoundAssign},
+  {"lang_sir_emit_index_inc_dec", LangSirEmitsIndexIncDec},
+  {"lang_sir_emit_member_inc_dec", LangSirEmitsMemberIncDec},
   {"lang_sir_emit_array_literal_index", LangSirEmitsArrayLiteralIndex},
   {"lang_sir_emit_array_assign", LangSirEmitsArrayAssign},
   {"lang_sir_emit_list_literal_index", LangSirEmitsListLiteralIndex},

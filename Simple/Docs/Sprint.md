@@ -582,6 +582,9 @@
 - Added Simple::Lang SIR emission for inc/dec (prefix/postfix) on locals with new IR emission tests.
 - Added Simple::Lang SIR emission for compound assignment on locals, arrays/lists, and artifact members with new IR emission tests.
 - Added Simple::Lang SIR emission for bitwise/shift operators with new IR emission tests.
+- Extended Simple::Lang SIR emission to support inc/dec on index/member targets with new IR emission tests.
+- Extended Simple::Lang SIR assignment expressions to cover index/member targets (including compound ops).
+- Fixed SIR member/index inc/dec emission stack ordering and added index/member inc/dec tests.
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
 - Added SIR text metadata tables (types/sigs/consts/imports) with name-based resolution for locals/types/fields/consts/sigs/functions.

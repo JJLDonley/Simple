@@ -1294,7 +1294,7 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 - [x] SIR text compiler exists (SIR → SBC)
 - [x] Basic SIR emission (i32 literals/vars/assign/return, arithmetic)
 - [x] Basic direct function calls (no fn values)
-- [ ] Language → SIR mapping for expressions
+- [x] Language → SIR mapping for expressions
 - [x] Control flow emission (if/|>/loops/break/skip)
 - [x] Artifact/enum emission + member access
 - [x] Arrays/lists + literals
