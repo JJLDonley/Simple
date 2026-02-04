@@ -1,0 +1,4 @@
+main : i32 () {
+  x : char = '\q'
+  return 0
+}

@@ -326,6 +326,18 @@ bool LangSimpleBadMissingSemicolonSameLine() {
       "expected ';'");
 }
 
+bool LangSimpleBadInvalidStringEscape() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/invalid_string_escape.simple",
+      "invalid string escape");
+}
+
+bool LangSimpleBadInvalidCharEscape() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/invalid_char_escape.simple",
+      "invalid char escape");
+}
+
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
@@ -2469,6 +2481,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_index_non_container", LangSimpleBadIndexNonContainer},
   {"lang_simple_bad_array_missing_dim", LangSimpleBadArrayMissingDim},
   {"lang_simple_bad_missing_semicolon_same_line", LangSimpleBadMissingSemicolonSameLine},
+  {"lang_simple_bad_invalid_string_escape", LangSimpleBadInvalidStringEscape},
+  {"lang_simple_bad_invalid_char_escape", LangSimpleBadInvalidCharEscape},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
