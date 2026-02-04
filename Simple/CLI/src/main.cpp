@@ -209,8 +209,89 @@ bool BuildEmbeddedExecutable(const std::string& root_dir,
 }
 } // namespace
 
+struct ErrorLocation {
+  bool ok = false;
+  uint32_t line = 0;
+  uint32_t column = 0;
+  std::string message;
+};
+
+ErrorLocation ParseErrorLocation(const std::string& message) {
+  ErrorLocation out;
+  auto is_digit = [](char ch) { return ch >= '0' && ch <= '9'; };
+  size_t pos = 0;
+  while (pos < message.size()) {
+    while (pos < message.size() && !is_digit(message[pos])) ++pos;
+    if (pos >= message.size()) break;
+    size_t line_start = pos;
+    while (pos < message.size() && is_digit(message[pos])) ++pos;
+    if (pos >= message.size() || message[pos] != ':') continue;
+    size_t line_end = pos;
+    ++pos;
+    size_t col_start = pos;
+    while (pos < message.size() && is_digit(message[pos])) ++pos;
+    if (pos >= message.size() || message[pos] != ':') continue;
+    size_t col_end = pos;
+    std::string line_text = message.substr(line_start, line_end - line_start);
+    std::string col_text = message.substr(col_start, col_end - col_start);
+    if (line_text.empty() || col_text.empty()) continue;
+    uint32_t line = static_cast<uint32_t>(std::stoul(line_text));
+    uint32_t col = static_cast<uint32_t>(std::stoul(col_text));
+    if (line == 0 || col == 0) continue;
+    out.ok = true;
+    out.line = line;
+    out.column = col;
+    std::string before = message.substr(0, line_start);
+    std::string after = message.substr(col_end + 1);
+    while (!after.empty() && after.front() == ' ') after.erase(after.begin());
+    while (!before.empty() && before.back() == ' ') before.pop_back();
+    if (!before.empty()) {
+      if (before.back() != ':') {
+        before.push_back(':');
+      }
+      before.push_back(' ');
+    }
+    out.message = before + after;
+    break;
+  }
+  return out;
+}
+
+std::string GetSourceLine(const std::string& path, uint32_t line) {
+  if (line == 0) return {};
+  std::ifstream in(path);
+  if (!in) return {};
+  std::string text;
+  uint32_t current = 0;
+  while (std::getline(in, text)) {
+    ++current;
+    if (current == line) return text;
+  }
+  return {};
+}
+
 void PrintError(const std::string& message) {
   std::cerr << "error[E0001]: " << message << "\n";
+}
+
+void PrintErrorWithContext(const std::string& path, const std::string& message) {
+  ErrorLocation loc = ParseErrorLocation(message);
+  if (!loc.ok) {
+    PrintError(message);
+    return;
+  }
+  std::cerr << "error[E0001]: " << loc.message << "\n";
+  std::cerr << " --> " << path << ":" << loc.line << ":" << loc.column << "\n";
+  std::string source = GetSourceLine(path, loc.line);
+  if (!source.empty()) {
+    std::cerr << "  |\n";
+    std::cerr << loc.line << " | " << source << "\n";
+    std::cerr << "  | ";
+    for (uint32_t i = 1; i < loc.column; ++i) {
+      std::cerr << ' ';
+    }
+    std::cerr << "^\n";
+  }
 }
 
 int main(int argc, char** argv) {
@@ -258,7 +339,7 @@ int main(int argc, char** argv) {
         return 1;
       }
       if (!Simple::Lang::ValidateProgramFromString(text, &error)) {
-        PrintError(error);
+        PrintErrorWithContext(path, error);
         return 1;
       }
       return 0;
@@ -322,7 +403,7 @@ int main(int argc, char** argv) {
       }
       std::string sir;
       if (!Simple::Lang::EmitSirFromString(text, &sir, &error)) {
-        PrintError("simple compile failed (" + emit_path + "): " + error);
+        PrintErrorWithContext(emit_path, "simple compile failed (" + emit_path + "): " + error);
         return 1;
       }
       std::vector<uint8_t> bytes(sir.begin(), sir.end());
@@ -338,7 +419,7 @@ int main(int argc, char** argv) {
       if (HasExt(emit_path, ".simple")) {
         if (!ReadFileText(emit_path, &text, &error) ||
             !CompileSimpleToSbc(text, emit_path, &bytes, &error)) {
-          PrintError(error);
+          PrintErrorWithContext(emit_path, error);
           return 1;
         }
       } else if (HasExt(emit_path, ".sir")) {
@@ -411,7 +492,7 @@ int main(int argc, char** argv) {
     if (HasExt(input_path, ".simple")) {
       if (!ReadFileText(input_path, &text, &error) ||
           !CompileSimpleToSbc(text, input_path, &bytes, &error)) {
-        PrintError(error);
+        PrintErrorWithContext(input_path, error);
         return 1;
       }
     } else if (HasExt(input_path, ".sir")) {
@@ -464,7 +545,7 @@ int main(int argc, char** argv) {
   if (HasExt(path, ".simple")) {
     std::string text;
     if (!ReadFileText(path, &text, &error) || !CompileSimpleToSbc(text, path, &bytes, &error)) {
-      PrintError(error);
+      PrintErrorWithContext(path, error);
       return 1;
     }
     load = Simple::Byte::LoadModuleFromBytes(bytes);

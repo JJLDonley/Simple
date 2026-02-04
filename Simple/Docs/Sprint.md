@@ -780,3 +780,4 @@
 - Added FFI import emission + resolver in the Simple front-end, plus SIR import syntax support and core_os extern fixture.
 - Added reserved stdlib modules (Math/Time/File) with intrinsics/import bindings, fixtures, and a StdLib.md layout doc.
 - Added Math.PI stdlib fixture and test coverage.
+- Added CLI diagnostic range highlights with source/caret context and updated error-format tests.

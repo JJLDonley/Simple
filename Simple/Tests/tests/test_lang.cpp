@@ -458,7 +458,8 @@ bool LangCliCheckSimpleErrorFormat() {
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   return contents.find("error[E0001]:") != std::string::npos &&
          contents.find("undeclared identifier") != std::string::npos &&
-         contents.find(':') != std::string::npos;
+         contents.find(" --> ") != std::string::npos &&
+         contents.find('^') != std::string::npos;
 }
 
 bool LangCliCheckSimpleLexerErrorFormat() {
@@ -471,7 +472,8 @@ bool LangCliCheckSimpleLexerErrorFormat() {
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   return contents.find("error[E0001]:") != std::string::npos &&
          contents.find("unexpected character") != std::string::npos &&
-         contents.find(':') != std::string::npos;
+         contents.find(" --> ") != std::string::npos &&
+         contents.find('^') != std::string::npos;
 }
 
 bool LangCliCheckSimpleParserErrorFormat() {
@@ -484,7 +486,8 @@ bool LangCliCheckSimpleParserErrorFormat() {
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   return contents.find("error[E0001]:") != std::string::npos &&
          contents.find("unterminated block") != std::string::npos &&
-         contents.find(':') != std::string::npos;
+         contents.find(" --> ") != std::string::npos &&
+         contents.find('^') != std::string::npos;
 }
 
 bool LangCliEmitIr() {

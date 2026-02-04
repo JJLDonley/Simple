@@ -142,7 +142,7 @@ Checklist:
 - [x] `simplevm run/build/check/emit` commands.
 - [x] Build with `-d/--dynamic` and `-s/--static`.
 - [x] Error format `error[E0001]: ...` with line/column.
-- [ ] Range highlights in diagnostics.
+- [x] Range highlights in diagnostics.
 
 Future:
 - Dedicated `simple` CLI front-end and subcommands.
@@ -215,7 +215,7 @@ Checklist:
 
 6) Diagnostics
 - [x] Error format + line/column.
-- [ ] Range highlights.
+- [x] Range highlights.
 
 7) CLI Integration
 - [x] simplevm compile/run/check Simple source.
