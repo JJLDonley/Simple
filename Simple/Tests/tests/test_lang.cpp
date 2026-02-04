@@ -4,6 +4,7 @@
 #include "lang_validate.h"
 #include "ir_lang.h"
 #include "ir_compiler.h"
+#include "simple_runner.h"
 #include "test_utils.h"
 
 #include <unordered_map>
@@ -1225,6 +1226,11 @@ bool LangValidateIoPrintRejectsArray() {
   return true;
 }
 
+bool LangRunsSimpleFixtures() {
+  const std::string dir = "Simple/Tests/simple";
+  return Simple::VM::Tests::RunSimplePerfDir(dir, 1, true) == 0;
+}
+
 bool LangValidateCallFnLiteralCount() {
   const char* src =
     "main : i32 () { f : (i32) : i32 = (x : i32) { return x; }; return f(1, 2); }";
@@ -2089,6 +2095,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_io_print_arg_count", LangValidateIoPrintArgCountFail},
   {"lang_validate_io_print_type_args_ok", LangValidateIoPrintTypeArgsOk},
   {"lang_validate_io_print_rejects_array", LangValidateIoPrintRejectsArray},
+  {"lang_run_simple_fixtures", LangRunsSimpleFixtures},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
   {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},

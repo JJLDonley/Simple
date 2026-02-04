@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 
+#include "simple_runner.h"
 #include "sir_runner.h"
 #include "test_utils.h"
 
@@ -57,6 +58,18 @@ int main(int argc, char** argv) {
     }
     return Simple::VM::Tests::RunSirFile(path, verify);
   }
+  if (argc > 1 && std::string(argv[1]) == "--simple") {
+    if (argc < 3) {
+      std::cerr << "usage: simplevm_tests --simple <file.simple> [--no-verify]\n";
+      return 2;
+    }
+    const std::string path = argv[2];
+    bool verify = true;
+    if (argc > 3 && std::string(argv[3]) == "--no-verify") {
+      verify = false;
+    }
+    return Simple::VM::Tests::RunSimpleFile(path, verify);
+  }
   if (argc > 1 && std::string(argv[1]) == "--perf") {
     if (argc < 3) {
       std::cerr << "usage: simplevm_tests --perf <dir> [--iters N] [--no-verify]\n";
@@ -89,6 +102,39 @@ int main(int argc, char** argv) {
       }
     }
     return Simple::VM::Tests::RunSirPerfDir(dir, iterations, verify);
+  }
+  if (argc > 1 && std::string(argv[1]) == "--simple-perf") {
+    if (argc < 3) {
+      std::cerr << "usage: simplevm_tests --simple-perf <dir> [--iters N] [--no-verify]\n";
+      return 2;
+    }
+    const std::string dir = argv[2];
+    size_t iterations = 100;
+    bool verify = true;
+    for (int i = 3; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (arg == "--no-verify") {
+        verify = false;
+        continue;
+      }
+      if (arg == "--iters" && i + 1 < argc) {
+        try {
+          iterations = static_cast<size_t>(std::stoul(argv[i + 1]));
+        } catch (...) {
+          std::cerr << "invalid --iters value\n";
+          return 2;
+        }
+        ++i;
+        continue;
+      }
+      try {
+        iterations = static_cast<size_t>(std::stoul(arg));
+      } catch (...) {
+        std::cerr << "usage: simplevm_tests --simple-perf <dir> [--iters N] [--no-verify]\n";
+        return 2;
+      }
+    }
+    return Simple::VM::Tests::RunSimplePerfDir(dir, iterations, verify);
   }
 
   if (argc > 1 && std::string(argv[1]) == "--bench") {

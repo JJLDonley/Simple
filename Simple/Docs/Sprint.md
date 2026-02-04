@@ -710,3 +710,5 @@
 - Added print_any intrinsic with strict scalar-only IO.print/println lowering and a validation test rejecting array args.
 - Implemented print_any output formatting for scalar values and strings (strict ref handling).
 - Added stdout auto-flush after print_any output.
+- Added Simple fixture runner (Simple→SIR→SBC→VM) with CLI flags and a hello.simple fixture.
+- build.sh now builds the CLI executable alongside test binaries.

@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VM_DIR="$ROOT_DIR/VM"
 IR_DIR="$ROOT_DIR/IR"
 BYTE_DIR="$ROOT_DIR/Byte"
+CLI_DIR="$ROOT_DIR/CLI"
 TEST_DIR="$ROOT_DIR/Tests/tests"
 OUT_DIR="$ROOT_DIR/bin"
 BUILD_DIR="$ROOT_DIR/build"
@@ -27,16 +28,9 @@ OBJ_DIR="$BUILD_DIR/obj_$SUITE"
 mkdir -p "$OUT_DIR"
 mkdir -p "$OBJ_DIR"
 
-# g++ -std=c++17 -O2 -Wall -Wextra -I"$ROOT_DIR/include" \
-#   "$ROOT_DIR/src/heap.cpp" \
-#   "$ROOT_DIR/src/ir_builder.cpp" \
-#   "$ROOT_DIR/src/ir_compiler.cpp" \
-#   "$ROOT_DIR/src/opcode.cpp" \
-#   "$ROOT_DIR/src/sbc_loader.cpp" \
-#   "$ROOT_DIR/src/sbc_verifier.cpp" \
-#   "$ROOT_DIR/src/vm.cpp" \
-#   "$ROOT_DIR/src/main.cpp" \
-#   -o "$OUT_DIR/simplevm"
+CLI_SOURCES=(
+  "$CLI_DIR/src/main.cpp"
+)
 
 SOURCES=(
   "$VM_DIR/src/heap.cpp"
@@ -54,6 +48,7 @@ SOURCES=(
   "$TEST_DIR/test_main.cpp"
   "$TEST_DIR/test_utils.cpp"
   "$TEST_DIR/sir_runner.cpp"
+  "$TEST_DIR/simple_runner.cpp"
   "$TEST_DIR/test_lang.cpp"
 )
 
@@ -123,7 +118,27 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "${OBJECTS[@]}" \
   -o "$OUT_DIR/simplevm_tests_$SUITE"
 
-# echo "built: $OUT_DIR/simplevm"
+g++ -std=c++17 -O2 -Wall -Wextra \
+  -I"$VM_DIR/include" \
+  -I"$IR_DIR/include" \
+  -I"$ROOT_DIR/Lang/include" \
+  -I"$BYTE_DIR/include" \
+  "${CLI_SOURCES[@]}" \
+  "$VM_DIR/src/heap.cpp" \
+  "$VM_DIR/src/vm.cpp" \
+  "$IR_DIR/src/ir_builder.cpp" \
+  "$IR_DIR/src/ir_compiler.cpp" \
+  "$IR_DIR/src/ir_lang.cpp" \
+  "$ROOT_DIR/Lang/src/lang_lexer.cpp" \
+  "$ROOT_DIR/Lang/src/lang_parser.cpp" \
+  "$ROOT_DIR/Lang/src/lang_validate.cpp" \
+  "$ROOT_DIR/Lang/src/lang_sir.cpp" \
+  "$BYTE_DIR/src/opcode.cpp" \
+  "$BYTE_DIR/src/sbc_loader.cpp" \
+  "$BYTE_DIR/src/sbc_verifier.cpp" \
+  -o "$OUT_DIR/simplevm"
+
+echo "built: $OUT_DIR/simplevm"
 echo "built: $OUT_DIR/simplevm_tests_$SUITE"
 
 echo "running: $OUT_DIR/simplevm_tests_$SUITE"
