@@ -724,3 +724,6 @@
 - Added Simple language fixture tests for new .simple programs.
 - Added .simple negative fixtures (missing return, type mismatch) with error substring checks.
 - Added lexer and parser error location prefixes (line:col) and a parse-error location test.
+- Added .simple fixtures: add_fn, if_else, for_loop, while_break, plus fixture tests.
+- Added .simple negative fixture for IO.print on arrays (validation error).
+- Adjusted for_loop.simple fixture to match current for-loop syntax (no parens, explicit init).
