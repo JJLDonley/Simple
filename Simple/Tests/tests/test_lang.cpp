@@ -180,6 +180,10 @@ bool LangSimpleFixtureReservedFile() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_file.simple", 0);
 }
 
+bool LangSimpleFixtureReservedMathPi() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_math_pi.simple", 0);
+}
+
 bool LangSimpleFixtureArtifactNamedInit() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
 }
@@ -2650,6 +2654,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
   {"lang_simple_fixture_extern_core_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},
+  {"lang_simple_fixture_reserved_math_pi", LangSimpleFixtureReservedMathPi},
   {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
