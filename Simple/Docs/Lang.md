@@ -568,7 +568,7 @@ condition { block }
 **Example:**
 ```
 x > 10 {
-    print("Greater than 10")
+    IO.print("Greater than 10")
 }
 ```
 
@@ -604,7 +604,7 @@ while i < 10 {
         i = i + 1
         skip 
     }
-    print(i)
+    IO.print(i)
     i = i + 1
 }
 ```
@@ -625,23 +625,23 @@ for (init; condition; update) {
 ```
 // Traditional counting loop
 for (i : i32 = 0; i < 10; i++) {
-    print(i)
+    IO.print(i)
 }
 
 // Count by 2s
 for (i : i32 = 0; i < 10; i += 2) {
-    print(i)  // 0, 2, 4, 6, 8
+    IO.print(i)  // 0, 2, 4, 6, 8
 }
 
 // Count backwards
 for (i : i32 = 10; i >= 0; i--) {
-    print(i)  // 10, 9, 8, ..., 0
+    IO.print(i)  // 10, 9, 8, ..., 0
 }
 
 // Multiple operations in update
 for (i : i32 = 0; i < 100; i = i + 1) {
     |> i % 2 == 0 { skip }
-    print(i)  // prints odd numbers only
+    IO.print(i)  // prints odd numbers only
 }
 
 // Infinite loop (all parts optional)
@@ -653,7 +653,7 @@ for (;;) {
 // Declaration outside, no update
 count : i32 = 0
 for (; count < 10;) {
-    print(count)
+    IO.print(count)
     count += 1
 }
 ```
@@ -1166,7 +1166,7 @@ Simple requires a top-level procedure to serve as entry point. By convention, `m
 
 ```
 main : i32 () {
-    println("Hello, World!")
+    IO.println("Hello, World!")
     return 0
 }
 ```
@@ -1316,8 +1316,8 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 ### Built-in Procedures
 
 ```
-print : void (value : string)
-println : void (value : string)
+IO.print : void (value : string)
+IO.println : void (value : string)
 
 str : string (value : i32)
 str : string (value : f64)
@@ -1363,7 +1363,7 @@ String :: module {
 
 ```
 main : i32 () {
-    println("Hello, World!")
+    IO.println("Hello, World!")
     return 0
 }
 ```
@@ -1373,10 +1373,10 @@ main : i32 () {
 ```
 main : i32 () {
     for (i : i32 = 1; i <= 100; i++) {
-        |> i % 15 == 0 { println("FizzBuzz") }
-        |> i % 3 == 0 { println("Fizz") }
-        |> i % 5 == 0 { println("Buzz") }
-        |> default { println(str(i)) }
+        |> i % 15 == 0 { IO.println("FizzBuzz") }
+        |> i % 3 == 0 { IO.println("Fizz") }
+        |> i % 5 == 0 { IO.println("Buzz") }
+        |> default { IO.println(str(i)) }
     }
     return 0
 }
@@ -1401,10 +1401,10 @@ Point :: artifact {
 
 main : i32 () {
     p : Point = { 3.0, 4.0 }
-    println("Distance: " + str(p.distance()))
+    IO.println("Distance: " + str(p.distance()))
     
     p.move(1.0, 1.0)
-    println("New position: (" + str(p.x) + ", " + str(p.y) + ")")
+    IO.println("New position: (" + str(p.x) + ", " + str(p.y) + ")")
     
     return 0
 }
@@ -1424,8 +1424,8 @@ main : i32 () {
     sum : i32 = apply(add, 5, 3)
     product : i32 = apply(multiply, 5, 3)
     
-    println("Sum: " + str(sum))
-    println("Product: " + str(product))
+    IO.println("Sum: " + str(sum))
+    IO.println("Product: " + str(product))
     
     return 0
 }
@@ -1454,7 +1454,7 @@ main : i32 () {
     swap<i32>(i, j)
 
     box : Box<string> = { "hello" }
-    println(box.get())
+    IO.println(box.get())
     return 0
 }
 ```
@@ -1478,9 +1478,9 @@ Math :: module {
 }
 
 main : i32 () {
-    println("PI = " + str(Math.PI))
-    println("abs(-5.5) = " + str(Math.abs(-5.5)))
-    println("max(10, 20) = " + str(Math.max(10, 20)))
+    IO.println("PI = " + str(Math.PI))
+    IO.println("abs(-5.5) = " + str(Math.abs(-5.5)))
+    IO.println("max(10, 20) = " + str(Math.max(10, 20)))
     return 0
 }
 ```
@@ -1492,9 +1492,9 @@ main : i32 () {
 ### Pattern Matching
 
 ```
-|> value is Point(x, y) { println("Point at " + str(x) + ", " + str(y)) }
-|> value is Status.Active { println("Active status") }
-|> default { println("Unknown") }
+|> value is Point(x, y) { IO.println("Point at " + str(x) + ", " + str(y)) }
+|> value is Status.Active { IO.println("Active status") }
+|> default { IO.println("Unknown") }
 ```
 
 ### modules/Packages
@@ -1868,7 +1868,7 @@ This plan covers:
 - [ ] Invariance rules
 
 ### Standard Library
-- [ ] Built-ins: `print`, `println`
+- [ ] Built-ins: `IO.print`, `IO.println`
 - [ ] Conversions: `str(i32)`, `str(f64)`, `str(bool)`, `i32(string)`, `f64(string)`
 - [ ] `len<T>` for lists and `len` for strings
 - [ ] Standard modules: `IO`, `Math`, `String`
@@ -1881,7 +1881,7 @@ This plan covers:
 - [ ] Lexer supports primitives, literals, operators for MVP
 - [ ] Parser supports variable declarations, simple expressions, procedures
 - [ ] Semantic checks for explicit typing and returns
-- [ ] Codegen for variables, arithmetic, procedure calls, `print`
+- [ ] Codegen for variables, arithmetic, procedure calls, `IO.print`
 - [ ] Hello World program compiles and runs
 
 ### Phase 2: Control Flow

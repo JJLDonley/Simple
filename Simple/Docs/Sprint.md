@@ -585,6 +585,7 @@
 - Extended Simple::Lang SIR emission to support inc/dec on index/member targets with new IR emission tests.
 - Extended Simple::Lang SIR assignment expressions to cover index/member targets (including compound ops).
 - Fixed SIR member/index inc/dec emission stack ordering and added index/member inc/dec tests.
+- Moved print/println usage in language docs to IO module (IO.print/IO.println).
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
 - Added SIR text metadata tables (types/sigs/consts/imports) with name-based resolution for locals/types/fields/consts/sigs/functions.
