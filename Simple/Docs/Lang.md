@@ -1316,9 +1316,6 @@ This compiler targets **SIR text** (not bytecode). The VM compiles SIR → SBC a
 ### Built-in Procedures
 
 ```
-IO.print : void (value : string)
-IO.println : void (value : string)
-
 str : string (value : i32)
 str : string (value : f64)
 str : string (value : bool)
@@ -1328,7 +1325,7 @@ f64 : f64 (value : string)
 
 len<T> : i32 (arr : T[])       // Length of 1D list
 len<T> : i32 (arr : T[][])     // Length of outer dimension (number of rows)
-len : i32 (str : string)    // Length of string
+len : i32 (str : string)       // Length of string
 ```
 
 ### Standard modules
@@ -1337,6 +1334,8 @@ len : i32 (str : string)    // Length of string
 IO :: module {
     read_file :: string (path : string)
     write_file : void (path : string, content : string)
+    print<T> : void (value : T)
+    println<T> : void (value : T)
 }
 
 Math :: module {
@@ -1868,7 +1867,7 @@ This plan covers:
 - [ ] Invariance rules
 
 ### Standard Library
-- [ ] Built-ins: `IO.print`, `IO.println`
+- [ ] Built-ins: `IO.print<T>`, `IO.println<T>`
 - [ ] Conversions: `str(i32)`, `str(f64)`, `str(bool)`, `i32(string)`, `f64(string)`
 - [ ] `len<T>` for lists and `len` for strings
 - [ ] Standard modules: `IO`, `Math`, `String`
@@ -1881,7 +1880,7 @@ This plan covers:
 - [ ] Lexer supports primitives, literals, operators for MVP
 - [ ] Parser supports variable declarations, simple expressions, procedures
 - [ ] Semantic checks for explicit typing and returns
-- [ ] Codegen for variables, arithmetic, procedure calls, `IO.print`
+- [ ] Codegen for variables, arithmetic, procedure calls, `IO.print<T>`
 - [ ] Hello World program compiles and runs
 
 ### Phase 2: Control Flow
