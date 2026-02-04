@@ -118,6 +118,22 @@ std::string ResolveImportModule(const std::string& module) {
   return module;
 }
 
+bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
+  if (!out) return false;
+  if (base.kind == ExprKind::Identifier) {
+    *out = base.text;
+    return true;
+  }
+  if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
+    const Expr& root = base.children[0];
+    if (root.kind == ExprKind::Identifier && root.text == "Core") {
+      *out = "Core." + base.text;
+      return true;
+    }
+  }
+  return false;
+}
+
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
   if (!out) return false;
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
@@ -617,15 +633,16 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
-        if (base.kind == ExprKind::Identifier) {
-          if (st.reserved_imports.find(base.text) != st.reserved_imports.end()) {
-            if (base.text == "Math" &&
+        std::string module_name;
+        if (GetModuleNameFromExpr(base, &module_name)) {
+          if (st.reserved_imports.find(module_name) != st.reserved_imports.end()) {
+            if (module_name == "Math" &&
                 (callee.text == "abs" || callee.text == "min" || callee.text == "max") &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if (base.text == "Time" &&
+            if (module_name == "Time" &&
                 (callee.text == "mono_ns" || callee.text == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -636,14 +653,14 @@ bool InferExprType(const Expr& expr,
               return true;
             }
           }
-          auto ext_mod_it = st.extern_returns_by_module.find(base.text);
+          auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           if (ext_mod_it != st.extern_returns_by_module.end()) {
             auto ext_it = ext_mod_it->second.find(callee.text);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
             }
           }
-          const std::string key = base.text + "." + callee.text;
+          const std::string key = module_name + "." + callee.text;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
             auto ret_it = st.func_returns.find(module_it->second);
@@ -1403,9 +1420,10 @@ bool EmitExpr(EmitState& st,
           }
           return true;
         }
-        if (base.kind == ExprKind::Identifier &&
-            st.reserved_imports.find(base.text) != st.reserved_imports.end()) {
-          if (base.text == "Math") {
+        std::string module_name;
+        if (GetModuleNameFromExpr(base, &module_name) &&
+            st.reserved_imports.find(module_name) != st.reserved_imports.end()) {
+          if (module_name == "Math") {
             if (callee.text == "abs") {
               if (expr.args.size() != 1) {
                 if (error) *error = "call argument count mismatch for 'Math.abs'";
@@ -1456,7 +1474,7 @@ bool EmitExpr(EmitState& st,
               return true;
             }
           }
-          if (base.text == "Time") {
+          if (module_name == "Time") {
             if (callee.text == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
@@ -1477,8 +1495,8 @@ bool EmitExpr(EmitState& st,
             }
           }
         }
-        if (base.kind == ExprKind::Identifier) {
-          const std::string key = base.text + "." + callee.text;
+        if (GetModuleNameFromExpr(base, &module_name)) {
+          const std::string key = module_name + "." + callee.text;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
             const std::string& hoisted = module_it->second;
@@ -1512,14 +1530,14 @@ bool EmitExpr(EmitState& st,
             }
             return true;
           }
-          auto ext_mod_it = st.extern_ids_by_module.find(base.text);
+          auto ext_mod_it = st.extern_ids_by_module.find(module_name);
           if (ext_mod_it != st.extern_ids_by_module.end()) {
             auto id_it = ext_mod_it->second.find(callee.text);
             if (id_it != ext_mod_it->second.end()) {
-              auto params_it = st.extern_params_by_module[base.text].find(callee.text);
-              auto ret_it = st.extern_returns_by_module[base.text].find(callee.text);
-              if (params_it == st.extern_params_by_module[base.text].end() ||
-                  ret_it == st.extern_returns_by_module[base.text].end()) {
+              auto params_it = st.extern_params_by_module[module_name].find(callee.text);
+              auto ret_it = st.extern_returns_by_module[module_name].find(callee.text);
+              if (params_it == st.extern_params_by_module[module_name].end() ||
+                  ret_it == st.extern_returns_by_module[module_name].end()) {
                 if (error) *error = "missing signature for extern '" + key + "'";
                 return false;
               }
@@ -2656,6 +2674,71 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     };
     if (!add_reserved_import("File", "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
     if (!add_reserved_import("File", "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+  }
+
+  if (st.reserved_imports.find("Core.DL") != st.reserved_imports.end()) {
+    std::vector<TypeRef> open_params;
+    open_params.push_back(make_type("string"));
+    if (!add_reserved_import("Core.DL", "core.dl", "open", std::move(open_params), make_type("i64"))) return false;
+
+    std::vector<TypeRef> sym_params;
+    sym_params.push_back(make_type("i64"));
+    sym_params.push_back(make_type("string"));
+    if (!add_reserved_import("Core.DL", "core.dl", "sym", std::move(sym_params), make_type("i64"))) return false;
+
+    std::vector<TypeRef> close_params;
+    close_params.push_back(make_type("i64"));
+    if (!add_reserved_import("Core.DL", "core.dl", "close", std::move(close_params), make_type("i32"))) return false;
+
+    if (!add_reserved_import("Core.DL", "core.dl", "last_error", {}, make_type("string"))) return false;
+  }
+
+  if (st.reserved_imports.find("Core.Os") != st.reserved_imports.end()) {
+    if (!add_reserved_import("Core.Os", "core.os", "args_count", {}, make_type("i32"))) return false;
+
+    std::vector<TypeRef> idx_params;
+    idx_params.push_back(make_type("i32"));
+    if (!add_reserved_import("Core.Os", "core.os", "args_get", std::move(idx_params), make_type("string"))) return false;
+
+    std::vector<TypeRef> env_params;
+    env_params.push_back(make_type("string"));
+    if (!add_reserved_import("Core.Os", "core.os", "env_get", std::move(env_params), make_type("string"))) return false;
+
+    if (!add_reserved_import("Core.Os", "core.os", "cwd_get", {}, make_type("string"))) return false;
+    if (!add_reserved_import("Core.Os", "core.os", "time_mono_ns", {}, make_type("i64"))) return false;
+    if (!add_reserved_import("Core.Os", "core.os", "time_wall_ns", {}, make_type("i64"))) return false;
+
+    std::vector<TypeRef> sleep_params;
+    sleep_params.push_back(make_type("i32"));
+    if (!add_reserved_import("Core.Os", "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+  }
+
+  if (st.reserved_imports.find("Core.Fs") != st.reserved_imports.end()) {
+    std::vector<TypeRef> open_params;
+    open_params.push_back(make_type("string"));
+    open_params.push_back(make_type("i32"));
+    if (!add_reserved_import("Core.Fs", "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+
+    std::vector<TypeRef> close_params;
+    close_params.push_back(make_type("i32"));
+    if (!add_reserved_import("Core.Fs", "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+
+    auto make_rw_params = [&]() {
+      std::vector<TypeRef> params;
+      params.push_back(make_type("i32"));
+      params.push_back(make_list_type("i32"));
+      params.push_back(make_type("i32"));
+      return params;
+    };
+    if (!add_reserved_import("Core.Fs", "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
+    if (!add_reserved_import("Core.Fs", "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+  }
+
+  if (st.reserved_imports.find("Core.Log") != st.reserved_imports.end()) {
+    std::vector<TypeRef> params;
+    params.push_back(make_type("string"));
+    params.push_back(make_type("i32"));
+    if (!add_reserved_import("Core.Log", "core.log", "log", std::move(params), make_type("void"))) return false;
   }
 
   for (const auto* artifact : artifacts) {

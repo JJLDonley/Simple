@@ -72,12 +72,32 @@ bool IsReservedImportPath(const std::string& path) {
     "IO",
     "Time",
     "File",
+    "Core.DL",
+    "Core.Os",
+    "Core.Fs",
+    "Core.Log",
   };
   return kReserved.find(path) != kReserved.end();
 }
 
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
   return ctx.reserved_imports.find(name) != ctx.reserved_imports.end();
+}
+
+bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
+  if (!out) return false;
+  if (base.kind == ExprKind::Identifier) {
+    *out = base.text;
+    return true;
+  }
+  if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
+    const Expr& root = base.children[0];
+    if (root.kind == ExprKind::Identifier && root.text == "Core") {
+      *out = "Core." + base.text;
+      return true;
+    }
+  }
+  return false;
 }
 
 TypeRef MakeSimpleType(const std::string& name) {
@@ -142,6 +162,99 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   if (module == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (module == "Core.DL") {
+    if (member == "open") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "sym") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "close") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "last_error") {
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (module == "Core.Os") {
+    if (member == "args_count") {
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "args_get") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "env_get") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "cwd_get") {
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "time_mono_ns" || member == "time_wall_ns") {
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "sleep_ms") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (module == "Core.Fs") {
+    if (member == "open") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "close") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "read" || member == "write") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (module == "Core.Log") {
+    if (member == "log") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -542,18 +655,21 @@ bool InferExprType(const Expr& expr,
         }
         return false;
       }
-      if (IsReservedModuleEnabled(ctx, base.text)) {
-        if (GetReservedModuleVarType(ctx, base.text, expr.text, out)) {
-          return true;
+      std::string module_name;
+      if (GetModuleNameFromExpr(base, &module_name)) {
+        if (IsReservedModuleEnabled(ctx, module_name)) {
+          if (GetReservedModuleVarType(ctx, module_name, expr.text, out)) {
+            return true;
+          }
         }
-      }
-      auto ext_mod_it = ctx.externs_by_module.find(base.text);
-      if (ext_mod_it != ctx.externs_by_module.end()) {
-        auto ext_it = ext_mod_it->second.find(expr.text);
-        if (ext_it != ext_mod_it->second.end()) {
-          return CloneTypeRef(ext_it->second->return_type, out);
+        auto ext_mod_it = ctx.externs_by_module.find(module_name);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(expr.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            return CloneTypeRef(ext_it->second->return_type, out);
+          }
+          return false;
         }
-        return false;
       }
         if (const LocalInfo* local = FindLocal(scopes, base.text)) {
           if (!local->type) return false;
@@ -926,36 +1042,39 @@ bool CheckCallTarget(const Expr& callee,
         }
         return true;
       }
-      if (IsReservedModuleEnabled(ctx, base.text)) {
-        CallTargetInfo info;
-        if (GetReservedModuleCallTarget(ctx, base.text, callee.text, &info)) {
-          if (info.params.size() != arg_count) {
-            if (error) {
-              *error = "call argument count mismatch for " + base.text + "." + callee.text +
-                       ": expected " + std::to_string(info.params.size()) +
-                       ", got " + std::to_string(arg_count);
+      std::string module_name;
+      if (GetModuleNameFromExpr(base, &module_name)) {
+        if (IsReservedModuleEnabled(ctx, module_name)) {
+          CallTargetInfo info;
+          if (GetReservedModuleCallTarget(ctx, module_name, callee.text, &info)) {
+            if (info.params.size() != arg_count) {
+              if (error) {
+                *error = "call argument count mismatch for " + module_name + "." + callee.text +
+                         ": expected " + std::to_string(info.params.size()) +
+                         ", got " + std::to_string(arg_count);
+              }
+              return false;
             }
-            return false;
+            return true;
           }
-          return true;
         }
-      }
-      auto ext_mod_it = ctx.externs_by_module.find(base.text);
-      if (ext_mod_it != ctx.externs_by_module.end()) {
-        auto ext_it = ext_mod_it->second.find(callee.text);
-        if (ext_it != ext_mod_it->second.end()) {
-          if (ext_it->second->params.size() != arg_count) {
-            if (error) {
-              *error = "call argument count mismatch for extern " + base.text + "." + callee.text +
-                       ": expected " + std::to_string(ext_it->second->params.size()) +
-                       ", got " + std::to_string(arg_count);
+        auto ext_mod_it = ctx.externs_by_module.find(module_name);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(callee.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            if (ext_it->second->params.size() != arg_count) {
+              if (error) {
+                *error = "call argument count mismatch for extern " + module_name + "." + callee.text +
+                         ": expected " + std::to_string(ext_it->second->params.size()) +
+                         ", got " + std::to_string(arg_count);
+              }
+              return false;
             }
-            return false;
+            return true;
           }
-          return true;
+          if (error) *error = "unknown extern member: " + module_name + "." + callee.text;
+          return false;
         }
-        if (error) *error = "unknown extern member: " + base.text + "." + callee.text;
-        return false;
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
         if (!local->type) return true;
@@ -1137,26 +1256,29 @@ bool GetCallTargetInfo(const Expr& callee,
           return true;
         }
       }
-      if (IsReservedModuleEnabled(ctx, base.text)) {
-        if (GetReservedModuleCallTarget(ctx, base.text, callee.text, out)) {
-          return true;
-        }
-      }
-      auto ext_mod_it = ctx.externs_by_module.find(base.text);
-      if (ext_mod_it != ctx.externs_by_module.end()) {
-        auto ext_it = ext_mod_it->second.find(callee.text);
-        if (ext_it != ext_mod_it->second.end()) {
-          out->params.clear();
-          if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-          out->return_mutability = ext_it->second->return_mutability;
-          out->type_params.clear();
-          out->is_proc = false;
-          for (const auto& param : ext_it->second->params) {
-            TypeRef copy;
-            if (!CloneTypeRef(param.type, &copy)) return false;
-            out->params.push_back(std::move(copy));
+      std::string module_name;
+      if (GetModuleNameFromExpr(base, &module_name)) {
+        if (IsReservedModuleEnabled(ctx, module_name)) {
+          if (GetReservedModuleCallTarget(ctx, module_name, callee.text, out)) {
+            return true;
           }
-          return true;
+        }
+        auto ext_mod_it = ctx.externs_by_module.find(module_name);
+        if (ext_mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = ext_mod_it->second.find(callee.text);
+          if (ext_it != ext_mod_it->second.end()) {
+            out->params.clear();
+            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+            out->return_mutability = ext_it->second->return_mutability;
+            out->type_params.clear();
+            out->is_proc = false;
+            for (const auto& param : ext_it->second->params) {
+              TypeRef copy;
+              if (!CloneTypeRef(param.type, &copy)) return false;
+              out->params.push_back(std::move(copy));
+            }
+            return true;
+          }
         }
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
@@ -1260,8 +1382,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
   const Expr& callee = call_expr.children[0];
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
-    if (base.kind == ExprKind::Identifier && IsReservedModuleEnabled(ctx, base.text)) {
-      const std::string& mod = base.text;
+    std::string module_name;
+    if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
+      const std::string& mod = module_name;
       const std::string& name = callee.text;
       auto infer_arg = [&](size_t index, TypeRef* out_type) -> bool {
         if (!out_type) return false;
@@ -1523,8 +1646,9 @@ bool CheckAssignmentTarget(const Expr& target,
         }
         return true;
       }
-      if (IsReservedModuleEnabled(ctx, base.text)) {
-        if (error) *error = "cannot assign to immutable module member: " + base.text + "." + target.text;
+      std::string module_name;
+      if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
+        if (error) *error = "cannot assign to immutable module member: " + module_name + "." + target.text;
         return false;
       }
       auto global_it = ctx.globals.find(base.text);
@@ -2520,14 +2644,15 @@ bool CheckExpr(const Expr& expr,
             }
             return true;
           }
-          if (IsReservedModuleEnabled(ctx, base.text)) {
+          std::string module_name;
+          if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
             TypeRef var_type;
             CallTargetInfo info;
-            if (GetReservedModuleVarType(ctx, base.text, expr.text, &var_type) ||
-                GetReservedModuleCallTarget(ctx, base.text, expr.text, &info)) {
+            if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+                GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
-            if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+            if (error) *error = "unknown module member: " + module_name + "." + expr.text;
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }
@@ -2547,14 +2672,15 @@ bool CheckExpr(const Expr& expr,
             }
             return true;
           }
-          if (IsReservedModuleEnabled(ctx, base.text)) {
+          std::string module_name;
+          if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
             TypeRef var_type;
             CallTargetInfo info;
-            if (GetReservedModuleVarType(ctx, base.text, expr.text, &var_type) ||
-                GetReservedModuleCallTarget(ctx, base.text, expr.text, &info)) {
+            if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+                GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
-            if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+            if (error) *error = "unknown module member: " + module_name + "." + expr.text;
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }

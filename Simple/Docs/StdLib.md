@@ -11,6 +11,10 @@ These import paths are reserved and resolved by the compiler:
 - `IO`
 - `Time`
 - `File`
+- `Core.DL`
+- `Core.Os`
+- `Core.Fs`
+- `Core.Log`
 
 Using these paths does **not** load files from disk. They map to core VM namespaces and intrinsics.
 
@@ -22,6 +26,10 @@ Using these paths does **not** load files from disk. They map to core VM namespa
 | `IO` | `IO` | `core.io` | Intrinsic print_any (print/println)
 | `Time` | `Time` | `core.time` | Intrinsics (mono_ns/wall_ns)
 | `File` | `File` | `core.fs` | FFI imports (open/read/write/close)
+| `Core.DL` | `Core.DL` | `core.dl` | FFI imports (dlopen/dlsym/dlclose)
+| `Core.Os` | `Core.Os` | `core.os` | FFI imports (args/env/cwd/time/sleep)
+| `Core.Fs` | `Core.Fs` | `core.fs` | FFI imports (open/read/write/close)
+| `Core.Log` | `Core.Log` | `core.log` | FFI imports (log)
 
 ## 3) Reserved Module APIs
 
@@ -44,6 +52,30 @@ Using these paths does **not** load files from disk. They map to core VM namespa
 - `File.read(fd: i32, buf: i32[], len: i32) -> i32`
 - `File.write(fd: i32, buf: i32[], len: i32) -> i32`
 - `File.close(fd: i32) -> void`
+
+### Core.DL
+- `Core.DL.open(path: string) -> i64`
+- `Core.DL.sym(handle: i64, name: string) -> i64`
+- `Core.DL.close(handle: i64) -> i32`
+- `Core.DL.last_error() -> string`
+
+### Core.Os
+- `Core.Os.args_count() -> i32`
+- `Core.Os.args_get(index: i32) -> string`
+- `Core.Os.env_get(name: string) -> string`
+- `Core.Os.cwd_get() -> string`
+- `Core.Os.time_mono_ns() -> i64`
+- `Core.Os.time_wall_ns() -> i64`
+- `Core.Os.sleep_ms(ms: i32) -> void`
+
+### Core.Fs
+- `Core.Fs.open(path: string, flags: i32) -> i32`
+- `Core.Fs.read(fd: i32, buf: i32[], len: i32) -> i32`
+- `Core.Fs.write(fd: i32, buf: i32[], len: i32) -> i32`
+- `Core.Fs.close(fd: i32) -> void`
+
+### Core.Log
+- `Core.Log.log(message: string, level: i32) -> void`
 
 ## 4) Core FFI Modules
 
