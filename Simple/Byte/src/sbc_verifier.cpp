@@ -1530,6 +1530,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
             ValType ret = from_intrinsic_type(sig.ret);
             push_type(ret);
           }
+          extra_pops = static_cast<int>(sig.param_count);
+          extra_pushes = (sig.ret != 0) ? 1 : 0;
           break;
         }
         case OpCode::SysCall: {

@@ -706,3 +706,4 @@
 - Added Simple::Lang SIR emission for len() on arrays/lists with a new IR emission test.
 - Added Simple::Lang SIR emission for artifact literals and member access/assignment with new IR emission tests.
 - Added Simple::Lang SIR emission for enum values (Enum.Value) with a new IR emission test.
+- Added Simple::Lang IO.print/println validation (generic call typing) and SIR emission mapping to intrinsics with new tests.

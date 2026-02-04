@@ -58,6 +58,10 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
   "bool", "char", "string",
 };
 
+bool IsIoPrintName(const std::string& name) {
+  return name == "print" || name == "println";
+}
+
 bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   if (!out) return false;
   out->name = src.name;
@@ -866,6 +870,28 @@ bool GetCallTargetInfo(const Expr& callee,
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     if (base.kind == ExprKind::Identifier) {
+      if (base.text == "IO" && IsIoPrintName(callee.text)) {
+        out->params.clear();
+        TypeRef param;
+        param.name = "T";
+        param.type_args.clear();
+        param.dims.clear();
+        param.is_proc = false;
+        param.proc_params.clear();
+        param.proc_return.reset();
+        out->params.push_back(std::move(param));
+        out->return_type = TypeRef{};
+        out->return_type.name = "void";
+        out->return_type.type_args.clear();
+        out->return_type.dims.clear();
+        out->return_type.is_proc = false;
+        out->return_type.proc_params.clear();
+        out->return_type.proc_return.reset();
+        out->return_mutability = Mutability::Mutable;
+        out->type_params = {"T"};
+        out->is_proc = false;
+        return true;
+      }
       if (base.text == "self") {
         const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
         if (!method) return false;
@@ -2107,6 +2133,11 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Member:
       if (expr.op == "." && !expr.children.empty()) {
         const Expr& base = expr.children[0];
+        if (base.kind == ExprKind::Identifier &&
+            base.text == "IO" &&
+            IsIoPrintName(expr.text)) {
+          return true;
+        }
         if (base.kind == ExprKind::Identifier &&
             ctx.enum_types.find(base.text) != ctx.enum_types.end()) {
           auto members_it = ctx.enum_members_by_type.find(base.text);

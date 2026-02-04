@@ -76,6 +76,24 @@ bool LangSirEmitsFunctionCall() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangSirEmitsIoPrintString() {
+  const char* src =
+      "main : i32 () { IO.print(\"hi\"); return 1; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 1);
+}
+
+bool LangSirEmitsIoPrintI32() {
+  const char* src =
+      "main : i32 () { IO.print(42); return 2; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 2);
+}
+
 bool LangSirEmitsIncDec() {
   const char* src =
       "main : i32 () {"
@@ -1186,6 +1204,20 @@ bool LangValidateCallFieldAsMethod() {
   return true;
 }
 
+bool LangValidateIoPrintArgCountFail() {
+  const char* src = "main : void () { IO.print(); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateIoPrintTypeArgsOk() {
+  const char* src = "main : void () { IO.print<i32>(1); }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateCallFnLiteralCount() {
   const char* src =
     "main : i32 () { f : (i32) : i32 = (x : i32) { return x; }; return f(1, 2); }";
@@ -1963,6 +1995,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},
   {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
+  {"lang_sir_emit_io_print_string", LangSirEmitsIoPrintString},
+  {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
@@ -2045,6 +2079,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_call_module_var", LangValidateCallModuleVar},
   {"lang_validate_call_method_arg_count", LangValidateCallMethodArgCount},
   {"lang_validate_call_field_as_method", LangValidateCallFieldAsMethod},
+  {"lang_validate_io_print_arg_count", LangValidateIoPrintArgCountFail},
+  {"lang_validate_io_print_type_args_ok", LangValidateIoPrintTypeArgsOk},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
   {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},

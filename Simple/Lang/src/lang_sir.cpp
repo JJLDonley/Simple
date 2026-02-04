@@ -9,6 +9,7 @@
 
 #include "lang_parser.h"
 #include "lang_validate.h"
+#include "intrinsic_ids.h"
 
 namespace Simple::Lang {
 namespace {
@@ -74,6 +75,10 @@ bool IsFloatType(const std::string& name) {
 
 bool IsNumericType(const std::string& name) {
   return IsIntegralType(name) || IsFloatType(name);
+}
+
+bool IsIoPrintName(const std::string& name) {
+  return name == "print" || name == "println";
 }
 
 bool IsSupportedType(const TypeRef& type) {
@@ -486,6 +491,49 @@ bool InferExprType(const Expr& expr,
         return false;
       }
       return CloneTypeRef(layout.fields[field_it->second].type, out);
+    }
+    case ExprKind::Call: {
+      if (expr.children.empty()) {
+        if (error) *error = "call missing callee";
+        return false;
+      }
+      const Expr& callee = expr.children[0];
+      if (callee.kind == ExprKind::Identifier) {
+        if (callee.text == "len") {
+          out->name = "i32";
+          return true;
+        }
+        if (callee.text == "str") {
+          out->name = "string";
+          return true;
+        }
+        if (callee.text == "i32") {
+          out->name = "i32";
+          return true;
+        }
+        if (callee.text == "f64") {
+          out->name = "f64";
+          return true;
+        }
+        auto it = st.func_returns.find(callee.text);
+        if (it != st.func_returns.end()) {
+          return CloneTypeRef(it->second, out);
+        }
+      }
+      if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
+        const Expr& base = callee.children[0];
+        if (base.kind == ExprKind::Identifier && base.text == "IO" && IsIoPrintName(callee.text)) {
+          out->name = "void";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
+      }
+      if (error) *error = "call type not supported in SIR emission";
+      return false;
     }
     default:
       if (error) *error = "expression not supported for SIR emission";
@@ -1195,6 +1243,55 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const Expr& callee = expr.children[0];
+      if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
+        const Expr& base = callee.children[0];
+        if (base.kind == ExprKind::Identifier && base.text == "IO" && IsIoPrintName(callee.text)) {
+          if (expr.args.size() != 1) {
+            if (error) *error = "call argument count mismatch for 'IO." + callee.text + "'";
+            return false;
+          }
+          TypeRef arg_type;
+          if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+          if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+          if (arg_type.name == "string" && arg_type.dims.empty()) {
+            if (!EmitDup(st)) return false;
+            (*st.out) << "  string.len\n";
+            PopStack(st, 1);
+            PushStack(st, 1);
+            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicWriteStdout << "\n";
+            PopStack(st, 2);
+          } else {
+            uint32_t intrinsic = Simple::VM::kIntrinsicLogRef;
+            if (arg_type.name == "i64" || arg_type.name == "u64") {
+              intrinsic = Simple::VM::kIntrinsicLogI64;
+            } else if (arg_type.name == "f32") {
+              intrinsic = Simple::VM::kIntrinsicLogF32;
+            } else if (arg_type.name == "f64") {
+              intrinsic = Simple::VM::kIntrinsicLogF64;
+            } else if (arg_type.name == "i32" || arg_type.name == "u32" ||
+                       arg_type.name == "i16" || arg_type.name == "u16" ||
+                       arg_type.name == "i8" || arg_type.name == "u8" ||
+                       arg_type.name == "bool" || arg_type.name == "char") {
+              intrinsic = Simple::VM::kIntrinsicLogI32;
+            }
+            (*st.out) << "  intrinsic " << intrinsic << "\n";
+            PopStack(st, 1);
+          }
+          if (callee.text == "println") {
+            std::string newline_name;
+            if (!AddStringConst(st, "\n", &newline_name)) return false;
+            (*st.out) << "  const.string " << newline_name << "\n";
+            PushStack(st, 1);
+            if (!EmitDup(st)) return false;
+            (*st.out) << "  string.len\n";
+            PopStack(st, 1);
+            PushStack(st, 1);
+            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicWriteStdout << "\n";
+            PopStack(st, 2);
+          }
+          return true;
+        }
+      }
       if (callee.kind == ExprKind::FnLiteral) {
         if (error) *error = "calling fn literal directly is not supported in SIR emission";
         return false;
@@ -1817,9 +1914,16 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       return false;
     }
     case StmtKind::Expr: {
+      bool pop_result = true;
+      TypeRef expr_type;
+      if (InferExprType(stmt.expr, st, &expr_type, nullptr) && expr_type.name == "void") {
+        pop_result = false;
+      }
       if (!EmitExpr(st, stmt.expr, nullptr, error)) return false;
-      (*st.out) << "  pop\n";
-      PopStack(st, 1);
+      if (pop_result) {
+        (*st.out) << "  pop\n";
+        PopStack(st, 1);
+      }
       return true;
     }
     case StmtKind::Return: {
