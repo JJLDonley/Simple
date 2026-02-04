@@ -1,0 +1,9 @@
+Point :: artifact {
+  x : i32
+  get : i32 () { return x }
+}
+
+main : i32 () {
+  p : Point = { 1 }
+  return p.get()
+}

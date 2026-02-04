@@ -254,6 +254,12 @@ bool LangSimpleBadFunctionAsType() {
       "function is not a type");
 }
 
+bool LangSimpleBadArtifactMemberNoSelf() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/artifact_member_without_self.simple",
+      "artifact members must be accessed via self");
+}
+
 bool LangSimpleBadArraySizeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/array_size_mismatch.simple",
@@ -276,6 +282,19 @@ bool LangSimpleBadIndexNonContainer() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/index_non_container.simple",
       "indexing is only valid");
+}
+
+bool LangCliCheckSimpleErrorFormat() {
+  const std::string err_path = TempPath("simple_check_err.txt");
+  const std::string cmd =
+      "Simple/bin/simplevm check Simple/Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
+  if (RunCommand(cmd)) return false;
+  std::ifstream in(err_path);
+  if (!in) return false;
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return contents.find("error[E0001]:") != std::string::npos &&
+         contents.find("undeclared identifier") != std::string::npos &&
+         contents.find(':') != std::string::npos;
 }
 
 bool LangCliEmitIr() {
@@ -2395,6 +2414,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_enum_type_as_value", LangSimpleBadEnumTypeAsValue},
   {"lang_simple_bad_module_as_type", LangSimpleBadModuleAsType},
   {"lang_simple_bad_function_as_type", LangSimpleBadFunctionAsType},
+  {"lang_simple_bad_artifact_member_no_self", LangSimpleBadArtifactMemberNoSelf},
   {"lang_simple_bad_array_size_mismatch", LangSimpleBadArraySizeMismatch},
   {"lang_simple_bad_array_elem_type_mismatch", LangSimpleBadArrayElemTypeMismatch},
   {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},
@@ -2409,6 +2429,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
+  {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
