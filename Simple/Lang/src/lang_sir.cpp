@@ -57,8 +57,11 @@ bool IsNumericType(const std::string& name) {
 
 bool IsSupportedType(const TypeRef& type) {
   if (!type.type_args.empty()) return false;
-  if (!type.dims.empty()) return false;
   if (type.is_proc) return false;
+  if (!type.dims.empty()) {
+    if (type.name == "void") return false;
+    return IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string";
+  }
   return IsNumericType(type.name) || type.name == "bool" || type.name == "char" || type.name == "string" ||
          type.name == "void";
 }
@@ -127,6 +130,37 @@ const char* NormalizeNumericOpType(const std::string& name) {
   if (name == "f32") return "f32";
   if (name == "f64") return "f64";
   return nullptr;
+}
+
+const char* VmOpSuffixForType(const TypeRef& type) {
+  if (!type.dims.empty()) return "ref";
+  if (type.name == "string") return "ref";
+  if (type.name == "bool" || type.name == "char" || type.name == "i8" || type.name == "i16" || type.name == "i32" ||
+      type.name == "u8" || type.name == "u16" || type.name == "u32") {
+    return "i32";
+  }
+  if (type.name == "i64" || type.name == "u64") return "i64";
+  if (type.name == "f32") return "f32";
+  if (type.name == "f64") return "f64";
+  return nullptr;
+}
+
+const char* VmTypeNameForElement(const TypeRef& type) {
+  const char* suffix = VmOpSuffixForType(type);
+  if (!suffix) return nullptr;
+  if (std::string(suffix) == "i32") return "i32";
+  if (std::string(suffix) == "i64") return "i64";
+  if (std::string(suffix) == "f32") return "f32";
+  if (std::string(suffix) == "f64") return "f64";
+  return "ref";
+}
+
+bool CloneElementType(const TypeRef& container, TypeRef* out) {
+  if (!out) return false;
+  if (container.dims.empty()) return false;
+  if (!CloneTypeRef(container, out)) return false;
+  out->dims.erase(out->dims.begin());
+  return true;
 }
 
 bool PushStack(EmitState& st, uint32_t count) {
@@ -226,6 +260,23 @@ bool InferExprType(const Expr& expr,
       }
       if (error) *error = "operand type mismatch for '" + expr.op + "'";
       return false;
+    }
+    case ExprKind::Index: {
+      if (expr.children.size() < 2) {
+        if (error) *error = "index expression missing operands";
+        return false;
+      }
+      TypeRef container;
+      if (!InferExprType(expr.children[0], st, &container, error)) return false;
+      if (container.dims.empty()) {
+        if (error) *error = "indexing is only valid on arrays and lists";
+        return false;
+      }
+      if (!CloneElementType(container, out)) {
+        if (error) *error = "failed to determine index element type";
+        return false;
+      }
+      return true;
     }
     default:
       if (error) *error = "expression not supported for SIR emission";
@@ -492,6 +543,30 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const std::string& name = callee.text;
+      if (name == "len") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for 'len'";
+          return false;
+        }
+        TypeRef arg_type;
+        if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+        if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+        if (arg_type.name == "string" && arg_type.dims.empty()) {
+          (*st.out) << "  string.len\n";
+        } else if (!arg_type.dims.empty()) {
+          if (arg_type.dims.front().is_list) {
+            (*st.out) << "  list.len\n";
+          } else {
+            (*st.out) << "  array.len\n";
+          }
+        } else {
+          if (error) *error = "len expects array, list, or string argument";
+          return false;
+        }
+        PopStack(st, 1);
+        PushStack(st, 1);
+        return true;
+      }
       auto id_it = st.func_ids.find(name);
       if (id_it == st.func_ids.end()) {
         if (error) *error = "unknown function '" + name + "'";
@@ -526,6 +601,86 @@ bool EmitExpr(EmitState& st,
       return EmitUnary(st, expr, expected, error);
     case ExprKind::Binary:
       return EmitBinary(st, expr, expected, error);
+    case ExprKind::ArrayLiteral:
+    case ExprKind::ListLiteral: {
+      if (!expected) {
+        if (error) *error = "array/list literal requires expected type";
+        return false;
+      }
+      if (expected->dims.empty()) {
+        if (error) *error = "array/list literal requires array or list type";
+        return false;
+      }
+      bool is_list = expected->dims.front().is_list;
+      TypeRef element_type;
+      if (!CloneElementType(*expected, &element_type)) {
+        if (error) *error = "failed to resolve array/list element type";
+        return false;
+      }
+      const char* op_suffix = VmOpSuffixForType(element_type);
+      const char* type_name = VmTypeNameForElement(element_type);
+      if (!op_suffix || !type_name) {
+        if (error) *error = "unsupported array/list element type for SIR emission";
+        return false;
+      }
+      uint32_t length = static_cast<uint32_t>(expr.children.size());
+      if (is_list) {
+        (*st.out) << "  newlist " << type_name << " " << length << "\n";
+      } else {
+        (*st.out) << "  newarray " << type_name << " " << length << "\n";
+      }
+      PushStack(st, 1);
+      for (uint32_t i = 0; i < length; ++i) {
+        (*st.out) << "  dup\n";
+        PushStack(st, 1);
+        if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
+        if (is_list) {
+          (*st.out) << "  list.push." << op_suffix << "\n";
+          PopStack(st, 2);
+        } else {
+          (*st.out) << "  const.i32 " << i << "\n";
+          PushStack(st, 1);
+          (*st.out) << "  swap\n";
+          (*st.out) << "  array.set." << op_suffix << "\n";
+          PopStack(st, 3);
+        }
+      }
+      return true;
+    }
+    case ExprKind::Index: {
+      if (expr.children.size() != 2) {
+        if (error) *error = "index expression expects target and index";
+        return false;
+      }
+      TypeRef container_type;
+      if (!InferExprType(expr.children[0], st, &container_type, error)) return false;
+      if (container_type.dims.empty()) {
+        if (error) *error = "indexing is only valid on arrays and lists";
+        return false;
+      }
+      TypeRef element_type;
+      if (!CloneElementType(container_type, &element_type)) {
+        if (error) *error = "failed to resolve index element type";
+        return false;
+      }
+      const char* op_suffix = VmOpSuffixForType(element_type);
+      if (!op_suffix) {
+        if (error) *error = "unsupported index element type for SIR emission";
+        return false;
+      }
+      if (!EmitExpr(st, expr.children[0], &container_type, error)) return false;
+      TypeRef index_type;
+      index_type.name = "i32";
+      if (!EmitExpr(st, expr.children[1], &index_type, error)) return false;
+      if (container_type.dims.front().is_list) {
+        (*st.out) << "  list.get." << op_suffix << "\n";
+      } else {
+        (*st.out) << "  array.get." << op_suffix << "\n";
+      }
+      PopStack(st, 2);
+      PushStack(st, 1);
+      return true;
+    }
     default:
       if (error) *error = "expression not supported for SIR emission";
       return false;
@@ -536,6 +691,10 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   if (!IsSupportedType(type) || type.name == "void") {
     if (error) *error = "unsupported default init type '" + type.name + "'";
     return false;
+  }
+  if (!type.dims.empty()) {
+    (*st.out) << "  const.null\n";
+    return PushStack(st, 1);
   }
   if (type.name == "string") {
     Expr expr;
@@ -611,24 +770,58 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         if (error) *error = "compound assignment not supported in SIR emission";
         return false;
       }
-      if (stmt.target.kind != ExprKind::Identifier) {
-        if (error) *error = "assignment target not supported in SIR emission";
-        return false;
+      if (stmt.target.kind == ExprKind::Identifier) {
+        auto it = st.local_indices.find(stmt.target.text);
+        if (it == st.local_indices.end()) {
+          if (error) *error = "unknown local '" + stmt.target.text + "'";
+          return false;
+        }
+        auto type_it = st.local_types.find(stmt.target.text);
+        if (type_it == st.local_types.end()) {
+          if (error) *error = "unknown type for local '" + stmt.target.text + "'";
+          return false;
+        }
+        if (!EmitExpr(st, stmt.expr, &type_it->second, error)) return false;
+        (*st.out) << "  stloc " << it->second << "\n";
+        PopStack(st, 1);
+        return true;
       }
-      auto it = st.local_indices.find(stmt.target.text);
-      if (it == st.local_indices.end()) {
-        if (error) *error = "unknown local '" + stmt.target.text + "'";
-        return false;
+      if (stmt.target.kind == ExprKind::Index) {
+        if (stmt.target.children.size() != 2) {
+          if (error) *error = "index assignment expects target and index";
+          return false;
+        }
+        TypeRef container_type;
+        if (!InferExprType(stmt.target.children[0], st, &container_type, error)) return false;
+        if (container_type.dims.empty()) {
+          if (error) *error = "index assignment expects array or list target";
+          return false;
+        }
+        TypeRef element_type;
+        if (!CloneElementType(container_type, &element_type)) {
+          if (error) *error = "failed to resolve index element type";
+          return false;
+        }
+        const char* op_suffix = VmOpSuffixForType(element_type);
+        if (!op_suffix) {
+          if (error) *error = "unsupported index assignment element type for SIR emission";
+          return false;
+        }
+        if (!EmitExpr(st, stmt.target.children[0], &container_type, error)) return false;
+        TypeRef index_type;
+        index_type.name = "i32";
+        if (!EmitExpr(st, stmt.target.children[1], &index_type, error)) return false;
+        if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
+        if (container_type.dims.front().is_list) {
+          (*st.out) << "  list.set." << op_suffix << "\n";
+        } else {
+          (*st.out) << "  array.set." << op_suffix << "\n";
+        }
+        PopStack(st, 3);
+        return true;
       }
-      auto type_it = st.local_types.find(stmt.target.text);
-      if (type_it == st.local_types.end()) {
-        if (error) *error = "unknown type for local '" + stmt.target.text + "'";
-        return false;
-      }
-      if (!EmitExpr(st, stmt.expr, &type_it->second, error)) return false;
-      (*st.out) << "  stloc " << it->second << "\n";
-      PopStack(st, 1);
-      return true;
+      if (error) *error = "assignment target not supported in SIR emission";
+      return false;
     }
     case StmtKind::Expr: {
       if (!EmitExpr(st, stmt.expr, nullptr, error)) return false;
@@ -638,7 +831,12 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
     }
     case StmtKind::Return: {
       if (stmt.has_return_expr) {
-        if (!EmitExpr(st, stmt.expr, nullptr, error)) return false;
+        const TypeRef* expected = nullptr;
+        auto ret_it = st.func_returns.find(st.current_func);
+        if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+          expected = &ret_it->second;
+        }
+        if (!EmitExpr(st, stmt.expr, expected, error)) return false;
       }
       (*st.out) << "  ret\n";
       st.stack_cur = 0;

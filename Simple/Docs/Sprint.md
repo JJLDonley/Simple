@@ -691,3 +691,5 @@
 - Added Simple::Lang SIR emitter for basic i32 locals/assign/return/arithmetic with new IR emission tests.
 - Added Simple::Lang SIR emission for if/else, while/for, break/skip, and comparisons with new IR emission tests.
 - Added Simple::Lang SIR emission for direct function calls with new IR emission test.
+- Added Simple::Lang SIR emission for array/list literals, indexing, and index assignment with new IR emission tests.
+- Added Simple::Lang SIR emission for len() on arrays/lists with a new IR emission test.

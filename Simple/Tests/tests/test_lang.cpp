@@ -76,6 +76,46 @@ bool LangSirEmitsFunctionCall() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangSirEmitsArrayLiteralIndex() {
+  const char* src = "main : i32 () { values : i32[3] = [1, 2, 3]; return values[1]; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 2);
+}
+
+bool LangSirEmitsArrayAssign() {
+  const char* src = "main : i32 () { values : i32[2] = [1, 2]; values[1] = 7; return values[1]; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsListLiteralIndex() {
+  const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; return values[2]; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 3);
+}
+
+bool LangSirEmitsListAssign() {
+  const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; values[0] = 9; return values[0]; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 9);
+}
+
+bool LangSirEmitsLen() {
+  const char* src = "main : i32 () { values : i32[] = [1, 2, 3, 4]; return len(values); }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 4);
+}
+
 bool LangLexesKeywordsAndOps() {
   const char* src = "fn main :: void() { return; }";
   Simple::Lang::Lexer lex(src);
@@ -1784,6 +1824,11 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},
   {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
+  {"lang_sir_emit_array_literal_index", LangSirEmitsArrayLiteralIndex},
+  {"lang_sir_emit_array_assign", LangSirEmitsArrayAssign},
+  {"lang_sir_emit_list_literal_index", LangSirEmitsListLiteralIndex},
+  {"lang_sir_emit_list_assign", LangSirEmitsListAssign},
+  {"lang_sir_emit_len", LangSirEmitsLen},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
