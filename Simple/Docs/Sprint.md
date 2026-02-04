@@ -734,3 +734,4 @@
 - Added negative .simple fixture for unqualified enum use.
 - Added simplevm emit command for .simple/.sir outputs and standardized CLI error formatting.
 - Added io_print.simple fixture and test for IO.print/println in Simple fixtures.
+- Added fn_literal.simple fixture and test for function literal calls in Simple fixtures.
