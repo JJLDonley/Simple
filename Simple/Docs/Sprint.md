@@ -578,6 +578,10 @@
 - Improved .sir perf error reporting and fixed arithmetic_mix stack underflow in perf runs.
 - Added color_avg .sir program that averages RGBA arrays and packs into a 32-bit color.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
+## 2026-02-04
+- Added Simple::Lang SIR emission for inc/dec (prefix/postfix) on locals with new IR emission tests.
+- Added Simple::Lang SIR emission for compound assignment on locals, arrays/lists, and artifact members with new IR emission tests.
+- Added Simple::Lang SIR emission for bitwise/shift operators with new IR emission tests.
 - Added IR text negative tests for const.u128 unsupported and malformed const tokens.
 - Added IR text negative tests for missing call.indirect value and missing newarray/newlist operands.
 - Added SIR text metadata tables (types/sigs/consts/imports) with name-based resolution for locals/types/fields/consts/sigs/functions.

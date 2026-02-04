@@ -178,6 +178,41 @@ const char* NormalizeNumericOpType(const std::string& name) {
   return nullptr;
 }
 
+const char* NormalizeBitwiseOpType(const std::string& name) {
+  if (name == "i8" || name == "i16" || name == "i32" || name == "char") return "i32";
+  if (name == "u8" || name == "u16" || name == "u32") return "i32";
+  if (name == "i64" || name == "u64") return "i64";
+  return nullptr;
+}
+
+const char* IncOpForType(const std::string& name) {
+  if (name == "i8") return "inc.i8";
+  if (name == "i16") return "inc.i16";
+  if (name == "i32" || name == "char" || name == "bool") return "inc.i32";
+  if (name == "i64") return "inc.i64";
+  if (name == "u8") return "inc.u8";
+  if (name == "u16") return "inc.u16";
+  if (name == "u32") return "inc.u32";
+  if (name == "u64") return "inc.u64";
+  if (name == "f32") return "inc.f32";
+  if (name == "f64") return "inc.f64";
+  return nullptr;
+}
+
+const char* DecOpForType(const std::string& name) {
+  if (name == "i8") return "dec.i8";
+  if (name == "i16") return "dec.i16";
+  if (name == "i32" || name == "char" || name == "bool") return "dec.i32";
+  if (name == "i64") return "dec.i64";
+  if (name == "u8") return "dec.u8";
+  if (name == "u16") return "dec.u16";
+  if (name == "u32") return "dec.u32";
+  if (name == "u64") return "dec.u64";
+  if (name == "f32") return "dec.f32";
+  if (name == "f64") return "dec.f64";
+  return nullptr;
+}
+
 const char* VmOpSuffixForType(const TypeRef& type) {
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
@@ -305,6 +340,16 @@ bool PopStack(EmitState& st, uint32_t count) {
   if (st.stack_cur < count) st.stack_cur = 0;
   else st.stack_cur -= count;
   return true;
+}
+
+bool EmitDup(EmitState& st) {
+  (*st.out) << "  dup\n";
+  return PushStack(st, 1);
+}
+
+bool EmitDup2(EmitState& st) {
+  (*st.out) << "  dup2\n";
+  return PushStack(st, 2);
 }
 
 bool AddStringConst(EmitState& st, const std::string& value, std::string* out_name) {
@@ -491,6 +536,96 @@ bool EmitExpr(EmitState& st,
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
 
+const char* AssignOpToBinaryOp(const std::string& op) {
+  if (op == "+=") return "+";
+  if (op == "-=") return "-";
+  if (op == "*=") return "*";
+  if (op == "/=") return "/";
+  if (op == "%=") return "%";
+  if (op == "&=") return "&";
+  if (op == "|=") return "|";
+  if (op == "^=") return "^";
+  if (op == "<<=") return "<<";
+  if (op == ">>=") return ">>";
+  return nullptr;
+}
+
+bool EmitLocalAssignment(EmitState& st,
+                         const std::string& name,
+                         const TypeRef& type,
+                         const Expr& value,
+                         const std::string& op,
+                         bool return_value,
+                         std::string* error) {
+  auto it = st.local_indices.find(name);
+  if (it == st.local_indices.end()) {
+    if (error) *error = "unknown local '" + name + "'";
+    return false;
+  }
+  if (op == "=") {
+    if (!EmitExpr(st, value, &type, error)) return false;
+    (*st.out) << "  stloc " << it->second << "\n";
+    PopStack(st, 1);
+    if (return_value) {
+      (*st.out) << "  ldloc " << it->second << "\n";
+      PushStack(st, 1);
+    }
+    return true;
+  }
+
+  const char* bin_op = AssignOpToBinaryOp(op);
+  if (!bin_op) {
+    if (error) *error = "unsupported assignment operator '" + op + "'";
+    return false;
+  }
+  (*st.out) << "  ldloc " << it->second << "\n";
+  PushStack(st, 1);
+  if (!EmitExpr(st, value, &type, error)) return false;
+  PopStack(st, 1);
+  const char* op_type = nullptr;
+  if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+      std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+    op_type = NormalizeBitwiseOpType(type.name);
+  } else {
+    op_type = NormalizeNumericOpType(type.name);
+  }
+  if (!op_type) {
+    if (error) *error = "unsupported operand type for '" + op + "'";
+    return false;
+  }
+  if (std::string(bin_op) == "+") {
+    (*st.out) << "  add." << op_type << "\n";
+  } else if (std::string(bin_op) == "-") {
+    (*st.out) << "  sub." << op_type << "\n";
+  } else if (std::string(bin_op) == "*") {
+    (*st.out) << "  mul." << op_type << "\n";
+  } else if (std::string(bin_op) == "/") {
+    (*st.out) << "  div." << op_type << "\n";
+  } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
+    (*st.out) << "  mod." << op_type << "\n";
+  } else if (std::string(bin_op) == "&") {
+    (*st.out) << "  and." << op_type << "\n";
+  } else if (std::string(bin_op) == "|") {
+    (*st.out) << "  or." << op_type << "\n";
+  } else if (std::string(bin_op) == "^") {
+    (*st.out) << "  xor." << op_type << "\n";
+  } else if (std::string(bin_op) == "<<") {
+    (*st.out) << "  shl." << op_type << "\n";
+  } else if (std::string(bin_op) == ">>") {
+    (*st.out) << "  shr." << op_type << "\n";
+  } else {
+    if (error) *error = "unsupported assignment operator '" + op + "'";
+    return false;
+  }
+  (*st.out) << "  stloc " << it->second << "\n";
+  PopStack(st, 1);
+  if (return_value) {
+    (*st.out) << "  ldloc " << it->second << "\n";
+    PushStack(st, 1);
+  }
+  return true;
+}
+
 bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
   if (expr.children.size() != 2) {
     if (error) *error = "assignment missing operands";
@@ -501,22 +636,12 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     if (error) *error = "assignment target not supported in SIR emission";
     return false;
   }
-  auto it = st.local_indices.find(target.text);
-  if (it == st.local_indices.end()) {
-    if (error) *error = "unknown local '" + target.text + "'";
-    return false;
-  }
   auto type_it = st.local_types.find(target.text);
   if (type_it == st.local_types.end()) {
     if (error) *error = "unknown type for local '" + target.text + "'";
     return false;
   }
-  if (!EmitExpr(st, expr.children[1], &type_it->second, error)) return false;
-  (*st.out) << "  stloc " << it->second << "\n";
-  PopStack(st, 1);
-  (*st.out) << "  ldloc " << it->second << "\n";
-  PushStack(st, 1);
-  return true;
+  return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
 }
 
 bool EmitUnary(EmitState& st,
@@ -531,6 +656,47 @@ bool EmitUnary(EmitState& st,
   if (!InferExprType(expr.children[0], st, &operand_type, error)) return false;
   const TypeRef* use_type = expected ? expected : &operand_type;
   if (!EmitExpr(st, expr.children[0], use_type, error)) return false;
+  if ((expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") &&
+      expr.children[0].kind != ExprKind::Identifier) {
+    if (error) *error = "inc/dec target not supported in SIR emission";
+    return false;
+  }
+  if (expr.op == "++" || expr.op == "--") {
+    auto it = st.local_indices.find(expr.children[0].text);
+    if (it == st.local_indices.end()) {
+      if (error) *error = "unknown local '" + expr.children[0].text + "'";
+      return false;
+    }
+    const char* op_name = expr.op == "++" ? IncOpForType(use_type->name) : DecOpForType(use_type->name);
+    if (!op_name) {
+      if (error) *error = "unsupported inc/dec type '" + use_type->name + "'";
+      return false;
+    }
+    (*st.out) << "  " << op_name << "\n";
+    (*st.out) << "  dup\n";
+    PushStack(st, 1);
+    (*st.out) << "  stloc " << it->second << "\n";
+    PopStack(st, 1);
+    return true;
+  }
+  if (expr.op == "post++" || expr.op == "post--") {
+    auto it = st.local_indices.find(expr.children[0].text);
+    if (it == st.local_indices.end()) {
+      if (error) *error = "unknown local '" + expr.children[0].text + "'";
+      return false;
+    }
+    const char* op_name = expr.op == "post++" ? IncOpForType(use_type->name) : DecOpForType(use_type->name);
+    if (!op_name) {
+      if (error) *error = "unsupported inc/dec type '" + use_type->name + "'";
+      return false;
+    }
+    (*st.out) << "  dup\n";
+    PushStack(st, 1);
+    (*st.out) << "  " << op_name << "\n";
+    (*st.out) << "  stloc " << it->second << "\n";
+    PopStack(st, 1);
+    return true;
+  }
   if (expr.op == "-" && IsNumericType(use_type->name)) {
     (*st.out) << "  neg." << use_type->name << "\n";
     return true;
@@ -560,7 +726,7 @@ bool EmitBinary(EmitState& st,
     return false;
   }
 
-  if (expr.op == "=") {
+  if (expr.op == "=" || AssignOpToBinaryOp(expr.op)) {
     if (expected) {
       if (error) *error = "assignment expression not supported in typed context";
       return false;
@@ -616,17 +782,16 @@ bool EmitBinary(EmitState& st,
     }
   }
 
-  const char* op_type = NormalizeNumericOpType(type.name);
-  if (!op_type) {
-    if (error) *error = "unsupported operand type for '" + expr.op + "'";
-    return false;
-  }
-
   if (!EmitExpr(st, expr.children[0], &type, error)) return false;
   if (!EmitExpr(st, expr.children[1], &type, error)) return false;
   PopStack(st, 1);
   if (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
       expr.op == ">" || expr.op == ">=") {
+    const char* op_type = NormalizeNumericOpType(type.name);
+    if (!op_type) {
+      if (error) *error = "unsupported operand type for '" + expr.op + "'";
+      return false;
+    }
     if (type.name == "bool") {
       if (error) *error = "bool comparisons not supported in SIR emission";
       return false;
@@ -641,24 +806,50 @@ bool EmitBinary(EmitState& st,
     (*st.out) << "  " << cmp << op_type << "\n";
     return true;
   }
-  if (expr.op == "+") {
+  if (expr.op == "+" || expr.op == "-" || expr.op == "*" || expr.op == "/" || expr.op == "%") {
+    const char* op_type = NormalizeNumericOpType(type.name);
+    if (!op_type) {
+      if (error) *error = "unsupported operand type for '" + expr.op + "'";
+      return false;
+    }
+    if (expr.op == "+" ) {
     (*st.out) << "  add." << op_type << "\n";
     return true;
   }
-  if (expr.op == "-") {
-    (*st.out) << "  sub." << op_type << "\n";
-    return true;
+    if (expr.op == "-") {
+      (*st.out) << "  sub." << op_type << "\n";
+      return true;
+    }
+    if (expr.op == "*") {
+      (*st.out) << "  mul." << op_type << "\n";
+      return true;
+    }
+    if (expr.op == "/") {
+      (*st.out) << "  div." << op_type << "\n";
+      return true;
+    }
+    if (expr.op == "%" && IsIntegralType(type.name)) {
+      (*st.out) << "  mod." << op_type << "\n";
+      return true;
+    }
   }
-  if (expr.op == "*") {
-    (*st.out) << "  mul." << op_type << "\n";
-    return true;
-  }
-  if (expr.op == "/") {
-    (*st.out) << "  div." << op_type << "\n";
-    return true;
-  }
-  if (expr.op == "%" && IsIntegralType(type.name)) {
-    (*st.out) << "  mod." << op_type << "\n";
+  if (expr.op == "&" || expr.op == "|" || expr.op == "^" || expr.op == "<<" || expr.op == ">>") {
+    const char* op_type = NormalizeBitwiseOpType(type.name);
+    if (!op_type) {
+      if (error) *error = "unsupported operand type for '" + expr.op + "'";
+      return false;
+    }
+    if (expr.op == "&") {
+      (*st.out) << "  and." << op_type << "\n";
+    } else if (expr.op == "|") {
+      (*st.out) << "  or." << op_type << "\n";
+    } else if (expr.op == "^") {
+      (*st.out) << "  xor." << op_type << "\n";
+    } else if (expr.op == "<<") {
+      (*st.out) << "  shl." << op_type << "\n";
+    } else if (expr.op == ">>") {
+      (*st.out) << "  shr." << op_type << "\n";
+    }
     return true;
   }
   if (error) *error = "unsupported binary operator '" + expr.op + "'";
@@ -1145,25 +1336,13 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
     return true;
   }
     case StmtKind::Assign: {
-      if (stmt.assign_op != "=") {
-        if (error) *error = "compound assignment not supported in SIR emission";
-        return false;
-      }
       if (stmt.target.kind == ExprKind::Identifier) {
-        auto it = st.local_indices.find(stmt.target.text);
-        if (it == st.local_indices.end()) {
-          if (error) *error = "unknown local '" + stmt.target.text + "'";
-          return false;
-        }
         auto type_it = st.local_types.find(stmt.target.text);
         if (type_it == st.local_types.end()) {
           if (error) *error = "unknown type for local '" + stmt.target.text + "'";
           return false;
         }
-        if (!EmitExpr(st, stmt.expr, &type_it->second, error)) return false;
-        (*st.out) << "  stloc " << it->second << "\n";
-        PopStack(st, 1);
-        return true;
+        return EmitLocalAssignment(st, stmt.target.text, type_it->second, stmt.expr, stmt.assign_op, false, error);
       }
       if (stmt.target.kind == ExprKind::Index) {
         if (stmt.target.children.size() != 2) {
@@ -1190,6 +1369,65 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         TypeRef index_type;
         index_type.name = "i32";
         if (!EmitExpr(st, stmt.target.children[1], &index_type, error)) return false;
+        if (stmt.assign_op != "=") {
+          if (!EmitDup2(st)) return false;
+          if (container_type.dims.front().is_list) {
+            (*st.out) << "  list.get." << op_suffix << "\n";
+          } else {
+            (*st.out) << "  array.get." << op_suffix << "\n";
+          }
+          PopStack(st, 2);
+          PushStack(st, 1);
+          if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
+          PopStack(st, 1);
+          const char* bin_op = AssignOpToBinaryOp(stmt.assign_op);
+          if (!bin_op) {
+            if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
+            return false;
+          }
+          const char* op_type = nullptr;
+          if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+              std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+            op_type = NormalizeBitwiseOpType(element_type.name);
+          } else {
+            op_type = NormalizeNumericOpType(element_type.name);
+          }
+          if (!op_type) {
+            if (error) *error = "unsupported operand type for '" + stmt.assign_op + "'";
+            return false;
+          }
+          if (std::string(bin_op) == "+") {
+            (*st.out) << "  add." << op_type << "\n";
+          } else if (std::string(bin_op) == "-") {
+            (*st.out) << "  sub." << op_type << "\n";
+          } else if (std::string(bin_op) == "*") {
+            (*st.out) << "  mul." << op_type << "\n";
+          } else if (std::string(bin_op) == "/") {
+            (*st.out) << "  div." << op_type << "\n";
+          } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
+            (*st.out) << "  mod." << op_type << "\n";
+          } else if (std::string(bin_op) == "&") {
+            (*st.out) << "  and." << op_type << "\n";
+          } else if (std::string(bin_op) == "|") {
+            (*st.out) << "  or." << op_type << "\n";
+          } else if (std::string(bin_op) == "^") {
+            (*st.out) << "  xor." << op_type << "\n";
+          } else if (std::string(bin_op) == "<<") {
+            (*st.out) << "  shl." << op_type << "\n";
+          } else if (std::string(bin_op) == ">>") {
+            (*st.out) << "  shr." << op_type << "\n";
+          } else {
+            if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
+            return false;
+          }
+          if (container_type.dims.front().is_list) {
+            (*st.out) << "  list.set." << op_suffix << "\n";
+          } else {
+            (*st.out) << "  array.set." << op_suffix << "\n";
+          }
+          PopStack(st, 3);
+          return true;
+        }
         if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
         if (container_type.dims.front().is_list) {
           (*st.out) << "  list.set." << op_suffix << "\n";
@@ -1219,6 +1457,55 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         }
         const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
         if (!EmitExpr(st, base, &base_type, error)) return false;
+        if (stmt.assign_op != "=") {
+          if (!EmitDup(st)) return false;
+          (*st.out) << "  ldfld " << base_type.name << "." << stmt.target.text << "\n";
+          if (!EmitExpr(st, stmt.expr, &field_type, error)) return false;
+          PopStack(st, 1);
+          const char* bin_op = AssignOpToBinaryOp(stmt.assign_op);
+          if (!bin_op) {
+            if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
+            return false;
+          }
+          const char* op_type = nullptr;
+          if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+              std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+            op_type = NormalizeBitwiseOpType(field_type.name);
+          } else {
+            op_type = NormalizeNumericOpType(field_type.name);
+          }
+          if (!op_type) {
+            if (error) *error = "unsupported operand type for '" + stmt.assign_op + "'";
+            return false;
+          }
+          if (std::string(bin_op) == "+") {
+            (*st.out) << "  add." << op_type << "\n";
+          } else if (std::string(bin_op) == "-") {
+            (*st.out) << "  sub." << op_type << "\n";
+          } else if (std::string(bin_op) == "*") {
+            (*st.out) << "  mul." << op_type << "\n";
+          } else if (std::string(bin_op) == "/") {
+            (*st.out) << "  div." << op_type << "\n";
+          } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
+            (*st.out) << "  mod." << op_type << "\n";
+          } else if (std::string(bin_op) == "&") {
+            (*st.out) << "  and." << op_type << "\n";
+          } else if (std::string(bin_op) == "|") {
+            (*st.out) << "  or." << op_type << "\n";
+          } else if (std::string(bin_op) == "^") {
+            (*st.out) << "  xor." << op_type << "\n";
+          } else if (std::string(bin_op) == "<<") {
+            (*st.out) << "  shl." << op_type << "\n";
+          } else if (std::string(bin_op) == ">>") {
+            (*st.out) << "  shr." << op_type << "\n";
+          } else {
+            if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
+            return false;
+          }
+          (*st.out) << "  stfld " << base_type.name << "." << stmt.target.text << "\n";
+          PopStack(st, 2);
+          return true;
+        }
         if (!EmitExpr(st, stmt.expr, &field_type, error)) return false;
         (*st.out) << "  stfld " << base_type.name << "." << stmt.target.text << "\n";
         PopStack(st, 2);

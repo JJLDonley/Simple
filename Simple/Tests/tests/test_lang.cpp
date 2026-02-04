@@ -76,6 +76,74 @@ bool LangSirEmitsFunctionCall() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangSirEmitsIncDec() {
+  const char* src =
+      "main : i32 () {"
+      "  x : i32 = 1;"
+      "  y : i32 = x++;"
+      "  z : i32 = ++x;"
+      "  return y + z + x;"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsCompoundAssignLocal() {
+  const char* src =
+      "main : i32 () {"
+      "  x : i32 = 5;"
+      "  x += 3;"
+      "  x *= 2;"
+      "  return x;"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 16);
+}
+
+bool LangSirEmitsBitwiseShift() {
+  const char* src =
+      "main : i32 () {"
+      "  x : i32 = 5;"
+      "  y : i32 = 3;"
+      "  return (x & y) | (1 << 3);"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 9);
+}
+
+bool LangSirEmitsIndexCompoundAssign() {
+  const char* src =
+      "main : i32 () {"
+      "  values : i32[2] = [1, 2];"
+      "  values[1] += 5;"
+      "  return values[1];"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
+bool LangSirEmitsMemberCompoundAssign() {
+  const char* src =
+      "Point :: artifact { x : i32 y : i32 }"
+      "main : i32 () {"
+      "  p : Point = { 1, 2 };"
+      "  p.x *= 3;"
+      "  return p.x;"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 3);
+}
+
 bool LangSirEmitsArrayLiteralIndex() {
   const char* src = "main : i32 () { values : i32[3] = [1, 2, 3]; return values[1]; }";
   std::string sir;
@@ -1866,6 +1934,11 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},
   {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
+  {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
+  {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
+  {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
+  {"lang_sir_emit_index_compound_assign", LangSirEmitsIndexCompoundAssign},
+  {"lang_sir_emit_member_compound_assign", LangSirEmitsMemberCompoundAssign},
   {"lang_sir_emit_array_literal_index", LangSirEmitsArrayLiteralIndex},
   {"lang_sir_emit_array_assign", LangSirEmitsArrayAssign},
   {"lang_sir_emit_list_literal_index", LangSirEmitsListLiteralIndex},
