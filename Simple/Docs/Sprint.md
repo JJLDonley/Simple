@@ -770,3 +770,7 @@
 - Added .simple fixtures for bool ops and char comparison plus negative fixtures for bool/char arithmetic type mismatches.
 - Added hex escape support for string/char literals and fixtures covering hex escapes plus invalid hex escape errors.
 - Added list index negative fixtures (non-int expr, negative, out-of-bounds) and a runner helper for runtime trap assertions.
+- Added import/extern parsing and validation support (optional alias) with language unit tests.
+- Updated language implementation plan to include import/extern and FFI emission tasks.
+- Added .simple fixtures for import declaration and extern declaration, plus a negative extern arg-count fixture with tests.
+- Updated language spec to document import/extern syntax and marked parser/validator tasks complete in the plan.

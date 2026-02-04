@@ -1240,6 +1240,8 @@ main : i32 () {
 - Arrays and lists
 - First-class procedures
 - Generics
+- Imports and extern declarations (optional alias)
+- FFI signatures + VM dlopen/dlsym plumbing
 
 **Deliverable:** Full language support
 
@@ -1273,6 +1275,8 @@ This plan follows the language specification and compiler architecture in this d
 #### 2) Parser (Recursive Descent + Precedence Climbing)
 - [ ] Parse program structure: `declaration*`
 - [ ] Parse declarations: variables, procedures, artifacts, modules, enums
+- [x] Parse imports (`import "lib" [as Alias]`)
+- [x] Parse extern declarations (`extern [Module.]Name : Return (params...)`)
 - [ ] Parse parameter lists with mutability (`:` and `::`)
 - [ ] Parse types (primitive, arrays, lists, procedure types, user-defined)
 - [ ] Parse generic parameters and generic arguments (`<T>`, `<T, U>`, `Type<...>`)
@@ -1286,6 +1290,7 @@ This plan follows the language specification and compiler architecture in this d
 - [ ] Implement type nodes including `GenericInstance` and `TypeParameter`
 - [ ] Preserve source spans for diagnostics
 - [ ] Normalize operator precedence in AST (no ambiguity after parse)
+- [ ] Add ImportDecl and ExternDecl nodes
 
 #### 4) Semantic Analysis
 - [ ] Build nested scopes and symbol table
@@ -1298,6 +1303,7 @@ This plan follows the language specification and compiler architecture in this d
 - [ ] Validate generic rules (type parameter scope, instantiation, inference)
 - [ ] Validate array sizes as compile-time constants
 - [ ] Validate list and array indexing types
+- [x] Validate import/extern declarations and extern call signatures
 
 #### 5) Bytecode Generation
 - [ ] Emit VM instructions for primitives, arrays, lists, artifacts, modules, enums
@@ -1309,6 +1315,7 @@ This plan follows the language specification and compiler architecture in this d
 - [ ] Emit artifact initialization (positional and named)
 - [ ] Emit array and list literals
 - [ ] Emit return statements and default returns for `void`
+- [ ] Emit extern tables and FFI call sites (dlopen/dlsym bindings)
 
 #### 6) Bytecode Packaging
 - [ ] Build module header and section tables
@@ -1627,13 +1634,21 @@ The `:: union` declaration is a strictly scoped tagged union whose variants carr
 ### modules/Packages
 
 ```
-import Math
-import IO.File
-
-// Or
-using Math
-using IO.File
+import "Math"
+import "IO.File"
+import "Raylib" as Ray
 ```
+
+`import` is a top-level declaration. The optional `as` alias introduces a local module name.
+
+### extern (FFI)
+
+```
+extern puts : i32 (s : string)
+extern Ray.DrawCircle : void (x : i32, y : i32, r : f32)
+```
+
+`extern` declares an imported function signature. The optional `Module.` prefix is used for namespacing.
 
 ---
 

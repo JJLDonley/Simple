@@ -156,6 +156,14 @@ bool LangSimpleFixtureModuleFuncParams() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/module_func_params.simple", 42);
 }
 
+bool LangSimpleFixtureImportBasic() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/import_basic.simple", 42);
+}
+
+bool LangSimpleFixtureExternDecl() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/extern_decl.simple", 0);
+}
+
 bool LangSimpleFixtureArtifactNamedInit() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
 }
@@ -388,6 +396,12 @@ bool LangSimpleBadInvalidHexEscape() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/invalid_hex_escape.simple",
       "invalid hex escape");
+}
+
+bool LangSimpleBadExternCallArgCount() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/extern_call_arg_count.simple",
+      "argument count mismatch for extern");
 }
 
 bool LangSimpleBadIndexNonIntExpr() {
@@ -1126,6 +1140,58 @@ bool LangParsesModuleDecl() {
   if (decl.module.variables.size() != 1) return false;
   if (decl.module.functions.size() != 1) return false;
   return true;
+}
+
+bool LangParsesImportDecl() {
+  const char* src = "import \"raylib\"";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Import) return false;
+  if (decl.import_decl.path != "raylib") return false;
+  if (decl.import_decl.has_alias) return false;
+  return true;
+}
+
+bool LangParsesImportDeclAlias() {
+  const char* src = "import \"raylib\" as Ray";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Import) return false;
+  if (decl.import_decl.path != "raylib") return false;
+  if (!decl.import_decl.has_alias) return false;
+  if (decl.import_decl.alias != "Ray") return false;
+  return true;
+}
+
+bool LangParsesExternDecl() {
+  const char* src = "extern Ray.InitWindow : void (w : i32, h : i32)";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Extern) return false;
+  if (!decl.ext.has_module) return false;
+  if (decl.ext.module != "Ray") return false;
+  if (decl.ext.name != "InitWindow") return false;
+  if (decl.ext.params.size() != 2) return false;
+  if (decl.ext.params[0].name != "w") return false;
+  if (decl.ext.params[1].name != "h") return false;
+  return true;
+}
+
+bool LangValidateExternCallOk() {
+  const char* src =
+      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
+      "main : i32 () { Ray.InitWindow(1, 2); return 0; }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangParsesEnumDecl() {
@@ -2506,6 +2572,10 @@ const TestCase kLangTests[] = {
   {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
   {"lang_parse_module_decl", LangParsesModuleDecl},
+  {"lang_parse_import_decl", LangParsesImportDecl},
+  {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
+  {"lang_parse_extern_decl", LangParsesExternDecl},
+  {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
@@ -2554,6 +2624,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_string_escape_hex", LangSimpleFixtureStringEscapeHex},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
+  {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
+  {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
@@ -2589,6 +2661,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_char_compare_int", LangSimpleBadCharCompareInt},
   {"lang_simple_bad_char_arithmetic", LangSimpleBadCharArithmetic},
   {"lang_simple_bad_invalid_hex_escape", LangSimpleBadInvalidHexEscape},
+  {"lang_simple_bad_extern_call_arg_count", LangSimpleBadExternCallArgCount},
   {"lang_simple_bad_index_non_int_expr", LangSimpleBadIndexNonIntExpr},
   {"lang_simple_bad_index_negative", LangSimpleBadIndexNegative},
   {"lang_simple_bad_index_oob", LangSimpleBadIndexOutOfBounds},

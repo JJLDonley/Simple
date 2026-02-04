@@ -19,6 +19,8 @@ struct ValidateContext {
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
   std::unordered_map<std::string, const FuncDecl*> functions;
+  std::unordered_map<std::string, const ExternDecl*> externs;
+  std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
 };
 
 struct LocalInfo {
@@ -417,16 +419,24 @@ bool InferExprType(const Expr& expr,
           if (method) return CloneTypeRef(method->return_type, out);
           return false;
         }
-        auto module_it = ctx.modules.find(base.text);
-        if (module_it != ctx.modules.end()) {
-          if (const VarDecl* var = FindModuleVar(module_it->second, expr.text)) {
-            return CloneTypeRef(var->type, out);
-          }
-          if (const FuncDecl* fn = FindModuleFunc(module_it->second, expr.text)) {
-            return CloneTypeRef(fn->return_type, out);
-          }
-          return false;
+      auto module_it = ctx.modules.find(base.text);
+      if (module_it != ctx.modules.end()) {
+        if (const VarDecl* var = FindModuleVar(module_it->second, expr.text)) {
+          return CloneTypeRef(var->type, out);
         }
+        if (const FuncDecl* fn = FindModuleFunc(module_it->second, expr.text)) {
+          return CloneTypeRef(fn->return_type, out);
+        }
+        return false;
+      }
+      auto ext_mod_it = ctx.externs_by_module.find(base.text);
+      if (ext_mod_it != ctx.externs_by_module.end()) {
+        auto ext_it = ext_mod_it->second.find(expr.text);
+        if (ext_it != ext_mod_it->second.end()) {
+          return CloneTypeRef(ext_it->second->return_type, out);
+        }
+        return false;
+      }
         if (const LocalInfo* local = FindLocal(scopes, base.text)) {
           if (!local->type) return false;
           auto artifact_it = ctx.artifacts.find(local->type->name);
@@ -743,6 +753,18 @@ bool CheckCallTarget(const Expr& callee,
     if (fn_it != ctx.functions.end()) {
       return CheckCallArgs(fn_it->second, arg_count, error);
     }
+    auto ext_it = ctx.externs.find(callee.text);
+    if (ext_it != ctx.externs.end()) {
+      if (ext_it->second->params.size() != arg_count) {
+        if (error) {
+          *error = "call argument count mismatch for extern " + callee.text +
+                   ": expected " + std::to_string(ext_it->second->params.size()) +
+                   ", got " + std::to_string(arg_count);
+        }
+        return false;
+      }
+      return true;
+    }
     if (const LocalInfo* local = FindLocal(scopes, callee.text)) {
       if (local->type && local->type->is_proc) {
         return CheckProcTypeArgs(local->type, arg_count, error);
@@ -785,6 +807,23 @@ bool CheckCallTarget(const Expr& callee,
           return false;
         }
         return true;
+      }
+      auto ext_mod_it = ctx.externs_by_module.find(base.text);
+      if (ext_mod_it != ctx.externs_by_module.end()) {
+        auto ext_it = ext_mod_it->second.find(callee.text);
+        if (ext_it != ext_mod_it->second.end()) {
+          if (ext_it->second->params.size() != arg_count) {
+            if (error) {
+              *error = "call argument count mismatch for extern " + base.text + "." + callee.text +
+                       ": expected " + std::to_string(ext_it->second->params.size()) +
+                       ", got " + std::to_string(arg_count);
+            }
+            return false;
+          }
+          return true;
+        }
+        if (error) *error = "unknown extern member: " + base.text + "." + callee.text;
+        return false;
       }
       if (const LocalInfo* local = FindLocal(scopes, base.text)) {
         if (!local->type) return true;
@@ -849,6 +888,20 @@ bool GetCallTargetInfo(const Expr& callee,
       out->type_params = fn_it->second->generics;
       out->is_proc = false;
       for (const auto& param : fn_it->second->params) {
+        TypeRef copy;
+        if (!CloneTypeRef(param.type, &copy)) return false;
+        out->params.push_back(std::move(copy));
+      }
+      return true;
+    }
+    auto ext_it = ctx.externs.find(callee.text);
+    if (ext_it != ctx.externs.end()) {
+      out->params.clear();
+      if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+      out->return_mutability = ext_it->second->return_mutability;
+      out->type_params.clear();
+      out->is_proc = false;
+      for (const auto& param : ext_it->second->params) {
         TypeRef copy;
         if (!CloneTypeRef(param.type, &copy)) return false;
         out->params.push_back(std::move(copy));
@@ -949,6 +1002,23 @@ bool GetCallTargetInfo(const Expr& callee,
           out->return_mutability = var->type.proc_return_mutability;
           out->type_params.clear();
           out->is_proc = true;
+          return true;
+        }
+      }
+      auto ext_mod_it = ctx.externs_by_module.find(base.text);
+      if (ext_mod_it != ctx.externs_by_module.end()) {
+        auto ext_it = ext_mod_it->second.find(callee.text);
+        if (ext_it != ext_mod_it->second.end()) {
+          out->params.clear();
+          if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+          out->return_mutability = ext_it->second->return_mutability;
+          out->type_params.clear();
+          out->is_proc = false;
+          for (const auto& param : ext_it->second->params) {
+            TypeRef copy;
+            if (!CloneTypeRef(param.type, &copy)) return false;
+            out->params.push_back(std::move(copy));
+          }
           return true;
         }
       }
@@ -1999,6 +2069,9 @@ bool CheckExpr(const Expr& expr,
         }
         return true;
       }
+      if (ctx.externs_by_module.find(expr.text) != ctx.externs_by_module.end()) {
+        return true;
+      }
       if (ctx.enum_members.find(expr.text) != ctx.enum_members.end()) {
         if (error) *error = "unqualified enum value: " + expr.text;
         PrefixErrorLocation(expr.line, expr.column, error);
@@ -2383,6 +2456,16 @@ bool ValidateProgram(const Program& program, std::string* error) {
   for (const auto& decl : program.decls) {
     const std::string* name_ptr = nullptr;
     switch (decl.kind) {
+      case DeclKind::Import:
+        break;
+      case DeclKind::Extern:
+        if (decl.ext.has_module) {
+          ctx.externs_by_module[decl.ext.module][decl.ext.name] = &decl.ext;
+        } else {
+          name_ptr = &decl.ext.name;
+          ctx.externs[decl.ext.name] = &decl.ext;
+        }
+        break;
       case DeclKind::Enum:
         name_ptr = &decl.enm.name;
         {
@@ -2428,6 +2511,22 @@ bool ValidateProgram(const Program& program, std::string* error) {
 
   for (const auto& decl : program.decls) {
     switch (decl.kind) {
+      case DeclKind::Import:
+        break;
+      case DeclKind::Extern:
+        {
+          std::unordered_set<std::string> param_names;
+          std::unordered_set<std::string> type_params;
+          if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
+          for (const auto& param : decl.ext.params) {
+            if (!param_names.insert(param.name).second) {
+              if (error) *error = "duplicate extern parameter name: " + param.name;
+              return false;
+            }
+            if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
+          }
+        }
+        break;
       case DeclKind::Function:
         {
           std::unordered_set<std::string> type_params;

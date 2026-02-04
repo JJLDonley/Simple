@@ -217,6 +217,90 @@ bool Parser::ParseDecl(Decl* out) {
     if (!ParseBlockStmts(&out->func.body)) return false;
     return true;
   }
+  if (Match(TokenKind::KwImport)) {
+    const Token& path_tok = Peek();
+    if (path_tok.kind != TokenKind::String) {
+      error_ = "expected string literal after 'import'";
+      return false;
+    }
+    Advance();
+    if (out) {
+      out->kind = DeclKind::Import;
+      out->import_decl.path = path_tok.text;
+      out->import_decl.has_alias = false;
+      out->import_decl.alias.clear();
+    }
+    if (Match(TokenKind::KwAs)) {
+      const Token& alias_tok = Peek();
+      if (alias_tok.kind != TokenKind::Identifier) {
+        error_ = "expected alias identifier after 'as'";
+        return false;
+      }
+      Advance();
+      if (out) {
+        out->import_decl.has_alias = true;
+        out->import_decl.alias = alias_tok.text;
+      }
+    }
+    if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
+      return true;
+    }
+    error_ = "expected end of import declaration";
+    return false;
+  }
+  if (Match(TokenKind::KwExtern)) {
+    const Token& name_tok = Peek();
+    if (name_tok.kind != TokenKind::Identifier) {
+      error_ = "expected extern name";
+      return false;
+    }
+    Advance();
+    std::string module_name;
+    std::string extern_name = name_tok.text;
+    bool has_module = false;
+    if (Match(TokenKind::Dot)) {
+      const Token& member_tok = Peek();
+      if (member_tok.kind != TokenKind::Identifier) {
+        error_ = "expected extern name after '.'";
+        return false;
+      }
+      Advance();
+      module_name = extern_name;
+      extern_name = member_tok.text;
+      has_module = true;
+    }
+    Mutability mut = Mutability::Immutable;
+    if (Match(TokenKind::Colon)) {
+      mut = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      mut = Mutability::Immutable;
+    } else {
+      error_ = "expected ':' or '::' after extern name";
+      return false;
+    }
+    TypeRef return_type;
+    if (!ParseTypeInner(&return_type)) return false;
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after extern return type";
+      return false;
+    }
+    std::vector<ParamDecl> params;
+    if (!ParseParamList(&params)) return false;
+    if (out) {
+      out->kind = DeclKind::Extern;
+      out->ext.name = extern_name;
+      out->ext.module = module_name;
+      out->ext.has_module = has_module;
+      out->ext.return_mutability = mut;
+      out->ext.return_type = std::move(return_type);
+      out->ext.params = std::move(params);
+    }
+    if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
+      return true;
+    }
+    error_ = "expected end of extern declaration";
+    return false;
+  }
 
   const Token& name_tok = Peek();
   if (name_tok.kind == TokenKind::End) return false;

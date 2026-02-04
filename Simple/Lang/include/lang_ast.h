@@ -149,7 +149,24 @@ struct EnumDecl {
   std::vector<EnumMember> members;
 };
 
+struct ImportDecl {
+  std::string path;
+  std::string alias;
+  bool has_alias = false;
+};
+
+struct ExternDecl {
+  std::string name;
+  std::string module;
+  bool has_module = false;
+  Mutability return_mutability = Mutability::Immutable;
+  TypeRef return_type;
+  std::vector<ParamDecl> params;
+};
+
 enum class DeclKind : uint8_t {
+  Import,
+  Extern,
   Function,
   Variable,
   Artifact,
@@ -159,6 +176,8 @@ enum class DeclKind : uint8_t {
 
 struct Decl {
   DeclKind kind = DeclKind::Variable;
+  ImportDecl import_decl;
+  ExternDecl ext;
   FuncDecl func;
   VarDecl var;
   ArtifactDecl artifact;

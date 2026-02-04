@@ -2251,7 +2251,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const ArtifactDecl*> artifacts;
   std::vector<const EnumDecl*> enums;
   for (const auto& decl : program.decls) {
-    if (decl.kind == DeclKind::Function) {
+    if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
+      continue;
+    } else if (decl.kind == DeclKind::Function) {
       functions.push_back({&decl.func, decl.func.name, decl.func.name, false, {}});
     } else if (decl.kind == DeclKind::Artifact) {
       artifacts.push_back(&decl.artifact);

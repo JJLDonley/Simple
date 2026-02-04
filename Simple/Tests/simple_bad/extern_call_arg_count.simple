@@ -1,0 +1,6 @@
+extern puts : i32 (s : string)
+
+main : i32 () {
+  puts()
+  return 0
+}
