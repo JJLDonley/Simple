@@ -81,6 +81,30 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
+bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
+  if (!out) return false;
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
+    if (error) *error = "IO.print expects scalar value";
+    return false;
+  }
+  const std::string& name = type.name;
+  if (name == "i8") { *out = Simple::VM::kPrintAnyTagI8; return true; }
+  if (name == "i16") { *out = Simple::VM::kPrintAnyTagI16; return true; }
+  if (name == "i32") { *out = Simple::VM::kPrintAnyTagI32; return true; }
+  if (name == "i64") { *out = Simple::VM::kPrintAnyTagI64; return true; }
+  if (name == "u8") { *out = Simple::VM::kPrintAnyTagU8; return true; }
+  if (name == "u16") { *out = Simple::VM::kPrintAnyTagU16; return true; }
+  if (name == "u32") { *out = Simple::VM::kPrintAnyTagU32; return true; }
+  if (name == "u64") { *out = Simple::VM::kPrintAnyTagU64; return true; }
+  if (name == "f32") { *out = Simple::VM::kPrintAnyTagF32; return true; }
+  if (name == "f64") { *out = Simple::VM::kPrintAnyTagF64; return true; }
+  if (name == "bool") { *out = Simple::VM::kPrintAnyTagBool; return true; }
+  if (name == "char") { *out = Simple::VM::kPrintAnyTagChar; return true; }
+  if (name == "string") { *out = Simple::VM::kPrintAnyTagString; return true; }
+  if (error) *error = "IO.print supports numeric, bool, char, or string";
+  return false;
+}
+
 bool IsSupportedType(const TypeRef& type) {
   if (!type.type_args.empty()) return false;
   if (type.is_proc) return true;
@@ -1253,40 +1277,20 @@ bool EmitExpr(EmitState& st,
           TypeRef arg_type;
           if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
           if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
-          if (arg_type.name == "string" && arg_type.dims.empty()) {
-            if (!EmitDup(st)) return false;
-            (*st.out) << "  string.len\n";
-            PopStack(st, 1);
-            PushStack(st, 1);
-            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicWriteStdout << "\n";
-            PopStack(st, 2);
-          } else {
-            uint32_t intrinsic = Simple::VM::kIntrinsicLogRef;
-            if (arg_type.name == "i64" || arg_type.name == "u64") {
-              intrinsic = Simple::VM::kIntrinsicLogI64;
-            } else if (arg_type.name == "f32") {
-              intrinsic = Simple::VM::kIntrinsicLogF32;
-            } else if (arg_type.name == "f64") {
-              intrinsic = Simple::VM::kIntrinsicLogF64;
-            } else if (arg_type.name == "i32" || arg_type.name == "u32" ||
-                       arg_type.name == "i16" || arg_type.name == "u16" ||
-                       arg_type.name == "i8" || arg_type.name == "u8" ||
-                       arg_type.name == "bool" || arg_type.name == "char") {
-              intrinsic = Simple::VM::kIntrinsicLogI32;
-            }
-            (*st.out) << "  intrinsic " << intrinsic << "\n";
-            PopStack(st, 1);
-          }
+          uint32_t tag = 0;
+          if (!GetPrintAnyTagForType(arg_type, &tag, error)) return false;
+          (*st.out) << "  const.i32 " << static_cast<int32_t>(tag) << "\n";
+          PushStack(st, 1);
+          (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
+          PopStack(st, 2);
           if (callee.text == "println") {
             std::string newline_name;
             if (!AddStringConst(st, "\n", &newline_name)) return false;
             (*st.out) << "  const.string " << newline_name << "\n";
             PushStack(st, 1);
-            if (!EmitDup(st)) return false;
-            (*st.out) << "  string.len\n";
-            PopStack(st, 1);
+            (*st.out) << "  const.i32 " << static_cast<int32_t>(Simple::VM::kPrintAnyTagString) << "\n";
             PushStack(st, 1);
-            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicWriteStdout << "\n";
+            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
             PopStack(st, 2);
           }
           return true;

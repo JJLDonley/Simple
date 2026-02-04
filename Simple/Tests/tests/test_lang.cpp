@@ -1218,6 +1218,13 @@ bool LangValidateIoPrintTypeArgsOk() {
   return true;
 }
 
+bool LangValidateIoPrintRejectsArray() {
+  const char* src = "main : void () { a : i32[] = [1,2]; IO.print(a); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateCallFnLiteralCount() {
   const char* src =
     "main : i32 () { f : (i32) : i32 = (x : i32) { return x; }; return f(1, 2); }";
@@ -2081,6 +2088,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_call_field_as_method", LangValidateCallFieldAsMethod},
   {"lang_validate_io_print_arg_count", LangValidateIoPrintArgCountFail},
   {"lang_validate_io_print_type_args_ok", LangValidateIoPrintTypeArgsOk},
+  {"lang_validate_io_print_rejects_array", LangValidateIoPrintRejectsArray},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
   {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},

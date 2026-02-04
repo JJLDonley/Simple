@@ -2056,6 +2056,35 @@ bool CheckExpr(const Expr& expr,
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
       if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
+      if (expr.children[0].kind == ExprKind::Member &&
+          expr.children[0].op == "." &&
+          !expr.children[0].children.empty()) {
+        const Expr& base = expr.children[0].children[0];
+        if (base.kind == ExprKind::Identifier &&
+            base.text == "IO" &&
+            IsIoPrintName(expr.children[0].text)) {
+          if (expr.args.size() != 1) {
+            if (error) *error = "call argument count mismatch for IO." + expr.children[0].text;
+            return false;
+          }
+          TypeRef arg_type;
+          if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+            if (error && error->empty()) *error = "IO.print expects scalar argument";
+            return false;
+          }
+          if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+            if (error) *error = "IO.print expects scalar argument";
+            return false;
+          }
+          if (!(IsNumericTypeName(arg_type.name) ||
+                IsBoolTypeName(arg_type.name) ||
+                arg_type.name == "char" ||
+                arg_type.name == "string")) {
+            if (error) *error = "IO.print supports numeric, bool, char, or string";
+            return false;
+          }
+        }
+      }
       if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "len") {
         if (expr.args.size() != 1) {
           if (error) *error = "call argument count mismatch for len: expected 1, got " +

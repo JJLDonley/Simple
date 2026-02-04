@@ -36,6 +36,7 @@ bool IsKnownIntrinsic(uint32_t id) {
     case kIntrinsicRandU64:
     case kIntrinsicWriteStdout:
     case kIntrinsicWriteStderr:
+    case kIntrinsicPrintAny:
       return true;
     default:
       return false;
@@ -73,6 +74,7 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicRandU64: *out = {2, 0, {0, 0}}; return true; // rand_u64()->i64
     case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
     case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
+    case kIntrinsicPrintAny: *out = {0, 2, {0, 1}}; return true; // print_any(any,i32_tag)
     default: return false;
   }
 }

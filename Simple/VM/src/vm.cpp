@@ -2536,6 +2536,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             Pop(stack); // length
             Pop(stack); // ref
             break;
+          case kIntrinsicPrintAny: {
+            if (stack.size() < 2) return Trap("INTRINSIC print_any stack underflow");
+            uint32_t tag = static_cast<uint32_t>(UnpackI32(Pop(stack)));
+            Slot value = Pop(stack);
+            switch (tag) {
+              case kPrintAnyTagString: {
+                uint32_t ref = UnpackRef(value);
+                HeapObject* obj = heap.Get(ref);
+                if (!obj || obj->header.kind != ObjectKind::String) {
+                  return Trap("print_any: unsupported ref kind");
+                }
+                break;
+              }
+              case kPrintAnyTagI8:
+              case kPrintAnyTagI16:
+              case kPrintAnyTagI32:
+              case kPrintAnyTagI64:
+              case kPrintAnyTagU8:
+              case kPrintAnyTagU16:
+              case kPrintAnyTagU32:
+              case kPrintAnyTagU64:
+              case kPrintAnyTagF32:
+              case kPrintAnyTagF64:
+              case kPrintAnyTagBool:
+              case kPrintAnyTagChar:
+                break;
+              default:
+                return Trap("print_any: unsupported tag");
+            }
+            break;
+          }
           default:
             return Trap("INTRINSIC not supported id=" + std::to_string(id));
         }

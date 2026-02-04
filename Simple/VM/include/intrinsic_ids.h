@@ -28,6 +28,21 @@ constexpr uint32_t kIntrinsicRandU32 = 0x0040u;
 constexpr uint32_t kIntrinsicRandU64 = 0x0041u;
 constexpr uint32_t kIntrinsicWriteStdout = 0x0050u;
 constexpr uint32_t kIntrinsicWriteStderr = 0x0051u;
+constexpr uint32_t kIntrinsicPrintAny = 0x0060u;
+
+constexpr uint32_t kPrintAnyTagI8 = 1u;
+constexpr uint32_t kPrintAnyTagI16 = 2u;
+constexpr uint32_t kPrintAnyTagI32 = 3u;
+constexpr uint32_t kPrintAnyTagI64 = 4u;
+constexpr uint32_t kPrintAnyTagU8 = 5u;
+constexpr uint32_t kPrintAnyTagU16 = 6u;
+constexpr uint32_t kPrintAnyTagU32 = 7u;
+constexpr uint32_t kPrintAnyTagU64 = 8u;
+constexpr uint32_t kPrintAnyTagF32 = 9u;
+constexpr uint32_t kPrintAnyTagF64 = 10u;
+constexpr uint32_t kPrintAnyTagBool = 11u;
+constexpr uint32_t kPrintAnyTagChar = 12u;
+constexpr uint32_t kPrintAnyTagString = 13u;
 
 } // namespace Simple::VM
 
