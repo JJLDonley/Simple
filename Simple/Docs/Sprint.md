@@ -766,3 +766,4 @@
 - Added negative .simple fixture for missing semicolon on same line and a validation test for the error.
 - Added .simple negative fixtures for invalid string and char escapes with validation coverage.
 - Added .simple negative fixtures for invalid lexer character and unterminated parser block with validation coverage.
+- Added CLI error-format tests for lexer and parser failures on .simple inputs.

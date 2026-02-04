@@ -363,6 +363,32 @@ bool LangCliCheckSimpleErrorFormat() {
          contents.find(':') != std::string::npos;
 }
 
+bool LangCliCheckSimpleLexerErrorFormat() {
+  const std::string err_path = TempPath("simple_check_lex_err.txt");
+  const std::string cmd =
+      "Simple/bin/simplevm check Simple/Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
+  if (RunCommand(cmd)) return false;
+  std::ifstream in(err_path);
+  if (!in) return false;
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return contents.find("error[E0001]:") != std::string::npos &&
+         contents.find("unexpected character") != std::string::npos &&
+         contents.find(':') != std::string::npos;
+}
+
+bool LangCliCheckSimpleParserErrorFormat() {
+  const std::string err_path = TempPath("simple_check_parse_err.txt");
+  const std::string cmd =
+      "Simple/bin/simplevm check Simple/Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
+  if (RunCommand(cmd)) return false;
+  std::ifstream in(err_path);
+  if (!in) return false;
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return contents.find("error[E0001]:") != std::string::npos &&
+         contents.find("unterminated block") != std::string::npos &&
+         contents.find(':') != std::string::npos;
+}
+
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
   const std::string cmd = "Simple/bin/simplevm emit -ir Simple/Tests/simple/hello.simple --out " + out_path;
@@ -2508,6 +2534,8 @@ const TestCase kLangTests[] = {
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
+  {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
+  {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
