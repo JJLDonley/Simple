@@ -7,12 +7,25 @@
 #include "simple_runner.h"
 #include "test_utils.h"
 
-#include <unordered_map>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <cstdlib>
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool RunCommand(const std::string& command) {
+  const int result = std::system(command.c_str());
+  return result == 0;
+}
+
+std::string TempPath(const std::string& name) {
+  namespace fs = std::filesystem;
+  return (fs::temp_directory_path() / name).string();
+}
 
 bool ExpectTokenKinds(const std::vector<Simple::Lang::Token>& tokens,
                       const std::vector<Simple::Lang::TokenKind>& kinds) {
@@ -163,6 +176,32 @@ bool LangSimpleBadSelfOutsideArtifact() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/self_outside_artifact.simple",
       "self");
+}
+
+bool LangCliEmitIr() {
+  const std::string out_path = TempPath("simple_emit_ir.sir");
+  const std::string cmd = "Simple/bin/simplevm emit -ir Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  std::ifstream in(out_path);
+  if (!in) return false;
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return contents.find("func") != std::string::npos;
+}
+
+bool LangCliEmitSbc() {
+  const std::string out_path = TempPath("simple_emit_sbc.sbc");
+  const std::string cmd = "Simple/bin/simplevm emit -sbc Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  std::ifstream in(out_path, std::ios::binary);
+  return in.good() && in.peek() != std::ifstream::traits_type::eof();
+}
+
+bool LangCliCheckSimple() {
+  return RunCommand("Simple/bin/simplevm check Simple/Tests/simple/hello.simple");
+}
+
+bool LangCliRunSimple() {
+  return RunCommand("Simple/bin/simplevm run Simple/Tests/simple/hello.simple");
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2187,6 +2226,10 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
   {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
+  {"lang_cli_emit_ir", LangCliEmitIr},
+  {"lang_cli_emit_sbc", LangCliEmitSbc},
+  {"lang_cli_check_simple", LangCliCheckSimple},
+  {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

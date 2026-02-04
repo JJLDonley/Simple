@@ -740,3 +740,4 @@
 - Added .simple fixtures: artifact_method and module_multi.
 - Added .simple negative fixture for self used outside artifact.
 - Added SIR emission for artifact method calls (implicit self param lowering) and method signature handling.
+- Added CLI tests for emit/check/run using simplevm binary.
