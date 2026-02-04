@@ -172,6 +172,14 @@ bool LangSimpleFixtureCharCompare() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/char_compare.simple", 1);
 }
 
+bool LangSimpleFixtureCharEscapeHex() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/char_escape_hex.simple", 1);
+}
+
+bool LangSimpleFixtureStringEscapeHex() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/string_escape_hex.simple", 0);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -374,6 +382,12 @@ bool LangSimpleBadCharArithmetic() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/char_arith.simple",
       "operator '+' requires matching operand types");
+}
+
+bool LangSimpleBadInvalidHexEscape() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/invalid_hex_escape.simple",
+      "invalid hex escape");
 }
 
 bool LangCliCheckSimpleErrorFormat() {
@@ -2518,6 +2532,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_array_nested", LangSimpleFixtureArrayNested},
   {"lang_simple_fixture_bool_ops", LangSimpleFixtureBoolOps},
   {"lang_simple_fixture_char_compare", LangSimpleFixtureCharCompare},
+  {"lang_simple_fixture_char_escape_hex", LangSimpleFixtureCharEscapeHex},
+  {"lang_simple_fixture_string_escape_hex", LangSimpleFixtureStringEscapeHex},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
@@ -2554,6 +2570,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_bool_arithmetic", LangSimpleBadBoolArithmetic},
   {"lang_simple_bad_char_compare_int", LangSimpleBadCharCompareInt},
   {"lang_simple_bad_char_arithmetic", LangSimpleBadCharArithmetic},
+  {"lang_simple_bad_invalid_hex_escape", LangSimpleBadInvalidHexEscape},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

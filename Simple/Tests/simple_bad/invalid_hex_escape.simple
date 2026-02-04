@@ -1,0 +1,3 @@
+main : i32 () {
+  IO.print("\xZZ")
+}

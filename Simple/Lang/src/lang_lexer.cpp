@@ -466,6 +466,32 @@ bool Lexer::LexString() {
         case 'r': value.push_back('\r'); break;
         case '"': value.push_back('"'); break;
         case '\\': value.push_back('\\'); break;
+        case 'x': {
+          auto HexDigit = [](char ch) -> int {
+            if (ch >= '0' && ch <= '9') return ch - '0';
+            if (ch >= 'a' && ch <= 'f') return 10 + (ch - 'a');
+            if (ch >= 'A' && ch <= 'F') return 10 + (ch - 'A');
+            return -1;
+          };
+          if (IsAtEnd()) {
+            SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+            return false;
+          }
+          char h1 = Advance();
+          if (IsAtEnd()) {
+            SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+            return false;
+          }
+          char h2 = Advance();
+          int v1 = HexDigit(h1);
+          int v2 = HexDigit(h2);
+          if (v1 < 0 || v2 < 0) {
+            SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+            return false;
+          }
+          value.push_back(static_cast<char>((v1 << 4) | v2));
+          break;
+        }
         default:
           SetErrorAt("invalid string escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
           return false;
@@ -496,6 +522,32 @@ bool Lexer::LexChar() {
       case 'r': value = '\r'; break;
       case '\'': value = '\''; break;
       case '\\': value = '\\'; break;
+      case 'x': {
+        auto HexDigit = [](char ch) -> int {
+          if (ch >= '0' && ch <= '9') return ch - '0';
+          if (ch >= 'a' && ch <= 'f') return 10 + (ch - 'a');
+          if (ch >= 'A' && ch <= 'F') return 10 + (ch - 'A');
+          return -1;
+        };
+        if (IsAtEnd()) {
+          SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+          return false;
+        }
+        char h1 = Advance();
+        if (IsAtEnd()) {
+          SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+          return false;
+        }
+        char h2 = Advance();
+        int v1 = HexDigit(h1);
+        int v2 = HexDigit(h2);
+        if (v1 < 0 || v2 < 0) {
+          SetErrorAt("invalid hex escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
+          return false;
+        }
+        value = static_cast<char>((v1 << 4) | v2);
+        break;
+      }
       default:
         SetErrorAt("invalid char escape", static_cast<uint32_t>(start_line), static_cast<uint32_t>(start_col));
         return false;
