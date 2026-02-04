@@ -2077,6 +2077,10 @@ bool EmitFunction(EmitState& st, const FuncDecl& fn, std::string* out, std::stri
   }
 
   if (!st.saw_return) {
+    if (fn.name == "main" && fn.return_type.name == "i32") {
+      (*st.out) << "  const.i32 0\n";
+      PushStack(st, 1);
+    }
     (*st.out) << "  ret\n";
   }
 

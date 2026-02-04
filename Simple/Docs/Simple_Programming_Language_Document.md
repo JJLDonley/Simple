@@ -536,6 +536,9 @@ expression_statement ::= expression
 block ::= "{" statement* "}"
 ```
 
+Semicolons are optional at statement boundaries. A newline or `}` terminates a statement.
+Use `;` to place multiple statements on the same line.
+
 ### Control Flow
 
 #### Simple If
@@ -1148,6 +1151,8 @@ main : i32 () {
     return 0
 }
 ```
+
+If `main` omits an explicit return, the compiler inserts `return 0`.
 
 ### Error Handling
 

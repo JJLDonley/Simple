@@ -1,4 +1,4 @@
 main : i32 () {
-  IO.print("hello");
-  return 0;
+  IO.println("hello")
+  IO.print(" world\n")
 }

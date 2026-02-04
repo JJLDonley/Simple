@@ -251,7 +251,7 @@ bool Parser::ParseDecl(Decl* out) {
     }
     if (Match(TokenKind::Assign)) {
       if (!ParseInitTokens(&out->var.init_tokens)) return false;
-    } else if (Match(TokenKind::Semicolon)) {
+    } else if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
       // zero-initialized
     } else {
       error_ = "expected '=' or ';' in variable declaration";
@@ -290,7 +290,7 @@ bool Parser::ParseDecl(Decl* out) {
   }
   if (Match(TokenKind::Assign)) {
     if (!ParseInitTokens(&out->var.init_tokens)) return false;
-  } else if (Match(TokenKind::Semicolon)) {
+  } else if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
     // zero-initialized
   } else {
     error_ = "expected '=' or ';' in variable declaration";
@@ -590,10 +590,31 @@ bool Parser::RecoverStatementInBlock() {
   return false;
 }
 
+uint32_t Parser::LastTokenLine() const {
+  if (index_ == 0) return 1;
+  return tokens_[index_ - 1].line;
+}
+
+bool Parser::IsImplicitStmtTerminator() const {
+  if (IsAtEnd()) return true;
+  if (Peek().kind == TokenKind::RBrace) return true;
+  return Peek().line > LastTokenLine();
+}
+
+bool Parser::ConsumeStmtTerminator(const char* ctx) {
+  if (Match(TokenKind::Semicolon)) return true;
+  if (IsImplicitStmtTerminator()) return true;
+  error_ = std::string("expected ';' after ") + ctx;
+  return false;
+}
+
 bool Parser::ParseInitTokens(std::vector<Token>* out) {
   while (!IsAtEnd()) {
     if (Peek().kind == TokenKind::Semicolon) {
       Advance();
+      return true;
+    }
+    if (Peek().line > LastTokenLine()) {
       return true;
     }
     if (out) out->push_back(Advance());
@@ -604,7 +625,7 @@ bool Parser::ParseInitTokens(std::vector<Token>* out) {
 
 bool Parser::ParseStmt(Stmt* out) {
   if (Match(TokenKind::KwReturn)) {
-    if (Match(TokenKind::Semicolon)) {
+    if (ConsumeStmtTerminator("return")) {
       if (out) {
         out->kind = StmtKind::Return;
         out->has_return_expr = false;
@@ -613,10 +634,7 @@ bool Parser::ParseStmt(Stmt* out) {
     }
     Expr expr;
     if (!ParseExpr(&expr)) return false;
-    if (!Match(TokenKind::Semicolon)) {
-      error_ = "expected ';' after return";
-      return false;
-    }
+    if (!ConsumeStmtTerminator("return")) return false;
     if (out) {
       out->kind = StmtKind::Return;
       out->has_return_expr = true;
@@ -642,10 +660,7 @@ bool Parser::ParseStmt(Stmt* out) {
   }
 
   if (Match(TokenKind::KwBreak)) {
-    if (!Match(TokenKind::Semicolon)) {
-      error_ = "expected ';' after break";
-      return false;
-    }
+    if (!ConsumeStmtTerminator("break")) return false;
     if (out) {
       out->kind = StmtKind::Break;
     }
@@ -653,10 +668,7 @@ bool Parser::ParseStmt(Stmt* out) {
   }
 
   if (Match(TokenKind::KwSkip)) {
-    if (!Match(TokenKind::Semicolon)) {
-      error_ = "expected ';' after skip";
-      return false;
-    }
+    if (!ConsumeStmtTerminator("skip")) return false;
     if (out) {
       out->kind = StmtKind::Skip;
     }
@@ -679,15 +691,15 @@ bool Parser::ParseStmt(Stmt* out) {
     if (Match(TokenKind::Assign)) {
       has_init = true;
       if (!ParseExpr(&init)) return false;
-      if (!Match(TokenKind::Semicolon)) {
-        error_ = "expected ';' after variable declaration";
-        return false;
-      }
+      if (!ConsumeStmtTerminator("variable declaration")) return false;
     } else if (Match(TokenKind::Semicolon)) {
       has_init = false;
     } else {
-      error_ = "expected '=' or ';' in variable declaration";
-      return false;
+      if (!IsImplicitStmtTerminator()) {
+        error_ = "expected '=' or ';' in variable declaration";
+        return false;
+      }
+      has_init = false;
     }
     if (out) {
       out->kind = StmtKind::VarDecl;
@@ -726,10 +738,7 @@ bool Parser::ParseStmt(Stmt* out) {
       Advance();
       Expr value;
       if (!ParseExpr(&value)) return false;
-      if (!Match(TokenKind::Semicolon)) {
-        error_ = "expected ';' after assignment";
-        return false;
-      }
+      if (!ConsumeStmtTerminator("assignment")) return false;
       if (out) {
         out->kind = StmtKind::Assign;
         out->target = std::move(target);
@@ -743,10 +752,7 @@ bool Parser::ParseStmt(Stmt* out) {
 
   Expr expr;
   if (!ParseExpr(&expr)) return false;
-  if (!Match(TokenKind::Semicolon)) {
-    error_ = "expected ';' after expression";
-    return false;
-  }
+  if (!ConsumeStmtTerminator("expression")) return false;
   if (out) {
     out->kind = StmtKind::Expr;
     out->expr = std::move(expr);

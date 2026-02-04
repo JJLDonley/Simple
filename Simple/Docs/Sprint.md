@@ -714,3 +714,7 @@
 - build.sh now builds the CLI executable alongside test binaries.
 - CLI now accepts .simple and .sir inputs (compiles to SBC before execution).
 - SIR string emission now escapes control chars; IR parser unescapes const strings to support \\n, \\t, \\r.
+- Allowed optional semicolons at statement boundaries (newline or block end terminates statements).
+- Allowed optional semicolons for top-level variable declarations when the next token starts on a new line.
+- main : i32() now permits implicit return 0 in validation and SIR emission.
+- Added Simple::Lang tests for implicit main return and missing semicolon on same line.

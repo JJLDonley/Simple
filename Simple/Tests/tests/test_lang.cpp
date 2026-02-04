@@ -95,6 +95,23 @@ bool LangSirEmitsIoPrintI32() {
   return RunSirTextExpectExit(sir, 2);
 }
 
+bool LangSirImplicitMainReturn() {
+  const char* src =
+      "main : i32 () { IO.print(\"hi\") }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 0);
+}
+
+bool LangParseMissingSemicolonSameLine() {
+  const char* src = "main : i32 () { x : i32 = 1 y : i32 = 2 }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  return true;
+}
+
 bool LangSirEmitsIncDec() {
   const char* src =
       "main : i32 () {"
@@ -838,7 +855,7 @@ bool LangValidateNonVoidMissingReturn() {
 }
 
 bool LangValidateNonVoidNoReturn() {
-  const char* src = "main : i32 () { x : i32 = 1; }";
+  const char* src = "foo : i32 () { x : i32 = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -856,7 +873,7 @@ bool LangValidateNonVoidAllPathsReturn() {
 
 bool LangValidateNonVoidMissingPath() {
   const char* src =
-    "main : i32 () {"
+    "foo : i32 () {"
     "  if true { return 1; }"
     "}";
   std::string error;
@@ -2010,6 +2027,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_function_call", LangSirEmitsFunctionCall},
   {"lang_sir_emit_io_print_string", LangSirEmitsIoPrintString},
   {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
+  {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
+  {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

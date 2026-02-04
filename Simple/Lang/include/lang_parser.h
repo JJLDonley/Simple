@@ -59,6 +59,9 @@ private:
   bool ParseBracketExprList(std::vector<Expr>* out);
   bool ParseFnLiteral(Expr* out);
   int GetBinaryPrecedence(const Token& tok) const;
+  bool ConsumeStmtTerminator(const char* ctx);
+  bool IsImplicitStmtTerminator() const;
+  uint32_t LastTokenLine() const;
   bool RecoverStatementInBlock();
 
   std::vector<Token> tokens_;

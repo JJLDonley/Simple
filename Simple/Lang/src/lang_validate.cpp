@@ -2304,6 +2304,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
+  const bool is_main = (fn.name == "main" && fn.return_type.name == "i32");
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
@@ -2329,7 +2330,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
       return false;
     }
   }
-  if (!return_is_void && !StmtsReturn(fn.body)) {
+  if (!return_is_void && !StmtsReturn(fn.body) && !is_main) {
     if (error) *error = "non-void function does not return on all paths";
     return false;
   }
