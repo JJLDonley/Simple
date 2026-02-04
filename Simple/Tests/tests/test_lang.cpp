@@ -252,6 +252,14 @@ bool LangCliBuildSimple() {
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
 }
 
+bool LangCliBuildDynamicExe() {
+  const std::string out_path = TempPath("simple_build_hello_exec");
+  const std::string cmd =
+      "Simple/bin/simplevm build -d Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  return RunCommand(out_path);
+}
+
 bool LangCliRunSimple() {
   return RunCommand("Simple/bin/simplevm run Simple/Tests/simple/hello.simple");
 }
@@ -2300,6 +2308,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_check_sir", LangCliCheckSir},
   {"lang_cli_check_sbc", LangCliCheckSbc},
   {"lang_cli_build_simple", LangCliBuildSimple},
+  {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},

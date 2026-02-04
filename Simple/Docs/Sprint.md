@@ -747,3 +747,5 @@
 - Added CLI tests for `simplevm check` on .sir/.sbc and `simplevm build` on .simple.
 - Added SIR emission test for IO.print with newline escapes.
 - Added new .simple negative fixtures for len invalid arg, non-int index, immutable assignment, unknown identifier, and call arg count.
+- Added `simplevm build -d/-s` support to emit a standalone executable (embedded SBC + VM).
+- Added CLI test for dynamic executable build.
