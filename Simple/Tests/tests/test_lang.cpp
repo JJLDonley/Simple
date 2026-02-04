@@ -164,6 +164,14 @@ bool LangSimpleFixtureArrayNested() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/array_nested.simple", 3);
 }
 
+bool LangSimpleFixtureBoolOps() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/bool_ops.simple", 1);
+}
+
+bool LangSimpleFixtureCharCompare() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/char_compare.simple", 1);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -348,6 +356,24 @@ bool LangSimpleBadParserUnterminatedBlock() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/parser_unterminated_block.simple",
       "unterminated block");
+}
+
+bool LangSimpleBadBoolArithmetic() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/bool_arith.simple",
+      "operator '+' requires matching operand types");
+}
+
+bool LangSimpleBadCharCompareInt() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/char_compare_with_int.simple",
+      "operator '==' requires matching operand types");
+}
+
+bool LangSimpleBadCharArithmetic() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/char_arith.simple",
+      "operator '+' requires matching operand types");
 }
 
 bool LangCliCheckSimpleErrorFormat() {
@@ -2490,6 +2516,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
   {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},
   {"lang_simple_fixture_array_nested", LangSimpleFixtureArrayNested},
+  {"lang_simple_fixture_bool_ops", LangSimpleFixtureBoolOps},
+  {"lang_simple_fixture_char_compare", LangSimpleFixtureCharCompare},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
@@ -2523,6 +2551,9 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_invalid_char_escape", LangSimpleBadInvalidCharEscape},
   {"lang_simple_bad_lexer_invalid_char", LangSimpleBadLexerInvalidChar},
   {"lang_simple_bad_parser_unterminated_block", LangSimpleBadParserUnterminatedBlock},
+  {"lang_simple_bad_bool_arithmetic", LangSimpleBadBoolArithmetic},
+  {"lang_simple_bad_char_compare_int", LangSimpleBadCharCompareInt},
+  {"lang_simple_bad_char_arithmetic", LangSimpleBadCharArithmetic},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

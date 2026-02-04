@@ -1,0 +1,5 @@
+main : i32 () {
+  c : char = 'A'
+  if c == 'A' { return 1 }
+  return 0
+}

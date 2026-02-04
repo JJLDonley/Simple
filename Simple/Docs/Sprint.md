@@ -767,3 +767,4 @@
 - Added .simple negative fixtures for invalid string and char escapes with validation coverage.
 - Added .simple negative fixtures for invalid lexer character and unterminated parser block with validation coverage.
 - Added CLI error-format tests for lexer and parser failures on .simple inputs.
+- Added .simple fixtures for bool ops and char comparison plus negative fixtures for bool/char arithmetic type mismatches.
