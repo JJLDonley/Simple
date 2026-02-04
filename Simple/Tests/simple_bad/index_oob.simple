@@ -1,0 +1,4 @@
+main : i32 () {
+  values : i32[] = [1, 2]
+  return values[2]
+}

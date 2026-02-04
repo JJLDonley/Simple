@@ -166,4 +166,18 @@ bool RunSimpleFileExpectError(const std::string& path, const std::string& contai
   return error.find(contains) != std::string::npos;
 }
 
+bool RunSimpleFileExpectTrap(const std::string& path, const std::string& contains) {
+  std::string text;
+  std::string error;
+  if (!ReadFileText(path, &text, &error)) return false;
+  std::vector<uint8_t> bytes;
+  if (!CompileSimpleToSbc(text, path, &bytes, &error)) {
+    return false;
+  }
+  int exit_code = RunSbcBytes(bytes, true, &error);
+  if (exit_code == 0) return false;
+  if (contains.empty()) return true;
+  return error.find(contains) != std::string::npos;
+}
+
 } // namespace Simple::VM::Tests

@@ -390,6 +390,24 @@ bool LangSimpleBadInvalidHexEscape() {
       "invalid hex escape");
 }
 
+bool LangSimpleBadIndexNonIntExpr() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/index_non_int_expr.simple",
+      "index");
+}
+
+bool LangSimpleBadIndexNegative() {
+  return Simple::VM::Tests::RunSimpleFileExpectTrap(
+      "Simple/Tests/simple_bad/index_negative.simple",
+      "runtime trap");
+}
+
+bool LangSimpleBadIndexOutOfBounds() {
+  return Simple::VM::Tests::RunSimpleFileExpectTrap(
+      "Simple/Tests/simple_bad/index_oob.simple",
+      "runtime trap");
+}
+
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
@@ -2571,6 +2589,9 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_char_compare_int", LangSimpleBadCharCompareInt},
   {"lang_simple_bad_char_arithmetic", LangSimpleBadCharArithmetic},
   {"lang_simple_bad_invalid_hex_escape", LangSimpleBadInvalidHexEscape},
+  {"lang_simple_bad_index_non_int_expr", LangSimpleBadIndexNonIntExpr},
+  {"lang_simple_bad_index_negative", LangSimpleBadIndexNegative},
+  {"lang_simple_bad_index_oob", LangSimpleBadIndexOutOfBounds},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

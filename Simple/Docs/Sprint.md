@@ -769,3 +769,4 @@
 - Added CLI error-format tests for lexer and parser failures on .simple inputs.
 - Added .simple fixtures for bool ops and char comparison plus negative fixtures for bool/char arithmetic type mismatches.
 - Added hex escape support for string/char literals and fixtures covering hex escapes plus invalid hex escape errors.
+- Added list index negative fixtures (non-int expr, negative, out-of-bounds) and a runner helper for runtime trap assertions.

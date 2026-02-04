@@ -1,0 +1,5 @@
+main : i32 () {
+  values : i32[] = [1, 2, 3]
+  idx : f64 = 1.0
+  return values[idx]
+}
