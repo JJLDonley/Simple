@@ -793,3 +793,4 @@
 - Fixed core_dl_open.simple fixture (removed unsupported := assignment).
 - Fixed Core.* member validation to allow Core namespace usage in member chains.
 - Fixed Core identifier validation when Core.* reserved imports are enabled.
+- Fixed core_dl_open.simple to compare i64 handles without literal type mismatch.

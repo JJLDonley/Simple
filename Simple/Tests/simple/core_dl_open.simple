@@ -1,13 +1,14 @@
 import "Core.DL"
 
 main : i32 () {
+  zero : i64 = 0
   h : i64 = Core.DL.open("Simple/Tests/ffi/libsimpleffi.so")
-  if h == 0 {
+  if h == zero {
     Core.DL.last_error()
     return 0
   }
   s : i64 = Core.DL.sym(h, "simple_add_i32")
-  if s == 0 {
+  if s == zero {
     Core.DL.close(h)
     return 0
   }
