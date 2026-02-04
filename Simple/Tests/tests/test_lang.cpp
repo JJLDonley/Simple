@@ -146,6 +146,18 @@ bool LangSirEmitsEnumValue() {
   return RunSirTextExpectExit(sir, 2);
 }
 
+bool LangSirEmitsFnLiteralCall() {
+  const char* src =
+      "main : i32 () {"
+      "  f : (i32, i32) : i32 = (a : i32, b : i32) { return a + b; };"
+      "  return f(20, 22);"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangLexesKeywordsAndOps() {
   const char* src = "fn main :: void() { return; }";
   Simple::Lang::Lexer lex(src);
@@ -1862,6 +1874,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_artifact_literal_member", LangSirEmitsArtifactLiteralAndMember},
   {"lang_sir_emit_artifact_member_assign", LangSirEmitsArtifactMemberAssign},
   {"lang_sir_emit_enum_value", LangSirEmitsEnumValue},
+  {"lang_sir_emit_fn_literal_call", LangSirEmitsFnLiteralCall},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},

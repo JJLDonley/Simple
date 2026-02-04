@@ -16,6 +16,7 @@ public:
 
   bool ParseType(TypeRef* out);
   bool ParseProgram(Program* out);
+  bool ParseBlock(std::vector<Stmt>* out);
 
 private:
   const Token& Peek(size_t offset = 0) const;

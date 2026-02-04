@@ -83,6 +83,17 @@ bool Parser::ParseProgram(Program* out) {
   return !had_error_;
 }
 
+bool Parser::ParseBlock(std::vector<Stmt>* out) {
+  if (!out) return false;
+  out->clear();
+  if (!ParseBlockStmts(out)) return false;
+  if (!IsAtEnd()) {
+    error_ = "unexpected token after block: " + Peek().text;
+    return false;
+  }
+  return !had_error_;
+}
+
 bool Parser::ParseTypeInner(TypeRef* out) {
   if (Match(TokenKind::KwFn)) {
     TypeRef proc;

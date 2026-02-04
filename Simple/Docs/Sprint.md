@@ -618,6 +618,8 @@
 - Added Simple::Lang parsing for qualified member access using `.` with tests.
 - Added Simple::Lang `fn` literal parsing in expressions with tests.
 - Adjusted `fn` literal test to use procedure type syntax in variable declarations.
+- Added Simple::Lang SIR emission for fn literals via closures and call.indirect, with proc sig generation.
+- Added Simple::Lang SIR test for fn literal calls returning i32.
 - Added `fn : <ret>` type shorthand parsing (procedure type sugar) with tests.
 - Added parsing for `self` identifiers in expressions with tests.
 - Added Simple::Lang enum qualification validation pass with tests.

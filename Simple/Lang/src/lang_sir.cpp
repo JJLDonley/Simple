@@ -28,6 +28,11 @@ struct EmitState {
   std::unordered_map<std::string, uint32_t> func_ids;
   std::unordered_map<std::string, TypeRef> func_returns;
   std::unordered_map<std::string, std::vector<TypeRef>> func_params;
+  uint32_t base_func_count = 0;
+  uint32_t lambda_counter = 0;
+  std::vector<FuncDecl> lambda_funcs;
+  std::unordered_map<std::string, std::string> proc_sig_names;
+  std::vector<std::string> proc_sig_lines;
 
   struct FieldLayout {
     uint32_t offset = 0;
@@ -73,7 +78,7 @@ bool IsNumericType(const std::string& name) {
 
 bool IsSupportedType(const TypeRef& type) {
   if (!type.type_args.empty()) return false;
-  if (type.is_proc) return false;
+  if (type.is_proc) return true;
   if (!type.dims.empty()) {
     if (type.name == "void") return false;
     return true;
@@ -174,6 +179,7 @@ const char* NormalizeNumericOpType(const std::string& name) {
 }
 
 const char* VmOpSuffixForType(const TypeRef& type) {
+  if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "ref";
   if (type.name == "bool" || type.name == "char" || type.name == "i8" || type.name == "i16" || type.name == "i32" ||
@@ -205,6 +211,7 @@ bool CloneElementType(const TypeRef& container, TypeRef* out) {
 }
 
 uint32_t FieldSizeForType(const TypeRef& type) {
+  if (type.is_proc) return 4;
   if (!type.dims.empty()) return 4;
   if (type.name == "string") return 4;
   if (type.name == "bool" || type.name == "char" || type.name == "i8" || type.name == "i16" ||
@@ -230,12 +237,62 @@ uint32_t AlignTo(uint32_t value, uint32_t align) {
 }
 
 std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
+  if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
   if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return "ref";
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   return "ref";
+}
+
+std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::string* error) {
+  if (type.is_proc) return "ref";
+  if (!type.dims.empty()) return "ref";
+  if (type.name == "void") return "void";
+  if (type.name == "string") return "string";
+  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
+  if (st.artifacts.find(type.name) != st.artifacts.end()) return type.name;
+  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  if (error) *error = "unsupported type in signature: " + type.name;
+  return {};
+}
+
+std::string GetProcSigName(EmitState& st,
+                           const TypeRef& proc_type,
+                           std::string* error) {
+  std::string local_error;
+  std::string* err = error ? error : &local_error;
+  std::ostringstream key;
+  std::string ret = "void";
+  if (proc_type.proc_return) {
+    ret = SigTypeNameFromType(*proc_type.proc_return, st, err);
+    if (!err->empty()) return {};
+  }
+  key << ret << "|";
+  for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+    if (i > 0) key << ",";
+    std::string param = SigTypeNameFromType(proc_type.proc_params[i], st, err);
+    if (!err->empty()) return {};
+    key << param;
+  }
+  std::string key_str = key.str();
+  auto it = st.proc_sig_names.find(key_str);
+  if (it != st.proc_sig_names.end()) return it->second;
+
+  std::string name = "sig_proc_" + std::to_string(st.proc_sig_names.size());
+  std::ostringstream line;
+  line << "  sig " << name << ": (";
+  for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+    if (i > 0) line << ", ";
+    std::string param = SigTypeNameFromType(proc_type.proc_params[i], st, err);
+    if (!err->empty()) return {};
+    line << param;
+  }
+  line << ") -> " << ret;
+  st.proc_sig_names.emplace(std::move(key_str), name);
+  st.proc_sig_lines.push_back(line.str());
+  return name;
 }
 
 bool PushStack(EmitState& st, uint32_t count) {
@@ -645,8 +702,8 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const Expr& callee = expr.children[0];
-      if (callee.kind != ExprKind::Identifier) {
-        if (error) *error = "call target not supported in SIR emission";
+      if (callee.kind == ExprKind::FnLiteral) {
+        if (error) *error = "calling fn literal directly is not supported in SIR emission";
         return false;
       }
       const std::string& name = callee.text;
@@ -674,32 +731,81 @@ bool EmitExpr(EmitState& st,
         PushStack(st, 1);
         return true;
       }
-      auto id_it = st.func_ids.find(name);
-      if (id_it == st.func_ids.end()) {
-        if (error) *error = "unknown function '" + name + "'";
+      if (callee.kind == ExprKind::Identifier) {
+        auto local_it = st.local_types.find(name);
+        if (local_it != st.local_types.end()) {
+          const TypeRef& proc_type = local_it->second;
+          if (!proc_type.is_proc) {
+            if (error) *error = "call target is not a function: " + name;
+            return false;
+          }
+          if (expr.args.size() != proc_type.proc_params.size()) {
+            if (error) *error = "call argument count mismatch for '" + name + "'";
+            return false;
+          }
+          for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+            if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
+          }
+          if (!EmitExpr(st, callee, &proc_type, error)) return false;
+          std::string sig_name = GetProcSigName(st, proc_type, error);
+          if (sig_name.empty()) return false;
+          (*st.out) << "  call.indirect " << sig_name << " " << proc_type.proc_params.size() << "\n";
+          PopStack(st, static_cast<uint32_t>(proc_type.proc_params.size() + 1));
+          if (proc_type.proc_return && proc_type.proc_return->name != "void") {
+            PushStack(st, 1);
+          }
+          return true;
+        }
+        auto id_it = st.func_ids.find(name);
+        if (id_it == st.func_ids.end()) {
+          if (error) *error = "unknown function '" + name + "'";
+          return false;
+        }
+        auto params_it = st.func_params.find(name);
+        if (params_it == st.func_params.end()) {
+          if (error) *error = "missing signature for '" + name + "'";
+          return false;
+        }
+        const auto& params = params_it->second;
+        if (expr.args.size() != params.size()) {
+          if (error) *error = "call argument count mismatch for '" + name + "'";
+          return false;
+        }
+        for (size_t i = 0; i < params.size(); ++i) {
+          if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+        }
+        (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+        if (st.stack_cur >= params.size()) {
+          st.stack_cur -= static_cast<uint32_t>(params.size());
+        } else {
+          st.stack_cur = 0;
+        }
+        auto ret_it = st.func_returns.find(name);
+        if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+          PushStack(st, 1);
+        }
+        return true;
+      }
+
+      TypeRef callee_type;
+      if (!InferExprType(callee, st, &callee_type, error)) return false;
+      if (!callee_type.is_proc) {
+        if (error) *error = "call target not supported in SIR emission";
         return false;
       }
-      auto params_it = st.func_params.find(name);
-      if (params_it == st.func_params.end()) {
-        if (error) *error = "missing signature for '" + name + "'";
+      if (expr.args.size() != callee_type.proc_params.size()) {
+        if (error) *error = "call argument count mismatch for callee";
         return false;
       }
-      const auto& params = params_it->second;
-      if (expr.args.size() != params.size()) {
-        if (error) *error = "call argument count mismatch for '" + name + "'";
-        return false;
+      for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
+        if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
       }
-      for (size_t i = 0; i < params.size(); ++i) {
-        if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
-      }
-      (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
-      if (st.stack_cur >= params.size()) {
-        st.stack_cur -= static_cast<uint32_t>(params.size());
-      } else {
-        st.stack_cur = 0;
-      }
-      auto ret_it = st.func_returns.find(name);
-      if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+      if (!EmitExpr(st, callee, &callee_type, error)) return false;
+      std::string sig_name = GetProcSigName(st, callee_type, error);
+      if (sig_name.empty()) return false;
+      (*st.out) << "  call.indirect " << sig_name << " " << callee_type.proc_params.size() << "\n";
+      PopStack(st, static_cast<uint32_t>(callee_type.proc_params.size() + 1));
+      if (callee_type.proc_return && callee_type.proc_return->name != "void") {
         PushStack(st, 1);
       }
       return true;
@@ -835,6 +941,82 @@ bool EmitExpr(EmitState& st,
       }
       return true;
     }
+    case ExprKind::FnLiteral: {
+      if (!expected || !expected->is_proc) {
+        if (error) *error = "fn literal requires a proc-typed context";
+        return false;
+      }
+      if (expr.fn_params.size() != expected->proc_params.size()) {
+        if (error) *error = "fn literal parameter count mismatch";
+        return false;
+      }
+      FuncDecl lambda;
+      lambda.name = "__lambda" + std::to_string(st.lambda_counter++);
+      lambda.return_mutability = expected->proc_return_mutability;
+      if (expected->proc_return) {
+        if (!CloneTypeRef(*expected->proc_return, &lambda.return_type)) return false;
+      } else {
+        lambda.return_type.name = "void";
+      }
+      lambda.params.clear();
+      lambda.params.reserve(expr.fn_params.size());
+      for (const auto& param : expr.fn_params) {
+        ParamDecl cloned_param;
+        cloned_param.name = param.name;
+        cloned_param.mutability = param.mutability;
+        if (!CloneTypeRef(param.type, &cloned_param.type)) return false;
+        lambda.params.push_back(std::move(cloned_param));
+      }
+
+      std::vector<Token> tokens;
+      size_t body_start = 0;
+      if (!expr.fn_body_tokens.empty() && expr.fn_body_tokens[0].kind == TokenKind::LParen) {
+        body_start = 1;
+      }
+      tokens.reserve(expr.fn_body_tokens.size() + 3);
+      Token brace;
+      brace.kind = TokenKind::LBrace;
+      if (body_start < expr.fn_body_tokens.size()) {
+        brace.line = expr.fn_body_tokens[body_start].line;
+        brace.column = expr.fn_body_tokens[body_start].column;
+      }
+      tokens.push_back(brace);
+      tokens.insert(tokens.end(), expr.fn_body_tokens.begin() + body_start, expr.fn_body_tokens.end());
+      Token rbrace;
+      rbrace.kind = TokenKind::RBrace;
+      if (body_start < expr.fn_body_tokens.size()) {
+        rbrace.line = expr.fn_body_tokens.back().line;
+        rbrace.column = expr.fn_body_tokens.back().column;
+      }
+      tokens.push_back(rbrace);
+      Token end;
+      end.kind = TokenKind::End;
+      tokens.push_back(end);
+
+      Parser parser(std::move(tokens));
+      if (!parser.ParseBlock(&lambda.body)) {
+        if (error) *error = parser.Error();
+        return false;
+      }
+
+      uint32_t func_id = st.base_func_count + static_cast<uint32_t>(st.lambda_funcs.size());
+      st.func_ids[lambda.name] = func_id;
+      TypeRef ret;
+      if (!CloneTypeRef(lambda.return_type, &ret)) return false;
+      st.func_returns.emplace(lambda.name, std::move(ret));
+      std::vector<TypeRef> params;
+      params.reserve(lambda.params.size());
+      for (const auto& param : lambda.params) {
+        TypeRef cloned;
+        if (!CloneTypeRef(param.type, &cloned)) return false;
+        params.push_back(std::move(cloned));
+      }
+      st.func_params.emplace(lambda.name, std::move(params));
+      st.lambda_funcs.push_back(std::move(lambda));
+
+      (*st.out) << "  newclosure " << st.lambda_funcs.back().name << " 0\n";
+      return PushStack(st, 1);
+    }
     case ExprKind::Member: {
       if (expr.children.empty()) {
         if (error) *error = "member access missing base";
@@ -876,6 +1058,10 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   if (!IsSupportedType(type) || type.name == "void") {
     if (error) *error = "unsupported default init type '" + type.name + "'";
     return false;
+  }
+  if (type.is_proc) {
+    (*st.out) << "  const.null\n";
+    return PushStack(st, 1);
   }
   if (st.artifacts.find(type.name) != st.artifacts.end()) {
     (*st.out) << "  const.null\n";
@@ -1259,6 +1445,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     st.func_params.emplace(functions[i]->name, std::move(params));
   }
+  st.base_func_count = static_cast<uint32_t>(functions.size());
 
   for (const auto* artifact : artifacts) {
     EmitState::ArtifactLayout layout;
@@ -1283,6 +1470,20 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.artifact_layouts.emplace(artifact->name, std::move(layout));
   }
 
+  std::vector<std::string> function_text;
+  function_text.reserve(functions.size());
+  for (const auto* fn : functions) {
+    std::string func_body;
+    if (!EmitFunction(st, *fn, &func_body, error)) return false;
+    function_text.push_back(std::move(func_body));
+  }
+
+  for (size_t i = 0; i < st.lambda_funcs.size(); ++i) {
+    std::string func_body;
+    if (!EmitFunction(st, st.lambda_funcs[i], &func_body, error)) return false;
+    function_text.push_back(std::move(func_body));
+  }
+
   std::ostringstream result;
   if (!artifacts.empty() || !enums.empty()) {
     result << "types:\n";
@@ -1301,21 +1502,32 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   result << "sigs:\n";
-  for (const auto* fn : functions) {
+  std::vector<const FuncDecl*> all_functions;
+  all_functions.reserve(functions.size() + st.lambda_funcs.size());
+  for (const auto* fn : functions) all_functions.push_back(fn);
+  for (const auto& fn : st.lambda_funcs) all_functions.push_back(&fn);
+  for (const auto* fn : all_functions) {
+    std::string ret = SigTypeNameFromType(fn->return_type, st, error);
+    if (ret.empty()) {
+      if (error && error->empty()) *error = "unsupported return type in signature: " + fn->return_type.name;
+      return false;
+    }
     result << "  sig " << fn->name << ": (";
     for (size_t i = 0; i < fn->params.size(); ++i) {
       if (i > 0) result << ", ";
-      result << fn->params[i].type.name;
+      std::string param = SigTypeNameFromType(fn->params[i].type, st, error);
+      if (param.empty()) {
+        if (error && error->empty()) {
+          *error = "unsupported param type in signature: " + fn->params[i].type.name;
+        }
+        return false;
+      }
+      result << param;
     }
-    result << ") -> " << fn->return_type.name << "\n";
+    result << ") -> " << ret << "\n";
   }
-
-  std::vector<std::string> function_text;
-  function_text.reserve(functions.size());
-  for (const auto* fn : functions) {
-    std::string func_body;
-    if (!EmitFunction(st, *fn, &func_body, error)) return false;
-    function_text.push_back(std::move(func_body));
+  for (const auto& line : st.proc_sig_lines) {
+    result << line << "\n";
   }
 
   if (!st.const_lines.empty()) {
