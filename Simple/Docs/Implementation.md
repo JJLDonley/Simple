@@ -35,13 +35,14 @@ This document defines the full implementation plan for the Simple VM runtime and
 
 ---
 
-## 4) Modules, Docs, and Phase Plans
+## 4) Modules, Docs, Goals, Checklists, Future, Non-Goals
 
-This plan is organized per Simple module. Each module lists:
-- **Docs**: the source-of-truth documents.
-- **Phase Plan**: ordered implementation phases.
-- **Status**: current state and near-term work.
-- **Future**: items explicitly deferred.
+Each module follows the same format:
+- **Docs**: source-of-truth documents.
+- **Goals**: what the module must achieve for v0.1.
+- **Checklist**: detailed, itemized work (with completion).
+- **Future**: items explicitly deferred beyond v0.1.
+- **Non-Goals**: out of scope for now.
 
 ### 4.1 Module: Simple::Byte (SBC Format, Loader, Verifier)
 
@@ -53,18 +54,25 @@ Docs:
 - `Simple/Docs/SBC_OpCodes.md`
 - `Simple/Docs/SBC_Rules.md`
 
-Phase Plan:
-1) SBC header/section parsing and validation.
-2) Table decoding + heap decoding.
-3) Verifier: structural + type safety rules.
-4) Loader/verifier diagnostics and error context.
+Goals (v0.1):
+- A fully specified SBC format with a strict loader and verifier.
+- Frozen opcode IDs, operand widths, and stack effects.
+- Clear diagnostics for invalid modules.
 
-Status:
-- Loader/verifier are implemented and covered by negative tests.
-- Opcode IDs and operand widths are locked for v0.1.
+Checklist:
+- [x] Parse/validate headers and section table.
+- [x] Decode metadata tables + heaps with strict bounds checks.
+- [x] Verify instruction boundaries, stack heights, and type rules.
+- [x] Validate jump targets and call signatures.
+- [x] Freeze opcode IDs/operand widths/stack effects for v0.1.
+- [x] Loader rejects unknown opcodes and malformed instructions.
+- [x] Diagnostics include offsets, table indices, and opcode names.
 
 Future:
-- Additional metadata table evolution (only if new VM features require it).
+- Metadata extensions only when new VM features require them.
+
+Non-Goals:
+- Breaking SBC ABI without version bump.
 
 ### 4.2 Module: Simple::VM (Runtime + GC + JIT)
 
@@ -73,469 +81,157 @@ Docs:
 - `Simple/Docs/SBC_Debug.md`
 - `Simple/Docs/SBC_ABI.md` (ABI/FFI surface)
 
-Phase Plan: (details below)
+Goals (v0.1):
+- Untagged slot runtime with verifier-enforced typing.
+- Interpreter + tiered JIT parity.
+- GC with correct root scanning (stack maps/bitmaps).
+- ABI/FFI tables validated at load time.
 
-### Phase 1: Foundations
-- [DONE] Implement module loader with strict validation per SBC docs.
-- [DONE] Implement metadata tables, string heap, blob heap decoding.
-- [DONE] Implement error reporting with offsets and table indexes.
-- [DONE] Validate DEBUG section header and line table bounds.
+Checklist:
+- [x] Untagged slot runtime (no ValueKind tags).
+- [x] Interpreter covers all core opcodes.
+- [x] Heap objects (string/array/list/artifact/closure).
+- [x] GC roots via stack maps + ref bitmaps at safepoints.
+- [x] JIT tiering with interpreter fallback.
+- [x] Trap diagnostics include opcode + PC + method context.
+- [x] Validate IMPORTS/EXPORTS tables and signatures.
+- [ ] Emit/import-call strategy for externs at runtime (FFI plumbing).
 
-Acceptance:
-- Loader rejects invalid headers and sections.
-- Loader parses all tables and code correctly.
+Future:
+- Generational GC (young/old) and advanced optimizations.
+- Full JIT optimizations beyond tier 1.
 
-### Phase 2: Verifier
-- [DONE] Implement instruction boundary validation.
-- [DONE] Implement stack height tracking with merge checks.
-- [DONE] Implement basic type checking for typed opcodes.
-- [DONE] Validate jump targets and call signatures.
-- [DONE] Verify against VM-level types (i32/i64/f32/f64/ref) rather than runtime tags.
-- [DONE] Emit per-method local type info and stack maps for GC safepoints.
-- [DONE] Emit ref bitmaps for locals/globals.
-
-Acceptance:
-- Invalid bytecode is rejected with clear diagnostics.
-- Verified bytecode can be executed safely.
-
-### Phase 3: Typed Runtime Refactor (No Tagged Values)
-- [DONE] Replace `Value`/`ValueKind` with raw `Slot` storage for stack/locals/globals.
-- [DONE] Remove runtime type checks; rely on verifier + debug asserts.
-- [DONE] Add slot pack/unpack helpers (i32/i64/f32/f64/ref).
-- [DONE] Update call frames to hold untagged locals.
-
-Acceptance:
-- Runtime contains no tagged values and passes existing opcode tests.
-- Verified bytecode executes correctly without runtime type checks.
-
-### Phase 4: Interpreter Core
-- [DONE] Implement stack-based execution engine.
-- [DONE] Support locals, globals, and call frames.
-- [DONE] Locals arena to reduce per-call allocations.
-- [DONE] Implement core opcode groups:
-  - Control
-  - Stack / Constants
-  - Locals / Globals
-  - Arithmetic / Bitwise (typed)
-  - Comparisons
-  - Boolean
-  - Calls / Frames
-- [DONE] Migrate opcode handlers to untagged slots.
-
-Acceptance:
-- Simple arithmetic programs run and return correct exit codes.
-
-### Phase 5: Heap Objects + GC
-- [DONE] Implement heap object headers and type ids.
-- [DONE] Implement strings, arrays, lists, artifacts, closures.
-- [DONE] Replace tag-based GC root scanning with ref bitmaps + stack maps.
-- [DONE] Run GC only at safepoints with stack maps.
-- [NEW] Two-phase GC roadmap (arena/scratch + young/old).
-
-Acceptance:
-- Allocations are tracked and reclaimed safely.
-- Stress tests do not leak memory.
-
-#### Phase 5b: Two-Phase GC Roadmap
-- [NEW] Phase A (Scratch/Arena): add explicit short-lived arenas for transient allocations.
-  - Scope-limited allocations (compiler/JIT/temp runtime helpers).
-  - No-escape rule enforced by API (arena handles cannot be stored in heap objects or globals).
-  - Bulk free on scope end; no GC scan needed.
-- [NEW] Phase B (Young/Old Generational):
-  - Young gen uses copying collection for fast allocation + compaction.
-  - Old gen remains current mark-sweep heap.
-  - Add promotion policy (survivor count/age threshold).
-  - Add write barrier for old->young references (remembered set).
-  - Keep stack maps/ref bitmaps as root sources for both generations.
-
-Acceptance (Phase 5b):
-- Scratch/arena allocations never escape; debug checks catch violations.
-- Young-gen collections keep pause time low under allocation-heavy workloads.
-- Old-gen stability remains (no regressions in existing sweep behavior).
-
-Work (Phase 5b):
-- [DONE] Add `ScratchArena` + `ScratchScope` utility for transient buffers (used in `core.fs` read/write).
-  - [DONE] Add scratch arena/scope unit tests.
-  - [DONE] Add scratch arena alignment test.
-  - [DONE] Enforce scratch scope allocation (no allocations outside scope).
-  - [DONE] Add debug poison mode for arena reset with unit test.
-
-### Phase 6: Extended OpCodes
-- [DONE] Memory / Objects opcodes (field loads/stores, typeof, ref checks).
-- [DONE] Arrays / Lists / Strings opcodes.
-- [DONE] Array/List typed variants for I64/F32/F64/REF.
-- [DONE] Conversions / Casts opcodes.
-- [DONE] Intrinsics and syscalls.
-- [DONE] Ensure all opcodes operate on untagged slots only.
-
-Acceptance:
-- Collections and string ops are correct and bounds-checked.
-
-### Phase 7: Tiered JIT
-- [DONE] Implement Tier 0 quick JIT for hot methods.
-- [DONE] Add counters and hotness tracking.
-- [DONE] Implement Tier 1 optimized JIT pass.
-- [DONE] Add JIT fallback to interpreter on failure.
-- [DONE] JIT execution uses untagged slots + verifier summaries (no tag checks).
-
-Acceptance:
-- Hot functions promote to Tier 1.
-- JIT results match interpreter output.
-
-### Phase 8: Tooling + Diagnostics
-- [DONE] Line number mapping integrated into runtime trap errors.
-- [DONE] Stack trace emission (function indices at minimum).
-- [DONE] Trap errors include per-function PC offsets.
-- [DONE] Trap errors include last opcode name and operand hints for CALL/JMP/JMP_TABLE.
-- [DONE] Breakpoints and basic debug no-ops.
-- [DONE] Profiling hooks.
-
-Acceptance:
-- Debug info produces correct line/column mapping.
-
-### Phase 9: Pre-Freeze (Primitives, ABI, FFI, Core Library)
-
-#### 9.1 Primitive Freeze
-- [DONE] Confirm VM primitive set: `i32/i64/f32/f64/ref` (+ `void` for signatures only).
-- [DONE] Add C-style type + opcode mapping table (storage + operator families).
-- [DONE] Lock VM type ID codes and version them.
-
-##### C-Style Type + Opcode Mapping (Draft)
-| C-Style Type | VM Storage Type | Opcode Families |
-|-------------|------------------|-----------------|
-| bool | i32 | BoolNot/BoolAnd/BoolOr, CmpEqI32 |
-| char | i32 | ConstChar, StringGetChar |
-| i8 | i32 | ConstI8, Inc/DecI8, NegI8 |
-| u8 | i32 | ConstU8, Inc/DecU8 |
-| i16 | i32 | ConstI16, Inc/DecI16, NegI16 |
-| u16 | i32 | ConstU16, Inc/DecU16 |
-| i32 | i32 | Add/Sub/Mul/Div/ModI32, Cmp*I32, BitwiseI32 |
-| u32 | i32 | Add/Sub/Mul/Div/ModU32, Cmp*U32, ShiftI32 |
-| i64 | i64 | Add/Sub/Mul/Div/ModI64, Cmp*I64, BitwiseI64 |
-| u64 | i64 | Add/Sub/Mul/Div/ModU64, Cmp*U64, ShiftI64 |
-| f32 | f32 | Add/Sub/Mul/DivF32, Cmp*F32 |
-| f64 | f64 | Add/Sub/Mul/DivF64, Cmp*F64 |
-| ref<T> | ref | RefEq/RefNe, IsNull, Load/StoreRef, Array/List ops |
-
-Deliverables:
-- Final VM primitive set locked to `i32/i64/f32/f64/ref` (+ `void`).
-- VM type ID codes finalized and documented.
-- C-style type mapping table confirmed (storage + op family).
-
-Work:
-- [DONE] Add explicit VM type ID constants to SBC docs.
-- [DONE] Ensure verifier uses only these primitives as stack/local/global types.
-- [DONE] Update any signatures/metadata that still accept expanded types.
-- [DONE] Explicitly define struct layout rules (field order, alignment, padding) for FFI structs.
-- [DONE] Loader rejects unknown VM type IDs (globals/fields/params/returns/const TYPE).
-
-Tests:
-- Loader rejects unknown VM type IDs.
-- Verifier rejects opcodes with mismatched VM types.
-
-#### 9.2 Opcode + Bytecode ABI Freeze
-Deliverables:
-- Opcode IDs locked; operand widths + stack effects locked.
-- Trap conditions documented (bounds, null, div-by-zero, type mismatches).
-- Jmp/JmpTable encoding fixed (offsets, table layout).
-
-Work:
-- [DONE] Freeze `opcode.h` and `SBC_OpCodes.md` to match.
-- [DONE] Loader rejects unknown opcodes and operand overruns via `GetOpInfo` scan.
-- [DONE] Freeze instruction size table for verifier (OpInfo operand_bytes).
-- [DONE] Add explicit “frozen semantics” section to `SBC_OpCodes.md` (operand widths, stack effects, traps).
-- [DONE] Add opcode ID table to `SBC_OpCodes.md`.
-
-Tests:
-- Loader rejects invalid opcode values.
-- Verifier rejects invalid operand widths or malformed instructions.
-
-#### 9.3 SBC Format Freeze
-Deliverables:
-- Header fields frozen (version, endian, flags, reserved).
-- Section IDs and table layouts frozen.
-- Alignment rules fixed (table + section alignment).
-
-Work:
-- [DONE] Update `SBC_Headers.md`, `SBC_Sections.md`, `SBC_Metadata_Tables.md`.
-- [DONE] Lock const pool formats (string, i128/u128 blobs, f32/f64).
-
-Tests:
-- Existing loader negative tests updated to match frozen rules.
-- [DONE] Add “unknown section id” and “misaligned section” tests.
-
-#### 9.4 Intrinsic ID Freeze
-Deliverables:
-- Intrinsic ID table finalized (IDs + signatures + trap rules).
-- Debug/time/rand/io intrinsics stabilized.
-- SysCall IDs reserved (no verified modules use SYS_CALL).
-
-Work:
-- Intrinsic ID table is defined in `SimpleByteCode/SBC_ABI.md`.
-- [DONE] Define intrinsic IDs as constants in VM.
-- [DONE] Ensure `Intrinsic` opcode validates ID + signature.
-- [DONE] Verifier rejects `SYS_CALL` in v0.1 (reserved in ABI).
-
-Tests:
-- Invalid intrinsic ID rejects at verify or runtime.
-- Signature mismatch is rejected by verifier.
-
-#### 9.5 FFI ABI Freeze
-Deliverables:
-- Import/export table layout finalized.
-- FFI flags and versioning finalized.
-- Ref handle ownership rules defined.
-
-Work:
-- Use `SimpleByteCode/SBC_ABI.md` as the single source of truth for FFI tables.
-- [DONE] Define host API surface for ref/string/array/list access.
-- [DONE] Decide error propagation (trap code + message).
-- [DONE] Define OS-specific core library contracts in `SBC_ABI.md` (`core.os`, `core.fs`, `core.log`).
-- [DONE] Document `core.fs` buffer layout (Array<i32> with low 8-bit bytes) in `SBC_ABI.md`.
-- [DONE] Define concrete FFI error convention (return codes + trap behavior).
-- [DONE] Define pinning policy (explicitly allowed or explicitly forbidden).
-- [DONE] Parse and validate IMPORTS/EXPORTS sections (names, sig/func ids, flags, reserved).
-- Decide import-call strategy:
-  - Option A: `CALL_IMPORT idx,u8` opcode that targets IMPORTS.
-  - [DONE] Option B: imports are mapped into Functions table at load time (host-resolved).
-  - Option C: imports only via host reflection API (no VM opcode).
-
-Tests:
-- [DONE] Loader rejects malformed import/export tables.
-- [DONE] Verifier rejects call signatures not matching import sigs.
-- [DONE] Loader rejects IMPORTS/EXPORTS when const pool is missing.
-
-#### 9.6 Core Library Contract (No Impl Yet)
-Deliverables:
-- Core library namespaces + signatures frozen.
-- Error model per namespace fixed (trap vs return code).
-
-Work:
-- [DONE] Enumerate core library functions that are NOT opcode-backed.
-- [DONE] Decide which are intrinsic vs bytecode helpers.
-- [DONE] Keep OS-specific contracts in `SBC_ABI.md` and enforce via import table.
-
-Tests:
-- [DONE] Intrinsic ID table coverage for declared core functions.
-- [DONE] Import smoke tests for `core.log` (buffer + len).
-
-#### 9.7 Freeze Gates + Tag
-Deliverables:
-- All freeze-gate tests green.
-- Create a freeze tag (e.g., `vm-freeze-v0.1`).
-
-Work:
-- Run full suite; add missing ABI/FFI tests.
-- [DONE] Final review of SBC docs vs VM behavior.
-
-Tests:
-- [DONE] Full test suite pass.
-- [DONE] ABI validation tests pass.
-- [DONE] FFI table validation tests pass.
-- [DONE] Intrinsic ID table validation tests pass.
-- [DONE] Cross-version compatibility skeleton tests pass.
-
-### Phase 10: VM IR (IL Emitter)
-
-Deliverables:
-- VM IR emitter that produces SBC bytecode (stack-based, typed).
-- Label/fixup support for control-flow emission.
-- IR doc describing model + emission rules.
-
-Work:
-- [DONE] Add `IrBuilder` for emitting SBC bytecode with labels/fixups.
-- [DONE] Add `SBC_IR.md` spec document.
-- [DONE] Add IR emission tests (const/add and jump fixup).
-- [DONE] Formalize Simple IR spec (scope, stack rules, labels, error model, API).
-- [DONE] Add standardized SBC emitter helpers and migrate `gen_sbc` to use them.
-- [NEW] Extend IR builder to cover full opcode families (arrays/lists/strings/fields).
-- [NEW] Add IR-level source mapping hooks (optional).
-
-Tests:
-- [DONE] `ir_emit_add` (const/add/ret).
-- [DONE] `ir_emit_jump` (relative jump fixup).
-
----
+Non-Goals:
+- Unsafe pointers or raw host memory access.
 
 ### 4.3 Module: Simple::IR (SIR Text + IR Compiler)
 
 Docs:
-- `Simple/Docs/SBC_IR.md`
+- `Simple/Docs/IR.md`
+- `Simple/Docs/SBC_IR.md` (legacy reference)
 
-Phase Plan:
-1) SIR text grammar + tokenizer.
-2) SIR metadata tables (types/sigs/consts/imports/globals/upvalues).
-3) Name resolution + type validation.
-4) Lowering to SBC via emitter.
-5) SIR diagnostics + line/column mapping.
-6) SIR perf harness + real-program suite.
+Goals (v0.1):
+- Text IR that lowers to SBC with strict validation.
+- Metadata tables for named resolution and diagnostics.
 
-Status:
-- SIR text, metadata tables, name resolution, and lowering are implemented.
-- Diagnostics include line context; perf harness runs .sir programs.
+Checklist:
+- [x] SIR text grammar + tokenizer.
+- [x] Metadata tables (types/sigs/consts/imports/globals/upvalues).
+- [x] Name resolution + type validation.
+- [x] Lowering to SBC via emitter.
+- [x] Line-aware diagnostics.
+- [x] Perf harness for .sir programs.
 
 Future:
-- Optional ergonomics (macros/includes) only if needed for authoring.
+- Optional IR authoring ergonomics (includes/macros).
+
+Non-Goals:
+- SSA or optimizer-level IR.
 
 ### 4.4 Module: Simple::CLI (Runner + Tools)
 
 Docs:
-- `Simple/VM/README.md` (runtime usage)
+- `Simple/Docs/CLI.md`
 
-Phase Plan:
-1) CLI entry for VM run + verify.
-2) SIR perf runner + reporting.
-3) Diagnostics flags and output control.
+Goals (v0.1):
+- Compile/run/check Simple and SIR.
+- Optional static/dynamic embedded executables.
+- Clear error output for users.
 
-Status:
-- Test runners and perf harness are implemented.
+Checklist:
+- [x] `simplevm run/build/check/emit` commands.
+- [x] Build with `-d/--dynamic` and `-s/--static`.
+- [x] Error format `error[E0001]: ...` with line/column.
+- [ ] Range highlights in diagnostics.
 
 Future:
-- Dedicated `simplevm` CLI binary once core stabilizes.
+- Dedicated `simple` CLI front-end and subcommands.
+
+Non-Goals:
+- Full package manager or LSP integration.
 
 ### 4.5 Module: Simple::Tests
 
 Docs:
 - `Simple/Docs/Sprint.md`
 
-Phase Plan:
-1) Core/IR/JIT test suites split by module.
-2) SIR text fixtures for real-program coverage.
-3) Negative tests for loader/verifier/runtime traps.
+Goals (v0.1):
+- Reliable unit tests + .simple fixtures.
+- Negative tests for parser/semantic/runtime errors.
+- Perf harness for IR/SIR.
 
-Status:
-- Test suites are split and running; SIR perf suite exists.
+Checklist:
+- [x] Core/IR/JIT test suites split by module.
+- [x] SIR perf suite with real programs.
+- [x] .simple fixtures + negative fixtures.
+- [x] CLI tests for build/run/check/emit.
 
 Future:
-- Expand perf baselines and regression thresholds.
+- Perf baselines and regression thresholds.
+
+Non-Goals:
+- Exhaustive fuzzing in v0.1.
 
 ### 4.6 Module: Simple::Lang (Language Front-End)
 
 Docs:
-- `Simple/Docs/Lang.md` (authoritative language spec)
+- `Simple/Docs/Lang.md` (authoritative spec)
 
-Unified Implementation Plan (Merged)
+Goals (v0.1):
+- Full language front-end to SIR text.
+- Strict typing + mutability checks per spec.
+- IO.print/println lowering via intrinsics.
+- Standardized core library surface with reserved imports.
 
-Phase 1: Minimal Compiler (MVP)
-- Variables (mutable/immutable)
-- Primitive types (i32, f64, bool, string)
-- Binary expressions (arithmetic, comparison)
-- Simple if statements
-- Procedure definitions and calls
-- Built-ins: IO.print/IO.println
-- Deliverable: Hello World compiles and runs
-
-Phase 2: Control Flow
-- If-else chains (|>)
-- While/for loops
-- Break/skip
-- Deliverable: FizzBuzz compiles and runs
-
-Phase 3: Artifacts and Methods
-- Artifact definitions/instantiation
-- Member access and method calls
-- Deliverable: Point/Rectangle example compiles and runs
-
-Phase 4: Advanced Features
-- Modules and enums
-- Arrays and lists
-- First-class procedures (Fn)
-- Generics
-- Imports/extern declarations (optional alias)
-- FFI signatures + VM dlopen/dlsym plumbing
-- Deliverable: Full language support compiles and runs
-
-Phase 5: Optimization and Tooling
-- Error recovery in parser
-- Improved diagnostics
-- Basic optimizations
-- Standard library wiring
-- LSP/debugger hooks (optional)
-
-Compiler Pipeline Checklist
+Checklist:
 1) Lexer
-- [ ] Recognize all keywords (while/for/break/skip/return/default/fn/self/artifact/enum/module/true/false/import/extern/as)
-- [ ] Recognize literals (int/float/string/char/bool)
-- [ ] Recognize operators/punctuators (including ::, |>, [], (), {})
-- [ ] Emit distinct tokens for : vs ::
-- [ ] Single-line/multi-line comments
-- [ ] Line/column tracking
-- [ ] Emit EOF token
+- [x] Keywords + literals + operators + comments.
+- [x] Line/column tracking + EOF.
 
 2) Parser
-- [ ] Parse program structure (declaration*)
-- [ ] Parse declarations (variables/procedures/artifacts/modules/enums)
-- [x] Parse imports (import "lib" [as Alias])
-- [x] Parse extern declarations (extern [Module.]Name : Return (params...))
-- [ ] Parse parameter lists with mutability
-- [ ] Parse types (primitive/arrays/lists/proc/user-defined)
-- [ ] Parse generic params and args
-- [ ] Parse statements (assign/if/|>/while/for/return/break/skip/block)
-- [ ] Parse expressions (precedence/associativity)
-- [ ] Parse artifact/array literals
-- [ ] Error recovery (Phase 5)
+- [x] Declarations (var/proc/artifact/module/enum).
+- [x] Types (primitives/arrays/lists/proc/user-defined).
+- [x] Generics parsing.
+- [x] Statements/expressions with precedence.
+- [x] Imports and extern declarations.
+- [x] Error recovery.
 
 3) AST
-- [ ] Full nodes for declarations/statements/expressions
-- [ ] Type nodes including generic instances/params
-- [ ] Preserve source spans
-- [ ] Normalize precedence
-- [ ] ImportDecl/ExternDecl nodes
+- [x] Full node coverage + spans.
+- [x] Generic type nodes.
+- [x] Import/Extern nodes.
 
 4) Semantic Analysis
-- [ ] Build scopes/symbol table
-- [ ] Enforce explicit typing
-- [ ] Resolve identifiers + enum qualification
-- [ ] Mutability rules (: vs ::)
-- [ ] Type checking for expressions/assignments
-- [ ] Procedure rules (returns/all paths)
-- [ ] Artifact rules (init/self access)
-- [ ] Generic rules (scope/instantiation/inference)
-- [ ] Validate array sizes (compile-time)
-- [ ] Validate list/array indexing
-- [x] Validate import/extern declarations and extern call signatures
+- [x] Scope/symbol resolution.
+- [x] Mutability and type checking.
+- [x] Return path checking.
+- [x] Array/list indexing validation.
+- [x] Import/extern validation.
 
-5) Bytecode/SIR Generation
-- [ ] Emit VM instructions for primitives/arrays/lists/artifacts/modules/enums
-- [ ] Emit closures for Fn procedures
-- [ ] Monomorphize generics
-- [ ] Emit globals/locals with stable slots
-- [ ] Emit control flow (if/|>/while/for/break/skip)
-- [ ] Emit expression evaluation (binary/unary/call/index/member)
-- [ ] Emit artifact init (positional/named)
-- [ ] Emit array/list literals
-- [ ] Emit return/default return
-- [ ] Emit extern tables and FFI call sites (dlopen/dlsym bindings)
+5) SIR Emission
+- [x] Emit expressions, control flow, arrays/lists, artifacts, methods, Fn.
+- [x] Default returns and locals/globals.
+- [ ] Emit extern tables and FFI call sites (dlopen/dlsym bindings).
 
-6) Bytecode Packaging
-- [ ] Build module header + section tables
-- [ ] Define entry point (main : i32 ())
-- [ ] Write module to disk (.sbc)
+6) Diagnostics
+- [x] Error format + line/column.
+- [ ] Range highlights.
 
-7) Diagnostics
-- [ ] Uniform error format (error[E0001]: ...)
-- [ ] Line/column + range highlights
-- [ ] Distinguish syntax vs semantic errors
+7) CLI Integration
+- [x] simplevm compile/run/check Simple source.
 
-8) CLI
-- [ ] simple build emits .sbc
-- [ ] simple run compiles + executes on VM
-- [ ] simple check validates syntax only
+8) Standard Library + Imports
+- [ ] Standardized library layout and naming (core + optional modules).
+- [ ] Reserved import paths for core libraries (Math, IO, Time, File, etc).
+- [ ] Import resolver maps reserved names to core library modules before filesystem/relative lookups.
 
-Language Feature Checklist
-- Variables/mutability, Types, Expressions, Statements, Procedures/Fn, Artifacts, Modules, Enums, Generics, Standard Library
+Future:
+- Full runtime wiring of standard library modules.
+- Diagnostics range highlights and UX polish.
+- FFI call lowering + runtime import resolution.
 
-Phase Milestones
-- Phase 1: Hello World
-- Phase 2: FizzBuzz
-- Phase 3: Point/Rectangle
-- Phase 4: Full language examples
-- Phase 5: Tooling/optimization/diagnostics
-
-Non-Goals
-- Pointers/unsafe
-- Pattern matching
-- Packages/import system beyond basic import/extern
+Non-Goals:
+- Pattern matching, unsafe pointers, full package/import system.
 
 ## 5) Testing Strategy
 

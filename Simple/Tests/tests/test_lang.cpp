@@ -206,6 +206,12 @@ bool LangSimpleBadPrintArray() {
       "IO.print");
 }
 
+bool LangSimpleBadImportUnknown() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/import_unknown.simple",
+      "unsupported import path");
+}
+
 bool LangSimpleBadEnumUnqualified() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/enum_unqualified.simple",
@@ -2629,6 +2635,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
+  {"lang_simple_bad_import_unknown", LangSimpleBadImportUnknown},
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
   {"lang_simple_bad_enum_unknown_member", LangSimpleBadEnumUnknownMember},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},

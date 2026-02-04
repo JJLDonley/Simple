@@ -65,6 +65,16 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
   "bool", "char", "string",
 };
 
+bool IsReservedImportPath(const std::string& path) {
+  static const std::unordered_set<std::string> kReserved = {
+    "Math",
+    "IO",
+    "Time",
+    "File",
+  };
+  return kReserved.find(path) != kReserved.end();
+}
+
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
@@ -2452,6 +2462,14 @@ bool CheckFunctionBody(const FuncDecl& fn,
 } // namespace
 
 bool ValidateProgram(const Program& program, std::string* error) {
+  for (const auto& decl : program.decls) {
+    if (decl.kind != DeclKind::Import) continue;
+    if (!IsReservedImportPath(decl.import_decl.path)) {
+      if (error) *error = "unsupported import path: " + decl.import_decl.path;
+      return false;
+    }
+  }
+
   ValidateContext ctx;
   for (const auto& decl : program.decls) {
     const std::string* name_ptr = nullptr;
