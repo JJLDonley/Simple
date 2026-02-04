@@ -757,3 +757,4 @@
 - Added `simple` CLI alias (copy of `simplevm`) and a test to run it.
 - Added Simple fixtures for module function params and artifact named initialization.
 - Added .simple negative fixtures for module/function used as types.
+- Added array nested fixture and array/list literal negative fixtures (size/type mismatch, non-container indexing).

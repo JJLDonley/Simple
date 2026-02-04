@@ -1,0 +1,4 @@
+main : i32 () {
+  values : i32[] = [1, "nope"]
+  return 0
+}

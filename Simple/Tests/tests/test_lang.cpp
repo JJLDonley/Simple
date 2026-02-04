@@ -148,6 +148,10 @@ bool LangSimpleFixtureArtifactNamedInit() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
 }
 
+bool LangSimpleFixtureArrayNested() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/array_nested.simple", 3);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -248,6 +252,30 @@ bool LangSimpleBadFunctionAsType() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/function_as_type.simple",
       "function is not a type");
+}
+
+bool LangSimpleBadArraySizeMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/array_size_mismatch.simple",
+      "array literal size");
+}
+
+bool LangSimpleBadArrayElemTypeMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/array_elem_type_mismatch.simple",
+      "array literal element type mismatch");
+}
+
+bool LangSimpleBadListElemTypeMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/list_elem_type_mismatch.simple",
+      "array literal element type mismatch");
+}
+
+bool LangSimpleBadIndexNonContainer() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/index_non_container.simple",
+      "indexing is only valid");
 }
 
 bool LangCliEmitIr() {
@@ -2347,6 +2375,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
   {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
   {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},
+  {"lang_simple_fixture_array_nested", LangSimpleFixtureArrayNested},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
@@ -2366,6 +2395,10 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_enum_type_as_value", LangSimpleBadEnumTypeAsValue},
   {"lang_simple_bad_module_as_type", LangSimpleBadModuleAsType},
   {"lang_simple_bad_function_as_type", LangSimpleBadFunctionAsType},
+  {"lang_simple_bad_array_size_mismatch", LangSimpleBadArraySizeMismatch},
+  {"lang_simple_bad_array_elem_type_mismatch", LangSimpleBadArrayElemTypeMismatch},
+  {"lang_simple_bad_list_elem_type_mismatch", LangSimpleBadListElemTypeMismatch},
+  {"lang_simple_bad_index_non_container", LangSimpleBadIndexNonContainer},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
