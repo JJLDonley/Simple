@@ -207,6 +207,7 @@ bool BuildEmbeddedExecutable(const std::string& root_dir,
   cmd += QuoteArg((byte_dir / "src" / "opcode.cpp").string()) + " ";
   cmd += QuoteArg((byte_dir / "src" / "sbc_loader.cpp").string()) + " ";
   cmd += QuoteArg((byte_dir / "src" / "sbc_verifier.cpp").string()) + " ";
+  cmd += "-ldl ";
   cmd += "-o " + QuoteArg(out_path);
 
   int rc = std::system(cmd.c_str());

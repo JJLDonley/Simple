@@ -52,6 +52,7 @@ These FFI modules are resolved via the import table and handled by the VM:
 - `core.os` (args/env/cwd/time/sleep)
 - `core.fs` (file IO)
 - `core.log` (logging)
+- `core.dl` (dlopen/dlsym/dlclose + last_error)
 
 ### Compiler Import Resolver Aliases
 
@@ -60,3 +61,4 @@ To reference core FFI modules from `extern` declarations, the compiler recognize
 - `core_os` -> `core.os`
 - `core_fs` -> `core.fs`
 - `core_log` -> `core.log`
+- `core_dl` -> `core.dl`

@@ -225,6 +225,7 @@ Checklist:
 - [x] Reserved import paths for core libraries (Math, IO, Time, File, etc).
 - [x] Import resolver maps reserved names to core library modules before filesystem/relative lookups.
 - [x] Runtime wiring for Math/IO/Time/File intrinsics and FFI bindings.
+- [x] Core dynamic loader FFI bindings (core.dl).
 
 Future:
 - Diagnostics range highlights and UX polish.

@@ -786,3 +786,5 @@
 - Added `simple` CLI front-end behavior (simple-only inputs + usage).
 - Added CLI tests for `simple check` and `.sir` rejection.
 - Wired Time intrinsics to real clocks and added intrinsic_time test coverage.
+- Added core.dl import handling (open/sym/close/last_error) for Linux dynamic loading.
+- Added core.dl import alias (core_dl) and documentation updates.

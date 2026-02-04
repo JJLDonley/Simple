@@ -116,6 +116,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$BYTE_DIR/include" \
   "${TEST_DEFINES[@]}" \
   "${OBJECTS[@]}" \
+  -ldl \
   -o "$OUT_DIR/simplevm_tests_$SUITE"
 
 g++ -std=c++17 -O2 -Wall -Wextra \
@@ -136,6 +137,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "$BYTE_DIR/src/opcode.cpp" \
   "$BYTE_DIR/src/sbc_loader.cpp" \
   "$BYTE_DIR/src/sbc_verifier.cpp" \
+  -ldl \
   -o "$OUT_DIR/simplevm"
 
 cp "$OUT_DIR/simplevm" "$OUT_DIR/simple"

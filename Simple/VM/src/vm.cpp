@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <dlfcn.h>
 #include <filesystem>
 #include <limits>
 #include <sstream>
@@ -468,6 +469,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
   std::vector<std::FILE*> open_files;
+  std::string dl_last_error;
   uint64_t compile_tick = 0;
   auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
                                 bool& out_has_ret, std::string& out_error) -> bool {
@@ -752,6 +754,128 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (mod == "core.log") {
       if (sym == "log") {
         out_has_ret = false;
+        return true;
+      }
+    }
+    if (mod == "core.dl") {
+      auto set_dl_error = [&](const std::string& text) {
+        dl_last_error = text;
+      };
+      if (sym == "open") {
+        if (ret_kind != TypeKind::I64) {
+          out_error = "core.dl.open return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.dl.open arg count mismatch";
+          return false;
+        }
+        uint32_t path_ref = UnpackRef(args[0]);
+        if (path_ref == kNullRef) {
+          set_dl_error("core.dl.open null path");
+          out_ret = PackI64(0);
+          return true;
+        }
+        HeapObject* path_obj = heap.Get(path_ref);
+        if (!path_obj || path_obj->header.kind != ObjectKind::String) {
+          set_dl_error("core.dl.open path not string");
+          out_ret = PackI64(0);
+          return true;
+        }
+        std::string path = U16ToAscii(ReadString(path_obj));
+        dlerror();
+        void* handle = dlopen(path.c_str(), RTLD_LAZY);
+        if (!handle) {
+          const char* err = dlerror();
+          set_dl_error(err ? err : "core.dl.open failed");
+          out_ret = PackI64(0);
+          return true;
+        }
+        dl_last_error.clear();
+        out_ret = PackI64(reinterpret_cast<int64_t>(handle));
+        return true;
+      }
+      if (sym == "sym") {
+        if (ret_kind != TypeKind::I64) {
+          out_error = "core.dl.sym return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.dl.sym arg count mismatch";
+          return false;
+        }
+        int64_t handle_bits = UnpackI64(args[0]);
+        if (handle_bits == 0) {
+          set_dl_error("core.dl.sym null handle");
+          out_ret = PackI64(0);
+          return true;
+        }
+        uint32_t name_ref = UnpackRef(args[1]);
+        if (name_ref == kNullRef) {
+          set_dl_error("core.dl.sym null name");
+          out_ret = PackI64(0);
+          return true;
+        }
+        HeapObject* name_obj = heap.Get(name_ref);
+        if (!name_obj || name_obj->header.kind != ObjectKind::String) {
+          set_dl_error("core.dl.sym name not string");
+          out_ret = PackI64(0);
+          return true;
+        }
+        std::string name = U16ToAscii(ReadString(name_obj));
+        dlerror();
+        void* sym_ptr = dlsym(reinterpret_cast<void*>(handle_bits), name.c_str());
+        const char* err = dlerror();
+        if (err) {
+          set_dl_error(err);
+          out_ret = PackI64(0);
+          return true;
+        }
+        dl_last_error.clear();
+        out_ret = PackI64(reinterpret_cast<int64_t>(sym_ptr));
+        return true;
+      }
+      if (sym == "close") {
+        if (ret_kind != TypeKind::I32) {
+          out_error = "core.dl.close return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.dl.close arg count mismatch";
+          return false;
+        }
+        int64_t handle_bits = UnpackI64(args[0]);
+        if (handle_bits == 0) {
+          set_dl_error("core.dl.close null handle");
+          out_ret = PackI32(-1);
+          return true;
+        }
+        int rc = dlclose(reinterpret_cast<void*>(handle_bits));
+        if (rc != 0) {
+          const char* err = dlerror();
+          set_dl_error(err ? err : "core.dl.close failed");
+          out_ret = PackI32(-1);
+          return true;
+        }
+        dl_last_error.clear();
+        out_ret = PackI32(0);
+        return true;
+      }
+      if (sym == "last_error") {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "core.dl.last_error return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.dl.last_error arg count mismatch";
+          return false;
+        }
+        if (dl_last_error.empty()) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        uint32_t handle = CreateString(heap, AsciiToU16(dl_last_error));
+        out_ret = PackRef(handle);
         return true;
       }
     }
