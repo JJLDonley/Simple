@@ -791,3 +791,5 @@
 - Added a tiny test shared library and a core_dl .simple fixture to validate dlopen/dlsym/close.
 - Added reserved Core.* namespaces (Core.DL/Core.Os/Core.Fs/Core.Log) with validation and SIR emission support.
 - Fixed core_dl_open.simple fixture (removed unsupported := assignment).
+- Fixed Core.* member validation to allow Core namespace usage in member chains.
+- Fixed Core identifier validation when Core.* reserved imports are enabled.

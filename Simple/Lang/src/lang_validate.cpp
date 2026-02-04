@@ -637,6 +637,9 @@ bool InferExprType(const Expr& expr,
     case ExprKind::Member: {
       if (expr.op != "." || expr.children.empty()) return false;
       const Expr& base = expr.children[0];
+      if (base.kind == ExprKind::Identifier && base.text == "Core") {
+        return true;
+      }
       if (base.kind == ExprKind::Identifier) {
         if (base.text == "self") {
           const VarDecl* field = FindArtifactField(current_artifact, expr.text);
@@ -2396,6 +2399,12 @@ bool CheckExpr(const Expr& expr,
         }
         return true;
       }
+      if (expr.text == "Core") {
+        if (IsReservedModuleEnabled(ctx, "Core.DL") || IsReservedModuleEnabled(ctx, "Core.Os") ||
+            IsReservedModuleEnabled(ctx, "Core.Fs") || IsReservedModuleEnabled(ctx, "Core.Log")) {
+          return true;
+        }
+      }
       if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
         if (error) *error = "artifact members must be accessed via self: " + expr.text;
         PrefixErrorLocation(expr.line, expr.column, error);
@@ -2684,6 +2693,18 @@ bool CheckExpr(const Expr& expr,
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }
+        }
+        std::string module_name;
+        if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
+          TypeRef var_type;
+          CallTargetInfo info;
+          if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+              GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
+            return true;
+          }
+          if (error) *error = "unknown module member: " + module_name + "." + expr.text;
+          PrefixErrorLocation(expr.line, expr.column, error);
+          return false;
         }
         TypeRef base_type;
         if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
