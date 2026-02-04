@@ -70,9 +70,15 @@ struct IrTextGlobal {
 };
 
 struct IrTextImport {
-  std::string kind; // syscall | intrinsic
-  std::string name;
+  std::string kind; // syscall | intrinsic | import
+  std::string name; // syscall/intrinsic name, or import local name
   uint32_t id = 0;
+  std::string module;
+  std::string symbol;
+  std::string sig;
+  uint32_t flags = 0;
+  bool has_sig = false;
+  bool has_flags = false;
 };
 
 struct IrTextModule {

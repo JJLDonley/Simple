@@ -211,7 +211,7 @@ Checklist:
 5) SIR Emission
 - [x] Emit expressions, control flow, arrays/lists, artifacts, methods, Fn.
 - [x] Default returns and locals/globals.
-- [ ] Emit extern tables and FFI call sites (dlopen/dlsym bindings).
+- [x] Emit extern import tables and FFI call sites.
 
 6) Diagnostics
 - [x] Error format + line/column.
@@ -221,14 +221,14 @@ Checklist:
 - [x] simplevm compile/run/check Simple source.
 
 8) Standard Library + Imports
-- [ ] Standardized library layout and naming (core + optional modules).
-- [ ] Reserved import paths for core libraries (Math, IO, Time, File, etc).
-- [ ] Import resolver maps reserved names to core library modules before filesystem/relative lookups.
+- [x] Standardized library layout and naming (core + optional modules).
+- [x] Reserved import paths for core libraries (Math, IO, Time, File, etc).
+- [x] Import resolver maps reserved names to core library modules before filesystem/relative lookups.
 
 Future:
 - Full runtime wiring of standard library modules.
 - Diagnostics range highlights and UX polish.
-- FFI call lowering + runtime import resolution.
+- Expanded FFI surface and host bindings.
 
 Non-Goals:
 - Pattern matching, unsafe pointers, full package/import system.

@@ -21,6 +21,7 @@ struct ValidateContext {
   std::unordered_map<std::string, const FuncDecl*> functions;
   std::unordered_map<std::string, const ExternDecl*> externs;
   std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
+  std::unordered_set<std::string> reserved_imports;
 };
 
 struct LocalInfo {
@@ -73,6 +74,102 @@ bool IsReservedImportPath(const std::string& path) {
     "File",
   };
   return kReserved.find(path) != kReserved.end();
+}
+
+bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
+  return ctx.reserved_imports.find(name) != ctx.reserved_imports.end();
+}
+
+TypeRef MakeSimpleType(const std::string& name) {
+  TypeRef out;
+  out.name = name;
+  out.type_args.clear();
+  out.dims.clear();
+  out.is_proc = false;
+  out.proc_params.clear();
+  out.proc_return.reset();
+  return out;
+}
+
+TypeRef MakeListType(const std::string& name) {
+  TypeRef out = MakeSimpleType(name);
+  TypeDim dim;
+  dim.is_list = true;
+  dim.has_size = false;
+  dim.size = 0;
+  out.dims.push_back(dim);
+  return out;
+}
+
+bool GetReservedModuleVarType(const ValidateContext& ctx,
+                              const std::string& module,
+                              const std::string& member,
+                              TypeRef* out) {
+  if (!IsReservedModuleEnabled(ctx, module)) return false;
+  if (module == "Math" && member == "PI") {
+    if (out) *out = MakeSimpleType("f64");
+    return true;
+  }
+  return false;
+}
+
+bool GetReservedModuleCallTarget(const ValidateContext& ctx,
+                                 const std::string& module,
+                                 const std::string& member,
+                                 CallTargetInfo* out) {
+  if (!IsReservedModuleEnabled(ctx, module)) return false;
+  if (!out) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = false;
+  if (module == "Math") {
+    if (member == "abs") {
+      out->params.push_back(MakeSimpleType("T"));
+      out->return_type = MakeSimpleType("T");
+      out->return_mutability = Mutability::Mutable;
+      out->type_params = {"T"};
+      return true;
+    }
+    if (member == "min" || member == "max") {
+      out->params.push_back(MakeSimpleType("T"));
+      out->params.push_back(MakeSimpleType("T"));
+      out->return_type = MakeSimpleType("T");
+      out->return_mutability = Mutability::Mutable;
+      out->type_params = {"T"};
+      return true;
+    }
+  }
+  if (module == "Time") {
+    if (member == "mono_ns" || member == "wall_ns") {
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (module == "File") {
+    if (member == "open") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "close") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "read" || member == "write") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  return false;
 }
 
 bool IsIoPrintName(const std::string& name) {
@@ -317,6 +414,12 @@ bool CheckTypeRef(const TypeRef& type,
   const bool is_type_param = type_params.find(type.name) != type_params.end();
   const bool is_user_type = ctx.top_level.find(type.name) != ctx.top_level.end();
 
+  if (IsReservedModuleEnabled(ctx, type.name)) {
+    if (error) *error = "module is not a type: " + type.name;
+    PrefixErrorLocation(type.line, type.column, error);
+    return false;
+  }
+
   if (!is_primitive && !is_type_param && !is_user_type) {
     if (error) *error = "unknown type: " + type.name;
     PrefixErrorLocation(type.line, type.column, error);
@@ -438,6 +541,11 @@ bool InferExprType(const Expr& expr,
           return CloneTypeRef(fn->return_type, out);
         }
         return false;
+      }
+      if (IsReservedModuleEnabled(ctx, base.text)) {
+        if (GetReservedModuleVarType(ctx, base.text, expr.text, out)) {
+          return true;
+        }
       }
       auto ext_mod_it = ctx.externs_by_module.find(base.text);
       if (ext_mod_it != ctx.externs_by_module.end()) {
@@ -818,6 +926,20 @@ bool CheckCallTarget(const Expr& callee,
         }
         return true;
       }
+      if (IsReservedModuleEnabled(ctx, base.text)) {
+        CallTargetInfo info;
+        if (GetReservedModuleCallTarget(ctx, base.text, callee.text, &info)) {
+          if (info.params.size() != arg_count) {
+            if (error) {
+              *error = "call argument count mismatch for " + base.text + "." + callee.text +
+                       ": expected " + std::to_string(info.params.size()) +
+                       ", got " + std::to_string(arg_count);
+            }
+            return false;
+          }
+          return true;
+        }
+      }
       auto ext_mod_it = ctx.externs_by_module.find(base.text);
       if (ext_mod_it != ctx.externs_by_module.end()) {
         auto ext_it = ext_mod_it->second.find(callee.text);
@@ -1015,6 +1137,11 @@ bool GetCallTargetInfo(const Expr& callee,
           return true;
         }
       }
+      if (IsReservedModuleEnabled(ctx, base.text)) {
+        if (GetReservedModuleCallTarget(ctx, base.text, callee.text, out)) {
+          return true;
+        }
+      }
       auto ext_mod_it = ctx.externs_by_module.find(base.text);
       if (ext_mod_it != ctx.externs_by_module.end()) {
         auto ext_it = ext_mod_it->second.find(callee.text);
@@ -1131,6 +1258,93 @@ bool CheckCallArgTypes(const Expr& call_expr,
                        std::string* error) {
   if (call_expr.kind != ExprKind::Call || call_expr.children.empty()) return true;
   const Expr& callee = call_expr.children[0];
+  if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
+    const Expr& base = callee.children[0];
+    if (base.kind == ExprKind::Identifier && IsReservedModuleEnabled(ctx, base.text)) {
+      const std::string& mod = base.text;
+      const std::string& name = callee.text;
+      auto infer_arg = [&](size_t index, TypeRef* out_type) -> bool {
+        if (!out_type) return false;
+        if (index >= call_expr.args.size()) return false;
+        return InferExprType(call_expr.args[index], ctx, scopes, current_artifact, out_type);
+      };
+      auto is_i32_buffer = [&](const TypeRef& t) -> bool {
+        return t.name == "i32" && !t.is_proc && t.type_args.empty() &&
+               t.dims.size() == 1;
+      };
+      if (mod == "Math") {
+        if (name == "abs") {
+          if (call_expr.args.size() != 1) return true;
+          TypeRef arg;
+          if (!infer_arg(0, &arg)) return true;
+          if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
+            if (error) *error = "Math.abs expects i32 or i64 argument";
+            return false;
+          }
+          return true;
+        }
+        if (name == "min" || name == "max") {
+          if (call_expr.args.size() != 2) return true;
+          TypeRef a;
+          TypeRef b;
+          if (!infer_arg(0, &a) || !infer_arg(1, &b)) return true;
+          auto allowed = [&](const TypeRef& t) {
+            return t.name == "i32" || t.name == "i64" || t.name == "f32" || t.name == "f64";
+          };
+          if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
+            if (error) *error = "Math." + name + " expects two numeric arguments of the same type";
+            return false;
+          }
+          return true;
+        }
+      }
+      if (mod == "Time") {
+        if (name == "mono_ns" || name == "wall_ns") {
+          if (!call_expr.args.empty()) {
+            if (error) *error = "Time." + name + " expects no arguments";
+            return false;
+          }
+          return true;
+        }
+      }
+      if (mod == "File") {
+        if (name == "open") {
+          if (call_expr.args.size() != 2) return true;
+          TypeRef path;
+          TypeRef flags;
+          if (!infer_arg(0, &path) || !infer_arg(1, &flags)) return true;
+          if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
+            if (error) *error = "File.open expects (string, i32)";
+            return false;
+          }
+          return true;
+        }
+        if (name == "close") {
+          if (call_expr.args.size() != 1) return true;
+          TypeRef fd;
+          if (!infer_arg(0, &fd)) return true;
+          if (fd.name != "i32" || !fd.dims.empty()) {
+            if (error) *error = "File.close expects (i32)";
+            return false;
+          }
+          return true;
+        }
+        if (name == "read" || name == "write") {
+          if (call_expr.args.size() != 3) return true;
+          TypeRef fd;
+          TypeRef buf;
+          TypeRef len;
+          if (!infer_arg(0, &fd) || !infer_arg(1, &buf) || !infer_arg(2, &len)) return true;
+          if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
+              !is_i32_buffer(buf)) {
+            if (error) *error = "File." + name + " expects (i32, i32[], i32)";
+            return false;
+          }
+          return true;
+        }
+      }
+    }
+  }
   CallTargetInfo info;
   if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, error)) return true;
   if (!info.type_params.empty() && !call_expr.type_args.empty()) {
@@ -1308,6 +1522,10 @@ bool CheckAssignmentTarget(const Expr& target,
           return false;
         }
         return true;
+      }
+      if (IsReservedModuleEnabled(ctx, base.text)) {
+        if (error) *error = "cannot assign to immutable module member: " + base.text + "." + target.text;
+        return false;
       }
       auto global_it = ctx.globals.find(base.text);
       if (global_it != ctx.globals.end()) {
@@ -2079,6 +2297,11 @@ bool CheckExpr(const Expr& expr,
         }
         return true;
       }
+      if (IsReservedModuleEnabled(ctx, expr.text)) {
+        if (error) *error = "module is not a value: " + expr.text;
+        PrefixErrorLocation(expr.line, expr.column, error);
+        return false;
+      }
       if (ctx.externs_by_module.find(expr.text) != ctx.externs_by_module.end()) {
         return true;
       }
@@ -2297,6 +2520,17 @@ bool CheckExpr(const Expr& expr,
             }
             return true;
           }
+          if (IsReservedModuleEnabled(ctx, base.text)) {
+            TypeRef var_type;
+            CallTargetInfo info;
+            if (GetReservedModuleVarType(ctx, base.text, expr.text, &var_type) ||
+                GetReservedModuleCallTarget(ctx, base.text, expr.text, &info)) {
+              return true;
+            }
+            if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+            PrefixErrorLocation(expr.line, expr.column, error);
+            return false;
+          }
         }
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
@@ -2312,6 +2546,17 @@ bool CheckExpr(const Expr& expr,
               return false;
             }
             return true;
+          }
+          if (IsReservedModuleEnabled(ctx, base.text)) {
+            TypeRef var_type;
+            CallTargetInfo info;
+            if (GetReservedModuleVarType(ctx, base.text, expr.text, &var_type) ||
+                GetReservedModuleCallTarget(ctx, base.text, expr.text, &info)) {
+              return true;
+            }
+            if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+            PrefixErrorLocation(expr.line, expr.column, error);
+            return false;
           }
         }
         TypeRef base_type;
@@ -2462,19 +2707,16 @@ bool CheckFunctionBody(const FuncDecl& fn,
 } // namespace
 
 bool ValidateProgram(const Program& program, std::string* error) {
-  for (const auto& decl : program.decls) {
-    if (decl.kind != DeclKind::Import) continue;
-    if (!IsReservedImportPath(decl.import_decl.path)) {
-      if (error) *error = "unsupported import path: " + decl.import_decl.path;
-      return false;
-    }
-  }
-
   ValidateContext ctx;
   for (const auto& decl : program.decls) {
     const std::string* name_ptr = nullptr;
     switch (decl.kind) {
       case DeclKind::Import:
+        if (!IsReservedImportPath(decl.import_decl.path)) {
+          if (error) *error = "unsupported import path: " + decl.import_decl.path;
+          return false;
+        }
+        ctx.reserved_imports.insert(decl.import_decl.path);
         break;
       case DeclKind::Extern:
         if (decl.ext.has_module) {

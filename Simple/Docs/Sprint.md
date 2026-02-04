@@ -777,3 +777,5 @@
 - Consolidated language spec into Lang.md and moved language implementation plan into Implementation.md.
 - Removed module-specific plan sections from VM/Byte/IR/CLI docs to keep plans centralized.
 - Added reserved core import validation for Simple::Lang (Math/IO/Time/File) and a negative fixture for unknown imports.
+- Added FFI import emission + resolver in the Simple front-end, plus SIR import syntax support and core_os extern fixture.
+- Added reserved stdlib modules (Math/Time/File) with intrinsics/import bindings, fixtures, and a StdLib.md layout doc.

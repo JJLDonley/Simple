@@ -414,6 +414,43 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
         out->imports.push_back(std::move(imp));
         continue;
       }
+      if (line.rfind("import ", 0) == 0) {
+        std::vector<std::string> tokens = SplitTokens(line);
+        if (tokens.size() < 4) {
+          if (error) *error = "import expects name module symbol at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextImport imp;
+        imp.kind = "import";
+        imp.name = tokens[1];
+        imp.module = tokens[2];
+        imp.symbol = tokens[3];
+        for (size_t i = 4; i < tokens.size(); ++i) {
+          const std::string& kv = tokens[i];
+          size_t eq = kv.find('=');
+          if (eq == std::string::npos) continue;
+          std::string key = kv.substr(0, eq);
+          std::string val = kv.substr(eq + 1);
+          if (key == "sig") {
+            imp.sig = val;
+            imp.has_sig = true;
+          } else if (key == "flags") {
+            uint64_t num = 0;
+            if (!ParseUint(val, &num)) {
+              if (error) *error = "import expects numeric flags at line " + std::to_string(line_no);
+              return false;
+            }
+            imp.flags = static_cast<uint32_t>(num);
+            imp.has_flags = true;
+          }
+        }
+        if (!imp.has_sig) {
+          if (error) *error = "import expects sig=<name> at line " + std::to_string(line_no);
+          return false;
+        }
+        out->imports.push_back(std::move(imp));
+        continue;
+      }
     }
 
     if (section == Section::Globals) {
@@ -903,6 +940,19 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     sig_ids[sig.name] = sig_id;
   }
 
+  auto resolve_sig_id = [&](const std::string& token, uint32_t* out_id) -> bool {
+    uint64_t value = 0;
+    if (ParseUint(token, &value)) {
+      if (!FitsUnsigned<uint32_t>(value)) return false;
+      *out_id = static_cast<uint32_t>(value);
+      return true;
+    }
+    auto it = sig_ids.find(token);
+    if (it == sig_ids.end()) return false;
+    *out_id = it->second;
+    return true;
+  };
+
   std::unordered_map<std::string, IrTextConst> const_map;
   std::unordered_map<std::string, uint32_t> const_string_ids;
   std::unordered_map<std::string, uint32_t> const_f32_ids;
@@ -958,13 +1008,34 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return false;
       }
       intrinsic_ids[imp.name] = imp.id;
+      uint32_t module_name = add_name(imp.kind);
+      uint32_t symbol_name = add_name(imp.name);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, module_name);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, symbol_name);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, 0);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, 0);
+      continue;
     }
-    uint32_t module_name = add_name(imp.kind);
-    uint32_t symbol_name = add_name(imp.name);
-    Simple::Byte::sbc::AppendU32(out->imports_bytes, module_name);
-    Simple::Byte::sbc::AppendU32(out->imports_bytes, symbol_name);
-    Simple::Byte::sbc::AppendU32(out->imports_bytes, 0);
-    Simple::Byte::sbc::AppendU32(out->imports_bytes, 0);
+    if (imp.kind == "import") {
+      if (!IsValidLabelName(imp.name)) {
+        if (error) *error = "invalid import name: " + imp.name;
+        return false;
+      }
+      uint32_t sig_id = 0;
+      if (!imp.has_sig || !resolve_sig_id(imp.sig, &sig_id)) {
+        if (error) *error = "import sig not found: " + imp.sig;
+        return false;
+      }
+      uint32_t module_name = add_name(imp.module);
+      uint32_t symbol_name = add_name(imp.symbol);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, module_name);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, symbol_name);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, sig_id);
+      Simple::Byte::sbc::AppendU32(out->imports_bytes, imp.flags);
+      continue;
+    }
+    if (error) *error = "unsupported import kind: " + imp.kind;
+    return false;
   }
 
   for (const auto& row : types) {
@@ -1064,18 +1135,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     func_ids[text.functions[i].name] = static_cast<uint32_t>(i);
   }
 
-  auto resolve_sig_id = [&](const std::string& token, uint32_t* out_id) -> bool {
-    uint64_t value = 0;
-    if (ParseUint(token, &value)) {
-      if (!FitsUnsigned<uint32_t>(value)) return false;
-      *out_id = static_cast<uint32_t>(value);
-      return true;
+  std::unordered_map<std::string, uint32_t> import_ids;
+  for (size_t i = 0; i < text.imports.size(); ++i) {
+    const auto& imp = text.imports[i];
+    if (imp.kind != "import") continue;
+    if (!IsValidLabelName(imp.name)) {
+      if (error) *error = "invalid import name: " + imp.name;
+      return false;
     }
-    auto it = sig_ids.find(token);
-    if (it == sig_ids.end()) return false;
-    *out_id = it->second;
-    return true;
-  };
+    uint32_t func_id = static_cast<uint32_t>(text.functions.size() + i);
+    if (!import_ids.emplace(imp.name, func_id).second) {
+      if (error) *error = "duplicate import name: " + imp.name;
+      return false;
+    }
+  }
 
   auto resolve_func_id = [&](const std::string& token, uint32_t* out_id) -> bool {
     uint64_t value = 0;
@@ -1085,8 +1158,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       return true;
     }
     auto it = func_ids.find(token);
-    if (it == func_ids.end()) return false;
-    *out_id = it->second;
+    if (it != func_ids.end()) {
+      *out_id = it->second;
+      return true;
+    }
+    auto import_it = import_ids.find(token);
+    if (import_it == import_ids.end()) return false;
+    *out_id = import_it->second;
     return true;
   };
 

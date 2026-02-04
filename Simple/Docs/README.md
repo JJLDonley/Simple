@@ -23,6 +23,7 @@ This directory contains the authoritative documentation for the Simple VM stack.
 - `IR.md`
 - `CLI.md`
 - `Lang.md`
+- `StdLib.md`
 
 ## Legacy References
 The `SBC_*` and `Simple_*` documents are legacy references. Their content is merged into the
@@ -34,7 +35,6 @@ module docs above.
 
 ## Legacy / Reference
 - `Simple_VM_Opcode_Spec.md`
-- `Simple_Programming_Language_Document.md`
 - `Simple_Implementation_Document.md`
 
 Notes:

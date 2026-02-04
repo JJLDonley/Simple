@@ -1,0 +1,11 @@
+import "Math"
+
+main : i32 () {
+  a :: i32 = Math.abs(-5)
+  b :: i32 = Math.min(3, 7)
+  c :: i32 = Math.max(3, 7)
+  if (a != 5) { return 1 }
+  if (b != 3) { return 2 }
+  if (c != 7) { return 3 }
+  return 0
+}

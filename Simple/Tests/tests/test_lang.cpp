@@ -164,6 +164,22 @@ bool LangSimpleFixtureExternDecl() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/extern_decl.simple", 0);
 }
 
+bool LangSimpleFixtureExternCoreOsArgsCount() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/extern_core_os_args_count.simple", 0);
+}
+
+bool LangSimpleFixtureReservedMath() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_math.simple", 0);
+}
+
+bool LangSimpleFixtureReservedTime() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_time.simple", 0);
+}
+
+bool LangSimpleFixtureReservedFile() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_file.simple", 0);
+}
+
 bool LangSimpleFixtureArtifactNamedInit() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
 }
@@ -2632,6 +2648,10 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
+  {"lang_simple_fixture_extern_core_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
+  {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},
+  {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
+  {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},

@@ -1,0 +1,6 @@
+import "File"
+
+main : i32 () {
+  File.close(-1)
+  return 0
+}

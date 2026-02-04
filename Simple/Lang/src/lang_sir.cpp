@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "lang_parser.h"
@@ -36,6 +37,24 @@ struct EmitState {
   std::vector<FuncDecl> lambda_funcs;
   std::unordered_map<std::string, std::string> proc_sig_names;
   std::vector<std::string> proc_sig_lines;
+  std::unordered_set<std::string> reserved_imports;
+  std::unordered_map<std::string, std::string> extern_ids;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>> extern_ids_by_module;
+  std::unordered_map<std::string, std::vector<TypeRef>> extern_params;
+  std::unordered_map<std::string, TypeRef> extern_returns;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<TypeRef>>> extern_params_by_module;
+  std::unordered_map<std::string, std::unordered_map<std::string, TypeRef>> extern_returns_by_module;
+
+  struct ImportItem {
+    std::string name;
+    std::string module;
+    std::string symbol;
+    std::string sig_name;
+    uint32_t flags = 0;
+    std::vector<TypeRef> params;
+    TypeRef ret;
+  };
+  std::vector<ImportItem> imports;
 
   struct FieldLayout {
     uint32_t offset = 0;
@@ -89,6 +108,13 @@ bool IsNumericType(const std::string& name) {
 
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
+}
+
+std::string ResolveImportModule(const std::string& module) {
+  if (module == "core_os") return "core.os";
+  if (module == "core_fs") return "core.fs";
+  if (module == "core_log") return "core.log";
+  return module;
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -520,6 +546,12 @@ bool InferExprType(const Expr& expr,
       }
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
+        if (base.text == "Math" &&
+            st.reserved_imports.find("Math") != st.reserved_imports.end() &&
+            expr.text == "PI") {
+          out->name = "f64";
+          return true;
+        }
         auto enum_it = st.enum_values.find(base.text);
         if (enum_it != st.enum_values.end()) {
           out->name = base.text;
@@ -568,6 +600,10 @@ bool InferExprType(const Expr& expr,
         if (it != st.func_returns.end()) {
           return CloneTypeRef(it->second, out);
         }
+        auto ext_it = st.extern_returns.find(callee.text);
+        if (ext_it != st.extern_returns.end()) {
+          return CloneTypeRef(ext_it->second, out);
+        }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
@@ -581,6 +617,31 @@ bool InferExprType(const Expr& expr,
           return true;
         }
         if (base.kind == ExprKind::Identifier) {
+          if (st.reserved_imports.find(base.text) != st.reserved_imports.end()) {
+            if (base.text == "Math" &&
+                (callee.text == "abs" || callee.text == "min" || callee.text == "max") &&
+                !expr.args.empty()) {
+              if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
+              return true;
+            }
+            if (base.text == "Time" &&
+                (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+              out->name = "i64";
+              out->type_args.clear();
+              out->dims.clear();
+              out->is_proc = false;
+              out->proc_params.clear();
+              out->proc_return.reset();
+              return true;
+            }
+          }
+          auto ext_mod_it = st.extern_returns_by_module.find(base.text);
+          if (ext_mod_it != st.extern_returns_by_module.end()) {
+            auto ext_it = ext_mod_it->second.find(callee.text);
+            if (ext_it != ext_mod_it->second.end()) {
+              return CloneTypeRef(ext_it->second, out);
+            }
+          }
           const std::string key = base.text + "." + callee.text;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -1341,6 +1402,80 @@ bool EmitExpr(EmitState& st,
           }
           return true;
         }
+        if (base.kind == ExprKind::Identifier &&
+            st.reserved_imports.find(base.text) != st.reserved_imports.end()) {
+          if (base.text == "Math") {
+            if (callee.text == "abs") {
+              if (expr.args.size() != 1) {
+                if (error) *error = "call argument count mismatch for 'Math.abs'";
+                return false;
+              }
+              TypeRef arg_type;
+              if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+              if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+              uint32_t id = 0;
+              if (arg_type.name == "i32") {
+                id = Simple::VM::kIntrinsicAbsI32;
+              } else if (arg_type.name == "i64") {
+                id = Simple::VM::kIntrinsicAbsI64;
+              } else {
+                if (error) *error = "Math.abs expects i32 or i64";
+                return false;
+              }
+              (*st.out) << "  intrinsic " << id << "\n";
+              PopStack(st, 1);
+              PushStack(st, 1);
+              return true;
+            }
+            if (callee.text == "min" || callee.text == "max") {
+              if (expr.args.size() != 2) {
+                if (error) *error = "call argument count mismatch for 'Math." + callee.text + "'";
+                return false;
+              }
+              TypeRef arg_type;
+              if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+              if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+              if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+              uint32_t id = 0;
+              if (arg_type.name == "i32") {
+                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI32 : Simple::VM::kIntrinsicMaxI32;
+              } else if (arg_type.name == "i64") {
+                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI64 : Simple::VM::kIntrinsicMaxI64;
+              } else if (arg_type.name == "f32") {
+                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF32 : Simple::VM::kIntrinsicMaxF32;
+              } else if (arg_type.name == "f64") {
+                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF64 : Simple::VM::kIntrinsicMaxF64;
+              } else {
+                if (error) *error = "Math." + callee.text + " expects numeric type";
+                return false;
+              }
+              (*st.out) << "  intrinsic " << id << "\n";
+              PopStack(st, 2);
+              PushStack(st, 1);
+              return true;
+            }
+          }
+          if (base.text == "Time") {
+            if (callee.text == "mono_ns") {
+              if (!expr.args.empty()) {
+                if (error) *error = "Time.mono_ns expects no arguments";
+                return false;
+              }
+              (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicMonoNs << "\n";
+              PushStack(st, 1);
+              return true;
+            }
+            if (callee.text == "wall_ns") {
+              if (!expr.args.empty()) {
+                if (error) *error = "Time.wall_ns expects no arguments";
+                return false;
+              }
+              (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicWallNs << "\n";
+              PushStack(st, 1);
+              return true;
+            }
+          }
+        }
         if (base.kind == ExprKind::Identifier) {
           const std::string key = base.text + "." + callee.text;
           auto module_it = st.module_func_names.find(key);
@@ -1375,6 +1510,37 @@ bool EmitExpr(EmitState& st,
               PushStack(st, 1);
             }
             return true;
+          }
+          auto ext_mod_it = st.extern_ids_by_module.find(base.text);
+          if (ext_mod_it != st.extern_ids_by_module.end()) {
+            auto id_it = ext_mod_it->second.find(callee.text);
+            if (id_it != ext_mod_it->second.end()) {
+              auto params_it = st.extern_params_by_module[base.text].find(callee.text);
+              auto ret_it = st.extern_returns_by_module[base.text].find(callee.text);
+              if (params_it == st.extern_params_by_module[base.text].end() ||
+                  ret_it == st.extern_returns_by_module[base.text].end()) {
+                if (error) *error = "missing signature for extern '" + key + "'";
+                return false;
+              }
+              const auto& params = params_it->second;
+              if (expr.args.size() != params.size()) {
+                if (error) *error = "call argument count mismatch for '" + key + "'";
+                return false;
+              }
+              for (size_t i = 0; i < params.size(); ++i) {
+                if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+              }
+              (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+              if (st.stack_cur >= params.size()) {
+                st.stack_cur -= static_cast<uint32_t>(params.size());
+              } else {
+                st.stack_cur = 0;
+              }
+              if (ret_it->second.name != "void") {
+                PushStack(st, 1);
+              }
+              return true;
+            }
           }
         }
         TypeRef base_type;
@@ -1468,6 +1634,33 @@ bool EmitExpr(EmitState& st,
           (*st.out) << "  call.indirect " << sig_name << " " << proc_type.proc_params.size() << "\n";
           PopStack(st, static_cast<uint32_t>(proc_type.proc_params.size() + 1));
           if (proc_type.proc_return && proc_type.proc_return->name != "void") {
+            PushStack(st, 1);
+          }
+          return true;
+        }
+        auto ext_it = st.extern_ids.find(name);
+        if (ext_it != st.extern_ids.end()) {
+          auto params_it = st.extern_params.find(name);
+          auto ret_it = st.extern_returns.find(name);
+          if (params_it == st.extern_params.end() || ret_it == st.extern_returns.end()) {
+            if (error) *error = "missing signature for extern '" + name + "'";
+            return false;
+          }
+          const auto& params = params_it->second;
+          if (expr.args.size() != params.size()) {
+            if (error) *error = "call argument count mismatch for '" + name + "'";
+            return false;
+          }
+          for (size_t i = 0; i < params.size(); ++i) {
+            if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+          }
+          (*st.out) << "  call " << ext_it->second << " " << params.size() << "\n";
+          if (st.stack_cur >= params.size()) {
+            st.stack_cur -= static_cast<uint32_t>(params.size());
+          } else {
+            st.stack_cur = 0;
+          }
+          if (ret_it->second.name != "void") {
             PushStack(st, 1);
           }
           return true;
@@ -1740,6 +1933,12 @@ bool EmitExpr(EmitState& st,
       }
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
+        if (base.text == "Math" &&
+            st.reserved_imports.find("Math") != st.reserved_imports.end() &&
+            expr.text == "PI") {
+          (*st.out) << "  const.f64 3.141592653589793\n";
+          return PushStack(st, 1);
+        }
         auto enum_it = st.enum_values.find(base.text);
         if (enum_it != st.enum_values.end()) {
           auto member_it = enum_it->second.find(expr.text);
@@ -2250,8 +2449,15 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<FuncItem> functions;
   std::vector<const ArtifactDecl*> artifacts;
   std::vector<const EnumDecl*> enums;
+  std::vector<const ExternDecl*> externs;
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
+      if (decl.kind == DeclKind::Import) {
+        st.reserved_imports.insert(decl.import_decl.path);
+      }
+      if (decl.kind == DeclKind::Extern) {
+        externs.push_back(&decl.ext);
+      }
       continue;
     } else if (decl.kind == DeclKind::Function) {
       functions.push_back({&decl.func, decl.func.name, decl.func.name, false, {}});
@@ -2328,6 +2534,128 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.func_params.emplace(functions[i].emit_name, std::move(params));
   }
   st.base_func_count = static_cast<uint32_t>(functions.size());
+
+  std::unordered_map<std::string, size_t> import_index_by_key;
+  auto clone_params = [&](const std::vector<TypeRef>& src, std::vector<TypeRef>* out_params) -> bool {
+    if (!out_params) return false;
+    out_params->clear();
+    out_params->reserve(src.size());
+    for (const auto& param : src) {
+      TypeRef cloned;
+      if (!CloneTypeRef(param, &cloned)) return false;
+      out_params->push_back(std::move(cloned));
+    }
+    return true;
+  };
+  for (const auto* ext : externs) {
+    std::string module = ext->has_module ? ResolveImportModule(ext->module) : std::string("host");
+    std::string symbol = ext->name;
+    std::string key = module + '\0' + symbol;
+    if (import_index_by_key.find(key) != import_index_by_key.end()) {
+      if (error) *error = "duplicate extern import: " + (module.empty() ? symbol : (module + "." + symbol));
+      return false;
+    }
+    EmitState::ImportItem item;
+    item.name = "import_" + std::to_string(st.imports.size());
+    item.module = module;
+    item.symbol = symbol;
+    item.sig_name = "sig_import_" + std::to_string(st.imports.size());
+    item.flags = 0;
+    std::vector<TypeRef> params;
+    params.reserve(ext->params.size());
+    for (const auto& param : ext->params) {
+      TypeRef cloned;
+      if (!CloneTypeRef(param.type, &cloned)) return false;
+      params.push_back(std::move(cloned));
+    }
+    TypeRef ret;
+    if (!CloneTypeRef(ext->return_type, &ret)) return false;
+    item.params = std::move(params);
+    item.ret = std::move(ret);
+    import_index_by_key.emplace(key, st.imports.size());
+    st.imports.push_back(std::move(item));
+
+    std::vector<TypeRef> param_copy;
+    if (!clone_params(st.imports.back().params, &param_copy)) return false;
+    TypeRef ret_copy;
+    if (!CloneTypeRef(st.imports.back().ret, &ret_copy)) return false;
+    if (ext->has_module) {
+      st.extern_ids_by_module[ext->module][symbol] = st.imports.back().name;
+      st.extern_params_by_module[ext->module][symbol] = std::move(param_copy);
+      st.extern_returns_by_module[ext->module][symbol] = std::move(ret_copy);
+    } else {
+      st.extern_ids[symbol] = st.imports.back().name;
+      st.extern_params[symbol] = std::move(param_copy);
+      st.extern_returns[symbol] = std::move(ret_copy);
+    }
+  }
+
+  auto make_type = [](const char* name) {
+    TypeRef out;
+    out.name = name;
+    out.type_args.clear();
+    out.dims.clear();
+    out.is_proc = false;
+    out.proc_params.clear();
+    out.proc_return.reset();
+    return out;
+  };
+  auto make_list_type = [&](const char* name) {
+    TypeRef out = make_type(name);
+    TypeDim dim;
+    dim.is_list = true;
+    dim.has_size = false;
+    dim.size = 0;
+    out.dims.push_back(dim);
+    return out;
+  };
+  auto add_reserved_import = [&](const std::string& module_alias,
+                                 const std::string& module,
+                                 const std::string& symbol,
+                                 std::vector<TypeRef>&& params,
+                                 TypeRef&& ret) -> bool {
+    std::string key = module + '\0' + symbol;
+    if (import_index_by_key.find(key) != import_index_by_key.end()) return true;
+    EmitState::ImportItem item;
+    item.name = "import_" + std::to_string(st.imports.size());
+    item.module = module;
+    item.symbol = symbol;
+    item.sig_name = "sig_import_" + std::to_string(st.imports.size());
+    item.flags = 0;
+    item.params = std::move(params);
+    item.ret = std::move(ret);
+    import_index_by_key.emplace(key, st.imports.size());
+    st.imports.push_back(std::move(item));
+    std::vector<TypeRef> param_copy;
+    if (!clone_params(st.imports.back().params, &param_copy)) return false;
+    TypeRef ret_copy;
+    if (!CloneTypeRef(st.imports.back().ret, &ret_copy)) return false;
+    st.extern_ids_by_module[module_alias][symbol] = st.imports.back().name;
+    st.extern_params_by_module[module_alias][symbol] = std::move(param_copy);
+    st.extern_returns_by_module[module_alias][symbol] = std::move(ret_copy);
+    return true;
+  };
+
+  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
+    std::vector<TypeRef> open_params;
+    open_params.push_back(make_type("string"));
+    open_params.push_back(make_type("i32"));
+    if (!add_reserved_import("File", "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+
+    std::vector<TypeRef> close_params;
+    close_params.push_back(make_type("i32"));
+    if (!add_reserved_import("File", "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+
+    auto make_rw_params = [&]() {
+      std::vector<TypeRef> params;
+      params.push_back(make_type("i32"));
+      params.push_back(make_list_type("i32"));
+      params.push_back(make_type("i32"));
+      return params;
+    };
+    if (!add_reserved_import("File", "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
+    if (!add_reserved_import("File", "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+  }
 
   for (const auto* artifact : artifacts) {
     EmitState::ArtifactLayout layout;
@@ -2452,6 +2780,26 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     result << ") -> " << ret << "\n";
   }
+  for (const auto& imp : st.imports) {
+    std::string ret = SigTypeNameFromType(imp.ret, st, error);
+    if (ret.empty()) {
+      if (error && error->empty()) *error = "unsupported return type in import signature";
+      return false;
+    }
+    result << "  sig " << imp.sig_name << ": (";
+    bool first = true;
+    for (size_t i = 0; i < imp.params.size(); ++i) {
+      if (!first) result << ", ";
+      std::string param = SigTypeNameFromType(imp.params[i], st, error);
+      if (param.empty()) {
+        if (error && error->empty()) *error = "unsupported param type in import signature";
+        return false;
+      }
+      result << param;
+      first = false;
+    }
+    result << ") -> " << ret << "\n";
+  }
   for (const auto& line : st.proc_sig_lines) {
     result << line << "\n";
   }
@@ -2460,6 +2808,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     result << "consts:\n";
     for (const auto& line : st.const_lines) {
       result << line << "\n";
+    }
+  }
+
+  if (!st.imports.empty()) {
+    result << "imports:\n";
+    for (const auto& imp : st.imports) {
+      result << "  import " << imp.name << " " << imp.module << " " << imp.symbol
+             << " sig=" << imp.sig_name;
+      if (imp.flags != 0) {
+        result << " flags=" << imp.flags;
+      }
+      result << "\n";
     }
   }
 

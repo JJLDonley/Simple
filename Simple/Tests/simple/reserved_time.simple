@@ -1,0 +1,7 @@
+import "Time"
+
+main : i32 () {
+  Time.mono_ns()
+  Time.wall_ns()
+  return 0
+}
