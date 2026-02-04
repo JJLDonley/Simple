@@ -2178,6 +2178,17 @@ bool CheckExpr(const Expr& expr,
           }
           return true;
         }
+        if (base.kind == ExprKind::Identifier) {
+          auto module_it = ctx.modules.find(base.text);
+          if (module_it != ctx.modules.end()) {
+            if (!FindModuleVar(module_it->second, expr.text) &&
+                !FindModuleFunc(module_it->second, expr.text)) {
+              if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              return false;
+            }
+            return true;
+          }
+        }
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (expr.op == "." && !expr.children.empty()) {

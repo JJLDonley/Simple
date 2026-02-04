@@ -638,6 +638,9 @@
 - Added Simple::Lang module/artifact duplicate-member validation with tests.
 - Added Simple::Lang duplicate parameter validation with tests.
 - Enforced `.` as the only member access and rejected `::` in expressions, with tests.
+- Added SIR emission support for module functions via name-mangled top-level functions and module member calls.
+- Added SIR emission error for module variables (not supported yet).
+- Updated module_access.simple fixture to call a module function instead of reading a module variable.
 - Added Simple::Lang return validation for void/non-void functions with tests.
 - Added Simple::Lang validation for break/skip outside loops with tests.
 - Added Simple::Lang validation to require a return in non-void functions with tests.
@@ -727,3 +730,5 @@
 - Added .simple fixtures: add_fn, if_else, for_loop, while_break, plus fixture tests.
 - Added .simple negative fixture for IO.print on arrays (validation error).
 - Adjusted for_loop.simple fixture to match current for-loop syntax (no parens, explicit init).
+- Added .simple fixtures for enum values and module member access.
+- Added negative .simple fixture for unqualified enum use.

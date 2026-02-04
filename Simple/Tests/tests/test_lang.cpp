@@ -87,6 +87,14 @@ bool LangSimpleFixtureWhileBreak() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/while_break.simple", 6);
 }
 
+bool LangSimpleFixtureEnumValue() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/enum_value.simple", 1);
+}
+
+bool LangSimpleFixtureModuleAccess() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/module_access.simple", 5);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -103,6 +111,12 @@ bool LangSimpleBadPrintArray() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/print_array.simple",
       "IO.print");
+}
+
+bool LangSimpleBadEnumUnqualified() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/enum_unqualified.simple",
+      "enum");
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2111,9 +2125,12 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_if_else", LangSimpleFixtureIfElse},
   {"lang_simple_fixture_for_loop", LangSimpleFixtureForLoop},
   {"lang_simple_fixture_while_break", LangSimpleFixtureWhileBreak},
+  {"lang_simple_fixture_enum_value", LangSimpleFixtureEnumValue},
+  {"lang_simple_fixture_module_access", LangSimpleFixtureModuleAccess},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
+  {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
