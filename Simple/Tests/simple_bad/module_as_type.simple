@@ -1,0 +1,8 @@
+Math :: module {
+  value : i32 = 1
+}
+
+main : i32 () {
+  x : Math = 1
+  return 0
+}

@@ -755,3 +755,5 @@
 - Added enum explicit-value fixture and tests.
 - Added .simple negative fixtures for unknown type and enum type used as value.
 - Added `simple` CLI alias (copy of `simplevm`) and a test to run it.
+- Added Simple fixtures for module function params and artifact named initialization.
+- Added .simple negative fixtures for module/function used as types.

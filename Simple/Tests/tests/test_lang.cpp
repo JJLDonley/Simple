@@ -140,6 +140,14 @@ bool LangSimpleFixtureModuleMulti() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/module_multi.simple", 6);
 }
 
+bool LangSimpleFixtureModuleFuncParams() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/module_func_params.simple", 42);
+}
+
+bool LangSimpleFixtureArtifactNamedInit() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -228,6 +236,18 @@ bool LangSimpleBadEnumTypeAsValue() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/enum_type_as_value.simple",
       "enum type is not a value");
+}
+
+bool LangSimpleBadModuleAsType() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/module_as_type.simple",
+      "module is not a type");
+}
+
+bool LangSimpleBadFunctionAsType() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/function_as_type.simple",
+      "function is not a type");
 }
 
 bool LangCliEmitIr() {
@@ -2326,7 +2346,9 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
   {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
+  {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
+  {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
@@ -2342,6 +2364,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_module_func_return_mismatch", LangSimpleBadModuleFuncReturnMismatch},
   {"lang_simple_bad_unknown_type", LangSimpleBadUnknownType},
   {"lang_simple_bad_enum_type_as_value", LangSimpleBadEnumTypeAsValue},
+  {"lang_simple_bad_module_as_type", LangSimpleBadModuleAsType},
+  {"lang_simple_bad_function_as_type", LangSimpleBadFunctionAsType},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

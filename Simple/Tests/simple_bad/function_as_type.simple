@@ -1,0 +1,6 @@
+add : i32 (a : i32, b : i32) { return a + b }
+
+main : i32 () {
+  x : add = 1
+  return 0
+}
