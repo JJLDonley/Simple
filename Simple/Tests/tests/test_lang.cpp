@@ -338,6 +338,18 @@ bool LangSimpleBadInvalidCharEscape() {
       "invalid char escape");
 }
 
+bool LangSimpleBadLexerInvalidChar() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/lexer_invalid_char.simple",
+      "unexpected character");
+}
+
+bool LangSimpleBadParserUnterminatedBlock() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/parser_unterminated_block.simple",
+      "unterminated block");
+}
+
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
@@ -2483,6 +2495,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_missing_semicolon_same_line", LangSimpleBadMissingSemicolonSameLine},
   {"lang_simple_bad_invalid_string_escape", LangSimpleBadInvalidStringEscape},
   {"lang_simple_bad_invalid_char_escape", LangSimpleBadInvalidCharEscape},
+  {"lang_simple_bad_lexer_invalid_char", LangSimpleBadLexerInvalidChar},
+  {"lang_simple_bad_parser_unterminated_block", LangSimpleBadParserUnterminatedBlock},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
