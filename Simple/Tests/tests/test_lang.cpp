@@ -115,6 +115,14 @@ bool LangSimpleFixtureStringLen() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/string_len.simple", 5);
 }
 
+bool LangSimpleFixtureArtifactMethod() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_method.simple", 7);
+}
+
+bool LangSimpleFixtureModuleMulti() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/module_multi.simple", 6);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -149,6 +157,12 @@ bool LangSimpleBadModuleVarAccess() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/module_var_access.simple",
       "module");
+}
+
+bool LangSimpleBadSelfOutsideArtifact() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/self_outside_artifact.simple",
+      "self");
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2164,12 +2178,15 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_array_assign", LangSimpleFixtureArrayAssign},
   {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
+  {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
+  {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
   {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
+  {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},

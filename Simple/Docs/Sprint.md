@@ -737,3 +737,6 @@
 - Added fn_literal.simple fixture and test for function literal calls in Simple fixtures.
 - Added .simple fixtures: array_assign, list_index, string_len.
 - Added .simple negative fixtures: break_outside_loop and module_var_access.
+- Added .simple fixtures: artifact_method and module_multi.
+- Added .simple negative fixture for self used outside artifact.
+- Added SIR emission for artifact method calls (implicit self param lowering) and method signature handling.

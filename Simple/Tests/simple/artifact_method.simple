@@ -1,0 +1,13 @@
+Point :: artifact {
+  x : i32
+  y : i32
+
+  sum : i32 () {
+    return self.x + self.y
+  }
+}
+
+main : i32 () {
+  p : Point = { 2, 5 }
+  return p.sum()
+}

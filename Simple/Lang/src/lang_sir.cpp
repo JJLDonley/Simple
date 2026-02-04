@@ -30,6 +30,7 @@ struct EmitState {
   std::unordered_map<std::string, TypeRef> func_returns;
   std::unordered_map<std::string, std::vector<TypeRef>> func_params;
   std::unordered_map<std::string, std::string> module_func_names;
+  std::unordered_map<std::string, std::string> artifact_method_names;
   uint32_t base_func_count = 0;
   uint32_t lambda_counter = 0;
   std::vector<FuncDecl> lambda_funcs;
@@ -68,6 +69,9 @@ struct EmitState {
 struct FuncItem {
   const FuncDecl* decl = nullptr;
   std::string emit_name;
+  std::string display_name;
+  bool has_self = false;
+  TypeRef self_type;
 };
 
 bool IsIntegralType(const std::string& name) {
@@ -576,6 +580,17 @@ bool InferExprType(const Expr& expr,
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
             auto ret_it = st.func_returns.find(module_it->second);
+            if (ret_it != st.func_returns.end()) {
+              return CloneTypeRef(ret_it->second, out);
+            }
+          }
+        }
+        TypeRef base_type;
+        if (InferExprType(base, st, &base_type, nullptr)) {
+          const std::string key = base_type.name + "." + callee.text;
+          auto method_it = st.artifact_method_names.find(key);
+          if (method_it != st.artifact_method_names.end()) {
+            auto ret_it = st.func_returns.find(method_it->second);
             if (ret_it != st.func_returns.end()) {
               return CloneTypeRef(ret_it->second, out);
             }
@@ -1357,6 +1372,46 @@ bool EmitExpr(EmitState& st,
             return true;
           }
         }
+        TypeRef base_type;
+        if (!InferExprType(base, st, &base_type, nullptr)) {
+          if (error) *error = "call target not supported in SIR emission";
+          return false;
+        }
+        const std::string key = base_type.name + "." + callee.text;
+        auto method_it = st.artifact_method_names.find(key);
+        if (method_it != st.artifact_method_names.end()) {
+          const std::string& hoisted = method_it->second;
+          auto params_it = st.func_params.find(hoisted);
+          if (params_it == st.func_params.end()) {
+            if (error) *error = "missing signature for '" + key + "'";
+            return false;
+          }
+          const auto& params = params_it->second;
+          if (expr.args.size() + 1 != params.size()) {
+            if (error) *error = "call argument count mismatch for '" + key + "'";
+            return false;
+          }
+          if (!EmitExpr(st, base, &base_type, error)) return false;
+          for (size_t i = 0; i < expr.args.size(); ++i) {
+            if (!EmitExpr(st, expr.args[i], &params[i + 1], error)) return false;
+          }
+          auto id_it = st.func_ids.find(hoisted);
+          if (id_it == st.func_ids.end()) {
+            if (error) *error = "unknown function '" + key + "'";
+            return false;
+          }
+          (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+          if (st.stack_cur >= params.size()) {
+            st.stack_cur -= static_cast<uint32_t>(params.size());
+          } else {
+            st.stack_cur = 0;
+          }
+          auto ret_it = st.func_returns.find(hoisted);
+          if (ret_it != st.func_returns.end() && ret_it->second.name != "void") {
+            PushStack(st, 1);
+          }
+          return true;
+        }
       }
       if (callee.kind == ExprKind::FnLiteral) {
         if (error) *error = "calling fn literal directly is not supported in SIR emission";
@@ -1693,6 +1748,10 @@ bool EmitExpr(EmitState& st,
         const std::string key = base.text + "." + expr.text;
         if (st.module_func_names.find(key) != st.module_func_names.end()) {
           if (error) *error = "module function requires call: " + key;
+          return false;
+        }
+        if (st.artifact_method_names.find(key) != st.artifact_method_names.end()) {
+          if (error) *error = "artifact method requires call: " + key;
           return false;
         }
       }
@@ -2089,6 +2148,8 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
 bool EmitFunction(EmitState& st,
                   const FuncDecl& fn,
                   const std::string& emit_name,
+                  const std::string& display_name,
+                  const TypeRef* implicit_self,
                   std::string* out,
                   std::string* error) {
   if (!fn.generics.empty()) {
@@ -2096,7 +2157,7 @@ bool EmitFunction(EmitState& st,
     return false;
   }
   if (!IsSupportedType(fn.return_type)) {
-    if (error) *error = "unsupported return type for function '" + fn.name + "'";
+    if (error) *error = "unsupported return type for function '" + display_name + "'";
     return false;
   }
   st.current_func = emit_name;
@@ -2113,12 +2174,23 @@ bool EmitFunction(EmitState& st,
     if (stmt.kind == StmtKind::VarDecl) locals_count++;
   }
   uint16_t param_count = static_cast<uint16_t>(fn.params.size());
+  if (implicit_self) {
+    param_count = static_cast<uint16_t>(param_count + 1);
+  }
   uint16_t total_locals = static_cast<uint16_t>(locals_count + param_count);
   std::ostringstream func_out;
   st.out = &func_out;
 
   (*st.out) << "func " << emit_name << " locals=" << total_locals << " stack=0 sig=" << emit_name << "\n";
   (*st.out) << "  enter " << total_locals << "\n";
+
+  if (implicit_self) {
+    uint16_t index = st.next_local++;
+    st.local_indices.emplace("self", index);
+    TypeRef cloned;
+    if (!CloneTypeRef(*implicit_self, &cloned)) return false;
+    st.local_types.emplace("self", std::move(cloned));
+  }
 
   for (const auto& param : fn.params) {
     uint16_t index = st.next_local++;
@@ -2131,7 +2203,7 @@ bool EmitFunction(EmitState& st,
   for (const auto& stmt : fn.body) {
     if (!EmitStmt(st, stmt, error)) {
       if (error && !error->empty()) {
-        *error = "in function '" + fn.name + "': " + *error;
+        *error = "in function '" + display_name + "': " + *error;
       }
       return false;
     }
@@ -2175,10 +2247,22 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const EnumDecl*> enums;
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Function) {
-      functions.push_back({&decl.func, decl.func.name});
+      functions.push_back({&decl.func, decl.func.name, decl.func.name, false, {}});
     } else if (decl.kind == DeclKind::Artifact) {
       artifacts.push_back(&decl.artifact);
       st.artifacts.emplace(decl.artifact.name, &decl.artifact);
+      for (const auto& method : decl.artifact.methods) {
+        const std::string emit_name = decl.artifact.name + "__" + method.name;
+        const std::string display = decl.artifact.name + "." + method.name;
+        st.artifact_method_names.emplace(display, emit_name);
+        FuncItem item;
+        item.decl = &method;
+        item.emit_name = emit_name;
+        item.display_name = display;
+        item.has_self = true;
+        item.self_type.name = decl.artifact.name;
+        functions.push_back(std::move(item));
+      }
     } else if (decl.kind == DeclKind::Enum) {
       enums.push_back(&decl.enm);
       std::unordered_map<std::string, int64_t> values;
@@ -2202,7 +2286,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         const std::string key = decl.module.name + "." + fn.name;
         const std::string emit_name = decl.module.name + "__" + fn.name;
         st.module_func_names.emplace(key, emit_name);
-        functions.push_back({&fn, emit_name});
+        functions.push_back({&fn, emit_name, key, false, {}});
       }
     } else if (decl.kind == DeclKind::Variable) {
       if (error) *error = "top-level variables are not supported in SIR emission";
@@ -2223,7 +2307,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     if (!CloneTypeRef(functions[i].decl->return_type, &ret)) return false;
     st.func_returns.emplace(functions[i].emit_name, std::move(ret));
     std::vector<TypeRef> params;
-    params.reserve(functions[i].decl->params.size());
+    params.reserve(functions[i].decl->params.size() + (functions[i].has_self ? 1u : 0u));
+    if (functions[i].has_self) {
+      TypeRef cloned;
+      if (!CloneTypeRef(functions[i].self_type, &cloned)) return false;
+      params.push_back(std::move(cloned));
+    }
     for (const auto& param : functions[i].decl->params) {
       TypeRef cloned;
       if (!CloneTypeRef(param.type, &cloned)) return false;
@@ -2260,13 +2349,29 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   function_text.reserve(functions.size());
   for (const auto& item : functions) {
     std::string func_body;
-    if (!EmitFunction(st, *item.decl, item.emit_name, &func_body, error)) return false;
+    if (!EmitFunction(st,
+                      *item.decl,
+                      item.emit_name,
+                      item.display_name,
+                      item.has_self ? &item.self_type : nullptr,
+                      &func_body,
+                      error)) {
+      return false;
+    }
     function_text.push_back(std::move(func_body));
   }
 
   for (size_t i = 0; i < st.lambda_funcs.size(); ++i) {
     std::string func_body;
-    if (!EmitFunction(st, st.lambda_funcs[i], st.lambda_funcs[i].name, &func_body, error)) return false;
+    if (!EmitFunction(st,
+                      st.lambda_funcs[i],
+                      st.lambda_funcs[i].name,
+                      st.lambda_funcs[i].name,
+                      nullptr,
+                      &func_body,
+                      error)) {
+      return false;
+    }
     function_text.push_back(std::move(func_body));
   }
 
@@ -2291,11 +2396,24 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   struct SigItem {
     const FuncDecl* decl = nullptr;
     std::string name;
+    bool has_self = false;
+    TypeRef self_type;
   };
   std::vector<SigItem> all_functions;
   all_functions.reserve(functions.size() + st.lambda_funcs.size());
-  for (const auto& item : functions) all_functions.push_back({item.decl, item.emit_name});
-  for (const auto& fn : st.lambda_funcs) all_functions.push_back({&fn, fn.name});
+  for (const auto& item : functions) {
+    SigItem sig;
+    sig.decl = item.decl;
+    sig.name = item.emit_name;
+    sig.has_self = item.has_self;
+    if (item.has_self) {
+      if (!CloneTypeRef(item.self_type, &sig.self_type)) return false;
+    }
+    all_functions.push_back(std::move(sig));
+  }
+  for (const auto& fn : st.lambda_funcs) {
+    all_functions.push_back({&fn, fn.name, false, {}});
+  }
   for (const auto& fn : all_functions) {
     std::string ret = SigTypeNameFromType(fn.decl->return_type, st, error);
     if (ret.empty()) {
@@ -2303,8 +2421,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       return false;
     }
     result << "  sig " << fn.name << ": (";
+    bool first = true;
+    if (fn.has_self) {
+      std::string param = SigTypeNameFromType(fn.self_type, st, error);
+      if (param.empty()) {
+        if (error && error->empty()) *error = "unsupported self type in signature";
+        return false;
+      }
+      result << param;
+      first = false;
+    }
     for (size_t i = 0; i < fn.decl->params.size(); ++i) {
-      if (i > 0) result << ", ";
+      if (!first) result << ", ";
       std::string param = SigTypeNameFromType(fn.decl->params[i].type, st, error);
       if (param.empty()) {
         if (error && error->empty()) {
@@ -2313,6 +2441,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         return false;
       }
       result << param;
+      first = false;
     }
     result << ") -> " << ret << "\n";
   }
