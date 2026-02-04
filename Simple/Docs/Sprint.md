@@ -783,3 +783,5 @@
 - Added CLI diagnostic range highlights with source/caret context and updated error-format tests.
 - Added VM import resolver hook to bind non-core FFI imports at runtime.
 - Added import_call_host test to validate custom import resolver handling.
+- Added `simple` CLI front-end behavior (simple-only inputs + usage).
+- Added CLI tests for `simple check` and `.sir` rejection.

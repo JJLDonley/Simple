@@ -552,6 +552,14 @@ bool LangCliRunSimpleAlias() {
   return RunCommand("Simple/bin/simple run Simple/Tests/simple/hello.simple");
 }
 
+bool LangCliCheckSimpleAlias() {
+  return RunCommand("Simple/bin/simple check Simple/Tests/simple/hello.simple");
+}
+
+bool LangCliSimpleRejectSir() {
+  return !RunCommand("Simple/bin/simple check Simple/Tests/sir/fib_iter.sir");
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -2710,6 +2718,8 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
+  {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
+  {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},

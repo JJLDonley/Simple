@@ -143,9 +143,9 @@ Checklist:
 - [x] Build with `-d/--dynamic` and `-s/--static`.
 - [x] Error format `error[E0001]: ...` with line/column.
 - [x] Range highlights in diagnostics.
+- [x] Dedicated `simple` CLI front-end and subcommands.
 
 Future:
-- Dedicated `simple` CLI front-end and subcommands.
 
 Non-Goals:
 - Full package manager or LSP integration.

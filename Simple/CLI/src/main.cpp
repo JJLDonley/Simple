@@ -119,6 +119,15 @@ std::string FindProjectRoot(const char* argv0) {
   return ".";
 }
 
+std::string BaseName(const char* argv0) {
+  if (!argv0 || !*argv0) return "simplevm";
+  std::string name = argv0;
+  const size_t slash = name.find_last_of("/\\");
+  if (slash != std::string::npos) name = name.substr(slash + 1);
+  if (name.empty()) return "simplevm";
+  return name;
+}
+
 bool WriteEmbeddedRunner(const std::string& path,
                          const std::vector<uint8_t>& bytes,
                          std::string* error) {
@@ -295,14 +304,25 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
 }
 
 int main(int argc, char** argv) {
+  const std::string tool_name = BaseName(argv[0]);
+  const bool simple_only = (tool_name == "simple");
   if (argc < 2) {
-    std::cerr << "usage:\n"
-              << "  simplevm run <module.sbc|file.sir|file.simple> [--no-verify]\n"
-              << "  simplevm build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
-              << "  simplevm emit -ir <file.simple> [--out <file.sir>]\n"
-              << "  simplevm emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
-              << "  simplevm check <file.sbc|file.sir|file.simple>\n"
-              << "  simplevm <module.sbc|file.sir|file.simple> [--no-verify]\n";
+    std::cerr << "usage:\n";
+    if (simple_only) {
+      std::cerr << "  " << tool_name << " run <file.simple> [--no-verify]\n"
+                << "  " << tool_name << " build <file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
+                << "  " << tool_name << " emit -sbc <file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " check <file.simple>\n"
+                << "  " << tool_name << " <file.simple> [--no-verify]\n";
+    } else {
+      std::cerr << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
+                << "  " << tool_name << " build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
+                << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
+                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
+    }
     return 1;
   }
 
@@ -331,6 +351,10 @@ int main(int argc, char** argv) {
   }
 
   if (cmd == "check") {
+    if (simple_only && !HasExt(path, ".simple")) {
+      PrintError("simple expects .simple input");
+      return 1;
+    }
     std::string text;
     std::string error;
     if (HasExt(path, ".simple")) {
@@ -381,6 +405,10 @@ int main(int argc, char** argv) {
     }
     const std::string mode = argv[2];
     const std::string emit_path = argv[3];
+    if (simple_only && !HasExt(emit_path, ".simple")) {
+      PrintError("simple expects .simple input");
+      return 1;
+    }
     std::string out_path;
     for (int i = 4; i < argc; ++i) {
       if (std::string(argv[i]) == "--out" && i + 1 < argc) {
@@ -476,6 +504,10 @@ int main(int argc, char** argv) {
       PrintError("missing input file");
       return 1;
     }
+    if (simple_only && !HasExt(input_path, ".simple")) {
+      PrintError("simple expects .simple input");
+      return 1;
+    }
 
     std::string out_path;
     for (int i = 3; i < argc; ++i) {
@@ -537,6 +569,10 @@ int main(int argc, char** argv) {
       PrintError("missing input file");
       return 1;
     }
+    if (simple_only && !HasExt(path, ".simple")) {
+      PrintError("simple expects .simple input");
+      return 1;
+    }
   }
 
   Simple::Byte::LoadResult load{};
@@ -557,6 +593,10 @@ int main(int argc, char** argv) {
     }
     load = Simple::Byte::LoadModuleFromBytes(bytes);
   } else {
+    if (simple_only) {
+      PrintError("simple expects .simple input");
+      return 1;
+    }
     load = Simple::Byte::LoadModuleFromFile(path);
   }
   if (!load.ok) {
