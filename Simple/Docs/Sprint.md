@@ -752,3 +752,5 @@
 - Added CLI test for static executable build.
 - Added line/column prefixes for validation errors tied to type/identifier/member locations.
 - Added language unit test asserting validation errors include source locations.
+- Added enum explicit-value fixture and tests.
+- Added .simple negative fixtures for unknown type and enum type used as value.

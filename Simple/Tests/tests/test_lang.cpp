@@ -104,6 +104,10 @@ bool LangSimpleFixtureEnumValue() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/enum_value.simple", 1);
 }
 
+bool LangSimpleFixtureEnumExplicit() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/enum_explicit.simple", 9);
+}
+
 bool LangSimpleFixtureModuleAccess() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/module_access.simple", 5);
 }
@@ -212,6 +216,18 @@ bool LangSimpleBadModuleFuncReturnMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/module_func_return_mismatch.simple",
       "Math.bad");
+}
+
+bool LangSimpleBadUnknownType() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/unknown_type.simple",
+      "unknown type");
+}
+
+bool LangSimpleBadEnumTypeAsValue() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/enum_type_as_value.simple",
+      "enum type is not a value");
 }
 
 bool LangCliEmitIr() {
@@ -2298,6 +2314,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_for_loop", LangSimpleFixtureForLoop},
   {"lang_simple_fixture_while_break", LangSimpleFixtureWhileBreak},
   {"lang_simple_fixture_enum_value", LangSimpleFixtureEnumValue},
+  {"lang_simple_fixture_enum_explicit", LangSimpleFixtureEnumExplicit},
   {"lang_simple_fixture_module_access", LangSimpleFixtureModuleAccess},
   {"lang_simple_fixture_io_print", LangSimpleFixtureIoPrint},
   {"lang_simple_fixture_fn_literal", LangSimpleFixtureFnLiteral},
@@ -2319,6 +2336,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_unknown_identifier", LangSimpleBadUnknownIdentifier},
   {"lang_simple_bad_call_arg_count", LangSimpleBadCallArgCount},
   {"lang_simple_bad_module_func_return_mismatch", LangSimpleBadModuleFuncReturnMismatch},
+  {"lang_simple_bad_unknown_type", LangSimpleBadUnknownType},
+  {"lang_simple_bad_enum_type_as_value", LangSimpleBadEnumTypeAsValue},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

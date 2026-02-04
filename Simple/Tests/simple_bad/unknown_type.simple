@@ -1,0 +1,4 @@
+main : i32 () {
+  x : Nope = 1
+  return 0
+}

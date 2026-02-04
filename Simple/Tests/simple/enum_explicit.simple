@@ -1,0 +1,8 @@
+Color :: enum {
+  Red = 7,
+  Green = 9
+}
+
+main : i32 () {
+  return Color.Green
+}
