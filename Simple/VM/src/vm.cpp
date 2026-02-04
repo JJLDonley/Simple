@@ -2601,6 +2601,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               default:
                 return Trap("print_any: unsupported tag");
             }
+            std::fflush(stdout);
             break;
           }
           default:
