@@ -749,3 +749,4 @@
 - Added new .simple negative fixtures for len invalid arg, non-int index, immutable assignment, unknown identifier, and call arg count.
 - Added `simplevm build -d/-s` support to emit a standalone executable (embedded SBC + VM).
 - Added CLI test for dynamic executable build.
+- Added CLI test for static executable build.
