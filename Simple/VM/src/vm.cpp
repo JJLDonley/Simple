@@ -2535,9 +2535,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             break;
           }
           case kIntrinsicMonoNs:
-          case kIntrinsicWallNs:
-            Push(stack, PackI64(0));
+          case kIntrinsicWallNs: {
+            int64_t ns = 0;
+            if (id == kIntrinsicMonoNs) {
+              auto now = std::chrono::steady_clock::now().time_since_epoch();
+              ns = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
+            } else {
+              auto now = std::chrono::system_clock::now().time_since_epoch();
+              ns = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
+            }
+            Push(stack, PackI64(ns));
             break;
+          }
           case kIntrinsicRandU32:
             Push(stack, PackI32(0));
             break;

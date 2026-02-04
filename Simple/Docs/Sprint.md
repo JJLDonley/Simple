@@ -785,3 +785,4 @@
 - Added import_call_host test to validate custom import resolver handling.
 - Added `simple` CLI front-end behavior (simple-only inputs + usage).
 - Added CLI tests for `simple check` and `.sir` rejection.
+- Wired Time intrinsics to real clocks and added intrinsic_time test coverage.

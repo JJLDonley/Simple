@@ -4362,15 +4362,13 @@ std::vector<uint8_t> BuildIntrinsicCoreModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
   AppendU32(code, 0x0030); // mono_ns
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
   AppendU32(code, 0x0040); // rand_u32
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
   AppendU32(code, 0x0041); // rand_u64
-  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
   AppendU32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstString));
@@ -4383,6 +4381,26 @@ std::vector<uint8_t> BuildIntrinsicCoreModule() {
   AppendU32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModuleWithTables(code, const_pool, {}, {}, 0, 1);
+}
+
+std::vector<uint8_t> BuildIntrinsicTimeModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0030); // mono_ns
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, 0x0031); // wall_ns
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+  return BuildModuleWithTables(code, {}, {}, {}, 0, 0);
 }
 
 std::vector<uint8_t> BuildSysCallTrapModule() {
@@ -21384,6 +21402,26 @@ bool RunIntrinsicCoreTest() {
   return true;
 }
 
+bool RunIntrinsicTimeTest() {
+  std::vector<uint8_t> module_bytes = BuildIntrinsicTimeModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "intrinsic_time load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "intrinsic_time expected halt, got status=" << static_cast<int>(exec.status)
+              << " error=" << exec.error << "\n";
+    return false;
+  }
+  if (exec.exit_code != 1) {
+    std::cerr << "intrinsic_time expected 1, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunBadSysCallVerifyTest() {
   return RunExpectVerifyFail(BuildBadSysCallVerifyModule(), "bad_syscall_verify");
 }
@@ -23123,6 +23161,7 @@ static const TestCase kCoreTests[] = {
   {"jump_to_end", RunJumpToEndTest},
   {"intrinsic_trap", RunIntrinsicTrapTest},
   {"intrinsic_core", RunIntrinsicCoreTest},
+  {"intrinsic_time", RunIntrinsicTimeTest},
   {"syscall_trap", RunSysCallTrapTest},
   {"bad_call_indirect", RunBadCallIndirectTrapTest},
   {"bad_call_indirect_type", RunBadCallIndirectTypeTrapTest},

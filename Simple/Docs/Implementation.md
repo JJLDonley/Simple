@@ -224,9 +224,9 @@ Checklist:
 - [x] Standardized library layout and naming (core + optional modules).
 - [x] Reserved import paths for core libraries (Math, IO, Time, File, etc).
 - [x] Import resolver maps reserved names to core library modules before filesystem/relative lookups.
+- [x] Runtime wiring for Math/IO/Time/File intrinsics and FFI bindings.
 
 Future:
-- Full runtime wiring of standard library modules.
 - Diagnostics range highlights and UX polish.
 - Expanded FFI surface and host bindings.
 
