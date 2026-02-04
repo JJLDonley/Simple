@@ -54,6 +54,12 @@ These FFI modules are resolved via the import table and handled by the VM:
 - `core.log` (logging)
 - `core.dl` (dlopen/dlsym/dlclose + last_error)
 
+### core.dl
+- `core.dl.open(path: string) -> i64`
+- `core.dl.sym(handle: i64, name: string) -> i64`
+- `core.dl.close(handle: i64) -> i32`
+- `core.dl.last_error() -> string`
+
 ### Compiler Import Resolver Aliases
 
 To reference core FFI modules from `extern` declarations, the compiler recognizes:

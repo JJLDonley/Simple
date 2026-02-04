@@ -28,6 +28,14 @@ OBJ_DIR="$BUILD_DIR/obj_$SUITE"
 mkdir -p "$OUT_DIR"
 mkdir -p "$OBJ_DIR"
 
+FFI_C="$ROOT_DIR/Tests/ffi/simple_ffi.c"
+FFI_SO="$ROOT_DIR/Tests/ffi/libsimpleffi.so"
+if [[ -f "$FFI_C" ]]; then
+  if [[ ! -f "$FFI_SO" || "$FFI_C" -nt "$FFI_SO" ]]; then
+    cc -shared -fPIC -O2 -o "$FFI_SO" "$FFI_C"
+  fi
+fi
+
 CLI_SOURCES=(
   "$CLI_DIR/src/main.cpp"
 )

@@ -788,3 +788,4 @@
 - Wired Time intrinsics to real clocks and added intrinsic_time test coverage.
 - Added core.dl import handling (open/sym/close/last_error) for Linux dynamic loading.
 - Added core.dl import alias (core_dl) and documentation updates.
+- Added a tiny test shared library and a core_dl .simple fixture to validate dlopen/dlsym/close.

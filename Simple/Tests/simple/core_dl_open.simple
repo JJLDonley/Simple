@@ -1,0 +1,22 @@
+extern core_dl.open : i64 (path : string)
+extern core_dl.sym : i64 (handle : i64, name : string)
+extern core_dl.close : i32 (handle : i64)
+extern core_dl.last_error : string ()
+
+main : i32 () {
+  h : i64 = core_dl.open("Simple/Tests/ffi/libsimpleffi.so")
+  if h == 0 {
+    err := core_dl.last_error()
+    return 0
+  }
+  s : i64 = core_dl.sym(h, "simple_add_i32")
+  if s == 0 {
+    core_dl.close(h)
+    return 0
+  }
+  c : i32 = core_dl.close(h)
+  if c != 0 {
+    return 0
+  }
+  return 1
+}
