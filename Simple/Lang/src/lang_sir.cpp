@@ -38,6 +38,7 @@ struct EmitState {
   std::unordered_map<std::string, std::string> proc_sig_names;
   std::vector<std::string> proc_sig_lines;
   std::unordered_set<std::string> reserved_imports;
+  std::unordered_map<std::string, std::string> reserved_import_aliases;
   std::unordered_map<std::string, std::string> extern_ids;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> extern_ids_by_module;
   std::unordered_map<std::string, std::vector<TypeRef>> extern_params;
@@ -130,6 +131,22 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
       *out = "Core." + base.text;
       return true;
     }
+  }
+  return false;
+}
+
+bool ResolveReservedModuleName(const EmitState& st,
+                               const std::string& name,
+                               std::string* out) {
+  if (!out) return false;
+  if (st.reserved_imports.find(name) != st.reserved_imports.end()) {
+    *out = name;
+    return true;
+  }
+  auto it = st.reserved_import_aliases.find(name);
+  if (it != st.reserved_import_aliases.end()) {
+    *out = it->second;
+    return true;
   }
   return false;
 }
@@ -563,9 +580,9 @@ bool InferExprType(const Expr& expr,
       }
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
-        if (base.text == "Math" &&
-            st.reserved_imports.find("Math") != st.reserved_imports.end() &&
-            expr.text == "PI") {
+        std::string resolved;
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Math" && expr.text == "PI") {
           out->name = "f64";
           return true;
         }
@@ -635,14 +652,15 @@ bool InferExprType(const Expr& expr,
         }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
-          if (st.reserved_imports.find(module_name) != st.reserved_imports.end()) {
-            if (module_name == "Math" &&
+          std::string resolved;
+          if (ResolveReservedModuleName(st, module_name, &resolved)) {
+            if (resolved == "Math" &&
                 (callee.text == "abs" || callee.text == "min" || callee.text == "max") &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if (module_name == "Time" &&
+            if (resolved == "Time" &&
                 (callee.text == "mono_ns" || callee.text == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -1421,9 +1439,11 @@ bool EmitExpr(EmitState& st,
           return true;
         }
         std::string module_name;
-        if (GetModuleNameFromExpr(base, &module_name) &&
-            st.reserved_imports.find(module_name) != st.reserved_imports.end()) {
-          if (module_name == "Math") {
+        if (GetModuleNameFromExpr(base, &module_name)) {
+          std::string resolved;
+          if (!ResolveReservedModuleName(st, module_name, &resolved)) {
+            // Not a reserved module; fall through to normal call handling.
+          } else if (resolved == "Math") {
             if (callee.text == "abs") {
               if (expr.args.size() != 1) {
                 if (error) *error = "call argument count mismatch for 'Math.abs'";
@@ -1496,6 +1516,10 @@ bool EmitExpr(EmitState& st,
           }
         }
         if (GetModuleNameFromExpr(base, &module_name)) {
+          std::string resolved;
+          if (ResolveReservedModuleName(st, module_name, &resolved)) {
+            module_name = resolved;
+          }
           const std::string key = module_name + "." + callee.text;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -1952,9 +1976,9 @@ bool EmitExpr(EmitState& st,
       }
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
-        if (base.text == "Math" &&
-            st.reserved_imports.find("Math") != st.reserved_imports.end() &&
-            expr.text == "PI") {
+        std::string resolved;
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Math" && expr.text == "PI") {
           (*st.out) << "  const.f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
@@ -2473,6 +2497,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
         st.reserved_imports.insert(decl.import_decl.path);
+        if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
+          st.reserved_import_aliases[decl.import_decl.alias] = decl.import_decl.path;
+        }
       }
       if (decl.kind == DeclKind::Extern) {
         externs.push_back(&decl.ext);
@@ -2655,90 +2682,109 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return true;
   };
 
+  auto reserved_aliases_for = [&](const std::string& name) {
+    std::vector<std::string> aliases;
+    aliases.push_back(name);
+    for (const auto& entry : st.reserved_import_aliases) {
+      if (entry.second == name) aliases.push_back(entry.first);
+    }
+    return aliases;
+  };
+
   if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
-    std::vector<TypeRef> open_params;
-    open_params.push_back(make_type("string"));
-    open_params.push_back(make_type("i32"));
-    if (!add_reserved_import("File", "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+    for (const auto& alias : reserved_aliases_for("File")) {
+      std::vector<TypeRef> open_params;
+      open_params.push_back(make_type("string"));
+      open_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
 
-    std::vector<TypeRef> close_params;
-    close_params.push_back(make_type("i32"));
-    if (!add_reserved_import("File", "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+      std::vector<TypeRef> close_params;
+      close_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.fs", "close", std::move(close_params), make_type("void"))) return false;
 
-    auto make_rw_params = [&]() {
-      std::vector<TypeRef> params;
-      params.push_back(make_type("i32"));
-      params.push_back(make_list_type("i32"));
-      params.push_back(make_type("i32"));
-      return params;
-    };
-    if (!add_reserved_import("File", "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
-    if (!add_reserved_import("File", "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      auto make_rw_params = [&]() {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("i32"));
+        params.push_back(make_list_type("i32"));
+        params.push_back(make_type("i32"));
+        return params;
+      };
+      if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+    }
   }
 
   if (st.reserved_imports.find("Core.DL") != st.reserved_imports.end()) {
-    std::vector<TypeRef> open_params;
-    open_params.push_back(make_type("string"));
-    if (!add_reserved_import("Core.DL", "core.dl", "open", std::move(open_params), make_type("i64"))) return false;
+    for (const auto& alias : reserved_aliases_for("Core.DL")) {
+      std::vector<TypeRef> open_params;
+      open_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.dl", "open", std::move(open_params), make_type("i64"))) return false;
 
-    std::vector<TypeRef> sym_params;
-    sym_params.push_back(make_type("i64"));
-    sym_params.push_back(make_type("string"));
-    if (!add_reserved_import("Core.DL", "core.dl", "sym", std::move(sym_params), make_type("i64"))) return false;
+      std::vector<TypeRef> sym_params;
+      sym_params.push_back(make_type("i64"));
+      sym_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.dl", "sym", std::move(sym_params), make_type("i64"))) return false;
 
-    std::vector<TypeRef> close_params;
-    close_params.push_back(make_type("i64"));
-    if (!add_reserved_import("Core.DL", "core.dl", "close", std::move(close_params), make_type("i32"))) return false;
+      std::vector<TypeRef> close_params;
+      close_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.dl", "close", std::move(close_params), make_type("i32"))) return false;
 
-    if (!add_reserved_import("Core.DL", "core.dl", "last_error", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "core.dl", "last_error", {}, make_type("string"))) return false;
+    }
   }
 
   if (st.reserved_imports.find("Core.Os") != st.reserved_imports.end()) {
-    if (!add_reserved_import("Core.Os", "core.os", "args_count", {}, make_type("i32"))) return false;
+    for (const auto& alias : reserved_aliases_for("Core.Os")) {
+      if (!add_reserved_import(alias, "core.os", "args_count", {}, make_type("i32"))) return false;
 
-    std::vector<TypeRef> idx_params;
-    idx_params.push_back(make_type("i32"));
-    if (!add_reserved_import("Core.Os", "core.os", "args_get", std::move(idx_params), make_type("string"))) return false;
+      std::vector<TypeRef> idx_params;
+      idx_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.os", "args_get", std::move(idx_params), make_type("string"))) return false;
 
-    std::vector<TypeRef> env_params;
-    env_params.push_back(make_type("string"));
-    if (!add_reserved_import("Core.Os", "core.os", "env_get", std::move(env_params), make_type("string"))) return false;
+      std::vector<TypeRef> env_params;
+      env_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.os", "env_get", std::move(env_params), make_type("string"))) return false;
 
-    if (!add_reserved_import("Core.Os", "core.os", "cwd_get", {}, make_type("string"))) return false;
-    if (!add_reserved_import("Core.Os", "core.os", "time_mono_ns", {}, make_type("i64"))) return false;
-    if (!add_reserved_import("Core.Os", "core.os", "time_wall_ns", {}, make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "core.os", "cwd_get", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "core.os", "time_mono_ns", {}, make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "core.os", "time_wall_ns", {}, make_type("i64"))) return false;
 
-    std::vector<TypeRef> sleep_params;
-    sleep_params.push_back(make_type("i32"));
-    if (!add_reserved_import("Core.Os", "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+      std::vector<TypeRef> sleep_params;
+      sleep_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
   }
 
   if (st.reserved_imports.find("Core.Fs") != st.reserved_imports.end()) {
-    std::vector<TypeRef> open_params;
-    open_params.push_back(make_type("string"));
-    open_params.push_back(make_type("i32"));
-    if (!add_reserved_import("Core.Fs", "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+    for (const auto& alias : reserved_aliases_for("Core.Fs")) {
+      std::vector<TypeRef> open_params;
+      open_params.push_back(make_type("string"));
+      open_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
 
-    std::vector<TypeRef> close_params;
-    close_params.push_back(make_type("i32"));
-    if (!add_reserved_import("Core.Fs", "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+      std::vector<TypeRef> close_params;
+      close_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.fs", "close", std::move(close_params), make_type("void"))) return false;
 
-    auto make_rw_params = [&]() {
-      std::vector<TypeRef> params;
-      params.push_back(make_type("i32"));
-      params.push_back(make_list_type("i32"));
-      params.push_back(make_type("i32"));
-      return params;
-    };
-    if (!add_reserved_import("Core.Fs", "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
-    if (!add_reserved_import("Core.Fs", "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      auto make_rw_params = [&]() {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("i32"));
+        params.push_back(make_list_type("i32"));
+        params.push_back(make_type("i32"));
+        return params;
+      };
+      if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+    }
   }
 
   if (st.reserved_imports.find("Core.Log") != st.reserved_imports.end()) {
-    std::vector<TypeRef> params;
-    params.push_back(make_type("string"));
-    params.push_back(make_type("i32"));
-    if (!add_reserved_import("Core.Log", "core.log", "log", std::move(params), make_type("void"))) return false;
+    for (const auto& alias : reserved_aliases_for("Core.Log")) {
+      std::vector<TypeRef> params;
+      params.push_back(make_type("string"));
+      params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.log", "log", std::move(params), make_type("void"))) return false;
+    }
   }
 
   for (const auto* artifact : artifacts) {

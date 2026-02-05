@@ -638,6 +638,9 @@
 - Added Simple::Lang module/artifact duplicate-member validation with tests.
 - Added Simple::Lang duplicate parameter validation with tests.
 - Enforced `.` as the only member access and rejected `::` in expressions, with tests.
+- Allowed integer literals to type-match any integer target in assignments, returns, calls, and literals checks.
+- Added reserved import alias support in Simple::Lang validation and SIR emission (e.g., `import "Core.DL" as DL`).
+- Fixed core_dl_open.simple to use integer zero literal with i64 and alias import path.
 - Added SIR emission support for module functions via name-mangled top-level functions and module member calls.
 - Added SIR emission error for module variables (not supported yet).
 - Updated module_access.simple fixture to call a module function instead of reading a module variable.

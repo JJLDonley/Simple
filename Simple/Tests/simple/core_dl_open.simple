@@ -1,18 +1,18 @@
-import "Core.DL"
+import "Core.DL" as DL
 
 main : i32 () {
   zero : i64 = 0
-  h : i64 = Core.DL.open("Simple/Tests/ffi/libsimpleffi.so")
+  h : i64 = DL.open("Simple/Tests/ffi/libsimpleffi.so")
   if h == zero {
-    Core.DL.last_error()
+    DL.last_error()
     return 0
   }
-  s : i64 = Core.DL.sym(h, "simple_add_i32")
+  s : i64 = DL.sym(h, "simple_add_i32")
   if s == zero {
-    Core.DL.close(h)
+    DL.close(h)
     return 0
   }
-  c : i32 = Core.DL.close(h)
+  c : i32 = DL.close(h)
   if c != 0 {
     return 0
   }

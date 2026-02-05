@@ -22,6 +22,7 @@ struct ValidateContext {
   std::unordered_map<std::string, const ExternDecl*> externs;
   std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
   std::unordered_set<std::string> reserved_imports;
+  std::unordered_map<std::string, std::string> reserved_import_aliases;
 };
 
 struct LocalInfo {
@@ -81,7 +82,24 @@ bool IsReservedImportPath(const std::string& path) {
 }
 
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
-  return ctx.reserved_imports.find(name) != ctx.reserved_imports.end();
+  return ctx.reserved_imports.find(name) != ctx.reserved_imports.end() ||
+         ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end();
+}
+
+bool ResolveReservedModuleName(const ValidateContext& ctx,
+                               const std::string& name,
+                               std::string* out) {
+  if (!out) return false;
+  if (ctx.reserved_imports.find(name) != ctx.reserved_imports.end()) {
+    *out = name;
+    return true;
+  }
+  auto it = ctx.reserved_import_aliases.find(name);
+  if (it != ctx.reserved_import_aliases.end()) {
+    *out = it->second;
+    return true;
+  }
+  return false;
 }
 
 bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
@@ -125,8 +143,9 @@ bool GetReservedModuleVarType(const ValidateContext& ctx,
                               const std::string& module,
                               const std::string& member,
                               TypeRef* out) {
-  if (!IsReservedModuleEnabled(ctx, module)) return false;
-  if (module == "Math" && member == "PI") {
+  std::string resolved;
+  if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
+  if (resolved == "Math" && member == "PI") {
     if (out) *out = MakeSimpleType("f64");
     return true;
   }
@@ -137,12 +156,13 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
                                  const std::string& module,
                                  const std::string& member,
                                  CallTargetInfo* out) {
-  if (!IsReservedModuleEnabled(ctx, module)) return false;
+  std::string resolved;
+  if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
   if (!out) return false;
   out->params.clear();
   out->type_params.clear();
   out->is_proc = false;
-  if (module == "Math") {
+  if (resolved == "Math") {
     if (member == "abs") {
       out->params.push_back(MakeSimpleType("T"));
       out->return_type = MakeSimpleType("T");
@@ -159,14 +179,14 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (module == "Time") {
+  if (resolved == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
   }
-  if (module == "Core.DL") {
+  if (resolved == "Core.DL") {
     if (member == "open") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("i64");
@@ -192,7 +212,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (module == "Core.Os") {
+  if (resolved == "Core.Os") {
     if (member == "args_count") {
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
@@ -227,7 +247,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (module == "Core.Fs") {
+  if (resolved == "Core.Fs") {
     if (member == "open") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
@@ -250,7 +270,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (module == "Core.Log") {
+  if (resolved == "Core.Log") {
     if (member == "log") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
@@ -341,6 +361,7 @@ bool TypeDimsEqual(const std::vector<TypeDim>& a, const std::vector<TypeDim>& b)
 }
 
 bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b);
+bool IsIntegerTypeName(const std::string& name);
 
 bool TypeEquals(const TypeRef& a, const TypeRef& b) {
   if (a.is_proc != b.is_proc) return false;
@@ -358,6 +379,19 @@ bool TypeEquals(const TypeRef& a, const TypeRef& b) {
     if (!TypeDimsEqual(a.dims, b.dims)) return false;
   }
   return true;
+}
+
+bool IsIntegerLiteralExpr(const Expr& expr) {
+  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
+}
+
+bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
+  if (TypeEquals(expected, actual)) return true;
+  if (IsIntegerLiteralExpr(expr) && expected.dims.empty() && actual.dims.empty() &&
+      IsIntegerTypeName(expected.name)) {
+    return true;
+  }
+  return false;
 }
 
 bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b) {
@@ -1510,7 +1544,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
     TypeRef actual;
     if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) continue;
-    if (!TypeEquals(expected, actual)) {
+    if (!TypesCompatibleForExpr(expected, actual, call_expr.args[i])) {
       if (error) *error = "call argument type mismatch";
       return false;
     }
@@ -1714,7 +1748,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
     if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {
       TypeRef expected;
       if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
-      if (!TypeEquals(expected, value_type)) {
+      if (!TypesCompatibleForExpr(expected, value_type, expr.children[i])) {
         if (error) *error = "artifact field type mismatch: " + field.name;
         return false;
       }
@@ -1741,7 +1775,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
       if (InferExprType(expr.field_values[i], ctx, scopes, current_artifact, &value_type)) {
         TypeRef expected;
         if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
-        if (!TypeEquals(expected, value_type)) {
+        if (!TypesCompatibleForExpr(expected, value_type, expr.field_values[i])) {
           if (error) *error = "artifact field type mismatch: " + name;
           return false;
         }
@@ -1775,7 +1809,7 @@ bool CheckStmt(const Stmt& stmt,
         if (expected_return) {
           TypeRef actual;
           if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
-            if (!TypeEquals(*expected_return, actual)) {
+            if (!TypesCompatibleForExpr(*expected_return, actual, stmt.expr)) {
               if (error) *error = "return type mismatch";
               return false;
             }
@@ -1798,7 +1832,7 @@ bool CheckStmt(const Stmt& stmt,
         if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
           if (!CheckFnLiteralAgainstType(stmt.expr, target_type, error)) return false;
         }
-        if (have_target && have_value && !TypeEquals(target_type, value_type)) {
+        if (have_target && have_value && !TypesCompatibleForExpr(target_type, value_type, stmt.expr)) {
           if (error) *error = "assignment type mismatch";
           return false;
         }
@@ -1888,7 +1922,7 @@ bool CheckStmt(const Stmt& stmt,
         }
         TypeRef init_type;
         if (InferExprType(stmt.var_decl.init_expr, ctx, scopes, current_artifact, &init_type)) {
-          if (!TypeEquals(stmt.var_decl.type, init_type)) {
+          if (!TypesCompatibleForExpr(stmt.var_decl.type, init_type, stmt.var_decl.init_expr)) {
             if (error) *error = "initializer type mismatch";
             return false;
           }
@@ -2125,7 +2159,7 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
         if (error && error->empty()) *error = "array literal element type mismatch";
         return false;
       }
-      if (!TypeEquals(element_type, child_type)) {
+      if (!TypesCompatibleForExpr(element_type, child_type, child)) {
         if (error) *error = "array literal element type mismatch";
         return false;
       }
@@ -2170,7 +2204,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
       if (error && error->empty()) *error = "list literal element type mismatch";
       return false;
     }
-    if (!TypeEquals(element_type, child_type)) {
+    if (!TypesCompatibleForExpr(element_type, child_type, child)) {
       if (error) *error = "list literal element type mismatch";
       return false;
     }
@@ -2506,7 +2540,8 @@ bool CheckExpr(const Expr& expr,
           if (error) *error = "array/list literal requires array or list type";
           return false;
         }
-        if (have_target && have_value && !TypeEquals(target_type, value_type)) {
+        if (have_target && have_value &&
+            !TypesCompatibleForExpr(target_type, value_type, expr.children[1])) {
           if (error) *error = "assignment type mismatch";
           return false;
         }
@@ -2864,6 +2899,9 @@ bool ValidateProgram(const Program& program, std::string* error) {
           return false;
         }
         ctx.reserved_imports.insert(decl.import_decl.path);
+        if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
+          ctx.reserved_import_aliases[decl.import_decl.alias] = decl.import_decl.path;
+        }
         break;
       case DeclKind::Extern:
         if (decl.ext.has_module) {
