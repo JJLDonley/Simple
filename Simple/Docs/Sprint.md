@@ -804,3 +804,6 @@
 - Made VM import return-type checks accept new i32/i64/ref-like kinds.
 - Fixed SIR emission for reserved module alias resolution in call inference.
 - Added expected-failure note for CLI `.sir` rejection in lang tests.
+## 2026-02-05 (cont.)
+- Added Core.DL PascalCase member support (Open/Sym/Close/LastError) in validation and SIR emission.
+- Normalized Core.DL member names to lowercase for call resolution.

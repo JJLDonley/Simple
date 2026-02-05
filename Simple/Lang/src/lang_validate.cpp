@@ -187,26 +187,31 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
   }
   if (resolved == "Core.DL") {
-    if (member == "open") {
+    std::string dl_member = member;
+    if (dl_member == "Open") dl_member = "open";
+    else if (dl_member == "Sym") dl_member = "sym";
+    else if (dl_member == "Close") dl_member = "close";
+    else if (dl_member == "LastError") dl_member = "last_error";
+    if (dl_member == "open") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("i64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "sym") {
+    if (dl_member == "sym") {
       out->params.push_back(MakeSimpleType("i64"));
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("i64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "close") {
+    if (dl_member == "close") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "last_error") {
+    if (dl_member == "last_error") {
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;

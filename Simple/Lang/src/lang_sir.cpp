@@ -115,6 +115,14 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
+std::string NormalizeCoreDlMember(const std::string& name) {
+  if (name == "Open") return "open";
+  if (name == "Sym") return "sym";
+  if (name == "Close") return "close";
+  if (name == "LastError") return "last_error";
+  return name;
+}
+
 std::string ResolveImportModule(const std::string& module) {
   if (module == "core_os") return "core.os";
   if (module == "core_fs") return "core.fs";
@@ -662,14 +670,16 @@ bool InferExprType(const Expr& expr,
           std::string resolved;
           if (ResolveReservedModuleName(st, module_name, &resolved)) {
             module_name = resolved;
+            const std::string member_name =
+                (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
             if (resolved == "Math" &&
-                (callee.text == "abs" || callee.text == "min" || callee.text == "max") &&
+                (member_name == "abs" || member_name == "min" || member_name == "max") &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
             if (resolved == "Time" &&
-                (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+                (member_name == "mono_ns" || member_name == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
               out->dims.clear();
@@ -681,12 +691,16 @@ bool InferExprType(const Expr& expr,
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           if (ext_mod_it != st.extern_returns_by_module.end()) {
-            auto ext_it = ext_mod_it->second.find(callee.text);
+            const std::string member_name =
+                (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
             }
           }
-          const std::string key = module_name + "." + callee.text;
+          const std::string member_name =
+              (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+          const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
             auto ret_it = st.func_returns.find(module_it->second);
@@ -1464,7 +1478,7 @@ bool EmitExpr(EmitState& st,
           } else {
             module_name = resolved;
             if (resolved == "Math") {
-              if (callee.text == "abs") {
+              if (NormalizeCoreDlMember(callee.text) == "abs") {
                 if (expr.args.size() != 1) {
                   if (error) *error = "call argument count mismatch for 'Math.abs'";
                   return false;
@@ -1487,7 +1501,9 @@ bool EmitExpr(EmitState& st,
                 return true;
               }
             }
-            if (callee.text == "min" || callee.text == "max") {
+            const std::string member_name =
+                (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (member_name == "min" || member_name == "max") {
               if (expr.args.size() != 2) {
                 if (error) *error = "call argument count mismatch for 'Math." + callee.text + "'";
                 return false;
@@ -1498,13 +1514,13 @@ bool EmitExpr(EmitState& st,
               if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
               uint32_t id = 0;
               if (arg_type.name == "i32") {
-                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI32 : Simple::VM::kIntrinsicMaxI32;
+                id = (member_name == "min") ? Simple::VM::kIntrinsicMinI32 : Simple::VM::kIntrinsicMaxI32;
               } else if (arg_type.name == "i64") {
-                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI64 : Simple::VM::kIntrinsicMaxI64;
+                id = (member_name == "min") ? Simple::VM::kIntrinsicMinI64 : Simple::VM::kIntrinsicMaxI64;
               } else if (arg_type.name == "f32") {
-                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF32 : Simple::VM::kIntrinsicMaxF32;
+                id = (member_name == "min") ? Simple::VM::kIntrinsicMinF32 : Simple::VM::kIntrinsicMaxF32;
               } else if (arg_type.name == "f64") {
-                id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF64 : Simple::VM::kIntrinsicMaxF64;
+                id = (member_name == "min") ? Simple::VM::kIntrinsicMinF64 : Simple::VM::kIntrinsicMaxF64;
               } else {
                 if (error) *error = "Math." + callee.text + " expects numeric type";
                 return false;
@@ -1516,7 +1532,7 @@ bool EmitExpr(EmitState& st,
             }
           }
           if (module_name == "Time") {
-            if (callee.text == "mono_ns") {
+            if (NormalizeCoreDlMember(callee.text) == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
                 return false;
@@ -1525,7 +1541,7 @@ bool EmitExpr(EmitState& st,
               PushStack(st, 1);
               return true;
             }
-            if (callee.text == "wall_ns") {
+            if (NormalizeCoreDlMember(callee.text) == "wall_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.wall_ns expects no arguments";
                 return false;
@@ -1541,7 +1557,9 @@ bool EmitExpr(EmitState& st,
           if (ResolveReservedModuleName(st, module_name, &resolved)) {
             module_name = resolved;
           }
-          const std::string key = module_name + "." + callee.text;
+          const std::string member_name =
+              (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+          const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
             const std::string& hoisted = module_it->second;
@@ -1577,10 +1595,12 @@ bool EmitExpr(EmitState& st,
           }
           auto ext_mod_it = st.extern_ids_by_module.find(module_name);
           if (ext_mod_it != st.extern_ids_by_module.end()) {
-            auto id_it = ext_mod_it->second.find(callee.text);
+            const std::string member_name =
+                (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            auto id_it = ext_mod_it->second.find(member_name);
             if (id_it != ext_mod_it->second.end()) {
-              auto params_it = st.extern_params_by_module[module_name].find(callee.text);
-              auto ret_it = st.extern_returns_by_module[module_name].find(callee.text);
+              auto params_it = st.extern_params_by_module[module_name].find(member_name);
+              auto ret_it = st.extern_returns_by_module[module_name].find(member_name);
               if (params_it == st.extern_params_by_module[module_name].end() ||
                   ret_it == st.extern_returns_by_module[module_name].end()) {
                 if (error) *error = "missing signature for extern '" + key + "'";
