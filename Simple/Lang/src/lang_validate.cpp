@@ -192,6 +192,11 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     else if (dl_member == "Sym") dl_member = "sym";
     else if (dl_member == "Close") dl_member = "close";
     else if (dl_member == "LastError") dl_member = "last_error";
+    else if (dl_member == "CallI32") dl_member = "call_i32";
+    else if (dl_member == "CallI64") dl_member = "call_i64";
+    else if (dl_member == "CallF32") dl_member = "call_f32";
+    else if (dl_member == "CallF64") dl_member = "call_f64";
+    else if (dl_member == "CallStr0") dl_member = "call_str0";
     if (dl_member == "open") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("i64");
@@ -212,6 +217,44 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
     if (dl_member == "last_error") {
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (dl_member == "call_i32") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (dl_member == "call_i64") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (dl_member == "call_f32") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("f32"));
+      out->params.push_back(MakeSimpleType("f32"));
+      out->return_type = MakeSimpleType("f32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (dl_member == "call_f64") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->params.push_back(MakeSimpleType("f64"));
+      out->params.push_back(MakeSimpleType("f64"));
+      out->return_type = MakeSimpleType("f64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (dl_member == "call_str0") {
+      out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;

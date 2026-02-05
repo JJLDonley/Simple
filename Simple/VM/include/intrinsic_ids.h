@@ -29,6 +29,11 @@ constexpr uint32_t kIntrinsicRandU64 = 0x0041u;
 constexpr uint32_t kIntrinsicWriteStdout = 0x0050u;
 constexpr uint32_t kIntrinsicWriteStderr = 0x0051u;
 constexpr uint32_t kIntrinsicPrintAny = 0x0060u;
+constexpr uint32_t kIntrinsicDlCallI32 = 0x0070u;
+constexpr uint32_t kIntrinsicDlCallI64 = 0x0071u;
+constexpr uint32_t kIntrinsicDlCallF32 = 0x0072u;
+constexpr uint32_t kIntrinsicDlCallF64 = 0x0073u;
+constexpr uint32_t kIntrinsicDlCallStr0 = 0x0074u;
 
 constexpr uint32_t kPrintAnyTagI8 = 1u;
 constexpr uint32_t kPrintAnyTagI16 = 2u;

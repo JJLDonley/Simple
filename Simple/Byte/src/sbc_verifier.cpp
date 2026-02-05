@@ -37,6 +37,11 @@ bool IsKnownIntrinsic(uint32_t id) {
     case kIntrinsicWriteStdout:
     case kIntrinsicWriteStderr:
     case kIntrinsicPrintAny:
+    case kIntrinsicDlCallI32:
+    case kIntrinsicDlCallI64:
+    case kIntrinsicDlCallF32:
+    case kIntrinsicDlCallF64:
+    case kIntrinsicDlCallStr0:
       return true;
     default:
       return false;
@@ -46,7 +51,7 @@ bool IsKnownIntrinsic(uint32_t id) {
 struct IntrinsicSig {
   uint8_t ret = 0;
   uint8_t param_count = 0;
-  uint8_t params[2]{0, 0};
+  uint8_t params[3]{0, 0, 0};
 };
 
 bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
@@ -75,6 +80,11 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
     case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
     case kIntrinsicPrintAny: *out = {0, 2, {0, 1}}; return true; // print_any(any,i32_tag)
+    case kIntrinsicDlCallI32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i32(i64,i32,i32)->i32
+    case kIntrinsicDlCallI64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_i64(i64,i64,i64)->i64
+    case kIntrinsicDlCallF32: *out = {3, 3, {2, 3, 3}}; return true; // dl_call_f32(i64,f32,f32)->f32
+    case kIntrinsicDlCallF64: *out = {4, 3, {2, 4, 4}}; return true; // dl_call_f64(i64,f64,f64)->f64
+    case kIntrinsicDlCallStr0: *out = {5, 1, {2, 0, 0}}; return true; // dl_call_str0(i64)->ref
     default: return false;
   }
 }

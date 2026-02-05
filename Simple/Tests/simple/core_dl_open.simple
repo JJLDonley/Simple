@@ -3,15 +3,26 @@ import "IO"
 
 main : i32 () {
   h : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so");
+  s : i64 = 0;
+  p : i64 = 0;
+  sum : i32 = 0;
+  msg : string = "";
   if h == 0 {
     IO.println(DL.LastError())
     return 0
   }
-  s : i64 = DL.Sym(h, "simple_add_i32");
+  s = DL.Sym(h, "simple_add_i32");
   if s == 0 {
     IO.println(DL.LastError())
     DL.Close(h)
     return 0
+  }
+  sum = DL.CallI32(s, 64, 64);
+  IO.println(sum);
+  p = DL.Sym(h, "simple_hello");
+  if p != 0 {
+    msg = DL.CallStr0(p);
+    IO.println(msg);
   }
   DL.Close(h)
   return 1

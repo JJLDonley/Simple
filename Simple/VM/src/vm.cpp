@@ -2784,6 +2784,67 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             std::fflush(stdout);
             break;
           }
+          case kIntrinsicDlCallI32: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i32 stack underflow");
+            int32_t b = UnpackI32(Pop(stack));
+            int32_t a = UnpackI32(Pop(stack));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_i32 null ptr");
+            using Fn = int32_t (*)(int32_t, int32_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(fn(a, b)));
+            break;
+          }
+          case kIntrinsicDlCallI64: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i64 stack underflow");
+            int64_t b = UnpackI64(Pop(stack));
+            int64_t a = UnpackI64(Pop(stack));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_i64 null ptr");
+            using Fn = int64_t (*)(int64_t, int64_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI64(fn(a, b)));
+            break;
+          }
+          case kIntrinsicDlCallF32: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_f32 stack underflow");
+            float b = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float a = BitsToF32(UnpackU32Bits(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_f32 null ptr");
+            using Fn = float (*)(float, float);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            float out = fn(a, b);
+            Push(stack, PackF32Bits(F32ToBits(out)));
+            break;
+          }
+          case kIntrinsicDlCallF64: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_f64 stack underflow");
+            double b = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double a = BitsToF64(UnpackU64Bits(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_f64 null ptr");
+            using Fn = double (*)(double, double);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            double out = fn(a, b);
+            Push(stack, PackF64Bits(F64ToBits(out)));
+            break;
+          }
+          case kIntrinsicDlCallStr0: {
+            if (stack.empty()) return Trap("INTRINSIC dl_call_str0 stack underflow");
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_str0 null ptr");
+            using Fn = const char* (*)();
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            const char* out = fn();
+            if (!out) {
+              Push(stack, PackRef(kNullRef));
+              break;
+            }
+            uint32_t handle = CreateString(heap, AsciiToU16(out));
+            Push(stack, PackRef(handle));
+            break;
+          }
           default:
             return Trap("INTRINSIC not supported id=" + std::to_string(id));
         }

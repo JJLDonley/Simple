@@ -811,3 +811,5 @@
 - Adjusted core_dl_open.simple handle comparisons to use integer literal 0.
 - Added explicit semicolons in core_dl_open.simple to avoid implicit-terminator parsing issues.
 - Restored core_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
+- Added Core.DL call intrinsics (call_i32/call_i64/call_f32/call_f64/call_str0) in VM and language lowering.
+- Extended core_dl_open.simple to call simple_add_i32 and simple_hello via Core.DL call helpers.

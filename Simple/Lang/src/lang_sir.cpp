@@ -115,11 +115,22 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
+TypeRef MakeTypeRef(const char* name) {
+  TypeRef out;
+  out.name = name;
+  return out;
+}
+
 std::string NormalizeCoreDlMember(const std::string& name) {
   if (name == "Open") return "open";
   if (name == "Sym") return "sym";
   if (name == "Close") return "close";
   if (name == "LastError") return "last_error";
+  if (name == "CallI32") return "call_i32";
+  if (name == "CallI64") return "call_i64";
+  if (name == "CallF32") return "call_f32";
+  if (name == "CallF64") return "call_f64";
+  if (name == "CallStr0") return "call_str0";
   return name;
 }
 
@@ -1503,6 +1514,80 @@ bool EmitExpr(EmitState& st,
             }
             const std::string member_name =
                 (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (resolved == "Core.DL") {
+              if (member_name == "call_i32") {
+                if (expr.args.size() != 3) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.call_i32'";
+                  return false;
+                }
+                TypeRef ptr_type = MakeTypeRef("i64");
+                TypeRef arg_type = MakeTypeRef("i32");
+                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
+                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallI32 << "\n";
+                PopStack(st, 3);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "call_i64") {
+                if (expr.args.size() != 3) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.call_i64'";
+                  return false;
+                }
+                TypeRef ptr_type = MakeTypeRef("i64");
+                TypeRef arg_type = MakeTypeRef("i64");
+                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
+                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallI64 << "\n";
+                PopStack(st, 3);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "call_f32") {
+                if (expr.args.size() != 3) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.call_f32'";
+                  return false;
+                }
+                TypeRef ptr_type = MakeTypeRef("i64");
+                TypeRef arg_type = MakeTypeRef("f32");
+                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
+                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallF32 << "\n";
+                PopStack(st, 3);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "call_f64") {
+                if (expr.args.size() != 3) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.call_f64'";
+                  return false;
+                }
+                TypeRef ptr_type = MakeTypeRef("i64");
+                TypeRef arg_type = MakeTypeRef("f64");
+                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[2], &arg_type, error)) return false;
+                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallF64 << "\n";
+                PopStack(st, 3);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "call_str0") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.call_str0'";
+                  return false;
+                }
+                TypeRef ptr_type = MakeTypeRef("i64");
+                if (!EmitExpr(st, expr.args[0], &ptr_type, error)) return false;
+                (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicDlCallStr0 << "\n";
+                PopStack(st, 1);
+                PushStack(st, 1);
+                return true;
+              }
+            }
             if (member_name == "min" || member_name == "max") {
               if (expr.args.size() != 2) {
                 if (error) *error = "call argument count mismatch for 'Math." + callee.text + "'";

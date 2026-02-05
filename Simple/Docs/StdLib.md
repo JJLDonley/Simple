@@ -58,6 +58,11 @@ Using these paths does **not** load files from disk. They map to core VM namespa
 - `Core.DL.sym(handle: i64, name: string) -> i64`
 - `Core.DL.close(handle: i64) -> i32`
 - `Core.DL.last_error() -> string`
+- `Core.DL.call_i32(ptr: i64, a: i32, b: i32) -> i32`
+- `Core.DL.call_i64(ptr: i64, a: i64, b: i64) -> i64`
+- `Core.DL.call_f32(ptr: i64, a: f32, b: f32) -> f32`
+- `Core.DL.call_f64(ptr: i64, a: f64, b: f64) -> f64`
+- `Core.DL.call_str0(ptr: i64) -> string`
 
 ### Core.Os
 - `Core.Os.args_count() -> i32`
@@ -91,6 +96,11 @@ These FFI modules are resolved via the import table and handled by the VM:
 - `core.dl.sym(handle: i64, name: string) -> i64`
 - `core.dl.close(handle: i64) -> i32`
 - `core.dl.last_error() -> string`
+- `core.dl.call_i32(ptr: i64, a: i32, b: i32) -> i32`
+- `core.dl.call_i64(ptr: i64, a: i64, b: i64) -> i64`
+- `core.dl.call_f32(ptr: i64, a: f32, b: f32) -> f32`
+- `core.dl.call_f64(ptr: i64, a: f64, b: f64) -> f64`
+- `core.dl.call_str0(ptr: i64) -> string`
 
 ### Compiler Import Resolver Aliases
 
