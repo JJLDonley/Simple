@@ -27,6 +27,39 @@ using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
+inline bool IsI32Like(TypeKind kind) {
+  switch (kind) {
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool IsI64Like(TypeKind kind) {
+  return kind == TypeKind::I64 || kind == TypeKind::U64;
+}
+
+inline bool IsF32Like(TypeKind kind) {
+  return kind == TypeKind::F32;
+}
+
+inline bool IsF64Like(TypeKind kind) {
+  return kind == TypeKind::F64;
+}
+
+inline bool IsRefLike(TypeKind kind) {
+  return kind == TypeKind::Ref || kind == TypeKind::String || kind == TypeKind::I128 ||
+         kind == TypeKind::U128;
+}
+
 float BitsToF32(uint32_t bits) {
   uint32_t v = bits;
   float out = 0.0f;
@@ -534,11 +567,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.os") {
       if (sym == "args_count") {
-        if (ret_kind == TypeKind::I32) {
+        if (IsI32Like(ret_kind)) {
           out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
           return true;
         }
-        if (ret_kind == TypeKind::I64) {
+        if (IsI64Like(ret_kind)) {
           out_ret = PackI64(static_cast<int64_t>(options.argv.size()));
           return true;
         }
@@ -546,7 +579,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return false;
       }
       if (sym == "args_get" || sym == "env_get") {
-        if (ret_kind != TypeKind::Ref) {
+        if (!IsRefLike(ret_kind)) {
           out_error = "core.os ref return type mismatch";
           return false;
         }
@@ -594,7 +627,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "cwd_get") {
-        if (ret_kind != TypeKind::Ref) {
+        if (!IsRefLike(ret_kind)) {
           out_error = "core.os.cwd_get return type mismatch";
           return false;
         }
@@ -609,7 +642,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
-        if (ret_kind != TypeKind::I64) {
+        if (!IsI64Like(ret_kind)) {
           out_error = "core.os time return type mismatch";
           return false;
         }
@@ -639,7 +672,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.fs") {
       if (sym == "open") {
-        if (ret_kind != TypeKind::I32) {
+        if (!IsI32Like(ret_kind)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -677,7 +710,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "read" || sym == "write") {
-        if (ret_kind != TypeKind::I32) {
+        if (!IsI32Like(ret_kind)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -762,7 +795,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error = text;
       };
       if (sym == "open") {
-        if (ret_kind != TypeKind::I64) {
+        if (!IsI64Like(ret_kind)) {
           out_error = "core.dl.open return type mismatch";
           return false;
         }
@@ -796,7 +829,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "sym") {
-        if (ret_kind != TypeKind::I64) {
+        if (!IsI64Like(ret_kind)) {
           out_error = "core.dl.sym return type mismatch";
           return false;
         }
@@ -836,7 +869,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "close") {
-        if (ret_kind != TypeKind::I32) {
+        if (!IsI32Like(ret_kind)) {
           out_error = "core.dl.close return type mismatch";
           return false;
         }
@@ -862,7 +895,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "last_error") {
-        if (ret_kind != TypeKind::Ref) {
+        if (!IsRefLike(ret_kind)) {
           out_error = "core.dl.last_error return type mismatch";
           return false;
         }

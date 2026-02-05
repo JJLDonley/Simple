@@ -385,10 +385,15 @@ bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
 }
 
+bool IsIntegerScalarTypeName(const std::string& name) {
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
+}
+
 bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
   if (TypeEquals(expected, actual)) return true;
   if (IsIntegerLiteralExpr(expr) && expected.dims.empty() && actual.dims.empty() &&
-      IsIntegerTypeName(expected.name)) {
+      IsIntegerScalarTypeName(expected.name)) {
     return true;
   }
   return false;
@@ -2275,8 +2280,14 @@ bool CheckBinaryOpTypes(const Expr& expr,
   if (!RequireScalar(lhs, expr.op, error)) return false;
   if (!RequireScalar(rhs, expr.op, error)) return false;
   if (!TypeEquals(lhs, rhs)) {
-    if (error) *error = "operator '" + expr.op + "' requires matching operand types";
-    return false;
+    const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
+    const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
+    const bool lhs_int = IsIntegerScalarTypeName(lhs.name);
+    const bool rhs_int = IsIntegerScalarTypeName(rhs.name);
+    if (!(lhs_lit && rhs_int) && !(rhs_lit && lhs_int)) {
+      if (error) *error = "operator '" + expr.op + "' requires matching operand types";
+      return false;
+    }
   }
 
   const std::string& op = expr.op;

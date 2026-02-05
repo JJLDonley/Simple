@@ -797,3 +797,10 @@
 - Fixed Core.* member validation to allow Core namespace usage in member chains.
 - Fixed Core identifier validation when Core.* reserved imports are enabled.
 - Fixed core_dl_open.simple to compare i64 handles without literal type mismatch.
+## 2026-02-05
+- Expanded VM type kinds to include full primitive set (i8/i16/i128/u8/u16/u32/u64/u128/bool/char/string).
+- Updated loader/verifier to validate new TypeKind sizes and map to VM stack types.
+- Updated SIR type registry and size rules for new primitive kinds.
+- Made VM import return-type checks accept new i32/i64/ref-like kinds.
+- Fixed SIR emission for reserved module alias resolution in call inference.
+- Added expected-failure note for CLI `.sir` rejection in lang tests.

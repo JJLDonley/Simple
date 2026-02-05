@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdlib>
+#include <iostream>
 
 namespace Simple::VM::Tests {
 namespace {
@@ -20,6 +21,26 @@ namespace {
 bool RunCommand(const std::string& command) {
   const int result = std::system(command.c_str());
   return result == 0;
+}
+
+std::string TempPath(const std::string& name);
+
+bool RunCommandExpectFail(const std::string& command) {
+  const std::string err_path = TempPath("simple_expect_fail_err.txt");
+  const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
+  const int result = std::system(wrapped.c_str());
+  if (result == 0) {
+    std::cerr << "expected failure: command succeeded\n";
+    return false;
+  }
+  std::ifstream in(err_path);
+  std::string line;
+  if (in.good() && std::getline(in, line)) {
+    std::cerr << "expected failure: " << line << "\n";
+  } else {
+    std::cerr << "expected failure: (no error output)\n";
+  }
+  return true;
 }
 
 std::string TempPath(const std::string& name) {
@@ -561,7 +582,7 @@ bool LangCliCheckSimpleAlias() {
 }
 
 bool LangCliSimpleRejectSir() {
-  return !RunCommand("Simple/bin/simple check Simple/Tests/sir/fib_iter.sir");
+  return RunCommandExpectFail("Simple/bin/simple check Simple/Tests/sir/fib_iter.sir");
 }
 
 bool LangSirEmitsLocalAssign() {

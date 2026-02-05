@@ -131,15 +131,28 @@ VerifyResult VerifyModule(const SbcModule& module) {
     if (type_id >= module.types.size()) return ValType::Unknown;
     const auto& row = module.types[type_id];
     switch (static_cast<TypeKind>(row.kind)) {
+      case TypeKind::I8:
+      case TypeKind::I16:
       case TypeKind::I32:
+      case TypeKind::U8:
+      case TypeKind::U16:
+      case TypeKind::U32:
+      case TypeKind::Char:
         return ValType::I32;
+      case TypeKind::Bool:
+        return ValType::Bool;
       case TypeKind::I64:
+      case TypeKind::U64:
         return ValType::I64;
+      case TypeKind::I128:
+      case TypeKind::U128:
+        return ValType::Ref;
       case TypeKind::F32:
         return ValType::F32;
       case TypeKind::F64:
         return ValType::F64;
       case TypeKind::Ref:
+      case TypeKind::String:
         return ValType::Ref;
       case TypeKind::Unspecified:
         if ((row.flags & 0x1u) != 0u) return ValType::Ref;

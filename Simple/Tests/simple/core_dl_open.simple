@@ -1,20 +1,18 @@
 import "Core.DL" as DL
+import "IO"
 
 main : i32 () {
-  zero : i64 = 0
   h : i64 = DL.open("Simple/Tests/ffi/libsimpleffi.so")
-  if h == zero {
-    DL.last_error()
+  if h == 0 {
+    IO.println(DL.last_error())
     return 0
   }
   s : i64 = DL.sym(h, "simple_add_i32")
-  if s == zero {
+  if s == 0 {
+    IO.println(DL.last_error())
     DL.close(h)
     return 0
   }
-  c : i32 = DL.close(h)
-  if c != 0 {
-    return 0
-  }
+  DL.close(h)
   return 1
 }

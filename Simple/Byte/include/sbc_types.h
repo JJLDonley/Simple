@@ -51,6 +51,17 @@ enum class TypeKind : uint8_t {
   F32 = 3,
   F64 = 4,
   Ref = 5,
+  I8 = 6,
+  I16 = 7,
+  I128 = 8,
+  U8 = 9,
+  U16 = 10,
+  U32 = 11,
+  U64 = 12,
+  U128 = 13,
+  Bool = 14,
+  Char = 15,
+  String = 16,
 };
 
 struct DebugHeader {

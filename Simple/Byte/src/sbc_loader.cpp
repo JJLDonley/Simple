@@ -173,35 +173,65 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
-      if (row.kind > static_cast<uint8_t>(TypeKind::Ref)) return Fail("type kind invalid");
-      if (row.kind == static_cast<uint8_t>(TypeKind::I32) && row.size != 4) {
-        return Fail("type kind size mismatch");
+      if (row.kind > static_cast<uint8_t>(TypeKind::String)) return Fail("type kind invalid");
+      auto kind = static_cast<TypeKind>(row.kind);
+      switch (kind) {
+        case TypeKind::I8:
+        case TypeKind::U8:
+        case TypeKind::Bool:
+          if (row.size != 1) return Fail("type kind size mismatch");
+          break;
+        case TypeKind::I16:
+        case TypeKind::U16:
+        case TypeKind::Char:
+          if (row.size != 2) return Fail("type kind size mismatch");
+          break;
+        case TypeKind::I32:
+        case TypeKind::U32:
+        case TypeKind::F32:
+          if (row.size != 4) return Fail("type kind size mismatch");
+          break;
+        case TypeKind::I64:
+        case TypeKind::U64:
+        case TypeKind::F64:
+          if (row.size != 8) return Fail("type kind size mismatch");
+          break;
+        case TypeKind::I128:
+        case TypeKind::U128:
+          if (row.size != 16) return Fail("type kind size mismatch");
+          break;
+        case TypeKind::Ref:
+        case TypeKind::String:
+          if (row.size != 0 && row.size != 4 && row.size != 8) {
+            return Fail("type kind size mismatch");
+          }
+          break;
+        case TypeKind::Unspecified:
+          break;
       }
-      if (row.kind == static_cast<uint8_t>(TypeKind::I64) && row.size != 8) {
-        return Fail("type kind size mismatch");
-      }
-      if (row.kind == static_cast<uint8_t>(TypeKind::F32) && row.size != 4) {
-        return Fail("type kind size mismatch");
-      }
-      if (row.kind == static_cast<uint8_t>(TypeKind::F64) && row.size != 8) {
-        return Fail("type kind size mismatch");
-      }
-      if (row.kind == static_cast<uint8_t>(TypeKind::I32) ||
-          row.kind == static_cast<uint8_t>(TypeKind::I64) ||
-          row.kind == static_cast<uint8_t>(TypeKind::F32) ||
-          row.kind == static_cast<uint8_t>(TypeKind::F64)) {
-        if (row.field_start != 0 || row.field_count != 0) {
-          return Fail("type kind has fields");
-        }
-      }
-      if (row.kind == static_cast<uint8_t>(TypeKind::Ref) &&
-          row.size != 0 && row.size != 4 && row.size != 8) {
-        return Fail("type kind size mismatch");
-      }
-      if (row.kind == static_cast<uint8_t>(TypeKind::Ref)) {
-        if (row.field_start != 0 || row.field_count != 0) {
-          return Fail("type kind has fields");
-        }
+      switch (kind) {
+        case TypeKind::I8:
+        case TypeKind::I16:
+        case TypeKind::I32:
+        case TypeKind::I64:
+        case TypeKind::I128:
+        case TypeKind::U8:
+        case TypeKind::U16:
+        case TypeKind::U32:
+        case TypeKind::U64:
+        case TypeKind::U128:
+        case TypeKind::F32:
+        case TypeKind::F64:
+        case TypeKind::Bool:
+        case TypeKind::Char:
+        case TypeKind::Ref:
+        case TypeKind::String:
+          if (row.field_start != 0 || row.field_count != 0) {
+            return Fail("type kind has fields");
+          }
+          break;
+        case TypeKind::Unspecified:
+          break;
       }
       module.types[i] = row;
     }

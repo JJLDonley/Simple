@@ -1,2 +1,4 @@
 .vscode/*
 .vscode/
+Simple/Tests/ffi/*.so
+Simple/Tests/simple/*.sbc

@@ -99,6 +99,10 @@ bool IsIntegralType(const std::string& name) {
          name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
 }
 
+bool IsIntegerLiteralExpr(const Expr& expr) {
+  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
+}
+
 bool IsFloatType(const std::string& name) {
   return name == "f32" || name == "f64";
 }
@@ -547,7 +551,10 @@ bool InferExprType(const Expr& expr,
       if (left.name == right.name) {
         return CloneTypeRef(left, out);
       }
-      if (left.name == "i32" && right.name == "i32") {
+      if (IsIntegerLiteralExpr(expr.children[0]) && IsIntegralType(right.name)) {
+        return CloneTypeRef(right, out);
+      }
+      if (IsIntegerLiteralExpr(expr.children[1]) && IsIntegralType(left.name)) {
         return CloneTypeRef(left, out);
       }
       if (error) *error = "operand type mismatch for '" + expr.op + "'";
@@ -654,6 +661,7 @@ bool InferExprType(const Expr& expr,
         if (GetModuleNameFromExpr(base, &module_name)) {
           std::string resolved;
           if (ResolveReservedModuleName(st, module_name, &resolved)) {
+            module_name = resolved;
             if (resolved == "Math" &&
                 (callee.text == "abs" || callee.text == "min" || callee.text == "max") &&
                 !expr.args.empty()) {
@@ -1239,8 +1247,18 @@ bool EmitBinary(EmitState& st,
   TypeRef right_type;
   if (!InferExprType(expr.children[1], st, &right_type, error)) return false;
   if (left_type.name != right_type.name && !expected) {
-    if (error) *error = "operand type mismatch for '" + expr.op + "'";
-    return false;
+    const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
+    const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
+    const bool lhs_int = IsIntegralType(left_type.name);
+    const bool rhs_int = IsIntegralType(right_type.name);
+    if (lhs_lit && rhs_int) {
+      if (!CloneTypeRef(right_type, &left_type)) return false;
+    } else if (rhs_lit && lhs_int) {
+      if (!CloneTypeRef(left_type, &right_type)) return false;
+    } else {
+      if (error) *error = "operand type mismatch for '" + expr.op + "'";
+      return false;
+    }
   }
 
   if (expr.op == "=" || AssignOpToBinaryOp(expr.op)) {
@@ -1443,28 +1461,31 @@ bool EmitExpr(EmitState& st,
           std::string resolved;
           if (!ResolveReservedModuleName(st, module_name, &resolved)) {
             // Not a reserved module; fall through to normal call handling.
-          } else if (resolved == "Math") {
-            if (callee.text == "abs") {
-              if (expr.args.size() != 1) {
-                if (error) *error = "call argument count mismatch for 'Math.abs'";
-                return false;
+          } else {
+            module_name = resolved;
+            if (resolved == "Math") {
+              if (callee.text == "abs") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'Math.abs'";
+                  return false;
+                }
+                TypeRef arg_type;
+                if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+                uint32_t id = 0;
+                if (arg_type.name == "i32") {
+                  id = Simple::VM::kIntrinsicAbsI32;
+                } else if (arg_type.name == "i64") {
+                  id = Simple::VM::kIntrinsicAbsI64;
+                } else {
+                  if (error) *error = "Math.abs expects i32 or i64";
+                  return false;
+                }
+                (*st.out) << "  intrinsic " << id << "\n";
+                PopStack(st, 1);
+                PushStack(st, 1);
+                return true;
               }
-              TypeRef arg_type;
-              if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
-              if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
-              uint32_t id = 0;
-              if (arg_type.name == "i32") {
-                id = Simple::VM::kIntrinsicAbsI32;
-              } else if (arg_type.name == "i64") {
-                id = Simple::VM::kIntrinsicAbsI64;
-              } else {
-                if (error) *error = "Math.abs expects i32 or i64";
-                return false;
-              }
-              (*st.out) << "  intrinsic " << id << "\n";
-              PopStack(st, 1);
-              PushStack(st, 1);
-              return true;
             }
             if (callee.text == "min" || callee.text == "max") {
               if (expr.args.size() != 2) {
