@@ -2,17 +2,17 @@ import "Core.DL" as DL
 import "IO"
 
 main : i32 () {
-  h : i64 = DL.open("Simple/Tests/ffi/libsimpleffi.so")
+  h : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so");
   if h == 0 {
-    IO.println(DL.last_error())
+    IO.println(DL.LastError())
     return 0
   }
-  s : i64 = DL.sym(h, "simple_add_i32")
+  s : i64 = DL.Sym(h, "simple_add_i32");
   if s == 0 {
-    IO.println(DL.last_error())
-    DL.close(h)
+    IO.println(DL.LastError())
+    DL.Close(h)
     return 0
   }
-  DL.close(h)
+  DL.Close(h)
   return 1
 }

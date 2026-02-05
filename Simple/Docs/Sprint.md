@@ -807,3 +807,7 @@
 ## 2026-02-05 (cont.)
 - Added Core.DL PascalCase member support (Open/Sym/Close/LastError) in validation and SIR emission.
 - Normalized Core.DL member names to lowercase for call resolution.
+- Updated core_dl_open.simple to use Core.DL PascalCase calls.
+- Adjusted core_dl_open.simple handle comparisons to use integer literal 0.
+- Added explicit semicolons in core_dl_open.simple to avoid implicit-terminator parsing issues.
+- Restored core_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
