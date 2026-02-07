@@ -694,6 +694,38 @@ uint32_t SemanticTokenTypeIndex(const Simple::Lang::Token& token) {
   return 3;                                      // variable
 }
 
+uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size()) return 3;
+  const auto& token = refs[i].token;
+  if (IsKeywordToken(token.kind)) return 0; // keyword
+  if (token.kind == TK::String || token.kind == TK::Char) return 8; // string
+  if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
+  if (IsOperatorToken(token.kind)) return 10; // operator
+  if (token.kind == TK::Identifier) {
+    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
+    if (IsDeclNameAt(refs, i)) {
+      if (i + 3 < refs.size() &&
+          refs[i + 1].token.kind == TK::Colon &&
+          refs[i + 3].token.kind == TK::LParen) {
+        return 2; // function declaration
+      }
+      return 3; // variable-like declaration
+    }
+    if (IsPrimitiveTypeName(token.text)) return 1;
+  }
+  return SemanticTokenTypeIndex(token);
+}
+
+uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size()) return 0;
+  if (refs[i].token.kind == TK::Identifier && IsDeclNameAt(refs, i)) {
+    return 1u << 0; // declaration
+  }
+  return 0;
+}
+
 void ReplySemanticTokensFull(std::ostream& out,
                              const std::string& id_raw,
                              const std::string& uri,
@@ -709,11 +741,13 @@ void ReplySemanticTokensFull(std::ostream& out,
     return;
   }
   const auto& tokens = lexer.Tokens();
+  const auto refs = LexTokenRefs(it->second);
   std::string data;
   uint32_t prev_line = 0;
   uint32_t prev_col = 0;
   bool first = true;
-  for (const auto& token : tokens) {
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    const auto& token = tokens[i];
     if (token.kind == Simple::Lang::TokenKind::End ||
         token.kind == Simple::Lang::TokenKind::Invalid) {
       continue;
@@ -721,8 +755,8 @@ void ReplySemanticTokensFull(std::ostream& out,
     const uint32_t line = token.line > 0 ? (token.line - 1) : 0;
     const uint32_t col = token.column > 0 ? (token.column - 1) : 0;
     const uint32_t len = static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1);
-    const uint32_t token_type = SemanticTokenTypeIndex(token);
-    const uint32_t modifiers = 0;
+    const uint32_t token_type = SemanticTokenTypeIndexForRef(refs, i);
+    const uint32_t modifiers = SemanticTokenModifiersForRef(refs, i);
     const uint32_t delta_line = first ? line : (line - prev_line);
     const uint32_t delta_start = first ? col : (line == prev_line ? (col - prev_col) : col);
     if (!data.empty()) data += ",";

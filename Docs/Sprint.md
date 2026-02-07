@@ -1120,3 +1120,8 @@
   - `textDocument/rename` now rejects `newName` values that collide with reserved language words (for example `return`, `if`, `module`), returning `null`.
 - Expanded LSP regression suite with rename-keyword coverage:
   - validates reserved-keyword rename requests are rejected with `null` rename result payload.
+- Improved semantic-token classification fidelity:
+  - declaration identifiers now set semantic-token `declaration` modifier bit,
+  - function-style declarations (`name : type (...)`) are classified as function token type in semantic tokens.
+- Expanded LSP regression suite with semantic-token structural coverage:
+  - validates semantic token stream includes function declaration tokens marked with declaration modifier.

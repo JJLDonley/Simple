@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <vector>
 
 namespace Simple::VM::Tests {
 namespace {
@@ -38,6 +39,34 @@ bool WriteBinaryFile(const std::string& path, const std::string& data) {
   if (!out) return false;
   out.write(data.data(), static_cast<std::streamsize>(data.size()));
   return out.good();
+}
+
+bool ExtractSemanticData(const std::string& out, std::vector<int>* data) {
+  if (!data) return false;
+  const std::string marker = "\"data\":[";
+  const size_t start = out.find(marker);
+  if (start == std::string::npos) return false;
+  const size_t begin = start + marker.size();
+  const size_t end = out.find(']', begin);
+  if (end == std::string::npos) return false;
+  data->clear();
+  int value = 0;
+  bool in_number = false;
+  for (size_t i = begin; i < end; ++i) {
+    const char c = out[i];
+    if (c >= '0' && c <= '9') {
+      value = value * 10 + (c - '0');
+      in_number = true;
+      continue;
+    }
+    if (in_number) {
+      data->push_back(value);
+      value = 0;
+      in_number = false;
+    }
+  }
+  if (in_number) data->push_back(value);
+  return !data->empty();
 }
 
 bool LspInitializeHandshake() {
@@ -547,6 +576,49 @@ bool LspSemanticTokensReturnsData() {
          out_contents.find("\"result\":{\"data\":[]}") == std::string::npos;
 }
 
+bool LspSemanticTokensMarkFunctionDeclarations() {
+  const std::string in_path = TempPath("simple_lsp_tokens_decl_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_decl_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_decl_err.txt");
+  const std::string uri = "file:///workspace/tokens_decl.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { return 0; }\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":26,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty()) return false;
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
+  if (data.size() % 5 != 0) return false;
+  bool found_function_decl = false;
+  for (size_t i = 0; i + 4 < data.size(); i += 5) {
+    const int token_type = data[i + 3];
+    const int modifiers = data[i + 4];
+    if (token_type == 2 && (modifiers & 1) == 1) {
+      found_function_decl = true;
+      break;
+    }
+  }
+  return out_contents.find("\"id\":26") != std::string::npos &&
+         found_function_decl;
+}
+
 bool LspDefinitionReturnsLocation() {
   const std::string in_path = TempPath("simple_lsp_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_definition_out.txt");
@@ -1045,6 +1117,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
+  {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
   {"lsp_references_can_exclude_declaration", LspReferencesCanExcludeDeclaration},
