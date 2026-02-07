@@ -383,6 +383,39 @@ bool LspCompletionFiltersByTypedPrefix() {
          out_contents.find("\"label\":\"beta\"") == std::string::npos;
 }
 
+bool LspCompletionFiltersMemberSuffixByReceiver() {
+  const std::string in_path = TempPath("simple_lsp_completion_member_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_member_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_member_err.txt");
+  const std::string uri = "file:///workspace/complete_member.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import \\\"IO\\\"\\nIO.pr\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":17,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":17") != std::string::npos &&
+         out_contents.find("\"label\":\"IO.print\"") != std::string::npos &&
+         out_contents.find("\"label\":\"IO.println\"") != std::string::npos &&
+         out_contents.find("\"label\":\"import\"") == std::string::npos;
+}
+
 bool LspSignatureHelpReturnsSignature() {
   const std::string in_path = TempPath("simple_lsp_signature_help_in.txt");
   const std::string out_path = TempPath("simple_lsp_signature_help_out.txt");
@@ -746,6 +779,7 @@ const TestCase kLspTests[] = {
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
+  {"lsp_completion_filters_member_suffix_by_receiver", LspCompletionFiltersMemberSuffixByReceiver},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},

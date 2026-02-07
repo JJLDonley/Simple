@@ -1084,3 +1084,9 @@
   - filters completion candidates to case-insensitive prefix matches for reduced noise.
 - Expanded LSP regression suite with completion-prefix coverage:
   - validates typed prefix (`al`) narrows results to matching candidates (for example includes `alpha` and excludes `beta`).
+- Improved member-style completion filtering:
+  - detects member receiver context at cursor (for example `IO.pr`),
+  - filters dotted completion labels by receiver (`IO`) and suffix prefix (`pr`) to return member-relevant suggestions.
+- Expanded LSP regression suite with member-completion coverage:
+  - validates member-context completion returns `IO.print`/`IO.println`,
+  - validates unrelated non-member keywords are excluded in member-filtered responses.

@@ -401,6 +401,22 @@ std::string CompletionPrefixAtPosition(const std::string& text, uint32_t line, u
   return line_text.substr(begin, end - begin);
 }
 
+std::string CompletionMemberReceiverAtPosition(const std::string& text,
+                                               uint32_t line,
+                                               uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  size_t end = std::min<size_t>(character, line_text.size());
+  size_t begin = end;
+  while (begin > 0 && IsIdentChar(line_text[begin - 1])) --begin;
+  if (begin == 0 || line_text[begin - 1] != '.') return {};
+  size_t recv_end = begin - 1;
+  size_t recv_begin = recv_end;
+  while (recv_begin > 0 && IsIdentChar(line_text[recv_begin - 1])) --recv_begin;
+  if (recv_begin == recv_end) return {};
+  return line_text.substr(recv_begin, recv_end - recv_begin);
+}
+
 void ReplyHover(std::ostream& out,
                 const std::string& id_raw,
                 const std::string& uri,
@@ -451,15 +467,24 @@ void ReplyCompletion(std::ostream& out,
   }
 
   std::string prefix_lc;
+  std::string receiver_lc;
   if (doc_it != open_docs.end()) {
     prefix_lc = LowerAscii(CompletionPrefixAtPosition(doc_it->second, line, character));
+    receiver_lc = LowerAscii(CompletionMemberReceiverAtPosition(doc_it->second, line, character));
   }
 
   std::string items;
   bool first_item = true;
   for (size_t i = 0; i < labels.size(); ++i) {
     const std::string& label = labels[i];
-    if (!prefix_lc.empty()) {
+    if (!receiver_lc.empty()) {
+      const size_t dot = label.find('.');
+      if (dot == std::string::npos) continue;
+      const std::string left = LowerAscii(label.substr(0, dot));
+      const std::string right = LowerAscii(label.substr(dot + 1));
+      if (left != receiver_lc) continue;
+      if (!prefix_lc.empty() && right.rfind(prefix_lc, 0) != 0) continue;
+    } else if (!prefix_lc.empty()) {
       const std::string label_lc = LowerAscii(label);
       if (label_lc.rfind(prefix_lc, 0) != 0) continue;
     }
