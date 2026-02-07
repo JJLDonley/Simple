@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "simple_api.h"
 #include "sbc_types.h"
 
 namespace Simple::Byte {
@@ -37,7 +38,7 @@ struct VerifyResult {
   std::vector<uint8_t> globals_ref_bits;
 };
 
-VerifyResult VerifyModule(const SbcModule& module);
+SIMPLEVM_API VerifyResult VerifyModule(const SbcModule& module);
 
 } // namespace Simple::Byte
 

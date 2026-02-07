@@ -9,6 +9,7 @@ CLI_DIR="$ROOT_DIR/CLI"
 TEST_DIR="$ROOT_DIR/Tests/tests"
 OUT_DIR="$ROOT_DIR/bin"
 BUILD_DIR="$ROOT_DIR/build"
+CORE_OBJ_DIR="$BUILD_DIR/obj_core"
 
 SUITE="all"
 if [[ "${1:-}" == "--suite" && -n "${2:-}" ]]; then
@@ -27,6 +28,7 @@ esac
 OBJ_DIR="$BUILD_DIR/obj_$SUITE"
 mkdir -p "$OUT_DIR"
 mkdir -p "$OBJ_DIR"
+mkdir -p "$CORE_OBJ_DIR"
 
 FFI_C="$ROOT_DIR/Tests/ffi/simple_ffi.c"
 FFI_SO="$ROOT_DIR/Tests/ffi/libsimpleffi.so"
@@ -40,9 +42,15 @@ CLI_SOURCES=(
   "$CLI_DIR/src/main.cpp"
 )
 
-SOURCES=(
+RUNTIME_SOURCES=(
   "$VM_DIR/src/heap.cpp"
   "$VM_DIR/src/vm.cpp"
+  "$BYTE_DIR/src/opcode.cpp"
+  "$BYTE_DIR/src/sbc_loader.cpp"
+  "$BYTE_DIR/src/sbc_verifier.cpp"
+)
+
+SOURCES=(
   "$IR_DIR/src/ir_builder.cpp"
   "$IR_DIR/src/ir_compiler.cpp"
   "$IR_DIR/src/ir_lang.cpp"
@@ -117,6 +125,43 @@ for src in "${SOURCES[@]}"; do
   fi
 done
 
+CORE_OBJECTS=()
+for src in "${RUNTIME_SOURCES[@]}"; do
+  base="$(basename "$src" .cpp)"
+  obj="$CORE_OBJ_DIR/$base.o"
+  dep="$CORE_OBJ_DIR/$base.d"
+  CORE_OBJECTS+=("$obj")
+  rebuild=0
+  if [[ ! -f "$obj" ]]; then
+    rebuild=1
+  elif [[ "$src" -nt "$obj" ]]; then
+    rebuild=1
+  elif [[ -f "$dep" ]]; then
+    deps="$(sed -e 's/^[^:]*://;s/\\\\$//g' "$dep")"
+    for d in $deps; do
+      if [[ -f "$d" && "$d" -nt "$obj" ]]; then
+        rebuild=1
+        break
+      fi
+    done
+  else
+    rebuild=1
+  fi
+
+  if [[ "$rebuild" -eq 1 ]]; then
+    g++ -std=c++17 -O2 -Wall -Wextra -fPIC \
+      -I"$VM_DIR/include" \
+      -I"$BYTE_DIR/include" \
+      -MMD -MP -c "$src" -o "$obj"
+  fi
+done
+
+ar rcs "$OUT_DIR/libsimplevm_runtime.a" "${CORE_OBJECTS[@]}"
+g++ -shared -fPIC -O2 -Wall -Wextra \
+  "${CORE_OBJECTS[@]}" \
+  -ldl \
+  -o "$OUT_DIR/libsimplevm_runtime.so"
+
 g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$VM_DIR/include" \
   -I"$IR_DIR/include" \
@@ -124,6 +169,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$BYTE_DIR/include" \
   "${TEST_DEFINES[@]}" \
   "${OBJECTS[@]}" \
+  "$OUT_DIR/libsimplevm_runtime.a" \
   -ldl \
   -o "$OUT_DIR/simplevm_tests_$SUITE"
 
@@ -133,8 +179,6 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$ROOT_DIR/Lang/include" \
   -I"$BYTE_DIR/include" \
   "${CLI_SOURCES[@]}" \
-  "$VM_DIR/src/heap.cpp" \
-  "$VM_DIR/src/vm.cpp" \
   "$IR_DIR/src/ir_builder.cpp" \
   "$IR_DIR/src/ir_compiler.cpp" \
   "$IR_DIR/src/ir_lang.cpp" \
@@ -142,9 +186,8 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "$ROOT_DIR/Lang/src/lang_parser.cpp" \
   "$ROOT_DIR/Lang/src/lang_validate.cpp" \
   "$ROOT_DIR/Lang/src/lang_sir.cpp" \
-  "$BYTE_DIR/src/opcode.cpp" \
-  "$BYTE_DIR/src/sbc_loader.cpp" \
-  "$BYTE_DIR/src/sbc_verifier.cpp" \
+  "$OUT_DIR/libsimplevm_runtime.a" \
+  -DSIMPLEVM_PROJECT_ROOT=\"$ROOT_DIR\" \
   -ldl \
   -o "$OUT_DIR/simplevm"
 
@@ -152,6 +195,8 @@ cp "$OUT_DIR/simplevm" "$OUT_DIR/simple"
 
 echo "built: $OUT_DIR/simplevm"
 echo "built: $OUT_DIR/simple"
+echo "built: $OUT_DIR/libsimplevm_runtime.a"
+echo "built: $OUT_DIR/libsimplevm_runtime.so"
 echo "built: $OUT_DIR/simplevm_tests_$SUITE"
 
 echo "running: $OUT_DIR/simplevm_tests_$SUITE"

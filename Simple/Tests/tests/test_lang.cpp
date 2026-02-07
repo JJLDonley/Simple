@@ -25,6 +25,24 @@ bool RunCommand(const std::string& command) {
 
 std::string TempPath(const std::string& name);
 
+std::string ReadFileText(const std::string& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return {};
+  std::string text;
+  in.seekg(0, std::ios::end);
+  text.resize(static_cast<size_t>(in.tellg()));
+  in.seekg(0, std::ios::beg);
+  in.read(text.data(), static_cast<std::streamsize>(text.size()));
+  return text;
+}
+
+std::string RunCommandCaptureStdout(const std::string& command) {
+  const std::string out_path = TempPath("simple_command_capture.txt");
+  const std::string wrapped = command + " > " + out_path + " 2>/dev/null";
+  if (std::system(wrapped.c_str()) != 0) return {};
+  return ReadFileText(out_path);
+}
+
 bool RunCommandExpectFail(const std::string& command) {
   const std::string err_path = TempPath("simple_expect_fail_err.txt");
   const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
@@ -558,7 +576,13 @@ bool LangCliBuildDynamicExe() {
   const std::string cmd =
       "Simple/bin/simplevm build -d Simple/Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
-  return RunCommand(out_path);
+  if (!RunCommand(out_path)) return false;
+#if defined(__linux__)
+  const std::string deps = RunCommandCaptureStdout("ldd " + out_path);
+  if (deps.empty()) return false;
+  if (deps.find("libsimplevm_runtime.so") == std::string::npos) return false;
+#endif
+  return true;
 }
 
 bool LangCliBuildStaticExe() {
@@ -566,7 +590,13 @@ bool LangCliBuildStaticExe() {
   const std::string cmd =
       "Simple/bin/simplevm build -s Simple/Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
-  return RunCommand(out_path);
+  if (!RunCommand(out_path)) return false;
+#if defined(__linux__)
+  const std::string deps = RunCommandCaptureStdout("ldd " + out_path);
+  if (deps.empty()) return false;
+  if (deps.find("libsimplevm_runtime.so") != std::string::npos) return false;
+#endif
+  return true;
 }
 
 bool LangCliRunSimple() {

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "simple_api.h"
 #include "sbc_types.h"
 
 namespace Simple::VM {
@@ -53,10 +54,11 @@ struct ExecOptions {
       import_resolver;
 };
 
-ExecResult ExecuteModule(const SbcModule& module);
-ExecResult ExecuteModule(const SbcModule& module, bool verify);
-ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit);
-ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, const ExecOptions& options);
+SIMPLEVM_API ExecResult ExecuteModule(const SbcModule& module);
+SIMPLEVM_API ExecResult ExecuteModule(const SbcModule& module, bool verify);
+SIMPLEVM_API ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit);
+SIMPLEVM_API ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit,
+                                      const ExecOptions& options);
 
 } // namespace Simple::VM
 

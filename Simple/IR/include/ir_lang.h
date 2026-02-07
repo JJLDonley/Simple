@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "simple_api.h"
 #include "ir_compiler.h"
 
 namespace Simple::IR::Text {
@@ -92,8 +93,9 @@ struct IrTextModule {
   uint32_t entry_index = 0;
 };
 
-bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* error);
-bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, std::string* error);
+SIMPLEVM_API bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* error);
+SIMPLEVM_API bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out,
+                                      std::string* error);
 
 } // namespace Simple::IR::Text
 

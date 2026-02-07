@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "simple_api.h"
 #include "sbc_emitter.h"
 
 namespace Simple::IR {
@@ -31,7 +32,7 @@ struct IrModule {
   uint32_t entry_method_id = 0;
 };
 
-bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string* error);
+SIMPLEVM_API bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string* error);
 
 } // namespace Simple::IR
 

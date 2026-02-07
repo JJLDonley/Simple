@@ -104,6 +104,12 @@ std::string QuoteArg(const std::string& arg) {
 
 std::string FindProjectRoot(const char* argv0) {
   namespace fs = std::filesystem;
+#ifdef SIMPLEVM_PROJECT_ROOT
+  fs::path configured_root = SIMPLEVM_PROJECT_ROOT;
+  if (fs::exists(configured_root / "VM") && fs::exists(configured_root / "Byte")) {
+    return configured_root.string();
+  }
+#endif
   if (!argv0 || !*argv0) return ".";
   fs::path exe_path = fs::absolute(argv0);
   fs::path dir = exe_path.parent_path();
@@ -196,17 +202,25 @@ bool BuildEmbeddedExecutable(const std::string& root_dir,
   fs::path root(root_dir);
   fs::path vm_dir = root / "VM";
   fs::path byte_dir = root / "Byte";
+  fs::path lib_dir = root / "bin";
+  fs::path runtime_lib = is_static ? (lib_dir / "libsimplevm_runtime.a")
+                                   : (lib_dir / "libsimplevm_runtime.so");
+  if (!fs::exists(runtime_lib)) {
+    if (error) {
+      *error = std::string("missing runtime library: ") + runtime_lib.string() +
+               " (run ./Simple/build.sh first)";
+    }
+    return false;
+  }
 
   std::string cmd = "g++ -std=c++17 -O2 -Wall -Wextra ";
-  if (is_static) cmd += "-static ";
   cmd += "-I" + QuoteArg((vm_dir / "include").string()) + " ";
   cmd += "-I" + QuoteArg((byte_dir / "include").string()) + " ";
   cmd += QuoteArg(runner_path.string()) + " ";
-  cmd += QuoteArg((vm_dir / "src" / "heap.cpp").string()) + " ";
-  cmd += QuoteArg((vm_dir / "src" / "vm.cpp").string()) + " ";
-  cmd += QuoteArg((byte_dir / "src" / "opcode.cpp").string()) + " ";
-  cmd += QuoteArg((byte_dir / "src" / "sbc_loader.cpp").string()) + " ";
-  cmd += QuoteArg((byte_dir / "src" / "sbc_verifier.cpp").string()) + " ";
+  cmd += QuoteArg(runtime_lib.string()) + " ";
+  if (!is_static) {
+    cmd += "-Wl,-rpath," + QuoteArg(lib_dir.string()) + " ";
+  }
   cmd += "-ldl ";
   cmd += "-o " + QuoteArg(out_path);
 

@@ -813,3 +813,12 @@
 - Restored core_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
 - Added Core.DL call intrinsics (call_i32/call_i64/call_f32/call_f64/call_str0) in VM and language lowering.
 - Extended core_dl_open.simple to call simple_add_i32 and simple_hello via Core.DL call helpers.
+## 2026-02-07
+- Refactored `Simple/CMakeLists.txt` to produce reusable `simplevm_core` and `simplevm_runtime` libraries in both static and shared forms.
+- Fixed CMake source parity issues by including `Lang/src/lang_sir.cpp` and `Tests/tests/simple_runner.cpp`.
+- Added shared-library API export macro header `VM/include/simple_api.h` and annotated VM/Byte/IR/Lang entrypoints for DLL visibility.
+- Updated CLI embedded executable build path to link against prebuilt runtime libraries (`libsimplevm_runtime.a/.so`) instead of recompiling VM sources.
+- Added compile-time project-root fallback in CLI (`SIMPLEVM_PROJECT_ROOT`) to support both build script and CMake layouts.
+- Updated `build.sh` to build and publish runtime static/shared libraries and to link `simplevm`/tests against the runtime static library.
+- Extended lang CLI tests to validate link mode behavior on Linux via `ldd` (`-d` must depend on `libsimplevm_runtime.so`; `-s` must not).
+- Updated CMake test working directory to the workspace root so fixture paths and CLI-path tests resolve consistently.
