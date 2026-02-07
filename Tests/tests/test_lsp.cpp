@@ -400,6 +400,43 @@ bool LspWorkspaceSymbolReturnsSymbols() {
          out_contents.find("\"uri\":\"" + uri_b + "\"") != std::string::npos;
 }
 
+bool LspRenameReturnsWorkspaceEdit() {
+  const std::string in_path = TempPath("simple_lsp_rename_in.txt");
+  const std::string out_path = TempPath("simple_lsp_rename_out.txt");
+  const std::string err_path = TempPath("simple_lsp_rename_err.txt");
+  const std::string uri = "file:///workspace/rename.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\\nfoo = foo + 1;\"}}}";
+  const std::string rename_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"textDocument/rename\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
+      "\"newName\":\"bar\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(rename_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"renameProvider\":true") != std::string::npos &&
+         out_contents.find("\"id\":11") != std::string::npos &&
+         out_contents.find("\"changes\"") != std::string::npos &&
+         out_contents.find("\"newText\":\"bar\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"line\":1") != std::string::npos &&
+         out_contents.find("\"character\":6") != std::string::npos;
+}
+
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
@@ -412,6 +449,7 @@ const TestCase kLspTests[] = {
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
   {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
+  {"lsp_rename_returns_workspace_edit", LspRenameReturnsWorkspaceEdit},
 };
 
 const TestSection kLspSections[] = {

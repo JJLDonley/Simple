@@ -573,6 +573,25 @@ std::string LocationJson(const std::string& uri, const Simple::Lang::Token& tk) 
          std::to_string(col + len) + "}}}";
 }
 
+std::string TextEditJson(const Simple::Lang::Token& tk, const std::string& new_text) {
+  const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
+  const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  return "{\"range\":{\"start\":{\"line\":" + std::to_string(line) +
+         ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
+         std::to_string(line) + ",\"character\":" + std::to_string(col + len) +
+         "}},\"newText\":\"" + JsonEscape(new_text) + "\"}";
+}
+
+bool IsValidIdentifierName(const std::string& name) {
+  if (name.empty()) return false;
+  if (!(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')) return false;
+  for (size_t i = 1; i < name.size(); ++i) {
+    if (!IsIdentChar(name[i])) return false;
+  }
+  return true;
+}
+
 void ReplyDefinition(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -722,6 +741,42 @@ void ReplyWorkspaceSymbols(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+void ReplyRename(std::ostream& out,
+                 const std::string& id_raw,
+                 const std::string& uri,
+                 uint32_t line,
+                 uint32_t character,
+                 const std::string& new_name,
+                 const std::unordered_map<std::string, std::string>& open_docs) {
+  if (!IsValidIdentifierName(new_name)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const std::string old_name = target->token.text;
+  std::string edits;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != old_name) continue;
+    if (!edits.empty()) edits += ",";
+    edits += TextEditJson(ref.token, new_name);
+  }
+  WriteLspMessage(
+      out,
+      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"changes\":{\"" +
+          JsonEscape(uri) + "\":[" + edits + "]}}}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -766,6 +821,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"hoverProvider\":true,\"definitionProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
+                "\"renameProvider\":true,"
                 "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
@@ -892,6 +948,24 @@ int RunServer(std::istream& in, std::ostream& out) {
           ReplyReferences(out, id_raw, uri, line, character, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/rename") {
+      if (has_id) {
+        std::string uri;
+        std::string new_name;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonStringField(body, "newName", &new_name) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyRename(out, id_raw, uri, line, character, new_name, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
         }
       }
       continue;

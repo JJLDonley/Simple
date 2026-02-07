@@ -1024,3 +1024,10 @@
 - Expanded LSP regression suite with signature-help coverage:
   - validates capability handshake includes signature-help support,
   - validates end-to-end signature payload contents for `IO.println(...)` calls.
+- Added LSP `textDocument/rename` request handling (same-document scope):
+  - resolves identifier at cursor position and emits `WorkspaceEdit` changes for all matching identifier occurrences in the open document,
+  - validates replacement identifier syntax and returns `null` result for invalid rename requests.
+- Advertised `renameProvider` capability during `initialize`.
+- Expanded LSP regression suite with rename coverage:
+  - validates capability handshake includes rename support,
+  - validates `WorkspaceEdit` payload contains replacement edits/ranges for renamed symbol occurrences.
