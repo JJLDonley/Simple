@@ -1,15 +1,35 @@
 # Simple::CLI
 
-**Scope**  
-Command‑line runners and developer tools (test runners, perf harness, SIR runner).
+## Scope
 
-**How It Works**  
-CLI entry points use the IR compiler and VM runtime to run SIR text and SBC modules, with
-diagnostics and perf reporting.
+`Simple::CLI` provides user-facing command entrypoints for checking, building, emitting, and running programs.
 
-**What Works (Current)**  
-- Test runners and perf harness.  
-- SIR runner for IR text → SBC → VM execution.  
+## Current State
 
-**Implementation Plan**  
-See `Simple/Docs/Implementation.md` (Module: Simple::CLI).
+Implemented:
+
+- `simple` front-end for `.simple` workflows.
+- `simplevm` front-end for VM/SIR workflows.
+- Commands: `run`, `build`, `check`, `emit`.
+- Diagnostic format with line/column context.
+- Runtime embedding modes used by build tooling.
+
+## Alpha Contract (Intended)
+
+- Command behavior and error formatting are stable.
+- `.simple` and `.sir` compile/run flows are deterministic from repository root.
+
+## Known Limits / Explicit Constraints
+
+- CLI is not a package manager.
+- LSP/editor integration is out of scope for CLI surface.
+
+## Primary Files
+
+- `Simple/CLI/src/main.cpp`
+- `Simple/build.sh`
+
+## Verification Commands
+
+- `./Simple/build.sh --suite lang`
+- `./Simple/build.sh --suite all`

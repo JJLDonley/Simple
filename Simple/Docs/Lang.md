@@ -2,7 +2,23 @@
 
 **Note:** This document consolidates the Simple language specification. Implementation plans live in `Simple/Docs/Implementation.md`.
 
-# Simple Programming Language
+## Alpha Support Snapshot (Current)
+
+Implemented and stable enough for current alpha preparation:
+
+- Primitive numeric types, bool, char, string.
+- Artifacts, enums, modules, functions, loops, control flow, arrays/lists.
+- Imports and extern declarations.
+- `Core.*` reserved modules and `Core.DL` typed manifest flow.
+- Pointer syntax for FFI boundaries (`*T`, `*void`).
+- Exact-type extern ABI propagation with dynamic-call struct marshalling.
+
+Current explicit constraints:
+
+- Recursive struct ABI marshalling is rejected.
+- Some advanced/future operators and language surfaces remain intentionally deferred.
+- Unsupported constructs fail with compiler diagnostics; there is no silent fallback mode.
+
 ## Grammar and Design Specification
 
 **Version:** 1.0  

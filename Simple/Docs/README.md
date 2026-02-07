@@ -1,41 +1,54 @@
-# Simple Docs Index
+# Simple Documentation
 
-This directory contains the authoritative documentation for the Simple VM stack.
+This folder is the source of truth for the current Simple project state.
 
-## Bytecode + VM
-- `SBC_Headers.md`: SBC file header layout.
-- `SBC_Encoding.md`: binary encoding rules.
-- `SBC_Sections.md`: section table layout and constraints.
-- `SBC_Metadata_Tables.md`: metadata tables and row formats.
-- `SBC_OpCodes.md`: opcode list and operands.
-- `SBC_Rules.md`: loader + verifier rules.
-- `SBC_Runtime.md`: runtime model and execution semantics.
-- `SBC_Debug.md`: debug tables and line mapping.
-- `SBC_ABI.md`: ABI/FFI surface (v0.1 target).
+## Start Here
 
-## IR
-- `SBC_IR.md`: SIR (Simple IR) text format and lowering rules.
-- `Modules.md`: module-by-module overview and plans.
+- `Simple/Docs/README.md`
+  - Documentation map and ownership.
+- `Simple/Docs/Modules.md`
+  - Project architecture map and module boundaries.
+- `Simple/Docs/Implementation.md`
+  - Current implementation plan and freeze checklist.
+- `Simple/Docs/Sprint.md`
+  - Chronological engineering log.
 
-## Module Docs (Simple::)
-- `VM.md`
-- `Byte.md`
-- `IR.md`
-- `CLI.md`
-- `Lang.md`
-- `StdLib.md`
+## Core Runtime + Compiler Docs
 
-## Legacy References
-The `SBC_*` and `Simple_*` documents are legacy references. Their content is merged into the
-module docs above.
+- `Simple/Docs/Byte.md`
+  - SBC format, loader, verifier, and compatibility policy.
+- `Simple/Docs/VM.md`
+  - Runtime execution model, GC/JIT status, and ABI/runtime constraints.
+- `Simple/Docs/IR.md`
+  - SIR text/lowering contract and IR compiler behavior.
+- `Simple/Docs/CLI.md`
+  - User-facing CLI behavior and command contracts.
+- `Simple/Docs/Lang.md`
+  - Language syntax and semantics.
+- `Simple/Docs/StdLib.md`
+  - Reserved imports and core library surface.
 
-## Project Planning
-- `Implementation.md`: module-based phase plan.
-- `Sprint.md`: chronological change log.
+## Legacy Reference Docs
 
-## Legacy / Reference
-- `Simple_VM_Opcode_Spec.md`
-- `Simple_Implementation_Document.md`
+Legacy design references are kept in `Simple/Docs/legacy/`.
 
-Notes:
-- `SBC_ABI.md` is the freeze target for ABI/FFI when v0.1 locks.
+These are historical references, not the primary source of truth for current behavior.
+
+## Documentation Rules
+
+- If code behavior changes, update the module doc and append a sprint log item in the same change.
+- Keep one source of truth per topic:
+  - Language: `Lang.md`
+  - Runtime behavior: `VM.md`
+  - Bytecode/verification: `Byte.md`
+  - IR text/lowering: `IR.md`
+  - CLI behavior: `CLI.md`
+  - Stdlib/import surface: `StdLib.md`
+- Treat `Implementation.md` as plan status and `Sprint.md` as execution history.
+
+## Alpha Freeze Documentation Checklist
+
+- Module docs reflect implemented behavior, not aspirational design.
+- Known limitations are explicit and testable.
+- Cross-doc terminology is consistent (`SBC`, `SIR`, `extern`, `Core.DL`, `artifact`, `pointer`).
+- Commands in docs are runnable from repository root.

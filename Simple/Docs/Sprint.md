@@ -907,3 +907,11 @@
 - Added VM global-init fallback safeguard for ref-like globals so zero-valued fallback constants are normalized to VM null ref (`0xFFFFFFFF`) instead of raw handle `0`.
 - Verified language suite after fix:
   `./Simple/build.sh --suite lang` => `311/311`.
+## 2026-02-07 (cont. 8)
+- Reorganized documentation into a coherent current-state layout:
+  - rewrote `Docs/README.md` as canonical docs map
+  - rewrote module boundary/ownership map in `Docs/Modules.md`
+  - rewrote `Docs/Byte.md`, `Docs/VM.md`, `Docs/IR.md`, `Docs/CLI.md`, and `Docs/StdLib.md` to use a consistent format:
+    scope, current status, alpha contract, explicit constraints, primary files, and verification commands.
+- Updated `Docs/Implementation.md` to track active alpha freeze checklists rather than legacy long-form design references.
+- Added an `Alpha Support Snapshot` section at the top of `Docs/Lang.md` to clearly separate currently implemented behavior from deferred features.

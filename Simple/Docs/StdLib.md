@@ -1,11 +1,10 @@
-# Simple Standard Library Layout (v0.1)
+# Simple Standard Library Surface (Current)
 
-This document defines the standardized library layout and naming for Simple. It is a compiler-facing
-contract that maps user-facing import paths to core VM namespaces.
+This document defines reserved imports and their runtime bindings.
 
-## 1) Reserved Import Paths
+## Reserved Import Paths
 
-These import paths are reserved and resolved by the compiler:
+These paths are compiler-reserved and do not resolve to source files:
 
 - `Math`
 - `IO`
@@ -16,96 +15,76 @@ These import paths are reserved and resolved by the compiler:
 - `Core.Fs`
 - `Core.Log`
 
-Using these paths does **not** load files from disk. They map to core VM namespaces and intrinsics.
+## Mapping
 
-## 2) Module Mapping
+| Import Path | Runtime Namespace | Backend |
+|---|---|---|
+| `Math` | `core.math` | intrinsics |
+| `IO` | `core.io` | intrinsics |
+| `Time` | `core.time` | intrinsics |
+| `File` | `core.fs` | import calls |
+| `Core.DL` | `core.dl` | import calls |
+| `Core.Os` | `core.os` | import calls |
+| `Core.Fs` | `core.fs` | import calls |
+| `Core.Log` | `core.log` | import calls |
 
-| Import Path | Module Alias | Core Namespace | Backend |
-|---|---|---|---|
-| `Math` | `Math` | `core.math` | Intrinsics (abs/min/max)
-| `IO` | `IO` | `core.io` | Intrinsic print_any (print/println)
-| `Time` | `Time` | `core.time` | Intrinsics (mono_ns/wall_ns)
-| `File` | `File` | `core.fs` | FFI imports (open/read/write/close)
-| `Core.DL` | `Core.DL` | `core.dl` | FFI imports (dlopen/dlsym/dlclose)
-| `Core.Os` | `Core.Os` | `core.os` | FFI imports (args/env/cwd/time/sleep)
-| `Core.Fs` | `Core.Fs` | `core.fs` | FFI imports (open/read/write/close)
-| `Core.Log` | `Core.Log` | `core.log` | FFI imports (log)
-
-## 3) Reserved Module APIs
+## Module API Summary
 
 ### Math
-- `Math.abs(x)` -> intrinsic abs (i32/i64)
-- `Math.min(a, b)` -> intrinsic min (i32/i64/f32/f64)
-- `Math.max(a, b)` -> intrinsic max (i32/i64/f32/f64)
-- `Math.PI` -> `f64` constant
+- `Math.abs(x)`
+- `Math.min(a, b)`
+- `Math.max(a, b)`
+- `Math.PI`
 
 ### IO
-- `IO.print(x)` -> intrinsic print_any
-- `IO.println(x)` -> intrinsic print_any + "\n"
+- `IO.print(x)`
+- `IO.println(x)`
 
 ### Time
-- `Time.mono_ns()` -> intrinsic mono_ns
-- `Time.wall_ns()` -> intrinsic wall_ns
+- `Time.mono_ns()`
+- `Time.wall_ns()`
 
-### File
-- `File.open(path: string, flags: i32) -> i32`
-- `File.read(fd: i32, buf: i32[], len: i32) -> i32`
-- `File.write(fd: i32, buf: i32[], len: i32) -> i32`
-- `File.close(fd: i32) -> void`
-
-### Core.DL
-- `Core.DL.open(path: string) -> i64`
-- `Core.DL.sym(handle: i64, name: string) -> i64`
-- `Core.DL.close(handle: i64) -> i32`
-- `Core.DL.last_error() -> string`
-- Typed dynamic symbol calls are emitted from extern signatures used by `DL.Open(path, manifest)`.
-- Supported dynamic-call ABI surface:
-  - up to 254 extern parameters per symbol
-  - scalar/pointer types: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string/*T`
-  - enums are ABI-compatible through their lowered integer type
-  - artifacts are passed/returned by-value via runtime struct marshalling
+### File / Core.Fs
+- `open(path: string, flags: i32) -> i32`
+- `read(fd: i32, buf: i32[], len: i32) -> i32`
+- `write(fd: i32, buf: i32[], len: i32) -> i32`
+- `close(fd: i32) -> void`
 
 ### Core.Os
-- `Core.Os.args_count() -> i32`
-- `Core.Os.args_get(index: i32) -> string`
-- `Core.Os.env_get(name: string) -> string`
-- `Core.Os.cwd_get() -> string`
-- `Core.Os.time_mono_ns() -> i64`
-- `Core.Os.time_wall_ns() -> i64`
-- `Core.Os.sleep_ms(ms: i32) -> void`
-
-### Core.Fs
-- `Core.Fs.open(path: string, flags: i32) -> i32`
-- `Core.Fs.read(fd: i32, buf: i32[], len: i32) -> i32`
-- `Core.Fs.write(fd: i32, buf: i32[], len: i32) -> i32`
-- `Core.Fs.close(fd: i32) -> void`
+- `args_count() -> i32`
+- `args_get(index: i32) -> string`
+- `env_get(name: string) -> string`
+- `cwd_get() -> string`
+- `time_mono_ns() -> i64`
+- `time_wall_ns() -> i64`
+- `sleep_ms(ms: i32) -> void`
 
 ### Core.Log
-- `Core.Log.log(message: string, level: i32) -> void`
+- `log(message: string, level: i32) -> void`
 
-## 4) Core FFI Modules
+### Core.DL
+- `open(path: string) -> i64`
+- `sym(handle: i64, name: string) -> i64`
+- `close(handle: i64) -> i32`
+- `last_error() -> string`
 
-These FFI modules are resolved via the import table and handled by the VM:
+Typed dynamic symbol calls are generated from `extern` signatures through `DL.Open(path, manifest)`.
 
-- `core.os` (args/env/cwd/time/sleep)
-- `core.fs` (file IO)
-- `core.log` (logging)
-- `core.dl` (dlopen/dlsym/dlclose + last_error)
+Dynamic call ABI support (current):
 
-### core.dl
-- `core.dl.open(path: string) -> i64`
-- `core.dl.sym(handle: i64, name: string) -> i64`
-- `core.dl.close(handle: i64) -> i32`
-- `core.dl.last_error() -> string`
-- `core.dl.call_i32(ptr: i64, a: i32, b: i32) -> i32`
-- `core.dl.call_i64(ptr: i64, a: i64, b: i64) -> i64`
-- `core.dl.call_f32(ptr: i64, a: f32, b: f32) -> f32`
-- `core.dl.call_f64(ptr: i64, a: f64, b: f64) -> f64`
-- `core.dl.call_str0(ptr: i64) -> string`
+- up to 254 extern parameters per symbol
+- scalars: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+- pointers: `*T` / `*void`
+- enums
+- artifacts by-value (struct ABI marshalling)
 
-### Compiler Import Resolver Aliases
+Explicit limitation:
 
-To reference core FFI modules from `extern` declarations, the compiler recognizes:
+- recursive struct ABI is rejected.
+
+## Import Alias Notes
+
+Compiler alias normalization for extern modules:
 
 - `core_os` -> `core.os`
 - `core_fs` -> `core.fs`
