@@ -2,6 +2,19 @@
 
 This folder is the source of truth for the current Simple project state.
 
+## Authority Policy
+
+High-level module docs are authoritative for their module:
+
+- `Byte.md` is authoritative for SBC/loader/verifier behavior.
+- `VM.md` is authoritative for runtime and FFI behavior.
+- `IR.md` is authoritative for SIR/lowering behavior.
+- `CLI.md` is authoritative for command behavior.
+- `Lang.md` is authoritative for language syntax/semantics.
+- `StdLib.md` is authoritative for reserved imports/core module surface.
+
+`Simple/Docs/legacy/` exists as migration/reference material only and is not authoritative.
+
 ## Start Here
 
 - `Simple/Docs/README.md`

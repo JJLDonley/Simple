@@ -21,6 +21,21 @@ Implemented and in regular use:
 - Runtime traps include opcode/PC/function context.
 - FFI behavior follows declared extern signatures; mismatches fail fast.
 
+## Authoritative Runtime Contract
+
+- Execution entrypoint is a verified SBC module entry method.
+- Slot runtime is untagged; type safety is verifier+metadata enforced.
+- Trap conditions are fail-fast and terminate execution with diagnostics.
+- Heap references are explicit VM refs; null ref is sentinel `0xFFFFFFFF`.
+
+## Authoritative FFI Contract
+
+- `core.dl` dynamic calls are driven by exact extern signatures.
+- Argument/return ABI types are built from SBC type IDs at runtime.
+- Artifact struct arguments and returns are marshalled by-value.
+- Recursive struct ABI layouts are rejected.
+- Signature/type mismatches fail with deterministic runtime errors.
+
 ## Known Limits / Explicit Constraints
 
 - Recursive struct ABI marshalling is rejected.
@@ -39,9 +54,9 @@ Implemented and in regular use:
 - `./Simple/build.sh --suite jit`
 - `./Simple/build.sh --suite all`
 
-## Legacy Specs
+## Legacy Migration Notes
 
-Historical runtime references live in `Simple/Docs/legacy/`:
+Historical runtime references live in `Simple/Docs/legacy/` and are non-authoritative:
 
 - `SBC_Runtime.md`
 - `SBC_Debug.md`

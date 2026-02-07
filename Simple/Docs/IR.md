@@ -20,6 +20,13 @@ Implemented and used by language + tests:
 - Invalid SIR fails with deterministic diagnostics.
 - Lowered SBC must pass loader/verifier contracts.
 
+## Authoritative SIR Contract
+
+- SIR text must resolve all referenced tables/symbols before lowering.
+- SIR signatures/globals/imports must emit valid SBC metadata indices.
+- Unsupported SIR constructs fail in compiler diagnostics (no silent coercion).
+- Lowered output is expected to pass `Simple::Byte` loader + verifier.
+
 ## Known Limits / Explicit Constraints
 
 - SIR supports project-defined lowering subset; unsupported constructs fail at compile-time.
@@ -36,8 +43,8 @@ Implemented and used by language + tests:
 - `./Simple/build.sh --suite ir`
 - `./Simple/build.sh --suite all`
 
-## Legacy Specs
+## Legacy Migration Notes
 
-Historical IR reference:
+Historical IR reference (non-authoritative):
 
 - `Simple/Docs/legacy/SBC_IR.md`

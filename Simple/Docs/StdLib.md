@@ -2,6 +2,8 @@
 
 This document defines reserved imports and their runtime bindings.
 
+This document is authoritative for reserved import names and core module API surface.
+
 ## Reserved Import Paths
 
 These paths are compiler-reserved and do not resolve to source files:

@@ -19,6 +19,13 @@ Implemented:
 - Command behavior and error formatting are stable.
 - `.simple` and `.sir` compile/run flows are deterministic from repository root.
 
+## Authoritative Command Contract
+
+- `simple run/check/build` handles Simple language source flows.
+- `simplevm run/check/build/emit` handles VM/SIR-oriented flows.
+- Diagnostics are emitted in the standardized project error format.
+- Build output locations and suite behavior are governed by `Simple/build.sh`.
+
 ## Known Limits / Explicit Constraints
 
 - CLI is not a package manager.

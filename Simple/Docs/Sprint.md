@@ -915,3 +915,13 @@
     scope, current status, alpha contract, explicit constraints, primary files, and verification commands.
 - Updated `Docs/Implementation.md` to track active alpha freeze checklists rather than legacy long-form design references.
 - Added an `Alpha Support Snapshot` section at the top of `Docs/Lang.md` to clearly separate currently implemented behavior from deferred features.
+## 2026-02-07 (cont. 9)
+- Clarified documentation authority policy:
+  - module docs are authoritative for their module behavior/contracts
+  - `Docs/legacy/` is explicitly non-authoritative migration/reference material.
+- Added explicit authoritative contract sections to module docs:
+  - `Byte.md`: format + verifier invariants
+  - `VM.md`: runtime + FFI ABI contract
+  - `IR.md`: SIR/lowering contract
+  - `CLI.md`: command behavior contract
+  - `StdLib.md`: reserved import/API authority note.
