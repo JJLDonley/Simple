@@ -25,7 +25,7 @@ extern ffi.simple_color_sum : i32 (color : Color)
 extern ffi.simple_color_make : Color (r : u8, g : u8, b : u8, a : u8)
 
 main : i32 () {
-  lib : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so", ffi);
+  lib : i64 = DL.Open("Tests/ffi/libsimpleffi.so", ffi);
   sum : i32 = 0;
   msg : string = "";
   if lib == 0 {

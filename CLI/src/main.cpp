@@ -6,6 +6,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cinttypes>
+#include <algorithm>
+#include <cctype>
+#include <vector>
 #include <unordered_set>
 #if defined(__linux__)
 #include <unistd.h>
@@ -48,13 +51,106 @@ bool IsReservedImportPath(const std::string& path) {
   return kReserved.find(path) != kReserved.end();
 }
 
+bool LooksLikeProjectRoot(const std::filesystem::path& root) {
+  namespace fs = std::filesystem;
+  return fs::exists(root / "VM" / "include" / "vm.h") &&
+         fs::exists(root / "Lang" / "include" / "lang_parser.h") &&
+         fs::exists(root / "Byte" / "include" / "sbc_loader.h");
+}
+
+std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+#ifdef SIMPLEVM_PROJECT_ROOT
+  fs::path configured_root = fs::weakly_canonical(fs::path(SIMPLEVM_PROJECT_ROOT), ec);
+  if (!ec && !configured_root.empty() && LooksLikeProjectRoot(configured_root)) {
+    return configured_root;
+  }
+#endif
+  fs::path cursor = fs::weakly_canonical(entry_path, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(entry_path);
+  if (fs::is_regular_file(cursor)) cursor = cursor.parent_path();
+  while (!cursor.empty()) {
+    if (LooksLikeProjectRoot(cursor)) return cursor;
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
+  }
+  fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+  if (!ec && !cwd.empty()) return cwd;
+  return fs::current_path();
+}
+
+bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
+                          std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
+  if (!out) return false;
+  out->clear();
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::recursive_directory_iterator it(
+      project_root,
+      fs::directory_options::skip_permission_denied,
+      ec);
+  if (ec) return false;
+  for (const auto& entry : it) {
+    if (!entry.is_regular_file()) continue;
+    const fs::path& path = entry.path();
+    if (path.extension() != ".simple") continue;
+    (*out)[path.filename().string()].push_back(fs::weakly_canonical(path, ec));
+    if (ec) {
+      ec.clear();
+      (*out)[path.filename().string()].push_back(fs::absolute(path));
+    }
+  }
+  return true;
+}
+
+bool ResolveProjectRootImportPath(
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
+  if (!out) return false;
+  const std::string target = import_path.size() >= 7 &&
+                                     import_path.rfind(".simple") == import_path.size() - 7
+                                 ? import_path
+                                 : import_path + ".simple";
+  auto it = index.find(target);
+  if (it == index.end() || it->second.empty()) {
+    if (error) *error = "import not found in project root: " + import_path;
+    return false;
+  }
+  if (it->second.size() > 1) {
+    std::vector<std::string> matches;
+    matches.reserve(it->second.size());
+    for (const auto& p : it->second) matches.push_back(p.string());
+    std::sort(matches.begin(), matches.end());
+    std::string details;
+    const size_t limit = std::min<size_t>(5, matches.size());
+    for (size_t i = 0; i < limit; ++i) {
+      if (i) details += ", ";
+      details += matches[i];
+    }
+    if (matches.size() > limit) details += ", ...";
+    if (error) *error = "ambiguous import path '" + import_path + "' matched: " + details;
+    return false;
+  }
+  *out = it->second.front();
+  return true;
+}
+
 bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
+                            const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
                             const std::string& import_path,
                             std::filesystem::path* out,
                             std::string* error) {
   if (!out) return false;
   namespace fs = std::filesystem;
   fs::path raw(import_path);
+  const bool has_separator =
+      import_path.find('/') != std::string::npos || import_path.find('\\') != std::string::npos;
+  const bool explicit_relative = raw.is_relative() && !import_path.empty() &&
+                                 (import_path[0] == '.' || has_separator);
+
   if (raw.is_absolute()) {
     if (fs::exists(raw)) {
       *out = fs::weakly_canonical(raw);
@@ -68,7 +164,7 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
         return true;
       }
     }
-  } else {
+  } else if (explicit_relative) {
     fs::path cand = base_dir / raw;
     if (fs::exists(cand)) {
       *out = fs::weakly_canonical(cand);
@@ -81,12 +177,17 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
         return true;
       }
     }
+  } else {
+    if (ResolveProjectRootImportPath(project_index, import_path, out, error)) {
+      return true;
+    }
   }
-  if (error) *error = "unsupported import path: " + import_path;
+  if (error && error->empty()) *error = "unsupported import path: " + import_path;
   return false;
 }
 
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
+                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
                                    Simple::Lang::Program* out,
                                    std::unordered_set<std::string>* visiting,
                                    std::unordered_set<std::string>* visited,
@@ -121,11 +222,11 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
     if (decl.kind != Simple::Lang::DeclKind::Import) continue;
     if (IsReservedImportPath(decl.import_decl.path)) continue;
     fs::path import_file;
-    if (!ResolveLocalImportPath(base_dir, decl.import_decl.path, &import_file, error)) {
+    if (!ResolveLocalImportPath(base_dir, project_index, decl.import_decl.path, &import_file, error)) {
       visiting->erase(key);
       return false;
     }
-    if (!AppendProgramWithLocalImports(import_file, out, visiting, visited, error)) {
+    if (!AppendProgramWithLocalImports(import_file, project_index, out, visiting, visited, error)) {
       visiting->erase(key);
       return false;
     }
@@ -148,9 +249,15 @@ bool LoadSimpleProgramWithImports(const std::string& entry_path,
                                   std::string* error) {
   if (!out) return false;
   out->decls.clear();
+  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
+  std::unordered_map<std::string, std::vector<std::filesystem::path>> project_index;
+  if (!BuildSimpleFileIndex(project_root, &project_index)) {
+    if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
+    return false;
+  }
   std::unordered_set<std::string> visiting;
   std::unordered_set<std::string> visited;
-  return AppendProgramWithLocalImports(entry_path, out, &visiting, &visited, error);
+  return AppendProgramWithLocalImports(entry_path, project_index, out, &visiting, &visited, error);
 }
 
 bool ValidateSimpleFile(const std::string& path, std::string* error) {
@@ -421,47 +528,88 @@ struct ErrorLocation {
   bool ok = false;
   uint32_t line = 0;
   uint32_t column = 0;
+  std::string file;
   std::string message;
 };
 
-ErrorLocation ParseErrorLocation(const std::string& message) {
+std::string TrimCopy(std::string s) {
+  while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
+  while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.pop_back();
+  return s;
+}
+
+std::string StripDiagnosticWrappers(const std::string& message,
+                                    const std::string& default_path) {
+  std::string out = TrimCopy(message);
+  for (;;) {
+    bool changed = false;
+    const std::string compile_prefix = "simple compile failed (";
+    if (out.rfind(compile_prefix, 0) == 0) {
+      const size_t close = out.find("): ");
+      if (close != std::string::npos) {
+        out = out.substr(close + 3);
+        out = TrimCopy(out);
+        changed = true;
+      }
+    }
+    if (!default_path.empty()) {
+      const std::string path_prefix = default_path + ": ";
+      if (out.rfind(path_prefix, 0) == 0) {
+        out = TrimCopy(out.substr(path_prefix.size()));
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return out;
+}
+
+ErrorLocation ParseErrorLocation(const std::string& raw_message) {
   ErrorLocation out;
-  auto is_digit = [](char ch) { return ch >= '0' && ch <= '9'; };
-  size_t pos = 0;
-  while (pos < message.size()) {
-    while (pos < message.size() && !is_digit(message[pos])) ++pos;
-    if (pos >= message.size()) break;
-    size_t line_start = pos;
-    while (pos < message.size() && is_digit(message[pos])) ++pos;
-    if (pos >= message.size() || message[pos] != ':') continue;
-    size_t line_end = pos;
-    ++pos;
-    size_t col_start = pos;
-    while (pos < message.size() && is_digit(message[pos])) ++pos;
-    if (pos >= message.size() || message[pos] != ':') continue;
-    size_t col_end = pos;
-    std::string line_text = message.substr(line_start, line_end - line_start);
-    std::string col_text = message.substr(col_start, col_end - col_start);
-    if (line_text.empty() || col_text.empty()) continue;
-    uint32_t line = static_cast<uint32_t>(std::stoul(line_text));
-    uint32_t col = static_cast<uint32_t>(std::stoul(col_text));
+  const std::string message = TrimCopy(raw_message);
+  for (size_t i = 0; i < message.size(); ++i) {
+    if (!std::isdigit(static_cast<unsigned char>(message[i]))) continue;
+    size_t p = i;
+    while (p < message.size() && std::isdigit(static_cast<unsigned char>(message[p]))) ++p;
+    if (p == i || p >= message.size() || message[p] != ':') continue;
+    uint32_t line = static_cast<uint32_t>(std::stoul(message.substr(i, p - i)));
+    ++p;
+    while (p < message.size() && std::isspace(static_cast<unsigned char>(message[p]))) ++p;
+    size_t col_start = p;
+    while (p < message.size() && std::isdigit(static_cast<unsigned char>(message[p]))) ++p;
+    if (p == col_start || p >= message.size() || message[p] != ':') continue;
+    uint32_t col = static_cast<uint32_t>(std::stoul(message.substr(col_start, p - col_start)));
+    ++p;
+    while (p < message.size() && std::isspace(static_cast<unsigned char>(message[p]))) ++p;
     if (line == 0 || col == 0) continue;
+
+    std::string before = TrimCopy(message.substr(0, i));
+    while (!before.empty() && (before.back() == ':' || std::isspace(static_cast<unsigned char>(before.back())))) {
+      before.pop_back();
+    }
+    std::string after = p < message.size() ? TrimCopy(message.substr(p)) : std::string("diagnostic error");
+
     out.ok = true;
     out.line = line;
     out.column = col;
-    std::string before = message.substr(0, line_start);
-    std::string after = message.substr(col_end + 1);
-    while (!after.empty() && after.front() == ' ') after.erase(after.begin());
-    while (!before.empty() && before.back() == ' ') before.pop_back();
+
     if (!before.empty()) {
-      if (before.back() != ':') {
-        before.push_back(':');
+      const bool maybe_path = before.find('/') != std::string::npos ||
+                              before.find('\\') != std::string::npos ||
+                              before.find(".simple") != std::string::npos;
+      if (maybe_path) {
+        out.file = before;
+        out.message = after;
+      } else {
+        out.message = before + ": " + after;
       }
-      before.push_back(' ');
+    } else {
+      out.message = after;
     }
-    out.message = before + after;
-    break;
+    return out;
   }
+
+  out.message = message;
   return out;
 }
 
@@ -479,18 +627,53 @@ std::string GetSourceLine(const std::string& path, uint32_t line) {
 }
 
 void PrintError(const std::string& message) {
-  std::cerr << "error[E0001]: " << message << "\n";
+  std::cerr << "error[E0001]: " << TrimCopy(message) << "\n";
+}
+
+std::string DiagnosticHelpFor(const std::string& message) {
+  if (message.find("unexpected character") != std::string::npos) {
+    return "remove unsupported characters or escape them if inside literals";
+  }
+  if (message.find("unsupported import path") != std::string::npos) {
+    return "use a reserved stdlib import, a relative/absolute path, or a unique bare filename under project root";
+  }
+  if (message.find("import not found in project root") != std::string::npos) {
+    return "add the target .simple file under project root or use an explicit relative path";
+  }
+  if (message.find("ambiguous import path") != std::string::npos) {
+    return "rename duplicate files or use an explicit relative path to disambiguate";
+  }
+  if (message.find("undeclared identifier") != std::string::npos) {
+    return "declare the symbol in scope, or fix a typo in the identifier name";
+  }
+  if (message.find("unterminated block") != std::string::npos) {
+    return "add the missing closing '}' for this block";
+  }
+  if (message.find("expected") != std::string::npos) {
+    return "check surrounding syntax near the highlighted token";
+  }
+  return {};
+}
+
+void PrintDiagnosticHelp(const std::string& message) {
+  const std::string hint = DiagnosticHelpFor(message);
+  if (!hint.empty()) {
+    std::cerr << "  = help: " << hint << "\n";
+  }
 }
 
 void PrintErrorWithContext(const std::string& path, const std::string& message) {
-  ErrorLocation loc = ParseErrorLocation(message);
+  const std::string normalized = StripDiagnosticWrappers(message, path);
+  ErrorLocation loc = ParseErrorLocation(normalized);
   if (!loc.ok) {
-    PrintError(message);
+    PrintError(normalized);
+    PrintDiagnosticHelp(normalized);
     return;
   }
   std::cerr << "error[E0001]: " << loc.message << "\n";
-  std::cerr << " --> " << path << ":" << loc.line << ":" << loc.column << "\n";
-  std::string source = GetSourceLine(path, loc.line);
+  const std::string source_path = loc.file.empty() ? path : loc.file;
+  std::cerr << " --> " << source_path << ":" << loc.line << ":" << loc.column << "\n";
+  std::string source = GetSourceLine(source_path, loc.line);
   if (!source.empty()) {
     std::cerr << "  |\n";
     std::cerr << loc.line << " | " << source << "\n";
@@ -500,6 +683,7 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
     }
     std::cerr << "^\n";
   }
+  PrintDiagnosticHelp(loc.message);
 }
 
 int main(int argc, char** argv) {

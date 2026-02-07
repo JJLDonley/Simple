@@ -100,411 +100,411 @@ bool LangSirEmitsReturnI32() {
 }
 
 bool LangSimpleFixtureHello() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/hello.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/hello.simple", 0);
 }
 
 bool LangSimpleFixtureMath() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/math.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/math.simple", 0);
 }
 
 bool LangSimpleFixtureSumLoop() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/sum_loop.simple", 4950);
+  return RunSimpleFileExpectExit("Tests/simple/sum_loop.simple", 4950);
 }
 
 bool LangSimpleFixtureSumArray() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/sum_array.simple", 6);
+  return RunSimpleFileExpectExit("Tests/simple/sum_array.simple", 6);
 }
 
 bool LangSimpleFixturePointSum() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/point_sum.simple", 7);
+  return RunSimpleFileExpectExit("Tests/simple/point_sum.simple", 7);
 }
 
 bool LangSimpleFixtureListLen() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/list_len.simple", 4);
+  return RunSimpleFileExpectExit("Tests/simple/list_len.simple", 4);
 }
 
 bool LangSimpleFixtureListNested() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/list_nested.simple", 3);
+  return RunSimpleFileExpectExit("Tests/simple/list_nested.simple", 3);
 }
 
 bool LangSimpleFixtureArrayEmpty() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/array_empty.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/array_empty.simple", 0);
 }
 
 bool LangSimpleFixtureListEmpty() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/list_empty.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/list_empty.simple", 0);
 }
 
 bool LangSimpleFixtureAddFn() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/add_fn.simple", 42);
+  return RunSimpleFileExpectExit("Tests/simple/add_fn.simple", 42);
 }
 
 bool LangSimpleFixtureIfElse() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/if_else.simple", 7);
+  return RunSimpleFileExpectExit("Tests/simple/if_else.simple", 7);
 }
 
 bool LangSimpleFixtureForLoop() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/for_loop.simple", 15);
+  return RunSimpleFileExpectExit("Tests/simple/for_loop.simple", 15);
 }
 
 bool LangSimpleFixtureWhileBreak() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/while_break.simple", 6);
+  return RunSimpleFileExpectExit("Tests/simple/while_break.simple", 6);
 }
 
 bool LangSimpleFixtureEnumValue() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/enum_value.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/enum_value.simple", 1);
 }
 
 bool LangSimpleFixtureEnumExplicit() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/enum_explicit.simple", 9);
+  return RunSimpleFileExpectExit("Tests/simple/enum_explicit.simple", 9);
 }
 
 bool LangSimpleFixtureModuleAccess() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/module_access.simple", 5);
+  return RunSimpleFileExpectExit("Tests/simple/module_access.simple", 5);
 }
 
 bool LangSimpleFixtureIoPrint() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/io_print.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/io_print.simple", 0);
 }
 
 bool LangSimpleFixtureFnLiteral() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/fn_literal.simple", 42);
+  return RunSimpleFileExpectExit("Tests/simple/fn_literal.simple", 42);
 }
 
 bool LangSimpleFixtureArrayAssign() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/array_assign.simple", 9);
+  return RunSimpleFileExpectExit("Tests/simple/array_assign.simple", 9);
 }
 
 bool LangSimpleFixtureListIndex() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/list_index.simple", 6);
+  return RunSimpleFileExpectExit("Tests/simple/list_index.simple", 6);
 }
 
 bool LangSimpleFixtureStringLen() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/string_len.simple", 5);
+  return RunSimpleFileExpectExit("Tests/simple/string_len.simple", 5);
 }
 
 bool LangSimpleFixtureArtifactMethod() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_method.simple", 7);
+  return RunSimpleFileExpectExit("Tests/simple/artifact_method.simple", 7);
 }
 
 bool LangSimpleFixtureModuleMulti() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/module_multi.simple", 6);
+  return RunSimpleFileExpectExit("Tests/simple/module_multi.simple", 6);
 }
 
 bool LangSimpleFixtureModuleFuncParams() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/module_func_params.simple", 42);
+  return RunSimpleFileExpectExit("Tests/simple/module_func_params.simple", 42);
 }
 
 bool LangSimpleFixtureImportBasic() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/import_basic.simple", 42);
+  return RunSimpleFileExpectExit("Tests/simple/import_basic.simple", 42);
 }
 
 bool LangSimpleFixtureExternDecl() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/extern_decl.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/extern_decl.simple", 0);
 }
 
 bool LangSimpleFixtureExternCoreOsArgsCount() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/extern_core_os_args_count.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/extern_core_os_args_count.simple", 0);
 }
 
 bool LangSimpleFixtureCoreDlOpen() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/core_dl_open.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/core_dl_open.simple", 1);
 }
 
 bool LangSimpleFixtureReservedMath() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_math.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/reserved_math.simple", 0);
 }
 
 bool LangSimpleFixtureReservedTime() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_time.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/reserved_time.simple", 0);
 }
 
 bool LangSimpleFixtureReservedFile() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_file.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/reserved_file.simple", 0);
 }
 
 bool LangSimpleFixtureReservedMathPi() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/reserved_math_pi.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/reserved_math_pi.simple", 0);
 }
 
 bool LangSimpleFixtureArtifactNamedInit() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/artifact_named_init.simple", 7);
+  return RunSimpleFileExpectExit("Tests/simple/artifact_named_init.simple", 7);
 }
 
 bool LangSimpleFixtureArrayNested() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/array_nested.simple", 3);
+  return RunSimpleFileExpectExit("Tests/simple/array_nested.simple", 3);
 }
 
 bool LangSimpleFixtureBoolOps() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/bool_ops.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/bool_ops.simple", 1);
 }
 
 bool LangSimpleFixtureCharCompare() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/char_compare.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/char_compare.simple", 1);
 }
 
 bool LangSimpleFixtureCharEscapeHex() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/char_escape_hex.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/char_escape_hex.simple", 1);
 }
 
 bool LangSimpleFixtureStringEscapeHex() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/string_escape_hex.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/string_escape_hex.simple", 0);
 }
 
 bool LangSimpleFixtureCastI8ToI32() {
-  return RunSimpleFileExpectExit("Simple/Tests/simple/cast_i8_to_i32.simple", 42);
+  return RunSimpleFileExpectExit("Tests/simple/cast_i8_to_i32.simple", 42);
 }
 
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/missing_return.simple",
+      "Tests/simple_bad/missing_return.simple",
       "non-void function does not return on all paths");
 }
 
 bool LangSimpleBadTypeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/type_mismatch.simple",
+      "Tests/simple_bad/type_mismatch.simple",
       "type mismatch");
 }
 
 bool LangSimpleBadPrintArray() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/print_array.simple",
+      "Tests/simple_bad/print_array.simple",
       "IO.print");
 }
 
 bool LangSimpleBadImportUnknown() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/import_unknown.simple",
+      "Tests/simple_bad/import_unknown.simple",
       "unsupported import path");
 }
 
 bool LangSimpleBadEnumUnqualified() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/enum_unqualified.simple",
+      "Tests/simple_bad/enum_unqualified.simple",
       "enum");
 }
 
 bool LangSimpleBadBreakOutsideLoop() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/break_outside_loop.simple",
+      "Tests/simple_bad/break_outside_loop.simple",
       "break");
 }
 
 bool LangSimpleBadModuleVarAccess() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/module_var_access.simple",
+      "Tests/simple_bad/module_var_access.simple",
       "module");
 }
 
 bool LangSimpleBadSelfOutsideArtifact() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/self_outside_artifact.simple",
+      "Tests/simple_bad/self_outside_artifact.simple",
       "self");
 }
 
 bool LangSimpleBadLenInvalidArg() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/len_invalid_arg.simple",
+      "Tests/simple_bad/len_invalid_arg.simple",
       "len");
 }
 
 bool LangSimpleBadIndexNonInt() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/index_non_int.simple",
+      "Tests/simple_bad/index_non_int.simple",
       "index");
 }
 
 bool LangSimpleBadAssignToImmutable() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/assign_to_immutable.simple",
+      "Tests/simple_bad/assign_to_immutable.simple",
       "immutable");
 }
 
 bool LangSimpleBadUnknownIdentifier() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/unknown_identifier.simple",
+      "Tests/simple_bad/unknown_identifier.simple",
       "undeclared identifier");
 }
 
 bool LangSimpleBadCallArgCount() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/call_arg_count.simple",
+      "Tests/simple_bad/call_arg_count.simple",
       "argument count");
 }
 
 bool LangSimpleBadModuleFuncReturnMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/module_func_return_mismatch.simple",
+      "Tests/simple_bad/module_func_return_mismatch.simple",
       "Math.bad");
 }
 
 bool LangSimpleBadUnknownType() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/unknown_type.simple",
+      "Tests/simple_bad/unknown_type.simple",
       "unknown type");
 }
 
 bool LangSimpleBadEnumTypeAsValue() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/enum_type_as_value.simple",
+      "Tests/simple_bad/enum_type_as_value.simple",
       "enum type is not a value");
 }
 
 bool LangSimpleBadModuleAsType() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/module_as_type.simple",
+      "Tests/simple_bad/module_as_type.simple",
       "module is not a type");
 }
 
 bool LangSimpleBadFunctionAsType() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/function_as_type.simple",
+      "Tests/simple_bad/function_as_type.simple",
       "function is not a type");
 }
 
 bool LangSimpleBadArtifactMemberNoSelf() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/artifact_member_without_self.simple",
+      "Tests/simple_bad/artifact_member_without_self.simple",
       "artifact members must be accessed via self");
 }
 
 bool LangSimpleBadEnumUnknownMember() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/enum_unknown_member.simple",
+      "Tests/simple_bad/enum_unknown_member.simple",
       "unknown enum member");
 }
 
 bool LangSimpleBadModuleUnknownMember() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/module_unknown_member.simple",
+      "Tests/simple_bad/module_unknown_member.simple",
       "unknown module member");
 }
 
 bool LangSimpleBadArtifactUnknownMember() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/artifact_unknown_member.simple",
+      "Tests/simple_bad/artifact_unknown_member.simple",
       "unknown artifact member");
 }
 
 bool LangSimpleBadArraySizeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/array_size_mismatch.simple",
+      "Tests/simple_bad/array_size_mismatch.simple",
       "array literal size");
 }
 
 bool LangSimpleBadArrayElemTypeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/array_elem_type_mismatch.simple",
+      "Tests/simple_bad/array_elem_type_mismatch.simple",
       "array literal element type mismatch");
 }
 
 bool LangSimpleBadListElemTypeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/list_elem_type_mismatch.simple",
+      "Tests/simple_bad/list_elem_type_mismatch.simple",
       "array literal element type mismatch");
 }
 
 bool LangSimpleBadIndexNonContainer() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/index_non_container.simple",
+      "Tests/simple_bad/index_non_container.simple",
       "indexing is only valid");
 }
 
 bool LangSimpleBadArrayMissingDim() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/array_missing_dim.simple",
+      "Tests/simple_bad/array_missing_dim.simple",
       "array/list literal requires array or list type");
 }
 
 bool LangSimpleBadMissingSemicolonSameLine() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/missing_semicolon_same_line.simple",
+      "Tests/simple_bad/missing_semicolon_same_line.simple",
       "expected ';'");
 }
 
 bool LangSimpleBadInvalidStringEscape() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/invalid_string_escape.simple",
+      "Tests/simple_bad/invalid_string_escape.simple",
       "invalid string escape");
 }
 
 bool LangSimpleBadInvalidCharEscape() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/invalid_char_escape.simple",
+      "Tests/simple_bad/invalid_char_escape.simple",
       "invalid char escape");
 }
 
 bool LangSimpleBadLexerInvalidChar() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/lexer_invalid_char.simple",
+      "Tests/simple_bad/lexer_invalid_char.simple",
       "unexpected character");
 }
 
 bool LangSimpleBadParserUnterminatedBlock() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/parser_unterminated_block.simple",
+      "Tests/simple_bad/parser_unterminated_block.simple",
       "unterminated block");
 }
 
 bool LangSimpleBadBoolArithmetic() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/bool_arith.simple",
+      "Tests/simple_bad/bool_arith.simple",
       "operator '+' requires matching operand types");
 }
 
 bool LangSimpleBadCharCompareInt() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/char_compare_with_int.simple",
+      "Tests/simple_bad/char_compare_with_int.simple",
       "operator '==' requires matching operand types");
 }
 
 bool LangSimpleBadCharArithmetic() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/char_arith.simple",
+      "Tests/simple_bad/char_arith.simple",
       "operator '+' requires matching operand types");
 }
 
 bool LangSimpleBadInvalidHexEscape() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/invalid_hex_escape.simple",
+      "Tests/simple_bad/invalid_hex_escape.simple",
       "invalid hex escape");
 }
 
 bool LangSimpleBadExternCallArgCount() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/extern_call_arg_count.simple",
+      "Tests/simple_bad/extern_call_arg_count.simple",
       "argument count mismatch for extern");
 }
 
 bool LangSimpleBadCallArgTypeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/call_arg_type_mismatch.simple",
+      "Tests/simple_bad/call_arg_type_mismatch.simple",
       "call argument type mismatch");
 }
 
 bool LangSimpleBadIndexNonIntExpr() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Simple/Tests/simple_bad/index_non_int_expr.simple",
+      "Tests/simple_bad/index_non_int_expr.simple",
       "index");
 }
 
 bool LangSimpleBadIndexNegative() {
   return Simple::VM::Tests::RunSimpleFileExpectTrap(
-      "Simple/Tests/simple_bad/index_negative.simple",
+      "Tests/simple_bad/index_negative.simple",
       "runtime trap");
 }
 
 bool LangSimpleBadIndexOutOfBounds() {
   return Simple::VM::Tests::RunSimpleFileExpectTrap(
-      "Simple/Tests/simple_bad/index_oob.simple",
+      "Tests/simple_bad/index_oob.simple",
       "runtime trap");
 }
 
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
-      "Simple/bin/simplevm check Simple/Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
+      "bin/simplevm check Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -518,7 +518,7 @@ bool LangCliCheckSimpleErrorFormat() {
 bool LangCliCheckSimpleLexerErrorFormat() {
   const std::string err_path = TempPath("simple_check_lex_err.txt");
   const std::string cmd =
-      "Simple/bin/simplevm check Simple/Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
+      "bin/simplevm check Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -532,7 +532,7 @@ bool LangCliCheckSimpleLexerErrorFormat() {
 bool LangCliCheckSimpleParserErrorFormat() {
   const std::string err_path = TempPath("simple_check_parse_err.txt");
   const std::string cmd =
-      "Simple/bin/simplevm check Simple/Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
+      "bin/simplevm check Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -545,7 +545,7 @@ bool LangCliCheckSimpleParserErrorFormat() {
 
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
-  const std::string cmd = "Simple/bin/simplevm emit -ir Simple/Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/simplevm emit -ir Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path);
   if (!in) return false;
@@ -555,27 +555,27 @@ bool LangCliEmitIr() {
 
 bool LangCliEmitSbc() {
   const std::string out_path = TempPath("simple_emit_sbc.sbc");
-  const std::string cmd = "Simple/bin/simplevm emit -sbc Simple/Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/simplevm emit -sbc Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
 }
 
 bool LangCliCheckSimple() {
-  return RunCommand("Simple/bin/simplevm check Simple/Tests/simple/hello.simple");
+  return RunCommand("bin/simplevm check Tests/simple/hello.simple");
 }
 
 bool LangCliCheckSir() {
-  return RunCommand("Simple/bin/simplevm check Simple/Tests/sir/fib_iter.sir");
+  return RunCommand("bin/simplevm check Tests/sir/fib_iter.sir");
 }
 
 bool LangCliCheckSbc() {
-  return RunCommand("Simple/bin/simplevm check Simple/Tests/tests/fixtures/add_i32.sbc");
+  return RunCommand("bin/simplevm check Tests/tests/fixtures/add_i32.sbc");
 }
 
 bool LangCliBuildSimple() {
   const std::string out_path = TempPath("simple_build_hello.sbc");
-  const std::string cmd = "Simple/bin/simplevm build Simple/Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/simplevm build Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
@@ -583,14 +583,14 @@ bool LangCliBuildSimple() {
 
 bool LangCliBuildSimpleAliasDefaultsToExe() {
   const std::string out_path = TempPath("simple_build_hello_alias_exec");
-  const std::string cmd = "Simple/bin/simple build Simple/Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/simple build Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   return RunCommand(out_path);
 }
 
 bool LangCliCompileSimpleAliasDefaultsToExe() {
   const std::string out_path = TempPath("simple_compile_hello_alias_exec");
-  const std::string cmd = "Simple/bin/simple compile Simple/Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/simple compile Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   return RunCommand(out_path);
 }
@@ -598,7 +598,7 @@ bool LangCliCompileSimpleAliasDefaultsToExe() {
 bool LangCliBuildDynamicExe() {
   const std::string out_path = TempPath("simple_build_hello_exec");
   const std::string cmd =
-      "Simple/bin/simplevm build -d Simple/Tests/simple/hello.simple --out " + out_path;
+      "bin/simplevm build -d Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   if (!RunCommand(out_path)) return false;
 #if defined(__linux__)
@@ -612,7 +612,7 @@ bool LangCliBuildDynamicExe() {
 bool LangCliBuildStaticExe() {
   const std::string out_path = TempPath("simple_build_hello_exec_static");
   const std::string cmd =
-      "Simple/bin/simplevm build -s Simple/Tests/simple/hello.simple --out " + out_path;
+      "bin/simplevm build -s Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   if (!RunCommand(out_path)) return false;
 #if defined(__linux__)
@@ -624,28 +624,28 @@ bool LangCliBuildStaticExe() {
 }
 
 bool LangCliRunSimple() {
-  return RunCommand("Simple/bin/simplevm run Simple/Tests/simple/hello.simple");
+  return RunCommand("bin/simplevm run Tests/simple/hello.simple");
 }
 
 bool LangCliRunSimpleAlias() {
-  return RunCommand("Simple/bin/simple run Simple/Tests/simple/hello.simple");
+  return RunCommand("bin/simple run Tests/simple/hello.simple");
 }
 
 bool LangCliRunSimpleLocalImport() {
-  return RunCommand("Simple/bin/simple run Simple/Tests/simple_modules/import_local_main.simple");
+  return RunCommand("bin/simple run Tests/simple_modules/import_local_main.simple");
 }
 
 bool LangCliCheckSimpleAlias() {
-  return RunCommand("Simple/bin/simple check Simple/Tests/simple/hello.simple");
+  return RunCommand("bin/simple check Tests/simple/hello.simple");
 }
 
 bool LangCliSimpleRejectSir() {
-  return RunCommandExpectFail("Simple/bin/simple check Simple/Tests/sir/fib_iter.sir");
+  return RunCommandExpectFail("bin/simple check Tests/sir/fib_iter.sir");
 }
 
 bool LangCliLspNotImplemented() {
   const std::string err_path = TempPath("simple_lsp_err.txt");
-  const std::string cmd = "Simple/bin/simple lsp 1>/dev/null 2> " + err_path;
+  const std::string cmd = "bin/simple lsp 1>/dev/null 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -1948,7 +1948,7 @@ bool LangValidateIoPrintRejectsArray() {
 }
 
 bool LangRunsSimpleFixtures() {
-  const std::string dir = "Simple/Tests/simple";
+  const std::string dir = "Tests/simple";
   return Simple::VM::Tests::RunSimplePerfDir(dir, 1, true) == 0;
 }
 

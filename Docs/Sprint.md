@@ -4,6 +4,21 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Flattened repository layout to project root (`Byte/`, `CLI/`, `Docs/`, `IR/`, `Lang/`, `Tests/`, `VM/`) and removed stale `Simple/`-prefixed path assumptions in active test/CLI paths.
+- Fixed test fixtures and CLI invocations after root migration by normalizing runtime paths from `Simple/...` to root-relative paths.
+- Extended `.simple` import resolution:
+  - reserved stdlib imports are unchanged,
+  - relative/absolute imports still resolve directly,
+  - bare imports now resolve by recursively indexing all `.simple` files under project root and matching by filename,
+  - ambiguous bare imports now produce explicit diagnostics listing matched files.
+- Added local-import fixture coverage for project-root filename resolution:
+  - `Tests/simple_modules/import_local_main.simple`
+  - `Tests/simple_modules/import/import_local_sub.simple`
+- Upgraded CLI diagnostics to be more Rust-like and resilient to wrapped errors:
+  - robust `line:col` extraction even when prefixed by function/file context,
+  - consistent source snippet + caret rendering (` --> file:line:col`),
+  - wrapper stripping for nested `simple compile failed (...)` errors,
+  - contextual `help:` hints for common parser/lexer/import/semantic failures.
 - Fixed CLI `.simple` local import resolution for project files:
   - recursive non-reserved import loading from importer directory,
   - extensionless import support (`./name` -> `./name.simple`),

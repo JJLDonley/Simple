@@ -16,7 +16,7 @@ extern ffi.EndDrawing: void ()
 extern ffi.ClearBackground: void (color: i32)
 extern ffi.DrawText: void (text: string, x: i32, y: i32, size: i32, tint: i32)
 
-lib :: i64 = DL.Open("Simple/Tests/ffi/libraylib.so", ffi)
+lib :: i64 = DL.Open("Tests/ffi/libraylib.so", ffi)
 
 InitWindow : void (width: i32, height: i32, title: string) {
     lib.InitWindow(width, height, title)
