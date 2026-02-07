@@ -6,14 +6,18 @@ VERSION="latest"
 BIN_DIR="${HOME}/.local/bin"
 URL="${SIMPLE_RELEASE_URL:-}"
 ARCHIVE_PATH=""
+REPO="${SIMPLE_GITHUB_REPO:-tangjiehao/Simple}"
+TARGET=""
 NO_LINK=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./install.sh [--url <release.tar.gz>] [--from-file <release.tar.gz>] [--prefix <dir>] [--version <name>] [--bin-dir <dir>] [--no-link]
+  ./install.sh [--url <release.tar.gz>] [--from-file <release.tar.gz>] [--repo <owner/name>] [--target <os-arch>] [--prefix <dir>] [--version <name>] [--bin-dir <dir>] [--no-link]
 
 Examples:
+  ./install.sh --version latest
+  ./install.sh --repo tangjiehao/Simple --version v0.1.0
   ./install.sh --from-file ./dist/simple-dev-linux-x86_64.tar.gz --version dev
   ./install.sh --url https://example.com/simple-v0.1.0-linux-x86_64.tar.gz --version v0.1.0
 EOF
@@ -31,6 +35,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --bin-dir)
       BIN_DIR="${2:-}"
+      shift 2
+      ;;
+    --repo)
+      REPO="${2:-}"
+      shift 2
+      ;;
+    --target)
+      TARGET="${2:-}"
       shift 2
       ;;
     --url)
@@ -57,9 +69,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -z "$TARGET" ]]; then
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  TARGET="${os}-${arch}"
+fi
+
 if [[ -z "$ARCHIVE_PATH" && -z "$URL" ]]; then
-  echo "missing release source: pass --from-file or --url (or set SIMPLE_RELEASE_URL)" >&2
-  exit 1
+  if [[ "$VERSION" == "latest" ]]; then
+    URL="https://github.com/${REPO}/releases/latest/download/simple-latest-${TARGET}.tar.gz"
+  else
+    URL="https://github.com/${REPO}/releases/download/${VERSION}/simple-${VERSION}-${TARGET}.tar.gz"
+  fi
 fi
 
 tmp_dir="$(mktemp -d)"

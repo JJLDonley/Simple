@@ -972,3 +972,17 @@
   - kept runtime-essential payload only (`bin/`, `lib/`, `include/simplevm/`).
 - Updated `install.sh` usage/examples to root-layout script paths.
 - Tightened local repo hygiene by ignoring local IDE metadata and generated test FFI `.so` artifacts (`.vscode/`, `Tests/ffi/*.so`) and build releases (`dist/`).
+## 2026-02-07 (cont. 14)
+- Added GitHub Actions release pipeline (`.github/workflows/release.yml`) for branch `release`:
+  - builds/tests (`./build.sh --suite all`),
+  - packages Linux release tarball,
+  - publishes GitHub Release assets with checksums.
+- Release assets now include both versioned and stable names:
+  - `simple-<version>-linux-x86_64.tar.gz`
+  - `simple-latest-linux-x86_64.tar.gz`
+  - matching `.sha256` files.
+- Updated installer for release automation usage:
+  - supports `--repo <owner/name>` and `--target <os-arch>`,
+  - if no `--url/--from-file` is provided, auto-resolves GitHub release URLs:
+    - latest -> `.../releases/latest/download/simple-latest-<target>.tar.gz`
+    - versioned -> `.../releases/download/<version>/simple-<version>-<target>.tar.gz`.

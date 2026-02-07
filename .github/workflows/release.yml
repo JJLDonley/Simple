@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag/version (e.g. v0.1.0). Leave empty for auto."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute version
+        id: ver
+        shell: bash
+        run: |
+          if [[ -n "${{ github.event.inputs.version || '' }}" ]]; then
+            ver="${{ github.event.inputs.version }}"
+          else
+            ver="v$(date +%Y.%m.%d)-${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${ver}" >> "$GITHUB_ENV"
+
+      - name: Build + test
+        shell: bash
+        run: |
+          chmod +x ./build.sh ./release.sh ./install.sh
+          ./build.sh --suite all
+
+      - name: Package release artifact
+        shell: bash
+        run: |
+          ./release.sh --version "${VERSION}" --target "linux-x86_64"
+          cp "dist/simple-${VERSION}-linux-x86_64.tar.gz" "dist/simple-latest-linux-x86_64.tar.gz"
+          sha256sum "dist/simple-${VERSION}-linux-x86_64.tar.gz" > "dist/simple-${VERSION}-linux-x86_64.tar.gz.sha256"
+          sha256sum "dist/simple-latest-linux-x86_64.tar.gz" > "dist/simple-latest-linux-x86_64.tar.gz.sha256"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: |
+            dist/simple-${{ env.VERSION }}-linux-x86_64.tar.gz
+            dist/simple-${{ env.VERSION }}-linux-x86_64.tar.gz.sha256
+            dist/simple-latest-linux-x86_64.tar.gz
+            dist/simple-latest-linux-x86_64.tar.gz.sha256
