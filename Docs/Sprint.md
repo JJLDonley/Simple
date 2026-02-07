@@ -1010,3 +1010,10 @@
 - Updated newline-aware LSP tests to align with multiline source semantics:
   - adjusted references assertions to line/column ranges from parsed multiline content,
   - updated didChange “fixed” source payload to remain valid under top-level `return` prohibition.
+- Added LSP `workspace/symbol` request handling over open in-memory documents:
+  - returns top-level declaration symbols with `SymbolInformation`-style location ranges,
+  - keeps deterministic ordering by URI and source position for stable editor/test behavior.
+- Advertised `workspaceSymbolProvider` capability during `initialize`.
+- Expanded LSP regression suite with workspace symbol coverage:
+  - validates capability handshake includes workspace symbol support,
+  - validates cross-document symbol results include entries from multiple open `.simple` files.

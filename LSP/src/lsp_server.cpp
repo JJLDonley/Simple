@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <utility>
 
 #include "lang_lexer.h"
 #include "lang_token.h"
@@ -622,6 +623,55 @@ void ReplyDocumentSymbols(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+void ReplyWorkspaceSymbols(std::ostream& out,
+                           const std::string& id_raw,
+                           const std::unordered_map<std::string, std::string>& open_docs) {
+  struct SymbolInfo {
+    std::string uri;
+    std::string name;
+    uint32_t kind = 13;
+    uint32_t line = 0;
+    uint32_t col = 0;
+    uint32_t len = 1;
+  };
+
+  std::vector<SymbolInfo> symbols;
+  for (const auto& [uri, text] : open_docs) {
+    const auto refs = LexTokenRefs(text);
+    for (const auto& ref : refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (ref.depth != 0) continue;
+      if (!IsDeclNameAt(refs, ref.index)) continue;
+      SymbolInfo info;
+      info.uri = uri;
+      info.name = ref.token.text;
+      info.kind = SymbolKindFor(refs, ref.index);
+      info.line = ref.token.line > 0 ? (ref.token.line - 1) : 0;
+      info.col = ref.token.column > 0 ? (ref.token.column - 1) : 0;
+      info.len = static_cast<uint32_t>(ref.token.text.empty() ? 1 : ref.token.text.size());
+      symbols.push_back(std::move(info));
+    }
+  }
+  std::sort(symbols.begin(), symbols.end(), [](const SymbolInfo& a, const SymbolInfo& b) {
+    if (a.uri != b.uri) return a.uri < b.uri;
+    if (a.line != b.line) return a.line < b.line;
+    if (a.col != b.col) return a.col < b.col;
+    return a.name < b.name;
+  });
+
+  std::string result;
+  for (const auto& symbol : symbols) {
+    if (!result.empty()) result += ",";
+    result += "{\"name\":\"" + JsonEscape(symbol.name) + "\",\"kind\":" +
+              std::to_string(symbol.kind) + ",\"location\":{\"uri\":\"" +
+              JsonEscape(symbol.uri) + "\",\"range\":{\"start\":{\"line\":" +
+              std::to_string(symbol.line) + ",\"character\":" + std::to_string(symbol.col) +
+              "},\"end\":{\"line\":" + std::to_string(symbol.line) + ",\"character\":" +
+              std::to_string(symbol.col + symbol.len) + "}}}}";
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -665,6 +715,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 ",\"result\":{\"capabilities\":{\"textDocumentSync\":2,"
                 "\"hoverProvider\":true,\"definitionProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
+                "\"workspaceSymbolProvider\":true,"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
                 "\"keyword\",\"type\",\"function\",\"variable\",\"parameter\","
@@ -799,6 +850,13 @@ int RunServer(std::istream& in, std::ostream& out) {
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
         }
+      }
+      continue;
+    }
+
+    if (method == "workspace/symbol") {
+      if (has_id) {
+        ReplyWorkspaceSymbols(out, id_raw, open_docs);
       }
       continue;
     }
