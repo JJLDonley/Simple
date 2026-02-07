@@ -146,6 +146,17 @@ bool CodeActionContextAllowsQuickFix(const std::string& json) {
   return only_body.find("\"quickfix\"") != std::string::npos;
 }
 
+bool CodeActionContextMentionsCode(const std::string& json, const std::string& code) {
+  const size_t ctx_key = json.find("\"context\"");
+  if (ctx_key == std::string::npos) return true;
+  const size_t diag_key = json.find("\"diagnostics\"", ctx_key);
+  if (diag_key == std::string::npos) return true;
+  const size_t code_key = json.find("\"code\"", diag_key);
+  if (code_key == std::string::npos) return true;
+  const std::string needle = "\"" + code + "\"";
+  return json.find(needle, code_key) != std::string::npos;
+}
+
 bool ExtractJsonIdRaw(const std::string& json, std::string* out_raw) {
   if (!out_raw) return false;
   const std::string key = "\"id\"";
@@ -1055,8 +1066,9 @@ void ReplyCodeAction(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
                      bool allow_quickfix,
+                     bool allow_e0001_quickfix,
                      const std::unordered_map<std::string, std::string>& open_docs) {
-  if (!allow_quickfix) {
+  if (!allow_quickfix || !allow_e0001_quickfix) {
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
     return;
   }
@@ -1352,8 +1364,9 @@ int RunServer(std::istream& in, std::ostream& out) {
       if (has_id) {
         std::string uri;
         const bool allow_quickfix = CodeActionContextAllowsQuickFix(body);
+        const bool allow_e0001_quickfix = CodeActionContextMentionsCode(body, "E0001");
         if (ExtractJsonStringField(body, "uri", &uri)) {
-          ReplyCodeAction(out, id_raw, uri, allow_quickfix, open_docs);
+          ReplyCodeAction(out, id_raw, uri, allow_quickfix, allow_e0001_quickfix, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

@@ -1107,3 +1107,7 @@
   - `textDocument/codeAction` now respects `context.only` and returns quick-fix actions only when `quickfix` is allowed by the request filter.
 - Expanded LSP regression suite with code-action filter coverage:
   - validates requests filtered to non-quickfix kinds (for example `refactor`) return an empty action list.
+- Tightened code-action diagnostic gating:
+  - undeclared-identifier quick-fix suggestions are now conditioned on request diagnostics containing code `E0001` when diagnostics are provided in `context`.
+- Expanded LSP regression suite with diagnostic-code filter coverage:
+  - validates non-`E0001` diagnostic contexts do not receive undeclared-identifier quick-fix actions.
