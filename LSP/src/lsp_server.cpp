@@ -1183,17 +1183,56 @@ void ReplyRename(std::ostream& out,
     return;
   }
   const std::string old_name = target->token.text;
-  std::string edits;
-  for (const auto& ref : refs) {
-    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-    if (ref.token.text != old_name) continue;
-    if (!edits.empty()) edits += ",";
-    edits += TextEditJson(ref.token, new_name);
+
+  struct RenameHit {
+    std::string doc_uri;
+    Simple::Lang::Token token;
+  };
+  std::vector<RenameHit> hits;
+  auto collect_hits = [&](const std::string& doc_uri, const std::string& text) {
+    const auto doc_refs = LexTokenRefs(text);
+    for (const auto& ref : doc_refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (ref.token.text != old_name) continue;
+      hits.push_back(RenameHit{doc_uri, ref.token});
+    }
+  };
+
+  collect_hits(uri, doc_it->second);
+  for (const auto& [other_uri, other_text] : open_docs) {
+    if (other_uri == uri) continue;
+    collect_hits(other_uri, other_text);
   }
-  WriteLspMessage(
-      out,
-      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"changes\":{\"" +
-          JsonEscape(uri) + "\":[" + edits + "]}}}");
+
+  std::sort(hits.begin(), hits.end(), [](const RenameHit& a, const RenameHit& b) {
+    if (a.doc_uri != b.doc_uri) return a.doc_uri < b.doc_uri;
+    if (a.token.line != b.token.line) return a.token.line < b.token.line;
+    if (a.token.column != b.token.column) return a.token.column < b.token.column;
+    return a.token.text < b.token.text;
+  });
+
+  std::string changes_json;
+  std::string current_uri;
+  std::string current_edits;
+  for (const auto& hit : hits) {
+    if (current_uri.empty()) current_uri = hit.doc_uri;
+    if (hit.doc_uri != current_uri) {
+      if (!changes_json.empty()) changes_json += ",";
+      changes_json += "\"" + JsonEscape(current_uri) + "\":[" + current_edits + "]";
+      current_uri = hit.doc_uri;
+      current_edits.clear();
+    }
+    if (!current_edits.empty()) current_edits += ",";
+    current_edits += TextEditJson(hit.token, new_name);
+  }
+  if (!current_uri.empty()) {
+    if (!changes_json.empty()) changes_json += ",";
+    changes_json += "\"" + JsonEscape(current_uri) + "\":[" + current_edits + "]";
+  }
+
+  WriteLspMessage(out,
+                  "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                      ",\"result\":{\"changes\":{" + changes_json + "}}}");
 }
 
 void ReplyPrepareRename(std::ostream& out,

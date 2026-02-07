@@ -1105,6 +1105,46 @@ bool LspRenameRejectsReservedKeyword() {
          out_contents.find("\"id\":25,\"result\":null") != std::string::npos;
 }
 
+bool LspRenameSpansOpenDocuments() {
+  const std::string in_path = TempPath("simple_lsp_rename_xdoc_in.txt");
+  const std::string out_path = TempPath("simple_lsp_rename_xdoc_out.txt");
+  const std::string err_path = TempPath("simple_lsp_rename_xdoc_err.txt");
+  const std::string lib_uri = "file:///workspace/rename_lib.simple";
+  const std::string main_uri = "file:///workspace/rename_main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"bar : i32 = foo;\"}}}";
+  const std::string rename_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":31,\"method\":\"textDocument/rename\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":0,\"character\":12},"
+      "\"newName\":\"baz\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_lib) +
+      BuildLspFrame(open_main) +
+      BuildLspFrame(rename_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":31") != std::string::npos &&
+         out_contents.find("\"newText\":\"baz\"") != std::string::npos &&
+         out_contents.find("\"" + lib_uri + "\"") != std::string::npos &&
+         out_contents.find("\"" + main_uri + "\"") != std::string::npos;
+}
+
 bool LspPrepareRenameReturnsRangeAndPlaceholder() {
   const std::string in_path = TempPath("simple_lsp_prepare_rename_in.txt");
   const std::string out_path = TempPath("simple_lsp_prepare_rename_out.txt");
@@ -1310,6 +1350,7 @@ const TestCase kLspTests[] = {
   {"lsp_workspace_symbol_marks_function_kind", LspWorkspaceSymbolMarksFunctionKind},
   {"lsp_rename_returns_workspace_edit", LspRenameReturnsWorkspaceEdit},
   {"lsp_rename_rejects_reserved_keyword", LspRenameRejectsReservedKeyword},
+  {"lsp_rename_spans_open_documents", LspRenameSpansOpenDocuments},
   {"lsp_prepare_rename_returns_range_and_placeholder", LspPrepareRenameReturnsRangeAndPlaceholder},
   {"lsp_code_action_returns_quick_fix", LspCodeActionReturnsQuickFix},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},

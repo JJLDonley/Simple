@@ -1149,3 +1149,8 @@
   - hover now falls back to declaration/type lookup in other open documents when the active document lacks a local declaration for the hovered identifier.
 - Expanded LSP regression suite with cross-document hover coverage:
   - validates hover typed output can resolve declaration type info from a different open document.
+- Expanded rename scope across open documents:
+  - `textDocument/rename` now aggregates and emits workspace edits for matching identifier occurrences in all currently open documents (not only the active document).
+  - workspace edit changes are grouped by URI with deterministic ordering.
+- Expanded LSP regression suite with cross-document rename coverage:
+  - validates rename responses include edits for both active and secondary open documents when symbols are shared.
