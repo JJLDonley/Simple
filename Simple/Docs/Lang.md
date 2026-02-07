@@ -156,7 +156,7 @@ identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
 
 #### Other Primitive Types
 - `bool` - Boolean type (`true` or `false`)
-- `char` - Unicode character (UTF-16 code unit)
+- `char` - Byte character (`u8`)
 - `string` - UTF-16 encoded string
 
 ### Composite Types
@@ -268,6 +268,8 @@ program ::= declaration*
 
 declaration ::= variable_declaration
               | procedure_declaration
+              | import_declaration
+              | extern_declaration
               | artifact_declaration
               | module_declaration
               | enum_declaration
@@ -364,6 +366,30 @@ formatter :: fn :: string = (value : i32) {
 multiply = (a : i32, b : i32) {
     return a * b * 2
 }
+```
+
+### Imports and Externs
+
+```ebnf
+import_declaration ::= "import" string_literal ("as" identifier)?
+
+extern_declaration ::= "extern" identifier "." identifier (":" | "::") type parameter_list
+                     | "extern" identifier (":" | "::") type parameter_list
+```
+
+`extern` is declaration-only.
+- No block body is allowed.
+- No `=` initializer form is allowed.
+
+**Valid:**
+```
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+```
+
+**Invalid:**
+```
+extern ffi.simple_add_i32 : i32 = (a : i32, b : i32)
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32) { return 0 }
 ```
 
 ### artifacts
@@ -879,10 +905,8 @@ main : i32 () {
 - The second `DL.Open` argument must be an extern module identifier.
 - Calls are type-checked from extern signatures.
 - Current VM call intrinsics support these dynamic signatures:
-  - `(i32, i32) -> i32`
-  - `(i64, i64) -> i64`
-  - `(f32, f32) -> f32`
-  - `(f64, f64) -> f64`
+  - `(T, T) -> T` where `T` is one of:
+    `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`, `bool`, `char`
   - `() -> string`
 
 ### artifact Rules
@@ -977,7 +1001,7 @@ Simple compiles to Simple bytecode executed by the Simple VM, implemented in por
 
 - Integer and floating types are stored in fixed-width VM slots matching the Simple type.
 - `bool` is stored as `u8` (0 or 1).
-- `char` is a UTF-16 code unit (`u16`).
+- `char` is a byte (`u8`).
 - `string` is a heap object containing UTF-16 data.
 - Arrays, lists, artifacts, modules, and closures are heap objects referenced by a VM ref value.
 
@@ -1229,10 +1253,15 @@ error[E0001]: type mismatch
 program ::= declaration*
 
 declaration ::= variable_declaration
+              | import_declaration
+              | extern_declaration
               | procedure_declaration  
               | artifact_declaration
               | module_declaration
               | enum_declaration
+
+import_declaration ::= "import" string_literal ("as" identifier)?
+extern_declaration ::= "extern" identifier ("." identifier)? (":" | "::") type parameter_list
 
 variable_declaration ::= identifier (":" | "::") type "=" expression
 
