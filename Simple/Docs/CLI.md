@@ -15,6 +15,7 @@
 
 - `check`: parse/validate without full run
 - `build`: compile outputs (`simple build` defaults to executable output)
+- `compile`: alias of `build` (Deno-style command shape)
 - `run`: compile/execute pipeline
 - `emit`: emit intermediate/bytecode artifacts
 - `lsp`: reserved command (currently returns not implemented)
@@ -40,6 +41,24 @@
 - runtime/static-shared linking behavior is controlled by build scripts + CLI integration.
 - `simple build <file.simple>` defaults to embedding SBC+runtime into an executable.
 - `simple build <file.simple> --out <name.sbc>` forces SBC bytecode output.
+- `simple compile ...` is equivalent to `simple build ...`.
+- Embedded executable builds resolve runtime/include paths from either:
+  - source layout (`Simple/VM/include`, `Simple/Byte/include`, `Simple/bin`), or
+  - installed layout (`<prefix>/include/simplevm`, `<prefix>/lib`).
+
+## Distribution Install Design
+
+- Build release archive from source build outputs:
+  - `./Simple/release.sh --version <tag> [--target <os-arch>]`
+- Install for end users without rebuilding source:
+  - `./Simple/install.sh --from-file ./Simple/dist/simple-<tag>-<target>.tar.gz --version <tag>`
+  - or `./Simple/install.sh --url <https://...tar.gz> --version <tag>`
+- Installer layout:
+  - `${HOME}/.simple/<version>/bin/simple`
+  - `${HOME}/.simple/<version>/lib/libsimplevm_runtime.{a,so}`
+  - `${HOME}/.simple/<version>/include/simplevm/*.h`
+  - `${HOME}/.simple/current` symlink to active version
+  - `${HOME}/.local/bin/simple` and `${HOME}/.local/bin/simplevm` symlinks
 
 ## Constraints
 

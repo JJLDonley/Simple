@@ -4,6 +4,13 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Added end-user distribution tooling:
+  - `Simple/release.sh` packages prebuilt `simple` artifacts into a versioned tarball.
+  - `Simple/install.sh` installs from tarball/URL into `${HOME}/.simple/<version>` and links `${HOME}/.local/bin/simple`.
+- Updated CLI for install-path usability:
+  - Added `simple compile` command alias for `build`.
+  - Embedded build path resolution now supports installed prefixes (`<prefix>/include/simplevm`, `<prefix>/lib`) in addition to source-tree layout.
+- Added lang CLI regression coverage for `simple compile` alias default executable behavior.
 - Unified CLI surface around `simple`: added `lsp` command stub (`error[E0001]` not-implemented path), kept `emit`, and made `simple build <file.simple>` default to embedded executable output unless `--out` targets `.sbc`.
 - Added lang-suite CLI coverage for new UX contracts: `simple build` default executable behavior and `simple lsp` error contract.
 - Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.

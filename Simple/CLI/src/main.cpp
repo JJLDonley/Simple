@@ -6,6 +6,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cinttypes>
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 #include "ir_compiler.h"
 #include "ir_lang.h"
@@ -102,27 +105,76 @@ std::string QuoteArg(const std::string& arg) {
   return out;
 }
 
-std::string FindProjectRoot(const char* argv0) {
+std::string ExecutablePath(const char* argv0) {
   namespace fs = std::filesystem;
-#ifdef SIMPLEVM_PROJECT_ROOT
-  fs::path configured_root = SIMPLEVM_PROJECT_ROOT;
-  if (fs::exists(configured_root / "VM") && fs::exists(configured_root / "Byte")) {
-    return configured_root.string();
+#if defined(__linux__)
+  char buf[4096];
+  const ssize_t n = ::readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+  if (n > 0) {
+    buf[n] = '\0';
+    return std::string(buf);
   }
 #endif
-  if (!argv0 || !*argv0) return ".";
-  fs::path exe_path = fs::absolute(argv0);
-  fs::path dir = exe_path.parent_path();
-  if (dir.filename() == "bin") {
-    fs::path root = dir.parent_path();
-    if (fs::exists(root / "VM") && fs::exists(root / "Byte")) {
-      return root.string();
+  if (argv0 && *argv0) {
+    std::error_code ec;
+    fs::path p = fs::weakly_canonical(fs::path(argv0), ec);
+    if (!ec) return p.string();
+    return fs::absolute(fs::path(argv0)).string();
+  }
+  return {};
+}
+
+struct BuildLayoutPaths {
+  std::string vm_include;
+  std::string byte_include;
+  std::string lib_dir;
+};
+
+bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
+  if (!out) return false;
+  namespace fs = std::filesystem;
+  auto try_source_layout = [&](const fs::path& root) -> bool {
+    if (root.empty()) return false;
+    const fs::path vm_inc = root / "VM" / "include";
+    const fs::path byte_inc = root / "Byte" / "include";
+    const fs::path lib_dir = root / "bin";
+    if (fs::exists(vm_inc / "vm.h") && fs::exists(byte_inc / "sbc_loader.h") &&
+        fs::exists(lib_dir / "libsimplevm_runtime.a")) {
+      out->vm_include = vm_inc.string();
+      out->byte_include = byte_inc.string();
+      out->lib_dir = lib_dir.string();
+      return true;
     }
+    return false;
+  };
+  auto try_install_layout = [&](const fs::path& prefix) -> bool {
+    if (prefix.empty()) return false;
+    const fs::path include_dir = prefix / "include" / "simplevm";
+    const fs::path lib_dir = prefix / "lib";
+    if (fs::exists(include_dir / "vm.h") && fs::exists(include_dir / "sbc_loader.h") &&
+        fs::exists(lib_dir / "libsimplevm_runtime.a")) {
+      out->vm_include = include_dir.string();
+      out->byte_include = include_dir.string();
+      out->lib_dir = lib_dir.string();
+      return true;
+    }
+    return false;
+  };
+#ifdef SIMPLEVM_PROJECT_ROOT
+  fs::path configured_root = SIMPLEVM_PROJECT_ROOT;
+  if (try_source_layout(configured_root)) {
+    return true;
   }
-  if (fs::exists(dir / "VM") && fs::exists(dir / "Byte")) {
-    return dir.string();
-  }
-  return ".";
+#endif
+  const std::string exe_text = ExecutablePath(argv0);
+  if (exe_text.empty()) return false;
+  fs::path exe_path = fs::path(exe_text);
+  fs::path dir = exe_path.parent_path();
+  if (try_source_layout(dir.parent_path())) return true;
+  if (try_source_layout(dir)) return true;
+  if (dir.filename() == "bin" && try_install_layout(dir.parent_path())) return true;
+  if (try_install_layout(dir)) return true;
+  return false;
 }
 
 std::string BaseName(const char* argv0) {
@@ -183,7 +235,7 @@ bool WriteEmbeddedRunner(const std::string& path,
   return true;
 }
 
-bool BuildEmbeddedExecutable(const std::string& root_dir,
+bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
                              const std::vector<uint8_t>& bytes,
                              const std::string& out_path,
                              bool is_static,
@@ -199,23 +251,22 @@ bool BuildEmbeddedExecutable(const std::string& root_dir,
   fs::path runner_path = tmp_dir / "embedded_main.cpp";
   if (!WriteEmbeddedRunner(runner_path.string(), bytes, error)) return false;
 
-  fs::path root(root_dir);
-  fs::path vm_dir = root / "VM";
-  fs::path byte_dir = root / "Byte";
-  fs::path lib_dir = root / "bin";
+  fs::path vm_include(layout.vm_include);
+  fs::path byte_include(layout.byte_include);
+  fs::path lib_dir(layout.lib_dir);
   fs::path runtime_lib = is_static ? (lib_dir / "libsimplevm_runtime.a")
                                    : (lib_dir / "libsimplevm_runtime.so");
   if (!fs::exists(runtime_lib)) {
     if (error) {
       *error = std::string("missing runtime library: ") + runtime_lib.string() +
-               " (run ./Simple/build.sh first)";
+               " (rebuild with ./Simple/build.sh or reinstall simple runtime)";
     }
     return false;
   }
 
   std::string cmd = "g++ -std=c++17 -O2 -Wall -Wextra ";
-  cmd += "-I" + QuoteArg((vm_dir / "include").string()) + " ";
-  cmd += "-I" + QuoteArg((byte_dir / "include").string()) + " ";
+  cmd += "-I" + QuoteArg(vm_include.string()) + " ";
+  cmd += "-I" + QuoteArg(byte_include.string()) + " ";
   cmd += QuoteArg(runner_path.string()) + " ";
   cmd += QuoteArg(runtime_lib.string()) + " ";
   if (!is_static) {
@@ -328,6 +379,8 @@ int main(int argc, char** argv) {
       std::cerr << "  " << tool_name << " run <file.simple> [--no-verify]\n"
                 << "  " << tool_name
                 << " build <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
+                << "  " << tool_name
+                << " compile <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
                 << "  " << tool_name << " emit -sbc <file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.simple>\n"
@@ -336,6 +389,7 @@ int main(int argc, char** argv) {
     } else {
       std::cerr << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
                 << "  " << tool_name << " build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " compile <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
                 << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
@@ -346,8 +400,8 @@ int main(int argc, char** argv) {
   }
 
   const std::string cmd = argv[1];
-  const bool is_command = (cmd == "run" || cmd == "build" || cmd == "check" || cmd == "emit" ||
-                           cmd == "lsp");
+  const bool build_cmd = (cmd == "build" || cmd == "compile");
+  const bool is_command = (cmd == "run" || build_cmd || cmd == "check" || cmd == "emit" || cmd == "lsp");
   const std::string path = is_command ? (argc > 2 ? argv[2] : "") : cmd;
   bool verify = true;
   bool build_exe = false;
@@ -510,7 +564,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (cmd == "build") {
+  if (build_cmd) {
     std::string input_path = path;
     if (input_path.empty() || (!input_path.empty() && input_path[0] == '-')) {
       for (int i = 2; i < argc; ++i) {
@@ -583,8 +637,12 @@ int main(int argc, char** argv) {
       }
     }
     if (build_exe) {
-      const std::string root_dir = FindProjectRoot(argv[0]);
-      if (!BuildEmbeddedExecutable(root_dir, bytes, out_path, build_static, &error)) {
+      BuildLayoutPaths layout;
+      if (!ResolveBuildLayoutPaths(argv[0], &layout)) {
+        PrintError("unable to resolve runtime/include paths; install simple runtime or run from source tree");
+        return 1;
+      }
+      if (!BuildEmbeddedExecutable(layout, bytes, out_path, build_static, &error)) {
         PrintError(error);
         return 1;
       }

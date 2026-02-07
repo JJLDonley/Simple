@@ -588,6 +588,13 @@ bool LangCliBuildSimpleAliasDefaultsToExe() {
   return RunCommand(out_path);
 }
 
+bool LangCliCompileSimpleAliasDefaultsToExe() {
+  const std::string out_path = TempPath("simple_compile_hello_alias_exec");
+  const std::string cmd = "Simple/bin/simple compile Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  return RunCommand(out_path);
+}
+
 bool LangCliBuildDynamicExe() {
   const std::string out_path = TempPath("simple_build_hello_exec");
   const std::string cmd =
@@ -2817,6 +2824,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_check_sbc", LangCliCheckSbc},
   {"lang_cli_build_simple", LangCliBuildSimple},
   {"lang_cli_build_simple_alias_defaults_to_exe", LangCliBuildSimpleAliasDefaultsToExe},
+  {"lang_cli_compile_simple_alias_defaults_to_exe", LangCliCompileSimpleAliasDefaultsToExe},
   {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
