@@ -27,7 +27,7 @@ This document is authoritative for the Simple language front-end design and curr
 
 ### 3) AST
 
-Core shape is defined in `Simple/Lang/include/lang_ast.h`:
+Core shape is defined in `Lang/include/lang_ast.h`:
 
 - `TypeRef` (name, pointer depth, generics, dims, proc type)
 - `Expr` variants (literal/call/member/index/array/list/artifact/fn)
@@ -35,7 +35,7 @@ Core shape is defined in `Simple/Lang/include/lang_ast.h`:
 
 ### 4) Validator
 
-Implemented in `Simple/Lang/src/lang_validate.cpp`:
+Implemented in `Lang/src/lang_validate.cpp`:
 
 - symbol/scope checks
 - mutability enforcement (`:` vs `::`)
@@ -46,7 +46,7 @@ Implemented in `Simple/Lang/src/lang_validate.cpp`:
 
 ### 5) SIR Emitter
 
-Implemented in `Simple/Lang/src/lang_sir.cpp`:
+Implemented in `Lang/src/lang_sir.cpp`:
 
 - emits types/sigs/consts/globals/imports/functions sections
 - lowers control flow and typed operations to SIR opcodes
@@ -80,7 +80,7 @@ Composite/supporting types:
 
 ### Reserved Imports / Stdlib Surface
 
-Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Simple/Docs/StdLib.md`.
+Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Docs/StdLib.md`.
 
 ### Project-Local Imports (CLI)
 
@@ -90,6 +90,14 @@ For `.simple` entry files compiled through CLI commands (`run/check/build/compil
 - extensionless imports are allowed (`import "./raylib"` resolves `./raylib.simple`),
 - imports are loaded recursively,
 - cyclic local imports are rejected.
+
+## Program Entry / Script Semantics
+
+- A `.simple` program may run without defining `main`.
+- If top-level statements exist, the compiler synthesizes an implicit entry (`__script_entry`) and executes those statements in source order.
+- Top-level function declarations are not auto-invoked.
+- Top-level `return` is disallowed and reported as a validation error.
+- If no top-level statements exist, normal function entry selection applies (`main` when present).
 
 ## FFI + Extern Design
 
@@ -141,13 +149,13 @@ Deferred/not fully finalized surfaces are treated as compile errors, not partial
 
 ## Primary Files
 
-- `Simple/Lang/include/lang_ast.h`
-- `Simple/Lang/src/lang_lexer.cpp`
-- `Simple/Lang/src/lang_parser.cpp`
-- `Simple/Lang/src/lang_validate.cpp`
-- `Simple/Lang/src/lang_sir.cpp`
+- `Lang/include/lang_ast.h`
+- `Lang/src/lang_lexer.cpp`
+- `Lang/src/lang_parser.cpp`
+- `Lang/src/lang_validate.cpp`
+- `Lang/src/lang_sir.cpp`
 
 ## Verification Commands
 
-- `./Simple/build.sh --suite lang`
-- `./Simple/build.sh --suite all`
+- `./build.sh --suite lang`
+- `./build.sh --suite all`

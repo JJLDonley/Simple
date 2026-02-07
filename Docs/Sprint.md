@@ -3,43 +3,6 @@
 ## Notes
 - This log must record every VM-related change going forward.
 
-## 2026-02-07
-- Fixed CLI `.simple` local import resolution for project files:
-  - recursive non-reserved import loading from importer directory,
-  - extensionless import support (`./name` -> `./name.simple`),
-  - cycle detection for local imports,
-  - applied consistently across `run/check/build/compile/emit`.
-- Added lang CLI regression coverage for local-import execution (`Simple/Tests/simple_modules/import_local_main.simple`).
-- Added end-user distribution tooling:
-  - `Simple/release.sh` packages prebuilt `simple` artifacts into a versioned tarball.
-  - `Simple/install.sh` installs from tarball/URL into `${HOME}/.simple/<version>` and links `${HOME}/.local/bin/simple`.
-- Updated CLI for install-path usability:
-  - Added `simple compile` command alias for `build`.
-  - Embedded build path resolution now supports installed prefixes (`<prefix>/include/simplevm`, `<prefix>/lib`) in addition to source-tree layout.
-- Added lang CLI regression coverage for `simple compile` alias default executable behavior.
-- Unified CLI surface around `simple`: added `lsp` command stub (`error[E0001]` not-implemented path), kept `emit`, and made `simple build <file.simple>` default to embedded executable output unless `--out` targets `.sbc`.
-- Added lang-suite CLI coverage for new UX contracts: `simple build` default executable behavior and `simple lsp` error contract.
-- Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.
-- Extended dynamic `core.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
-- Added `core_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).
-- Replaced dynamic DL intrinsic-only lowering with typed `core.dl` call-import lowering keyed from extern manifest signatures.
-- Added VM runtime typed dispatch for dynamic DL calls using exact signature metadata (mixed scalar/string params, void/scalar/string returns, up to 2 params).
-- Expanded FFI/lang coverage for dynamic calls with mixed signatures (`0/1/2` args, string in/out, and void return).
-- Enforced declaration-only extern grammar in docs (`extern module.symbol : type (params)`), explicitly disallowing `=` forms and block bodies.
-- Updated language docs to define `char` as byte (`u8`) and documented typed Core.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
-- Expanded Core.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).
-- Updated SIR/validator dynamic DL signature selection to lower from exact extern signatures instead of the older limited set.
-- Tightened VM import return-type checks for core modules (`core.os`, `core.fs`, `core.dl`) to exact declared ABI return kinds.
-- Updated VM `char` print handling to byte semantics (`u8`) and expanded FFI/lang tests for typed dynamic DL calls.
-- Expanded `@T(value)` cast handling in validator/SIR so primitive cast targets are recognized consistently instead of only narrow builtin names.
-- Refactored SBC verifier value typing to preserve exact primitive kinds (`i8/i16/i32/i64/u8/u16/u32/u64/bool/char/f32/f64/ref`) instead of collapsing to broad i32/i64 buckets.
-- Updated verifier arithmetic/bitwise/compare and dynamic DL intrinsic signatures to propagate and validate exact primitive types through stack/local/call paths.
-- Added script-style top-level execution for `.simple` programs by synthesizing an implicit `__script_entry` SIR function that runs top-level statements in source order and returns `0`.
-- Kept top-level function declarations as declarations only (not auto-invoked) while preserving existing explicit `main` behavior when no top-level script body is present.
-- Updated parser program parsing to accept mixed top-level declarations/statements with guarded decl-to-stmt fallback so real declaration/parser errors keep their original diagnostics.
-- Updated validation to reject top-level `return` explicitly (`top-level return is not allowed`) while still type-checking top-level statements.
-- Updated local-import flattening to preserve `Program.top_level_stmts` across recursively loaded project files.
-- Added lang regression tests for implicit script entry emission/execution and top-level return rejection.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
@@ -588,11 +551,8 @@
 - Added IR text negative tests for call.indirect bad sig id, jmptable missing label, and locals count mismatch.
 - Added IR text tests for stack underflow, jump-to-end, and mid-instruction jump rejection.
 - Added IR text negative tests for jmptable arity, unsupported const.i128, missing const pool for strings, and missing sig id.
-
 - Added IR text runtime trap tests for array get out-of-bounds and list pop on empty list.
-
 - Added IR text runtime trap tests for string.get.char and string.slice out-of-bounds.
-
 - Added IR text runtime trap tests for array.set (i64/f32/f64/ref) out-of-bounds.
 - Added IR text runtime trap tests for list insert/remove out-of-bounds (i32/i64/f32/f64/ref).
 - Added IR text runtime trap tests for negative indices on array/list get/set across types.
@@ -616,6 +576,7 @@
 - Improved .sir perf error reporting and fixed arithmetic_mix stack underflow in perf runs.
 - Added color_avg .sir program that averages RGBA arrays and packs into a 32-bit color.
 - Tightened IR text parser validation (required locals/stack, required single entry, duplicate func detection, and strict locals/stack/sig parsing).
+
 ## 2026-02-04
 - Added Simple::Lang SIR emission for inc/dec (prefix/postfix) on locals with new IR emission tests.
 - Added Simple::Lang SIR emission for compound assignment on locals, arrays/lists, and artifact members with new IR emission tests.
@@ -835,6 +796,7 @@
 - Fixed Core.* member validation to allow Core namespace usage in member chains.
 - Fixed Core identifier validation when Core.* reserved imports are enabled.
 - Fixed core_dl_open.simple to compare i64 handles without literal type mismatch.
+
 ## 2026-02-05
 - Expanded VM type kinds to include full primitive set (i8/i16/i128/u8/u16/u32/u64/u128/bool/char/string).
 - Updated loader/verifier to validate new TypeKind sizes and map to VM stack types.
@@ -842,7 +804,6 @@
 - Made VM import return-type checks accept new i32/i64/ref-like kinds.
 - Fixed SIR emission for reserved module alias resolution in call inference.
 - Added expected-failure note for CLI `.sir` rejection in lang tests.
-## 2026-02-05 (cont.)
 - Added Core.DL PascalCase member support (Open/Sym/Close/LastError) in validation and SIR emission.
 - Normalized Core.DL member names to lowercase for call resolution.
 - Updated core_dl_open.simple to use Core.DL PascalCase calls.
@@ -851,6 +812,7 @@
 - Restored core_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
 - Added Core.DL call intrinsics (call_i32/call_i64/call_f32/call_f64/call_str0) in VM and language lowering.
 - Extended core_dl_open.simple to call simple_add_i32 and simple_hello via Core.DL call helpers.
+
 ## 2026-02-07
 - Refactored `Simple/CMakeLists.txt` to produce reusable `simplevm_core` and `simplevm_runtime` libraries in both static and shared forms.
 - Fixed CMake source parity issues by including `Lang/src/lang_sir.cpp` and `Tests/tests/simple_runner.cpp`.
@@ -866,7 +828,6 @@
   `(i32,i32)->i32`, `(i64,i64)->i64`, `(f32,f32)->f32`, `(f64,f64)->f64`, `()->string`.
 - Updated `core_dl_open.simple` fixture to use manifest-based direct symbol calls.
 - Updated language docs (`Lang.md`) with `@` cast examples and Core.DL manifest usage.
-## 2026-02-07 (cont. 2)
 - Fixed `build.sh` runtime object directory collision (`obj_core` vs suite `core`) by moving runtime objects to `build/obj_runtime`, preventing non-PIC object reuse when linking `libsimplevm_runtime.so`.
 - Restored strict verifier boundary checks by removing generic `check_type` family compatibility (call/call_indirect/tailcall arg mismatches fail correctly again).
 - Added opcode-local numeric compatibility for 32-bit integer paths where the instruction contract is family-based:
@@ -874,7 +835,6 @@
 - Kept bool as non-numeric for these compatibility paths (no implicit bool<->i32 boundary acceptance).
 - Fixed IR text builtin type-id stability by making `i32` the first builtin type row again (`type_id=0`), restoring default signature assumptions in existing IR/core tests.
 - Verified full suite green after fixes: `./Simple/build.sh --suite all` => `1162/1162`.
-## 2026-02-07 (cont. 3)
 - Added explicit non-collapsing signature tests in `core` verifier paths for `call`, `call.indirect`, and `tailcall` (`i8 -> i32` must fail).
 - Added explicit mixed-small primitive compatibility tests for 32-bit compare/mutate opcodes in `core`:
   `cmp.eq.i32`, `cmp.eq.u32`, and `array.set.i32` (char accepted, bool rejected).
@@ -885,7 +845,6 @@
   `Simple/Tests/simple_bad/call_arg_type_mismatch.simple`.
 - Re-ran full project test matrix after additions:
   `./Simple/build.sh --suite all` => `1173/1173`.
-## 2026-02-07 (cont. 4)
 - Removed dynamic DL call import arity caps in SIR generation (no `<=4`/`<=8` synthesis limit).
 - Switched VM dynamic `core.dl.call` dispatch to `libffi` (`ffi_prep_cif`/`ffi_call`) so runtime arity is not hardcoded by manual call stubs.
 - Linked `libffi` in build/link paths (`build.sh`) and CLI embedded build path (`CLI/src/main.cpp`).
@@ -896,7 +855,6 @@
 - Marked `core_dl_open_raylib.simple` as an opt-in interactive sample by excluding it from bulk fixture sweeps in headless test runs.
 - Re-ran full matrix after these changes:
   `./Simple/build.sh --suite all` => `1174/1174`.
-## 2026-02-07 (cont. 5)
 - Added language-level pointer types: `*T` / `*void` parsing in `lang_parser`.
 - Propagated pointer typing through validator and SIR type cloning/equality/substitution paths.
 - Added FFI/DL ABI support for pointer leaves by lowering pointer types to `i64` ABI slots in SIR/validation.
@@ -906,7 +864,6 @@
   - extern validation coverage for pointer params/returns and pointer artifact fields.
 - Re-ran full project matrix:
   `./Simple/build.sh --suite all` => `1175/1175`.
-## 2026-02-07 (cont. 6)
 - Replaced dynamic DL call lowering/runtime flatten flow with real extern-signature ABI propagation:
   - extern params/returns now stay as declared types (artifacts/enums/pointers included)
   - dynamic call emission no longer explodes artifact args into scalar leaves.
@@ -921,14 +878,12 @@
   - language fixture `core_dl_open.simple` now validates artifact arg+return interop directly.
 - Re-ran full project matrix after these changes:
   `./Simple/build.sh --suite all` => `1175/1175`.
-## 2026-02-07 (cont. 7)
 - Fixed language global initialization emission to allow non-void global types (including artifact globals) to receive fallback init constants, unblocking declarations like:
   - `BLACK :: Color = { 0, 0, 0, 255 }`
   - `WHITE :: Color = { 255, 255, 255, 255 }`
 - Added VM global-init fallback safeguard for ref-like globals so zero-valued fallback constants are normalized to VM null ref (`0xFFFFFFFF`) instead of raw handle `0`.
 - Verified language suite after fix:
   `./Simple/build.sh --suite lang` => `311/311`.
-## 2026-02-07 (cont. 8)
 - Reorganized documentation into a coherent current-state layout:
   - rewrote `Docs/README.md` as canonical docs map
   - rewrote module boundary/ownership map in `Docs/Modules.md`
@@ -936,7 +891,6 @@
     scope, current status, alpha contract, explicit constraints, primary files, and verification commands.
 - Updated `Docs/Implementation.md` to track active alpha freeze checklists rather than legacy long-form design references.
 - Added an `Alpha Support Snapshot` section at the top of `Docs/Lang.md` to clearly separate currently implemented behavior from deferred features.
-## 2026-02-07 (cont. 9)
 - Clarified documentation authority policy:
   - module docs are authoritative for their module behavior/contracts
   - `Docs/legacy/` is explicitly non-authoritative migration/reference material.
@@ -946,16 +900,13 @@
   - `IR.md`: SIR/lowering contract
   - `CLI.md`: command behavior contract
   - `StdLib.md`: reserved import/API authority note.
-## 2026-02-07 (cont. 10)
 - Expanded module docs with design-level detail instead of summaries:
   - `Byte.md` now includes component pipeline design and full opcode catalog generated from `Byte/include/opcode.h`.
   - `IR.md` now includes IR ingestion/emission architecture, SIR program model, type/signature design, and validation contract.
 - `CLI.md` now includes explicit user interface design and command behavior contract.
-## 2026-02-07 (cont. 11)
 - Performed deep design pass for remaining major module docs:
   - `VM.md` rewritten with runtime architecture, frame/heap/import/FFI marshalling design, and authoritative runtime/FFI contracts.
   - `Lang.md` rewritten with compiler pipeline design (lexer/parser/AST/validator/SIR emitter), type/mutability contracts, extern/manifest design, global init model, and supported/deferred surface notes.
-## 2026-02-07 (cont. 12)
 - Flattened repository layout to project root (`Byte/`, `CLI/`, `Docs/`, `IR/`, `Lang/`, `Tests/`, `VM/`) and removed stale `Simple/`-prefixed path assumptions in active test/CLI paths.
 - Fixed test fixtures and CLI invocations after root migration by normalizing runtime paths from `Simple/...` to root-relative paths.
 - Extended `.simple` import resolution:
@@ -971,14 +922,12 @@
   - consistent source snippet + caret rendering (` --> file:line:col`),
   - wrapper stripping for nested `simple compile failed (...)` errors,
   - contextual `help:` hints for common parser/lexer/import/semantic failures.
-## 2026-02-07 (cont. 13)
 - Finalized release packaging for root-layout repo:
   - updated `release.sh` build hint paths to root scripts,
   - trimmed packaged docs to `share/simple/README.md` only,
   - kept runtime-essential payload only (`bin/`, `lib/`, `include/simplevm/`).
 - Updated `install.sh` usage/examples to root-layout script paths.
 - Tightened local repo hygiene by ignoring local IDE metadata and generated test FFI `.so` artifacts (`.vscode/`, `Tests/ffi/*.so`) and build releases (`dist/`).
-## 2026-02-07 (cont. 14)
 - Added GitHub Actions release pipeline (`.github/workflows/release.yml`) for branch `release`:
   - builds/tests (`./build.sh --suite all`),
   - packages Linux release tarball,
@@ -992,7 +941,45 @@
   - if no `--url/--from-file` is provided, auto-resolves GitHub release URLs:
     - latest -> `.../releases/latest/download/simple-latest-<target>.tar.gz`
     - versioned -> `.../releases/download/<version>/simple-<version>-<target>.tar.gz`.
-## 2026-02-07 (cont. 15)
 - Simplified branch model by removing dedicated `release` branch in favor of `main` handling both integration and release triggers.
 - Updated release workflow trigger to run on `main` pushes.
 - Kept `gh-pages` separate for website-only deployment.
+- Fixed CLI `.simple` local import resolution for project files:
+  - recursive non-reserved import loading from importer directory,
+  - extensionless import support (`./name` -> `./name.simple`),
+  - cycle detection for local imports,
+  - applied consistently across `run/check/build/compile/emit`.
+- Added lang CLI regression coverage for local-import execution (`Simple/Tests/simple_modules/import_local_main.simple`).
+- Added end-user distribution tooling:
+  - `Simple/release.sh` packages prebuilt `simple` artifacts into a versioned tarball.
+  - `Simple/install.sh` installs from tarball/URL into `${HOME}/.simple/<version>` and links `${HOME}/.local/bin/simple`.
+- Updated CLI for install-path usability:
+  - Added `simple compile` command alias for `build`.
+  - Embedded build path resolution now supports installed prefixes (`<prefix>/include/simplevm`, `<prefix>/lib`) in addition to source-tree layout.
+- Added lang CLI regression coverage for `simple compile` alias default executable behavior.
+- Unified CLI surface around `simple`: added `lsp` command stub (`error[E0001]` not-implemented path), kept `emit`, and made `simple build <file.simple>` default to embedded executable output unless `--out` targets `.sbc`.
+- Added lang-suite CLI coverage for new UX contracts: `simple build` default executable behavior and `simple lsp` error contract.
+- Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.
+- Extended dynamic `core.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
+- Added `core_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).
+- Replaced dynamic DL intrinsic-only lowering with typed `core.dl` call-import lowering keyed from extern manifest signatures.
+- Added VM runtime typed dispatch for dynamic DL calls using exact signature metadata (mixed scalar/string params, void/scalar/string returns, up to 2 params).
+- Expanded FFI/lang coverage for dynamic calls with mixed signatures (`0/1/2` args, string in/out, and void return).
+- Enforced declaration-only extern grammar in docs (`extern module.symbol : type (params)`), explicitly disallowing `=` forms and block bodies.
+- Updated language docs to define `char` as byte (`u8`) and documented typed Core.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
+- Expanded Core.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).
+- Updated SIR/validator dynamic DL signature selection to lower from exact extern signatures instead of the older limited set.
+- Tightened VM import return-type checks for core modules (`core.os`, `core.fs`, `core.dl`) to exact declared ABI return kinds.
+- Updated VM `char` print handling to byte semantics (`u8`) and expanded FFI/lang tests for typed dynamic DL calls.
+- Expanded `@T(value)` cast handling in validator/SIR so primitive cast targets are recognized consistently instead of only narrow builtin names.
+- Refactored SBC verifier value typing to preserve exact primitive kinds (`i8/i16/i32/i64/u8/u16/u32/u64/bool/char/f32/f64/ref`) instead of collapsing to broad i32/i64 buckets.
+- Updated verifier arithmetic/bitwise/compare and dynamic DL intrinsic signatures to propagate and validate exact primitive types through stack/local/call paths.
+- Added script-style top-level execution for `.simple` programs by synthesizing an implicit `__script_entry` SIR function that runs top-level statements in source order and returns `0`.
+- Kept top-level function declarations as declarations only (not auto-invoked) while preserving existing explicit `main` behavior when no top-level script body is present.
+- Updated parser program parsing to accept mixed top-level declarations/statements with guarded decl-to-stmt fallback so real declaration/parser errors keep their original diagnostics.
+- Updated validation to reject top-level `return` explicitly (`top-level return is not allowed`) while still type-checking top-level statements.
+- Updated local-import flattening to preserve `Program.top_level_stmts` across recursively loaded project files.
+- Added lang regression tests for implicit script entry emission/execution and top-level return rejection.
+- Updated `Docs/Implementation.md` baseline/module status to explicitly document script-style entry behavior and top-level `return` rejection.
+- Updated `Docs/Lang.md` with a dedicated program-entry contract section (implicit `__script_entry`, declaration-only top-level functions, top-level execution order, and top-level `return` prohibition).
+- Normalized language doc path references/verification commands to root-layout paths (`Lang/...`, `Docs/...`, `./build.sh ...`).

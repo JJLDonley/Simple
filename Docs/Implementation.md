@@ -27,6 +27,11 @@ This is the active execution plan for shipping and maintaining Simple from repos
   - reserved stdlib imports,
   - relative/absolute imports,
   - project-root bare filename lookup (with ambiguity diagnostics).
+- Language entry behavior supports script-style programs:
+  - top-level statements are emitted/executed in source order via implicit `__script_entry`,
+  - top-level function declarations are declarations only (not auto-called),
+  - explicit `main` is used as entry when no top-level script statements exist.
+- Top-level `return` is explicitly rejected at validation time.
 - CLI diagnostics are context-rich and include source spans + help hints.
 - Main branch CI workflow publishes GitHub Release artifacts for installer consumption.
 
@@ -90,6 +95,7 @@ Authoritative docs:
 Status:
 - Lexer/parser/validator/emitter implemented.
 - Import/extern/global/init flows in place.
+- Script-style top-level execution and diagnostics are implemented and test-covered.
 
 Remaining alpha work:
 - [ ] Publish explicit supported syntax/features list for alpha.
