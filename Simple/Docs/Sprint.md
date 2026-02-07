@@ -11,6 +11,8 @@
 - Tightened VM import return-type checks for core modules (`core.os`, `core.fs`, `core.dl`) to exact declared ABI return kinds.
 - Updated VM `char` print handling to byte semantics (`u8`) and expanded FFI/lang tests for typed dynamic DL calls.
 - Expanded `@T(value)` cast handling in validator/SIR so primitive cast targets are recognized consistently instead of only narrow builtin names.
+- Refactored SBC verifier value typing to preserve exact primitive kinds (`i8/i16/i32/i64/u8/u16/u32/u64/bool/char/f32/f64/ref`) instead of collapsing to broad i32/i64 buckets.
+- Updated verifier arithmetic/bitwise/compare and dynamic DL intrinsic signatures to propagate and validate exact primitive types through stack/local/call paths.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).

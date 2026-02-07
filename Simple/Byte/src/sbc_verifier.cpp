@@ -88,18 +88,18 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
     case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
     case kIntrinsicPrintAny: *out = {0, 2, {0, 1}}; return true; // print_any(any,i32_tag)
-    case kIntrinsicDlCallI8: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i8(i64,i32,i32)->i32
-    case kIntrinsicDlCallI16: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i16(i64,i32,i32)->i32
+    case kIntrinsicDlCallI8: *out = {7, 3, {2, 7, 7}}; return true; // dl_call_i8(i64,i8,i8)->i8
+    case kIntrinsicDlCallI16: *out = {8, 3, {2, 8, 8}}; return true; // dl_call_i16(i64,i16,i16)->i16
     case kIntrinsicDlCallI32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i32(i64,i32,i32)->i32
     case kIntrinsicDlCallI64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_i64(i64,i64,i64)->i64
-    case kIntrinsicDlCallU8: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u8(i64,i32,i32)->i32
-    case kIntrinsicDlCallU16: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u16(i64,i32,i32)->i32
-    case kIntrinsicDlCallU32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u32(i64,i32,i32)->i32
-    case kIntrinsicDlCallU64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_u64(i64,i64,i64)->i64
+    case kIntrinsicDlCallU8: *out = {9, 3, {2, 9, 9}}; return true; // dl_call_u8(i64,u8,u8)->u8
+    case kIntrinsicDlCallU16: *out = {10, 3, {2, 10, 10}}; return true; // dl_call_u16(i64,u16,u16)->u16
+    case kIntrinsicDlCallU32: *out = {11, 3, {2, 11, 11}}; return true; // dl_call_u32(i64,u32,u32)->u32
+    case kIntrinsicDlCallU64: *out = {12, 3, {2, 12, 12}}; return true; // dl_call_u64(i64,u64,u64)->u64
     case kIntrinsicDlCallF32: *out = {3, 3, {2, 3, 3}}; return true; // dl_call_f32(i64,f32,f32)->f32
     case kIntrinsicDlCallF64: *out = {4, 3, {2, 4, 4}}; return true; // dl_call_f64(i64,f64,f64)->f64
     case kIntrinsicDlCallBool: *out = {6, 3, {2, 6, 6}}; return true; // dl_call_bool(i64,bool,bool)->bool
-    case kIntrinsicDlCallChar: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_char(i64,i32,i32)->i32
+    case kIntrinsicDlCallChar: *out = {13, 3, {2, 13, 13}}; return true; // dl_call_char(i64,char,char)->char
     case kIntrinsicDlCallStr0: *out = {5, 1, {2, 0, 0}}; return true; // dl_call_str0(i64)->ref
     default: return false;
   }
@@ -141,7 +141,22 @@ VerifyResult Fail(const std::string& message) {
 } // namespace
 
 VerifyResult VerifyModule(const SbcModule& module) {
-  enum class ValType { Unknown, I32, I64, F32, F64, Bool, Ref };
+  enum class ValType {
+    Unknown,
+    I8,
+    I16,
+    I32,
+    I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F32,
+    F64,
+    Bool,
+    Char,
+    Ref,
+  };
   auto read_name = [&](uint32_t offset) -> std::string {
     if (offset == 0xFFFFFFFFu) return {};
     if (module.const_pool.empty()) return {};
@@ -158,18 +173,25 @@ VerifyResult VerifyModule(const SbcModule& module) {
     const auto& row = module.types[type_id];
     switch (static_cast<TypeKind>(row.kind)) {
       case TypeKind::I8:
+        return ValType::I8;
       case TypeKind::I16:
+        return ValType::I16;
       case TypeKind::I32:
-      case TypeKind::U8:
-      case TypeKind::U16:
-      case TypeKind::U32:
-      case TypeKind::Char:
         return ValType::I32;
+      case TypeKind::I64:
+        return ValType::I64;
+      case TypeKind::U8:
+        return ValType::U8;
+      case TypeKind::U16:
+        return ValType::U16;
+      case TypeKind::U32:
+        return ValType::U32;
+      case TypeKind::U64:
+        return ValType::U64;
       case TypeKind::Bool:
         return ValType::Bool;
-      case TypeKind::I64:
-      case TypeKind::U64:
-        return ValType::I64;
+      case TypeKind::Char:
+        return ValType::Char;
       case TypeKind::I128:
       case TypeKind::U128:
         return ValType::Ref;
@@ -189,9 +211,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
   };
   auto to_vm_type = [&](ValType t) -> VmType {
     switch (t) {
+      case ValType::I8:
+      case ValType::I16:
       case ValType::I32:
+      case ValType::U8:
+      case ValType::U16:
+      case ValType::U32:
       case ValType::Bool:
+      case ValType::Char:
         return VmType::I32;
+      case ValType::U64:
       case ValType::I64:
         return VmType::I64;
       case ValType::F32:
@@ -214,6 +243,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case 4: return ValType::F64;
       case 5: return ValType::Ref;
       case 6: return ValType::Bool;
+      case 7: return ValType::I8;
+      case 8: return ValType::I16;
+      case 9: return ValType::U8;
+      case 10: return ValType::U16;
+      case 11: return ValType::U32;
+      case 12: return ValType::U64;
+      case 13: return ValType::Char;
       default: return ValType::Unknown;
     }
   };
@@ -375,6 +411,18 @@ VerifyResult VerifyModule(const SbcModule& module) {
       VerifyResult ok;
       ok.ok = true;
       return ok;
+    };
+    auto is_i32_arith_type = [&](ValType t) {
+      return t == ValType::I8 || t == ValType::I16 || t == ValType::I32 || t == ValType::Char;
+    };
+    auto is_u32_arith_type = [&](ValType t) {
+      return t == ValType::U8 || t == ValType::U16 || t == ValType::U32;
+    };
+    auto is_i32_bitwise_type = [&](ValType t) {
+      return is_i32_arith_type(t) || is_u32_arith_type(t);
+    };
+    auto is_i64_bitwise_type = [&](ValType t) {
+      return t == ValType::I64 || t == ValType::U64;
     };
     std::vector<StackMap> stack_maps;
     while (pc < end) {
@@ -573,17 +621,31 @@ VerifyResult VerifyModule(const SbcModule& module) {
           break;
         }
         case OpCode::ConstI8:
+          push_type(ValType::I8);
+          break;
         case OpCode::ConstI16:
+          push_type(ValType::I16);
+          break;
         case OpCode::ConstI32:
-        case OpCode::ConstU8:
-        case OpCode::ConstU16:
-        case OpCode::ConstU32:
-        case OpCode::ConstChar:
           push_type(ValType::I32);
           break;
         case OpCode::ConstI64:
-        case OpCode::ConstU64:
           push_type(ValType::I64);
+          break;
+        case OpCode::ConstU8:
+          push_type(ValType::U8);
+          break;
+        case OpCode::ConstU16:
+          push_type(ValType::U16);
+          break;
+        case OpCode::ConstU32:
+          push_type(ValType::U32);
+          break;
+        case OpCode::ConstU64:
+          push_type(ValType::U64);
+          break;
+        case OpCode::ConstChar:
+          push_type(ValType::Char);
           break;
         case OpCode::ConstI128:
         case OpCode::ConstU128:
@@ -718,26 +780,33 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ModI32: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I32, "arith type mismatch");
-          if (!r2.ok) return r2;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_i32_arith_type(a)) {
+              return fail_at("arith type mismatch", current_pc, current_opcode);
+            }
+          }
+          if (a == ValType::Unknown || b == ValType::Unknown) {
+            push_type(ValType::Unknown);
+          } else {
+            push_type(a);
+          }
           break;
         }
         case OpCode::NegI32: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && !is_i32_arith_type(a)) {
+            return fail_at("arith type mismatch", current_pc, current_opcode);
+          }
+          push_type(a);
           break;
         }
         case OpCode::IncI32:
         case OpCode::DecI32: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && !is_i32_arith_type(a)) {
+            return fail_at("arith type mismatch", current_pc, current_opcode);
+          }
+          push_type(a);
           break;
         }
         case OpCode::AddU32:
@@ -747,26 +816,33 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ModU32: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I32, "arith type mismatch");
-          if (!r2.ok) return r2;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_u32_arith_type(a)) {
+              return fail_at("arith type mismatch", current_pc, current_opcode);
+            }
+          }
+          if (a == ValType::Unknown || b == ValType::Unknown) {
+            push_type(ValType::Unknown);
+          } else {
+            push_type(a);
+          }
           break;
         }
         case OpCode::IncU32:
         case OpCode::DecU32: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && !is_u32_arith_type(a)) {
+            return fail_at("arith type mismatch", current_pc, current_opcode);
+          }
+          push_type(a);
           break;
         }
         case OpCode::NegU32: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && !is_u32_arith_type(a)) {
+            return fail_at("arith type mismatch", current_pc, current_opcode);
+          }
+          push_type(a);
           break;
         }
         case OpCode::IncI8:
@@ -782,9 +858,39 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::NegU8:
         case OpCode::NegU16: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I32, "arith type mismatch");
+          ValType expected = ValType::Unknown;
+          ValType pushed = ValType::Unknown;
+          switch (static_cast<OpCode>(opcode)) {
+            case OpCode::IncI8:
+            case OpCode::DecI8:
+            case OpCode::NegI8:
+              expected = ValType::I8;
+              pushed = ValType::I8;
+              break;
+            case OpCode::IncI16:
+            case OpCode::DecI16:
+            case OpCode::NegI16:
+              expected = ValType::I16;
+              pushed = ValType::I16;
+              break;
+            case OpCode::IncU8:
+            case OpCode::DecU8:
+            case OpCode::NegU8:
+              expected = ValType::U8;
+              pushed = ValType::U8;
+              break;
+            case OpCode::IncU16:
+            case OpCode::DecU16:
+            case OpCode::NegU16:
+              expected = ValType::U16;
+              pushed = ValType::U16;
+              break;
+            default:
+              break;
+          }
+          VerifyResult r = check_type(a, expected, "arith type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I32);
+          push_type(pushed);
           break;
         }
         case OpCode::AndI32:
@@ -794,11 +900,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ShrI32: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I32, "bitwise type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I32, "bitwise type mismatch");
-          if (!r2.ok) return r2;
-          push_type(ValType::I32);
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_i32_bitwise_type(a)) {
+              return fail_at("bitwise type mismatch", current_pc, current_opcode);
+            }
+          }
+          if (a == ValType::Unknown || b == ValType::Unknown) {
+            push_type(ValType::Unknown);
+          } else {
+            push_type(a);
+          }
           break;
         }
         case OpCode::AddI64:
@@ -837,26 +948,26 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ModU64: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I64, "arith type mismatch");
+          VerifyResult r1 = check_type(a, ValType::U64, "arith type mismatch");
           if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I64, "arith type mismatch");
+          VerifyResult r2 = check_type(b, ValType::U64, "arith type mismatch");
           if (!r2.ok) return r2;
-          push_type(ValType::I64);
+          push_type(ValType::U64);
           break;
         }
         case OpCode::IncU64:
         case OpCode::DecU64: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I64, "arith type mismatch");
+          VerifyResult r = check_type(a, ValType::U64, "arith type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I64);
+          push_type(ValType::U64);
           break;
         }
         case OpCode::NegU64: {
           ValType a = pop_type();
-          VerifyResult r = check_type(a, ValType::I64, "arith type mismatch");
+          VerifyResult r = check_type(a, ValType::U64, "arith type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I64);
+          push_type(ValType::U64);
           break;
         }
         case OpCode::AndI64:
@@ -866,11 +977,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::ShrI64: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I64, "bitwise type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I64, "bitwise type mismatch");
-          if (!r2.ok) return r2;
-          push_type(ValType::I64);
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_i64_bitwise_type(a)) {
+              return fail_at("bitwise type mismatch", current_pc, current_opcode);
+            }
+          }
+          if (a == ValType::Unknown || b == ValType::Unknown) {
+            push_type(ValType::Unknown);
+          } else {
+            push_type(a);
+          }
           break;
         }
         case OpCode::AddF32:
@@ -937,10 +1053,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CmpGeI32: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I32, "compare type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I32, "compare type mismatch");
-          if (!r2.ok) return r2;
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_i32_arith_type(a)) {
+              return fail_at("compare type mismatch", current_pc, current_opcode);
+            }
+          }
           push_type(ValType::Bool);
           break;
         }
@@ -952,10 +1069,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CmpGeU32: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I32, "compare type mismatch");
-          if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I32, "compare type mismatch");
-          if (!r2.ok) return r2;
+          if (a != ValType::Unknown && b != ValType::Unknown) {
+            if (a != b || !is_u32_arith_type(a)) {
+              return fail_at("compare type mismatch", current_pc, current_opcode);
+            }
+          }
           push_type(ValType::Bool);
           break;
         }
@@ -982,9 +1100,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CmpGeU64: {
           ValType b = pop_type();
           ValType a = pop_type();
-          VerifyResult r1 = check_type(a, ValType::I64, "compare type mismatch");
+          VerifyResult r1 = check_type(a, ValType::U64, "compare type mismatch");
           if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(b, ValType::I64, "compare type mismatch");
+          VerifyResult r2 = check_type(b, ValType::U64, "compare type mismatch");
           if (!r2.ok) return r2;
           push_type(ValType::Bool);
           break;
@@ -1539,7 +1657,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(idx, ValType::I32, "STRING_GET_CHAR type mismatch");
           if (!r2.ok) return r2;
-          push_type(ValType::I32);
+          push_type(ValType::Char);
           break;
         }
         case OpCode::StringSlice: {
@@ -1637,7 +1755,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
             return fail_at("CALL_INDIRECT signature param types out of range", pc, opcode);
           }
           ValType func_type = pop_type();
-          if (func_type != ValType::I32 && func_type != ValType::Ref && func_type != ValType::Unknown) {
+          if (func_type != ValType::I32 &&
+              func_type != ValType::U32 &&
+              func_type != ValType::Ref &&
+              func_type != ValType::Unknown) {
             return fail_at("CALL_INDIRECT func type mismatch", pc, opcode);
           }
           for (int i = static_cast<int>(call_sig.param_count) - 1; i >= 0; --i) {
@@ -1692,29 +1813,33 @@ VerifyResult VerifyModule(const SbcModule& module) {
         }
         case OpCode::ConvI32ToI64: {
           ValType v = pop_type();
-          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I64);
+          if (v != ValType::Unknown && !is_i32_bitwise_type(v) && v != ValType::Bool) {
+            return fail_at("CONV type mismatch", pc, opcode);
+          }
+          push_type(ValType::Unknown);
           break;
         }
         case OpCode::ConvI64ToI32: {
           ValType v = pop_type();
-          VerifyResult r = check_type(v, ValType::I64, "CONV type mismatch");
-          if (!r.ok) return r;
-          push_type(ValType::I32);
+          if (v != ValType::Unknown && v != ValType::I64 && v != ValType::U64) {
+            return fail_at("CONV type mismatch", pc, opcode);
+          }
+          push_type(ValType::Unknown);
           break;
         }
         case OpCode::ConvI32ToF32: {
           ValType v = pop_type();
-          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
-          if (!r.ok) return r;
+          if (v != ValType::Unknown && !is_i32_bitwise_type(v) && v != ValType::Bool) {
+            return fail_at("CONV type mismatch", pc, opcode);
+          }
           push_type(ValType::F32);
           break;
         }
         case OpCode::ConvI32ToF64: {
           ValType v = pop_type();
-          VerifyResult r = check_type(v, ValType::I32, "CONV type mismatch");
-          if (!r.ok) return r;
+          if (v != ValType::Unknown && !is_i32_bitwise_type(v) && v != ValType::Bool) {
+            return fail_at("CONV type mismatch", pc, opcode);
+          }
           push_type(ValType::F64);
           break;
         }
@@ -1722,14 +1847,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType v = pop_type();
           VerifyResult r = check_type(v, ValType::F32, "CONV type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I32);
+          push_type(ValType::Unknown);
           break;
         }
         case OpCode::ConvF64ToI32: {
           ValType v = pop_type();
           VerifyResult r = check_type(v, ValType::F64, "CONV type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I32);
+          push_type(ValType::Unknown);
           break;
         }
         case OpCode::ConvF32ToF64: {
