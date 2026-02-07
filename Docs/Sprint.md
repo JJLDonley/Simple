@@ -1154,3 +1154,7 @@
   - workspace edit changes are grouped by URI with deterministic ordering.
 - Expanded LSP regression suite with cross-document rename coverage:
   - validates rename responses include edits for both active and secondary open documents when symbols are shared.
+- Expanded completion symbol aggregation across open documents:
+  - `textDocument/completion` now includes declaration candidates discovered in other currently open documents, in addition to active-document symbols/keywords/builtins.
+- Expanded LSP regression suite with cross-document completion coverage:
+  - validates completion can suggest declaration symbols sourced from a secondary open document.

@@ -477,6 +477,44 @@ bool LspCompletionIncludesLocalDeclarations() {
          out_contents.find("\"label\":\"beta\"") != std::string::npos;
 }
 
+bool LspCompletionIncludesOpenDocumentDeclarations() {
+  const std::string in_path = TempPath("simple_lsp_completion_xdoc_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_xdoc_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_xdoc_err.txt");
+  const std::string lib_uri = "file:///workspace/complete_lib.simple";
+  const std::string main_uri = "file:///workspace/complete_main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"shared_name : i32 = 1;\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"local_name : i32 = 2;\\nsh\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":32,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":1,\"character\":2}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_lib) +
+      BuildLspFrame(open_main) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":32") != std::string::npos &&
+         out_contents.find("\"label\":\"shared_name\"") != std::string::npos &&
+         out_contents.find("\"label\":\"local_name\"") == std::string::npos;
+}
+
 bool LspCompletionFiltersByTypedPrefix() {
   const std::string in_path = TempPath("simple_lsp_completion_prefix_in.txt");
   const std::string out_path = TempPath("simple_lsp_completion_prefix_out.txt");
@@ -1332,6 +1370,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
+  {"lsp_completion_includes_open_document_declarations", LspCompletionIncludesOpenDocumentDeclarations},
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
   {"lsp_completion_filters_member_suffix_by_receiver", LspCompletionFiltersMemberSuffixByReceiver},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},

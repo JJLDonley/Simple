@@ -558,15 +558,24 @@ void ReplyCompletion(std::ostream& out,
   labels.push_back("IO.print");
 
   auto doc_it = open_docs.find(uri);
-  if (doc_it != open_docs.end()) {
+  {
     std::unordered_set<std::string> seen(labels.begin(), labels.end());
-    const auto refs = LexTokenRefs(doc_it->second);
-    for (const auto& ref : refs) {
-      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-      if (!IsDeclNameAt(refs, ref.index)) continue;
-      if (seen.insert(ref.token.text).second) {
-        labels.push_back(ref.token.text);
+    auto add_doc_decls = [&](const std::string& text) {
+      const auto refs = LexTokenRefs(text);
+      for (const auto& ref : refs) {
+        if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+        if (!IsDeclNameAt(refs, ref.index)) continue;
+        if (seen.insert(ref.token.text).second) {
+          labels.push_back(ref.token.text);
+        }
       }
+    };
+    if (doc_it != open_docs.end()) {
+      add_doc_decls(doc_it->second);
+    }
+    for (const auto& [other_uri, other_text] : open_docs) {
+      if (other_uri == uri) continue;
+      add_doc_decls(other_text);
     }
     std::sort(labels.begin(), labels.end());
   }
