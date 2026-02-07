@@ -305,7 +305,25 @@ void PublishDiagnostics(std::ostream& out,
   }
   const uint32_t start_line = line > 0 ? (line - 1) : 0;
   const uint32_t start_char = col > 0 ? (col - 1) : 0;
-  const uint32_t end_char = start_char + 1;
+  uint32_t span_len = 1;
+  {
+    static const std::string marker = "undeclared identifier:";
+    const size_t marker_pos = msg.find(marker);
+    if (marker_pos != std::string::npos) {
+      std::string ident = TrimCopy(msg.substr(marker_pos + marker.size()));
+      size_t ident_len = 0;
+      while (ident_len < ident.size()) {
+        const char c = ident[ident_len];
+        const bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+        if (!ok) break;
+        ++ident_len;
+      }
+      if (ident_len > 0) {
+        span_len = static_cast<uint32_t>(ident_len);
+      }
+    }
+  }
+  const uint32_t end_char = start_char + span_len;
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","

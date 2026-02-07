@@ -1125,3 +1125,7 @@
   - function-style declarations (`name : type (...)`) are classified as function token type in semantic tokens.
 - Expanded LSP regression suite with semantic-token structural coverage:
   - validates semantic token stream includes function declaration tokens marked with declaration modifier.
+- Improved diagnostic range precision for undeclared identifiers:
+  - publish-diagnostics now expands range length to full undeclared identifier span (instead of fixed single-character ranges) when message carries `undeclared identifier: <name>`.
+- Expanded LSP regression suite with diagnostic-span coverage:
+  - validates undeclared identifier diagnostics report full-token end column (for example `foobar` spans `character:0` to `character:6`).

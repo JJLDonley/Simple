@@ -119,6 +119,35 @@ bool LspDidOpenPublishesDiagnostics() {
          out_contents.find("undeclared identifier") != std::string::npos;
 }
 
+bool LspDiagnosticsSpanUndeclaredIdentifierLength() {
+  const std::string in_path = TempPath("simple_lsp_diag_span_in.txt");
+  const std::string out_path = TempPath("simple_lsp_diag_span_out.txt");
+  const std::string err_path = TempPath("simple_lsp_diag_span_err.txt");
+  const std::string uri = "file:///workspace/bad_span.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foobar = 1;\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":1") != std::string::npos &&
+         out_contents.find("\"code\":\"E0001\"") != std::string::npos &&
+         out_contents.find("\"start\":{\"line\":0,\"character\":0}") != std::string::npos &&
+         out_contents.find("\"end\":{\"line\":0,\"character\":6}") != std::string::npos;
+}
+
 bool LspDidChangeRefreshesDiagnostics() {
   const std::string in_path = TempPath("simple_lsp_change_in.txt");
   const std::string out_path = TempPath("simple_lsp_change_out.txt");
@@ -1104,6 +1133,7 @@ bool LspCancelRequestSuppressesResponse() {
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
+  {"lsp_diagnostics_span_undeclared_identifier_length", LspDiagnosticsSpanUndeclaredIdentifierLength},
   {"lsp_did_change_refreshes_diagnostics", LspDidChangeRefreshesDiagnostics},
   {"lsp_did_change_ignores_stale_version", LspDidChangeIgnoresStaleVersion},
   {"lsp_did_change_ignores_unknown_document", LspDidChangeIgnoresUnknownDocument},
