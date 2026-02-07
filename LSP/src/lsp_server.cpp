@@ -24,6 +24,19 @@ std::string TrimCopy(const std::string& input) {
   return input.substr(start, end - start);
 }
 
+std::vector<std::string> SortedOpenDocUris(
+    const std::unordered_map<std::string, std::string>& open_docs,
+    const std::string& exclude_uri = {}) {
+  std::vector<std::string> uris;
+  uris.reserve(open_docs.size());
+  for (const auto& [uri, _] : open_docs) {
+    if (!exclude_uri.empty() && uri == exclude_uri) continue;
+    uris.push_back(uri);
+  }
+  std::sort(uris.begin(), uris.end());
+  return uris;
+}
+
 bool StartsWithCaseInsensitive(const std::string& text, const std::string& prefix) {
   if (text.size() < prefix.size()) return false;
   for (size_t i = 0; i < prefix.size(); ++i) {
@@ -532,8 +545,11 @@ void ReplyHover(std::ostream& out,
   };
   std::string decl_type;
   if (!resolve_decl_type(it->second, &decl_type)) {
-    for (const auto& [other_uri, other_text] : open_docs) {
-      if (other_uri == uri) continue;
+    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+    for (const auto& other_uri : sorted_uris) {
+      const auto other_it = open_docs.find(other_uri);
+      if (other_it == open_docs.end()) continue;
+      const std::string& other_text = other_it->second;
       if (resolve_decl_type(other_text, &decl_type)) break;
     }
   }
@@ -995,9 +1011,11 @@ void ReplyDefinition(std::ostream& out,
 
   choose_best_from_doc(uri, refs);
   if (!has_best) {
-    for (const auto& [other_uri, other_text] : open_docs) {
-      if (other_uri == uri) continue;
-      const auto other_refs = LexTokenRefs(other_text);
+    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+    for (const auto& other_uri : sorted_uris) {
+      const auto other_it = open_docs.find(other_uri);
+      if (other_it == open_docs.end()) continue;
+      const auto other_refs = LexTokenRefs(other_it->second);
       choose_best_from_doc(other_uri, other_refs);
       if (has_best) break;
     }

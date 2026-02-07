@@ -1158,3 +1158,7 @@
   - `textDocument/completion` now includes declaration candidates discovered in other currently open documents, in addition to active-document symbols/keywords/builtins.
 - Expanded LSP regression suite with cross-document completion coverage:
   - validates completion can suggest declaration symbols sourced from a secondary open document.
+- Broadened completion symbol sources to all open documents:
+  - declaration candidates are now aggregated from active + secondary open documents before prefix/member filtering, improving multi-file editing suggestions.
+- Expanded LSP regression suite with open-document completion coverage:
+  - validates completion responses include declaration candidates contributed by another open document while still honoring typed-prefix filtering.
