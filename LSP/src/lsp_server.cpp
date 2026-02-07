@@ -625,6 +625,7 @@ void ReplySignatureHelp(std::ostream& out,
     if (refs[i + 1].token.kind != Simple::Lang::TokenKind::Colon) continue;
     if (refs[i + 3].token.kind != Simple::Lang::TokenKind::LParen) continue;
     std::string params;
+    std::string parameters_json;
     uint32_t param_count = 0;
     size_t p = i + 4;
     while (p < refs.size() && refs[p].token.kind != Simple::Lang::TokenKind::RParen) {
@@ -632,8 +633,11 @@ void ReplySignatureHelp(std::ostream& out,
           p + 2 < refs.size() &&
           refs[p + 1].token.kind == Simple::Lang::TokenKind::Colon &&
           refs[p + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+        const std::string param_label = refs[p].token.text + " : " + refs[p + 2].token.text;
         if (!params.empty()) params += ", ";
-        params += refs[p].token.text + " : " + refs[p + 2].token.text;
+        params += param_label;
+        if (!parameters_json.empty()) parameters_json += ",";
+        parameters_json += "{\"label\":\"" + JsonEscape(param_label) + "\"}";
         ++param_count;
         p += 3;
         continue;
@@ -647,7 +651,7 @@ void ReplySignatureHelp(std::ostream& out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":[{\"label\":\"" +
             JsonEscape(call_name + "(" + params + ")") +
-            "\",\"parameters\":[{\"label\":\"" + JsonEscape(params) + "\"}]}],"
+            "\",\"parameters\":[" + parameters_json + "]}],"
             "\"activeSignature\":0,\"activeParameter\":" +
             std::to_string(clamped_active) + "}}");
     return;

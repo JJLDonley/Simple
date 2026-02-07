@@ -1135,3 +1135,7 @@
   - active parameter is clamped against discovered local parameter count to keep response indexes valid.
 - Expanded LSP regression suite with local-function signature-help coverage:
   - validates local declaration signature payloads (for example `add(a : i32, b : i32)`) and second-argument active-parameter indexing.
+- Refined local-function signature-help payload structure:
+  - local signature responses now emit per-parameter entries in `signatures[0].parameters` (instead of a single combined parameter label) for better editor parameter highlighting compatibility.
+- Expanded local signature-help regression assertions:
+  - validates individual parameter labels (`a : i32`, `b : i32`) are present in the response payload.

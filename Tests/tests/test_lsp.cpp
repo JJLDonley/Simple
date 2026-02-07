@@ -601,6 +601,8 @@ bool LspSignatureHelpForLocalFunctionDeclaration() {
   return err_contents.empty() &&
          out_contents.find("\"id\":27") != std::string::npos &&
          out_contents.find("add(a : i32, b : i32)") != std::string::npos &&
+         out_contents.find("\"label\":\"a : i32\"") != std::string::npos &&
+         out_contents.find("\"label\":\"b : i32\"") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
