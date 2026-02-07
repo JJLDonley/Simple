@@ -965,3 +965,10 @@
   - consistent source snippet + caret rendering (` --> file:line:col`),
   - wrapper stripping for nested `simple compile failed (...)` errors,
   - contextual `help:` hints for common parser/lexer/import/semantic failures.
+## 2026-02-07 (cont. 13)
+- Finalized release packaging for root-layout repo:
+  - updated `release.sh` build hint paths to root scripts,
+  - trimmed packaged docs to `share/simple/README.md` only,
+  - kept runtime-essential payload only (`bin/`, `lib/`, `include/simplevm/`).
+- Updated `install.sh` usage/examples to root-layout script paths.
+- Tightened local repo hygiene by ignoring local IDE metadata and generated test FFI `.so` artifacts (`.vscode/`, `Tests/ffi/*.so`) and build releases (`dist/`).

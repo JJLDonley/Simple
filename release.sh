@@ -31,8 +31,8 @@ if [[ -z "$TARGET" ]]; then
   TARGET="${os}-${arch}"
 fi
 
-if [[ ! -x "$BIN_DIR/simple" || ! -f "$BIN_DIR/libsimplevm_runtime.a" || ! -f "$BIN_DIR/libsimplevm_runtime.so" ]]; then
-  echo "missing built artifacts in $BIN_DIR (run ./Simple/build.sh first)" >&2
+if [[ ! -x "$BIN_DIR/simple" || ! -x "$BIN_DIR/simplevm" || ! -f "$BIN_DIR/libsimplevm_runtime.a" || ! -f "$BIN_DIR/libsimplevm_runtime.so" ]]; then
+  echo "missing built artifacts in $BIN_DIR (run ./build.sh first)" >&2
   exit 1
 fi
 
@@ -50,7 +50,9 @@ cp "$BIN_DIR/libsimplevm_runtime.so" "$STAGE_DIR/lib/libsimplevm_runtime.so"
 
 cp "$ROOT_DIR/VM/include/"*.h "$STAGE_DIR/include/simplevm/"
 cp "$ROOT_DIR/Byte/include/"*.h "$STAGE_DIR/include/simplevm/"
-cp "$ROOT_DIR/Docs/"*.md "$STAGE_DIR/share/simple/"
+if [[ -f "$ROOT_DIR/Docs/README.md" ]]; then
+  cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
+fi
 
 mkdir -p "$DIST_DIR"
 tar -czf "$PKG_PATH" -C "$DIST_DIR" "$PKG_NAME"

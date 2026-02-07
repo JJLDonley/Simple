@@ -11,11 +11,11 @@ NO_LINK=0
 usage() {
   cat <<'EOF'
 Usage:
-  ./Simple/install.sh [--url <release.tar.gz>] [--from-file <release.tar.gz>] [--prefix <dir>] [--version <name>] [--bin-dir <dir>] [--no-link]
+  ./install.sh [--url <release.tar.gz>] [--from-file <release.tar.gz>] [--prefix <dir>] [--version <name>] [--bin-dir <dir>] [--no-link]
 
 Examples:
-  ./Simple/install.sh --from-file ./Simple/dist/simple-dev-linux-x86_64.tar.gz --version dev
-  ./Simple/install.sh --url https://example.com/simple-v0.1.0-linux-x86_64.tar.gz --version v0.1.0
+  ./install.sh --from-file ./dist/simple-dev-linux-x86_64.tar.gz --version dev
+  ./install.sh --url https://example.com/simple-v0.1.0-linux-x86_64.tar.gz --version v0.1.0
 EOF
 }
 
