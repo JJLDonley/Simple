@@ -986,3 +986,7 @@
   - if no `--url/--from-file` is provided, auto-resolves GitHub release URLs:
     - latest -> `.../releases/latest/download/simple-latest-<target>.tar.gz`
     - versioned -> `.../releases/download/<version>/simple-<version>-<target>.tar.gz`.
+## 2026-02-07 (cont. 15)
+- Simplified branch model by removing dedicated `release` branch in favor of `main` handling both integration and release triggers.
+- Updated release workflow trigger to run on `main` pushes.
+- Kept `gh-pages` separate for website-only deployment.

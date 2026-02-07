@@ -28,7 +28,7 @@ This is the active execution plan for shipping and maintaining Simple from repos
   - relative/absolute imports,
   - project-root bare filename lookup (with ambiguity diagnostics).
 - CLI diagnostics are context-rich and include source spans + help hints.
-- Release branch CI workflow exists and publishes GitHub Release artifacts for installer consumption.
+- Main branch CI workflow publishes GitHub Release artifacts for installer consumption.
 
 ## Module Plan
 
@@ -137,7 +137,7 @@ Gate to close:
 
 ### Branching Model
 - `main`: active development and integration.
-- `release`: protected release branch; pushes trigger release workflow.
+- `main` also acts as the release trigger branch.
 - `gh-pages`: static project website.
 
 ### Artifact Contract
@@ -187,14 +187,14 @@ Exit criteria:
 - [ ] Draft and publish release notes with known limitations.
 
 Exit criteria:
-- Clean reproducible release from `release` branch.
+- Clean reproducible release from `main`.
 
 ## Alpha Release Checklist
 
 All must be true:
 
 1. `./build.sh --suite all` passes.
-2. Release workflow on `release` branch passes and uploads all artifacts.
+2. Release workflow on `main` passes and uploads all artifacts.
 3. Installer works for:
    - latest asset path,
    - version-pinned asset path.
