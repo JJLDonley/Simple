@@ -391,6 +391,16 @@ std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t 
   return line_text.substr(begin, end - begin);
 }
 
+std::string CompletionPrefixAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  size_t end = std::min<size_t>(character, line_text.size());
+  size_t begin = end;
+  while (begin > 0 && IsIdentChar(line_text[begin - 1])) --begin;
+  if (begin == end) return {};
+  return line_text.substr(begin, end - begin);
+}
+
 void ReplyHover(std::ostream& out,
                 const std::string& id_raw,
                 const std::string& uri,
@@ -417,6 +427,8 @@ void ReplyHover(std::ostream& out,
 void ReplyCompletion(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
+                     uint32_t line,
+                     uint32_t character,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
       "fn", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
@@ -438,10 +450,21 @@ void ReplyCompletion(std::ostream& out,
     std::sort(labels.begin(), labels.end());
   }
 
+  std::string prefix_lc;
+  if (doc_it != open_docs.end()) {
+    prefix_lc = LowerAscii(CompletionPrefixAtPosition(doc_it->second, line, character));
+  }
+
   std::string items;
+  bool first_item = true;
   for (size_t i = 0; i < labels.size(); ++i) {
-    if (i) items += ",";
     const std::string& label = labels[i];
+    if (!prefix_lc.empty()) {
+      const std::string label_lc = LowerAscii(label);
+      if (label_lc.rfind(prefix_lc, 0) != 0) continue;
+    }
+    if (!first_item) items += ",";
+    first_item = false;
     const bool is_builtin = (label == "IO.println" || label == "IO.print");
     const bool is_keyword = std::find(kKeywords.begin(), kKeywords.end(), label) != kKeywords.end();
     const int kind = is_builtin ? 3 : (is_keyword ? 14 : 6);
@@ -1133,8 +1156,12 @@ int RunServer(std::istream& in, std::ostream& out) {
     if (method == "textDocument/completion") {
       if (has_id) {
         std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
         ExtractJsonStringField(body, "uri", &uri);
-        ReplyCompletion(out, id_raw, uri, open_docs);
+        ExtractJsonUintField(body, "line", &line);
+        ExtractJsonUintField(body, "character", &character);
+        ReplyCompletion(out, id_raw, uri, line, character, open_docs);
       }
       continue;
     }

@@ -1079,3 +1079,8 @@
   - completion candidates are deduplicated and deterministically ordered for stable editor behavior.
 - Expanded LSP regression suite with local-completion coverage:
   - validates completion responses include top-level declared symbols from the current open document (for example `alpha`, `beta`).
+- Added cursor-prefix filtering for LSP completion results:
+  - extracts typed identifier prefix at completion cursor position,
+  - filters completion candidates to case-insensitive prefix matches for reduced noise.
+- Expanded LSP regression suite with completion-prefix coverage:
+  - validates typed prefix (`al`) narrows results to matching candidates (for example includes `alpha` and excludes `beta`).
