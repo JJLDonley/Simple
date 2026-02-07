@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cstring>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -118,6 +119,42 @@ bool ExtractJsonIdRaw(const std::string& json, std::string* out_raw) {
   if (!out_raw) return false;
   const std::string key = "\"id\"";
   const size_t key_pos = json.find(key);
+  if (key_pos == std::string::npos) return false;
+  const size_t colon = json.find(':', key_pos + key.size());
+  if (colon == std::string::npos) return false;
+  size_t i = colon + 1;
+  while (i < json.size() && std::isspace(static_cast<unsigned char>(json[i]))) ++i;
+  if (i >= json.size()) return false;
+  size_t end = i;
+  if (json[i] == '"') {
+    ++end;
+    while (end < json.size()) {
+      if (json[end] == '\\') {
+        end += 2;
+        continue;
+      }
+      if (json[end] == '"') {
+        ++end;
+        break;
+      }
+      ++end;
+    }
+    if (end > json.size()) return false;
+  } else {
+    while (end < json.size() && json[end] != ',' && json[end] != '}' &&
+           !std::isspace(static_cast<unsigned char>(json[end]))) {
+      ++end;
+    }
+  }
+  *out_raw = TrimCopy(json.substr(i, end - i));
+  return !out_raw->empty();
+}
+
+bool ExtractJsonIdRawFromOffset(const std::string& json, size_t start_offset, std::string* out_raw) {
+  if (!out_raw) return false;
+  if (start_offset >= json.size()) return false;
+  const std::string key = "\"id\"";
+  const size_t key_pos = json.find(key, start_offset);
   if (key_pos == std::string::npos) return false;
   const size_t colon = json.find(':', key_pos + key.size());
   if (colon == std::string::npos) return false;
@@ -876,6 +913,7 @@ void ReplyCodeAction(std::ostream& out,
 int RunServer(std::istream& in, std::ostream& out) {
   bool saw_shutdown = false;
   std::unordered_map<std::string, std::string> open_docs;
+  std::unordered_set<std::string> canceled_request_ids;
   for (;;) {
     std::string line;
     int content_length = -1;
@@ -940,8 +978,28 @@ int RunServer(std::istream& in, std::ostream& out) {
       return saw_shutdown ? 0 : 1;
     }
 
-    if (method == "initialized" ||
-        method == "$/cancelRequest") {
+    if (method == "$/cancelRequest") {
+      const size_t params_pos = body.find("\"params\"");
+      std::string cancel_id;
+      if (params_pos != std::string::npos &&
+          ExtractJsonIdRawFromOffset(body, params_pos, &cancel_id)) {
+        canceled_request_ids.insert(cancel_id);
+      }
+      continue;
+    }
+
+    if (method == "initialized") {
+      continue;
+    }
+
+    if (has_id && method != "initialize" && method != "shutdown") {
+      if (canceled_request_ids.find(id_raw) != canceled_request_ids.end()) {
+        canceled_request_ids.erase(id_raw);
+        continue;
+      }
+    }
+
+    if (method == "$/cancelRequest") {
       continue;
     }
 

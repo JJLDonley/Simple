@@ -1044,3 +1044,8 @@
 - Tightened workspace-symbol regression expectations:
   - query `main` now asserts inclusion of `main`/`main_worker`,
   - query `main` now asserts exclusion of non-prefix names such as `domain`.
+- Added LSP `$ /cancelRequest` handling with request-id tracking:
+  - records canceled request IDs from notification payload (`params.id`),
+  - suppresses subsequent response emission for canceled request IDs (non-lifecycle requests).
+- Expanded LSP regression suite with cancellation coverage:
+  - validates canceled hover request IDs do not produce a JSON-RPC result payload.

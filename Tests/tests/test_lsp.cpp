@@ -474,6 +474,41 @@ bool LspCodeActionReturnsQuickFix() {
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos;
 }
 
+bool LspCancelRequestSuppressesResponse() {
+  const std::string in_path = TempPath("simple_lsp_cancel_in.txt");
+  const std::string out_path = TempPath("simple_lsp_cancel_out.txt");
+  const std::string err_path = TempPath("simple_lsp_cancel_err.txt");
+  const std::string uri = "file:///workspace/cancel.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1; foo;\"}}}";
+  const std::string cancel_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"$/cancelRequest\",\"params\":{\"id\":13}}";
+  const std::string hover_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":15}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(cancel_req) +
+      BuildLspFrame(hover_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
+         out_contents.find("\"id\":13") == std::string::npos &&
+         out_contents.find("\"id\":2") != std::string::npos;
+}
+
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
@@ -488,6 +523,7 @@ const TestCase kLspTests[] = {
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
   {"lsp_rename_returns_workspace_edit", LspRenameReturnsWorkspaceEdit},
   {"lsp_code_action_returns_quick_fix", LspCodeActionReturnsQuickFix},
+  {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
 };
 
 const TestSection kLspSections[] = {
