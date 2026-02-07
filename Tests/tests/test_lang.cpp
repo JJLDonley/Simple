@@ -118,6 +118,17 @@ bool LangTopLevelReturnDisallowed() {
   return error.find("top-level return is not allowed") != std::string::npos;
 }
 
+bool LangTopLevelIoPrintlnArithmetic() {
+  const char* src =
+      "import \"IO\"\n"
+      "IO.println(\"Hello World\");\n"
+      "IO.println(10 + 20 + 60 / 3);\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 0);
+}
+
 bool LangSimpleFixtureHello() {
   return RunSimpleFileExpectExit("Tests/simple/hello.simple", 0);
 }
@@ -2751,6 +2762,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},
+  {"lang_top_level_io_println_arithmetic", LangTopLevelIoPrintlnArithmetic},
   {"lang_sir_emit_local_assign", LangSirEmitsLocalAssign},
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},

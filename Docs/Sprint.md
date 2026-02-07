@@ -983,3 +983,5 @@
 - Updated `Docs/Implementation.md` baseline/module status to explicitly document script-style entry behavior and top-level `return` rejection.
 - Updated `Docs/Lang.md` with a dedicated program-entry contract section (implicit `__script_entry`, declaration-only top-level functions, top-level execution order, and top-level `return` prohibition).
 - Normalized language doc path references/verification commands to root-layout paths (`Lang/...`, `Docs/...`, `./build.sh ...`).
+- Fixed top-level `IO.println(<arithmetic>)` validation false-negative by adding unary/binary expression type inference in `InferExprType`.
+- Added lang regression coverage for top-level IO print with arithmetic expression arguments.

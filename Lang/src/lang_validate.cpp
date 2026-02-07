@@ -49,6 +49,11 @@ bool InferExprType(const Expr& expr,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                    const ArtifactDecl* current_artifact,
                    TypeRef* out);
+bool IsIntegerLiteralExpr(const Expr& expr);
+bool IsIntegerScalarTypeName(const std::string& name);
+bool IsBoolTypeName(const std::string& name);
+bool IsNumericTypeName(const std::string& name);
+bool IsScalarType(const TypeRef& type);
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -981,6 +986,75 @@ bool InferExprType(const Expr& expr,
       result.proc_params.clear();
       result.proc_return.reset();
       return CloneTypeRef(result, out);
+    }
+    case ExprKind::Unary: {
+      if (expr.children.empty()) return false;
+      TypeRef operand;
+      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return false;
+      if (!IsScalarType(operand)) return false;
+      const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
+      if (op == "!") {
+        if (!IsBoolTypeName(operand.name)) return false;
+        out->name = "bool";
+        out->pointer_depth = 0;
+        out->type_args.clear();
+        out->dims.clear();
+        out->is_proc = false;
+        out->proc_params.clear();
+        out->proc_return.reset();
+        return true;
+      }
+      if (op == "++" || op == "--" || op == "-") {
+        if (!IsNumericTypeName(operand.name)) return false;
+        return CloneTypeRef(operand, out);
+      }
+      return false;
+    }
+    case ExprKind::Binary: {
+      if (expr.children.size() < 2) return false;
+      TypeRef lhs;
+      TypeRef rhs;
+      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &lhs)) return false;
+      if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return false;
+      if (!IsScalarType(lhs) || !IsScalarType(rhs)) return false;
+
+      TypeRef common;
+      if (TypeEquals(lhs, rhs)) {
+        if (!CloneTypeRef(lhs, &common)) return false;
+      } else {
+        const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
+        const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
+        const bool lhs_int = IsIntegerScalarTypeName(lhs.name);
+        const bool rhs_int = IsIntegerScalarTypeName(rhs.name);
+        if (lhs_lit && rhs_int) {
+          if (!CloneTypeRef(rhs, &common)) return false;
+        } else if (rhs_lit && lhs_int) {
+          if (!CloneTypeRef(lhs, &common)) return false;
+        } else {
+          return false;
+        }
+      }
+
+      const std::string& op = expr.op;
+      if (op == "==" || op == "!=" || op == "<" || op == "<=" || op == ">" || op == ">=" ||
+          op == "&&" || op == "||") {
+        out->name = "bool";
+        out->pointer_depth = 0;
+        out->type_args.clear();
+        out->dims.clear();
+        out->is_proc = false;
+        out->proc_params.clear();
+        out->proc_return.reset();
+        return true;
+      }
+
+      if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=" ||
+          op == "&=" || op == "|=" || op == "^=" || op == "<<=" || op == ">>=" ||
+          op == "+" || op == "-" || op == "*" || op == "/" || op == "%" ||
+          op == "&" || op == "|" || op == "^" || op == "<<" || op == ">>") {
+        return CloneTypeRef(common, out);
+      }
+      return false;
     }
     default:
       return false;
