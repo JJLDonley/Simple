@@ -823,6 +823,38 @@ bool LspRenameReturnsWorkspaceEdit() {
          out_contents.find("\"character\":6") != std::string::npos;
 }
 
+bool LspRenameRejectsReservedKeyword() {
+  const std::string in_path = TempPath("simple_lsp_rename_keyword_in.txt");
+  const std::string out_path = TempPath("simple_lsp_rename_keyword_out.txt");
+  const std::string err_path = TempPath("simple_lsp_rename_keyword_err.txt");
+  const std::string uri = "file:///workspace/rename_keyword.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\\nfoo = foo + 1;\"}}}";
+  const std::string rename_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":25,\"method\":\"textDocument/rename\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
+      "\"newName\":\"return\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(rename_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":25") != std::string::npos &&
+         out_contents.find("\"id\":25,\"result\":null") != std::string::npos;
+}
+
 bool LspPrepareRenameReturnsRangeAndPlaceholder() {
   const std::string in_path = TempPath("simple_lsp_prepare_rename_in.txt");
   const std::string out_path = TempPath("simple_lsp_prepare_rename_out.txt");
@@ -1021,6 +1053,7 @@ const TestCase kLspTests[] = {
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
   {"lsp_workspace_symbol_marks_function_kind", LspWorkspaceSymbolMarksFunctionKind},
   {"lsp_rename_returns_workspace_edit", LspRenameReturnsWorkspaceEdit},
+  {"lsp_rename_rejects_reserved_keyword", LspRenameRejectsReservedKeyword},
   {"lsp_prepare_rename_returns_range_and_placeholder", LspPrepareRenameReturnsRangeAndPlaceholder},
   {"lsp_code_action_returns_quick_fix", LspCodeActionReturnsQuickFix},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},

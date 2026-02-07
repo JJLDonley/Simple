@@ -814,11 +814,17 @@ std::string TextEditJson(const Simple::Lang::Token& tk, const std::string& new_t
 }
 
 bool IsValidIdentifierName(const std::string& name) {
+  static const std::unordered_set<std::string> kReserved = {
+      "while", "for", "break", "skip", "return", "if", "else", "default",
+      "fn", "self", "artifact", "enum", "module", "import", "extern", "as",
+      "true", "false",
+  };
   if (name.empty()) return false;
   if (!(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')) return false;
   for (size_t i = 1; i < name.size(); ++i) {
     if (!IsIdentChar(name[i])) return false;
   }
+  if (kReserved.find(name) != kReserved.end()) return false;
   return true;
 }
 

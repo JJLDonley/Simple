@@ -1116,3 +1116,7 @@
 - Expanded LSP regression suite with function-symbol kind coverage:
   - validates `documentSymbol` marks function-like declarations with function symbol kind,
   - validates `workspace/symbol` reports function symbol kind for matching function declarations.
+- Hardened rename validation against reserved language keywords:
+  - `textDocument/rename` now rejects `newName` values that collide with reserved language words (for example `return`, `if`, `module`), returning `null`.
+- Expanded LSP regression suite with rename-keyword coverage:
+  - validates reserved-keyword rename requests are rejected with `null` rename result payload.
