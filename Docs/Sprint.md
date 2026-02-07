@@ -993,3 +993,6 @@
 - Updated build integration to compile/link LSP module sources for both script build (`build.sh`) and CMake (`CMakeLists.txt`).
 - Split LSP protocol tests out of lang suite into dedicated `Tests/tests/test_lsp.cpp`.
 - Added explicit `lsp` test section wiring and build support (`--suite lsp`) while keeping `all` coverage inclusive of `lsp` tests.
+- Added baseline LSP request handling for `textDocument/hover` and `textDocument/completion` with JSON-RPC results instead of method-not-found errors.
+- Added baseline request handling for `textDocument/definition`, `textDocument/references`, and `textDocument/documentSymbol` returning empty-but-valid result payloads.
+- Extended dedicated LSP suite with hover/completion coverage to verify end-to-end request/response behavior over stdio framing.

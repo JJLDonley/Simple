@@ -4,6 +4,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 #include "lang_validate.h"
 
@@ -55,6 +56,26 @@ bool ExtractJsonStringField(const std::string& json, const std::string& field, s
     value.push_back(c);
   }
   return false;
+}
+
+bool ExtractJsonUintField(const std::string& json, const std::string& field, uint32_t* out) {
+  if (!out) return false;
+  const std::string key = "\"" + field + "\"";
+  const size_t key_pos = json.find(key);
+  if (key_pos == std::string::npos) return false;
+  const size_t colon = json.find(':', key_pos + key.size());
+  if (colon == std::string::npos) return false;
+  size_t i = colon + 1;
+  while (i < json.size() && std::isspace(static_cast<unsigned char>(json[i]))) ++i;
+  if (i >= json.size() || !std::isdigit(static_cast<unsigned char>(json[i]))) return false;
+  size_t end = i;
+  while (end < json.size() && std::isdigit(static_cast<unsigned char>(json[end]))) ++end;
+  try {
+    *out = static_cast<uint32_t>(std::stoul(json.substr(i, end - i)));
+  } catch (...) {
+    return false;
+  }
+  return true;
 }
 
 bool ExtractJsonIdRaw(const std::string& json, std::string* out_raw) {
@@ -183,6 +204,82 @@ void PublishDiagnostics(std::ostream& out,
       "\"message\":\"" + JsonEscape(msg) + "\"}]}}");
 }
 
+std::string GetLineText(const std::string& text, uint32_t line_index) {
+  uint32_t current = 0;
+  size_t start = 0;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i == text.size() || text[i] == '\n') {
+      if (current == line_index) {
+        return text.substr(start, i - start);
+      }
+      ++current;
+      start = i + 1;
+    }
+  }
+  return {};
+}
+
+bool IsIdentChar(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  size_t pos = std::min<size_t>(character, line_text.size() ? line_text.size() - 1 : 0);
+  if (!IsIdentChar(line_text[pos])) {
+    if (pos > 0 && IsIdentChar(line_text[pos - 1])) {
+      --pos;
+    } else {
+      return {};
+    }
+  }
+  size_t begin = pos;
+  while (begin > 0 && IsIdentChar(line_text[begin - 1])) --begin;
+  size_t end = pos + 1;
+  while (end < line_text.size() && IsIdentChar(line_text[end])) ++end;
+  return line_text.substr(begin, end - begin);
+}
+
+void ReplyHover(std::ostream& out,
+                const std::string& id_raw,
+                const std::string& uri,
+                uint32_t line,
+                uint32_t character,
+                const std::unordered_map<std::string, std::string>& open_docs) {
+  auto it = open_docs.find(uri);
+  if (it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const std::string ident = IdentifierAtPosition(it->second, line, character);
+  if (ident.empty()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  WriteLspMessage(
+      out,
+      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+          ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
+          JsonEscape(ident) + "`\"}}}");
+}
+
+void ReplyCompletion(std::ostream& out, const std::string& id_raw) {
+  static const std::vector<std::string> kKeywords = {
+      "fn", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
+  std::string items;
+  for (size_t i = 0; i < kKeywords.size(); ++i) {
+    if (i) items += ",";
+    items += "{\"label\":\"" + kKeywords[i] + "\",\"kind\":14}";
+  }
+  items += ",{\"label\":\"IO.println\",\"kind\":3}";
+  items += ",{\"label\":\"IO.print\",\"kind\":3}";
+  WriteLspMessage(
+      out,
+      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+          ",\"result\":{\"isIncomplete\":false,\"items\":[" + items + "]}}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -284,6 +381,42 @@ int RunServer(std::istream& in, std::ostream& out) {
             "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
             "\"params\":{\"uri\":\"" + JsonEscape(uri) + "\",\"diagnostics\":[]}}");
       }
+      continue;
+    }
+
+    if (method == "textDocument/hover") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyHover(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/completion") {
+      if (has_id) ReplyCompletion(out, id_raw);
+      continue;
+    }
+
+    if (method == "textDocument/definition") {
+      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      continue;
+    }
+
+    if (method == "textDocument/references") {
+      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      continue;
+    }
+
+    if (method == "textDocument/documentSymbol") {
+      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
       continue;
     }
 
