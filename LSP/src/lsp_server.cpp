@@ -617,6 +617,42 @@ void ReplySignatureHelp(std::ostream& out,
             std::to_string(active_parameter) + "}}");
     return;
   }
+
+  const auto refs = LexTokenRefs(it->second);
+  for (size_t i = 0; i + 3 < refs.size(); ++i) {
+    if (!IsDeclNameAt(refs, i)) continue;
+    if (refs[i].token.text != call_name) continue;
+    if (refs[i + 1].token.kind != Simple::Lang::TokenKind::Colon) continue;
+    if (refs[i + 3].token.kind != Simple::Lang::TokenKind::LParen) continue;
+    std::string params;
+    uint32_t param_count = 0;
+    size_t p = i + 4;
+    while (p < refs.size() && refs[p].token.kind != Simple::Lang::TokenKind::RParen) {
+      if (refs[p].token.kind == Simple::Lang::TokenKind::Identifier &&
+          p + 2 < refs.size() &&
+          refs[p + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+          refs[p + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+        if (!params.empty()) params += ", ";
+        params += refs[p].token.text + " : " + refs[p + 2].token.text;
+        ++param_count;
+        p += 3;
+        continue;
+      }
+      ++p;
+    }
+    const uint32_t clamped_active =
+        param_count == 0 ? 0 : std::min(active_parameter, param_count - 1);
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":[{\"label\":\"" +
+            JsonEscape(call_name + "(" + params + ")") +
+            "\",\"parameters\":[{\"label\":\"" + JsonEscape(params) + "\"}]}],"
+            "\"activeSignature\":0,\"activeParameter\":" +
+            std::to_string(clamped_active) + "}}");
+    return;
+  }
+
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
 }
 

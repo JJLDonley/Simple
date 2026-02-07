@@ -1129,3 +1129,9 @@
   - publish-diagnostics now expands range length to full undeclared identifier span (instead of fixed single-character ranges) when message carries `undeclared identifier: <name>`.
 - Expanded LSP regression suite with diagnostic-span coverage:
   - validates undeclared identifier diagnostics report full-token end column (for example `foobar` spans `character:0` to `character:6`).
+- Extended signature-help beyond builtin calls:
+  - `textDocument/signatureHelp` now resolves local function-style declarations (`name : type (params)`) from open document tokens and emits signature labels with typed parameter lists.
+- Improved signature-help active parameter behavior:
+  - active parameter is clamped against discovered local parameter count to keep response indexes valid.
+- Expanded LSP regression suite with local-function signature-help coverage:
+  - validates local declaration signature payloads (for example `add(a : i32, b : i32)`) and second-argument active-parameter indexing.
