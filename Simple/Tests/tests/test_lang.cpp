@@ -473,6 +473,12 @@ bool LangSimpleBadExternCallArgCount() {
       "argument count mismatch for extern");
 }
 
+bool LangSimpleBadCallArgTypeMismatch() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Simple/Tests/simple_bad/call_arg_type_mismatch.simple",
+      "call argument type mismatch");
+}
+
 bool LangSimpleBadIndexNonIntExpr() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/index_non_int_expr.simple",
@@ -2761,6 +2767,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_char_arithmetic", LangSimpleBadCharArithmetic},
   {"lang_simple_bad_invalid_hex_escape", LangSimpleBadInvalidHexEscape},
   {"lang_simple_bad_extern_call_arg_count", LangSimpleBadExternCallArgCount},
+  {"lang_simple_bad_call_arg_type_mismatch", LangSimpleBadCallArgTypeMismatch},
   {"lang_simple_bad_index_non_int_expr", LangSimpleBadIndexNonIntExpr},
   {"lang_simple_bad_index_negative", LangSimpleBadIndexNegative},
   {"lang_simple_bad_index_oob", LangSimpleBadIndexOutOfBounds},

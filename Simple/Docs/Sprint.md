@@ -847,3 +847,14 @@
 - Kept bool as non-numeric for these compatibility paths (no implicit bool<->i32 boundary acceptance).
 - Fixed IR text builtin type-id stability by making `i32` the first builtin type row again (`type_id=0`), restoring default signature assumptions in existing IR/core tests.
 - Verified full suite green after fixes: `./Simple/build.sh --suite all` => `1162/1162`.
+## 2026-02-07 (cont. 3)
+- Added explicit non-collapsing signature tests in `core` verifier paths for `call`, `call.indirect`, and `tailcall` (`i8 -> i32` must fail).
+- Added explicit mixed-small primitive compatibility tests for 32-bit compare/mutate opcodes in `core`:
+  `cmp.eq.i32`, `cmp.eq.u32`, and `array.set.i32` (char accepted, bool rejected).
+- Added parallel IR text regression coverage for the same rules:
+  `ir_text_call_param_i8_type_mismatch`, `ir_text_cmp_mixed_small_types`,
+  `ir_text_array_set_i32_char`, and `ir_text_array_set_i32_bool_type_mismatch`.
+- Added language-level strict call-argument mismatch fixture:
+  `Simple/Tests/simple_bad/call_arg_type_mismatch.simple`.
+- Re-ran full project test matrix after additions:
+  `./Simple/build.sh --suite all` => `1173/1173`.

@@ -13484,6 +13484,29 @@ std::vector<uint8_t> BuildBadCallParamTypeVerifyModule() {
   return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
 }
 
+std::vector<uint8_t> BuildBadCallParamI8ToI32VerifyModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI8));
+  AppendU8(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
 std::vector<uint8_t> BuildBadCallIndirectParamTypeVerifyModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> entry;
@@ -13491,6 +13514,31 @@ std::vector<uint8_t> BuildBadCallIndirectParamTypeVerifyModule() {
   AppendU16(entry, 1);
   AppendU8(entry, static_cast<uint8_t>(OpCode::ConstBool));
   AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
+std::vector<uint8_t> BuildBadCallIndirectParamI8ToI32VerifyModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI8));
+  AppendU8(entry, 7);
   AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(entry, 1);
   AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
@@ -13529,6 +13577,109 @@ std::vector<uint8_t> BuildBadTailCallParamTypeVerifyModule() {
 
   std::vector<uint32_t> param_types = {0};
   return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
+std::vector<uint8_t> BuildBadTailCallParamI8ToI32VerifyModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI8));
+  AppendU8(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint32_t> param_types = {0};
+  return BuildModuleWithFunctionsAndSig({entry, callee}, {1, 1}, 0, 1, param_types);
+}
+
+std::vector<uint8_t> BuildCmpMixedSmallTypesModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI8));
+  AppendU8(code, 0xFF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI16));
+  AppendU16(code, 0xFFFF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU8));
+  AppendU8(code, 0xFF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU16));
+  AppendU16(code, 0x00FF);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildArraySetI32WithCharModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  std::vector<size_t> patch_sites;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstChar));
+  AppendU16(code, 65);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArrayGetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 65);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  patch_sites.push_back(code.size());
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_block = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  PatchRel32(code, patch_sites[0], else_block);
+  return BuildModule(code, 0, 0);
+}
+
+std::vector<uint8_t> BuildBadArraySetI32BoolValueVerifyModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ArraySetI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
 }
 
 std::vector<uint8_t> BuildBadTailCallVerifyModule() {
@@ -21386,6 +21537,34 @@ bool RunBadTailCallParamTypeVerifyTest() {
   return true;
 }
 
+bool RunBadCallParamI8ToI32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadCallParamI8ToI32VerifyModule();
+  return RunExpectVerifyFail(module_bytes, "bad_call_param_i8_to_i32_verify");
+}
+
+bool RunBadCallIndirectParamI8ToI32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadCallIndirectParamI8ToI32VerifyModule();
+  return RunExpectVerifyFail(module_bytes, "bad_call_indirect_param_i8_to_i32_verify");
+}
+
+bool RunBadTailCallParamI8ToI32VerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadTailCallParamI8ToI32VerifyModule();
+  return RunExpectVerifyFail(module_bytes, "bad_tailcall_param_i8_to_i32_verify");
+}
+
+bool RunCmpMixedSmallTypesTest() {
+  return RunExpectExit(BuildCmpMixedSmallTypesModule(), 1);
+}
+
+bool RunArraySetI32WithCharTest() {
+  return RunExpectExit(BuildArraySetI32WithCharModule(), 1);
+}
+
+bool RunBadArraySetI32BoolValueVerifyTest() {
+  std::vector<uint8_t> module_bytes = BuildBadArraySetI32BoolValueVerifyModule();
+  return RunExpectVerifyFail(module_bytes, "bad_array_set_i32_bool_value_verify");
+}
+
 bool RunBadTailCallVerifyTest() {
   std::vector<uint8_t> module_bytes = BuildBadTailCallVerifyModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -23088,6 +23267,7 @@ static const TestCase kCoreTests[] = {
   {"bad_array_get_idx_verify", RunBadArrayGetIdxVerifyTest},
   {"bad_array_set_idx_verify", RunBadArraySetIdxVerifyTest},
   {"bad_array_set_value_verify", RunBadArraySetValueVerifyTest},
+  {"bad_array_set_i32_bool_value_verify", RunBadArraySetI32BoolValueVerifyTest},
   {"bad_array_set_i64_value_verify", RunBadArraySetI64ValueVerifyTest},
   {"bad_array_set_f32_value_verify", RunBadArraySetF32ValueVerifyTest},
   {"bad_array_set_f64_value_verify", RunBadArraySetF64ValueVerifyTest},
@@ -23261,8 +23441,11 @@ static const TestCase kCoreTests[] = {
   {"bad_call_indirect_verify", RunBadCallIndirectVerifyTest},
   {"bad_call_verify", RunBadCallVerifyTest},
   {"bad_call_param_type_verify", RunBadCallParamTypeVerifyTest},
+  {"bad_call_param_i8_to_i32_verify", RunBadCallParamI8ToI32VerifyTest},
   {"bad_call_indirect_param_type_verify", RunBadCallIndirectParamTypeVerifyTest},
+  {"bad_call_indirect_param_i8_to_i32_verify", RunBadCallIndirectParamI8ToI32VerifyTest},
   {"bad_tailcall_param_type_verify", RunBadTailCallParamTypeVerifyTest},
+  {"bad_tailcall_param_i8_to_i32_verify", RunBadTailCallParamI8ToI32VerifyTest},
   {"bad_tailcall_verify", RunBadTailCallVerifyTest},
   {"bad_return_verify", RunBadReturnVerifyTest},
   {"bad_conv_verify", RunBadConvVerifyTest},
@@ -23284,6 +23467,8 @@ static const TestCase kCoreTests[] = {
   {"bad_u64_verify", RunBadU64VerifyTest},
   {"callcheck", RunCallCheckTest},
   {"call_param_types", RunCallParamTypeTest},
+  {"cmp_mixed_small_types", RunCmpMixedSmallTypesTest},
+  {"array_set_i32_char", RunArraySetI32WithCharTest},
   {"call_indirect", RunCallIndirectTest},
   {"call_indirect_param_types", RunCallIndirectParamTypeTest},
   {"tailcall", RunTailCallTest},

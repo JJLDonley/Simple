@@ -7176,6 +7176,98 @@ bool RunIrTextCallParamTypeMismatchTest() {
   return RunExpectVerifyFail(module, "ir_text_call_param_type_mismatch");
 }
 
+bool RunIrTextCallParamI8TypeMismatchTest() {
+  const char* text =
+      "func callee locals=1 stack=6 sig=0\n"
+      "  enter 1\n"
+      "  ldloc 0\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=6 sig=1\n"
+      "  enter 0\n"
+      "  const.i8 7\n"
+      "  call 0 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::Byte::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 1;
+  sig0.param_types = {0};
+  Simple::Byte::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module =
+      BuildIrTextModuleWithSigs(text, "ir_text_call_param_i8_type_mismatch", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_call_param_i8_type_mismatch");
+}
+
+bool RunIrTextCmpMixedSmallTypesTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.i8 -1\n"
+      "  const.i16 -1\n"
+      "  cmp.eq.i32\n"
+      "  const.u8 255\n"
+      "  const.u16 255\n"
+      "  cmp.eq.u32\n"
+      "  bool.and\n"
+      "  jmp.true is_true\n"
+      "  const.i32 0\n"
+      "  jmp done\n"
+      "is_true:\n"
+      "  const.i32 1\n"
+      "done:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_cmp_mixed_small_types");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextArraySetI32CharTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.char 65\n"
+      "  array.set.i32\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_i32_char");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 65);
+}
+
+bool RunIrTextArraySetI32BoolTypeMismatchTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newarray 0 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const.i32 0\n"
+      "  const.bool 1\n"
+      "  array.set.i32\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_set_i32_bool_type_mismatch");
+  if (module.empty()) return false;
+  return RunExpectVerifyFail(module, "ir_text_array_set_i32_bool_type_mismatch");
+}
+
 bool RunIrTextConvTypeMismatchTest() {
   const char* text =
       "func main locals=0 stack=6 sig=0\n"
@@ -7407,6 +7499,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_shift_i64", RunIrTextShiftI64Test},
   {"ir_text_compare_i32", RunIrTextCompareI32Test},
   {"ir_text_compare_u64", RunIrTextCompareU64Test},
+  {"ir_text_cmp_mixed_small_types", RunIrTextCmpMixedSmallTypesTest},
   {"ir_text_bool_ops", RunIrTextBoolOpsTest},
   {"ir_text_ref_ops", RunIrTextRefOpsTest},
   {"ir_text_bool_type_mismatch", RunIrTextBoolTypeMismatchTest},
@@ -7414,6 +7507,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_shift_type_mismatch", RunIrTextShiftTypeMismatchTest},
   {"ir_text_list_insert_type_mismatch", RunIrTextListInsertTypeMismatchTest},
   {"ir_text_array_set_type_mismatch", RunIrTextArraySetTypeMismatchTest},
+  {"ir_text_array_set_i32_char", RunIrTextArraySetI32CharTest},
+  {"ir_text_array_set_i32_bool_type_mismatch", RunIrTextArraySetI32BoolTypeMismatchTest},
   {"ir_text_call_arg_count_mismatch", RunIrTextCallArgCountMismatchTest},
   {"ir_text_call_indirect_arg_count_mismatch", RunIrTextCallIndirectArgCountMismatchTest},
   {"ir_text_jmp_non_bool_cond", RunIrTextJmpNonBoolCondTest},
@@ -7527,6 +7622,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_global_init_f32", RunIrTextGlobalInitF32Test},
   {"ir_text_global_init_f64", RunIrTextGlobalInitF64Test},
   {"ir_text_call_param_type_mismatch", RunIrTextCallParamTypeMismatchTest},
+  {"ir_text_call_param_i8_type_mismatch", RunIrTextCallParamI8TypeMismatchTest},
   {"ir_text_conv_type_mismatch", RunIrTextConvTypeMismatchTest},
   {"ir_text_call_indirect_bad_sig", RunIrTextCallIndirectBadSigIdTest},
   {"ir_text_bad_func_sig", RunIrTextBadFuncSigIdTest},
