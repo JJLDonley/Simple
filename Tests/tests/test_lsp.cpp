@@ -200,6 +200,60 @@ bool LspDidChangeIgnoresUnknownDocument() {
          out_contents.find("\"uri\":\"" + uri + "\"") == std::string::npos;
 }
 
+bool LspDidChangeIgnoresDuplicateVersion() {
+  const std::string in_path = TempPath("simple_lsp_dup_change_in.txt");
+  const std::string out_path = TempPath("simple_lsp_dup_change_out.txt");
+  const std::string err_path = TempPath("simple_lsp_dup_change_err.txt");
+  const std::string uri = "file:///workspace/dup.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"y = 1;\"}}}";
+  const std::string change_good_v2 =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},"
+      "\"contentChanges\":[{\"text\":\"x : i32 = 1;\"}]}}";
+  const std::string change_bad_v2_dup =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},"
+      "\"contentChanges\":[{\"text\":\"y = 1;\"}]}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(change_good_v2) +
+      BuildLspFrame(change_bad_v2_dup) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+
+  size_t diag_count = 0;
+  size_t search_pos = 0;
+  const std::string marker = "\"method\":\"textDocument/publishDiagnostics\"";
+  for (;;) {
+    const size_t found = out_contents.find(marker, search_pos);
+    if (found == std::string::npos) break;
+    ++diag_count;
+    search_pos = found + marker.size();
+  }
+  const size_t first_diag = out_contents.find(marker);
+  if (first_diag == std::string::npos) return false;
+  const size_t second_diag = out_contents.find(marker, first_diag + marker.size());
+  if (second_diag == std::string::npos) return false;
+  const std::string second_tail = out_contents.substr(second_diag);
+
+  return err_contents.empty() &&
+         diag_count == 2 &&
+         out_contents.find("\"code\":\"E0001\"") != std::string::npos &&
+         second_tail.find("\"diagnostics\":[]") != std::string::npos;
+}
+
 bool LspHoverReturnsIdentifier() {
   const std::string in_path = TempPath("simple_lsp_hover_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_out.txt");
@@ -623,6 +677,7 @@ const TestCase kLspTests[] = {
   {"lsp_did_change_refreshes_diagnostics", LspDidChangeRefreshesDiagnostics},
   {"lsp_did_change_ignores_stale_version", LspDidChangeIgnoresStaleVersion},
   {"lsp_did_change_ignores_unknown_document", LspDidChangeIgnoresUnknownDocument},
+  {"lsp_did_change_ignores_duplicate_version", LspDidChangeIgnoresDuplicateVersion},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},

@@ -1064,8 +1064,8 @@ int RunServer(std::istream& in, std::ostream& out) {
         }
         if (has_version) {
           const auto it = open_doc_versions.find(uri);
-          if (it != open_doc_versions.end() && version < it->second) {
-            continue; // Ignore out-of-order stale updates.
+          if (it != open_doc_versions.end() && version <= it->second) {
+            continue; // Ignore out-of-order or duplicate-version updates.
           }
           open_doc_versions[uri] = version;
         }

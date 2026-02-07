@@ -1068,3 +1068,9 @@
   - prevents accidental diagnostics churn/state creation from out-of-order editor notifications.
 - Expanded LSP regression suite with unknown-document change coverage:
   - validates `didChange` before `didOpen` emits no diagnostics/result side effects for that URI.
+- Tightened LSP document version ordering to suppress duplicate updates:
+  - `didChange` now ignores incoming updates with version less-than-or-equal to current applied version,
+  - prevents duplicate-version replay from overwriting newer/accepted document state.
+- Expanded LSP regression suite with duplicate-version coverage:
+  - validates second `didChange` with the same version number is ignored,
+  - validates no extra diagnostics publish is emitted for duplicate-version events.
