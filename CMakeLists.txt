@@ -21,6 +21,7 @@ set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/VM)
 set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
 set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
 set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/Lang)
+set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/heap.cpp
@@ -96,6 +97,10 @@ target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVAT
 
 add_executable(simplevm
   ${SIMPLEVM_ROOT}/CLI/src/main.cpp
+  ${SIMPLEVM_LSP_ROOT}/src/lsp_server.cpp
+)
+target_include_directories(simplevm PRIVATE
+  ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm PRIVATE SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}")

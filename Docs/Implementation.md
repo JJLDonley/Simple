@@ -33,6 +33,7 @@ This is the active execution plan for shipping and maintaining Simple from repos
   - explicit `main` is used as entry when no top-level script statements exist.
 - Top-level `return` is explicitly rejected at validation time.
 - CLI diagnostics are context-rich and include source spans + help hints.
+- LSP command exists as a stub (`simple lsp`) and needs full protocol implementation.
 - Main branch CI workflow publishes GitHub Release artifacts for installer consumption.
 
 ## Module Plan
@@ -122,7 +123,28 @@ Remaining alpha work:
 Gate to close:
 - CLI contract is frozen for alpha and release-tested.
 
-### 6. `Simple::Tests` (Quality Gates)
+### 6. `Simple::LSP` (Editor Protocol + Highlighting) [Next Module]
+
+Authoritative doc:
+- `Docs/LSP.md`
+
+Status:
+- CLI surface exists for `simple lsp` but currently returns not implemented.
+
+Next-module execution focus:
+- [ ] Implement stdio JSON-RPC LSP server lifecycle (`initialize`, `shutdown`, `exit`).
+- [ ] Implement document sync and publish diagnostics from `Simple::Lang` parser/validator.
+- [ ] Implement navigation/features:
+  - hover, definition, references, document symbols, completion.
+- [ ] Implement syntax highlighting:
+  - semantic tokens (`textDocument/semanticTokens/full`),
+  - TextMate grammar fallback for editor startup/non-LSP highlight.
+- [ ] Add integration tests for protocol lifecycle, diagnostics, and semantic token snapshots.
+
+Gate to close:
+- LSP is functionally usable in editor workflows with diagnostics, navigation, completion, and highlighting.
+
+### 7. `Simple::Tests` (Quality Gates)
 
 Execution references:
 - `Tests/tests/*`
@@ -171,7 +193,16 @@ For Linux x86_64 release jobs, publish:
 Exit criteria:
 - All module docs are current and internally consistent.
 
-### Phase B: Runtime + CLI Hardening
+### Phase B: LSP + Editor UX (Next)
+- [ ] Ship M1 server skeleton from `Docs/LSP.md` (lifecycle + open/change/close + diagnostics).
+- [ ] Ship M2 navigation/completion features (hover/definition/references/document symbols/completion).
+- [ ] Ship M3 highlighting stack (semantic tokens + TextMate grammar fallback).
+- [ ] Add protocol and editor smoke tests to CI.
+
+Exit criteria:
+- `simple lsp` is production-usable for core editing workflows.
+
+### Phase C: Runtime + CLI Hardening
 - [ ] JIT posture decision and documentation.
 - [ ] CLI error/exit-code consistency pass.
 - [ ] Smoke scenarios for import resolution and diagnostics.
@@ -179,7 +210,7 @@ Exit criteria:
 Exit criteria:
 - No known unstable alpha paths are undocumented.
 
-### Phase C: Test and CI Gate Lock
+### Phase D: Test and CI Gate Lock
 - [ ] Finalize CI matrix and enforce full suite gate.
 - [ ] Define and enforce alpha smoke test profile.
 - [ ] Add compatibility fixture checks for SBC/SIR subset.
@@ -187,7 +218,7 @@ Exit criteria:
 Exit criteria:
 - CI is the authoritative merge/release gate.
 
-### Phase D: Release Readiness
+### Phase E: Release Readiness
 - [ ] Confirm release workflow output and checksums.
 - [ ] Dry-run installer (`latest` and pinned version).
 - [ ] Draft and publish release notes with known limitations.

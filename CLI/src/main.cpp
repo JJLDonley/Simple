@@ -19,6 +19,7 @@
 #include "lang_parser.h"
 #include "lang_validate.h"
 #include "lang_sir.h"
+#include "lsp_server.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"
@@ -747,8 +748,7 @@ int main(int argc, char** argv) {
   }
 
   if (cmd == "lsp") {
-    PrintError("lsp server is not implemented yet");
-    return 1;
+    return Simple::LSP::RunServer(std::cin, std::cout);
   }
 
   if (cmd == "check") {

@@ -6,6 +6,7 @@ VM_DIR="$ROOT_DIR/VM"
 IR_DIR="$ROOT_DIR/IR"
 BYTE_DIR="$ROOT_DIR/Byte"
 CLI_DIR="$ROOT_DIR/CLI"
+LSP_DIR="$ROOT_DIR/LSP"
 TEST_DIR="$ROOT_DIR/Tests/tests"
 OUT_DIR="$ROOT_DIR/bin"
 BUILD_DIR="$ROOT_DIR/build"
@@ -18,9 +19,9 @@ if [[ "${1:-}" == "--suite" && -n "${2:-}" ]]; then
 fi
 
 case "$SUITE" in
-  all|core|ir|jit|lang) ;;
+  all|core|ir|jit|lang|lsp) ;;
   *)
-    echo "unknown suite: $SUITE (expected: all|core|ir|jit|lang)" >&2
+    echo "unknown suite: $SUITE (expected: all|core|ir|jit|lang|lsp)" >&2
     exit 1
     ;;
 esac
@@ -40,6 +41,7 @@ fi
 
 CLI_SOURCES=(
   "$CLI_DIR/src/main.cpp"
+  "$LSP_DIR/src/lsp_server.cpp"
 )
 
 RUNTIME_SOURCES=(
@@ -66,6 +68,7 @@ SOURCES=(
   "$TEST_DIR/sir_runner.cpp"
   "$TEST_DIR/simple_runner.cpp"
   "$TEST_DIR/test_lang.cpp"
+  "$TEST_DIR/test_lsp.cpp"
 )
 
 TEST_DEFINES=()
@@ -89,6 +92,9 @@ case "$SUITE" in
     ;;
   lang)
     TEST_DEFINES+=("-DTEST_SUITE_LANG")
+    ;;
+  lsp)
+    TEST_DEFINES+=("-DTEST_SUITE_LSP")
     ;;
 esac
 
@@ -120,6 +126,7 @@ for src in "${SOURCES[@]}"; do
       -I"$VM_DIR/include" \
       -I"$IR_DIR/include" \
       -I"$ROOT_DIR/Lang/include" \
+      -I"$LSP_DIR/include" \
       -I"$BYTE_DIR/include" \
       "${TEST_DEFINES[@]}" -MMD -MP -c "$src" -o "$obj"
   fi
@@ -167,6 +174,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$VM_DIR/include" \
   -I"$IR_DIR/include" \
   -I"$ROOT_DIR/Lang/include" \
+  -I"$LSP_DIR/include" \
   -I"$BYTE_DIR/include" \
   "${TEST_DEFINES[@]}" \
   "${OBJECTS[@]}" \
@@ -179,6 +187,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -I"$VM_DIR/include" \
   -I"$IR_DIR/include" \
   -I"$ROOT_DIR/Lang/include" \
+  -I"$LSP_DIR/include" \
   -I"$BYTE_DIR/include" \
   "${CLI_SOURCES[@]}" \
   "$IR_DIR/src/ir_builder.cpp" \

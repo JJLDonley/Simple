@@ -20,13 +20,18 @@ namespace Simple::VM::Tests {
 #if defined(TEST_SUITE_LANG)
 #define SIMPLEVM_TEST_INCLUDE_LANG 1
 #endif
+#if defined(TEST_SUITE_LSP)
+#define SIMPLEVM_TEST_INCLUDE_LSP 1
+#endif
 
 #if !defined(SIMPLEVM_TEST_INCLUDE_CORE) && !defined(SIMPLEVM_TEST_INCLUDE_IR) && \
-    !defined(SIMPLEVM_TEST_INCLUDE_JIT) && !defined(SIMPLEVM_TEST_INCLUDE_LANG)
+    !defined(SIMPLEVM_TEST_INCLUDE_JIT) && !defined(SIMPLEVM_TEST_INCLUDE_LANG) && \
+    !defined(SIMPLEVM_TEST_INCLUDE_LSP)
 #define SIMPLEVM_TEST_INCLUDE_CORE 1
 #define SIMPLEVM_TEST_INCLUDE_IR 1
 #define SIMPLEVM_TEST_INCLUDE_JIT 1
 #define SIMPLEVM_TEST_INCLUDE_LANG 1
+#define SIMPLEVM_TEST_INCLUDE_LSP 1
 #endif
 
 #if SIMPLEVM_TEST_INCLUDE_CORE
@@ -41,6 +46,9 @@ int RunBenchLoop(size_t iterations);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_LANG
 const TestSection* GetLangSections(size_t* count);
+#endif
+#if SIMPLEVM_TEST_INCLUDE_LSP
+const TestSection* GetLspSections(size_t* count);
 #endif
 
 } // namespace Simple::VM::Tests
@@ -170,6 +178,11 @@ int main(int argc, char** argv) {
   size_t lang_count = 0;
   const Simple::VM::Tests::TestSection* lang_sections = Simple::VM::Tests::GetLangSections(&lang_count);
   sections.insert(sections.end(), lang_sections, lang_sections + lang_count);
+#endif
+#if SIMPLEVM_TEST_INCLUDE_LSP
+  size_t lsp_count = 0;
+  const Simple::VM::Tests::TestSection* lsp_sections = Simple::VM::Tests::GetLspSections(&lsp_count);
+  sections.insert(sections.end(), lsp_sections, lsp_sections + lsp_count);
 #endif
 
   Simple::VM::Tests::TestResult result = Simple::VM::Tests::RunAllSections(sections.data(), sections.size());

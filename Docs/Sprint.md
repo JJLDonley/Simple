@@ -985,3 +985,11 @@
 - Normalized language doc path references/verification commands to root-layout paths (`Lang/...`, `Docs/...`, `./build.sh ...`).
 - Fixed top-level `IO.println(<arithmetic>)` validation false-negative by adding unary/binary expression type inference in `InferExprType`.
 - Added lang regression coverage for top-level IO print with arithmetic expression arguments.
+- Added authoritative `Docs/LSP.md` defining the full LSP architecture, protocol method set, semantic features, and syntax-highlighting plan (semantic tokens + TextMate fallback).
+- Updated `Docs/Implementation.md` to make `Simple::LSP` the next module in execution order with concrete M1-M4 style deliverables and phase gates.
+- Created real `Simple::LSP` module source layout (`LSP/include/lsp_server.h`, `LSP/src/lsp_server.cpp`) and moved LSP server behavior out of CLI implementation details.
+- Replaced `simple lsp` stub with stdio JSON-RPC lifecycle handling (`initialize`, `shutdown`, `exit`) and capability negotiation response.
+- Added initial document sync support in LSP server (`textDocument/didOpen`, `textDocument/didChange`, `textDocument/didClose`) with validator-backed `textDocument/publishDiagnostics` notifications.
+- Updated build integration to compile/link LSP module sources for both script build (`build.sh`) and CMake (`CMakeLists.txt`).
+- Split LSP protocol tests out of lang suite into dedicated `Tests/tests/test_lsp.cpp`.
+- Added explicit `lsp` test section wiring and build support (`--suite lsp`) while keeping `all` coverage inclusive of `lsp` tests.

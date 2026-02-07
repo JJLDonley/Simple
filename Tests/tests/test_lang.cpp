@@ -673,17 +673,6 @@ bool LangCliSimpleRejectSir() {
   return RunCommandExpectFail("bin/simple check Tests/sir/fib_iter.sir");
 }
 
-bool LangCliLspNotImplemented() {
-  const std::string err_path = TempPath("simple_lsp_err.txt");
-  const std::string cmd = "bin/simple lsp 1>/dev/null 2> " + err_path;
-  if (RunCommand(cmd)) return false;
-  std::ifstream in(err_path);
-  if (!in) return false;
-  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E0001]:") != std::string::npos &&
-         contents.find("lsp server is not implemented yet") != std::string::npos;
-}
-
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -2869,7 +2858,6 @@ const TestCase kLangTests[] = {
   {"lang_cli_run_simple_local_import", LangCliRunSimpleLocalImport},
   {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
-  {"lang_cli_lsp_not_implemented", LangCliLspNotImplemented},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},
