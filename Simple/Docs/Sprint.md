@@ -885,3 +885,18 @@
   - extern validation coverage for pointer params/returns and pointer artifact fields.
 - Re-ran full project matrix:
   `./Simple/build.sh --suite all` => `1175/1175`.
+## 2026-02-07 (cont. 6)
+- Replaced dynamic DL call lowering/runtime flatten flow with real extern-signature ABI propagation:
+  - extern params/returns now stay as declared types (artifacts/enums/pointers included)
+  - dynamic call emission no longer explodes artifact args into scalar leaves.
+- Implemented runtime libffi ABI graph construction from SBC type IDs, including nested struct layout metadata.
+- Implemented by-value artifact marshalling for dynamic DL calls:
+  - VM artifact -> C struct for arguments
+  - C struct -> VM artifact for returns.
+- Updated dynamic DL validation/docs to reflect direct ABI type support and current 254-parameter bound.
+- Upgraded FFI fixture coverage for struct ABI:
+  - `simple_color_sum(Color)` by-value argument
+  - `simple_color_make(...) -> Color` by-value return
+  - language fixture `core_dl_open.simple` now validates artifact arg+return interop directly.
+- Re-ran full project matrix after these changes:
+  `./Simple/build.sh --suite all` => `1175/1175`.

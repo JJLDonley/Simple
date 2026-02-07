@@ -911,10 +911,11 @@ main : i32 () {
 
 - The second `DL.Open` argument must be an extern module identifier.
 - Calls are type-checked from extern signatures.
-- Dynamic VM dispatch supports ABI-lowered extern signatures with scalar and pointer leaves:
-  - parameter leaves: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string/*T`
-  - return leaf: `void` or one scalar/pointer leaf
-  - artifact parameters are ABI-lowered by field order to scalar/pointer leaves
+- Dynamic VM dispatch supports extern ABI types directly (no artifact flattening in signatures):
+  - parameters: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string/*T`, enums, and artifacts
+  - returns: `void` plus the same scalar/pointer/enum/artifact set
+  - arity: up to 254 extern parameters per dynamic symbol (plus internal function-pointer slot)
+  - artifact parameters/returns are marshalled by-value via runtime ABI struct marshalling
 
 ### artifact Rules
 

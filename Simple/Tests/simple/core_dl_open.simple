@@ -1,10 +1,10 @@
 import "Core.DL" as DL
 import "IO"
 Color :: artifact {
-  r : i32;
-  g : i32;
-  b : i32;
-  a : i32;
+  r : i8;
+  g : i8;
+  b : i8;
+  a : i8;
 }
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 extern ffi.simple_add_i8 : i8 (a : i8, b : i8)
@@ -22,6 +22,7 @@ extern ffi.simple_strlen_cstr : i32 (text : string)
 extern ffi.simple_echo : string (text : string)
 extern ffi.simple_sink_i32 : void (value : i32)
 extern ffi.simple_color_sum : i32 (color : Color)
+extern ffi.simple_color_make : Color (r : u8, g : u8, b : u8, a : u8)
 
 main : i32 () {
   lib : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so", ffi);
@@ -50,6 +51,8 @@ main : i32 () {
   lib.simple_sink_i32(1234);
   c : Color = { .r = 1, .g = 2, .b = 3, .a = 4 };
   IO.println(lib.simple_color_sum(c));
+  c2 : Color = lib.simple_color_make(5, 6, 7, 8);
+  IO.println(lib.simple_color_sum(c2));
   DL.Close(lib)
   return 1
 }

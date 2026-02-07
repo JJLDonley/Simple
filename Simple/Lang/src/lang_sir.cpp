@@ -239,14 +239,18 @@ bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   return false;
 }
 
-bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
+bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_void) {
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
   if (type.pointer_depth > 0) return true;
   if (allow_void && type.name == "void") return true;
-  return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
-         type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
-         type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
-         type.name == "string";
+  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
+      type.name == "string") {
+    return true;
+  }
+  if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
+  return st.artifacts.find(type.name) != st.artifacts.end();
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -923,137 +927,6 @@ bool EmitExpr(EmitState& st,
               std::string* error);
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
-
-bool FlattenExternAbiType(const TypeRef& type,
-                          const EmitState& st,
-                          bool allow_void,
-                          std::vector<TypeRef>* out,
-                          std::unordered_set<std::string>* visiting,
-                          std::string* error) {
-  if (!out || !visiting) return false;
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
-    if (error) *error = "extern ABI does not support proc/generic/container types";
-    return false;
-  }
-  if (type.pointer_depth > 0) {
-    TypeRef normalized;
-    normalized.name = "i64";
-    out->push_back(std::move(normalized));
-    return true;
-  }
-  if (type.name == "void") {
-    if (!allow_void) {
-      if (error) *error = "extern ABI does not allow void parameter type";
-      return false;
-    }
-    TypeRef normalized;
-    normalized.name = "void";
-    out->push_back(std::move(normalized));
-    return true;
-  }
-  if (st.enum_values.find(type.name) != st.enum_values.end()) {
-    TypeRef normalized;
-    normalized.name = "i32";
-    out->push_back(std::move(normalized));
-    return true;
-  }
-  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
-      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
-      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
-      type.name == "string") {
-    TypeRef normalized;
-    normalized.name = type.name;
-    out->push_back(std::move(normalized));
-    return true;
-  }
-  auto art_it = st.artifacts.find(type.name);
-  if (art_it == st.artifacts.end()) {
-    if (error) *error = "extern ABI unsupported type: " + type.name;
-    return false;
-  }
-  if (!visiting->insert(type.name).second) {
-    if (error) *error = "extern ABI recursive artifact type is not supported: " + type.name;
-    return false;
-  }
-  const ArtifactDecl* artifact = art_it->second;
-  for (const auto& field : artifact->fields) {
-    if (!FlattenExternAbiType(field.type, st, false, out, visiting, error)) {
-      visiting->erase(type.name);
-      return false;
-    }
-  }
-  visiting->erase(type.name);
-  return true;
-}
-
-bool FlattenExternAbiType(const TypeRef& type,
-                          const EmitState& st,
-                          bool allow_void,
-                          std::vector<TypeRef>* out,
-                          std::string* error) {
-  std::unordered_set<std::string> visiting;
-  return FlattenExternAbiType(type, st, allow_void, out, &visiting, error);
-}
-
-bool AllocateExternTempLocal(EmitState& st,
-                             const TypeRef& type,
-                             uint16_t* out_index) {
-  if (!out_index) return false;
-  uint16_t index = st.next_local++;
-  std::string name = "__ffi_tmp" + std::to_string(index);
-  TypeRef cloned;
-  if (!CloneTypeRef(type, &cloned)) return false;
-  st.local_indices[name] = index;
-  st.local_types[name] = std::move(cloned);
-  *out_index = index;
-  return true;
-}
-
-bool EmitExternAbiFromLocalArtifact(EmitState& st,
-                                    uint16_t local_index,
-                                    const TypeRef& artifact_type,
-                                    std::string* error) {
-  auto art_it = st.artifacts.find(artifact_type.name);
-  if (art_it == st.artifacts.end()) {
-    if (error) *error = "extern ABI artifact not found: " + artifact_type.name;
-    return false;
-  }
-  const ArtifactDecl* artifact = art_it->second;
-  for (const auto& field : artifact->fields) {
-    (*st.out) << "  ldloc " << local_index << "\n";
-    PushStack(st, 1);
-    (*st.out) << "  ldfld " << artifact_type.name << "." << field.name << "\n";
-    if (field.type.pointer_depth == 0 &&
-        st.artifacts.find(field.type.name) != st.artifacts.end() &&
-        !field.type.is_proc && field.type.type_args.empty() && field.type.dims.empty()) {
-      uint16_t nested_local = 0;
-      if (!AllocateExternTempLocal(st, field.type, &nested_local)) return false;
-      (*st.out) << "  stloc " << nested_local << "\n";
-      PopStack(st, 1);
-      if (!EmitExternAbiFromLocalArtifact(st, nested_local, field.type, error)) return false;
-      continue;
-    }
-  }
-  return true;
-}
-
-bool EmitExternAbiArg(EmitState& st,
-                      const Expr& arg_expr,
-                      const TypeRef& source_type,
-                      std::string* error) {
-  bool is_artifact = source_type.pointer_depth == 0 &&
-                     !source_type.is_proc && source_type.type_args.empty() && source_type.dims.empty() &&
-                     st.artifacts.find(source_type.name) != st.artifacts.end();
-  if (!is_artifact) {
-    return EmitExpr(st, arg_expr, &source_type, error);
-  }
-  if (!EmitExpr(st, arg_expr, &source_type, error)) return false;
-  uint16_t local = 0;
-  if (!AllocateExternTempLocal(st, source_type, &local)) return false;
-  (*st.out) << "  stloc " << local << "\n";
-  PopStack(st, 1);
-  return EmitExternAbiFromLocalArtifact(st, local, source_type, error);
-}
 
 bool EmitIndexSetOp(EmitState& st,
                     const TypeRef& container_type,
@@ -1894,10 +1767,8 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             uint32_t abi_arg_count = 1;
             for (size_t i = 0; i < params.size(); ++i) {
-              std::vector<TypeRef> leaves;
-              if (!FlattenExternAbiType(params[i], st, false, &leaves, error)) return false;
-              if (!EmitExternAbiArg(st, expr.args[i], params[i], error)) return false;
-              abi_arg_count += static_cast<uint32_t>(leaves.size());
+              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+              ++abi_arg_count;
             }
             if (abi_arg_count > 255) {
               if (error) *error = "dynamic DL call has too many ABI parameters";
@@ -2341,10 +2212,8 @@ bool EmitExpr(EmitState& st,
           }
           uint32_t abi_arg_count = 0;
           for (size_t i = 0; i < params.size(); ++i) {
-            std::vector<TypeRef> leaves;
-            if (!FlattenExternAbiType(params[i], st, false, &leaves, error)) return false;
-            if (!EmitExternAbiArg(st, expr.args[i], params[i], error)) return false;
-            abi_arg_count += static_cast<uint32_t>(leaves.size());
+            if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            ++abi_arg_count;
           }
           (*st.out) << "  call " << ext_it->second << " " << abi_arg_count << "\n";
           if (st.stack_cur >= abi_arg_count) {
@@ -3327,32 +3196,30 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     item.sig_name = "sig_import_" + std::to_string(st.imports.size());
     item.flags = 0;
     std::vector<TypeRef> abi_params;
+    abi_params.reserve(ext->params.size());
     for (const auto& param : ext->params) {
-      if (!FlattenExternAbiType(param.type, st, false, &abi_params, error)) {
-        if (error && !error->empty()) {
+      if (!IsSupportedDlAbiType(param.type, st, false)) {
+        if (error) {
           *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
-                   "' parameter '" + param.name + "': " + *error;
+                   "' parameter '" + param.name + "' has unsupported ABI type";
         }
         return false;
       }
+      TypeRef cloned_param;
+      if (!CloneTypeRef(param.type, &cloned_param)) return false;
+      abi_params.push_back(std::move(cloned_param));
     }
-    std::vector<TypeRef> abi_returns;
-    if (!FlattenExternAbiType(ext->return_type, st, true, &abi_returns, error)) {
-      if (error && !error->empty()) {
-        *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
-                 "' return: " + *error;
-      }
-      return false;
-    }
-    if (abi_returns.size() != 1) {
+    if (!IsSupportedDlAbiType(ext->return_type, st, true)) {
       if (error) {
         *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
-                 "' return type must lower to a single ABI value";
+                 "' return has unsupported ABI type";
       }
       return false;
     }
+    TypeRef abi_ret;
+    if (!CloneTypeRef(ext->return_type, &abi_ret)) return false;
     item.params = std::move(abi_params);
-    item.ret = std::move(abi_returns[0]);
+    item.ret = std::move(abi_ret);
     import_index_by_key.emplace(key, st.imports.size());
     st.imports.push_back(std::move(item));
 
@@ -3377,10 +3244,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
     if (ext->has_module &&
         ResolveImportModule(ext->module) != "core.dl" &&
-        IsSupportedDlScalarType(st.imports.back().ret, true)) {
+        IsSupportedDlAbiType(st.imports.back().ret, st, true)) {
       bool all_params_scalar = true;
       for (const auto& p : st.imports.back().params) {
-        if (!IsSupportedDlScalarType(p, false)) {
+        if (!IsSupportedDlAbiType(p, st, false)) {
           all_params_scalar = false;
           break;
         }

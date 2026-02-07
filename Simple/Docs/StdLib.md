@@ -60,11 +60,10 @@ Using these paths does **not** load files from disk. They map to core VM namespa
 - `Core.DL.last_error() -> string`
 - Typed dynamic symbol calls are emitted from extern signatures used by `DL.Open(path, manifest)`.
 - Supported dynamic-call ABI surface:
-  - up to 4 ABI parameters (after artifact flattening)
-  - 0-2 params: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
-  - 3-4 params: currently `i32`-lane scalars (`i8/i16/i32/u8/u16/u32/bool/char`)
-  - return types: `void` and `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
-  - artifact parameters are lowered to ordered field scalars
+  - up to 254 extern parameters per symbol
+  - scalar/pointer types: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string/*T`
+  - enums are ABI-compatible through their lowered integer type
+  - artifacts are passed/returned by-value via runtime struct marshalling
 
 ### Core.Os
 - `Core.Os.args_count() -> i32`

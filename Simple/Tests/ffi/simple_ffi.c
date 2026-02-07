@@ -77,8 +77,24 @@ void simple_sink_i32(int32_t value) {
   (void)value;
 }
 
-int32_t simple_color_sum(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-  return (int32_t)r + (int32_t)g + (int32_t)b + (int32_t)a;
+typedef struct SimpleColor {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t a;
+} SimpleColor;
+
+int32_t simple_color_sum(SimpleColor color) {
+  return (int32_t)color.r + (int32_t)color.g + (int32_t)color.b + (int32_t)color.a;
+}
+
+SimpleColor simple_color_make(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+  SimpleColor color;
+  color.r = r;
+  color.g = g;
+  color.b = b;
+  color.a = a;
+  return color;
 }
 
 typedef struct Array {

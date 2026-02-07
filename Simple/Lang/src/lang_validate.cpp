@@ -163,88 +163,42 @@ bool GetDlOpenManifestModule(const Expr& expr,
   return true;
 }
 
-bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
+bool IsSupportedDlAbiType(const TypeRef& type,
+                          const ValidateContext& ctx,
+                          bool allow_void) {
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
   if (type.pointer_depth > 0) return true;
   if (allow_void && type.name == "void") return true;
-  return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
-         type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
-         type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
-         type.name == "string";
-}
-
-bool FlattenDlAbiLeafCount(const TypeRef& type,
-                           const ValidateContext& ctx,
-                           bool allow_void,
-                           size_t* out_count,
-                           std::unordered_set<std::string>* visiting,
-                           std::string* error) {
-  if (!out_count || !visiting) return false;
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
-    if (error) *error = "dynamic DL ABI does not support proc/generic/container types";
-    return false;
-  }
-  if (type.pointer_depth > 0) {
-    *out_count += 1;
+  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
+      type.name == "string") {
     return true;
   }
-  if (type.name == "void") {
-    if (!allow_void) {
-      if (error) *error = "dynamic DL ABI does not allow void parameter type";
-      return false;
-    }
-    *out_count += 1;
-    return true;
-  }
-  if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
-    *out_count += 1;
-    return true;
-  }
-  if (IsSupportedDlScalarType(type, false)) {
-    *out_count += 1;
-    return true;
-  }
-  auto art_it = ctx.artifacts.find(type.name);
-  if (art_it == ctx.artifacts.end()) {
-    if (error) *error = "dynamic DL ABI unsupported type: " + type.name;
-    return false;
-  }
-  if (!visiting->insert(type.name).second) {
-    if (error) *error = "dynamic DL ABI recursive artifact type is not supported: " + type.name;
-    return false;
-  }
-  for (const auto& field : art_it->second->fields) {
-    if (!FlattenDlAbiLeafCount(field.type, ctx, false, out_count, visiting, error)) {
-      visiting->erase(type.name);
-      return false;
-    }
-  }
-  visiting->erase(type.name);
-  return true;
+  if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) return true;
+  return ctx.artifacts.find(type.name) != ctx.artifacts.end();
 }
 
 bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
                                    const ValidateContext& ctx,
                                    std::string* error) {
-  std::unordered_set<std::string> visiting;
-  size_t ret_leaf_count = 0;
-  if (!FlattenDlAbiLeafCount(ext.return_type, ctx, true, &ret_leaf_count, &visiting, error)) {
-    return false;
-  }
-  if (ret_leaf_count != 1) {
+  if (!IsSupportedDlAbiType(ext.return_type, ctx, true)) {
     if (error) {
       *error = "dynamic DL return type for '" + ext.module + "." + ext.name +
-               "' must lower to a single ABI value";
+               "' is not ABI-supported";
     }
     return false;
   }
-  size_t param_leaf_count = 0;
   for (const auto& p : ext.params) {
-    if (!FlattenDlAbiLeafCount(p.type, ctx, false, &param_leaf_count, &visiting, error)) {
+    if (!IsSupportedDlAbiType(p.type, ctx, false)) {
+      if (error) {
+        *error = "dynamic DL parameter type for '" + ext.module + "." + ext.name +
+                 "' is not ABI-supported";
+      }
       return false;
     }
   }
-  if (param_leaf_count > 254) {
+  if (ext.params.size() > 254) {
     if (error) {
       *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
                "' currently supports up to 254 ABI parameters";
