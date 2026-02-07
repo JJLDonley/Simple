@@ -1,6 +1,14 @@
 import "Core.DL" as DL
 import "IO"
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+extern ffi.simple_add_i8 : i8 (a : i8, b : i8)
+extern ffi.simple_add_i16 : i16 (a : i16, b : i16)
+extern ffi.simple_add_u8 : u8 (a : u8, b : u8)
+extern ffi.simple_add_u16 : u16 (a : u16, b : u16)
+extern ffi.simple_add_u32 : u32 (a : u32, b : u32)
+extern ffi.simple_add_u64 : u64 (a : u64, b : u64)
+extern ffi.simple_bool_and : bool (a : bool, b : bool)
+extern ffi.simple_char_max : char (a : char, b : char)
 extern ffi.simple_hello : string ()
 
 main : i32 () {
@@ -13,6 +21,14 @@ main : i32 () {
   }
   sum = lib.simple_add_i32(64, 64);
   IO.println(sum);
+  IO.println(lib.simple_add_i8(60, 7));
+  IO.println(lib.simple_add_i16(200, 44));
+  IO.println(lib.simple_add_u8(100, 23));
+  IO.println(lib.simple_add_u16(400, 23));
+  IO.println(lib.simple_add_u32(1000, 23));
+  IO.println(lib.simple_add_u64(5000, 23));
+  IO.println(lib.simple_bool_and(true, true));
+  IO.println(lib.simple_char_max('A', 'Z'));
   msg = lib.simple_hello();
   IO.println(msg);
   DL.Close(lib)

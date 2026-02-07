@@ -3,6 +3,14 @@
 ## Notes
 - This log must record every VM-related change going forward.
 
+## 2026-02-07
+- Enforced declaration-only extern grammar in docs (`extern module.symbol : type (params)`), explicitly disallowing `=` forms and block bodies.
+- Updated language docs to define `char` as byte (`u8`) and documented typed Core.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
+- Expanded Core.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).
+- Updated SIR/validator dynamic DL signature selection to lower from exact extern signatures instead of the older limited set.
+- Tightened VM import return-type checks for core modules (`core.os`, `core.fs`, `core.dl`) to exact declared ABI return kinds.
+- Updated VM `char` print handling to byte semantics (`u8`) and expanded FFI/lang tests for typed dynamic DL calls.
+
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
 - Implemented initial VM skeleton in `SimpleByteCode/vm/`.
