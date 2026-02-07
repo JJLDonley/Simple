@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple Stack | Bytecode VM + IR + Language</title>
+  <meta name="description" content="Simple Stack: a compact Bytecode VM, Simple IR, and Simple Lang for embeddable runtimes and tooling." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <header class="hero wrap">
+    <p class="eyebrow">Simple Stack</p>
+    <h1>Bytecode VM.<br>Simple IR.<br>Simple Lang.</h1>
+    <p class="lead">A compact compiler/runtime stack for fast iteration, embeddable execution, and clear intermediate representation.</p>
+    <div class="cta-row">
+      <a class="btn solid" href="#start">Get Started</a>
+      <a class="btn ghost" href="#examples">See Examples</a>
+      <a class="btn ghost" href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">Downloads</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid-3" id="pillars">
+      <article class="card">
+        <h2>Bytecode VM</h2>
+        <p>Portable runtime with verifier, loader, and execution engine. Great for embedding into host apps.</p>
+        <code>use: plugins, sandboxed scripts, game tooling</code>
+      </article>
+      <article class="card">
+        <h2>Simple IR</h2>
+        <p>A readable IR layer between language and bytecode, designed for compiler passes and testing.</p>
+        <code>use: optimizer experiments, lowering checks, debugability</code>
+      </article>
+      <article class="card">
+        <h2>Simple Lang</h2>
+        <p>Source language lowered into IR and VM bytecode with growing stdlib and extern support.</p>
+        <code>use: DSLs, embedded app scripting, teaching compilers</code>
+      </article>
+    </section>
+
+    <section id="examples" class="panel">
+      <h2>Examples</h2>
+      <p>End-to-end flow from language to execution.</p>
+      <pre><code># run a Simple source file
+simple run Tests/simple/hello.simple
+
+# emit IR for inspection
+simple emit -ir Tests/simple/math.simple --out math.sir
+
+# emit bytecode artifact
+simple emit -sbc Tests/simple/hello.simple --out hello.sbc
+
+# check correctness only
+simple check Tests/simple/hello.simple</code></pre>
+    </section>
+
+    <section id="language" class="panel">
+      <h2>Meet the Language</h2>
+      <p>Simple Lang syntax is compact, explicit, and designed for clean lowering into Simple IR.</p>
+      <div class="lang-grid">
+        <div class="lang-item">
+          <h3>Hello + Imports</h3>
+          <pre class="code-simple"><code><span class="tok-kw">import</span> <span class="tok-str">"IO"</span>
+
+<span class="tok-fn">main</span> : <span class="tok-type">i32</span> () {
+  <span class="tok-id">IO</span>.<span class="tok-fn">println</span>(<span class="tok-str">"hello from Simple"</span>)
+  <span class="tok-kw">return</span> <span class="tok-num">0</span>
+}</code></pre>
+        </div>
+        <div class="lang-item">
+          <h3>Data + Functions</h3>
+          <pre class="code-simple"><code><span class="tok-id">Point</span> : <span class="tok-kw">artifact</span> {
+  <span class="tok-id">x</span> : <span class="tok-type">i32</span>;
+  <span class="tok-id">y</span> : <span class="tok-type">i32</span>;
+}
+
+<span class="tok-fn">sum</span> : <span class="tok-type">i32</span> (<span class="tok-id">p</span> : <span class="tok-id">Point</span>) {
+  <span class="tok-kw">return</span> <span class="tok-id">p</span>.<span class="tok-id">x</span> + <span class="tok-id">p</span>.<span class="tok-id">y</span>
+}</code></pre>
+        </div>
+        <div class="lang-item">
+          <h3>Control Flow</h3>
+          <pre class="code-simple"><code><span class="tok-fn">fib_iter</span> : <span class="tok-type">i32</span> (<span class="tok-id">n</span> : <span class="tok-type">i32</span>) {
+  <span class="tok-id">a</span> : <span class="tok-type">i32</span> = <span class="tok-num">0</span>;
+  <span class="tok-id">b</span> : <span class="tok-type">i32</span> = <span class="tok-num">1</span>;
+  <span class="tok-kw">for</span> <span class="tok-id">i</span> <span class="tok-kw">in</span> <span class="tok-num">0</span>..<span class="tok-id">n</span> {
+    <span class="tok-id">next</span> : <span class="tok-type">i32</span> = <span class="tok-id">a</span> + <span class="tok-id">b</span>;
+    <span class="tok-id">a</span> = <span class="tok-id">b</span>;
+    <span class="tok-id">b</span> = <span class="tok-id">next</span>;
+  }
+  <span class="tok-kw">return</span> <span class="tok-id">a</span>
+}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="split" id="use-cases">
+      <div>
+        <h2>What You Can Build</h2>
+        <ul>
+          <li>Sandboxed script host inside native applications</li>
+          <li>Custom language frontends targeting Simple IR</li>
+          <li>Testing infrastructure for compiler transformations</li>
+          <li>Educational compiler/runtime labs with visible IR</li>
+        </ul>
+      </div>
+      <div class="note">
+        <p><strong>Design intent:</strong> keep the stack understandable and hackable while still practical enough for real embedding workflows.</p>
+      </div>
+    </section>
+
+    <section id="start" class="panel">
+      <h2>Quick Start</h2>
+      <pre><code>git clone &lt;repo-url&gt;
+cd Simple
+./build.sh --suite all
+./bin/simple run Tests/simple/hello.simple</code></pre>
+      <p class="muted">Branch for this page: <code>gh-pages</code></p>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>Simple Stack • VM + IR + Lang • <a href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">Releases</a></p>
+  </footer>
+</body>
+</html>
