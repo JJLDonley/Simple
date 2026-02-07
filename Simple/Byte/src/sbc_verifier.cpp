@@ -37,10 +37,18 @@ bool IsKnownIntrinsic(uint32_t id) {
     case kIntrinsicWriteStdout:
     case kIntrinsicWriteStderr:
     case kIntrinsicPrintAny:
+    case kIntrinsicDlCallI8:
+    case kIntrinsicDlCallI16:
     case kIntrinsicDlCallI32:
     case kIntrinsicDlCallI64:
+    case kIntrinsicDlCallU8:
+    case kIntrinsicDlCallU16:
+    case kIntrinsicDlCallU32:
+    case kIntrinsicDlCallU64:
     case kIntrinsicDlCallF32:
     case kIntrinsicDlCallF64:
+    case kIntrinsicDlCallBool:
+    case kIntrinsicDlCallChar:
     case kIntrinsicDlCallStr0:
       return true;
     default:
@@ -80,10 +88,18 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
     case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
     case kIntrinsicPrintAny: *out = {0, 2, {0, 1}}; return true; // print_any(any,i32_tag)
+    case kIntrinsicDlCallI8: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i8(i64,i32,i32)->i32
+    case kIntrinsicDlCallI16: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i16(i64,i32,i32)->i32
     case kIntrinsicDlCallI32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i32(i64,i32,i32)->i32
     case kIntrinsicDlCallI64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_i64(i64,i64,i64)->i64
+    case kIntrinsicDlCallU8: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u8(i64,i32,i32)->i32
+    case kIntrinsicDlCallU16: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u16(i64,i32,i32)->i32
+    case kIntrinsicDlCallU32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_u32(i64,i32,i32)->i32
+    case kIntrinsicDlCallU64: *out = {2, 3, {2, 2, 2}}; return true; // dl_call_u64(i64,i64,i64)->i64
     case kIntrinsicDlCallF32: *out = {3, 3, {2, 3, 3}}; return true; // dl_call_f32(i64,f32,f32)->f32
     case kIntrinsicDlCallF64: *out = {4, 3, {2, 4, 4}}; return true; // dl_call_f64(i64,f64,f64)->f64
+    case kIntrinsicDlCallBool: *out = {6, 3, {2, 6, 6}}; return true; // dl_call_bool(i64,bool,bool)->bool
+    case kIntrinsicDlCallChar: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_char(i64,i32,i32)->i32
     case kIntrinsicDlCallStr0: *out = {5, 1, {2, 0, 0}}; return true; // dl_call_str0(i64)->ref
     default: return false;
   }
@@ -197,6 +213,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       case 3: return ValType::F32;
       case 4: return ValType::F64;
       case 5: return ValType::Ref;
+      case 6: return ValType::Bool;
       default: return ValType::Unknown;
     }
   };

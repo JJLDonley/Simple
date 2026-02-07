@@ -218,33 +218,57 @@ bool GetDynamicDlIntrinsic(const TypeRef& ret,
                            uint32_t* out_intrinsic,
                            std::string* error) {
   if (!out_intrinsic) return false;
-  if (ret.name == "i32" &&
-      params.size() == 2 &&
-      params[0].name == "i32" &&
-      params[1].name == "i32") {
-    *out_intrinsic = Simple::VM::kIntrinsicDlCallI32;
-    return true;
-  }
-  if (ret.name == "i64" &&
-      params.size() == 2 &&
-      params[0].name == "i64" &&
-      params[1].name == "i64") {
-    *out_intrinsic = Simple::VM::kIntrinsicDlCallI64;
-    return true;
-  }
-  if (ret.name == "f32" &&
-      params.size() == 2 &&
-      params[0].name == "f32" &&
-      params[1].name == "f32") {
-    *out_intrinsic = Simple::VM::kIntrinsicDlCallF32;
-    return true;
-  }
-  if (ret.name == "f64" &&
-      params.size() == 2 &&
-      params[0].name == "f64" &&
-      params[1].name == "f64") {
-    *out_intrinsic = Simple::VM::kIntrinsicDlCallF64;
-    return true;
+  if (params.size() == 2 &&
+      params[0].name == ret.name &&
+      params[1].name == ret.name) {
+    if (ret.name == "i8") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallI8;
+      return true;
+    }
+    if (ret.name == "i16") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallI16;
+      return true;
+    }
+    if (ret.name == "i32") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallI32;
+      return true;
+    }
+    if (ret.name == "i64") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallI64;
+      return true;
+    }
+    if (ret.name == "u8") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallU8;
+      return true;
+    }
+    if (ret.name == "u16") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallU16;
+      return true;
+    }
+    if (ret.name == "u32") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallU32;
+      return true;
+    }
+    if (ret.name == "u64") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallU64;
+      return true;
+    }
+    if (ret.name == "f32") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallF32;
+      return true;
+    }
+    if (ret.name == "f64") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallF64;
+      return true;
+    }
+    if (ret.name == "bool") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallBool;
+      return true;
+    }
+    if (ret.name == "char") {
+      *out_intrinsic = Simple::VM::kIntrinsicDlCallChar;
+      return true;
+    }
   }
   if (ret.name == "string" && params.empty()) {
     *out_intrinsic = Simple::VM::kIntrinsicDlCallStr0;

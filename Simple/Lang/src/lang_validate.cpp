@@ -172,28 +172,13 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext, std::string* error) {
       return false;
     }
   }
-  if (ext.return_type.name == "i32" &&
-      ext.params.size() == 2 &&
-      ext.params[0].type.name == "i32" &&
-      ext.params[1].type.name == "i32") {
-    return true;
-  }
-  if (ext.return_type.name == "i64" &&
-      ext.params.size() == 2 &&
-      ext.params[0].type.name == "i64" &&
-      ext.params[1].type.name == "i64") {
-    return true;
-  }
-  if (ext.return_type.name == "f32" &&
-      ext.params.size() == 2 &&
-      ext.params[0].type.name == "f32" &&
-      ext.params[1].type.name == "f32") {
-    return true;
-  }
-  if (ext.return_type.name == "f64" &&
-      ext.params.size() == 2 &&
-      ext.params[0].type.name == "f64" &&
-      ext.params[1].type.name == "f64") {
+  static const std::unordered_set<std::string> kDlBinarySameTypePrims = {
+    "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "bool", "char",
+  };
+  if (ext.params.size() == 2 &&
+      ext.params[0].type.name == ext.return_type.name &&
+      ext.params[1].type.name == ext.return_type.name &&
+      kDlBinarySameTypePrims.find(ext.return_type.name) != kDlBinarySameTypePrims.end()) {
     return true;
   }
   if (ext.return_type.name == "string" && ext.params.empty()) {
@@ -201,8 +186,8 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext, std::string* error) {
   }
   if (error) {
     *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
-             "' must match one of: (i32,i32)->i32, (i64,i64)->i64, "
-             "(f32,f32)->f32, (f64,f64)->f64, ()->string";
+             "' must match one of: (T,T)->T where T is primitive scalar "
+             "(i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char), or ()->string";
   }
   return false;
 }

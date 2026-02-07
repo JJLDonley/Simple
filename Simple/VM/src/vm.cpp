@@ -27,37 +27,8 @@ using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-inline bool IsI32Like(TypeKind kind) {
-  switch (kind) {
-    case TypeKind::I8:
-    case TypeKind::I16:
-    case TypeKind::I32:
-    case TypeKind::U8:
-    case TypeKind::U16:
-    case TypeKind::U32:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline bool IsI64Like(TypeKind kind) {
-  return kind == TypeKind::I64 || kind == TypeKind::U64;
-}
-
-inline bool IsF32Like(TypeKind kind) {
-  return kind == TypeKind::F32;
-}
-
-inline bool IsF64Like(TypeKind kind) {
-  return kind == TypeKind::F64;
-}
-
-inline bool IsRefLike(TypeKind kind) {
-  return kind == TypeKind::Ref || kind == TypeKind::String || kind == TypeKind::I128 ||
-         kind == TypeKind::U128;
+inline bool IsExactKind(TypeKind kind, TypeKind expected) {
+  return kind == expected;
 }
 
 float BitsToF32(uint32_t bits) {
@@ -567,19 +538,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.os") {
       if (sym == "args_count") {
-        if (IsI32Like(ret_kind)) {
+        if (IsExactKind(ret_kind, TypeKind::I32)) {
           out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
-          return true;
-        }
-        if (IsI64Like(ret_kind)) {
-          out_ret = PackI64(static_cast<int64_t>(options.argv.size()));
           return true;
         }
         out_error = "core.os.args_count return type mismatch";
         return false;
       }
       if (sym == "args_get" || sym == "env_get") {
-        if (!IsRefLike(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::String)) {
           out_error = "core.os ref return type mismatch";
           return false;
         }
@@ -627,7 +594,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "cwd_get") {
-        if (!IsRefLike(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::String)) {
           out_error = "core.os.cwd_get return type mismatch";
           return false;
         }
@@ -642,7 +609,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
-        if (!IsI64Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I64)) {
           out_error = "core.os time return type mismatch";
           return false;
         }
@@ -672,7 +639,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.fs") {
       if (sym == "open") {
-        if (!IsI32Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I32)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -710,7 +677,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "read" || sym == "write") {
-        if (!IsI32Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I32)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -795,7 +762,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error = text;
       };
       if (sym == "open") {
-        if (!IsI64Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I64)) {
           out_error = "core.dl.open return type mismatch";
           return false;
         }
@@ -829,7 +796,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "sym") {
-        if (!IsI64Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I64)) {
           out_error = "core.dl.sym return type mismatch";
           return false;
         }
@@ -869,7 +836,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "close") {
-        if (!IsI32Like(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::I32)) {
           out_error = "core.dl.close return type mismatch";
           return false;
         }
@@ -895,7 +862,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "last_error") {
-        if (!IsRefLike(ret_kind)) {
+        if (!IsExactKind(ret_kind, TypeKind::String)) {
           out_error = "core.dl.last_error return type mismatch";
           return false;
         }
@@ -2773,7 +2740,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
                 break;
               }
               case kPrintAnyTagChar: {
-                uint32_t ch = static_cast<uint32_t>(UnpackI32(value)) & 0xFFFFu;
+                uint32_t ch = static_cast<uint32_t>(UnpackI32(value)) & 0xFFu;
                 char out = (ch <= 0x7Fu) ? static_cast<char>(ch) : '?';
                 std::fwrite(&out, 1, 1, stdout);
                 break;
@@ -2782,6 +2749,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
                 return Trap("print_any: unsupported tag");
             }
             std::fflush(stdout);
+            break;
+          }
+          case kIntrinsicDlCallI8: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i8 stack underflow");
+            int8_t b = static_cast<int8_t>(UnpackI32(Pop(stack)));
+            int8_t a = static_cast<int8_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_i8 null ptr");
+            using Fn = int8_t (*)(int8_t, int8_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
+            break;
+          }
+          case kIntrinsicDlCallI16: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_i16 stack underflow");
+            int16_t b = static_cast<int16_t>(UnpackI32(Pop(stack)));
+            int16_t a = static_cast<int16_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_i16 null ptr");
+            using Fn = int16_t (*)(int16_t, int16_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
             break;
           }
           case kIntrinsicDlCallI32: {
@@ -2806,6 +2795,50 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             Push(stack, PackI64(fn(a, b)));
             break;
           }
+          case kIntrinsicDlCallU8: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u8 stack underflow");
+            uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
+            uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_u8 null ptr");
+            using Fn = uint8_t (*)(uint8_t, uint8_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
+            break;
+          }
+          case kIntrinsicDlCallU16: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u16 stack underflow");
+            uint16_t b = static_cast<uint16_t>(UnpackI32(Pop(stack)));
+            uint16_t a = static_cast<uint16_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_u16 null ptr");
+            using Fn = uint16_t (*)(uint16_t, uint16_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
+            break;
+          }
+          case kIntrinsicDlCallU32: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u32 stack underflow");
+            uint32_t b = static_cast<uint32_t>(UnpackI32(Pop(stack)));
+            uint32_t a = static_cast<uint32_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_u32 null ptr");
+            using Fn = uint32_t (*)(uint32_t, uint32_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
+            break;
+          }
+          case kIntrinsicDlCallU64: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_u64 stack underflow");
+            uint64_t b = static_cast<uint64_t>(UnpackI64(Pop(stack)));
+            uint64_t a = static_cast<uint64_t>(UnpackI64(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_u64 null ptr");
+            using Fn = uint64_t (*)(uint64_t, uint64_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI64(static_cast<int64_t>(fn(a, b))));
+            break;
+          }
           case kIntrinsicDlCallF32: {
             if (stack.size() < 3) return Trap("INTRINSIC dl_call_f32 stack underflow");
             float b = BitsToF32(UnpackU32Bits(Pop(stack)));
@@ -2828,6 +2861,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             double out = fn(a, b);
             Push(stack, PackF64Bits(F64ToBits(out)));
+            break;
+          }
+          case kIntrinsicDlCallBool: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_bool stack underflow");
+            bool b = (UnpackI32(Pop(stack)) != 0);
+            bool a = (UnpackI32(Pop(stack)) != 0);
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_bool null ptr");
+            using Fn = bool (*)(bool, bool);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(fn(a, b) ? 1 : 0));
+            break;
+          }
+          case kIntrinsicDlCallChar: {
+            if (stack.size() < 3) return Trap("INTRINSIC dl_call_char stack underflow");
+            uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
+            uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
+            int64_t ptr_bits = UnpackI64(Pop(stack));
+            if (ptr_bits == 0) return Trap("core.dl.call_char null ptr");
+            using Fn = uint8_t (*)(uint8_t, uint8_t);
+            Fn fn = reinterpret_cast<Fn>(ptr_bits);
+            Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
             break;
           }
           case kIntrinsicDlCallStr0: {
