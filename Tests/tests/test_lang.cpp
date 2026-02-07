@@ -2511,6 +2511,13 @@ bool LangValidateI32FromI32Ok() {
   return true;
 }
 
+bool LangValidateCastWithoutAtFails() {
+  const char* src = "main : i32 () { x : i8 = 1; return i32(x); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("primitive cast syntax requires '@'") != std::string::npos;
+}
+
 bool LangValidateF64FromStringOk() {
   const char* src = "main : f64 () { s : string = \"1.5\"; return @f64(s); }";
   std::string error;
@@ -3066,6 +3073,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_str_from_string_fail", LangValidateStrFromStringFail},
   {"lang_validate_i32_from_string_ok", LangValidateI32FromStringOk},
   {"lang_validate_i32_from_i32_ok", LangValidateI32FromI32Ok},
+  {"lang_validate_cast_without_at_fails", LangValidateCastWithoutAtFails},
   {"lang_validate_f64_from_string_ok", LangValidateF64FromStringOk},
   {"lang_validate_f64_from_f64_ok", LangValidateF64FromF64Ok},
   {"lang_validate_len_scalar_fail", LangValidateLenScalarFail},

@@ -134,6 +134,14 @@ bool IsPrimitiveCastName(const std::string& name) {
          name == "f32" || name == "f64" || name == "bool" || name == "char";
 }
 
+bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
+  if (name.size() < 2 || name[0] != '@') return false;
+  const std::string target = name.substr(1);
+  if (!IsPrimitiveCastName(target)) return false;
+  if (out_target) *out_target = target;
+  return true;
+}
+
 enum class CastVmKind : uint8_t { Invalid, I32, I64, F32, F64 };
 
 CastVmKind GetCastVmKind(const std::string& type_name) {
@@ -844,8 +852,9 @@ bool InferExprType(const Expr& expr,
           out->name = "string";
           return true;
         }
-        if (IsPrimitiveCastName(callee.text)) {
-          out->name = callee.text;
+        std::string cast_target;
+        if (GetAtCastTargetName(callee.text, &cast_target)) {
+          out->name = cast_target;
           return true;
         }
         auto it = st.func_returns.find(callee.text);
@@ -2215,18 +2224,19 @@ bool EmitExpr(EmitState& st,
         PushStack(st, 1);
         return true;
       }
-      if (IsPrimitiveCastName(name)) {
+      std::string cast_target;
+      if (GetAtCastTargetName(name, &cast_target)) {
         if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for '" + name + "'";
+          if (error) *error = "call argument count mismatch for '" + cast_target + "'";
           return false;
         }
         TypeRef arg_type;
         if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
         if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
         CastVmKind src = GetCastVmKind(arg_type.name);
-        CastVmKind dst = GetCastVmKind(name);
+        CastVmKind dst = GetCastVmKind(cast_target);
         if (src == CastVmKind::Invalid || dst == CastVmKind::Invalid) {
-          if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+          if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + cast_target;
           return false;
         }
         if (src != dst) {
@@ -2247,14 +2257,14 @@ bool EmitExpr(EmitState& st,
           } else if (src == CastVmKind::F64 && dst == CastVmKind::F32) {
             (*st.out) << "  conv.f64.f32\n";
           } else {
-            if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+            if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + cast_target;
             return false;
           }
-        } else if (arg_type.name != name) {
+        } else if (arg_type.name != cast_target) {
           // Normalize same-lane casts (for example i8 -> i32) to produce verifier-visible dst kind.
-          if (dst == CastVmKind::I32 && name == "i32") {
+          if (dst == CastVmKind::I32 && cast_target == "i32") {
             if (arg_type.name == "bool") {
-              if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+              if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + cast_target;
               return false;
             }
             (*st.out) << "  const.i32 0\n";
@@ -2262,7 +2272,7 @@ bool EmitExpr(EmitState& st,
             (*st.out) << "  add.i32\n";
             PopStack(st, 2);
             PushStack(st, 1);
-          } else if (dst == CastVmKind::I64 && name == "i64" && arg_type.name == "u64") {
+          } else if (dst == CastVmKind::I64 && cast_target == "i64" && arg_type.name == "u64") {
             (*st.out) << "  const.i64 -1\n";
             PushStack(st, 1);
             (*st.out) << "  and.i64\n";

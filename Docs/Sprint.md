@@ -1185,3 +1185,8 @@
   - legacy single-argument print/println behavior remains supported.
 - Implemented SIR emission for format printing by splitting literal segments around `{}` and emitting typed print intrinsics for each segment/value pair.
 - Added language tests for format-print success and validation failures (placeholder mismatch and non-literal format argument).
+- Enforced cast syntax contract to `@T(value)`:
+  - parser now preserves casts as `@<type>` call targets internally,
+  - validator recognizes `@T(...)` casts and rejects legacy bare `T(...)` with explicit guidance (`use @T(value)`),
+  - SIR type inference/emission updated to compile `@T(...)` casts only.
+- Added regression coverage to ensure `i32(x)` fails and `@i32(x)` remains valid.

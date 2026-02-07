@@ -92,6 +92,14 @@ bool IsPrimitiveCastName(const std::string& name) {
   return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
 }
 
+bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
+  if (name.size() < 2 || name[0] != '@') return false;
+  const std::string target = name.substr(1);
+  if (!IsPrimitiveCastName(target)) return false;
+  if (out_target) *out_target = target;
+  return true;
+}
+
 bool IsIoPrintName(const std::string& name);
 
 bool IsIoPrintCallExpr(const Expr& callee) {
@@ -974,8 +982,9 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
-        if (IsPrimitiveCastName(callee.text)) {
-          out->name = callee.text;
+        std::string cast_target;
+        if (GetAtCastTargetName(callee.text, &cast_target)) {
+          out->name = cast_target;
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
@@ -1283,6 +1292,10 @@ bool CheckCallTarget(const Expr& callee,
     return true;
   }
   if (callee.kind == ExprKind::Identifier) {
+    if (IsPrimitiveCastName(callee.text)) {
+      if (error) *error = "primitive cast syntax requires '@': use @" + callee.text + "(value)";
+      return false;
+    }
     auto fn_it = ctx.functions.find(callee.text);
     if (fn_it != ctx.functions.end()) {
       return CheckCallArgs(fn_it->second, arg_count, error);
@@ -2817,7 +2830,10 @@ bool CheckExpr(const Expr& expr,
         PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
-      if (expr.text == "len" || expr.text == "str" || IsPrimitiveCastName(expr.text)) return true;
+      if (expr.text == "len" || expr.text == "str" ||
+          IsPrimitiveCastName(expr.text) || GetAtCastTargetName(expr.text, nullptr)) {
+        return true;
+      }
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
@@ -3025,32 +3041,41 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
       }
-      if (expr.children[0].kind == ExprKind::Identifier &&
-          IsPrimitiveCastName(expr.children[0].text)) {
-        const std::string target = expr.children[0].text;
-        if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for " + target + ": expected 1, got " +
-                              std::to_string(expr.args.size());
+      if (expr.children[0].kind == ExprKind::Identifier) {
+        std::string cast_target;
+        const bool is_at_cast = GetAtCastTargetName(expr.children[0].text, &cast_target);
+        if (!is_at_cast && IsPrimitiveCastName(expr.children[0].text)) {
+          if (error) {
+            *error = "primitive cast syntax requires '@': use @" +
+                     expr.children[0].text + "(value)";
+          }
           return false;
         }
-        TypeRef arg_type;
-        if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (error && error->empty()) *error = target + " cast expects scalar argument";
-          return false;
-        }
-        if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
-          if (error) *error = target + " cast expects scalar argument";
-          return false;
-        }
-        if (IsStringTypeName(arg_type.name) && !(target == "i32" || target == "f64")) {
-          if (error) *error = target + " cast from string is unsupported";
-          return false;
+        if (is_at_cast) {
+          if (expr.args.size() != 1) {
+            if (error) *error = "call argument count mismatch for " + cast_target + ": expected 1, got " +
+                                std::to_string(expr.args.size());
+            return false;
+          }
+          TypeRef arg_type;
+          if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+            if (error && error->empty()) *error = cast_target + " cast expects scalar argument";
+            return false;
+          }
+          if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+            if (error) *error = cast_target + " cast expects scalar argument";
+            return false;
+          }
+          if (IsStringTypeName(arg_type.name) && !(cast_target == "i32" || cast_target == "f64")) {
+            if (error) *error = cast_target + " cast from string is unsupported";
+            return false;
+          }
         }
       }
       if (!IsIoPrintCallExpr(expr.children[0]) &&
           !(expr.children[0].kind == ExprKind::Identifier &&
             (expr.children[0].text == "len" || expr.children[0].text == "str" ||
-             IsPrimitiveCastName(expr.children[0].text)))) {
+             GetAtCastTargetName(expr.children[0].text, nullptr)))) {
         if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
       }
       return true;

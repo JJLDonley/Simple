@@ -36,6 +36,36 @@ bool ParseIntegerLiteral(const std::string& text, uint64_t* out) {
 
 namespace Simple::Lang {
 
+namespace {
+
+bool IsKeywordToken(TokenKind kind) {
+  switch (kind) {
+    case TokenKind::KwWhile:
+    case TokenKind::KwFor:
+    case TokenKind::KwBreak:
+    case TokenKind::KwSkip:
+    case TokenKind::KwReturn:
+    case TokenKind::KwIf:
+    case TokenKind::KwElse:
+    case TokenKind::KwDefault:
+    case TokenKind::KwFn:
+    case TokenKind::KwSelf:
+    case TokenKind::KwArtifact:
+    case TokenKind::KwEnum:
+    case TokenKind::KwModule:
+    case TokenKind::KwImport:
+    case TokenKind::KwExtern:
+    case TokenKind::KwAs:
+    case TokenKind::KwTrue:
+    case TokenKind::KwFalse:
+      return true;
+    default:
+      return false;
+  }
+}
+
+} // namespace
+
 Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
 
 std::string Parser::ErrorWithLocation() const {
@@ -531,6 +561,10 @@ bool Parser::ParseModuleBody(ModuleDecl* out) {
 bool Parser::ParseArtifactMember(ArtifactDecl* out) {
   const Token& name_tok = Peek();
   if (name_tok.kind != TokenKind::Identifier) {
+    if (name_tok.kind == TokenKind::Comma) {
+      error_ = "unexpected ',' in artifact body; use newline or ';' between members";
+      return false;
+    }
     error_ = "expected artifact member name";
     return false;
   }
@@ -659,6 +693,11 @@ bool Parser::ParseParamList(std::vector<ParamDecl>* out) {
 bool Parser::ParseParam(ParamDecl* out) {
   const Token& name_tok = Peek();
   if (name_tok.kind != TokenKind::Identifier) {
+    if (IsKeywordToken(name_tok.kind)) {
+      error_ = "expected parameter name (keyword '" + name_tok.text +
+               "' cannot be used as identifier)";
+      return false;
+    }
     error_ = "expected parameter name";
     return false;
   }
@@ -704,17 +743,26 @@ bool Parser::ParseBlockStmts(std::vector<Stmt>* out) {
     error_ = "expected '{' to start block";
     return false;
   }
+  std::string first_error;
   while (!IsAtEnd()) {
-    if (Match(TokenKind::RBrace)) return true;
+    if (Match(TokenKind::RBrace)) {
+      if (!first_error.empty()) error_ = std::move(first_error);
+      return true;
+    }
     Stmt stmt;
     if (!ParseStmt(&stmt)) {
+      if (first_error.empty()) first_error = error_;
       had_error_ = true;
-      if (!RecoverStatementInBlock()) return false;
+      if (!RecoverStatementInBlock()) {
+        if (!first_error.empty()) error_ = std::move(first_error);
+        return false;
+      }
       continue;
     }
     if (out) out->push_back(std::move(stmt));
   }
-  error_ = "unterminated block";
+  if (first_error.empty()) error_ = "unterminated block";
+  else error_ = std::move(first_error);
   return false;
 }
 
@@ -890,6 +938,8 @@ bool Parser::ParseStmt(Stmt* out) {
       }
       return true;
     }
+  } else if (index_ != save) {
+    return false;
   }
   index_ = save;
 
@@ -1130,7 +1180,7 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     }
     Expr callee;
     callee.kind = ExprKind::Identifier;
-    callee.text = cast_type.name;
+    callee.text = "@" + cast_type.name;
     callee.line = cast_type.line;
     callee.column = cast_type.column;
     Expr call;
@@ -1394,11 +1444,21 @@ bool Parser::ParseFnLiteral(Expr* out) {
 bool Parser::ParseCallArgs(std::vector<Expr>* out) {
   if (Match(TokenKind::RParen)) return true;
   for (;;) {
+    if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::LBrace) {
+      error_ = "unexpected type name before artifact literal in call; use '{...}' and "
+               "assign to a typed variable first";
+      return false;
+    }
     Expr arg;
     if (!ParseExpr(&arg)) return false;
     if (out) out->push_back(std::move(arg));
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RParen)) break;
+    if (Peek().kind == TokenKind::LBrace) {
+      error_ = "unexpected '{' after call argument; artifact literal uses '{...}' and "
+               "must be assigned to a typed variable";
+      return false;
+    }
     error_ = "expected ',' or ')' in call arguments";
     return false;
   }
