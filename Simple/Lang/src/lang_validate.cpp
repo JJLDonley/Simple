@@ -165,6 +165,7 @@ bool GetDlOpenManifestModule(const Expr& expr,
 
 bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (type.pointer_depth > 0) return true;
   if (allow_void && type.name == "void") return true;
   return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
          type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
@@ -182,6 +183,10 @@ bool FlattenDlAbiLeafCount(const TypeRef& type,
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
     if (error) *error = "dynamic DL ABI does not support proc/generic/container types";
     return false;
+  }
+  if (type.pointer_depth > 0) {
+    *out_count += 1;
+    return true;
   }
   if (type.name == "void") {
     if (!allow_void) {
@@ -239,10 +244,10 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
       return false;
     }
   }
-  if (param_leaf_count > 4) {
+  if (param_leaf_count > 254) {
     if (error) {
       *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
-               "' currently supports up to 4 ABI parameters";
+               "' currently supports up to 254 ABI parameters";
     }
     return false;
   }
@@ -252,6 +257,7 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
 TypeRef MakeSimpleType(const std::string& name) {
   TypeRef out;
   out.name = name;
+  out.pointer_depth = 0;
   out.type_args.clear();
   out.dims.clear();
   out.is_proc = false;
@@ -491,6 +497,7 @@ bool IsIoPrintName(const std::string& name) {
 bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   if (!out) return false;
   out->name = src.name;
+  out->pointer_depth = src.pointer_depth;
   out->type_args.clear();
   out->dims = src.dims;
   out->is_proc = src.is_proc;
@@ -543,6 +550,7 @@ bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b)
 bool IsIntegerTypeName(const std::string& name);
 
 bool TypeEquals(const TypeRef& a, const TypeRef& b) {
+  if (a.pointer_depth != b.pointer_depth) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
     if (a.proc_return_mutability != b.proc_return_mutability) return false;
@@ -571,7 +579,9 @@ bool IsIntegerScalarTypeName(const std::string& name) {
 
 bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
   if (TypeEquals(expected, actual)) return true;
-  if (IsIntegerLiteralExpr(expr) && expected.dims.empty() && actual.dims.empty() &&
+  if (IsIntegerLiteralExpr(expr) &&
+      expected.pointer_depth == 0 && actual.pointer_depth == 0 &&
+      expected.dims.empty() && actual.dims.empty() &&
       IsIntegerScalarTypeName(expected.name)) {
     return true;
   }
@@ -604,6 +614,7 @@ bool ApplyTypeSubstitution(TypeRef* type,
   if (it == mapping.end()) return true;
   TypeRef replacement;
   if (!CloneTypeRef(it->second, &replacement)) return false;
+  replacement.pointer_depth += type->pointer_depth;
   if (!type->dims.empty()) {
     replacement.dims.insert(replacement.dims.end(), type->dims.begin(), type->dims.end());
   }
@@ -668,6 +679,7 @@ bool UnifyTypeParams(const TypeRef& param,
     }
     return TypeEquals(it->second, arg);
   }
+  if (param.pointer_depth != arg.pointer_depth) return false;
   if (param.is_proc != arg.is_proc) return false;
   if (!TypeDimsEqual(param.dims, arg.dims)) return false;
   if (param.name != arg.name) return false;
@@ -715,6 +727,20 @@ bool CheckTypeRef(const TypeRef& type,
                   const std::unordered_set<std::string>& type_params,
                   TypeUse use,
                   std::string* error) {
+  if (type.pointer_depth > 0) {
+    TypeRef pointee;
+    if (!CloneTypeRef(type, &pointee)) return false;
+    pointee.pointer_depth -= 1;
+    if (pointee.pointer_depth == 0 && pointee.name == "void") {
+      if (!pointee.type_args.empty()) {
+        if (error) *error = "void cannot have type arguments";
+        PrefixErrorLocation(type.line, type.column, error);
+        return false;
+      }
+      return true;
+    }
+    return CheckTypeRef(pointee, ctx, type_params, TypeUse::Value, error);
+  }
   if (type.is_proc) {
     for (const auto& param : type.proc_params) {
       if (!CheckTypeRef(param, ctx, type_params, TypeUse::Value, error)) return false;
@@ -2374,7 +2400,10 @@ bool IsNumericTypeName(const std::string& name) {
 }
 
 bool IsScalarType(const TypeRef& type) {
-  return !type.is_proc && type.dims.empty() && type.type_args.empty();
+  return type.pointer_depth == 0 &&
+         !type.is_proc &&
+         type.dims.empty() &&
+         type.type_args.empty();
 }
 
 bool CheckArrayLiteralShape(const Expr& expr,
@@ -2488,7 +2517,7 @@ bool CheckBoolCondition(const Expr& expr,
                         std::string* error) {
   TypeRef cond_type;
   if (InferExprType(expr, ctx, scopes, current_artifact, &cond_type)) {
-    if (!IsBoolTypeName(cond_type.name)) {
+    if (cond_type.pointer_depth != 0 || !IsBoolTypeName(cond_type.name)) {
       if (error) *error = "condition must be bool";
       return false;
     }
@@ -2845,7 +2874,8 @@ bool CheckExpr(const Expr& expr,
             if (error && error->empty()) *error = "IO.print expects scalar argument";
             return false;
           }
-          if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+          if (arg_type.pointer_depth != 0 ||
+              arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
             if (error) *error = "IO.print expects scalar argument";
             return false;
           }
@@ -2883,7 +2913,8 @@ bool CheckExpr(const Expr& expr,
         }
         TypeRef arg_type;
         if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name)) {
+          if (arg_type.pointer_depth != 0 ||
+              (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name))) {
             if (error) *error = "str expects numeric or bool argument";
             return false;
           }

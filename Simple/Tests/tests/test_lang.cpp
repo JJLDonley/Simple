@@ -1050,6 +1050,12 @@ bool LangParsesTypeLiterals() {
   if (fn_ret.proc_return->name != "i32") return false;
   if (!fn_ret.proc_params.empty()) return false;
 
+  Simple::Lang::TypeRef ptr;
+  if (!Simple::Lang::ParseTypeFromString("*i32", &ptr, &error)) return false;
+  if (ptr.name != "i32" || ptr.pointer_depth != 1) return false;
+  if (!Simple::Lang::ParseTypeFromString("**void", &ptr, &error)) return false;
+  if (ptr.name != "void" || ptr.pointer_depth != 2) return false;
+
   return true;
 }
 
@@ -1292,6 +1298,15 @@ bool LangValidateExternCallOk() {
   const char* src =
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "main : i32 () { Ray.InitWindow(1, 2); return 0; }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateExternPointerCallOk() {
+  const char* src =
+      "Node :: artifact { next: *Node }\n"
+      "extern C.walk : *Node (head : *Node)\n"
+      "main : i32 () { return 0; }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
@@ -2678,6 +2693,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
+  {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},

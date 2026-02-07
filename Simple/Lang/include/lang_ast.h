@@ -22,6 +22,7 @@ struct TypeDim {
 
 struct TypeRef {
   std::string name;
+  uint32_t pointer_depth = 0;
   std::vector<TypeRef> type_args;
   std::vector<TypeDim> dims;
   bool is_proc = false;

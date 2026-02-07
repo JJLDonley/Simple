@@ -13,8 +13,8 @@ extern ffi.CloseWindow: void ()
 extern ffi.WindowShouldClose: bool ()
 extern ffi.BeginDrawing: void ()
 extern ffi.EndDrawing: void ()
-extern ffi.ClearBackground: void (color: Color)
-extern ffi.DrawText: void (text: string, x: i32, y: i32, size: i32, tint: Color)
+extern ffi.ClearBackground: void (color: i32)
+extern ffi.DrawText: void (text: string, x: i32, y: i32, size: i32, tint: i32)
 
 lib :: i64 = DL.Open("Simple/Tests/ffi/libraylib.so", ffi)
 
@@ -38,11 +38,11 @@ EndDrawing : void () {
     lib.EndDrawing()
 }
 
-ClearBackground : void (color: Color) {
+ClearBackground : void (color: i32) {
     lib.ClearBackground(color)
 }
 
-DrawText : void (text: string, x: i32, y: i32, size: i32, tint: Color) {
+DrawText : void (text: string, x: i32, y: i32, size: i32, tint: i32) {
     lib.DrawText(text, x, y, size, tint)
 }
 
@@ -50,8 +50,9 @@ main : i32 () {
     
     InitWindow(1280, 720, "SimpleVM + Raylib")
 
-    bg   :: Color = { .r = 20,  .g = 20,  .b = 28,  .a = 255 }
-    tint :: Color = { .r = 245, .g = 245, .b = 245, .a = 255 }
+    // Packed as r | (g << 8) | (b << 16) | (a << 24)
+    bg   :: i32 = -14937068
+    tint :: i32 = -657931
 
     while !WindowShouldClose() {
         BeginDrawing()

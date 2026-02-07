@@ -241,6 +241,7 @@ bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
 
 bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
   if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (type.pointer_depth > 0) return true;
   if (allow_void && type.name == "void") return true;
   return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
          type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
@@ -274,6 +275,7 @@ bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* erro
 
 bool IsSupportedType(const TypeRef& type) {
   if (!type.type_args.empty()) return false;
+  if (type.pointer_depth > 0) return true;
   if (type.is_proc) return true;
   if (!type.dims.empty()) {
     if (type.name == "void") return false;
@@ -287,6 +289,7 @@ bool IsSupportedType(const TypeRef& type) {
 bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   if (!out) return false;
   out->name = src.name;
+  out->pointer_depth = src.pointer_depth;
   out->type_args.clear();
   out->type_args.reserve(src.type_args.size());
   for (const auto& arg : src.type_args) {
@@ -483,6 +486,7 @@ uint32_t AlignTo(uint32_t value, uint32_t align) {
 }
 
 std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
+  if (type.pointer_depth > 0) return "i64";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "string";
@@ -493,6 +497,7 @@ std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
 }
 
 std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::string* error) {
+  if (type.pointer_depth > 0) return "i64";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "void") return "void";
@@ -930,6 +935,12 @@ bool FlattenExternAbiType(const TypeRef& type,
     if (error) *error = "extern ABI does not support proc/generic/container types";
     return false;
   }
+  if (type.pointer_depth > 0) {
+    TypeRef normalized;
+    normalized.name = "i64";
+    out->push_back(std::move(normalized));
+    return true;
+  }
   if (type.name == "void") {
     if (!allow_void) {
       if (error) *error = "extern ABI does not allow void parameter type";
@@ -1012,7 +1023,8 @@ bool EmitExternAbiFromLocalArtifact(EmitState& st,
     (*st.out) << "  ldloc " << local_index << "\n";
     PushStack(st, 1);
     (*st.out) << "  ldfld " << artifact_type.name << "." << field.name << "\n";
-    if (st.artifacts.find(field.type.name) != st.artifacts.end() &&
+    if (field.type.pointer_depth == 0 &&
+        st.artifacts.find(field.type.name) != st.artifacts.end() &&
         !field.type.is_proc && field.type.type_args.empty() && field.type.dims.empty()) {
       uint16_t nested_local = 0;
       if (!AllocateExternTempLocal(st, field.type, &nested_local)) return false;
@@ -1029,7 +1041,8 @@ bool EmitExternAbiArg(EmitState& st,
                       const Expr& arg_expr,
                       const TypeRef& source_type,
                       std::string* error) {
-  bool is_artifact = !source_type.is_proc && source_type.type_args.empty() && source_type.dims.empty() &&
+  bool is_artifact = source_type.pointer_depth == 0 &&
+                     !source_type.is_proc && source_type.type_args.empty() && source_type.dims.empty() &&
                      st.artifacts.find(source_type.name) != st.artifacts.end();
   if (!is_artifact) {
     return EmitExpr(st, arg_expr, &source_type, error);
@@ -1885,6 +1898,10 @@ bool EmitExpr(EmitState& st,
               if (!FlattenExternAbiType(params[i], st, false, &leaves, error)) return false;
               if (!EmitExternAbiArg(st, expr.args[i], params[i], error)) return false;
               abi_arg_count += static_cast<uint32_t>(leaves.size());
+            }
+            if (abi_arg_count > 255) {
+              if (error) *error = "dynamic DL call has too many ABI parameters";
+              return false;
             }
             (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
             PopStack(st, abi_arg_count);

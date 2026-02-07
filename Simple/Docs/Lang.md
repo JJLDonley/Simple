@@ -159,6 +159,13 @@ identifier ::= [a-zA-Z_][a-zA-Z0-9_]*
 - `char` - Byte character (`u8`)
 - `string` - UTF-16 encoded string
 
+### Pointer Types
+
+- `*T` - typed pointer to `T`
+- `*void` - opaque/raw pointer
+- Pointers are primarily intended for FFI interop boundaries (`extern`/`Core.DL`)
+- Current lowering maps pointer ABI values to 64-bit integer slots in VM call paths
+
 ### Composite Types
 
 #### Arrays (Fixed Size)
@@ -904,12 +911,10 @@ main : i32 () {
 
 - The second `DL.Open` argument must be an extern module identifier.
 - Calls are type-checked from extern signatures.
-- Dynamic VM dispatch currently supports extern signatures with:
-  - ABI-lowered parameter count up to 4
-  - for 0-2 parameters: scalar parameter types `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
-  - for 3-4 parameters: currently `i32`-lane scalar ABI types (`i8/i16/i32/u8/u16/u32/bool/char`)
-  - artifact parameters lowered by field order to scalar ABI values (for example `Color{u8,u8,u8,u8}` -> 4 params)
-  - return type: `void` or `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+- Dynamic VM dispatch supports ABI-lowered extern signatures with scalar and pointer leaves:
+  - parameter leaves: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string/*T`
+  - return leaf: `void` or one scalar/pointer leaf
+  - artifact parameters are ABI-lowered by field order to scalar/pointer leaves
 
 ### artifact Rules
 
@@ -1312,6 +1317,7 @@ artifact_init_item ::= expression
 
 type ::= primitive_type
        | identifier generic_arguments?
+       | "*" type
        | type "[" integer_literal "]"
        | type "[" "]"
        | "(" (type ("," type)*)? ")" (":" | "::") type

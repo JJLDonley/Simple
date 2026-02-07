@@ -110,6 +110,10 @@ bool Parser::ParseBlock(std::vector<Stmt>* out) {
 }
 
 bool Parser::ParseTypeInner(TypeRef* out) {
+  uint32_t pointer_depth = 0;
+  while (Match(TokenKind::Star)) {
+    ++pointer_depth;
+  }
   if (Match(TokenKind::KwFn)) {
     TypeRef proc;
     proc.is_proc = true;
@@ -125,6 +129,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeInner(&ret)) return false;
     proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
     if (!ParseTypeDims(&proc)) return false;
+    proc.pointer_depth += pointer_depth;
     if (out) *out = std::move(proc);
     return true;
   }
@@ -154,6 +159,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeInner(&ret)) return false;
     proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
     if (!ParseTypeDims(&proc)) return false;
+    proc.pointer_depth += pointer_depth;
     if (out) *out = std::move(proc);
     return true;
   }
@@ -163,6 +169,12 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     error_ = "expected type name";
     return false;
   }
+  out->type_args.clear();
+  out->dims.clear();
+  out->is_proc = false;
+  out->proc_params.clear();
+  out->proc_return.reset();
+  out->proc_return_mutability = Mutability::Mutable;
   out->name = tok.text;
   out->line = tok.line;
   out->column = tok.column;
@@ -172,6 +184,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
     if (!ParseTypeArgs(&out->type_args)) return false;
   }
 
+  out->pointer_depth = pointer_depth;
   if (!ParseTypeDims(out)) return false;
   return true;
 }

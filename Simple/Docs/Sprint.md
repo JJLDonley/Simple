@@ -875,3 +875,13 @@
 - Marked `core_dl_open_raylib.simple` as an opt-in interactive sample by excluding it from bulk fixture sweeps in headless test runs.
 - Re-ran full matrix after these changes:
   `./Simple/build.sh --suite all` => `1174/1174`.
+## 2026-02-07 (cont. 5)
+- Added language-level pointer types: `*T` / `*void` parsing in `lang_parser`.
+- Propagated pointer typing through validator and SIR type cloning/equality/substitution paths.
+- Added FFI/DL ABI support for pointer leaves by lowering pointer types to `i64` ABI slots in SIR/validation.
+- Updated dynamic DL signature validation to remove old 4-arg cap and enforce opcode-safe ABI leaf count (`<= 254` params).
+- Added pointer-focused language tests:
+  - type parser coverage for `*i32` / `**void`
+  - extern validation coverage for pointer params/returns and pointer artifact fields.
+- Re-ran full project matrix:
+  `./Simple/build.sh --suite all` => `1175/1175`.
