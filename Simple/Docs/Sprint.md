@@ -4,6 +4,9 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Replaced dynamic DL intrinsic-only lowering with typed `core.dl` call-import lowering keyed from extern manifest signatures.
+- Added VM runtime typed dispatch for dynamic DL calls using exact signature metadata (mixed scalar/string params, void/scalar/string returns, up to 2 params).
+- Expanded FFI/lang coverage for dynamic calls with mixed signatures (`0/1/2` args, string in/out, and void return).
 - Enforced declaration-only extern grammar in docs (`extern module.symbol : type (params)`), explicitly disallowing `=` forms and block bodies.
 - Updated language docs to define `char` as byte (`u8`) and documented typed Core.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
 - Expanded Core.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).

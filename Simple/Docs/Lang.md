@@ -904,10 +904,10 @@ main : i32 () {
 
 - The second `DL.Open` argument must be an extern module identifier.
 - Calls are type-checked from extern signatures.
-- Current VM call intrinsics support these dynamic signatures:
-  - `(T, T) -> T` where `T` is one of:
-    `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`, `bool`, `char`
-  - `() -> string`
+- Dynamic VM dispatch currently supports extern signatures with:
+  - up to 2 parameters
+  - scalar parameter types: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+  - return type: `void` or `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
 
 ### artifact Rules
 

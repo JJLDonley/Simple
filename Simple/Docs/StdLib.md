@@ -58,11 +58,11 @@ Using these paths does **not** load files from disk. They map to core VM namespa
 - `Core.DL.sym(handle: i64, name: string) -> i64`
 - `Core.DL.close(handle: i64) -> i32`
 - `Core.DL.last_error() -> string`
-- `Core.DL.call_i32(ptr: i64, a: i32, b: i32) -> i32`
-- `Core.DL.call_i64(ptr: i64, a: i64, b: i64) -> i64`
-- `Core.DL.call_f32(ptr: i64, a: f32, b: f32) -> f32`
-- `Core.DL.call_f64(ptr: i64, a: f64, b: f64) -> f64`
-- `Core.DL.call_str0(ptr: i64) -> string`
+- Typed dynamic symbol calls are emitted from extern signatures used by `DL.Open(path, manifest)`.
+- Supported dynamic-call ABI surface:
+  - up to 2 parameters
+  - param types: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+  - return types: `void` and `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
 
 ### Core.Os
 - `Core.Os.args_count() -> i32`

@@ -10,6 +10,11 @@ extern ffi.simple_add_u64 : u64 (a : u64, b : u64)
 extern ffi.simple_bool_and : bool (a : bool, b : bool)
 extern ffi.simple_char_max : char (a : char, b : char)
 extern ffi.simple_hello : string ()
+extern ffi.simple_inc_i32 : i32 (a : i32)
+extern ffi.simple_mix_i32_f64 : f64 (a : i32, b : f64)
+extern ffi.simple_strlen_cstr : i32 (text : string)
+extern ffi.simple_echo : string (text : string)
+extern ffi.simple_sink_i32 : void (value : i32)
 
 main : i32 () {
   lib : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so", ffi);
@@ -31,6 +36,11 @@ main : i32 () {
   IO.println(lib.simple_char_max('A', 'Z'));
   msg = lib.simple_hello();
   IO.println(msg);
+  IO.println(lib.simple_inc_i32(41));
+  IO.println(lib.simple_mix_i32_f64(3, 0.5));
+  IO.println(lib.simple_strlen_cstr("hello"));
+  IO.println(lib.simple_echo("echo"));
+  lib.simple_sink_i32(1234);
   DL.Close(lib)
   return 1
 }

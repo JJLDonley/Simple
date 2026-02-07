@@ -46,6 +46,7 @@ struct EmitState {
   std::unordered_map<std::string, TypeRef> extern_returns;
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<TypeRef>>> extern_params_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, TypeRef>> extern_returns_by_module;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>> dl_call_import_ids_by_module;
   std::unordered_map<std::string, std::string> global_dl_modules;
 
   struct ImportItem {
@@ -233,71 +234,13 @@ bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   return false;
 }
 
-bool GetDynamicDlIntrinsic(const TypeRef& ret,
-                           const std::vector<TypeRef>& params,
-                           uint32_t* out_intrinsic,
-                           std::string* error) {
-  if (!out_intrinsic) return false;
-  if (params.size() == 2 &&
-      params[0].name == ret.name &&
-      params[1].name == ret.name) {
-    if (ret.name == "i8") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallI8;
-      return true;
-    }
-    if (ret.name == "i16") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallI16;
-      return true;
-    }
-    if (ret.name == "i32") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallI32;
-      return true;
-    }
-    if (ret.name == "i64") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallI64;
-      return true;
-    }
-    if (ret.name == "u8") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallU8;
-      return true;
-    }
-    if (ret.name == "u16") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallU16;
-      return true;
-    }
-    if (ret.name == "u32") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallU32;
-      return true;
-    }
-    if (ret.name == "u64") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallU64;
-      return true;
-    }
-    if (ret.name == "f32") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallF32;
-      return true;
-    }
-    if (ret.name == "f64") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallF64;
-      return true;
-    }
-    if (ret.name == "bool") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallBool;
-      return true;
-    }
-    if (ret.name == "char") {
-      *out_intrinsic = Simple::VM::kIntrinsicDlCallChar;
-      return true;
-    }
-  }
-  if (ret.name == "string" && params.empty()) {
-    *out_intrinsic = Simple::VM::kIntrinsicDlCallStr0;
-    return true;
-  }
-  if (error) {
-    *error = "dynamic DL symbol signature is unsupported by current VM call intrinsics";
-  }
-  return false;
+bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (allow_void && type.name == "void") return true;
+  return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+         type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+         type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
+         type.name == "string";
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -1656,8 +1599,16 @@ bool EmitExpr(EmitState& st,
                                   base.text + "." + callee.text + "'";
               return false;
             }
-            uint32_t intrinsic = 0;
-            if (!GetDynamicDlIntrinsic(ret_it->second, params, &intrinsic, error)) return false;
+            auto call_mod_it = st.dl_call_import_ids_by_module.find(dl_module);
+            if (call_mod_it == st.dl_call_import_ids_by_module.end()) {
+              if (error) *error = "missing dynamic DL call import module: " + dl_module;
+              return false;
+            }
+            auto call_id_it = call_mod_it->second.find(callee.text);
+            if (call_id_it == call_mod_it->second.end()) {
+              if (error) *error = "missing dynamic DL call import: " + dl_module + "." + callee.text;
+              return false;
+            }
             std::string sym_import_id;
             if (!GetCoreDlSymImportId(st, &sym_import_id)) {
               if (error) *error = "missing Core.DL.sym import for dynamic symbol calls";
@@ -1675,9 +1626,9 @@ bool EmitExpr(EmitState& st,
             for (size_t i = 0; i < params.size(); ++i) {
               if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
             }
-            (*st.out) << "  intrinsic " << intrinsic << "\n";
+            (*st.out) << "  call " << call_id_it->second << " " << (params.size() + 1) << "\n";
             PopStack(st, static_cast<uint32_t>(params.size() + 1));
-            PushStack(st, 1);
+            if (ret_it->second.name != "void") PushStack(st, 1);
             return true;
           }
         }
@@ -3017,6 +2968,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
+  uint32_t dynamic_dl_call_index = 0;
   for (const auto* ext : externs) {
     std::string module = ext->has_module ? ResolveImportModule(ext->module) : std::string("host");
     std::string symbol = ext->name;
@@ -3057,6 +3009,38 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       st.extern_ids[symbol] = st.imports.back().name;
       st.extern_params[symbol] = std::move(param_copy);
       st.extern_returns[symbol] = std::move(ret_copy);
+    }
+
+    if (ext->has_module &&
+        ResolveImportModule(ext->module) != "core.dl" &&
+        IsSupportedDlScalarType(ext->return_type, true) &&
+        ext->params.size() <= 2) {
+      bool all_params_scalar = true;
+      for (const auto& p : ext->params) {
+        if (!IsSupportedDlScalarType(p.type, false)) {
+          all_params_scalar = false;
+          break;
+        }
+      }
+      if (all_params_scalar) {
+        EmitState::ImportItem dyn_item;
+        dyn_item.name = "import_" + std::to_string(st.imports.size());
+        dyn_item.module = "core.dl";
+        dyn_item.symbol = "call$" + std::to_string(dynamic_dl_call_index++);
+        dyn_item.sig_name = "sig_import_" + std::to_string(st.imports.size());
+        dyn_item.flags = 0;
+        TypeRef ptr_type;
+        ptr_type.name = "i64";
+        dyn_item.params.push_back(std::move(ptr_type));
+        for (const auto& param : ext->params) {
+          TypeRef cloned_param;
+          if (!CloneTypeRef(param.type, &cloned_param)) return false;
+          dyn_item.params.push_back(std::move(cloned_param));
+        }
+        if (!CloneTypeRef(ext->return_type, &dyn_item.ret)) return false;
+        st.dl_call_import_ids_by_module[ext->module][symbol] = dyn_item.name;
+        st.imports.push_back(std::move(dyn_item));
+      }
     }
   }
 

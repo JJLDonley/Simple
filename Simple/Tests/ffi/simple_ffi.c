@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 int32_t simple_add_i32(int32_t a, int32_t b) {
   return a + b;
@@ -53,6 +54,27 @@ bool simple_bool_and(bool a, bool b) {
 
 const char* simple_hello(void) {
   return "hello this is a string from C function";
+}
+
+int32_t simple_inc_i32(int32_t a) {
+  return a + 1;
+}
+
+double simple_mix_i32_f64(int32_t a, double b) {
+  return (double)a + b;
+}
+
+int32_t simple_strlen_cstr(const char* text) {
+  if (!text) return -1;
+  return (int32_t)strlen(text);
+}
+
+const char* simple_echo(const char* text) {
+  return text;
+}
+
+void simple_sink_i32(int32_t value) {
+  (void)value;
 }
 
 typedef struct Array {

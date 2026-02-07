@@ -10,6 +10,8 @@
 #include <limits>
 #include <sstream>
 #include <thread>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "heap.h"
@@ -49,6 +51,33 @@ inline bool IsI64LikeImportType(TypeKind kind) {
 
 inline bool IsStringLikeImportType(TypeKind kind) {
   return kind == TypeKind::String || kind == TypeKind::Ref;
+}
+
+std::u16string AsciiToU16(const std::string& text);
+std::string U16ToAscii(const std::u16string& text);
+uint32_t CreateString(Heap& heap, const std::u16string& text);
+std::u16string ReadString(const HeapObject* obj);
+
+inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
+  if (allow_void && kind == TypeKind::Unspecified) return true;
+  switch (kind) {
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::I64:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::U64:
+    case TypeKind::F32:
+    case TypeKind::F64:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+    case TypeKind::String:
+      return true;
+    default:
+      return false;
+  }
 }
 
 float BitsToF32(uint32_t bits) {
@@ -120,6 +149,384 @@ inline uint32_t UnpackRef(Slot value) {
 inline bool IsNullRef(Slot value) {
   return UnpackRef(value) == kNullRef;
 }
+
+template <typename T>
+bool ConvertDlArg(Slot slot,
+                  Heap& heap,
+                  std::vector<std::string>& owned_strings,
+                  T* out,
+                  std::string* out_error) {
+  if (!out) return false;
+  if constexpr (std::is_same_v<T, int8_t>) {
+    *out = static_cast<int8_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, int16_t>) {
+    *out = static_cast<int16_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, int32_t>) {
+    *out = static_cast<int32_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, int64_t>) {
+    *out = static_cast<int64_t>(UnpackI64(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint8_t>) {
+    *out = static_cast<uint8_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint16_t>) {
+    *out = static_cast<uint16_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
+    *out = static_cast<uint32_t>(UnpackI32(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    *out = static_cast<uint64_t>(UnpackI64(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, float>) {
+    *out = BitsToF32(UnpackU32Bits(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, double>) {
+    *out = BitsToF64(UnpackU64Bits(slot));
+    return true;
+  } else if constexpr (std::is_same_v<T, bool>) {
+    *out = (UnpackI32(slot) != 0);
+    return true;
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    uint32_t ref = UnpackRef(slot);
+    if (ref == kNullRef) {
+      *out = nullptr;
+      return true;
+    }
+    HeapObject* obj = heap.Get(ref);
+    if (!obj || obj->header.kind != ObjectKind::String) {
+      if (out_error) *out_error = "core.dl.call string argument is not a string";
+      return false;
+    }
+    owned_strings.push_back(U16ToAscii(ReadString(obj)));
+    *out = owned_strings.back().c_str();
+    return true;
+  }
+  if (out_error) *out_error = "core.dl.call unsupported argument type conversion";
+  return false;
+}
+
+template <typename T>
+bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
+  if (!out_ret) return false;
+  if constexpr (std::is_same_v<T, int8_t>) {
+    *out_ret = PackI32(static_cast<int32_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, int16_t>) {
+    *out_ret = PackI32(static_cast<int32_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, int32_t>) {
+    *out_ret = PackI32(value);
+    return true;
+  } else if constexpr (std::is_same_v<T, int64_t>) {
+    *out_ret = PackI64(value);
+    return true;
+  } else if constexpr (std::is_same_v<T, uint8_t>) {
+    *out_ret = PackI32(static_cast<int32_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint16_t>) {
+    *out_ret = PackI32(static_cast<int32_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint32_t>) {
+    *out_ret = PackI32(static_cast<int32_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    *out_ret = PackI64(static_cast<int64_t>(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, float>) {
+    *out_ret = PackF32Bits(F32ToBits(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, double>) {
+    *out_ret = PackF64Bits(F64ToBits(value));
+    return true;
+  } else if constexpr (std::is_same_v<T, bool>) {
+    *out_ret = PackI32(value ? 1 : 0);
+    return true;
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    if (!value) {
+      *out_ret = PackRef(kNullRef);
+      return true;
+    }
+    uint32_t handle = CreateString(heap, AsciiToU16(value));
+    *out_ret = PackRef(handle);
+    return true;
+  }
+  if (out_error) *out_error = "core.dl.call unsupported return type conversion";
+  return false;
+}
+
+template <typename Ret, typename... Args>
+bool InvokeDlFunctionTyped(int64_t ptr_bits,
+                           const std::vector<Slot>& args,
+                           size_t arg_base,
+                           Heap& heap,
+                           Slot* out_ret,
+                           std::string* out_error) {
+  std::vector<std::string> owned_strings;
+  owned_strings.reserve(sizeof...(Args));
+  std::tuple<std::decay_t<Args>...> converted{};
+  bool ok = true;
+  size_t index = 0;
+  auto convert_one = [&](auto& dst) {
+    if (!ok) return;
+    using ArgT = std::decay_t<decltype(dst)>;
+    if (arg_base + index >= args.size()) {
+      ok = false;
+      if (out_error) *out_error = "core.dl.call arg index out of range";
+      return;
+    }
+    if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
+      ok = false;
+      return;
+    }
+    ++index;
+  };
+  std::apply([&](auto&... vals) { (convert_one(vals), ...); }, converted);
+  if (!ok) return false;
+  using Fn = Ret (*)(Args...);
+  Fn fn = reinterpret_cast<Fn>(ptr_bits);
+  Ret value = std::apply([&](auto... vals) -> Ret { return fn(vals...); }, converted);
+  return PackDlReturn<Ret>(value, heap, out_ret, out_error);
+}
+
+template <typename... Args>
+bool InvokeDlFunctionVoidTyped(int64_t ptr_bits,
+                               const std::vector<Slot>& args,
+                               size_t arg_base,
+                               Heap& heap,
+                               std::string* out_error) {
+  std::vector<std::string> owned_strings;
+  owned_strings.reserve(sizeof...(Args));
+  std::tuple<std::decay_t<Args>...> converted{};
+  bool ok = true;
+  size_t index = 0;
+  auto convert_one = [&](auto& dst) {
+    if (!ok) return;
+    using ArgT = std::decay_t<decltype(dst)>;
+    if (arg_base + index >= args.size()) {
+      ok = false;
+      if (out_error) *out_error = "core.dl.call arg index out of range";
+      return;
+    }
+    if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
+      ok = false;
+      return;
+    }
+    ++index;
+  };
+  std::apply([&](auto&... vals) { (convert_one(vals), ...); }, converted);
+  if (!ok) return false;
+  using Fn = void (*)(Args...);
+  Fn fn = reinterpret_cast<Fn>(ptr_bits);
+  std::apply([&](auto... vals) { fn(vals...); }, converted);
+  return true;
+}
+
+#define SIMPLE_DL_FOREACH_TYPE(X) \
+  X(TypeKind::I8, int8_t)         \
+  X(TypeKind::I16, int16_t)       \
+  X(TypeKind::I32, int32_t)       \
+  X(TypeKind::I64, int64_t)       \
+  X(TypeKind::U8, uint8_t)        \
+  X(TypeKind::U16, uint16_t)      \
+  X(TypeKind::U32, uint32_t)      \
+  X(TypeKind::U64, uint64_t)      \
+  X(TypeKind::F32, float)         \
+  X(TypeKind::F64, double)        \
+  X(TypeKind::Bool, bool)         \
+  X(TypeKind::Char, uint8_t)      \
+  X(TypeKind::String, const char*)
+
+template <typename Ret>
+bool DispatchDlCall1(TypeKind arg0_kind,
+                     int64_t ptr_bits,
+                     const std::vector<Slot>& args,
+                     size_t arg_base,
+                     Heap& heap,
+                     Slot* out_ret,
+                     std::string* out_error) {
+  switch (arg0_kind) {
+#define SIMPLE_DL_CASE_ARG0(kind, cpp_type) \
+    case kind:                              \
+      return InvokeDlFunctionTyped<Ret, cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0)
+#undef SIMPLE_DL_CASE_ARG0
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+template <typename Arg0>
+bool DispatchDlCall2Arg1Void(TypeKind arg1_kind,
+                             int64_t ptr_bits,
+                             const std::vector<Slot>& args,
+                             size_t arg_base,
+                             Heap& heap,
+                             std::string* out_error) {
+  switch (arg1_kind) {
+#define SIMPLE_DL_CASE_ARG1_VOID(kind, cpp_type) \
+    case kind:                                   \
+      return InvokeDlFunctionVoidTyped<Arg0, cpp_type>(ptr_bits, args, arg_base, heap, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1_VOID)
+#undef SIMPLE_DL_CASE_ARG1_VOID
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+bool DispatchDlCall1Void(TypeKind arg0_kind,
+                         int64_t ptr_bits,
+                         const std::vector<Slot>& args,
+                         size_t arg_base,
+                         Heap& heap,
+                         std::string* out_error) {
+  switch (arg0_kind) {
+#define SIMPLE_DL_CASE_ARG0_VOID(kind, cpp_type) \
+    case kind:                                   \
+      return InvokeDlFunctionVoidTyped<cpp_type>(ptr_bits, args, arg_base, heap, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_VOID)
+#undef SIMPLE_DL_CASE_ARG0_VOID
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+template <typename Ret, typename Arg0>
+bool DispatchDlCall2Arg1(TypeKind arg1_kind,
+                         int64_t ptr_bits,
+                         const std::vector<Slot>& args,
+                         size_t arg_base,
+                         Heap& heap,
+                         Slot* out_ret,
+                         std::string* out_error) {
+  switch (arg1_kind) {
+#define SIMPLE_DL_CASE_ARG1(kind, cpp_type) \
+    case kind:                              \
+      return InvokeDlFunctionTyped<Ret, Arg0, cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1)
+#undef SIMPLE_DL_CASE_ARG1
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+template <typename Ret>
+bool DispatchDlCall2(TypeKind arg0_kind,
+                     TypeKind arg1_kind,
+                     int64_t ptr_bits,
+                     const std::vector<Slot>& args,
+                     size_t arg_base,
+                     Heap& heap,
+                     Slot* out_ret,
+                     std::string* out_error) {
+  switch (arg0_kind) {
+#define SIMPLE_DL_CASE_ARG0_2(kind, cpp_type) \
+    case kind:                                \
+      return DispatchDlCall2Arg1<Ret, cpp_type>(arg1_kind, ptr_bits, args, arg_base, heap, out_ret, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2)
+#undef SIMPLE_DL_CASE_ARG0_2
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+bool DispatchDlCall2Void(TypeKind arg0_kind,
+                         TypeKind arg1_kind,
+                         int64_t ptr_bits,
+                         const std::vector<Slot>& args,
+                         size_t arg_base,
+                         Heap& heap,
+                         std::string* out_error) {
+  switch (arg0_kind) {
+#define SIMPLE_DL_CASE_ARG0_2_VOID(kind, cpp_type) \
+    case kind:                                     \
+      return DispatchDlCall2Arg1Void<cpp_type>(arg1_kind, ptr_bits, args, arg_base, heap, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2_VOID)
+#undef SIMPLE_DL_CASE_ARG0_2_VOID
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+  }
+}
+
+bool DispatchDynamicDlCall(int64_t ptr_bits,
+                           TypeKind ret_kind,
+                           const std::vector<TypeKind>& arg_kinds,
+                           const std::vector<Slot>& args,
+                           size_t arg_base,
+                           Heap& heap,
+                           Slot* out_ret,
+                           std::string* out_error) {
+  if (arg_kinds.size() > 2) {
+    if (out_error) *out_error = "core.dl.call currently supports up to 2 parameters";
+    return false;
+  }
+  for (TypeKind kind : arg_kinds) {
+    if (!IsDlCallScalarKind(kind, false)) {
+      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      return false;
+    }
+  }
+  if (!IsDlCallScalarKind(ret_kind, true)) {
+    if (out_error) *out_error = "core.dl.call unsupported return type";
+    return false;
+  }
+  if (ret_kind == TypeKind::Unspecified) {
+    if (arg_kinds.empty()) return InvokeDlFunctionVoidTyped<>(ptr_bits, args, arg_base, heap, out_error);
+    if (arg_kinds.size() == 1) {
+      return DispatchDlCall1Void(arg_kinds[0], ptr_bits, args, arg_base, heap, out_error);
+    }
+    return DispatchDlCall2Void(arg_kinds[0], arg_kinds[1], ptr_bits, args, arg_base, heap, out_error);
+  }
+  if (!out_ret) {
+    if (out_error) *out_error = "core.dl.call missing return slot";
+    return false;
+  }
+  if (arg_kinds.empty()) {
+    switch (ret_kind) {
+#define SIMPLE_DL_CASE_RET0(kind, cpp_type) \
+      case kind:                            \
+        return InvokeDlFunctionTyped<cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
+      SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET0)
+#undef SIMPLE_DL_CASE_RET0
+      default:
+        if (out_error) *out_error = "core.dl.call unsupported return type";
+        return false;
+    }
+  }
+  if (arg_kinds.size() == 1) {
+    switch (ret_kind) {
+#define SIMPLE_DL_CASE_RET1(kind, cpp_type) \
+      case kind:                            \
+        return DispatchDlCall1<cpp_type>(arg_kinds[0], ptr_bits, args, arg_base, heap, out_ret, out_error);
+      SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET1)
+#undef SIMPLE_DL_CASE_RET1
+      default:
+        if (out_error) *out_error = "core.dl.call unsupported return type";
+        return false;
+    }
+  }
+  switch (ret_kind) {
+#define SIMPLE_DL_CASE_RET2(kind, cpp_type) \
+    case kind:                              \
+      return DispatchDlCall2<cpp_type>(arg_kinds[0], arg_kinds[1], ptr_bits, args, arg_base, heap, out_ret, out_error);
+    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET2)
+#undef SIMPLE_DL_CASE_RET2
+    default:
+      if (out_error) *out_error = "core.dl.call unsupported return type";
+      return false;
+  }
+}
+
+#undef SIMPLE_DL_FOREACH_TYPE
 
 std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
   if (offset >= module.const_pool.size()) return {};
@@ -896,6 +1303,59 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         uint32_t handle = CreateString(heap, AsciiToU16(dl_last_error));
         out_ret = PackRef(handle);
+        return true;
+      }
+      if (sym.rfind("call$", 0) == 0) {
+        if (sig.param_count == 0) {
+          out_error = "core.dl.call signature missing function pointer";
+          return false;
+        }
+        if (args.size() != sig.param_count) {
+          out_error = "core.dl.call arg count mismatch";
+          return false;
+        }
+        uint32_t ptr_type_id = module.param_types[sig.param_type_start];
+        if (ptr_type_id >= module.types.size()) {
+          out_error = "core.dl.call pointer type out of range";
+          return false;
+        }
+        TypeKind ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
+        if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
+          out_error = "core.dl.call first parameter must be i64/u64";
+          return false;
+        }
+        int64_t ptr_bits = UnpackI64(args[0]);
+        if (ptr_bits == 0) {
+          set_dl_error("core.dl.call null ptr");
+          if (out_has_ret) {
+            if (ret_kind == TypeKind::String || ret_kind == TypeKind::Ref) {
+              out_ret = PackRef(kNullRef);
+            } else if (ret_kind == TypeKind::I64 || ret_kind == TypeKind::U64) {
+              out_ret = PackI64(0);
+            } else if (ret_kind == TypeKind::F64) {
+              out_ret = PackF64Bits(0);
+            } else if (ret_kind == TypeKind::F32) {
+              out_ret = PackF32Bits(0);
+            } else {
+              out_ret = PackI32(0);
+            }
+          }
+          return true;
+        }
+        std::vector<TypeKind> arg_kinds;
+        arg_kinds.reserve(sig.param_count > 0 ? static_cast<size_t>(sig.param_count - 1) : 0u);
+        for (uint16_t i = 1; i < sig.param_count; ++i) {
+          uint32_t type_id = module.param_types[sig.param_type_start + i];
+          if (type_id >= module.types.size()) {
+            out_error = "core.dl.call parameter type out of range";
+            return false;
+          }
+          arg_kinds.push_back(static_cast<TypeKind>(module.types[type_id].kind));
+        }
+        if (!DispatchDynamicDlCall(ptr_bits, ret_kind, arg_kinds, args, 1, heap, &out_ret, &out_error)) {
+          return false;
+        }
+        dl_last_error.clear();
         return true;
       }
     }

@@ -163,38 +163,40 @@ bool GetDlOpenManifestModule(const Expr& expr,
   return true;
 }
 
+bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (allow_void && type.name == "void") return true;
+  return type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+         type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+         type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
+         type.name == "string";
+}
+
 bool IsSupportedDlDynamicSignature(const ExternDecl& ext, std::string* error) {
-  auto is_scalar_prim = [](const TypeRef& t) {
-    return !t.is_proc && t.type_args.empty() && t.dims.empty();
-  };
-  if (!is_scalar_prim(ext.return_type)) {
-    if (error) *error = "dynamic DL return type must be scalar primitive";
+  if (ext.params.size() > 2) {
+    if (error) {
+      *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
+               "' currently supports up to 2 parameters";
+    }
+    return false;
+  }
+  if (!IsSupportedDlScalarType(ext.return_type, true)) {
+    if (error) {
+      *error = "dynamic DL return type must be one of: "
+               "void/i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string";
+    }
     return false;
   }
   for (const auto& p : ext.params) {
-    if (!is_scalar_prim(p.type)) {
-      if (error) *error = "dynamic DL parameter type must be scalar primitive";
+    if (!IsSupportedDlScalarType(p.type, false)) {
+      if (error) {
+        *error = "dynamic DL parameter type must be one of: "
+                 "i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string";
+      }
       return false;
     }
   }
-  static const std::unordered_set<std::string> kDlBinarySameTypePrims = {
-    "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64", "bool", "char",
-  };
-  if (ext.params.size() == 2 &&
-      ext.params[0].type.name == ext.return_type.name &&
-      ext.params[1].type.name == ext.return_type.name &&
-      kDlBinarySameTypePrims.find(ext.return_type.name) != kDlBinarySameTypePrims.end()) {
-    return true;
-  }
-  if (ext.return_type.name == "string" && ext.params.empty()) {
-    return true;
-  }
-  if (error) {
-    *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
-             "' must match one of: (T,T)->T where T is primitive scalar "
-             "(i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char), or ()->string";
-  }
-  return false;
+  return true;
 }
 
 TypeRef MakeSimpleType(const std::string& name) {
