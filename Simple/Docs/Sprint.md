@@ -4,6 +4,12 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Fixed CLI `.simple` local import resolution for project files:
+  - recursive non-reserved import loading from importer directory,
+  - extensionless import support (`./name` -> `./name.simple`),
+  - cycle detection for local imports,
+  - applied consistently across `run/check/build/compile/emit`.
+- Added lang CLI regression coverage for local-import execution (`Simple/Tests/simple_modules/import_local_main.simple`).
 - Added end-user distribution tooling:
   - `Simple/release.sh` packages prebuilt `simple` artifacts into a versioned tarball.
   - `Simple/install.sh` installs from tarball/URL into `${HOME}/.simple/<version>` and links `${HOME}/.local/bin/simple`.

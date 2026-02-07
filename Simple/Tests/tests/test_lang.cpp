@@ -631,6 +631,10 @@ bool LangCliRunSimpleAlias() {
   return RunCommand("Simple/bin/simple run Simple/Tests/simple/hello.simple");
 }
 
+bool LangCliRunSimpleLocalImport() {
+  return RunCommand("Simple/bin/simple run Simple/Tests/simple_modules/import_local_main.simple");
+}
+
 bool LangCliCheckSimpleAlias() {
   return RunCommand("Simple/bin/simple check Simple/Tests/simple/hello.simple");
 }
@@ -2829,6 +2833,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
+  {"lang_cli_run_simple_local_import", LangCliRunSimpleLocalImport},
   {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
   {"lang_cli_lsp_not_implemented", LangCliLspNotImplemented},

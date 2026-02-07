@@ -82,6 +82,15 @@ Composite/supporting types:
 
 Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Simple/Docs/StdLib.md`.
 
+### Project-Local Imports (CLI)
+
+For `.simple` entry files compiled through CLI commands (`run/check/build/compile/emit -ir/-sbc`):
+
+- non-reserved imports are resolved relative to the importing file directory,
+- extensionless imports are allowed (`import "./raylib"` resolves `./raylib.simple`),
+- imports are loaded recursively,
+- cyclic local imports are rejected.
+
 ## FFI + Extern Design
 
 ### Extern Syntax

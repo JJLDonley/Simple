@@ -6,12 +6,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cinttypes>
+#include <unordered_set>
 #if defined(__linux__)
 #include <unistd.h>
 #endif
 
 #include "ir_compiler.h"
 #include "ir_lang.h"
+#include "lang_parser.h"
 #include "lang_validate.h"
 #include "lang_sir.h"
 #include "sbc_loader.h"
@@ -30,6 +32,137 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   buffer << in.rdbuf();
   *out = buffer.str();
   return true;
+}
+
+bool IsReservedImportPath(const std::string& path) {
+  static const std::unordered_set<std::string> kReserved = {
+    "Math",
+    "IO",
+    "Time",
+    "File",
+    "Core.DL",
+    "Core.Os",
+    "Core.Fs",
+    "Core.Log",
+  };
+  return kReserved.find(path) != kReserved.end();
+}
+
+bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
+                            const std::string& import_path,
+                            std::filesystem::path* out,
+                            std::string* error) {
+  if (!out) return false;
+  namespace fs = std::filesystem;
+  fs::path raw(import_path);
+  if (raw.is_absolute()) {
+    if (fs::exists(raw)) {
+      *out = fs::weakly_canonical(raw);
+      return true;
+    }
+    if (!raw.has_extension()) {
+      fs::path with_ext = raw;
+      with_ext += ".simple";
+      if (fs::exists(with_ext)) {
+        *out = fs::weakly_canonical(with_ext);
+        return true;
+      }
+    }
+  } else {
+    fs::path cand = base_dir / raw;
+    if (fs::exists(cand)) {
+      *out = fs::weakly_canonical(cand);
+      return true;
+    }
+    if (!raw.has_extension()) {
+      fs::path with_ext = base_dir / (import_path + ".simple");
+      if (fs::exists(with_ext)) {
+        *out = fs::weakly_canonical(with_ext);
+        return true;
+      }
+    }
+  }
+  if (error) *error = "unsupported import path: " + import_path;
+  return false;
+}
+
+bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
+                                   Simple::Lang::Program* out,
+                                   std::unordered_set<std::string>* visiting,
+                                   std::unordered_set<std::string>* visited,
+                                   std::string* error) {
+  if (!out || !visiting || !visited) return false;
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path canon = fs::weakly_canonical(file_path, ec);
+  if (ec || canon.empty()) canon = fs::absolute(file_path);
+  const std::string key = canon.string();
+  if (visited->find(key) != visited->end()) return true;
+  if (!visiting->insert(key).second) {
+    if (error) *error = "cyclic import detected: " + key;
+    return false;
+  }
+
+  std::string text;
+  if (!ReadFileText(key, &text, error)) {
+    visiting->erase(key);
+    return false;
+  }
+  Simple::Lang::Program program;
+  std::string parse_error;
+  if (!Simple::Lang::ParseProgramFromString(text, &program, &parse_error)) {
+    if (error) *error = key + ": " + parse_error;
+    visiting->erase(key);
+    return false;
+  }
+
+  const fs::path base_dir = canon.parent_path();
+  for (const auto& decl : program.decls) {
+    if (decl.kind != Simple::Lang::DeclKind::Import) continue;
+    if (IsReservedImportPath(decl.import_decl.path)) continue;
+    fs::path import_file;
+    if (!ResolveLocalImportPath(base_dir, decl.import_decl.path, &import_file, error)) {
+      visiting->erase(key);
+      return false;
+    }
+    if (!AppendProgramWithLocalImports(import_file, out, visiting, visited, error)) {
+      visiting->erase(key);
+      return false;
+    }
+  }
+
+  for (auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::DeclKind::Import && !IsReservedImportPath(decl.import_decl.path)) {
+      continue;
+    }
+    out->decls.push_back(std::move(decl));
+  }
+
+  visiting->erase(key);
+  visited->insert(key);
+  return true;
+}
+
+bool LoadSimpleProgramWithImports(const std::string& entry_path,
+                                  Simple::Lang::Program* out,
+                                  std::string* error) {
+  if (!out) return false;
+  out->decls.clear();
+  std::unordered_set<std::string> visiting;
+  std::unordered_set<std::string> visited;
+  return AppendProgramWithLocalImports(entry_path, out, &visiting, &visited, error);
+}
+
+bool ValidateSimpleFile(const std::string& path, std::string* error) {
+  Simple::Lang::Program program;
+  if (!LoadSimpleProgramWithImports(path, &program, error)) return false;
+  return Simple::Lang::ValidateProgram(program, error);
+}
+
+bool EmitSirFromSimpleFile(const std::string& path, std::string* out, std::string* error) {
+  Simple::Lang::Program program;
+  if (!LoadSimpleProgramWithImports(path, &program, error)) return false;
+  return Simple::Lang::EmitSir(program, out, error);
 }
 
 bool CompileSirToSbc(const std::string& text,
@@ -54,16 +187,15 @@ bool CompileSirToSbc(const std::string& text,
   return true;
 }
 
-bool CompileSimpleToSbc(const std::string& text,
-                        const std::string& name,
-                        std::vector<uint8_t>* out,
-                        std::string* error) {
+bool CompileSimpleFileToSbc(const std::string& path,
+                            std::vector<uint8_t>* out,
+                            std::string* error) {
   std::string sir;
-  if (!Simple::Lang::EmitSirFromString(text, &sir, error)) {
-    if (error) *error = "simple compile failed (" + name + "): " + *error;
+  if (!EmitSirFromSimpleFile(path, &sir, error)) {
+    if (error) *error = "simple compile failed (" + path + "): " + *error;
     return false;
   }
-  return CompileSirToSbc(sir, name, out, error);
+  return CompileSirToSbc(sir, path, out, error);
 }
 
 bool WriteFileBytes(const std::string& path,
@@ -440,11 +572,7 @@ int main(int argc, char** argv) {
     std::string text;
     std::string error;
     if (HasExt(path, ".simple")) {
-      if (!ReadFileText(path, &text, &error)) {
-        PrintError(error);
-        return 1;
-      }
-      if (!Simple::Lang::ValidateProgramFromString(text, &error)) {
+      if (!ValidateSimpleFile(path, &error)) {
         PrintErrorWithContext(path, error);
         return 1;
       }
@@ -507,12 +635,8 @@ int main(int argc, char** argv) {
         return 1;
       }
       if (out_path.empty()) out_path = ReplaceExt(emit_path, ".sir");
-      if (!ReadFileText(emit_path, &text, &error)) {
-        PrintError(error);
-        return 1;
-      }
       std::string sir;
-      if (!Simple::Lang::EmitSirFromString(text, &sir, &error)) {
+      if (!EmitSirFromSimpleFile(emit_path, &sir, &error)) {
         PrintErrorWithContext(emit_path, "simple compile failed (" + emit_path + "): " + error);
         return 1;
       }
@@ -527,8 +651,7 @@ int main(int argc, char** argv) {
       if (out_path.empty()) out_path = ReplaceExt(emit_path, ".sbc");
       std::vector<uint8_t> bytes;
       if (HasExt(emit_path, ".simple")) {
-        if (!ReadFileText(emit_path, &text, &error) ||
-            !CompileSimpleToSbc(text, emit_path, &bytes, &error)) {
+        if (!CompileSimpleFileToSbc(emit_path, &bytes, &error)) {
           PrintErrorWithContext(emit_path, error);
           return 1;
         }
@@ -609,8 +732,7 @@ int main(int argc, char** argv) {
     std::string text;
     std::string error;
     if (HasExt(input_path, ".simple")) {
-      if (!ReadFileText(input_path, &text, &error) ||
-          !CompileSimpleToSbc(text, input_path, &bytes, &error)) {
+      if (!CompileSimpleFileToSbc(input_path, &bytes, &error)) {
         PrintErrorWithContext(input_path, error);
         return 1;
       }
@@ -670,8 +792,7 @@ int main(int argc, char** argv) {
   std::vector<uint8_t> bytes;
   std::string error;
   if (HasExt(path, ".simple")) {
-    std::string text;
-    if (!ReadFileText(path, &text, &error) || !CompileSimpleToSbc(text, path, &bytes, &error)) {
+    if (!CompileSimpleFileToSbc(path, &bytes, &error)) {
       PrintErrorWithContext(path, error);
       return 1;
     }

@@ -35,6 +35,8 @@
 4. execute runtime path (for `run`)
 5. print diagnostics and return command status
 
+For `.simple` input paths, CLI also resolves non-reserved imports as local project files (recursive, importer-relative, extensionless `.simple` fallback).
+
 ## Build/Runtime Interface Notes
 
 - `Simple/build.sh` is the canonical dev/test orchestration entrypoint.
