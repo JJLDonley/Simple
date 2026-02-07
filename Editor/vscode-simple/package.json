@@ -1,0 +1,66 @@
+{
+  "name": "simple-vscode",
+  "displayName": "Simple Language",
+  "description": "VS Code support for the Simple language (LSP + syntax highlighting)",
+  "version": "0.1.0",
+  "publisher": "jjldonley",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:simple"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "simple",
+        "aliases": [
+          "Simple",
+          "simple"
+        ],
+        "extensions": [
+          ".simple"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "simple",
+        "scopeName": "source.simple",
+        "path": "./syntaxes/simple.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Simple",
+      "properties": {
+        "simple.lspPath": {
+          "type": "string",
+          "default": "simple",
+          "description": "Path to the Simple CLI executable used to launch the LSP server."
+        },
+        "simple.lspArgs": {
+          "type": "array",
+          "default": [
+            "lsp"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments passed to the Simple LSP command."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "echo 'No lint configured'"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}

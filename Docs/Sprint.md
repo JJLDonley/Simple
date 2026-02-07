@@ -1158,6 +1158,14 @@
   - `textDocument/completion` now includes declaration candidates discovered in other currently open documents, in addition to active-document symbols/keywords/builtins.
 - Expanded LSP regression suite with cross-document completion coverage:
   - validates completion can suggest declaration symbols sourced from a secondary open document.
+- Added baseline VS Code extension scaffold for Simple at `Editor/vscode-simple/`:
+  - language registration for `.simple`,
+  - stdio LSP client launcher targeting `simple lsp`,
+  - TextMate syntax grammar fallback,
+  - language configuration (`comments`, brackets, auto-closing pairs),
+  - configurable client launch settings (`simple.lspPath`, `simple.lspArgs`).
+- Added extension setup docs (`Editor/vscode-simple/README.md`) and ignore rules for packaging hygiene.
+- Updated `Docs/LSP.md` to document the implemented VS Code baseline setup and extension configuration knobs.
 - Broadened completion symbol sources to all open documents:
   - declaration candidates are now aggregated from active + secondary open documents before prefix/member filtering, improving multi-file editing suggestions.
 - Expanded LSP regression suite with open-document completion coverage:

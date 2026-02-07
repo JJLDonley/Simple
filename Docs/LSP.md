@@ -94,6 +94,18 @@ Planned layout:
   - TextMate grammar
   - language configuration (`comments`, `brackets`, `autoClosingPairs`)
 
+### VS Code Setup (Implemented Baseline)
+
+- extension scaffold lives under `Editor/vscode-simple/`
+- extension currently provides:
+  - language registration for `.simple`
+  - stdio LSP client launch (`simple lsp`)
+  - TextMate grammar fallback highlighting
+  - language configuration for comments/brackets/autoclose
+- extension runtime settings:
+  - `simple.lspPath`
+  - `simple.lspArgs`
+
 ## Milestones
 
 ### M1: Functional Server Skeleton
@@ -134,4 +146,3 @@ Planned layout:
 - formatting engine
 - refactor-heavy code actions
 - multi-workspace indexing
-
