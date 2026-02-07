@@ -682,6 +682,38 @@ bool LspDocumentSymbolReturnsTopLevel() {
          out_contents.find("\"name\":\"main\"") != std::string::npos;
 }
 
+bool LspDocumentSymbolMarksFunctionKind() {
+  const std::string in_path = TempPath("simple_lsp_symbols_kind_in.txt");
+  const std::string out_path = TempPath("simple_lsp_symbols_kind_out.txt");
+  const std::string err_path = TempPath("simple_lsp_symbols_kind_err.txt");
+  const std::string uri = "file:///workspace/symbols_kind.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { return 0; }\"}}}";
+  const std::string symbols_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":23,\"method\":\"textDocument/documentSymbol\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(symbols_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":23") != std::string::npos &&
+         out_contents.find("\"name\":\"main\"") != std::string::npos &&
+         out_contents.find("\"kind\":12") != std::string::npos;
+}
+
 bool LspWorkspaceSymbolReturnsSymbols() {
   const std::string in_path = TempPath("simple_lsp_workspace_symbols_in.txt");
   const std::string out_path = TempPath("simple_lsp_workspace_symbols_out.txt");
@@ -721,6 +753,37 @@ bool LspWorkspaceSymbolReturnsSymbols() {
          out_contents.find("\"name\":\"domain\"") == std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_a + "\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_b + "\"") != std::string::npos;
+}
+
+bool LspWorkspaceSymbolMarksFunctionKind() {
+  const std::string in_path = TempPath("simple_lsp_workspace_symbols_kind_in.txt");
+  const std::string out_path = TempPath("simple_lsp_workspace_symbols_kind_out.txt");
+  const std::string err_path = TempPath("simple_lsp_workspace_symbols_kind_err.txt");
+  const std::string uri = "file:///workspace/ws_symbol_kind.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { return 0; }\"}}}";
+  const std::string ws_symbols_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":24,\"method\":\"workspace/symbol\",\"params\":{\"query\":\"main\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(ws_symbols_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":24") != std::string::npos &&
+         out_contents.find("\"name\":\"main\"") != std::string::npos &&
+         out_contents.find("\"kind\":12") != std::string::npos;
 }
 
 bool LspRenameReturnsWorkspaceEdit() {
@@ -954,7 +1017,9 @@ const TestCase kLspTests[] = {
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
   {"lsp_references_can_exclude_declaration", LspReferencesCanExcludeDeclaration},
   {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
+  {"lsp_document_symbol_marks_function_kind", LspDocumentSymbolMarksFunctionKind},
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
+  {"lsp_workspace_symbol_marks_function_kind", LspWorkspaceSymbolMarksFunctionKind},
   {"lsp_rename_returns_workspace_edit", LspRenameReturnsWorkspaceEdit},
   {"lsp_prepare_rename_returns_range_and_placeholder", LspPrepareRenameReturnsRangeAndPlaceholder},
   {"lsp_code_action_returns_quick_fix", LspCodeActionReturnsQuickFix},

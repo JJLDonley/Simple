@@ -1111,3 +1111,8 @@
   - undeclared-identifier quick-fix suggestions are now conditioned on request diagnostics containing code `E0001` when diagnostics are provided in `context`.
 - Expanded LSP regression suite with diagnostic-code filter coverage:
   - validates non-`E0001` diagnostic contexts do not receive undeclared-identifier quick-fix actions.
+- Improved symbol kind classification for function-style declarations:
+  - symbol classification now recognizes `name : type (...)` declaration patterns as function symbols (`kind:12`) for document/workspace symbol responses.
+- Expanded LSP regression suite with function-symbol kind coverage:
+  - validates `documentSymbol` marks function-like declarations with function symbol kind,
+  - validates `workspace/symbol` reports function symbol kind for matching function declarations.

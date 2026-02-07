@@ -901,6 +901,12 @@ void ReplyReferences(std::ostream& out,
 uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i > 0 && refs[i - 1].token.kind == TK::KwFn) return 12;
+  if (i + 3 < refs.size() &&
+      refs[i + 1].token.kind == TK::Colon &&
+      refs[i + 2].token.kind == TK::Identifier &&
+      refs[i + 3].token.kind == TK::LParen) {
+    return 12;
+  }
   if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
     if (refs[i + 2].token.kind == TK::KwModule) return 2;
     if (refs[i + 2].token.kind == TK::KwEnum) return 10;
