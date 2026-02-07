@@ -954,16 +954,39 @@ void ReplyDefinition(std::ostream& out,
     return;
   }
   const std::string name = target->token.text;
-  const TokenRef* best = nullptr;
-  for (const auto& ref : refs) {
-    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-    if (ref.token.text != name) continue;
-    if (!IsDeclNameAt(refs, ref.index)) continue;
-    if (!best || ref.index < best->index) best = &ref;
+  std::string best_uri = uri;
+  Simple::Lang::Token best_token;
+  bool has_best = false;
+
+  auto choose_best_from_doc = [&](const std::string& doc_uri, const std::vector<TokenRef>& doc_refs) {
+    for (const auto& ref : doc_refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (ref.token.text != name) continue;
+      if (!IsDeclNameAt(doc_refs, ref.index)) continue;
+      if (!has_best || doc_uri == uri) {
+        best_token = ref.token;
+        best_uri = doc_uri;
+        has_best = true;
+      }
+      if (doc_uri == uri) break;
+    }
+  };
+
+  choose_best_from_doc(uri, refs);
+  if (!has_best) {
+    for (const auto& [other_uri, other_text] : open_docs) {
+      if (other_uri == uri) continue;
+      const auto other_refs = LexTokenRefs(other_text);
+      choose_best_from_doc(other_uri, other_refs);
+      if (has_best) break;
+    }
   }
-  if (!best) best = target;
+  if (!has_best) {
+    best_token = target->token;
+    best_uri = uri;
+  }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
-                           LocationJson(uri, best->token) + "]}");
+                           LocationJson(best_uri, best_token) + "]}");
 }
 
 void ReplyReferences(std::ostream& out,
@@ -985,13 +1008,39 @@ void ReplyReferences(std::ostream& out,
     return;
   }
   const std::string name = target->token.text;
+  struct RefHit {
+    std::string doc_uri;
+    Simple::Lang::Token token;
+  };
+  std::vector<RefHit> hits;
+
+  auto collect_hits = [&](const std::string& doc_uri, const std::vector<TokenRef>& doc_refs) {
+    for (const auto& ref : doc_refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (ref.token.text != name) continue;
+      if (!include_declaration && IsDeclNameAt(doc_refs, ref.index)) continue;
+      hits.push_back(RefHit{doc_uri, ref.token});
+    }
+  };
+
+  collect_hits(uri, refs);
+  for (const auto& [other_uri, other_text] : open_docs) {
+    if (other_uri == uri) continue;
+    const auto other_refs = LexTokenRefs(other_text);
+    collect_hits(other_uri, other_refs);
+  }
+
+  std::sort(hits.begin(), hits.end(), [](const RefHit& a, const RefHit& b) {
+    if (a.doc_uri != b.doc_uri) return a.doc_uri < b.doc_uri;
+    if (a.token.line != b.token.line) return a.token.line < b.token.line;
+    if (a.token.column != b.token.column) return a.token.column < b.token.column;
+    return a.token.text < b.token.text;
+  });
+
   std::string result;
-  for (const auto& ref : refs) {
-    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-    if (ref.token.text != name) continue;
-    if (!include_declaration && IsDeclNameAt(refs, ref.index)) continue;
+  for (const auto& hit : hits) {
     if (!result.empty()) result += ",";
-    result += LocationJson(uri, ref.token);
+    result += LocationJson(hit.doc_uri, hit.token);
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }

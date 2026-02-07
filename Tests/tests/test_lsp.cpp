@@ -715,6 +715,45 @@ bool LspDefinitionReturnsLocation() {
          out_contents.find("\"line\":0") != std::string::npos;
 }
 
+bool LspDefinitionResolvesAcrossOpenDocuments() {
+  const std::string in_path = TempPath("simple_lsp_definition_xdoc_in.txt");
+  const std::string out_path = TempPath("simple_lsp_definition_xdoc_out.txt");
+  const std::string err_path = TempPath("simple_lsp_definition_xdoc_err.txt");
+  const std::string lib_uri = "file:///workspace/lib.simple";
+  const std::string main_uri = "file:///workspace/main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"bar : i32 = foo;\"}}}";
+  const std::string def_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":28,\"method\":\"textDocument/definition\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":0,\"character\":12}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_lib) +
+      BuildLspFrame(open_main) +
+      BuildLspFrame(def_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":28") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + lib_uri + "\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos;
+}
+
 bool LspReferencesReturnsLocations() {
   const std::string in_path = TempPath("simple_lsp_references_in.txt");
   const std::string out_path = TempPath("simple_lsp_references_out.txt");
@@ -748,6 +787,44 @@ bool LspReferencesReturnsLocations() {
          out_contents.find("\"character\":0") != std::string::npos &&
          out_contents.find("\"line\":1") != std::string::npos &&
          out_contents.find("\"character\":6") != std::string::npos;
+}
+
+bool LspReferencesSpanOpenDocuments() {
+  const std::string in_path = TempPath("simple_lsp_references_xdoc_in.txt");
+  const std::string out_path = TempPath("simple_lsp_references_xdoc_out.txt");
+  const std::string err_path = TempPath("simple_lsp_references_xdoc_err.txt");
+  const std::string lib_uri = "file:///workspace/lib_refs.simple";
+  const std::string main_uri = "file:///workspace/main_refs.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"bar : i32 = foo;\"}}}";
+  const std::string refs_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":29,\"method\":\"textDocument/references\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":0,\"character\":12}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_lib) +
+      BuildLspFrame(open_main) +
+      BuildLspFrame(refs_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":29") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + lib_uri + "\"") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + main_uri + "\"") != std::string::npos;
 }
 
 bool LspReferencesCanExcludeDeclaration() {
@@ -1185,7 +1262,9 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
+  {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
+  {"lsp_references_span_open_documents", LspReferencesSpanOpenDocuments},
   {"lsp_references_can_exclude_declaration", LspReferencesCanExcludeDeclaration},
   {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
   {"lsp_document_symbol_marks_function_kind", LspDocumentSymbolMarksFunctionKind},

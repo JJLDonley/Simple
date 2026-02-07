@@ -1139,3 +1139,9 @@
   - local signature responses now emit per-parameter entries in `signatures[0].parameters` (instead of a single combined parameter label) for better editor parameter highlighting compatibility.
 - Expanded local signature-help regression assertions:
   - validates individual parameter labels (`a : i32`, `b : i32`) are present in the response payload.
+- Expanded navigation scope across open editor documents:
+  - `textDocument/definition` now falls back to declaration lookup across all currently open documents when a local declaration is not found.
+  - `textDocument/references` now aggregates matching identifier occurrences across all open documents (while still honoring `includeDeclaration` filtering).
+- Expanded LSP regression suite with cross-document navigation coverage:
+  - validates definition resolution can target declaration sites in a different open document,
+  - validates references responses can span multiple open documents.
