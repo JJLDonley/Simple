@@ -623,7 +623,12 @@ bool AddGlobalInitConst(EmitState& st, const std::string& global_name, const Typ
     *out_name = std::move(name);
     return true;
   }
-  return false;
+  if (type.name == "void") return false;
+  // Keep non-scalar globals verifier-initialized; __global_init performs real init when present.
+  std::string name = make_name();
+  st.const_lines.push_back("  const " + name + " f64 0.0");
+  *out_name = std::move(name);
+  return true;
 }
 
 bool InferExprType(const Expr& expr,

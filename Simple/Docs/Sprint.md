@@ -900,3 +900,10 @@
   - language fixture `core_dl_open.simple` now validates artifact arg+return interop directly.
 - Re-ran full project matrix after these changes:
   `./Simple/build.sh --suite all` => `1175/1175`.
+## 2026-02-07 (cont. 7)
+- Fixed language global initialization emission to allow non-void global types (including artifact globals) to receive fallback init constants, unblocking declarations like:
+  - `BLACK :: Color = { 0, 0, 0, 255 }`
+  - `WHITE :: Color = { 255, 255, 255, 255 }`
+- Added VM global-init fallback safeguard for ref-like globals so zero-valued fallback constants are normalized to VM null ref (`0xFFFFFFFF`) instead of raw handle `0`.
+- Verified language suite after fix:
+  `./Simple/build.sh --suite lang` => `311/311`.

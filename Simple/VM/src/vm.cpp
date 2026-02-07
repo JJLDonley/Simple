@@ -2451,6 +2451,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     out_value = PackRef(handle);
     return true;
   };
+  auto is_ref_like_global = [&](size_t global_index) -> bool {
+    if (global_index >= module.globals.size()) return false;
+    uint32_t type_id = module.globals[global_index].type_id;
+    if (type_id >= module.types.size()) return false;
+    const auto& row = module.types[type_id];
+    TypeKind kind = static_cast<TypeKind>(row.kind);
+    if (kind == TypeKind::Ref || kind == TypeKind::String) return true;
+    if (kind == TypeKind::Unspecified && (row.flags & 0x1u) != 0u) return true;
+    return false;
+  };
   for (size_t i = 0; i < module.globals.size(); ++i) {
     uint32_t const_id = module.globals[i].init_const_id;
     if (const_id == 0xFFFFFFFFu) continue;
@@ -2465,12 +2475,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (kind == 3) {
       if (const_id + 8 > module.const_pool.size()) return Trap("GLOBAL init f32 out of bounds");
       uint32_t bits = ReadU32Payload(module.const_pool, const_id + 4);
+      if (bits == 0 && is_ref_like_global(i)) {
+        globals[i] = PackRef(kNullRef);
+        continue;
+      }
       globals[i] = PackF32Bits(bits);
       continue;
     }
     if (kind == 4) {
       if (const_id + 12 > module.const_pool.size()) return Trap("GLOBAL init f64 out of bounds");
       uint64_t bits = ReadU64Payload(module.const_pool, const_id + 4);
+      if (bits == 0 && is_ref_like_global(i)) {
+        globals[i] = PackRef(kNullRef);
+        continue;
+      }
       globals[i] = PackF64Bits(bits);
       continue;
     }
