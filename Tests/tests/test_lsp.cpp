@@ -155,11 +155,45 @@ bool LspCompletionReturnsItems() {
          out_contents.find("IO.println") != std::string::npos;
 }
 
+bool LspSemanticTokensReturnsData() {
+  const std::string in_path = TempPath("simple_lsp_tokens_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_err.txt");
+  const std::string uri = "file:///workspace/tokens.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import \\\"IO\\\"\\nfoo : i32 = 1;\\nIO.println(foo);\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":5") != std::string::npos &&
+         out_contents.find("\"data\"") != std::string::npos &&
+         out_contents.find("\"result\":{\"data\":[") != std::string::npos &&
+         out_contents.find("\"result\":{\"data\":[]}") == std::string::npos;
+}
+
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
+  {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
 };
 
 const TestSection kLspSections[] = {

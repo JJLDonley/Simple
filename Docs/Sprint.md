@@ -996,3 +996,5 @@
 - Added baseline LSP request handling for `textDocument/hover` and `textDocument/completion` with JSON-RPC results instead of method-not-found errors.
 - Added baseline request handling for `textDocument/definition`, `textDocument/references`, and `textDocument/documentSymbol` returning empty-but-valid result payloads.
 - Extended dedicated LSP suite with hover/completion coverage to verify end-to-end request/response behavior over stdio framing.
+- Implemented `textDocument/semanticTokens/full` with lexer-backed token extraction and LSP semantic-token delta encoding compatible with declared token legend.
+- Added dedicated LSP regression coverage for semantic token responses to ensure non-empty `data` payloads for real source documents.

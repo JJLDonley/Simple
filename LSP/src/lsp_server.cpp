@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "lang_lexer.h"
 #include "lang_validate.h"
 
 namespace Simple::LSP {
@@ -280,6 +281,141 @@ void ReplyCompletion(std::ostream& out, const std::string& id_raw) {
           ",\"result\":{\"isIncomplete\":false,\"items\":[" + items + "]}}");
 }
 
+bool IsKeywordToken(Simple::Lang::TokenKind kind) {
+  using TK = Simple::Lang::TokenKind;
+  switch (kind) {
+    case TK::KwWhile:
+    case TK::KwFor:
+    case TK::KwBreak:
+    case TK::KwSkip:
+    case TK::KwReturn:
+    case TK::KwIf:
+    case TK::KwElse:
+    case TK::KwDefault:
+    case TK::KwFn:
+    case TK::KwSelf:
+    case TK::KwArtifact:
+    case TK::KwEnum:
+    case TK::KwModule:
+    case TK::KwImport:
+    case TK::KwExtern:
+    case TK::KwAs:
+    case TK::KwTrue:
+    case TK::KwFalse:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsOperatorToken(Simple::Lang::TokenKind kind) {
+  using TK = Simple::Lang::TokenKind;
+  switch (kind) {
+    case TK::Colon:
+    case TK::DoubleColon:
+    case TK::Assign:
+    case TK::Plus:
+    case TK::Minus:
+    case TK::Star:
+    case TK::Slash:
+    case TK::Percent:
+    case TK::PlusPlus:
+    case TK::MinusMinus:
+    case TK::Amp:
+    case TK::Pipe:
+    case TK::Caret:
+    case TK::Shl:
+    case TK::Shr:
+    case TK::EqEq:
+    case TK::NotEq:
+    case TK::Lt:
+    case TK::Le:
+    case TK::Gt:
+    case TK::Ge:
+    case TK::AndAnd:
+    case TK::OrOr:
+    case TK::Bang:
+    case TK::PlusEq:
+    case TK::MinusEq:
+    case TK::StarEq:
+    case TK::SlashEq:
+    case TK::PercentEq:
+    case TK::AmpEq:
+    case TK::PipeEq:
+    case TK::CaretEq:
+    case TK::ShlEq:
+    case TK::ShrEq:
+    case TK::PipeGt:
+    case TK::At:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsPrimitiveTypeName(const std::string& name) {
+  static const std::unordered_map<std::string, int> kTypeNames = {
+      {"i8", 1},   {"i16", 1},  {"i32", 1},  {"i64", 1},  {"i128", 1},
+      {"u8", 1},   {"u16", 1},  {"u32", 1},  {"u64", 1},  {"u128", 1},
+      {"f32", 1},  {"f64", 1},  {"bool", 1}, {"char", 1}, {"string", 1},
+      {"void", 1},
+  };
+  return kTypeNames.find(name) != kTypeNames.end();
+}
+
+uint32_t SemanticTokenTypeIndex(const Simple::Lang::Token& token) {
+  using TK = Simple::Lang::TokenKind;
+  if (IsKeywordToken(token.kind)) return 0;      // keyword
+  if (token.kind == TK::String || token.kind == TK::Char) return 8;  // string
+  if (token.kind == TK::Integer || token.kind == TK::Float) return 9;  // number
+  if (IsOperatorToken(token.kind)) return 10;    // operator
+  if (token.kind == TK::Identifier && IsPrimitiveTypeName(token.text)) return 1;  // type
+  return 3;                                      // variable
+}
+
+void ReplySemanticTokensFull(std::ostream& out,
+                             const std::string& id_raw,
+                             const std::string& uri,
+                             const std::unordered_map<std::string, std::string>& open_docs) {
+  auto it = open_docs.find(uri);
+  if (it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
+    return;
+  }
+  Simple::Lang::Lexer lexer(it->second);
+  if (!lexer.Lex()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
+    return;
+  }
+  const auto& tokens = lexer.Tokens();
+  std::string data;
+  uint32_t prev_line = 0;
+  uint32_t prev_col = 0;
+  bool first = true;
+  for (const auto& token : tokens) {
+    if (token.kind == Simple::Lang::TokenKind::End ||
+        token.kind == Simple::Lang::TokenKind::Invalid) {
+      continue;
+    }
+    const uint32_t line = token.line > 0 ? (token.line - 1) : 0;
+    const uint32_t col = token.column > 0 ? (token.column - 1) : 0;
+    const uint32_t len = static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1);
+    const uint32_t token_type = SemanticTokenTypeIndex(token);
+    const uint32_t modifiers = 0;
+    const uint32_t delta_line = first ? line : (line - prev_line);
+    const uint32_t delta_start = first ? col : (line == prev_line ? (col - prev_col) : col);
+    if (!data.empty()) data += ",";
+    data += std::to_string(delta_line) + "," + std::to_string(delta_start) + "," +
+            std::to_string(len) + "," + std::to_string(token_type) + "," +
+            std::to_string(modifiers);
+    prev_line = line;
+    prev_col = col;
+    first = false;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                           ",\"result\":{\"data\":[" + data + "]}}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -417,6 +553,18 @@ int RunServer(std::istream& in, std::ostream& out) {
 
     if (method == "textDocument/documentSymbol") {
       if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      continue;
+    }
+
+    if (method == "textDocument/semanticTokens/full") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplySemanticTokensFull(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
+        }
+      }
       continue;
     }
 
