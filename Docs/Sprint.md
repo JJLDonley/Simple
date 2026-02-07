@@ -1038,3 +1038,9 @@
 - Expanded LSP regression suite with code-action coverage:
   - validates capability handshake includes code-action support,
   - validates quick-fix response payload shape/title/kind and inserted declaration edit text.
+- Restored `workspace/symbol` query filtering semantics:
+  - request handling now extracts `params.query` from `workspace/symbol` bodies,
+  - symbol filtering is applied as case-insensitive prefix match for deterministic/narrow result sets.
+- Tightened workspace-symbol regression expectations:
+  - query `main` now asserts inclusion of `main`/`main_worker`,
+  - query `main` now asserts exclusion of non-prefix names such as `domain`.

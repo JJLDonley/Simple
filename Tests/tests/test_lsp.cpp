@@ -395,7 +395,7 @@ bool LspWorkspaceSymbolReturnsSymbols() {
          out_contents.find("\"id\":9") != std::string::npos &&
          out_contents.find("\"name\":\"main\"") != std::string::npos &&
          out_contents.find("\"name\":\"main_worker\"") != std::string::npos &&
-         out_contents.find("\"name\":\"domain\"") != std::string::npos &&
+         out_contents.find("\"name\":\"domain\"") == std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_a + "\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_b + "\"") != std::string::npos;
 }

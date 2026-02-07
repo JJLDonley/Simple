@@ -263,6 +263,48 @@ bool IsCallNameChar(char c) {
   return IsIdentChar(c) || c == '.';
 }
 
+std::string LowerAscii(const std::string& text) {
+  std::string out = text;
+  for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return out;
+}
+
+std::string ExtractWorkspaceSymbolQuery(const std::string& body) {
+  const size_t method_pos = body.find("\"method\":\"workspace/symbol\"");
+  if (method_pos == std::string::npos) return {};
+  const size_t query_key = body.find("\"query\"", method_pos);
+  if (query_key == std::string::npos) return {};
+  const size_t colon = body.find(':', query_key);
+  if (colon == std::string::npos) return {};
+  size_t i = colon + 1;
+  while (i < body.size() && std::isspace(static_cast<unsigned char>(body[i]))) ++i;
+  if (i >= body.size() || body[i] != '"') return {};
+  ++i;
+  std::string query;
+  while (i < body.size()) {
+    char c = body[i++];
+    if (c == '\\') {
+      if (i >= body.size()) return {};
+      const char esc = body[i++];
+      switch (esc) {
+        case '"': query.push_back('"'); break;
+        case '\\': query.push_back('\\'); break;
+        case '/': query.push_back('/'); break;
+        case 'b': query.push_back('\b'); break;
+        case 'f': query.push_back('\f'); break;
+        case 'n': query.push_back('\n'); break;
+        case 'r': query.push_back('\r'); break;
+        case 't': query.push_back('\t'); break;
+        default: query.push_back(esc); break;
+      }
+      continue;
+    }
+    if (c == '"') return query;
+    query.push_back(c);
+  }
+  return {};
+}
+
 std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -710,6 +752,7 @@ void ReplyDocumentSymbols(std::ostream& out,
 
 void ReplyWorkspaceSymbols(std::ostream& out,
                            const std::string& id_raw,
+                           const std::string& query,
                            const std::unordered_map<std::string, std::string>& open_docs) {
   struct SymbolInfo {
     std::string uri;
@@ -720,6 +763,7 @@ void ReplyWorkspaceSymbols(std::ostream& out,
     uint32_t len = 1;
   };
 
+  const std::string query_lc = LowerAscii(query);
   std::vector<SymbolInfo> symbols;
   for (const auto& [uri, text] : open_docs) {
     const auto refs = LexTokenRefs(text);
@@ -727,6 +771,10 @@ void ReplyWorkspaceSymbols(std::ostream& out,
       if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
       if (ref.depth != 0) continue;
       if (!IsDeclNameAt(refs, ref.index)) continue;
+      if (!query_lc.empty()) {
+        const std::string name_lc = LowerAscii(ref.token.text);
+        if (name_lc.rfind(query_lc, 0) != 0) continue;
+      }
       SymbolInfo info;
       info.uri = uri;
       info.name = ref.token.text;
@@ -1056,7 +1104,8 @@ int RunServer(std::istream& in, std::ostream& out) {
 
     if (method == "workspace/symbol") {
       if (has_id) {
-        ReplyWorkspaceSymbols(out, id_raw, open_docs);
+        const std::string query = ExtractWorkspaceSymbolQuery(body);
+        ReplyWorkspaceSymbols(out, id_raw, query, open_docs);
       }
       continue;
     }
