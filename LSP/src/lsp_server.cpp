@@ -453,11 +453,24 @@ void ReplyHover(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
     return;
   }
+  std::string hover_text = ident;
+  const auto refs = LexTokenRefs(it->second);
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != ident) continue;
+    if (!IsDeclNameAt(refs, ref.index)) continue;
+    if (ref.index + 2 < refs.size() &&
+        refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+        refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+      hover_text = ident + " : " + refs[ref.index + 2].token.text;
+      break;
+    }
+  }
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
           ",\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"`" +
-          JsonEscape(ident) + "`\"}}}");
+          JsonEscape(hover_text) + "`\"}}}");
 }
 
 void ReplyCompletion(std::ostream& out,

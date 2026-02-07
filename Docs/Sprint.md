@@ -1094,3 +1094,7 @@
   - computes `activeParameter` from comma count within the current call argument list before cursor.
 - Expanded LSP regression suite with signature-parameter coverage:
   - validates signature-help reports `activeParameter: 1` when cursor is on second argument position.
+- Improved hover detail quality with declaration-aware type display:
+  - hover now resolves matching declaration sites and emits typed markdown payloads when a `name : type` declaration is found (for example `foo : i32`).
+- Expanded LSP regression suite with typed-hover coverage:
+  - validates hover responses include resolved declaration type information for local symbols.
