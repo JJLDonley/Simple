@@ -259,6 +259,10 @@ bool IsIdentChar(char c) {
   return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
 }
 
+bool IsCallNameChar(char c) {
+  return IsIdentChar(c) || c == '.';
+}
+
 std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -274,6 +278,28 @@ std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_
   while (begin > 0 && IsIdentChar(line_text[begin - 1])) --begin;
   size_t end = pos + 1;
   while (end < line_text.size() && IsIdentChar(line_text[end])) ++end;
+  return line_text.substr(begin, end - begin);
+}
+
+std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  const size_t cursor = std::min<size_t>(character, line_text.size());
+  size_t paren = std::string::npos;
+  for (size_t i = cursor; i > 0; --i) {
+    const size_t idx = i - 1;
+    if (line_text[idx] == '(') {
+      paren = idx;
+      break;
+    }
+  }
+  if (paren == std::string::npos) return {};
+  size_t end = paren;
+  while (end > 0 && std::isspace(static_cast<unsigned char>(line_text[end - 1]))) --end;
+  if (end == 0) return {};
+  size_t begin = end;
+  while (begin > 0 && IsCallNameChar(line_text[begin - 1])) --begin;
+  if (begin == end) return {};
   return line_text.substr(begin, end - begin);
 }
 
@@ -314,6 +340,30 @@ void ReplyCompletion(std::ostream& out, const std::string& id_raw) {
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
           ",\"result\":{\"isIncomplete\":false,\"items\":[" + items + "]}}");
+}
+
+void ReplySignatureHelp(std::ostream& out,
+                        const std::string& id_raw,
+                        const std::string& uri,
+                        uint32_t line,
+                        uint32_t character,
+                        const std::unordered_map<std::string, std::string>& open_docs) {
+  auto it = open_docs.find(uri);
+  if (it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const std::string call_name = CallNameAtPosition(it->second, line, character);
+  if (call_name == "IO.println" || call_name == "IO.print") {
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":[{\"label\":\"" + call_name +
+            "(value)\",\"parameters\":[{\"label\":\"value\"}]}],"
+            "\"activeSignature\":0,\"activeParameter\":0}}");
+    return;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
 }
 
 bool IsKeywordToken(Simple::Lang::TokenKind kind) {
@@ -716,6 +766,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"hoverProvider\":true,\"definitionProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
+                "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
                 "\"keyword\",\"type\",\"function\",\"variable\",\"parameter\","
@@ -795,6 +846,22 @@ int RunServer(std::istream& in, std::ostream& out) {
 
     if (method == "textDocument/completion") {
       if (has_id) ReplyCompletion(out, id_raw);
+      continue;
+    }
+
+    if (method == "textDocument/signatureHelp") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplySignatureHelp(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+        }
+      }
       continue;
     }
 

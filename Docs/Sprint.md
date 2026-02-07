@@ -1017,3 +1017,10 @@
 - Expanded LSP regression suite with workspace symbol coverage:
   - validates capability handshake includes workspace symbol support,
   - validates cross-document symbol results include entries from multiple open `.simple` files.
+- Added LSP `textDocument/signatureHelp` request handling with builtin call signatures:
+  - resolves current callsite token at cursor position on the active line,
+  - returns structured signature help for `IO.print(value)` and `IO.println(value)` with active signature/parameter fields.
+- Advertised `signatureHelpProvider` capability during `initialize` with `(` and `,` trigger characters.
+- Expanded LSP regression suite with signature-help coverage:
+  - validates capability handshake includes signature-help support,
+  - validates end-to-end signature payload contents for `IO.println(...)` calls.
