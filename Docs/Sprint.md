@@ -1098,3 +1098,8 @@
   - hover now resolves matching declaration sites and emits typed markdown payloads when a `name : type` declaration is found (for example `foo : i32`).
 - Expanded LSP regression suite with typed-hover coverage:
   - validates hover responses include resolved declaration type information for local symbols.
+- Improved references protocol compliance for `textDocument/references`:
+  - implemented support for `context.includeDeclaration`,
+  - when `includeDeclaration:false`, declaration sites are excluded from returned reference locations.
+- Expanded LSP regression suite with references-context coverage:
+  - validates declaration site suppression when `includeDeclaration` is explicitly disabled.

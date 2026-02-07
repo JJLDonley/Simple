@@ -115,6 +115,26 @@ bool ExtractJsonUintField(const std::string& json, const std::string& field, uin
   return true;
 }
 
+bool ExtractJsonBoolField(const std::string& json, const std::string& field, bool* out) {
+  if (!out) return false;
+  const std::string key = "\"" + field + "\"";
+  const size_t key_pos = json.find(key);
+  if (key_pos == std::string::npos) return false;
+  const size_t colon = json.find(':', key_pos + key.size());
+  if (colon == std::string::npos) return false;
+  size_t i = colon + 1;
+  while (i < json.size() && std::isspace(static_cast<unsigned char>(json[i]))) ++i;
+  if (i + 4 <= json.size() && json.compare(i, 4, "true") == 0) {
+    *out = true;
+    return true;
+  }
+  if (i + 5 <= json.size() && json.compare(i, 5, "false") == 0) {
+    *out = false;
+    return true;
+  }
+  return false;
+}
+
 bool ExtractJsonIdRaw(const std::string& json, std::string* out_raw) {
   if (!out_raw) return false;
   const std::string key = "\"id\"";
@@ -831,6 +851,7 @@ void ReplyReferences(std::ostream& out,
                      const std::string& uri,
                      uint32_t line,
                      uint32_t character,
+                     bool include_declaration,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   auto doc_it = open_docs.find(uri);
   if (doc_it == open_docs.end()) {
@@ -848,6 +869,7 @@ void ReplyReferences(std::ostream& out,
   for (const auto& ref : refs) {
     if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
     if (ref.token.text != name) continue;
+    if (!include_declaration && IsDeclNameAt(refs, ref.index)) continue;
     if (!result.empty()) result += ",";
     result += LocationJson(uri, ref.token);
   }
@@ -1263,10 +1285,12 @@ int RunServer(std::istream& in, std::ostream& out) {
         std::string uri;
         uint32_t line = 0;
         uint32_t character = 0;
+        bool include_declaration = true;
+        ExtractJsonBoolField(body, "includeDeclaration", &include_declaration);
         if (ExtractJsonStringField(body, "uri", &uri) &&
             ExtractJsonUintField(body, "line", &line) &&
             ExtractJsonUintField(body, "character", &character)) {
-          ReplyReferences(out, id_raw, uri, line, character, open_docs);
+          ReplyReferences(out, id_raw, uri, line, character, include_declaration, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }
