@@ -3156,6 +3156,10 @@ bool CheckFunctionBody(const FuncDecl& fn,
 
 bool ValidateProgram(const Program& program, std::string* error) {
   ValidateContext ctx;
+  if (program.decls.empty() && program.top_level_stmts.empty()) {
+    if (error) *error = "program has no declarations or top-level statements";
+    return false;
+  }
   for (const auto& decl : program.decls) {
     const std::string* name_ptr = nullptr;
     switch (decl.kind) {
@@ -3217,6 +3221,34 @@ bool ValidateProgram(const Program& program, std::string* error) {
     if (name_ptr && !ctx.top_level.insert(*name_ptr).second) {
       if (error) *error = "duplicate top-level declaration: " + *name_ptr;
       return false;
+    }
+  }
+
+  if (!program.top_level_stmts.empty()) {
+    std::vector<std::unordered_map<std::string, LocalInfo>> scopes;
+    scopes.emplace_back();
+    std::unordered_set<std::string> type_params;
+    TypeRef script_return;
+    script_return.name = "i32";
+    for (const auto& stmt : program.top_level_stmts) {
+      if (stmt.kind == StmtKind::Return) {
+        if (error) *error = "top-level return is not allowed";
+        return false;
+      }
+      if (!CheckStmt(stmt,
+                     ctx,
+                     type_params,
+                     &script_return,
+                     false,
+                     0,
+                     scopes,
+                     nullptr,
+                     error)) {
+        if (error && !error->empty()) {
+          *error = "in top-level script: " + *error;
+        }
+        return false;
+      }
     }
   }
 

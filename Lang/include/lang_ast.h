@@ -188,6 +188,7 @@ struct Decl {
 
 struct Program {
   std::vector<Decl> decls;
+  std::vector<Stmt> top_level_stmts;
 };
 
 } // namespace Simple::Lang

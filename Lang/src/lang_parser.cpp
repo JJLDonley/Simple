@@ -90,10 +90,27 @@ bool Parser::ParseType(TypeRef* out) {
 bool Parser::ParseProgram(Program* out) {
   if (!out) return false;
   out->decls.clear();
+  out->top_level_stmts.clear();
   while (!IsAtEnd()) {
+    const size_t save_index = index_;
     Decl decl;
-    if (!ParseDecl(&decl)) return false;
-    out->decls.push_back(std::move(decl));
+    if (ParseDecl(&decl)) {
+      out->decls.push_back(std::move(decl));
+      continue;
+    }
+    const size_t decl_fail_index = index_;
+    const std::string decl_error = error_;
+    const bool can_retry_as_stmt =
+        (decl_fail_index == save_index) ||
+        (decl_fail_index == save_index + 1 &&
+         decl_error == "expected ':' or '::' after identifier");
+    if (!can_retry_as_stmt) {
+      return false;
+    }
+    index_ = save_index;
+    Stmt stmt;
+    if (!ParseStmt(&stmt)) return false;
+    out->top_level_stmts.push_back(std::move(stmt));
   }
   return !had_error_;
 }

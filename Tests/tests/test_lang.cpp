@@ -99,6 +99,25 @@ bool LangSirEmitsReturnI32() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangSirTopLevelScriptExecutes() {
+  const char* src =
+      "add : i32 (a : i32, b : i32) { return a + b; }\n"
+      "x : i32 = add(40, 2);\n"
+      "x = x + 1;\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (sir.find("entry __script_entry") == std::string::npos) return false;
+  return RunSirTextExpectExit(sir, 0);
+}
+
+bool LangTopLevelReturnDisallowed() {
+  const char* src = "return 1;";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("top-level return is not allowed") != std::string::npos;
+}
+
 bool LangSimpleFixtureHello() {
   return RunSimpleFileExpectExit("Tests/simple/hello.simple", 0);
 }
@@ -2730,6 +2749,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
+  {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
+  {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},
   {"lang_sir_emit_local_assign", LangSirEmitsLocalAssign},
   {"lang_sir_emit_if_else", LangSirEmitsIfElse},
   {"lang_sir_emit_while_loop", LangSirEmitsWhileLoop},

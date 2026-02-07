@@ -238,6 +238,9 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
     }
     out->decls.push_back(std::move(decl));
   }
+  for (auto& stmt : program.top_level_stmts) {
+    out->top_level_stmts.push_back(std::move(stmt));
+  }
 
   visiting->erase(key);
   visited->insert(key);

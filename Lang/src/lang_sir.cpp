@@ -100,6 +100,7 @@ struct FuncItem {
   std::string display_name;
   bool has_self = false;
   TypeRef self_type;
+  const std::vector<Stmt>* script_body = nullptr;
 };
 
 bool IsIntegralType(const std::string& name) {
@@ -2930,8 +2931,11 @@ bool EmitFunction(EmitState& st,
                   const std::string& emit_name,
                   const std::string& display_name,
                   const TypeRef* implicit_self,
+                  bool is_entry,
+                  const std::vector<Stmt>* script_body,
                   std::string* out,
                   std::string* error) {
+  const std::vector<Stmt>& stmt_body = script_body ? *script_body : fn.body;
   if (!fn.generics.empty()) {
     if (error) *error = "generic functions not supported in SIR emission";
     return false;
@@ -2951,7 +2955,7 @@ bool EmitFunction(EmitState& st,
   st.label_counter = 0;
   st.loop_stack.clear();
   uint16_t locals_count = 0;
-  for (const auto& stmt : fn.body) {
+  for (const auto& stmt : stmt_body) {
     if (stmt.kind == StmtKind::VarDecl) locals_count++;
   }
   uint16_t param_count = static_cast<uint16_t>(fn.params.size());
@@ -2982,7 +2986,7 @@ bool EmitFunction(EmitState& st,
   }
 
   if (!st.global_init_func_name.empty() &&
-      fn.name == "main" &&
+      is_entry &&
       emit_name != st.global_init_func_name) {
     auto init_it = st.func_ids.find(st.global_init_func_name);
     if (init_it == st.func_ids.end()) {
@@ -3006,7 +3010,7 @@ bool EmitFunction(EmitState& st,
     }
   }
 
-  for (const auto& stmt : fn.body) {
+  for (const auto& stmt : stmt_body) {
     if (!EmitStmt(st, stmt, error)) {
       if (error && !error->empty()) {
         *error = "in function '" + display_name + "': " + *error;
@@ -3016,7 +3020,7 @@ bool EmitFunction(EmitState& st,
   }
 
   if (!st.saw_return) {
-    if (fn.name == "main" && fn.return_type.name == "i32") {
+    if ((fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
       (*st.out) << "  const.i32 0\n";
       PushStack(st, 1);
     }
@@ -3028,12 +3032,12 @@ bool EmitFunction(EmitState& st,
 
   size_t header_end = func_body.find('\n');
   std::string header = func_body.substr(0, header_end);
-  std::string body = func_body.substr(header_end + 1);
+  std::string body_text = func_body.substr(header_end + 1);
   total_locals = st.next_local;
-  size_t enter_end = body.find('\n');
+  size_t enter_end = body_text.find('\n');
   if (enter_end != std::string::npos &&
-      body.rfind("  enter ", 0) == 0) {
-    body = "  enter " + std::to_string(total_locals) + body.substr(enter_end);
+      body_text.rfind("  enter ", 0) == 0) {
+    body_text = "  enter " + std::to_string(total_locals) + body_text.substr(enter_end);
   }
 
   header = "func " + emit_name +
@@ -3043,7 +3047,7 @@ bool EmitFunction(EmitState& st,
 
   func_out.str(std::string());
   func_out.clear();
-  func_out << header << "\n" << body << "end\n";
+  func_out << header << "\n" << body_text << "end\n";
   st.out = nullptr;
   func_body = func_out.str();
   if (out) *out = func_body;
@@ -3060,6 +3064,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const ExternDecl*> externs;
   std::vector<const VarDecl*> globals;
   FuncDecl global_init_fn;
+  FuncDecl script_entry_fn;
+  const bool has_top_level_script = !program.top_level_stmts.empty();
+  if (has_top_level_script) {
+    script_entry_fn.name = "__script_entry";
+    script_entry_fn.return_mutability = Mutability::Mutable;
+    script_entry_fn.return_type.name = "i32";
+  }
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
@@ -3138,8 +3149,17 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       functions.push_back({&global_init_fn, global_init_fn.name, global_init_fn.name, false, {}});
     }
   }
+  if (has_top_level_script) {
+    FuncItem item;
+    item.decl = &script_entry_fn;
+    item.emit_name = script_entry_fn.name;
+    item.display_name = script_entry_fn.name;
+    item.has_self = false;
+    item.script_body = &program.top_level_stmts;
+    functions.push_back(std::move(item));
+  }
   if (functions.empty()) {
-    if (error) *error = "program has no functions";
+    if (error) *error = "program has no functions or top-level statements";
     return false;
   }
 
@@ -3461,6 +3481,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.artifact_layouts.emplace(artifact->name, std::move(layout));
   }
 
+  std::string entry_name;
+  if (has_top_level_script) {
+    entry_name = script_entry_fn.name;
+  } else {
+    entry_name = functions[0].emit_name;
+    for (const auto& fn : functions) {
+      if (fn.decl->name == "main") {
+        entry_name = fn.emit_name;
+        break;
+      }
+    }
+  }
+
   std::vector<std::string> function_text;
   function_text.reserve(functions.size());
   for (const auto& item : functions) {
@@ -3470,6 +3503,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
                       item.emit_name,
                       item.display_name,
                       item.has_self ? &item.self_type : nullptr,
+                      item.emit_name == entry_name,
+                      item.script_body,
                       &func_body,
                       error)) {
       return false;
@@ -3483,6 +3518,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
                       st.lambda_funcs[i],
                       st.lambda_funcs[i].name,
                       st.lambda_funcs[i].name,
+                      nullptr,
+                      false,
                       nullptr,
                       &func_body,
                       error)) {
@@ -3632,13 +3669,6 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     result << text;
   }
 
-  std::string entry_name = functions[0].emit_name;
-  for (const auto& fn : functions) {
-    if (fn.decl->name == "main") {
-      entry_name = fn.emit_name;
-      break;
-    }
-  }
   result << "entry " << entry_name << "\n";
 
   if (out) *out = result.str();

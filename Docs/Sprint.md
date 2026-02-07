@@ -34,6 +34,12 @@
 - Expanded `@T(value)` cast handling in validator/SIR so primitive cast targets are recognized consistently instead of only narrow builtin names.
 - Refactored SBC verifier value typing to preserve exact primitive kinds (`i8/i16/i32/i64/u8/u16/u32/u64/bool/char/f32/f64/ref`) instead of collapsing to broad i32/i64 buckets.
 - Updated verifier arithmetic/bitwise/compare and dynamic DL intrinsic signatures to propagate and validate exact primitive types through stack/local/call paths.
+- Added script-style top-level execution for `.simple` programs by synthesizing an implicit `__script_entry` SIR function that runs top-level statements in source order and returns `0`.
+- Kept top-level function declarations as declarations only (not auto-invoked) while preserving existing explicit `main` behavior when no top-level script body is present.
+- Updated parser program parsing to accept mixed top-level declarations/statements with guarded decl-to-stmt fallback so real declaration/parser errors keep their original diagnostics.
+- Updated validation to reject top-level `return` explicitly (`top-level return is not allowed`) while still type-checking top-level statements.
+- Updated local-import flattening to preserve `Program.top_level_stmts` across recursively loaded project files.
+- Added lang regression tests for implicit script entry emission/execution and top-level return rejection.
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
