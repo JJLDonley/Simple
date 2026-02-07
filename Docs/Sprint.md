@@ -1178,3 +1178,10 @@
 - Updated `Editor/vscode-simple/README.md` with local VSIX packaging/install instructions and CI packaging behavior.
 - Updated `Docs/LSP.md` with VS Code packaging/release automation details.
 - Updated `Docs/Implementation.md` LSP status/focus section to reflect implemented server features and remaining packaging/documentation work.
+- Added typed format-string support for `IO.print`/`IO.println` using `{}` placeholders:
+  - format form accepted as `IO.println("value={}", x)` and validates placeholder count against argument count,
+  - first argument for format mode must be a string literal,
+  - remaining format arguments must be scalar printable types (numeric/bool/char/string),
+  - legacy single-argument print/println behavior remains supported.
+- Implemented SIR emission for format printing by splitting literal segments around `{}` and emitting typed print intrinsics for each segment/value pair.
+- Added language tests for format-print success and validation failures (placeholder mismatch and non-literal format argument).

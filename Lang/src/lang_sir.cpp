@@ -103,6 +103,14 @@ struct FuncItem {
   const std::vector<Stmt>* script_body = nullptr;
 };
 
+bool PushStack(EmitState& st, uint32_t count);
+bool PopStack(EmitState& st, uint32_t count);
+bool AddStringConst(EmitState& st, const std::string& value, std::string* out_name);
+bool EmitExpr(EmitState& st,
+              const Expr& expr,
+              const TypeRef* expected,
+              std::string* error);
+
 bool IsIntegralType(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
@@ -142,6 +150,35 @@ CastVmKind GetCastVmKind(const std::string& type_name) {
 
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
+}
+
+bool CountFormatPlaceholders(const std::string& fmt,
+                             size_t* out_count,
+                             std::vector<std::string>* out_segments,
+                             std::string* error) {
+  if (!out_count) return false;
+  *out_count = 0;
+  if (out_segments) out_segments->clear();
+  size_t segment_start = 0;
+  for (size_t i = 0; i < fmt.size(); ++i) {
+    if (fmt[i] == '{') {
+      if (i + 1 >= fmt.size() || fmt[i + 1] != '}') {
+        if (error) *error = "invalid format string: expected '{}' placeholder";
+        return false;
+      }
+      if (out_segments) out_segments->push_back(fmt.substr(segment_start, i - segment_start));
+      ++(*out_count);
+      ++i;
+      segment_start = i + 1;
+      continue;
+    }
+    if (fmt[i] == '}') {
+      if (error) *error = "invalid format string: unmatched '}'";
+      return false;
+    }
+  }
+  if (out_segments) out_segments->push_back(fmt.substr(segment_start));
+  return true;
 }
 
 TypeRef MakeTypeRef(const char* name) {
@@ -276,6 +313,33 @@ bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* erro
   if (name == "string") { *out = Simple::VM::kPrintAnyTagString; return true; }
   if (error) *error = "IO.print supports numeric, bool, char, or string";
   return false;
+}
+
+bool EmitPrintAnyValue(EmitState& st,
+                       const Expr& arg_expr,
+                       const TypeRef& arg_type,
+                       std::string* error) {
+  if (!EmitExpr(st, arg_expr, &arg_type, error)) return false;
+  uint32_t tag = 0;
+  if (!GetPrintAnyTagForType(arg_type, &tag, error)) return false;
+  (*st.out) << "  const.i32 " << static_cast<int32_t>(tag) << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
+  PopStack(st, 2);
+  return true;
+}
+
+bool EmitPrintNewline(EmitState& st, std::string* error) {
+  (void)error;
+  std::string newline_name;
+  if (!AddStringConst(st, "\n", &newline_name)) return false;
+  (*st.out) << "  const.string " << newline_name << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  const.i32 " << static_cast<int32_t>(Simple::VM::kPrintAnyTagString) << "\n";
+  PushStack(st, 1);
+  (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
+  PopStack(st, 2);
+  return true;
 }
 
 bool IsSupportedType(const TypeRef& type) {
@@ -1691,28 +1755,58 @@ bool EmitExpr(EmitState& st,
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
         if (base.kind == ExprKind::Identifier && base.text == "IO" && IsIoPrintName(callee.text)) {
-          if (expr.args.size() != 1) {
+          if (expr.args.empty()) {
             if (error) *error = "call argument count mismatch for 'IO." + callee.text + "'";
             return false;
           }
-          TypeRef arg_type;
-          if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
-          if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
-          uint32_t tag = 0;
-          if (!GetPrintAnyTagForType(arg_type, &tag, error)) return false;
-          (*st.out) << "  const.i32 " << static_cast<int32_t>(tag) << "\n";
-          PushStack(st, 1);
-          (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
-          PopStack(st, 2);
+          if (expr.args.size() == 1) {
+            TypeRef arg_type;
+            if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+            if (!EmitPrintAnyValue(st, expr.args[0], arg_type, error)) return false;
+          } else {
+            const Expr& fmt_expr = expr.args[0];
+            if (!(fmt_expr.kind == ExprKind::Literal &&
+                  fmt_expr.literal_kind == LiteralKind::String)) {
+              if (error) *error = "IO.print format call expects string literal as first argument";
+              return false;
+            }
+            size_t placeholder_count = 0;
+            std::vector<std::string> segments;
+            if (!CountFormatPlaceholders(fmt_expr.text, &placeholder_count, &segments, error)) {
+              return false;
+            }
+            if (placeholder_count != expr.args.size() - 1) {
+              if (error) {
+                *error = "IO.print format placeholder count mismatch: expected " +
+                         std::to_string(placeholder_count) + ", got " +
+                         std::to_string(expr.args.size() - 1);
+              }
+              return false;
+            }
+            for (size_t i = 0; i < placeholder_count; ++i) {
+              if (!segments[i].empty()) {
+                TypeRef seg_type = MakeTypeRef("string");
+                Expr seg_expr;
+                seg_expr.kind = ExprKind::Literal;
+                seg_expr.literal_kind = LiteralKind::String;
+                seg_expr.text = segments[i];
+                if (!EmitPrintAnyValue(st, seg_expr, seg_type, error)) return false;
+              }
+              TypeRef arg_type;
+              if (!InferExprType(expr.args[i + 1], st, &arg_type, error)) return false;
+              if (!EmitPrintAnyValue(st, expr.args[i + 1], arg_type, error)) return false;
+            }
+            if (!segments.empty() && !segments.back().empty()) {
+              TypeRef seg_type = MakeTypeRef("string");
+              Expr seg_expr;
+              seg_expr.kind = ExprKind::Literal;
+              seg_expr.literal_kind = LiteralKind::String;
+              seg_expr.text = segments.back();
+              if (!EmitPrintAnyValue(st, seg_expr, seg_type, error)) return false;
+            }
+          }
           if (callee.text == "println") {
-            std::string newline_name;
-            if (!AddStringConst(st, "\n", &newline_name)) return false;
-            (*st.out) << "  const.string " << newline_name << "\n";
-            PushStack(st, 1);
-            (*st.out) << "  const.i32 " << static_cast<int32_t>(Simple::VM::kPrintAnyTagString) << "\n";
-            PushStack(st, 1);
-            (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
-            PopStack(st, 2);
+            if (!EmitPrintNewline(st, error)) return false;
           }
           return true;
         }

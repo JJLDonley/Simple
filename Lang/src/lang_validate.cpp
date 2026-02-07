@@ -92,6 +92,40 @@ bool IsPrimitiveCastName(const std::string& name) {
   return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
 }
 
+bool IsIoPrintName(const std::string& name);
+
+bool IsIoPrintCallExpr(const Expr& callee) {
+  return callee.kind == ExprKind::Member &&
+         callee.op == "." &&
+         !callee.children.empty() &&
+         callee.children[0].kind == ExprKind::Identifier &&
+         callee.children[0].text == "IO" &&
+         IsIoPrintName(callee.text);
+}
+
+bool CountFormatPlaceholders(const std::string& fmt,
+                             size_t* out_count,
+                             std::string* error) {
+  if (!out_count) return false;
+  *out_count = 0;
+  for (size_t i = 0; i < fmt.size(); ++i) {
+    if (fmt[i] == '{') {
+      if (i + 1 >= fmt.size() || fmt[i + 1] != '}') {
+        if (error) *error = "invalid format string: expected '{}' placeholder";
+        return false;
+      }
+      ++(*out_count);
+      ++i;
+      continue;
+    }
+    if (fmt[i] == '}') {
+      if (error) *error = "invalid format string: unmatched '}'";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
   return ctx.reserved_imports.find(name) != ctx.reserved_imports.end() ||
          ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end();
@@ -1285,6 +1319,13 @@ bool CheckCallTarget(const Expr& callee,
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     if (base.kind == ExprKind::Identifier) {
+      if (base.text == "IO" && IsIoPrintName(callee.text)) {
+        if (arg_count == 0) {
+          if (error) *error = "call argument count mismatch for IO." + callee.text;
+          return false;
+        }
+        return true;
+      }
       if (base.text == "self") {
         const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
         if (method) return CheckCallArgs(method, arg_count, error);
@@ -2886,17 +2927,12 @@ bool CheckExpr(const Expr& expr,
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
       if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
-      if (expr.children[0].kind == ExprKind::Member &&
-          expr.children[0].op == "." &&
-          !expr.children[0].children.empty()) {
-        const Expr& base = expr.children[0].children[0];
-        if (base.kind == ExprKind::Identifier &&
-            base.text == "IO" &&
-            IsIoPrintName(expr.children[0].text)) {
-          if (expr.args.size() != 1) {
-            if (error) *error = "call argument count mismatch for IO." + expr.children[0].text;
-            return false;
-          }
+      if (IsIoPrintCallExpr(expr.children[0])) {
+        if (expr.args.empty()) {
+          if (error) *error = "call argument count mismatch for IO." + expr.children[0].text;
+          return false;
+        }
+        if (expr.args.size() == 1) {
           TypeRef arg_type;
           if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
             if (error && error->empty()) *error = "IO.print expects scalar argument";
@@ -2913,6 +2949,44 @@ bool CheckExpr(const Expr& expr,
                 arg_type.name == "string")) {
             if (error) *error = "IO.print supports numeric, bool, char, or string";
             return false;
+          }
+        } else {
+          if (!(expr.args[0].kind == ExprKind::Literal &&
+                expr.args[0].literal_kind == LiteralKind::String)) {
+            if (error) *error = "IO.print format call expects string literal as first argument";
+            return false;
+          }
+          size_t placeholder_count = 0;
+          if (!CountFormatPlaceholders(expr.args[0].text, &placeholder_count, error)) {
+            return false;
+          }
+          const size_t value_count = expr.args.size() - 1;
+          if (placeholder_count != value_count) {
+            if (error) {
+              *error = "IO.print format placeholder count mismatch: expected " +
+                       std::to_string(placeholder_count) + ", got " +
+                       std::to_string(value_count);
+            }
+            return false;
+          }
+          for (size_t i = 1; i < expr.args.size(); ++i) {
+            TypeRef arg_type;
+            if (!InferExprType(expr.args[i], ctx, scopes, current_artifact, &arg_type)) {
+              if (error && error->empty()) *error = "IO.print format expects scalar arguments";
+              return false;
+            }
+            if (arg_type.pointer_depth != 0 ||
+                arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+              if (error) *error = "IO.print format expects scalar arguments";
+              return false;
+            }
+            if (!(IsNumericTypeName(arg_type.name) ||
+                  IsBoolTypeName(arg_type.name) ||
+                  arg_type.name == "char" ||
+                  arg_type.name == "string")) {
+              if (error) *error = "IO.print supports numeric, bool, char, or string";
+              return false;
+            }
           }
         }
       }
@@ -2973,7 +3047,8 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
       }
-      if (!(expr.children[0].kind == ExprKind::Identifier &&
+      if (!IsIoPrintCallExpr(expr.children[0]) &&
+          !(expr.children[0].kind == ExprKind::Identifier &&
             (expr.children[0].text == "len" || expr.children[0].text == "str" ||
              IsPrimitiveCastName(expr.children[0].text)))) {
         if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;

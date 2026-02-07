@@ -735,6 +735,15 @@ bool LangSirEmitsIoPrintNewline() {
   return RunSirTextExpectExit(sir, 3);
 }
 
+bool LangSirEmitsIoPrintFormat() {
+  const char* src =
+      "main : i32 () { x : i32 = 7; IO.println(\"value={}\", x); return x; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 7);
+}
+
 bool LangSirImplicitMainReturn() {
   const char* src =
       "main : i32 () { IO.print(\"hi\") }";
@@ -758,6 +767,22 @@ bool LangParseErrorIncludesLocation() {
   std::string error;
   if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
   return error.find(':') != std::string::npos;
+}
+
+bool LangParseArtifactCommaDiagnosticHint() {
+  const char* src = "Point :: artifact { x : i32, y : i32 }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  return error.find("use newline or ';' between members") != std::string::npos;
+}
+
+bool LangParseReservedKeywordParameterDiagnosticHint() {
+  const char* src = "f : void (artifact: i32) { return; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  return error.find("keyword 'artifact' cannot be used as identifier") != std::string::npos;
 }
 
 bool LangValidateErrorIncludesLocation() {
@@ -1966,6 +1991,26 @@ bool LangValidateIoPrintRejectsArray() {
   return true;
 }
 
+bool LangValidateIoPrintFormatOk() {
+  const char* src = "main : void () { x : i32 = 42; IO.println(\"x={}\", x); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateIoPrintFormatPlaceholderMismatch() {
+  const char* src = "main : void () { IO.println(\"x={}, y={}\", 1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("format placeholder count mismatch") != std::string::npos;
+}
+
+bool LangValidateIoPrintFormatNeedsStringLiteral() {
+  const char* src = "main : void () { fmt : string = \"x={}\"; IO.println(fmt, 1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("format call expects string literal") != std::string::npos;
+}
+
 bool LangRunsSimpleFixtures() {
   const std::string dir = "Tests/simple";
   return Simple::VM::Tests::RunSimplePerfDir(dir, 1, true) == 0;
@@ -2759,9 +2804,12 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_io_print_string", LangSirEmitsIoPrintString},
   {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
   {"lang_sir_emit_io_print_newline", LangSirEmitsIoPrintNewline},
+  {"lang_sir_emit_io_print_format", LangSirEmitsIoPrintFormat},
   {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_parse_error_includes_location", LangParseErrorIncludesLocation},
+  {"lang_parse_artifact_comma_diagnostic_hint", LangParseArtifactCommaDiagnosticHint},
+  {"lang_parse_reserved_keyword_parameter_hint", LangParseReservedKeywordParameterDiagnosticHint},
   {"lang_validate_error_includes_location", LangValidateErrorIncludesLocation},
   {"lang_simple_fixture_hello", LangSimpleFixtureHello},
   {"lang_simple_fixture_math", LangSimpleFixtureMath},
@@ -2946,6 +2994,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_io_print_arg_count", LangValidateIoPrintArgCountFail},
   {"lang_validate_io_print_type_args_ok", LangValidateIoPrintTypeArgsOk},
   {"lang_validate_io_print_rejects_array", LangValidateIoPrintRejectsArray},
+  {"lang_validate_io_print_format_ok", LangValidateIoPrintFormatOk},
+  {"lang_validate_io_print_format_placeholder_mismatch", LangValidateIoPrintFormatPlaceholderMismatch},
+  {"lang_validate_io_print_format_requires_literal", LangValidateIoPrintFormatNeedsStringLiteral},
   {"lang_run_simple_fixtures", LangRunsSimpleFixtures},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
