@@ -925,3 +925,8 @@
   - `IR.md`: SIR/lowering contract
   - `CLI.md`: command behavior contract
   - `StdLib.md`: reserved import/API authority note.
+## 2026-02-07 (cont. 10)
+- Expanded module docs with design-level detail instead of summaries:
+  - `Byte.md` now includes component pipeline design and full opcode catalog generated from `Byte/include/opcode.h`.
+  - `IR.md` now includes IR ingestion/emission architecture, SIR program model, type/signature design, and validation contract.
+  - `CLI.md` now includes explicit user interface design and command behavior contract.
