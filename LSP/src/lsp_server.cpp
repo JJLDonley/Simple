@@ -135,6 +135,17 @@ bool ExtractJsonBoolField(const std::string& json, const std::string& field, boo
   return false;
 }
 
+bool CodeActionContextAllowsQuickFix(const std::string& json) {
+  const size_t only_key = json.find("\"only\"");
+  if (only_key == std::string::npos) return true;
+  const size_t lbracket = json.find('[', only_key);
+  if (lbracket == std::string::npos) return true;
+  const size_t rbracket = json.find(']', lbracket + 1);
+  if (rbracket == std::string::npos) return true;
+  const std::string only_body = json.substr(lbracket + 1, rbracket - (lbracket + 1));
+  return only_body.find("\"quickfix\"") != std::string::npos;
+}
+
 bool ExtractJsonIdRaw(const std::string& json, std::string* out_raw) {
   if (!out_raw) return false;
   const std::string key = "\"id\"";
@@ -1043,7 +1054,12 @@ void ReplyPrepareRename(std::ostream& out,
 void ReplyCodeAction(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
+                     bool allow_quickfix,
                      const std::unordered_map<std::string, std::string>& open_docs) {
+  if (!allow_quickfix) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
   auto doc_it = open_docs.find(uri);
   if (doc_it == open_docs.end()) {
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
@@ -1335,8 +1351,9 @@ int RunServer(std::istream& in, std::ostream& out) {
     if (method == "textDocument/codeAction") {
       if (has_id) {
         std::string uri;
+        const bool allow_quickfix = CodeActionContextAllowsQuickFix(body);
         if (ExtractJsonStringField(body, "uri", &uri)) {
-          ReplyCodeAction(out, id_raw, uri, open_docs);
+          ReplyCodeAction(out, id_raw, uri, allow_quickfix, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

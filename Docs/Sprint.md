@@ -1103,3 +1103,7 @@
   - when `includeDeclaration:false`, declaration sites are excluded from returned reference locations.
 - Expanded LSP regression suite with references-context coverage:
   - validates declaration site suppression when `includeDeclaration` is explicitly disabled.
+- Improved code-action protocol filtering behavior:
+  - `textDocument/codeAction` now respects `context.only` and returns quick-fix actions only when `quickfix` is allowed by the request filter.
+- Expanded LSP regression suite with code-action filter coverage:
+  - validates requests filtered to non-quickfix kinds (for example `refactor`) return an empty action list.
