@@ -592,6 +592,22 @@ bool IsValidIdentifierName(const std::string& name) {
   return true;
 }
 
+bool ExtractUndeclaredIdentifierName(const std::string& error, std::string* out_name) {
+  if (!out_name) return false;
+  static const std::string marker = "undeclared identifier:";
+  const size_t pos = error.find(marker);
+  if (pos == std::string::npos) return false;
+  std::string tail = TrimCopy(error.substr(pos + marker.size()));
+  if (tail.empty()) return false;
+  size_t end = 0;
+  while (end < tail.size() && IsIdentChar(tail[end])) ++end;
+  if (end == 0) return false;
+  const std::string name = tail.substr(0, end);
+  if (!IsValidIdentifierName(name)) return false;
+  *out_name = name;
+  return true;
+}
+
 void ReplyDefinition(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -777,6 +793,36 @@ void ReplyRename(std::ostream& out,
           JsonEscape(uri) + "\":[" + edits + "]}}}");
 }
 
+void ReplyCodeAction(std::ostream& out,
+                     const std::string& id_raw,
+                     const std::string& uri,
+                     const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(doc_it->second, &error)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  std::string ident;
+  if (!ExtractUndeclaredIdentifierName(error, &ident)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const std::string declaration = ident + " : i32 = 0;\n";
+  WriteLspMessage(
+      out,
+      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+          ",\"result\":[{\"title\":\"Declare '" + JsonEscape(ident) +
+          "' as i32\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
+          JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":0,\"character\":0},"
+          "\"end\":{\"line\":0,\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +
+          "\"}]}}}]}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -822,6 +868,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
                 "\"renameProvider\":true,"
+                "\"codeActionProvider\":true,"
                 "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
@@ -966,6 +1013,18 @@ int RunServer(std::istream& in, std::ostream& out) {
           ReplyRename(out, id_raw, uri, line, character, new_name, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/codeAction") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyCodeAction(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }
       }
       continue;

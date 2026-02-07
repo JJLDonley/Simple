@@ -1031,3 +1031,10 @@
 - Expanded LSP regression suite with rename coverage:
   - validates capability handshake includes rename support,
   - validates `WorkspaceEdit` payload contains replacement edits/ranges for renamed symbol occurrences.
+- Added LSP `textDocument/codeAction` request handling with a concrete quick-fix path for undeclared identifiers:
+  - runs validator against the open document and detects `undeclared identifier: <name>` diagnostics,
+  - emits a `quickfix` `CodeAction` with `WorkspaceEdit` insertion that declares `<name> : i32 = 0;` at file top.
+- Advertised `codeActionProvider` capability during `initialize`.
+- Expanded LSP regression suite with code-action coverage:
+  - validates capability handshake includes code-action support,
+  - validates quick-fix response payload shape/title/kind and inserted declaration edit text.
