@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dlfcn.h>
+#include <ffi.h>
 #include <filesystem>
 #include <limits>
 #include <sstream>
@@ -457,6 +458,55 @@ bool DispatchDlCall2Void(TypeKind arg0_kind,
   }
 }
 
+int32_t ConvertDlI32LikeArg(TypeKind kind, Slot value) {
+  switch (kind) {
+    case TypeKind::I8: return static_cast<int32_t>(static_cast<int8_t>(UnpackI32(value)));
+    case TypeKind::I16: return static_cast<int32_t>(static_cast<int16_t>(UnpackI32(value)));
+    case TypeKind::I32: return UnpackI32(value);
+    case TypeKind::U8: return static_cast<int32_t>(static_cast<uint8_t>(UnpackI32(value)));
+    case TypeKind::U16: return static_cast<int32_t>(static_cast<uint16_t>(UnpackI32(value)));
+    case TypeKind::U32: return static_cast<int32_t>(static_cast<uint32_t>(UnpackI32(value)));
+    case TypeKind::Bool: return (UnpackI32(value) != 0) ? 1 : 0;
+    case TypeKind::Char: return static_cast<int32_t>(static_cast<uint8_t>(UnpackI32(value)));
+    default: return UnpackI32(value);
+  }
+}
+
+Slot PackDlI32LikeRet(TypeKind kind, int32_t value) {
+  switch (kind) {
+    case TypeKind::I8: return PackI32(static_cast<int32_t>(static_cast<int8_t>(value)));
+    case TypeKind::I16: return PackI32(static_cast<int32_t>(static_cast<int16_t>(value)));
+    case TypeKind::I32: return PackI32(value);
+    case TypeKind::U8: return PackI32(static_cast<int32_t>(static_cast<uint8_t>(value)));
+    case TypeKind::U16: return PackI32(static_cast<int32_t>(static_cast<uint16_t>(value)));
+    case TypeKind::U32: return PackI32(static_cast<int32_t>(static_cast<uint32_t>(value)));
+    case TypeKind::Bool: return PackI32((value != 0) ? 1 : 0);
+    case TypeKind::Char: return PackI32(static_cast<int32_t>(static_cast<uint8_t>(value)));
+    default: return PackI32(value);
+  }
+}
+
+bool ConvertDlPackedU64Arg(TypeKind kind,
+                           Slot value,
+                           Heap& heap,
+                           std::vector<std::string>& owned_strings,
+                           uint64_t* out,
+                           std::string* out_error) {
+  if (!out) return false;
+  if (kind == TypeKind::String) {
+    const char* text = nullptr;
+    if (!ConvertDlArg<const char*>(value, heap, owned_strings, &text, out_error)) return false;
+    *out = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(text));
+    return true;
+  }
+  if (IsI32LikeImportType(kind)) {
+    *out = static_cast<uint64_t>(static_cast<uint32_t>(ConvertDlI32LikeArg(kind, value)));
+    return true;
+  }
+  if (out_error) *out_error = "core.dl.call packed ABI supports i32-like and string args only";
+  return false;
+}
+
 bool DispatchDynamicDlCall(int64_t ptr_bits,
                            TypeKind ret_kind,
                            const std::vector<TypeKind>& arg_kinds,
@@ -465,10 +515,6 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                            Heap& heap,
                            Slot* out_ret,
                            std::string* out_error) {
-  if (arg_kinds.size() > 2) {
-    if (out_error) *out_error = "core.dl.call currently supports up to 2 parameters";
-    return false;
-  }
   for (TypeKind kind : arg_kinds) {
     if (!IsDlCallScalarKind(kind, false)) {
       if (out_error) *out_error = "core.dl.call unsupported parameter type";
@@ -479,47 +525,173 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     if (out_error) *out_error = "core.dl.call unsupported return type";
     return false;
   }
-  if (ret_kind == TypeKind::Unspecified) {
-    if (arg_kinds.empty()) return InvokeDlFunctionVoidTyped<>(ptr_bits, args, arg_base, heap, out_error);
-    if (arg_kinds.size() == 1) {
-      return DispatchDlCall1Void(arg_kinds[0], ptr_bits, args, arg_base, heap, out_error);
+  struct FfiValueStorage {
+    int8_t i8 = 0;
+    int16_t i16 = 0;
+    int32_t i32 = 0;
+    int64_t i64 = 0;
+    uint8_t u8 = 0;
+    uint16_t u16 = 0;
+    uint32_t u32 = 0;
+    uint64_t u64 = 0;
+    float f32 = 0.0f;
+    double f64 = 0.0;
+    const char* cstr = nullptr;
+  };
+  union FfiRetStorage {
+    int8_t i8;
+    int16_t i16;
+    int32_t i32;
+    int64_t i64;
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+    float f32;
+    double f64;
+    const char* cstr;
+  };
+
+  std::vector<std::string> owned_strings;
+  std::vector<FfiValueStorage> arg_storage(arg_kinds.size());
+  std::vector<ffi_type*> ffi_arg_types(arg_kinds.size(), nullptr);
+  std::vector<void*> ffi_arg_values(arg_kinds.size(), nullptr);
+
+  auto fill_arg = [&](size_t i) -> bool {
+    if (arg_base + i >= args.size()) {
+      if (out_error) *out_error = "core.dl.call arg index out of range";
+      return false;
     }
-    return DispatchDlCall2Void(arg_kinds[0], arg_kinds[1], ptr_bits, args, arg_base, heap, out_error);
+    const TypeKind kind = arg_kinds[i];
+    FfiValueStorage& store = arg_storage[i];
+    const Slot slot = args[arg_base + i];
+    switch (kind) {
+      case TypeKind::I8:
+        if (!ConvertDlArg<int8_t>(slot, heap, owned_strings, &store.i8, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_sint8;
+        ffi_arg_values[i] = &store.i8;
+        return true;
+      case TypeKind::I16:
+        if (!ConvertDlArg<int16_t>(slot, heap, owned_strings, &store.i16, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_sint16;
+        ffi_arg_values[i] = &store.i16;
+        return true;
+      case TypeKind::I32:
+        if (!ConvertDlArg<int32_t>(slot, heap, owned_strings, &store.i32, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_sint32;
+        ffi_arg_values[i] = &store.i32;
+        return true;
+      case TypeKind::I64:
+        if (!ConvertDlArg<int64_t>(slot, heap, owned_strings, &store.i64, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_sint64;
+        ffi_arg_values[i] = &store.i64;
+        return true;
+      case TypeKind::U8:
+      case TypeKind::Bool:
+      case TypeKind::Char:
+        if (!ConvertDlArg<uint8_t>(slot, heap, owned_strings, &store.u8, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_uint8;
+        ffi_arg_values[i] = &store.u8;
+        return true;
+      case TypeKind::U16:
+        if (!ConvertDlArg<uint16_t>(slot, heap, owned_strings, &store.u16, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_uint16;
+        ffi_arg_values[i] = &store.u16;
+        return true;
+      case TypeKind::U32:
+        if (!ConvertDlArg<uint32_t>(slot, heap, owned_strings, &store.u32, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_uint32;
+        ffi_arg_values[i] = &store.u32;
+        return true;
+      case TypeKind::U64:
+        if (!ConvertDlArg<uint64_t>(slot, heap, owned_strings, &store.u64, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_uint64;
+        ffi_arg_values[i] = &store.u64;
+        return true;
+      case TypeKind::F32:
+        if (!ConvertDlArg<float>(slot, heap, owned_strings, &store.f32, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_float;
+        ffi_arg_values[i] = &store.f32;
+        return true;
+      case TypeKind::F64:
+        if (!ConvertDlArg<double>(slot, heap, owned_strings, &store.f64, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_double;
+        ffi_arg_values[i] = &store.f64;
+        return true;
+      case TypeKind::String:
+        if (!ConvertDlArg<const char*>(slot, heap, owned_strings, &store.cstr, out_error)) return false;
+        ffi_arg_types[i] = &ffi_type_pointer;
+        ffi_arg_values[i] = &store.cstr;
+        return true;
+      default:
+        if (out_error) *out_error = "core.dl.call unsupported parameter type";
+        return false;
+    }
+  };
+  for (size_t i = 0; i < arg_kinds.size(); ++i) {
+    if (!fill_arg(i)) return false;
   }
+
+  ffi_type* ffi_ret_type = &ffi_type_void;
+  FfiRetStorage ffi_ret{};
+  if (ret_kind != TypeKind::Unspecified) {
+    switch (ret_kind) {
+      case TypeKind::I8: ffi_ret_type = &ffi_type_sint8; break;
+      case TypeKind::I16: ffi_ret_type = &ffi_type_sint16; break;
+      case TypeKind::I32: ffi_ret_type = &ffi_type_sint32; break;
+      case TypeKind::I64: ffi_ret_type = &ffi_type_sint64; break;
+      case TypeKind::U8:
+      case TypeKind::Bool:
+      case TypeKind::Char:
+        ffi_ret_type = &ffi_type_uint8;
+        break;
+      case TypeKind::U16: ffi_ret_type = &ffi_type_uint16; break;
+      case TypeKind::U32: ffi_ret_type = &ffi_type_uint32; break;
+      case TypeKind::U64: ffi_ret_type = &ffi_type_uint64; break;
+      case TypeKind::F32: ffi_ret_type = &ffi_type_float; break;
+      case TypeKind::F64: ffi_ret_type = &ffi_type_double; break;
+      case TypeKind::String: ffi_ret_type = &ffi_type_pointer; break;
+      default:
+        if (out_error) *out_error = "core.dl.call unsupported return type";
+        return false;
+    }
+  }
+
+  ffi_cif cif;
+  if (ffi_prep_cif(&cif,
+                   FFI_DEFAULT_ABI,
+                   static_cast<unsigned int>(arg_kinds.size()),
+                   ffi_ret_type,
+                   ffi_arg_types.data()) != FFI_OK) {
+    if (out_error) *out_error = "core.dl.call ffi_prep_cif failed";
+    return false;
+  }
+
+  void (*fn)() = reinterpret_cast<void (*)()>(static_cast<uintptr_t>(ptr_bits));
+  ffi_call(&cif,
+           FFI_FN(fn),
+           (ret_kind == TypeKind::Unspecified) ? nullptr : &ffi_ret,
+           ffi_arg_values.data());
+
+  if (ret_kind == TypeKind::Unspecified) return true;
   if (!out_ret) {
     if (out_error) *out_error = "core.dl.call missing return slot";
     return false;
   }
-  if (arg_kinds.empty()) {
-    switch (ret_kind) {
-#define SIMPLE_DL_CASE_RET0(kind, cpp_type) \
-      case kind:                            \
-        return InvokeDlFunctionTyped<cpp_type>(ptr_bits, args, arg_base, heap, out_ret, out_error);
-      SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET0)
-#undef SIMPLE_DL_CASE_RET0
-      default:
-        if (out_error) *out_error = "core.dl.call unsupported return type";
-        return false;
-    }
-  }
-  if (arg_kinds.size() == 1) {
-    switch (ret_kind) {
-#define SIMPLE_DL_CASE_RET1(kind, cpp_type) \
-      case kind:                            \
-        return DispatchDlCall1<cpp_type>(arg_kinds[0], ptr_bits, args, arg_base, heap, out_ret, out_error);
-      SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET1)
-#undef SIMPLE_DL_CASE_RET1
-      default:
-        if (out_error) *out_error = "core.dl.call unsupported return type";
-        return false;
-    }
-  }
   switch (ret_kind) {
-#define SIMPLE_DL_CASE_RET2(kind, cpp_type) \
-    case kind:                              \
-      return DispatchDlCall2<cpp_type>(arg_kinds[0], arg_kinds[1], ptr_bits, args, arg_base, heap, out_ret, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_RET2)
-#undef SIMPLE_DL_CASE_RET2
+    case TypeKind::I8: return PackDlReturn<int8_t>(ffi_ret.i8, heap, out_ret, out_error);
+    case TypeKind::I16: return PackDlReturn<int16_t>(ffi_ret.i16, heap, out_ret, out_error);
+    case TypeKind::I32: return PackDlReturn<int32_t>(ffi_ret.i32, heap, out_ret, out_error);
+    case TypeKind::I64: return PackDlReturn<int64_t>(ffi_ret.i64, heap, out_ret, out_error);
+    case TypeKind::U8: return PackDlReturn<uint8_t>(ffi_ret.u8, heap, out_ret, out_error);
+    case TypeKind::U16: return PackDlReturn<uint16_t>(ffi_ret.u16, heap, out_ret, out_error);
+    case TypeKind::U32: return PackDlReturn<uint32_t>(ffi_ret.u32, heap, out_ret, out_error);
+    case TypeKind::U64: return PackDlReturn<uint64_t>(ffi_ret.u64, heap, out_ret, out_error);
+    case TypeKind::F32: return PackDlReturn<float>(ffi_ret.f32, heap, out_ret, out_error);
+    case TypeKind::F64: return PackDlReturn<double>(ffi_ret.f64, heap, out_ret, out_error);
+    case TypeKind::Bool: return PackDlReturn<bool>(ffi_ret.u8 != 0, heap, out_ret, out_error);
+    case TypeKind::Char: return PackDlReturn<uint8_t>(ffi_ret.u8, heap, out_ret, out_error);
+    case TypeKind::String: return PackDlReturn<const char*>(ffi_ret.cstr, heap, out_ret, out_error);
     default:
       if (out_error) *out_error = "core.dl.call unsupported return type";
       return false;

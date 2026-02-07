@@ -1196,7 +1196,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType a = pop_type();
           VerifyResult r = check_type(a, ValType::Ref, "LOAD_FIELD type mismatch");
           if (!r.ok) return r;
-          push_type(ValType::I32);
+          uint32_t field_id = 0;
+          ReadU32(code, pc + 1, &field_id);
+          if (field_id >= module.fields.size()) return Fail("LOAD_FIELD bad field id");
+          push_type(resolve_type(module.fields[field_id].type_id));
           break;
         }
         case OpCode::StoreField: {
@@ -1204,7 +1207,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType a = pop_type();
           VerifyResult r1 = check_type(a, ValType::Ref, "STORE_FIELD type mismatch");
           if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(v, ValType::I32, "STORE_FIELD type mismatch");
+          uint32_t field_id = 0;
+          ReadU32(code, pc + 1, &field_id);
+          if (field_id >= module.fields.size()) return Fail("STORE_FIELD bad field id");
+          VerifyResult r2 = check_type(v, resolve_type(module.fields[field_id].type_id), "STORE_FIELD type mismatch");
           if (!r2.ok) return r2;
           break;
         }

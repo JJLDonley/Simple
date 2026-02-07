@@ -4,6 +4,9 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.
+- Extended dynamic `core.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
+- Added `core_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).
 - Replaced dynamic DL intrinsic-only lowering with typed `core.dl` call-import lowering keyed from extern manifest signatures.
 - Added VM runtime typed dispatch for dynamic DL calls using exact signature metadata (mixed scalar/string params, void/scalar/string returns, up to 2 params).
 - Expanded FFI/lang coverage for dynamic calls with mixed signatures (`0/1/2` args, string in/out, and void return).
@@ -861,3 +864,14 @@
   `Simple/Tests/simple_bad/call_arg_type_mismatch.simple`.
 - Re-ran full project test matrix after additions:
   `./Simple/build.sh --suite all` => `1173/1173`.
+## 2026-02-07 (cont. 4)
+- Removed dynamic DL call import arity caps in SIR generation (no `<=4`/`<=8` synthesis limit).
+- Switched VM dynamic `core.dl.call` dispatch to `libffi` (`ffi_prep_cif`/`ffi_call`) so runtime arity is not hardcoded by manual call stubs.
+- Linked `libffi` in build/link paths (`build.sh`) and CLI embedded build path (`CLI/src/main.cpp`).
+- Added top-level global support path completion for SIR with global init function wiring and dynamic DL-handle global calls (`lib.Symbol(...)`).
+- Fixed IR text emission order/bootstrapping for globals and default global init constants to keep verifier/global initialization valid.
+- Fixed verifier field-type propagation for `LOAD_FIELD`/`STORE_FIELD` (uses actual field type instead of forced `i32`), unblocking exact small-type field ABI calls (e.g., `u8` color channels).
+- Kept verifier `bad_global_uninit_verify` semantics intact while preserving lang/global-DL behavior.
+- Marked `core_dl_open_raylib.simple` as an opt-in interactive sample by excluding it from bulk fixture sweeps in headless test runs.
+- Re-ran full matrix after these changes:
+  `./Simple/build.sh --suite all` => `1174/1174`.

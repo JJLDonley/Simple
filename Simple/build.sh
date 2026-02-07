@@ -160,6 +160,7 @@ ar rcs "$OUT_DIR/libsimplevm_runtime.a" "${CORE_OBJECTS[@]}"
 g++ -shared -fPIC -O2 -Wall -Wextra \
   "${CORE_OBJECTS[@]}" \
   -ldl \
+  -lffi \
   -o "$OUT_DIR/libsimplevm_runtime.so"
 
 g++ -std=c++17 -O2 -Wall -Wextra \
@@ -171,6 +172,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "${OBJECTS[@]}" \
   "$OUT_DIR/libsimplevm_runtime.a" \
   -ldl \
+  -lffi \
   -o "$OUT_DIR/simplevm_tests_$SUITE"
 
 g++ -std=c++17 -O2 -Wall -Wextra \
@@ -189,6 +191,7 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   "$OUT_DIR/libsimplevm_runtime.a" \
   -DSIMPLEVM_PROJECT_ROOT=\"$ROOT_DIR\" \
   -ldl \
+  -lffi \
   -o "$OUT_DIR/simplevm"
 
 cp "$OUT_DIR/simplevm" "$OUT_DIR/simple"

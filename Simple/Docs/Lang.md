@@ -905,8 +905,10 @@ main : i32 () {
 - The second `DL.Open` argument must be an extern module identifier.
 - Calls are type-checked from extern signatures.
 - Dynamic VM dispatch currently supports extern signatures with:
-  - up to 2 parameters
-  - scalar parameter types: `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+  - ABI-lowered parameter count up to 4
+  - for 0-2 parameters: scalar parameter types `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
+  - for 3-4 parameters: currently `i32`-lane scalar ABI types (`i8/i16/i32/u8/u16/u32/bool/char`)
+  - artifact parameters lowered by field order to scalar ABI values (for example `Color{u8,u8,u8,u8}` -> 4 params)
   - return type: `void` or `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string`
 
 ### artifact Rules

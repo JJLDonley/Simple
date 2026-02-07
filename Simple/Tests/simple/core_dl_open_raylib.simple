@@ -1,0 +1,64 @@
+import "Core.DL" as DL
+import "IO"
+
+Color :: artifact {
+    r: u8
+    g: u8
+    b: u8
+    a: u8
+}
+
+extern ffi.InitWindow: void (width: i32, height: i32, title: string)
+extern ffi.CloseWindow: void ()
+extern ffi.WindowShouldClose: bool ()
+extern ffi.BeginDrawing: void ()
+extern ffi.EndDrawing: void ()
+extern ffi.ClearBackground: void (color: Color)
+extern ffi.DrawText: void (text: string, x: i32, y: i32, size: i32, tint: Color)
+
+lib :: i64 = DL.Open("Simple/Tests/ffi/libraylib.so", ffi)
+
+InitWindow : void (width: i32, height: i32, title: string) {
+    lib.InitWindow(width, height, title)
+}
+
+CloseWindow : void () {
+    lib.CloseWindow()
+}
+
+WindowShouldClose : bool () {
+    return lib.WindowShouldClose()
+}
+
+BeginDrawing : void () {
+    lib.BeginDrawing()
+}
+
+EndDrawing : void () {
+    lib.EndDrawing()
+}
+
+ClearBackground : void (color: Color) {
+    lib.ClearBackground(color)
+}
+
+DrawText : void (text: string, x: i32, y: i32, size: i32, tint: Color) {
+    lib.DrawText(text, x, y, size, tint)
+}
+
+main : i32 () {
+    
+    InitWindow(1280, 720, "SimpleVM + Raylib")
+
+    bg   :: Color = { .r = 20,  .g = 20,  .b = 28,  .a = 255 }
+    tint :: Color = { .r = 245, .g = 245, .b = 245, .a = 255 }
+
+    while !WindowShouldClose() {
+        BeginDrawing()
+        ClearBackground(bg)
+        DrawText("Hello from SimpleVM + raylib (FFI)!", 40, 40, 30, tint)
+        EndDrawing()
+    }
+
+    CloseWindow()
+}

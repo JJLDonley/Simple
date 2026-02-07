@@ -47,7 +47,12 @@ struct EmitState {
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<TypeRef>>> extern_params_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, TypeRef>> extern_returns_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> dl_call_import_ids_by_module;
+  std::unordered_map<std::string, uint32_t> global_indices;
+  std::unordered_map<std::string, TypeRef> global_types;
+  std::unordered_map<std::string, Mutability> global_mutability;
   std::unordered_map<std::string, std::string> global_dl_modules;
+  std::string global_init_func_name;
+  std::vector<const VarDecl*> global_decls;
 
   struct ImportItem {
     std::string name;
@@ -577,10 +582,49 @@ bool AddStringConst(EmitState& st, const std::string& value, std::string* out_na
   return true;
 }
 
+bool AddGlobalInitConst(EmitState& st, const std::string& global_name, const TypeRef& type, std::string* out_name) {
+  if (!out_name) return false;
+  auto make_name = [&]() {
+    return "__ginit_" + global_name;
+  };
+  if (type.name == "f32") {
+    std::string name = make_name();
+    st.const_lines.push_back("  const " + name + " f32 0.0");
+    *out_name = std::move(name);
+    return true;
+  }
+  if (type.name == "f64") {
+    std::string name = make_name();
+    st.const_lines.push_back("  const " + name + " f64 0.0");
+    *out_name = std::move(name);
+    return true;
+  }
+  if (type.name == "string") {
+    std::string name = make_name();
+    st.const_lines.push_back("  const " + name + " string \"\"");
+    *out_name = std::move(name);
+    return true;
+  }
+  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+      type.name == "bool" || type.name == "char") {
+    std::string name = make_name();
+    // IR global init constants currently support string/f32/f64 const-id lookup.
+    st.const_lines.push_back("  const " + name + " f64 0.0");
+    *out_name = std::move(name);
+    return true;
+  }
+  return false;
+}
+
 bool InferExprType(const Expr& expr,
                    const EmitState& st,
                    TypeRef* out,
                    std::string* error);
+bool EmitExpr(EmitState& st,
+              const Expr& expr,
+              const TypeRef* expected,
+              std::string* error);
 bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error);
 
 bool InferLiteralType(const Expr& expr, TypeRef* out) {
@@ -612,11 +656,15 @@ bool InferExprType(const Expr& expr,
   switch (expr.kind) {
     case ExprKind::Identifier: {
       auto it = st.local_types.find(expr.text);
-      if (it == st.local_types.end()) {
-        if (error) *error = "unknown local '" + expr.text + "'";
-        return false;
+      if (it != st.local_types.end()) {
+        return CloneTypeRef(it->second, out);
       }
-      return CloneTypeRef(it->second, out);
+      auto git = st.global_types.find(expr.text);
+      if (git != st.global_types.end()) {
+        return CloneTypeRef(git->second, out);
+      }
+      if (error) *error = "unknown local '" + expr.text + "'";
+      return false;
     }
     case ExprKind::Literal:
       return InferLiteralType(expr, out);
@@ -871,6 +919,129 @@ bool EmitExpr(EmitState& st,
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
 
+bool FlattenExternAbiType(const TypeRef& type,
+                          const EmitState& st,
+                          bool allow_void,
+                          std::vector<TypeRef>* out,
+                          std::unordered_set<std::string>* visiting,
+                          std::string* error) {
+  if (!out || !visiting) return false;
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
+    if (error) *error = "extern ABI does not support proc/generic/container types";
+    return false;
+  }
+  if (type.name == "void") {
+    if (!allow_void) {
+      if (error) *error = "extern ABI does not allow void parameter type";
+      return false;
+    }
+    TypeRef normalized;
+    normalized.name = "void";
+    out->push_back(std::move(normalized));
+    return true;
+  }
+  if (st.enum_values.find(type.name) != st.enum_values.end()) {
+    TypeRef normalized;
+    normalized.name = "i32";
+    out->push_back(std::move(normalized));
+    return true;
+  }
+  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
+      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
+      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
+      type.name == "string") {
+    TypeRef normalized;
+    normalized.name = type.name;
+    out->push_back(std::move(normalized));
+    return true;
+  }
+  auto art_it = st.artifacts.find(type.name);
+  if (art_it == st.artifacts.end()) {
+    if (error) *error = "extern ABI unsupported type: " + type.name;
+    return false;
+  }
+  if (!visiting->insert(type.name).second) {
+    if (error) *error = "extern ABI recursive artifact type is not supported: " + type.name;
+    return false;
+  }
+  const ArtifactDecl* artifact = art_it->second;
+  for (const auto& field : artifact->fields) {
+    if (!FlattenExternAbiType(field.type, st, false, out, visiting, error)) {
+      visiting->erase(type.name);
+      return false;
+    }
+  }
+  visiting->erase(type.name);
+  return true;
+}
+
+bool FlattenExternAbiType(const TypeRef& type,
+                          const EmitState& st,
+                          bool allow_void,
+                          std::vector<TypeRef>* out,
+                          std::string* error) {
+  std::unordered_set<std::string> visiting;
+  return FlattenExternAbiType(type, st, allow_void, out, &visiting, error);
+}
+
+bool AllocateExternTempLocal(EmitState& st,
+                             const TypeRef& type,
+                             uint16_t* out_index) {
+  if (!out_index) return false;
+  uint16_t index = st.next_local++;
+  std::string name = "__ffi_tmp" + std::to_string(index);
+  TypeRef cloned;
+  if (!CloneTypeRef(type, &cloned)) return false;
+  st.local_indices[name] = index;
+  st.local_types[name] = std::move(cloned);
+  *out_index = index;
+  return true;
+}
+
+bool EmitExternAbiFromLocalArtifact(EmitState& st,
+                                    uint16_t local_index,
+                                    const TypeRef& artifact_type,
+                                    std::string* error) {
+  auto art_it = st.artifacts.find(artifact_type.name);
+  if (art_it == st.artifacts.end()) {
+    if (error) *error = "extern ABI artifact not found: " + artifact_type.name;
+    return false;
+  }
+  const ArtifactDecl* artifact = art_it->second;
+  for (const auto& field : artifact->fields) {
+    (*st.out) << "  ldloc " << local_index << "\n";
+    PushStack(st, 1);
+    (*st.out) << "  ldfld " << artifact_type.name << "." << field.name << "\n";
+    if (st.artifacts.find(field.type.name) != st.artifacts.end() &&
+        !field.type.is_proc && field.type.type_args.empty() && field.type.dims.empty()) {
+      uint16_t nested_local = 0;
+      if (!AllocateExternTempLocal(st, field.type, &nested_local)) return false;
+      (*st.out) << "  stloc " << nested_local << "\n";
+      PopStack(st, 1);
+      if (!EmitExternAbiFromLocalArtifact(st, nested_local, field.type, error)) return false;
+      continue;
+    }
+  }
+  return true;
+}
+
+bool EmitExternAbiArg(EmitState& st,
+                      const Expr& arg_expr,
+                      const TypeRef& source_type,
+                      std::string* error) {
+  bool is_artifact = !source_type.is_proc && source_type.type_args.empty() && source_type.dims.empty() &&
+                     st.artifacts.find(source_type.name) != st.artifacts.end();
+  if (!is_artifact) {
+    return EmitExpr(st, arg_expr, &source_type, error);
+  }
+  if (!EmitExpr(st, arg_expr, &source_type, error)) return false;
+  uint16_t local = 0;
+  if (!AllocateExternTempLocal(st, source_type, &local)) return false;
+  (*st.out) << "  stloc " << local << "\n";
+  PopStack(st, 1);
+  return EmitExternAbiFromLocalArtifact(st, local, source_type, error);
+}
+
 bool EmitIndexSetOp(EmitState& st,
                     const TypeRef& container_type,
                     const char* op_suffix) {
@@ -985,6 +1156,82 @@ bool EmitLocalAssignment(EmitState& st,
   return true;
 }
 
+bool EmitGlobalAssignment(EmitState& st,
+                          const std::string& name,
+                          const TypeRef& type,
+                          const Expr& value,
+                          const std::string& op,
+                          bool return_value,
+                          std::string* error) {
+  auto it = st.global_indices.find(name);
+  if (it == st.global_indices.end()) {
+    if (error) *error = "unknown global '" + name + "'";
+    return false;
+  }
+  if (op == "=") {
+    if (!EmitExpr(st, value, &type, error)) return false;
+    (*st.out) << "  stglob " << it->second << "\n";
+    PopStack(st, 1);
+    if (return_value) {
+      (*st.out) << "  ldglob " << it->second << "\n";
+      PushStack(st, 1);
+    }
+    return true;
+  }
+
+  const char* bin_op = AssignOpToBinaryOp(op);
+  if (!bin_op) {
+    if (error) *error = "unsupported assignment operator '" + op + "'";
+    return false;
+  }
+  (*st.out) << "  ldglob " << it->second << "\n";
+  PushStack(st, 1);
+  if (!EmitExpr(st, value, &type, error)) return false;
+  PopStack(st, 1);
+  const char* op_type = nullptr;
+  if (std::string(bin_op) == "&" || std::string(bin_op) == "|" || std::string(bin_op) == "^" ||
+      std::string(bin_op) == "<<" || std::string(bin_op) == ">>") {
+    op_type = NormalizeBitwiseOpType(type.name);
+  } else {
+    op_type = NormalizeNumericOpType(type.name);
+  }
+  if (!op_type) {
+    if (error) *error = "unsupported operand type for '" + op + "'";
+    return false;
+  }
+  if (std::string(bin_op) == "+") {
+    (*st.out) << "  add." << op_type << "\n";
+  } else if (std::string(bin_op) == "-") {
+    (*st.out) << "  sub." << op_type << "\n";
+  } else if (std::string(bin_op) == "*") {
+    (*st.out) << "  mul." << op_type << "\n";
+  } else if (std::string(bin_op) == "/") {
+    (*st.out) << "  div." << op_type << "\n";
+  } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
+    (*st.out) << "  mod." << op_type << "\n";
+  } else if (std::string(bin_op) == "&") {
+    (*st.out) << "  and." << op_type << "\n";
+  } else if (std::string(bin_op) == "|") {
+    (*st.out) << "  or." << op_type << "\n";
+  } else if (std::string(bin_op) == "^") {
+    (*st.out) << "  xor." << op_type << "\n";
+  } else if (std::string(bin_op) == "<<") {
+    (*st.out) << "  shl." << op_type << "\n";
+  } else if (std::string(bin_op) == ">>") {
+    (*st.out) << "  shr." << op_type << "\n";
+  } else {
+    if (error) *error = "unsupported assignment operator '" + op + "'";
+    return false;
+  }
+  (*st.out) << "  stglob " << it->second << "\n";
+  PopStack(st, 1);
+  if (return_value) {
+    (*st.out) << "  ldglob " << it->second << "\n";
+    PushStack(st, 1);
+  }
+  return true;
+}
+
 bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
   if (expr.children.size() != 2) {
     if (error) *error = "assignment missing operands";
@@ -993,11 +1240,15 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
   const Expr& target = expr.children[0];
   if (target.kind == ExprKind::Identifier) {
     auto type_it = st.local_types.find(target.text);
-    if (type_it == st.local_types.end()) {
-      if (error) *error = "unknown type for local '" + target.text + "'";
-      return false;
+    if (type_it != st.local_types.end()) {
+      return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
     }
-    return EmitLocalAssignment(st, target.text, type_it->second, expr.children[1], expr.op, true, error);
+    auto gtype_it = st.global_types.find(target.text);
+    if (gtype_it != st.global_types.end()) {
+      return EmitGlobalAssignment(st, target.text, gtype_it->second, expr.children[1], expr.op, true, error);
+    }
+    if (error) *error = "unknown type for local '" + target.text + "'";
+    return false;
   }
   if (target.kind == ExprKind::Index) {
     if (target.children.size() != 2) {
@@ -1510,12 +1761,17 @@ bool EmitExpr(EmitState& st,
   switch (expr.kind) {
     case ExprKind::Identifier: {
       auto it = st.local_indices.find(expr.text);
-      if (it == st.local_indices.end()) {
-        if (error) *error = "unknown local '" + expr.text + "'";
-        return false;
+      if (it != st.local_indices.end()) {
+        (*st.out) << "  ldloc " << it->second << "\n";
+        return PushStack(st, 1);
       }
-      (*st.out) << "  ldloc " << it->second << "\n";
-      return PushStack(st, 1);
+      auto git = st.global_indices.find(expr.text);
+      if (git != st.global_indices.end()) {
+        (*st.out) << "  ldglob " << git->second << "\n";
+        return PushStack(st, 1);
+      }
+      if (error) *error = "unknown local '" + expr.text + "'";
+      return false;
     }
     case ExprKind::Literal: {
       TypeRef literal_type;
@@ -1623,11 +1879,15 @@ bool EmitExpr(EmitState& st,
             (*st.out) << "  call " << sym_import_id << " 2\n";
             PopStack(st, 2);
             PushStack(st, 1);
+            uint32_t abi_arg_count = 1;
             for (size_t i = 0; i < params.size(); ++i) {
-              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+              std::vector<TypeRef> leaves;
+              if (!FlattenExternAbiType(params[i], st, false, &leaves, error)) return false;
+              if (!EmitExternAbiArg(st, expr.args[i], params[i], error)) return false;
+              abi_arg_count += static_cast<uint32_t>(leaves.size());
             }
-            (*st.out) << "  call " << call_id_it->second << " " << (params.size() + 1) << "\n";
-            PopStack(st, static_cast<uint32_t>(params.size() + 1));
+            (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
+            PopStack(st, abi_arg_count);
             if (ret_it->second.name != "void") PushStack(st, 1);
             return true;
           }
@@ -2062,12 +2322,16 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "call argument count mismatch for '" + name + "'";
             return false;
           }
+          uint32_t abi_arg_count = 0;
           for (size_t i = 0; i < params.size(); ++i) {
-            if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            std::vector<TypeRef> leaves;
+            if (!FlattenExternAbiType(params[i], st, false, &leaves, error)) return false;
+            if (!EmitExternAbiArg(st, expr.args[i], params[i], error)) return false;
+            abi_arg_count += static_cast<uint32_t>(leaves.size());
           }
-          (*st.out) << "  call " << ext_it->second << " " << params.size() << "\n";
-          if (st.stack_cur >= params.size()) {
-            st.stack_cur -= static_cast<uint32_t>(params.size());
+          (*st.out) << "  call " << ext_it->second << " " << abi_arg_count << "\n";
+          if (st.stack_cur >= abi_arg_count) {
+            st.stack_cur -= abi_arg_count;
           } else {
             st.stack_cur = 0;
           }
@@ -2488,11 +2752,15 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
     case StmtKind::Assign: {
       if (stmt.target.kind == ExprKind::Identifier) {
         auto type_it = st.local_types.find(stmt.target.text);
-        if (type_it == st.local_types.end()) {
-          if (error) *error = "unknown type for local '" + stmt.target.text + "'";
-          return false;
+        if (type_it != st.local_types.end()) {
+          return EmitLocalAssignment(st, stmt.target.text, type_it->second, stmt.expr, stmt.assign_op, false, error);
         }
-        return EmitLocalAssignment(st, stmt.target.text, type_it->second, stmt.expr, stmt.assign_op, false, error);
+        auto gtype_it = st.global_types.find(stmt.target.text);
+        if (gtype_it != st.global_types.end()) {
+          return EmitGlobalAssignment(st, stmt.target.text, gtype_it->second, stmt.expr, stmt.assign_op, false, error);
+        }
+        if (error) *error = "unknown type for local '" + stmt.target.text + "'";
+        return false;
       }
       if (stmt.target.kind == ExprKind::Index) {
         if (stmt.target.children.size() != 2) {
@@ -2822,6 +3090,31 @@ bool EmitFunction(EmitState& st,
     st.local_types.emplace(param.name, std::move(cloned));
   }
 
+  if (!st.global_init_func_name.empty() &&
+      fn.name == "main" &&
+      emit_name != st.global_init_func_name) {
+    auto init_it = st.func_ids.find(st.global_init_func_name);
+    if (init_it == st.func_ids.end()) {
+      if (error) *error = "missing global init function id";
+      return false;
+    }
+    (*st.out) << "  call " << init_it->second << " 0\n";
+  }
+
+  if (!st.global_init_func_name.empty() && emit_name == st.global_init_func_name) {
+    for (const auto* glob : st.global_decls) {
+      if (!glob->has_init_expr) continue;
+      if (!EmitExpr(st, glob->init_expr, &glob->type, error)) return false;
+      auto git = st.global_indices.find(glob->name);
+      if (git == st.global_indices.end()) {
+        if (error) *error = "unknown global in init function '" + glob->name + "'";
+        return false;
+      }
+      (*st.out) << "  stglob " << git->second << "\n";
+      PopStack(st, 1);
+    }
+  }
+
   for (const auto& stmt : fn.body) {
     if (!EmitStmt(st, stmt, error)) {
       if (error && !error->empty()) {
@@ -2845,6 +3138,12 @@ bool EmitFunction(EmitState& st,
   size_t header_end = func_body.find('\n');
   std::string header = func_body.substr(0, header_end);
   std::string body = func_body.substr(header_end + 1);
+  total_locals = st.next_local;
+  size_t enter_end = body.find('\n');
+  if (enter_end != std::string::npos &&
+      body.rfind("  enter ", 0) == 0) {
+    body = "  enter " + std::to_string(total_locals) + body.substr(enter_end);
+  }
 
   header = "func " + emit_name +
            " locals=" + std::to_string(total_locals) +
@@ -2868,6 +3167,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const ArtifactDecl*> artifacts;
   std::vector<const EnumDecl*> enums;
   std::vector<const ExternDecl*> externs;
+  std::vector<const VarDecl*> globals;
+  FuncDecl global_init_fn;
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
@@ -2923,16 +3224,41 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         functions.push_back({&fn, emit_name, key, false, {}});
       }
     } else if (decl.kind == DeclKind::Variable) {
-      if (error) *error = "top-level variables are not supported in SIR emission";
-      return false;
+      globals.push_back(&decl.var);
     } else {
       if (error) *error = "unsupported top-level declaration in SIR emission";
       return false;
     }
   }
+  if (!globals.empty()) {
+    st.global_decls = globals;
+    bool has_global_init = false;
+    for (const auto* g : globals) {
+      if (g->has_init_expr) {
+        has_global_init = true;
+        break;
+      }
+    }
+    if (has_global_init) {
+      global_init_fn.name = "__global_init";
+      global_init_fn.return_type.name = "void";
+      global_init_fn.return_mutability = Mutability::Mutable;
+      st.global_init_func_name = global_init_fn.name;
+      functions.push_back({&global_init_fn, global_init_fn.name, global_init_fn.name, false, {}});
+    }
+  }
   if (functions.empty()) {
     if (error) *error = "program has no functions";
     return false;
+  }
+
+  for (const auto* glob : globals) {
+    TypeRef gtype;
+    if (!CloneTypeRef(glob->type, &gtype)) return false;
+    uint32_t index = static_cast<uint32_t>(st.global_indices.size());
+    st.global_indices[glob->name] = index;
+    st.global_types[glob->name] = std::move(gtype);
+    st.global_mutability[glob->name] = glob->mutability;
   }
 
   for (size_t i = 0; i < functions.size(); ++i) {
@@ -2983,24 +3309,45 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     item.symbol = symbol;
     item.sig_name = "sig_import_" + std::to_string(st.imports.size());
     item.flags = 0;
-    std::vector<TypeRef> params;
-    params.reserve(ext->params.size());
+    std::vector<TypeRef> abi_params;
     for (const auto& param : ext->params) {
-      TypeRef cloned;
-      if (!CloneTypeRef(param.type, &cloned)) return false;
-      params.push_back(std::move(cloned));
+      if (!FlattenExternAbiType(param.type, st, false, &abi_params, error)) {
+        if (error && !error->empty()) {
+          *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
+                   "' parameter '" + param.name + "': " + *error;
+        }
+        return false;
+      }
     }
-    TypeRef ret;
-    if (!CloneTypeRef(ext->return_type, &ret)) return false;
-    item.params = std::move(params);
-    item.ret = std::move(ret);
+    std::vector<TypeRef> abi_returns;
+    if (!FlattenExternAbiType(ext->return_type, st, true, &abi_returns, error)) {
+      if (error && !error->empty()) {
+        *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
+                 "' return: " + *error;
+      }
+      return false;
+    }
+    if (abi_returns.size() != 1) {
+      if (error) {
+        *error = "extern '" + (ext->has_module ? (ext->module + ".") : std::string()) + ext->name +
+                 "' return type must lower to a single ABI value";
+      }
+      return false;
+    }
+    item.params = std::move(abi_params);
+    item.ret = std::move(abi_returns[0]);
     import_index_by_key.emplace(key, st.imports.size());
     st.imports.push_back(std::move(item));
 
     std::vector<TypeRef> param_copy;
-    if (!clone_params(st.imports.back().params, &param_copy)) return false;
+    param_copy.reserve(ext->params.size());
+    for (const auto& param : ext->params) {
+      TypeRef cloned;
+      if (!CloneTypeRef(param.type, &cloned)) return false;
+      param_copy.push_back(std::move(cloned));
+    }
     TypeRef ret_copy;
-    if (!CloneTypeRef(st.imports.back().ret, &ret_copy)) return false;
+    if (!CloneTypeRef(ext->return_type, &ret_copy)) return false;
     if (ext->has_module) {
       st.extern_ids_by_module[ext->module][symbol] = st.imports.back().name;
       st.extern_params_by_module[ext->module][symbol] = std::move(param_copy);
@@ -3013,11 +3360,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
     if (ext->has_module &&
         ResolveImportModule(ext->module) != "core.dl" &&
-        IsSupportedDlScalarType(ext->return_type, true) &&
-        ext->params.size() <= 2) {
+        IsSupportedDlScalarType(st.imports.back().ret, true)) {
       bool all_params_scalar = true;
-      for (const auto& p : ext->params) {
-        if (!IsSupportedDlScalarType(p.type, false)) {
+      for (const auto& p : st.imports.back().params) {
+        if (!IsSupportedDlScalarType(p, false)) {
           all_params_scalar = false;
           break;
         }
@@ -3032,15 +3378,23 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         TypeRef ptr_type;
         ptr_type.name = "i64";
         dyn_item.params.push_back(std::move(ptr_type));
-        for (const auto& param : ext->params) {
+        for (const auto& param : st.imports.back().params) {
           TypeRef cloned_param;
-          if (!CloneTypeRef(param.type, &cloned_param)) return false;
+          if (!CloneTypeRef(param, &cloned_param)) return false;
           dyn_item.params.push_back(std::move(cloned_param));
         }
-        if (!CloneTypeRef(ext->return_type, &dyn_item.ret)) return false;
+        if (!CloneTypeRef(st.imports.back().ret, &dyn_item.ret)) return false;
         st.dl_call_import_ids_by_module[ext->module][symbol] = dyn_item.name;
         st.imports.push_back(std::move(dyn_item));
       }
+    }
+  }
+
+  for (const auto* glob : globals) {
+    if (!glob->has_init_expr) continue;
+    std::string manifest_module;
+    if (GetDlOpenManifestModule(glob->init_expr, st, &manifest_module)) {
+      st.global_dl_modules[glob->name] = manifest_module;
     }
   }
 
@@ -3342,10 +3696,34 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     result << line << "\n";
   }
 
+  if (!globals.empty()) {
+    for (const auto* glob : globals) {
+      std::string init_const_name;
+      if (!AddGlobalInitConst(st, glob->name, glob->type, &init_const_name)) {
+        if (error) *error = "global '" + glob->name + "' type has no default const init support";
+        return false;
+      }
+    }
+  }
+
   if (!st.const_lines.empty()) {
     result << "consts:\n";
     for (const auto& line : st.const_lines) {
       result << line << "\n";
+    }
+  }
+
+  if (!globals.empty()) {
+    result << "globals:\n";
+    for (const auto* glob : globals) {
+      std::string type_name = SigTypeNameFromType(glob->type, st, error);
+      if (type_name.empty()) {
+        if (error && error->empty()) *error = "unsupported global type: " + glob->type.name;
+        return false;
+      }
+      result << "  global " << glob->name << " " << type_name;
+      result << " init=" << "__ginit_" + glob->name;
+      result << "\n";
     }
   }
 

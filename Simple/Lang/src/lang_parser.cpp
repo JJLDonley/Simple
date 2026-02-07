@@ -351,7 +351,13 @@ bool Parser::ParseDecl(Decl* out) {
       out->var.type = std::move(return_or_type);
     }
     if (Match(TokenKind::Assign)) {
-      if (!ParseInitTokens(&out->var.init_tokens)) return false;
+      Expr init;
+      if (!ParseExpr(&init)) return false;
+      if (!ConsumeStmtTerminator("variable declaration")) return false;
+      if (out) {
+        out->var.has_init_expr = true;
+        out->var.init_expr = std::move(init);
+      }
     } else if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
       // zero-initialized
     } else {
@@ -390,7 +396,13 @@ bool Parser::ParseDecl(Decl* out) {
     out->var.type = std::move(return_or_type);
   }
   if (Match(TokenKind::Assign)) {
-    if (!ParseInitTokens(&out->var.init_tokens)) return false;
+    Expr init;
+    if (!ParseExpr(&init)) return false;
+    if (!ConsumeStmtTerminator("variable declaration")) return false;
+    if (out) {
+      out->var.has_init_expr = true;
+      out->var.init_expr = std::move(init);
+    }
   } else if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) {
     // zero-initialized
   } else {

@@ -18,6 +18,12 @@
 namespace Simple::VM::Tests {
 namespace {
 
+bool ShouldSkipSimpleFixture(const std::filesystem::path& path) {
+  const std::string name = path.filename().string();
+  // Optional desktop-interactive sample; excludes headless CI/test environments.
+  return name == "core_dl_open_raylib.simple";
+}
+
 bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
   if (!out) return false;
   std::ifstream in(path);
@@ -115,6 +121,7 @@ int RunSimplePerfDir(const std::string& dir, size_t iterations, bool verify) {
     if (ec) break;
     if (!entry.is_regular_file()) continue;
     if (entry.path().extension() != ".simple") continue;
+    if (ShouldSkipSimpleFixture(entry.path())) continue;
     files.push_back(entry.path());
   }
   if (files.empty()) {

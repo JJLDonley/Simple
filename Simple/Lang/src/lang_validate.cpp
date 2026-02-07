@@ -172,29 +172,79 @@ bool IsSupportedDlScalarType(const TypeRef& type, bool allow_void) {
          type.name == "string";
 }
 
-bool IsSupportedDlDynamicSignature(const ExternDecl& ext, std::string* error) {
-  if (ext.params.size() > 2) {
-    if (error) {
-      *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
-               "' currently supports up to 2 parameters";
-    }
+bool FlattenDlAbiLeafCount(const TypeRef& type,
+                           const ValidateContext& ctx,
+                           bool allow_void,
+                           size_t* out_count,
+                           std::unordered_set<std::string>* visiting,
+                           std::string* error) {
+  if (!out_count || !visiting) return false;
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) {
+    if (error) *error = "dynamic DL ABI does not support proc/generic/container types";
     return false;
   }
-  if (!IsSupportedDlScalarType(ext.return_type, true)) {
-    if (error) {
-      *error = "dynamic DL return type must be one of: "
-               "void/i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string";
-    }
-    return false;
-  }
-  for (const auto& p : ext.params) {
-    if (!IsSupportedDlScalarType(p.type, false)) {
-      if (error) {
-        *error = "dynamic DL parameter type must be one of: "
-                 "i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char/string";
-      }
+  if (type.name == "void") {
+    if (!allow_void) {
+      if (error) *error = "dynamic DL ABI does not allow void parameter type";
       return false;
     }
+    *out_count += 1;
+    return true;
+  }
+  if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
+    *out_count += 1;
+    return true;
+  }
+  if (IsSupportedDlScalarType(type, false)) {
+    *out_count += 1;
+    return true;
+  }
+  auto art_it = ctx.artifacts.find(type.name);
+  if (art_it == ctx.artifacts.end()) {
+    if (error) *error = "dynamic DL ABI unsupported type: " + type.name;
+    return false;
+  }
+  if (!visiting->insert(type.name).second) {
+    if (error) *error = "dynamic DL ABI recursive artifact type is not supported: " + type.name;
+    return false;
+  }
+  for (const auto& field : art_it->second->fields) {
+    if (!FlattenDlAbiLeafCount(field.type, ctx, false, out_count, visiting, error)) {
+      visiting->erase(type.name);
+      return false;
+    }
+  }
+  visiting->erase(type.name);
+  return true;
+}
+
+bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
+                                   const ValidateContext& ctx,
+                                   std::string* error) {
+  std::unordered_set<std::string> visiting;
+  size_t ret_leaf_count = 0;
+  if (!FlattenDlAbiLeafCount(ext.return_type, ctx, true, &ret_leaf_count, &visiting, error)) {
+    return false;
+  }
+  if (ret_leaf_count != 1) {
+    if (error) {
+      *error = "dynamic DL return type for '" + ext.module + "." + ext.name +
+               "' must lower to a single ABI value";
+    }
+    return false;
+  }
+  size_t param_leaf_count = 0;
+  for (const auto& p : ext.params) {
+    if (!FlattenDlAbiLeafCount(p.type, ctx, false, &param_leaf_count, &visiting, error)) {
+      return false;
+    }
+  }
+  if (param_leaf_count > 4) {
+    if (error) {
+      *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
+               "' currently supports up to 4 ABI parameters";
+    }
+    return false;
   }
   return true;
 }
@@ -1196,7 +1246,7 @@ bool CheckCallTarget(const Expr& callee,
           if (mod_it != ctx.externs_by_module.end()) {
             auto ext_it = mod_it->second.find(callee.text);
             if (ext_it != mod_it->second.end()) {
-              if (!IsSupportedDlDynamicSignature(*ext_it->second, error)) return false;
+              if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
               if (ext_it->second->params.size() != arg_count) {
                 if (error) {
                   *error = "call argument count mismatch for dynamic symbol " +
@@ -1433,7 +1483,7 @@ bool GetCallTargetInfo(const Expr& callee,
           if (mod_it != ctx.externs_by_module.end()) {
             auto ext_it = mod_it->second.find(callee.text);
             if (ext_it != mod_it->second.end()) {
-              if (!IsSupportedDlDynamicSignature(*ext_it->second, error)) return false;
+              if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
               out->params.clear();
               if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
               out->return_mutability = ext_it->second->return_mutability;
@@ -1674,7 +1724,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
             return false;
           }
           for (const auto& entry : mod_it->second) {
-            if (!IsSupportedDlDynamicSignature(*entry.second, error)) return false;
+            if (!IsSupportedDlDynamicSignature(*entry.second, ctx, error)) return false;
           }
         }
         return true;

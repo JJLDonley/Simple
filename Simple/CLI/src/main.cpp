@@ -222,6 +222,7 @@ bool BuildEmbeddedExecutable(const std::string& root_dir,
     cmd += "-Wl,-rpath," + QuoteArg(lib_dir.string()) + " ";
   }
   cmd += "-ldl ";
+  cmd += "-lffi ";
   cmd += "-o " + QuoteArg(out_path);
 
   int rc = std::system(cmd.c_str());
