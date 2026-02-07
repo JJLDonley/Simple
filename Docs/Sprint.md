@@ -1049,3 +1049,9 @@
   - suppresses subsequent response emission for canceled request IDs (non-lifecycle requests).
 - Expanded LSP regression suite with cancellation coverage:
   - validates canceled hover request IDs do not produce a JSON-RPC result payload.
+- Added LSP document-version ordering guards for sync stability:
+  - tracks per-document `version` across `didOpen`/`didChange`,
+  - ignores out-of-order stale `didChange` updates when incoming version is older than last applied.
+- Added stale-change regression coverage in LSP suite:
+  - validates stale `didChange` requests do not overwrite document state,
+  - validates stale updates do not emit a second diagnostics publish.

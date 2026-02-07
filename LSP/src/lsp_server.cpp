@@ -913,6 +913,7 @@ void ReplyCodeAction(std::ostream& out,
 int RunServer(std::istream& in, std::ostream& out) {
   bool saw_shutdown = false;
   std::unordered_map<std::string, std::string> open_docs;
+  std::unordered_map<std::string, uint32_t> open_doc_versions;
   std::unordered_set<std::string> canceled_request_ids;
   for (;;) {
     std::string line;
@@ -1006,9 +1007,15 @@ int RunServer(std::istream& in, std::ostream& out) {
     if (method == "textDocument/didOpen") {
       std::string uri;
       std::string text;
+      uint32_t version = 0;
       if (ExtractJsonStringField(body, "uri", &uri) &&
           ExtractJsonStringField(body, "text", &text)) {
         open_docs[uri] = text;
+        if (ExtractJsonUintField(body, "version", &version)) {
+          open_doc_versions[uri] = version;
+        } else {
+          open_doc_versions[uri] = 0;
+        }
         PublishDiagnostics(out, uri, text);
       }
       continue;
@@ -1017,8 +1024,17 @@ int RunServer(std::istream& in, std::ostream& out) {
     if (method == "textDocument/didChange") {
       std::string uri;
       std::string text;
+      uint32_t version = 0;
+      const bool has_version = ExtractJsonUintField(body, "version", &version);
       if (ExtractJsonStringField(body, "uri", &uri) &&
           ExtractJsonStringField(body, "text", &text)) {
+        if (has_version) {
+          const auto it = open_doc_versions.find(uri);
+          if (it != open_doc_versions.end() && version < it->second) {
+            continue; // Ignore out-of-order stale updates.
+          }
+          open_doc_versions[uri] = version;
+        }
         open_docs[uri] = text;
         PublishDiagnostics(out, uri, text);
       }
@@ -1029,6 +1045,7 @@ int RunServer(std::istream& in, std::ostream& out) {
       std::string uri;
       if (ExtractJsonStringField(body, "uri", &uri)) {
         open_docs.erase(uri);
+        open_doc_versions.erase(uri);
         WriteLspMessage(
             out,
             "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
