@@ -24,6 +24,7 @@ struct EmitState {
   uint32_t string_index = 0;
 
   std::unordered_map<std::string, TypeRef> local_types;
+  std::unordered_map<std::string, std::string> local_dl_modules;
   std::unordered_map<std::string, uint16_t> local_indices;
   uint16_t next_local = 0;
 
@@ -45,6 +46,7 @@ struct EmitState {
   std::unordered_map<std::string, TypeRef> extern_returns;
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<TypeRef>>> extern_params_by_module;
   std::unordered_map<std::string, std::unordered_map<std::string, TypeRef>> extern_returns_by_module;
+  std::unordered_map<std::string, std::string> global_dl_modules;
 
   struct ImportItem {
     std::string name;
@@ -170,6 +172,86 @@ bool ResolveReservedModuleName(const EmitState& st,
   if (it != st.reserved_import_aliases.end()) {
     *out = it->second;
     return true;
+  }
+  return false;
+}
+
+bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
+  if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
+  const Expr& callee = expr.children[0];
+  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  std::string resolved;
+  if (!ResolveReservedModuleName(st, module_name, &resolved)) return false;
+  return resolved == "Core.DL" && NormalizeCoreDlMember(callee.text) == "open";
+}
+
+bool GetDlOpenManifestModule(const Expr& expr, const EmitState& st, std::string* out_module) {
+  if (!out_module) return false;
+  if (!IsCoreDlOpenCallExpr(expr, st)) return false;
+  if (expr.args.size() != 2) return false;
+  if (expr.args[1].kind != ExprKind::Identifier) return false;
+  const std::string& module = expr.args[1].text;
+  auto mod_it = st.extern_returns_by_module.find(module);
+  if (mod_it == st.extern_returns_by_module.end() || mod_it->second.empty()) return false;
+  *out_module = module;
+  return true;
+}
+
+bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
+  if (!out_id) return false;
+  for (const auto& entry : st.extern_ids_by_module) {
+    std::string resolved;
+    if (!ResolveReservedModuleName(st, entry.first, &resolved) || resolved != "Core.DL") continue;
+    auto it = entry.second.find("sym");
+    if (it != entry.second.end()) {
+      *out_id = it->second;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GetDynamicDlIntrinsic(const TypeRef& ret,
+                           const std::vector<TypeRef>& params,
+                           uint32_t* out_intrinsic,
+                           std::string* error) {
+  if (!out_intrinsic) return false;
+  if (ret.name == "i32" &&
+      params.size() == 2 &&
+      params[0].name == "i32" &&
+      params[1].name == "i32") {
+    *out_intrinsic = Simple::VM::kIntrinsicDlCallI32;
+    return true;
+  }
+  if (ret.name == "i64" &&
+      params.size() == 2 &&
+      params[0].name == "i64" &&
+      params[1].name == "i64") {
+    *out_intrinsic = Simple::VM::kIntrinsicDlCallI64;
+    return true;
+  }
+  if (ret.name == "f32" &&
+      params.size() == 2 &&
+      params[0].name == "f32" &&
+      params[1].name == "f32") {
+    *out_intrinsic = Simple::VM::kIntrinsicDlCallF32;
+    return true;
+  }
+  if (ret.name == "f64" &&
+      params.size() == 2 &&
+      params[0].name == "f64" &&
+      params[1].name == "f64") {
+    *out_intrinsic = Simple::VM::kIntrinsicDlCallF64;
+    return true;
+  }
+  if (ret.name == "string" && params.empty()) {
+    *out_intrinsic = Simple::VM::kIntrinsicDlCallStr0;
+    return true;
+  }
+  if (error) {
+    *error = "dynamic DL symbol signature is unsupported by current VM call intrinsics";
   }
   return false;
 }
@@ -675,6 +757,28 @@ bool InferExprType(const Expr& expr,
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
+        }
+        if (base.kind == ExprKind::Identifier) {
+          auto dl_local_it = st.local_dl_modules.find(base.text);
+          if (dl_local_it != st.local_dl_modules.end()) {
+            auto ext_mod_it = st.extern_returns_by_module.find(dl_local_it->second);
+            if (ext_mod_it != st.extern_returns_by_module.end()) {
+              auto ext_it = ext_mod_it->second.find(callee.text);
+              if (ext_it != ext_mod_it->second.end()) {
+                return CloneTypeRef(ext_it->second, out);
+              }
+            }
+          }
+          auto dl_global_it = st.global_dl_modules.find(base.text);
+          if (dl_global_it != st.global_dl_modules.end()) {
+            auto ext_mod_it = st.extern_returns_by_module.find(dl_global_it->second);
+            if (ext_mod_it != st.extern_returns_by_module.end()) {
+              auto ext_it = ext_mod_it->second.find(callee.text);
+              if (ext_it != ext_mod_it->second.end()) {
+                return CloneTypeRef(ext_it->second, out);
+              }
+            }
+          }
         }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
@@ -1481,6 +1585,62 @@ bool EmitExpr(EmitState& st,
           }
           return true;
         }
+        if (base.kind == ExprKind::Identifier) {
+          std::string dl_module;
+          auto dl_local_it = st.local_dl_modules.find(base.text);
+          if (dl_local_it != st.local_dl_modules.end()) {
+            dl_module = dl_local_it->second;
+          } else {
+            auto dl_global_it = st.global_dl_modules.find(base.text);
+            if (dl_global_it != st.global_dl_modules.end()) {
+              dl_module = dl_global_it->second;
+            }
+          }
+          if (!dl_module.empty()) {
+            auto params_mod_it = st.extern_params_by_module.find(dl_module);
+            auto returns_mod_it = st.extern_returns_by_module.find(dl_module);
+            if (params_mod_it == st.extern_params_by_module.end() ||
+                returns_mod_it == st.extern_returns_by_module.end()) {
+              if (error) *error = "unknown dynamic DL manifest module: " + dl_module;
+              return false;
+            }
+            auto params_it = params_mod_it->second.find(callee.text);
+            auto ret_it = returns_mod_it->second.find(callee.text);
+            if (params_it == params_mod_it->second.end() || ret_it == returns_mod_it->second.end()) {
+              if (error) *error = "unknown dynamic symbol: " + base.text + "." + callee.text;
+              return false;
+            }
+            const auto& params = params_it->second;
+            if (expr.args.size() != params.size()) {
+              if (error) *error = "call argument count mismatch for dynamic symbol '" +
+                                  base.text + "." + callee.text + "'";
+              return false;
+            }
+            uint32_t intrinsic = 0;
+            if (!GetDynamicDlIntrinsic(ret_it->second, params, &intrinsic, error)) return false;
+            std::string sym_import_id;
+            if (!GetCoreDlSymImportId(st, &sym_import_id)) {
+              if (error) *error = "missing Core.DL.sym import for dynamic symbol calls";
+              return false;
+            }
+            TypeRef ptr_type = MakeTypeRef("i64");
+            if (!EmitExpr(st, base, &ptr_type, error)) return false;
+            std::string symbol_name;
+            if (!AddStringConst(st, callee.text, &symbol_name)) return false;
+            (*st.out) << "  const.string " << symbol_name << "\n";
+            PushStack(st, 1);
+            (*st.out) << "  call " << sym_import_id << " 2\n";
+            PopStack(st, 2);
+            PushStack(st, 1);
+            for (size_t i = 0; i < params.size(); ++i) {
+              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            }
+            (*st.out) << "  intrinsic " << intrinsic << "\n";
+            PopStack(st, static_cast<uint32_t>(params.size() + 1));
+            PushStack(st, 1);
+            return true;
+          }
+        }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
           std::string resolved;
@@ -1515,6 +1675,40 @@ bool EmitExpr(EmitState& st,
             const std::string member_name =
                 (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
             if (resolved == "Core.DL") {
+              if (member_name == "open") {
+                if (expr.args.size() != 1 && expr.args.size() != 2) {
+                  if (error) *error = "call argument count mismatch for 'Core.DL.open'";
+                  return false;
+                }
+                auto ext_mod_it = st.extern_ids_by_module.find(module_name);
+                if (ext_mod_it == st.extern_ids_by_module.end()) {
+                  if (error) *error = "missing extern module for 'Core.DL.open'";
+                  return false;
+                }
+                auto id_it = ext_mod_it->second.find(member_name);
+                if (id_it == ext_mod_it->second.end()) {
+                  if (error) *error = "missing extern id for 'Core.DL.open'";
+                  return false;
+                }
+                auto params_it = st.extern_params_by_module[module_name].find(member_name);
+                auto ret_it = st.extern_returns_by_module[module_name].find(member_name);
+                if (params_it == st.extern_params_by_module[module_name].end() ||
+                    ret_it == st.extern_returns_by_module[module_name].end()) {
+                  if (error) *error = "missing signature for extern 'Core.DL.open'";
+                  return false;
+                }
+                const auto& params = params_it->second;
+                if (params.size() != 1) {
+                  if (error) *error = "invalid extern signature for 'Core.DL.open'";
+                  return false;
+                }
+                if (!EmitExpr(st, expr.args[0], &params[0], error)) return false;
+                (*st.out) << "  call " << id_it->second << " 1\n";
+                if (st.stack_cur >= 1) st.stack_cur -= 1;
+                else st.stack_cur = 0;
+                if (ret_it->second.name != "void") PushStack(st, 1);
+                return true;
+              }
               if (member_name == "call_i32") {
                 if (expr.args.size() != 3) {
                   if (error) *error = "call argument count mismatch for 'Core.DL.call_i32'";
@@ -2229,6 +2423,12 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       if (!CloneTypeRef(var.type, &cloned)) return false;
       st.local_types.emplace(var.name, std::move(cloned));
       if (var.has_init_expr) {
+        std::string manifest_module;
+        if (GetDlOpenManifestModule(var.init_expr, st, &manifest_module)) {
+          st.local_dl_modules[var.name] = manifest_module;
+        }
+      }
+      if (var.has_init_expr) {
       if (!EmitExpr(st, var.init_expr, &var.type, error)) return false;
     } else {
       if (!EmitDefaultInit(st, var.type, error)) return false;
@@ -2536,6 +2736,7 @@ bool EmitFunction(EmitState& st,
   st.current_func = emit_name;
   st.local_indices.clear();
   st.local_types.clear();
+  st.local_dl_modules.clear();
   st.next_local = 0;
   st.stack_cur = 0;
   st.stack_max = 0;

@@ -1068,6 +1068,36 @@ bool Parser::ParseBinaryExpr(int min_prec, Expr* out) {
 
 bool Parser::ParseUnaryExpr(Expr* out) {
   const Token& tok = Peek();
+  if (tok.kind == TokenKind::At) {
+    Advance();
+    TypeRef cast_type;
+    if (!ParseTypeInner(&cast_type)) return false;
+    if (cast_type.is_proc || !cast_type.type_args.empty() || !cast_type.dims.empty()) {
+      error_ = "cast expects primitive type name in @T(value)";
+      return false;
+    }
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after cast type";
+      return false;
+    }
+    Expr arg;
+    if (!ParseExpr(&arg)) return false;
+    if (!Match(TokenKind::RParen)) {
+      error_ = "expected ')' after cast expression";
+      return false;
+    }
+    Expr callee;
+    callee.kind = ExprKind::Identifier;
+    callee.text = cast_type.name;
+    callee.line = cast_type.line;
+    callee.column = cast_type.column;
+    Expr call;
+    call.kind = ExprKind::Call;
+    call.children.push_back(std::move(callee));
+    call.args.push_back(std::move(arg));
+    if (out) *out = std::move(call);
+    return true;
+  }
   if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus ||
       tok.kind == TokenKind::PlusPlus || tok.kind == TokenKind::MinusMinus) {
     Advance();
@@ -1259,6 +1289,14 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
           error_ = "expected '=' after artifact field name";
           return false;
         }
+        Expr value;
+        if (!ParseExpr(&value)) return false;
+        expr.field_names.push_back(field_tok.text);
+        expr.field_values.push_back(std::move(value));
+        seen_named = true;
+      } else if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::Colon) {
+        Token field_tok = Advance();
+        Advance(); // ':'
         Expr value;
         if (!ParseExpr(&value)) return false;
         expr.field_names.push_back(field_tok.text);

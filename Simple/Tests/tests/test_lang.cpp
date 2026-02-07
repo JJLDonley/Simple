@@ -2380,28 +2380,28 @@ bool LangValidateStrFromStringFail() {
 }
 
 bool LangValidateI32FromStringOk() {
-  const char* src = "main : i32 () { s : string = \"42\"; return i32(s); }";
+  const char* src = "main : i32 () { s : string = \"42\"; return @i32(s); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateI32FromI32Fail() {
-  const char* src = "main : i32 () { x : i32 = 1; return i32(x); }";
+  const char* src = "main : i32 () { x : i32 = 1; return @i32(x); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateF64FromStringOk() {
-  const char* src = "main : f64 () { s : string = \"1.5\"; return f64(s); }";
+  const char* src = "main : f64 () { s : string = \"1.5\"; return @f64(s); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateF64FromF64Fail() {
-  const char* src = "main : f64 () { x : f64 = 1.0; return f64(x); }";
+  const char* src = "main : f64 () { x : f64 = 1.0; return @f64(x); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;

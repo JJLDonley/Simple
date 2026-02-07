@@ -763,7 +763,7 @@ len : i32 = len(jagged[2])    // Length of second row (6)
    ```
    a : i32 = 10
    b : f32 = a        // ERROR: cannot assign i32 to f32
-   b : f32 = f32(a)   // OK: explicit conversion
+   b : f32 = @f32(a)  // OK: explicit conversion
    ```
 
 3. **Binary operations require matching types**
@@ -771,7 +771,7 @@ len : i32 = len(jagged[2])    // Length of second row (6)
    x : i32 = 10
    y : f64 = 3.14
    z = x + y          // ERROR: type mismatch
-   z = f64(x) + y     // OK
+   z = @f64(x) + y    // OK
    ```
 
 4. **Generic type arguments must be concrete**
@@ -857,6 +857,33 @@ len : i32 = len(jagged[2])    // Length of second row (6)
    y : i32 = identity(10)         // OK if type can be inferred
    z : i32 = identity()           // ERROR: cannot infer T
    ```
+
+### Dynamic Library Manifest (Core.DL)
+
+`Core.DL.open` supports a typed symbol manifest via an extern module:
+
+```
+import "Core.DL" as DL
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+extern ffi.simple_hello : string ()
+
+main : i32 () {
+    lib : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so", ffi)
+    sum : i32 = lib.simple_add_i32(64, 64)
+    msg : string = lib.simple_hello()
+    DL.Close(lib)
+    return 0
+}
+```
+
+- The second `DL.Open` argument must be an extern module identifier.
+- Calls are type-checked from extern signatures.
+- Current VM call intrinsics support these dynamic signatures:
+  - `(i32, i32) -> i32`
+  - `(i64, i64) -> i64`
+  - `(f32, f32) -> f32`
+  - `(f64, f64) -> f64`
+  - `() -> string`
 
 ### artifact Rules
 

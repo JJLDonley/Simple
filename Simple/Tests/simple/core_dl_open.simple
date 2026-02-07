@@ -1,29 +1,20 @@
 import "Core.DL" as DL
 import "IO"
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+extern ffi.simple_hello : string ()
 
 main : i32 () {
-  h : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so");
-  s : i64 = 0;
-  p : i64 = 0;
+  lib : i64 = DL.Open("Simple/Tests/ffi/libsimpleffi.so", ffi);
   sum : i32 = 0;
   msg : string = "";
-  if h == 0 {
+  if lib == 0 {
     IO.println(DL.LastError())
     return 0
   }
-  s = DL.Sym(h, "simple_add_i32");
-  if s == 0 {
-    IO.println(DL.LastError())
-    DL.Close(h)
-    return 0
-  }
-  sum = DL.CallI32(s, 64, 64);
+  sum = lib.simple_add_i32(64, 64);
   IO.println(sum);
-  p = DL.Sym(h, "simple_hello");
-  if p != 0 {
-    msg = DL.CallStr0(p);
-    IO.println(msg);
-  }
-  DL.Close(h)
+  msg = lib.simple_hello();
+  IO.println(msg);
+  DL.Close(lib)
   return 1
 }

@@ -822,3 +822,9 @@
 - Updated `build.sh` to build and publish runtime static/shared libraries and to link `simplevm`/tests against the runtime static library.
 - Extended lang CLI tests to validate link mode behavior on Linux via `ldd` (`-d` must depend on `libsimplevm_runtime.so`; `-s` must not).
 - Updated CMake test working directory to the workspace root so fixture paths and CLI-path tests resolve consistently.
+- Added `@T(value)` cast syntax support in the parser and routed it through existing conversion validation/emission.
+- Added typed Core.DL manifest support via `DL.Open(path, extern_module)` and dynamic symbol calls through `lib.symbol(...)`.
+- Enforced strict dynamic-call signature checks for currently supported VM intrinsics:
+  `(i32,i32)->i32`, `(i64,i64)->i64`, `(f32,f32)->f32`, `(f64,f64)->f64`, `()->string`.
+- Updated `core_dl_open.simple` fixture to use manifest-based direct symbol calls.
+- Updated language docs (`Lang.md`) with `@` cast examples and Core.DL manifest usage.

@@ -28,6 +28,7 @@ struct ValidateContext {
 struct LocalInfo {
   Mutability mutability = Mutability::Mutable;
   const TypeRef* type = nullptr;
+  std::string dl_module;
 };
 
 struct CallTargetInfo {
@@ -114,6 +115,94 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
       *out = "Core." + base.text;
       return true;
     }
+  }
+  return false;
+}
+
+std::string NormalizeCoreDlMember(const std::string& name) {
+  if (name == "Open") return "open";
+  if (name == "Sym") return "sym";
+  if (name == "Close") return "close";
+  if (name == "LastError") return "last_error";
+  if (name == "CallI32") return "call_i32";
+  if (name == "CallI64") return "call_i64";
+  if (name == "CallF32") return "call_f32";
+  if (name == "CallF64") return "call_f64";
+  if (name == "CallStr0") return "call_str0";
+  return name;
+}
+
+bool IsCoreDlOpenCallExpr(const Expr& expr, const ValidateContext& ctx) {
+  if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
+  const Expr& callee = expr.children[0];
+  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  if (!IsReservedModuleEnabled(ctx, module_name)) return false;
+  std::string resolved;
+  if (!ResolveReservedModuleName(ctx, module_name, &resolved)) return false;
+  return resolved == "Core.DL" && NormalizeCoreDlMember(callee.text) == "open";
+}
+
+bool GetDlOpenManifestModule(const Expr& expr,
+                             const ValidateContext& ctx,
+                             std::string* out_module) {
+  if (!out_module) return false;
+  if (!IsCoreDlOpenCallExpr(expr, ctx)) return false;
+  if (expr.args.size() != 2) return false;
+  if (expr.args[1].kind != ExprKind::Identifier) return false;
+  const std::string& module = expr.args[1].text;
+  auto mod_it = ctx.externs_by_module.find(module);
+  if (mod_it == ctx.externs_by_module.end() || mod_it->second.empty()) return false;
+  *out_module = module;
+  return true;
+}
+
+bool IsSupportedDlDynamicSignature(const ExternDecl& ext, std::string* error) {
+  auto is_scalar_prim = [](const TypeRef& t) {
+    return !t.is_proc && t.type_args.empty() && t.dims.empty();
+  };
+  if (!is_scalar_prim(ext.return_type)) {
+    if (error) *error = "dynamic DL return type must be scalar primitive";
+    return false;
+  }
+  for (const auto& p : ext.params) {
+    if (!is_scalar_prim(p.type)) {
+      if (error) *error = "dynamic DL parameter type must be scalar primitive";
+      return false;
+    }
+  }
+  if (ext.return_type.name == "i32" &&
+      ext.params.size() == 2 &&
+      ext.params[0].type.name == "i32" &&
+      ext.params[1].type.name == "i32") {
+    return true;
+  }
+  if (ext.return_type.name == "i64" &&
+      ext.params.size() == 2 &&
+      ext.params[0].type.name == "i64" &&
+      ext.params[1].type.name == "i64") {
+    return true;
+  }
+  if (ext.return_type.name == "f32" &&
+      ext.params.size() == 2 &&
+      ext.params[0].type.name == "f32" &&
+      ext.params[1].type.name == "f32") {
+    return true;
+  }
+  if (ext.return_type.name == "f64" &&
+      ext.params.size() == 2 &&
+      ext.params[0].type.name == "f64" &&
+      ext.params[1].type.name == "f64") {
+    return true;
+  }
+  if (ext.return_type.name == "string" && ext.params.empty()) {
+    return true;
+  }
+  if (error) {
+    *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
+             "' must match one of: (i32,i32)->i32, (i64,i64)->i64, "
+             "(f32,f32)->f32, (f64,f64)->f64, ()->string";
   }
   return false;
 }
@@ -1118,6 +1207,31 @@ bool CheckCallTarget(const Expr& callee,
         }
         return true;
       }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        if (!local->dl_module.empty()) {
+          auto mod_it = ctx.externs_by_module.find(local->dl_module);
+          if (mod_it != ctx.externs_by_module.end()) {
+            auto ext_it = mod_it->second.find(callee.text);
+            if (ext_it != mod_it->second.end()) {
+              if (!IsSupportedDlDynamicSignature(*ext_it->second, error)) return false;
+              if (ext_it->second->params.size() != arg_count) {
+                if (error) {
+                  *error = "call argument count mismatch for dynamic symbol " +
+                           base.text + "." + callee.text + ": expected " +
+                           std::to_string(ext_it->second->params.size()) +
+                           ", got " + std::to_string(arg_count);
+                }
+                return false;
+              }
+              return true;
+            }
+            if (error) {
+              *error = "unknown dynamic symbol: " + base.text + "." + callee.text;
+            }
+            return false;
+          }
+        }
+      }
       auto module_it = ctx.modules.find(base.text);
       if (module_it != ctx.modules.end()) {
         const FuncDecl* fn = FindModuleFunc(module_it->second, callee.text);
@@ -1137,11 +1251,23 @@ bool CheckCallTarget(const Expr& callee,
         if (IsReservedModuleEnabled(ctx, module_name)) {
           CallTargetInfo info;
           if (GetReservedModuleCallTarget(ctx, module_name, callee.text, &info)) {
-            if (info.params.size() != arg_count) {
+            std::string resolved_module;
+            const bool is_core_dl_open =
+                ResolveReservedModuleName(ctx, module_name, &resolved_module) &&
+                resolved_module == "Core.DL" &&
+                NormalizeCoreDlMember(callee.text) == "open";
+            if (!is_core_dl_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
                          ": expected " + std::to_string(info.params.size()) +
                          ", got " + std::to_string(arg_count);
+              }
+              return false;
+            }
+            if (is_core_dl_open && arg_count != 1 && arg_count != 2) {
+              if (error) {
+                *error = "call argument count mismatch for " + module_name + "." + callee.text +
+                         ": expected 1 or 2, got " + std::to_string(arg_count);
               }
               return false;
             }
@@ -1317,6 +1443,28 @@ bool GetCallTargetInfo(const Expr& callee,
           out->params.push_back(std::move(copy));
         }
         return true;
+      }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        if (!local->dl_module.empty()) {
+          auto mod_it = ctx.externs_by_module.find(local->dl_module);
+          if (mod_it != ctx.externs_by_module.end()) {
+            auto ext_it = mod_it->second.find(callee.text);
+            if (ext_it != mod_it->second.end()) {
+              if (!IsSupportedDlDynamicSignature(*ext_it->second, error)) return false;
+              out->params.clear();
+              if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+              out->return_mutability = ext_it->second->return_mutability;
+              out->type_params.clear();
+              out->is_proc = false;
+              for (const auto& param : ext_it->second->params) {
+                TypeRef copy;
+                if (!CloneTypeRef(param.type, &copy)) return false;
+                out->params.push_back(std::move(copy));
+              }
+              return true;
+            }
+          }
+        }
       }
       auto module_it = ctx.modules.find(base.text);
       if (module_it != ctx.modules.end()) {
@@ -1519,6 +1667,34 @@ bool CheckCallArgTypes(const Expr& call_expr,
           }
           return true;
         }
+      }
+      if (mod == "Core.DL" && NormalizeCoreDlMember(name) == "open") {
+        if (call_expr.args.size() != 1 && call_expr.args.size() != 2) {
+          if (error) *error = "Core.DL.open expects (string) or (string, manifest)";
+          return false;
+        }
+        TypeRef path;
+        if (!infer_arg(0, &path)) return true;
+        if (path.name != "string" || !path.dims.empty()) {
+          if (error) *error = "Core.DL.open expects first argument string path";
+          return false;
+        }
+        if (call_expr.args.size() == 2) {
+          if (call_expr.args[1].kind != ExprKind::Identifier) {
+            if (error) *error = "Core.DL.open manifest must be an extern module identifier";
+            return false;
+          }
+          const std::string manifest = call_expr.args[1].text;
+          auto mod_it = ctx.externs_by_module.find(manifest);
+          if (mod_it == ctx.externs_by_module.end() || mod_it->second.empty()) {
+            if (error) *error = "Core.DL.open manifest has no extern symbols: " + manifest;
+            return false;
+          }
+          for (const auto& entry : mod_it->second) {
+            if (!IsSupportedDlDynamicSignature(*entry.second, error)) return false;
+          }
+        }
+        return true;
       }
       if (mod == "File") {
         if (name == "open") {
@@ -1999,6 +2175,13 @@ bool CheckStmt(const Stmt& stmt,
                                          error)) {
               return false;
             }
+          }
+        }
+        std::string manifest_module;
+        if (GetDlOpenManifestModule(stmt.var_decl.init_expr, ctx, &manifest_module)) {
+          auto local_it = scopes.back().find(stmt.var_decl.name);
+          if (local_it != scopes.back().end()) {
+            local_it->second.dl_module = manifest_module;
           }
         }
         return true;
@@ -2737,6 +2920,15 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
         if (base.kind == ExprKind::Identifier) {
+          if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+            if (!local->dl_module.empty()) {
+              auto mod_it = ctx.externs_by_module.find(local->dl_module);
+              if (mod_it != ctx.externs_by_module.end() &&
+                  mod_it->second.find(expr.text) != mod_it->second.end()) {
+                return true;
+              }
+            }
+          }
           auto module_it = ctx.modules.find(base.text);
           if (module_it != ctx.modules.end()) {
             if (!FindModuleVar(module_it->second, expr.text) &&
@@ -2765,6 +2957,15 @@ bool CheckExpr(const Expr& expr,
       if (expr.op == "." && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier) {
+          if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+            if (!local->dl_module.empty()) {
+              auto mod_it = ctx.externs_by_module.find(local->dl_module);
+              if (mod_it != ctx.externs_by_module.end() &&
+                  mod_it->second.find(expr.text) != mod_it->second.end()) {
+                return true;
+              }
+            }
+          }
           auto module_it = ctx.modules.find(base.text);
           if (module_it != ctx.modules.end()) {
             if (!FindModuleVar(module_it->second, expr.text) &&
