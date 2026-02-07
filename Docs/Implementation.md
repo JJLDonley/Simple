@@ -1,122 +1,223 @@
-# Simple Implementation Plan (Current)
+# Simple Implementation Plan (Alpha -> Release)
 
-This is the active project plan used for alpha freeze tracking.
+This is the active execution plan for shipping and maintaining Simple from repository root layout.
 
-## Project Goals
+## Scope
 
-- Stable language -> IR -> bytecode -> runtime pipeline.
-- Deterministic verification/runtime behavior.
-- Documented and test-backed FFI/interop surface.
+### Primary Goal
+- Ship a stable, documented pipeline:
+  - `.simple` -> `SIR` -> `SBC` -> verified runtime execution.
 
-## v0.1 Non-Goals
+### Alpha Deliverable
+- Consistent interpreter-first runtime behavior.
+- Stable CLI UX for `simple` and `simplevm`.
+- Release automation that produces installable artifacts.
+- Docs and tests that match real behavior.
 
-- Package manager.
-- AOT backend.
-- Full optimizer pipeline.
-- Full generational GC rollout.
+### Non-Goals (v0.1)
+- Package manager ecosystem.
+- Full optimizing compiler pipeline.
+- AOT-native backend.
+- Advanced GC generations/tuning work.
 
-## Module Status
+## Current Baseline
 
-### Simple::Byte
+- Root layout migration is complete (`Byte/`, `CLI/`, `Docs/`, `IR/`, `Lang/`, `Tests/`, `VM/`).
+- Import resolution supports:
+  - reserved stdlib imports,
+  - relative/absolute imports,
+  - project-root bare filename lookup (with ambiguity diagnostics).
+- CLI diagnostics are context-rich and include source spans + help hints.
+- Release branch CI workflow exists and publishes GitHub Release artifacts for installer consumption.
 
-Docs:
-- `Simple/Docs/Byte.md`
+## Module Plan
+
+### 1. `Simple::Byte` (Format/Loader/Verifier)
+
+Authoritative doc:
+- `Docs/Byte.md`
 
 Status:
-- Header/section/table parsing implemented.
-- Verifier implemented and integrated into execution path.
+- Loader + verifier are implemented and heavily tested.
 
-Alpha checklist:
-- [x] Strict loader bounds/alignment checks.
-- [x] Verifier stack/type/control-flow checks.
-- [ ] Freeze compatibility policy and versioning note in release docs.
+Remaining alpha work:
+- [ ] Freeze compatibility/versioning policy language in `Docs/Byte.md`.
+- [ ] Define forward/backward compatibility expectations for SBC artifact consumers.
+- [ ] Add one explicit compatibility smoke test using archived SBC fixture(s).
 
-### Simple::VM
+Gate to close:
+- Compatibility section in docs is explicit and test-backed.
 
-Docs:
-- `Simple/Docs/VM.md`
+### 2. `Simple::VM` (Runtime/ABI)
+
+Authoritative doc:
+- `Docs/VM.md`
 
 Status:
 - Interpreter baseline stable.
-- Heap + GC in use.
-- Dynamic DL signature dispatch with by-value struct marshalling implemented.
+- Core imports + dynamic DL/FFI dispatch implemented.
 
-Alpha checklist:
-- [x] Runtime trap diagnostics.
-- [x] Import handling for core modules.
-- [x] Dynamic FFI exact-signature dispatch.
-- [ ] Decide and document alpha JIT stability posture.
-- [ ] Remove or clearly mark non-alpha placeholder paths.
+Remaining alpha work:
+- [ ] Finalize JIT posture for alpha:
+  - explicitly supported, experimental, or disabled-by-default.
+- [ ] Remove/label placeholder runtime paths that are not alpha-grade.
+- [ ] Add focused runtime smoke profile for import + trap diagnostics.
 
-### Simple::IR
+Gate to close:
+- VM behavior, limits, and alpha posture are explicit in docs and reflected in tests.
 
-Docs:
-- `Simple/Docs/IR.md`
+### 3. `Simple::IR` (SIR Contract)
 
-Status:
-- SIR parser/validator/lowering implemented.
-
-Alpha checklist:
-- [x] Metadata + lowering pipeline.
-- [x] Error reporting with line context.
-- [ ] Freeze supported SIR subset in docs.
-
-### Simple::Lang
-
-Docs:
-- `Simple/Docs/Lang.md`
-- `Simple/Docs/StdLib.md`
+Authoritative doc:
+- `Docs/IR.md`
 
 Status:
-- Lexer/parser/validator/SIR emission implemented.
-- Extern/import and `Core.DL` manifest flow implemented.
+- SIR parse/validate/lower is stable.
 
-Alpha checklist:
-- [x] Type checking and mutability validation.
-- [x] Global init function flow.
-- [x] Pointer and artifact extern ABI support.
-- [ ] Finalize and publish explicit "supported vs not-supported" language subset.
+Remaining alpha work:
+- [ ] Freeze supported SIR subset and unsupported forms list.
+- [ ] Add regression fixtures for each unsupported-but-diagnosed SIR class.
 
-### Simple::CLI
+Gate to close:
+- SIR contract is deterministic and release-noted.
 
-Docs:
-- `Simple/Docs/CLI.md`
+### 4. `Simple::Lang` (Front-End)
 
-Status:
-- `simple` and `simplevm` command flows implemented.
-
-Alpha checklist:
-- [x] check/build/run/emit behavior.
-- [x] Diagnostics format consistency.
-- [ ] Final command/API freeze note for alpha release.
-
-### Simple::Tests
-
-Docs:
-- `Simple/Docs/Sprint.md`
+Authoritative docs:
+- `Docs/Lang.md`
+- `Docs/StdLib.md`
 
 Status:
-- Core/IR/JIT/Lang suites and fixture runs implemented.
+- Lexer/parser/validator/emitter implemented.
+- Import/extern/global/init flows in place.
 
-Alpha checklist:
-- [x] Regression suites passing on repository baseline.
-- [ ] Add/lock alpha smoke suite profile.
-- [ ] Publish required CI matrix for alpha gate.
+Remaining alpha work:
+- [ ] Publish explicit supported syntax/features list for alpha.
+- [ ] Publish explicit deferred/unsupported list.
+- [ ] Confirm diagnostics for parser/lexer/semantic classes meet format contract.
 
-## Alpha Release Gate
+Gate to close:
+- Language subset is fully documented and predictable for users.
+
+### 5. `Simple::CLI` (UX + Orchestration)
+
+Authoritative doc:
+- `Docs/CLI.md`
+
+Status:
+- `run/build/compile/check/emit/lsp` command surface exists.
+- Installer/release scripts integrated with release assets.
+
+Remaining alpha work:
+- [ ] Freeze command behavior contract.
+- [ ] Final pass on exit-code/error-format consistency across commands.
+- [ ] Document installer defaults for `latest` and version-pinned flows.
+
+Gate to close:
+- CLI contract is frozen for alpha and release-tested.
+
+### 6. `Simple::Tests` (Quality Gates)
+
+Execution references:
+- `Tests/tests/*`
+- `Docs/Sprint.md`
+
+Status:
+- Multi-suite testing exists (`core`, `ir`, `jit`, `lang`, `all`).
+
+Remaining alpha work:
+- [ ] Define mandatory CI matrix (OS/target/toolchain).
+- [ ] Add alpha smoke profile that runs quickly but covers end-to-end pipeline.
+- [ ] Ensure new release pipeline gates on full suite pass.
+
+Gate to close:
+- Required CI/test gates are explicit and enforced.
+
+## Release Engineering Plan
+
+### Branching Model
+- `main`: active development and integration.
+- `release`: protected release branch; pushes trigger release workflow.
+- `gh-pages`: static project website.
+
+### Artifact Contract
+For Linux x86_64 release jobs, publish:
+- `simple-<version>-linux-x86_64.tar.gz`
+- `simple-<version>-linux-x86_64.tar.gz.sha256`
+- `simple-latest-linux-x86_64.tar.gz`
+- `simple-latest-linux-x86_64.tar.gz.sha256`
+
+### Installer Contract
+`install.sh` supports:
+- local archive: `--from-file`
+- explicit URL: `--url`
+- GitHub auto-resolution by repo/version:
+  - latest
+  - version-pinned tag
+
+## Phase Plan (Execution Order)
+
+### Phase A: Contract Freeze
+- [ ] Finalize docs for Byte/VM/IR/Lang/CLI alpha contract sections.
+- [ ] Remove stale path references (`Simple/...`) from docs.
+- [ ] Confirm examples run from repository root exactly as documented.
+
+Exit criteria:
+- All module docs are current and internally consistent.
+
+### Phase B: Runtime + CLI Hardening
+- [ ] JIT posture decision and documentation.
+- [ ] CLI error/exit-code consistency pass.
+- [ ] Smoke scenarios for import resolution and diagnostics.
+
+Exit criteria:
+- No known unstable alpha paths are undocumented.
+
+### Phase C: Test and CI Gate Lock
+- [ ] Finalize CI matrix and enforce full suite gate.
+- [ ] Define and enforce alpha smoke test profile.
+- [ ] Add compatibility fixture checks for SBC/SIR subset.
+
+Exit criteria:
+- CI is the authoritative merge/release gate.
+
+### Phase D: Release Readiness
+- [ ] Confirm release workflow output and checksums.
+- [ ] Dry-run installer (`latest` and pinned version).
+- [ ] Draft and publish release notes with known limitations.
+
+Exit criteria:
+- Clean reproducible release from `release` branch.
+
+## Alpha Release Checklist
 
 All must be true:
 
-1. `./Simple/build.sh --suite all` passes.
-2. Module docs match actual runtime/compiler behavior.
-3. Known constraints are explicit in docs.
-4. Sprint log includes all behavior changes and test evidence.
-5. Release notes include compatibility and known limitations.
+1. `./build.sh --suite all` passes.
+2. Release workflow on `release` branch passes and uploads all artifacts.
+3. Installer works for:
+   - latest asset path,
+   - version-pinned asset path.
+4. Module docs match actual behavior and constraints.
+5. Sprint log includes all significant behavior, tooling, and release-contract changes.
+6. Release notes explicitly list:
+   - compatibility expectations,
+   - known limitations,
+   - support posture (especially JIT).
 
-## Test Commands
+## Verification Commands
 
-- `./Simple/build.sh --suite core`
-- `./Simple/build.sh --suite ir`
-- `./Simple/build.sh --suite jit`
-- `./Simple/build.sh --suite lang`
-- `./Simple/build.sh --suite all`
+### Local Quality
+- `./build.sh --suite core`
+- `./build.sh --suite ir`
+- `./build.sh --suite jit`
+- `./build.sh --suite lang`
+- `./build.sh --suite all`
+
+### Local Release Dry Run
+- `./release.sh --version vX.Y.Z --target linux-x86_64`
+- `./install.sh --from-file ./dist/simple-vX.Y.Z-linux-x86_64.tar.gz --version vX.Y.Z`
+
+### Installer (GitHub)
+- `./install.sh --repo <owner/repo> --version latest`
+- `./install.sh --repo <owner/repo> --version vX.Y.Z`
