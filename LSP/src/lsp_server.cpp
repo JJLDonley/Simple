@@ -49,7 +49,39 @@ bool ExtractJsonStringField(const std::string& json, const std::string& field, s
     char c = json[i++];
     if (c == '\\') {
       if (i >= json.size()) return false;
-      value.push_back(json[i++]);
+      char esc = json[i++];
+      switch (esc) {
+        case '"': value.push_back('"'); break;
+        case '\\': value.push_back('\\'); break;
+        case '/': value.push_back('/'); break;
+        case 'b': value.push_back('\b'); break;
+        case 'f': value.push_back('\f'); break;
+        case 'n': value.push_back('\n'); break;
+        case 'r': value.push_back('\r'); break;
+        case 't': value.push_back('\t'); break;
+        case 'u': {
+          // Minimal JSON \uXXXX handling for ASCII subset.
+          if (i + 4 > json.size()) return false;
+          uint32_t code = 0;
+          for (int k = 0; k < 4; ++k) {
+            char h = json[i++];
+            code <<= 4;
+            if (h >= '0' && h <= '9') code |= static_cast<uint32_t>(h - '0');
+            else if (h >= 'a' && h <= 'f') code |= static_cast<uint32_t>(10 + (h - 'a'));
+            else if (h >= 'A' && h <= 'F') code |= static_cast<uint32_t>(10 + (h - 'A'));
+            else return false;
+          }
+          if (code <= 0x7F) {
+            value.push_back(static_cast<char>(code));
+          } else {
+            value.push_back('?');
+          }
+          break;
+        }
+        default:
+          value.push_back(esc);
+          break;
+      }
       continue;
     }
     if (c == '"') {

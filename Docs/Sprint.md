@@ -1003,3 +1003,10 @@
   - `textDocument/references` now returns all same-identifier occurrences in the open document.
   - `textDocument/documentSymbol` now returns top-level symbol entries with ranges/kinds.
 - Expanded LSP suite with definition/references/documentSymbol regression tests covering real request/response payloads.
+- Hardened LSP JSON string field decoding to unescape standard JSON escapes (`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`) plus minimal `\uXXXX` ASCII handling for robust text payload parsing.
+- Added dedicated LSP regression for `textDocument/didChange` diagnostics refresh:
+  - verifies initial invalid content publishes `E0001`,
+  - verifies subsequent valid content publishes empty diagnostics.
+- Updated newline-aware LSP tests to align with multiline source semantics:
+  - adjusted references assertions to line/column ranges from parsed multiline content,
+  - updated didChange “fixed” source payload to remain valid under top-level `return` prohibition.

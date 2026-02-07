@@ -90,6 +90,43 @@ bool LspDidOpenPublishesDiagnostics() {
          out_contents.find("undeclared identifier") != std::string::npos;
 }
 
+bool LspDidChangeRefreshesDiagnostics() {
+  const std::string in_path = TempPath("simple_lsp_change_in.txt");
+  const std::string out_path = TempPath("simple_lsp_change_out.txt");
+  const std::string err_path = TempPath("simple_lsp_change_err.txt");
+  const std::string uri = "file:///workspace/change.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"y = 1;\"}}}";
+  const std::string change_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},"
+      "\"contentChanges\":[{\"text\":\"x : i32 = 1;\\nfoo : i32 = x;\"}]}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(change_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  const size_t first_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"");
+  if (first_diag == std::string::npos) return false;
+  const size_t second_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"", first_diag + 1);
+  if (second_diag == std::string::npos) return false;
+  const std::string tail = out_contents.substr(second_diag);
+  return err_contents.empty() &&
+         out_contents.find("\"code\":\"E0001\"") != std::string::npos &&
+         tail.find("\"diagnostics\":[]") != std::string::npos;
+}
+
 bool LspHoverReturnsIdentifier() {
   const std::string in_path = TempPath("simple_lsp_hover_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_out.txt");
@@ -197,10 +234,10 @@ bool LspDefinitionReturnsLocation() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"foo : i32 = 1; bar : i32 = foo;\"}}}";
+      "\"text\":\"foo : i32 = 1;\\nbar : i32 = foo;\"}}}";
   const std::string def_req =
       "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"textDocument/definition\",\"params\":{"
-      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":27}}}";
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":12}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -229,10 +266,10 @@ bool LspReferencesReturnsLocations() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"foo : i32 = 1; foo = foo + 1;\"}}}";
+      "\"text\":\"foo : i32 = 1;\\nfoo = foo + 1;\"}}}";
   const std::string refs_req =
       "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"textDocument/references\",\"params\":{"
-      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":22}}}";
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -251,8 +288,8 @@ bool LspReferencesReturnsLocations() {
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
          out_contents.find("\"line\":0") != std::string::npos &&
          out_contents.find("\"character\":0") != std::string::npos &&
-         out_contents.find("\"character\":15") != std::string::npos &&
-         out_contents.find("\"character\":21") != std::string::npos;
+         out_contents.find("\"line\":1") != std::string::npos &&
+         out_contents.find("\"character\":6") != std::string::npos;
 }
 
 bool LspDocumentSymbolReturnsTopLevel() {
@@ -264,7 +301,7 @@ bool LspDocumentSymbolReturnsTopLevel() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"foo : i32 = 1; main : i32 () { return foo; }\"}}}";
+      "\"text\":\"foo : i32 = 1;\\nmain : i32 () { return foo; }\"}}}";
   const std::string symbols_req =
       "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"textDocument/documentSymbol\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -290,6 +327,7 @@ bool LspDocumentSymbolReturnsTopLevel() {
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
+  {"lsp_did_change_refreshes_diagnostics", LspDidChangeRefreshesDiagnostics},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
