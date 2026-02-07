@@ -4,6 +4,8 @@
 - This log must record every VM-related change going forward.
 
 ## 2026-02-07
+- Unified CLI surface around `simple`: added `lsp` command stub (`error[E0001]` not-implemented path), kept `emit`, and made `simple build <file.simple>` default to embedded executable output unless `--out` targets `.sbc`.
+- Added lang-suite CLI coverage for new UX contracts: `simple build` default executable behavior and `simple lsp` error contract.
 - Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.
 - Extended dynamic `core.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
 - Added `core_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).

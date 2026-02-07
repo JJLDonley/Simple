@@ -8,15 +8,16 @@
 
 ### Command Families
 
-- `simple` (language-first UX)
-- `simplevm` (VM/SIR-first UX)
+- `simple` (primary user-facing CLI)
+- `simplevm` (compatibility alias for mixed `.simple/.sir/.sbc` workflows)
 
 ### Primary Actions
 
 - `check`: parse/validate without full run
-- `build`: compile/emit runnable outputs
+- `build`: compile outputs (`simple build` defaults to executable output)
 - `run`: compile/execute pipeline
 - `emit`: emit intermediate/bytecode artifacts
+- `lsp`: reserved command (currently returns not implemented)
 
 ### UX Contract
 
@@ -37,6 +38,8 @@
 
 - `Simple/build.sh` is the canonical dev/test orchestration entrypoint.
 - runtime/static-shared linking behavior is controlled by build scripts + CLI integration.
+- `simple build <file.simple>` defaults to embedding SBC+runtime into an executable.
+- `simple build <file.simple> --out <name.sbc>` forces SBC bytecode output.
 
 ## Constraints
 

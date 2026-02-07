@@ -326,10 +326,12 @@ int main(int argc, char** argv) {
     std::cerr << "usage:\n";
     if (simple_only) {
       std::cerr << "  " << tool_name << " run <file.simple> [--no-verify]\n"
-                << "  " << tool_name << " build <file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name
+                << " build <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
                 << "  " << tool_name << " emit -sbc <file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.simple>\n"
+                << "  " << tool_name << " lsp\n"
                 << "  " << tool_name << " <file.simple> [--no-verify]\n";
     } else {
       std::cerr << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
@@ -337,17 +339,20 @@ int main(int argc, char** argv) {
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
                 << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
+                << "  " << tool_name << " lsp\n"
                 << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
     }
     return 1;
   }
 
   const std::string cmd = argv[1];
-  const bool is_command = (cmd == "run" || cmd == "build" || cmd == "check" || cmd == "emit");
+  const bool is_command = (cmd == "run" || cmd == "build" || cmd == "check" || cmd == "emit" ||
+                           cmd == "lsp");
   const std::string path = is_command ? (argc > 2 ? argv[2] : "") : cmd;
   bool verify = true;
   bool build_exe = false;
   bool build_static = false;
+  bool build_mode_explicit = false;
   for (int i = 2; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--no-verify") {
@@ -355,14 +360,21 @@ int main(int argc, char** argv) {
     } else if (arg == "-d" || arg == "--dynamic") {
       build_exe = true;
       build_static = false;
+      build_mode_explicit = true;
     } else if (arg == "-s" || arg == "--static") {
       build_exe = true;
       build_static = true;
+      build_mode_explicit = true;
     }
   }
 
-  if (is_command && path.empty()) {
+  if (is_command && cmd != "lsp" && path.empty()) {
     PrintError("missing input file");
+    return 1;
+  }
+
+  if (cmd == "lsp") {
+    PrintError("lsp server is not implemented yet");
     return 1;
   }
 
@@ -532,7 +544,12 @@ int main(int argc, char** argv) {
         ++i;
       }
     }
-    if (out_path.empty()) out_path = build_exe ? ReplaceExt(input_path, "") : ReplaceExt(input_path, ".sbc");
+    if (!build_mode_explicit && simple_only && (out_path.empty() || !HasExt(out_path, ".sbc"))) {
+      build_exe = true;
+    }
+    if (out_path.empty()) {
+      out_path = build_exe ? ReplaceExt(input_path, "") : ReplaceExt(input_path, ".sbc");
+    }
 
     std::vector<uint8_t> bytes;
     std::string text;

@@ -581,6 +581,13 @@ bool LangCliBuildSimple() {
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
 }
 
+bool LangCliBuildSimpleAliasDefaultsToExe() {
+  const std::string out_path = TempPath("simple_build_hello_alias_exec");
+  const std::string cmd = "Simple/bin/simple build Simple/Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  return RunCommand(out_path);
+}
+
 bool LangCliBuildDynamicExe() {
   const std::string out_path = TempPath("simple_build_hello_exec");
   const std::string cmd =
@@ -623,6 +630,17 @@ bool LangCliCheckSimpleAlias() {
 
 bool LangCliSimpleRejectSir() {
   return RunCommandExpectFail("Simple/bin/simple check Simple/Tests/sir/fib_iter.sir");
+}
+
+bool LangCliLspNotImplemented() {
+  const std::string err_path = TempPath("simple_lsp_err.txt");
+  const std::string cmd = "Simple/bin/simple lsp 1>/dev/null 2> " + err_path;
+  if (RunCommand(cmd)) return false;
+  std::ifstream in(err_path);
+  if (!in) return false;
+  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return contents.find("error[E0001]:") != std::string::npos &&
+         contents.find("lsp server is not implemented yet") != std::string::npos;
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -2798,12 +2816,14 @@ const TestCase kLangTests[] = {
   {"lang_cli_check_sir", LangCliCheckSir},
   {"lang_cli_check_sbc", LangCliCheckSbc},
   {"lang_cli_build_simple", LangCliBuildSimple},
+  {"lang_cli_build_simple_alias_defaults_to_exe", LangCliBuildSimpleAliasDefaultsToExe},
   {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
   {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
   {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
+  {"lang_cli_lsp_not_implemented", LangCliLspNotImplemented},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},
