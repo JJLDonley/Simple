@@ -251,6 +251,10 @@ bool LangSimpleFixtureStringEscapeHex() {
   return RunSimpleFileExpectExit("Simple/Tests/simple/string_escape_hex.simple", 0);
 }
 
+bool LangSimpleFixtureCastI8ToI32() {
+  return RunSimpleFileExpectExit("Simple/Tests/simple/cast_i8_to_i32.simple", 42);
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Simple/Tests/simple_bad/missing_return.simple",
@@ -2720,6 +2724,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_char_compare", LangSimpleFixtureCharCompare},
   {"lang_simple_fixture_char_escape_hex", LangSimpleFixtureCharEscapeHex},
   {"lang_simple_fixture_string_escape_hex", LangSimpleFixtureStringEscapeHex},
+  {"lang_simple_fixture_cast_i8_to_i32", LangSimpleFixtureCastI8ToI32},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},

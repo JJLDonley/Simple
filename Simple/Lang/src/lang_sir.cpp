@@ -2051,6 +2051,25 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
             return false;
           }
+        } else if (arg_type.name != name) {
+          // Normalize same-lane casts (for example i8 -> i32) to produce verifier-visible dst kind.
+          if (dst == CastVmKind::I32 && name == "i32") {
+            if (arg_type.name == "bool") {
+              if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+              return false;
+            }
+            (*st.out) << "  const.i32 0\n";
+            PushStack(st, 1);
+            (*st.out) << "  add.i32\n";
+            PopStack(st, 2);
+            PushStack(st, 1);
+          } else if (dst == CastVmKind::I64 && name == "i64" && arg_type.name == "u64") {
+            (*st.out) << "  const.i64 -1\n";
+            PushStack(st, 1);
+            (*st.out) << "  and.i64\n";
+            PopStack(st, 2);
+            PushStack(st, 1);
+          }
         }
         return true;
       }
