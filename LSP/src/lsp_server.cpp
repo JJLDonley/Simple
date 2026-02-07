@@ -514,18 +514,30 @@ void ReplyHover(std::ostream& out,
     return;
   }
   std::string hover_text = ident;
-  const auto refs = LexTokenRefs(it->second);
-  for (const auto& ref : refs) {
-    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-    if (ref.token.text != ident) continue;
-    if (!IsDeclNameAt(refs, ref.index)) continue;
-    if (ref.index + 2 < refs.size() &&
-        refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
-        refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
-      hover_text = ident + " : " + refs[ref.index + 2].token.text;
-      break;
+  auto resolve_decl_type = [&](const std::string& text, std::string* out_type) -> bool {
+    if (!out_type) return false;
+    const auto refs = LexTokenRefs(text);
+    for (const auto& ref : refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (ref.token.text != ident) continue;
+      if (!IsDeclNameAt(refs, ref.index)) continue;
+      if (ref.index + 2 < refs.size() &&
+          refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+          refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+        *out_type = refs[ref.index + 2].token.text;
+        return true;
+      }
+    }
+    return false;
+  };
+  std::string decl_type;
+  if (!resolve_decl_type(it->second, &decl_type)) {
+    for (const auto& [other_uri, other_text] : open_docs) {
+      if (other_uri == uri) continue;
+      if (resolve_decl_type(other_text, &decl_type)) break;
     }
   }
+  if (!decl_type.empty()) hover_text = ident + " : " + decl_type;
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +

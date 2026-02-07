@@ -1145,3 +1145,7 @@
 - Expanded LSP regression suite with cross-document navigation coverage:
   - validates definition resolution can target declaration sites in a different open document,
   - validates references responses can span multiple open documents.
+- Expanded hover type resolution across open documents:
+  - hover now falls back to declaration/type lookup in other open documents when the active document lacks a local declaration for the hovered identifier.
+- Expanded LSP regression suite with cross-document hover coverage:
+  - validates hover typed output can resolve declaration type info from a different open document.
