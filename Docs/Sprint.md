@@ -1090,3 +1090,7 @@
 - Expanded LSP regression suite with member-completion coverage:
   - validates member-context completion returns `IO.print`/`IO.println`,
   - validates unrelated non-member keywords are excluded in member-filtered responses.
+- Improved `textDocument/signatureHelp` parameter tracking:
+  - computes `activeParameter` from comma count within the current call argument list before cursor.
+- Expanded LSP regression suite with signature-parameter coverage:
+  - validates signature-help reports `activeParameter: 1` when cursor is on second argument position.

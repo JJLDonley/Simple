@@ -391,6 +391,26 @@ std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t 
   return line_text.substr(begin, end - begin);
 }
 
+uint32_t ActiveParameterAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return 0;
+  const size_t cursor = std::min<size_t>(character, line_text.size());
+  size_t paren = std::string::npos;
+  for (size_t i = cursor; i > 0; --i) {
+    const size_t idx = i - 1;
+    if (line_text[idx] == '(') {
+      paren = idx;
+      break;
+    }
+  }
+  if (paren == std::string::npos || paren + 1 >= cursor) return 0;
+  uint32_t commas = 0;
+  for (size_t i = paren + 1; i < cursor; ++i) {
+    if (line_text[i] == ',') ++commas;
+  }
+  return commas;
+}
+
 std::string CompletionPrefixAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -513,13 +533,15 @@ void ReplySignatureHelp(std::ostream& out,
     return;
   }
   const std::string call_name = CallNameAtPosition(it->second, line, character);
+  const uint32_t active_parameter = ActiveParameterAtPosition(it->second, line, character);
   if (call_name == "IO.println" || call_name == "IO.print") {
     WriteLspMessage(
         out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":[{\"label\":\"" + call_name +
             "(value)\",\"parameters\":[{\"label\":\"value\"}]}],"
-            "\"activeSignature\":0,\"activeParameter\":0}}");
+            "\"activeSignature\":0,\"activeParameter\":" +
+            std::to_string(active_parameter) + "}}");
     return;
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
