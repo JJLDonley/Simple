@@ -82,6 +82,11 @@ bool IsReservedImportPath(const std::string& path) {
   return kReserved.find(path) != kReserved.end();
 }
 
+bool IsPrimitiveCastName(const std::string& name) {
+  if (name == "string") return false;
+  return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
+}
+
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
   return ctx.reserved_imports.find(name) != ctx.reserved_imports.end() ||
          ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end();
@@ -898,17 +903,8 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
-        if (callee.text == "i32") {
-          out->name = "i32";
-          out->type_args.clear();
-          out->dims.clear();
-          out->is_proc = false;
-          out->proc_params.clear();
-          out->proc_return.reset();
-          return true;
-        }
-        if (callee.text == "f64") {
-          out->name = "f64";
+        if (IsPrimitiveCastName(callee.text)) {
+          out->name = callee.text;
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
@@ -2671,7 +2667,7 @@ bool CheckExpr(const Expr& expr,
         PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
-      if (expr.text == "len" || expr.text == "str" || expr.text == "i32" || expr.text == "f64") return true;
+      if (expr.text == "len" || expr.text == "str" || IsPrimitiveCastName(expr.text)) return true;
       if (FindLocal(scopes, expr.text)) return true;
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
@@ -2844,43 +2840,31 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
       }
-      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "i32") {
+      if (expr.children[0].kind == ExprKind::Identifier &&
+          IsPrimitiveCastName(expr.children[0].text)) {
+        const std::string target = expr.children[0].text;
         if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for i32: expected 1, got " +
+          if (error) *error = "call argument count mismatch for " + target + ": expected 1, got " +
                               std::to_string(expr.args.size());
           return false;
         }
         TypeRef arg_type;
-        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (!IsStringTypeName(arg_type.name)) {
-            if (error) *error = "i32 expects string argument";
-            return false;
-          }
-        } else {
-          if (error && error->empty()) *error = "i32 expects string argument";
+        if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
+          if (error && error->empty()) *error = target + " cast expects scalar argument";
           return false;
         }
-      }
-      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "f64") {
-        if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for f64: expected 1, got " +
-                              std::to_string(expr.args.size());
+        if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+          if (error) *error = target + " cast expects scalar argument";
           return false;
         }
-        TypeRef arg_type;
-        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (!IsStringTypeName(arg_type.name)) {
-            if (error) *error = "f64 expects string argument";
-            return false;
-          }
-        } else {
-          if (error && error->empty()) *error = "f64 expects string argument";
+        if (IsStringTypeName(arg_type.name) && !(target == "i32" || target == "f64")) {
+          if (error) *error = target + " cast from string is unsupported";
           return false;
         }
       }
       if (!(expr.children[0].kind == ExprKind::Identifier &&
             (expr.children[0].text == "len" || expr.children[0].text == "str" ||
-             expr.children[0].text == "i32" || expr.children[0].text == "f64"))) {
+             IsPrimitiveCastName(expr.children[0].text)))) {
         if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
       }
       return true;

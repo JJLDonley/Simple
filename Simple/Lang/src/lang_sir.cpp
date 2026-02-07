@@ -113,6 +113,26 @@ bool IsNumericType(const std::string& name) {
   return IsIntegralType(name) || IsFloatType(name);
 }
 
+bool IsPrimitiveCastName(const std::string& name) {
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
+         name == "f32" || name == "f64" || name == "bool" || name == "char";
+}
+
+enum class CastVmKind : uint8_t { Invalid, I32, I64, F32, F64 };
+
+CastVmKind GetCastVmKind(const std::string& type_name) {
+  if (type_name == "i8" || type_name == "i16" || type_name == "i32" ||
+      type_name == "u8" || type_name == "u16" || type_name == "u32" ||
+      type_name == "bool" || type_name == "char") {
+    return CastVmKind::I32;
+  }
+  if (type_name == "i64" || type_name == "u64") return CastVmKind::I64;
+  if (type_name == "f32") return CastVmKind::F32;
+  if (type_name == "f64") return CastVmKind::F64;
+  return CastVmKind::Invalid;
+}
+
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
@@ -754,12 +774,8 @@ bool InferExprType(const Expr& expr,
           out->name = "string";
           return true;
         }
-        if (callee.text == "i32") {
-          out->name = "i32";
-          return true;
-        }
-        if (callee.text == "f64") {
-          out->name = "f64";
+        if (IsPrimitiveCastName(callee.text)) {
+          out->name = callee.text;
           return true;
         }
         auto it = st.func_returns.find(callee.text);
@@ -1998,6 +2014,44 @@ bool EmitExpr(EmitState& st,
         }
         PopStack(st, 1);
         PushStack(st, 1);
+        return true;
+      }
+      if (IsPrimitiveCastName(name)) {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for '" + name + "'";
+          return false;
+        }
+        TypeRef arg_type;
+        if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+        if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+        CastVmKind src = GetCastVmKind(arg_type.name);
+        CastVmKind dst = GetCastVmKind(name);
+        if (src == CastVmKind::Invalid || dst == CastVmKind::Invalid) {
+          if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+          return false;
+        }
+        if (src != dst) {
+          if (src == CastVmKind::I32 && dst == CastVmKind::I64) {
+            (*st.out) << "  conv.i32.i64\n";
+          } else if (src == CastVmKind::I64 && dst == CastVmKind::I32) {
+            (*st.out) << "  conv.i64.i32\n";
+          } else if (src == CastVmKind::I32 && dst == CastVmKind::F32) {
+            (*st.out) << "  conv.i32.f32\n";
+          } else if (src == CastVmKind::I32 && dst == CastVmKind::F64) {
+            (*st.out) << "  conv.i32.f64\n";
+          } else if (src == CastVmKind::F32 && dst == CastVmKind::I32) {
+            (*st.out) << "  conv.f32.i32\n";
+          } else if (src == CastVmKind::F64 && dst == CastVmKind::I32) {
+            (*st.out) << "  conv.f64.i32\n";
+          } else if (src == CastVmKind::F32 && dst == CastVmKind::F64) {
+            (*st.out) << "  conv.f32.f64\n";
+          } else if (src == CastVmKind::F64 && dst == CastVmKind::F32) {
+            (*st.out) << "  conv.f64.f32\n";
+          } else {
+            if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + name;
+            return false;
+          }
+        }
         return true;
       }
       if (callee.kind == ExprKind::Identifier) {
