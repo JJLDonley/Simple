@@ -1059,6 +1059,9 @@ int RunServer(std::istream& in, std::ostream& out) {
       const bool has_version = ExtractJsonUintField(body, "version", &version);
       if (ExtractJsonStringField(body, "uri", &uri) &&
           ExtractJsonStringField(body, "text", &text)) {
+        if (open_docs.find(uri) == open_docs.end()) {
+          continue; // Ignore changes for unopened documents.
+        }
         if (has_version) {
           const auto it = open_doc_versions.find(uri);
           if (it != open_doc_versions.end() && version < it->second) {

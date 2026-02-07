@@ -1063,3 +1063,8 @@
 - Expanded LSP regression suite with prepare-rename coverage:
   - validates capability handshake exposes prepare-rename support,
   - validates response payload includes expected target range and placeholder text.
+- Tightened LSP document-sync ordering behavior:
+  - `textDocument/didChange` is now ignored for unopened documents (requires prior `didOpen` state),
+  - prevents accidental diagnostics churn/state creation from out-of-order editor notifications.
+- Expanded LSP regression suite with unknown-document change coverage:
+  - validates `didChange` before `didOpen` emits no diagnostics/result side effects for that URI.

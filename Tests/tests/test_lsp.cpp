@@ -171,6 +171,35 @@ bool LspDidChangeIgnoresStaleVersion() {
          out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos;
 }
 
+bool LspDidChangeIgnoresUnknownDocument() {
+  const std::string in_path = TempPath("simple_lsp_unknown_change_in.txt");
+  const std::string out_path = TempPath("simple_lsp_unknown_change_out.txt");
+  const std::string err_path = TempPath("simple_lsp_unknown_change_err.txt");
+  const std::string uri = "file:///workspace/unknown.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string change_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":1},"
+      "\"contentChanges\":[{\"text\":\"y = 1;\"}]}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(change_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":1") != std::string::npos &&
+         out_contents.find("\"id\":2") != std::string::npos &&
+         out_contents.find("\"method\":\"textDocument/publishDiagnostics\"") == std::string::npos &&
+         out_contents.find("\"uri\":\"" + uri + "\"") == std::string::npos;
+}
+
 bool LspHoverReturnsIdentifier() {
   const std::string in_path = TempPath("simple_lsp_hover_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_out.txt");
@@ -593,6 +622,7 @@ const TestCase kLspTests[] = {
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
   {"lsp_did_change_refreshes_diagnostics", LspDidChangeRefreshesDiagnostics},
   {"lsp_did_change_ignores_stale_version", LspDidChangeIgnoresStaleVersion},
+  {"lsp_did_change_ignores_unknown_document", LspDidChangeIgnoresUnknownDocument},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
