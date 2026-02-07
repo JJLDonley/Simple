@@ -929,4 +929,8 @@
 - Expanded module docs with design-level detail instead of summaries:
   - `Byte.md` now includes component pipeline design and full opcode catalog generated from `Byte/include/opcode.h`.
   - `IR.md` now includes IR ingestion/emission architecture, SIR program model, type/signature design, and validation contract.
-  - `CLI.md` now includes explicit user interface design and command behavior contract.
+- `CLI.md` now includes explicit user interface design and command behavior contract.
+## 2026-02-07 (cont. 11)
+- Performed deep design pass for remaining major module docs:
+  - `VM.md` rewritten with runtime architecture, frame/heap/import/FFI marshalling design, and authoritative runtime/FFI contracts.
+  - `Lang.md` rewritten with compiler pipeline design (lexer/parser/AST/validator/SIR emitter), type/mutability contracts, extern/manifest design, global init model, and supported/deferred surface notes.
