@@ -188,12 +188,114 @@ bool LspSemanticTokensReturnsData() {
          out_contents.find("\"result\":{\"data\":[]}") == std::string::npos;
 }
 
+bool LspDefinitionReturnsLocation() {
+  const std::string in_path = TempPath("simple_lsp_definition_in.txt");
+  const std::string out_path = TempPath("simple_lsp_definition_out.txt");
+  const std::string err_path = TempPath("simple_lsp_definition_err.txt");
+  const std::string uri = "file:///workspace/def.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1; bar : i32 = foo;\"}}}";
+  const std::string def_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"textDocument/definition\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":27}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(def_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":6") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos;
+}
+
+bool LspReferencesReturnsLocations() {
+  const std::string in_path = TempPath("simple_lsp_references_in.txt");
+  const std::string out_path = TempPath("simple_lsp_references_out.txt");
+  const std::string err_path = TempPath("simple_lsp_references_err.txt");
+  const std::string uri = "file:///workspace/refs.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1; foo = foo + 1;\"}}}";
+  const std::string refs_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"textDocument/references\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":22}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(refs_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":7") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos &&
+         out_contents.find("\"character\":15") != std::string::npos &&
+         out_contents.find("\"character\":21") != std::string::npos;
+}
+
+bool LspDocumentSymbolReturnsTopLevel() {
+  const std::string in_path = TempPath("simple_lsp_symbols_in.txt");
+  const std::string out_path = TempPath("simple_lsp_symbols_out.txt");
+  const std::string err_path = TempPath("simple_lsp_symbols_err.txt");
+  const std::string uri = "file:///workspace/symbols.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1; main : i32 () { return foo; }\"}}}";
+  const std::string symbols_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"textDocument/documentSymbol\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(symbols_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":8") != std::string::npos &&
+         out_contents.find("\"name\":\"foo\"") != std::string::npos &&
+         out_contents.find("\"name\":\"main\"") != std::string::npos;
+}
+
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
+  {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
+  {"lsp_references_returns_locations", LspReferencesReturnsLocations},
+  {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
 };
 
 const TestSection kLspSections[] = {

@@ -998,3 +998,8 @@
 - Extended dedicated LSP suite with hover/completion coverage to verify end-to-end request/response behavior over stdio framing.
 - Implemented `textDocument/semanticTokens/full` with lexer-backed token extraction and LSP semantic-token delta encoding compatible with declared token legend.
 - Added dedicated LSP regression coverage for semantic token responses to ensure non-empty `data` payloads for real source documents.
+- Upgraded LSP navigation handlers from stubs to functional same-document responses:
+  - `textDocument/definition` now resolves identifier locations using lexer-based declaration heuristics.
+  - `textDocument/references` now returns all same-identifier occurrences in the open document.
+  - `textDocument/documentSymbol` now returns top-level symbol entries with ranges/kinds.
+- Expanded LSP suite with definition/references/documentSymbol regression tests covering real request/response payloads.

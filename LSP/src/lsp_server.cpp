@@ -5,8 +5,10 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "lang_lexer.h"
+#include "lang_token.h"
 #include "lang_validate.h"
 
 namespace Simple::LSP {
@@ -416,6 +418,178 @@ void ReplySemanticTokensFull(std::ostream& out,
                            ",\"result\":{\"data\":[" + data + "]}}");
 }
 
+struct TokenRef {
+  size_t index = 0;
+  Simple::Lang::Token token;
+  uint32_t depth = 0;
+};
+
+std::vector<TokenRef> LexTokenRefs(const std::string& text) {
+  std::vector<TokenRef> out;
+  Simple::Lang::Lexer lexer(text);
+  if (!lexer.Lex()) return out;
+  const auto& tokens = lexer.Tokens();
+  uint32_t depth = 0;
+  out.reserve(tokens.size());
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    const auto& tk = tokens[i];
+    TokenRef ref;
+    ref.index = i;
+    ref.token = tk;
+    ref.depth = depth;
+    out.push_back(ref);
+    if (tk.kind == Simple::Lang::TokenKind::LBrace) ++depth;
+    if (tk.kind == Simple::Lang::TokenKind::RBrace && depth > 0) --depth;
+  }
+  return out;
+}
+
+bool TokenContainsPosition(const Simple::Lang::Token& tk, uint32_t line, uint32_t character) {
+  const uint32_t tk_line = tk.line > 0 ? (tk.line - 1) : 0;
+  if (tk_line != line) return false;
+  const uint32_t start = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  const uint32_t end = start + len;
+  return character >= start && character < end;
+}
+
+const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character) {
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (TokenContainsPosition(ref.token, line, character)) return &ref;
+  }
+  return nullptr;
+}
+
+bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size()) return false;
+  if (refs[i].token.kind != TK::Identifier) return false;
+  if (i > 0 && refs[i - 1].token.kind == TK::KwFn) return true;
+  if (i + 2 < refs.size() &&
+      refs[i + 1].token.kind == TK::DoubleColon &&
+      (refs[i + 2].token.kind == TK::KwArtifact ||
+       refs[i + 2].token.kind == TK::KwModule ||
+       refs[i + 2].token.kind == TK::KwEnum)) {
+    return true;
+  }
+  if (i + 1 < refs.size() &&
+      (refs[i + 1].token.kind == TK::Colon || refs[i + 1].token.kind == TK::DoubleColon)) {
+    return true;
+  }
+  return false;
+}
+
+std::string LocationJson(const std::string& uri, const Simple::Lang::Token& tk) {
+  const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
+  const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  return "{\"uri\":\"" + JsonEscape(uri) + "\",\"range\":{\"start\":{\"line\":" +
+         std::to_string(line) + ",\"character\":" + std::to_string(col) +
+         "},\"end\":{\"line\":" + std::to_string(line) + ",\"character\":" +
+         std::to_string(col + len) + "}}}";
+}
+
+void ReplyDefinition(std::ostream& out,
+                     const std::string& id_raw,
+                     const std::string& uri,
+                     uint32_t line,
+                     uint32_t character,
+                     const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const std::string name = target->token.text;
+  const TokenRef* best = nullptr;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != name) continue;
+    if (!IsDeclNameAt(refs, ref.index)) continue;
+    if (!best || ref.index < best->index) best = &ref;
+  }
+  if (!best) best = target;
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
+                           LocationJson(uri, best->token) + "]}");
+}
+
+void ReplyReferences(std::ostream& out,
+                     const std::string& id_raw,
+                     const std::string& uri,
+                     uint32_t line,
+                     uint32_t character,
+                     const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const std::string name = target->token.text;
+  std::string result;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != name) continue;
+    if (!result.empty()) result += ",";
+    result += LocationJson(uri, ref.token);
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i > 0 && refs[i - 1].token.kind == TK::KwFn) return 12;
+  if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
+    if (refs[i + 2].token.kind == TK::KwModule) return 2;
+    if (refs[i + 2].token.kind == TK::KwEnum) return 10;
+    if (refs[i + 2].token.kind == TK::KwArtifact) return 23;
+  }
+  return 13;
+}
+
+void ReplyDocumentSymbols(std::ostream& out,
+                          const std::string& id_raw,
+                          const std::string& uri,
+                          const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  std::string result;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.depth != 0) continue;
+    if (!IsDeclNameAt(refs, ref.index)) continue;
+    const uint32_t line = ref.token.line > 0 ? (ref.token.line - 1) : 0;
+    const uint32_t col = ref.token.column > 0 ? (ref.token.column - 1) : 0;
+    const uint32_t len = static_cast<uint32_t>(ref.token.text.empty() ? 1 : ref.token.text.size());
+    const uint32_t kind = SymbolKindFor(refs, ref.index);
+    if (!result.empty()) result += ",";
+    result += "{\"name\":\"" + JsonEscape(ref.token.text) + "\",\"kind\":" + std::to_string(kind) +
+              ",\"range\":{\"start\":{\"line\":" + std::to_string(line) +
+              ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
+              std::to_string(line) + ",\"character\":" + std::to_string(col + len) +
+              "}},\"selectionRange\":{\"start\":{\"line\":" + std::to_string(line) +
+              ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
+              std::to_string(line) + ",\"character\":" + std::to_string(col + len) + "}}}";
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
 } // namespace
 
 int RunServer(std::istream& in, std::ostream& out) {
@@ -542,17 +716,46 @@ int RunServer(std::istream& in, std::ostream& out) {
     }
 
     if (method == "textDocument/definition") {
-      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyDefinition(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
       continue;
     }
 
     if (method == "textDocument/references") {
-      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyReferences(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
       continue;
     }
 
     if (method == "textDocument/documentSymbol") {
-      if (has_id) WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyDocumentSymbols(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
       continue;
     }
 
