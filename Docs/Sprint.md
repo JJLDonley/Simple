@@ -1055,3 +1055,11 @@
 - Added stale-change regression coverage in LSP suite:
   - validates stale `didChange` requests do not overwrite document state,
   - validates stale updates do not emit a second diagnostics publish.
+- Added LSP `textDocument/prepareRename` support:
+  - resolves identifier token at cursor location,
+  - returns rename target range + placeholder for valid identifiers,
+  - returns `null` when no rename target is available.
+- Updated rename capability advertisement to include prepare support via `renameProvider.prepareProvider`.
+- Expanded LSP regression suite with prepare-rename coverage:
+  - validates capability handshake exposes prepare-rename support,
+  - validates response payload includes expected target range and placeholder text.

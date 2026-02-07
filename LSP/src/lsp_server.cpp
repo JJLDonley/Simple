@@ -878,6 +878,37 @@ void ReplyRename(std::ostream& out,
           JsonEscape(uri) + "\":[" + edits + "]}}}");
 }
 
+void ReplyPrepareRename(std::ostream& out,
+                        const std::string& id_raw,
+                        const std::string& uri,
+                        uint32_t line,
+                        uint32_t character,
+                        const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target || !IsValidIdentifierName(target->token.text)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const uint32_t tk_line = target->token.line > 0 ? (target->token.line - 1) : 0;
+  const uint32_t tk_col = target->token.column > 0 ? (target->token.column - 1) : 0;
+  const uint32_t tk_len = static_cast<uint32_t>(
+      target->token.text.empty() ? 1 : target->token.text.size());
+  WriteLspMessage(
+      out,
+      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+          ",\"result\":{\"range\":{\"start\":{\"line\":" + std::to_string(tk_line) +
+          ",\"character\":" + std::to_string(tk_col) + "},\"end\":{\"line\":" +
+          std::to_string(tk_line) + ",\"character\":" +
+          std::to_string(tk_col + tk_len) + "}},\"placeholder\":\"" +
+          JsonEscape(target->token.text) + "\"}}");
+}
+
 void ReplyCodeAction(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -954,7 +985,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"hoverProvider\":true,\"definitionProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
-                "\"renameProvider\":true,"
+                "\"renameProvider\":{\"prepareProvider\":true},"
                 "\"codeActionProvider\":true,"
                 "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
@@ -1134,6 +1165,22 @@ int RunServer(std::istream& in, std::ostream& out) {
             ExtractJsonUintField(body, "line", &line) &&
             ExtractJsonUintField(body, "character", &character)) {
           ReplyRename(out, id_raw, uri, line, character, new_name, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/prepareRename") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyPrepareRename(out, id_raw, uri, line, character, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
         }
