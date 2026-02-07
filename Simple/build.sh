@@ -9,7 +9,7 @@ CLI_DIR="$ROOT_DIR/CLI"
 TEST_DIR="$ROOT_DIR/Tests/tests"
 OUT_DIR="$ROOT_DIR/bin"
 BUILD_DIR="$ROOT_DIR/build"
-CORE_OBJ_DIR="$BUILD_DIR/obj_core"
+CORE_OBJ_DIR="$BUILD_DIR/obj_runtime"
 
 SUITE="all"
 if [[ "${1:-}" == "--suite" && -n "${2:-}" ]]; then

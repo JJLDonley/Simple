@@ -769,9 +769,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     return add_type(name, kind, 0, size);
   };
 
+  if (!add_builtin("i32", Simple::Byte::TypeKind::I32, 4)) return false;
   if (!add_builtin("i8", Simple::Byte::TypeKind::I8, 1)) return false;
   if (!add_builtin("i16", Simple::Byte::TypeKind::I16, 2)) return false;
-  if (!add_builtin("i32", Simple::Byte::TypeKind::I32, 4)) return false;
   if (!add_builtin("i64", Simple::Byte::TypeKind::I64, 8)) return false;
   if (!add_builtin("i128", Simple::Byte::TypeKind::I128, 16)) return false;
   if (!add_builtin("u8", Simple::Byte::TypeKind::U8, 1)) return false;

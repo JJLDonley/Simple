@@ -839,3 +839,11 @@
   `(i32,i32)->i32`, `(i64,i64)->i64`, `(f32,f32)->f32`, `(f64,f64)->f64`, `()->string`.
 - Updated `core_dl_open.simple` fixture to use manifest-based direct symbol calls.
 - Updated language docs (`Lang.md`) with `@` cast examples and Core.DL manifest usage.
+## 2026-02-07 (cont. 2)
+- Fixed `build.sh` runtime object directory collision (`obj_core` vs suite `core`) by moving runtime objects to `build/obj_runtime`, preventing non-PIC object reuse when linking `libsimplevm_runtime.so`.
+- Restored strict verifier boundary checks by removing generic `check_type` family compatibility (call/call_indirect/tailcall arg mismatches fail correctly again).
+- Added opcode-local numeric compatibility for 32-bit integer paths where the instruction contract is family-based:
+  `cmp.*.i32`, `cmp.*.u32`, `array/list *_i32` mutators, and `ret` to `i32`.
+- Kept bool as non-numeric for these compatibility paths (no implicit bool<->i32 boundary acceptance).
+- Fixed IR text builtin type-id stability by making `i32` the first builtin type row again (`type_id=0`), restoring default signature assumptions in existing IR/core tests.
+- Verified full suite green after fixes: `./Simple/build.sh --suite all` => `1162/1162`.

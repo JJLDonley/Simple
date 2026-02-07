@@ -412,8 +412,13 @@ VerifyResult VerifyModule(const SbcModule& module) {
       ok.ok = true;
       return ok;
     };
+    auto is_i32_numeric_type = [&](ValType t) {
+      return t == ValType::I8 || t == ValType::I16 || t == ValType::I32 ||
+             t == ValType::U8 || t == ValType::U16 || t == ValType::U32 ||
+             t == ValType::Char;
+    };
     auto is_i32_arith_type = [&](ValType t) {
-      return t == ValType::I8 || t == ValType::I16 || t == ValType::I32 || t == ValType::Char;
+      return is_i32_numeric_type(t);
     };
     auto is_u32_arith_type = [&](ValType t) {
       return t == ValType::U8 || t == ValType::U16 || t == ValType::U32;
@@ -781,14 +786,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_i32_arith_type(a)) {
+            if (!is_i32_arith_type(a) || !is_i32_arith_type(b)) {
               return fail_at("arith type mismatch", current_pc, current_opcode);
             }
           }
           if (a == ValType::Unknown || b == ValType::Unknown) {
             push_type(ValType::Unknown);
           } else {
-            push_type(a);
+            push_type((a == b) ? a : ValType::I32);
           }
           break;
         }
@@ -817,14 +822,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_u32_arith_type(a)) {
+            if (!is_u32_arith_type(a) || !is_u32_arith_type(b)) {
               return fail_at("arith type mismatch", current_pc, current_opcode);
             }
           }
           if (a == ValType::Unknown || b == ValType::Unknown) {
             push_type(ValType::Unknown);
           } else {
-            push_type(a);
+            push_type((a == b) ? a : ValType::U32);
           }
           break;
         }
@@ -901,14 +906,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_i32_bitwise_type(a)) {
+            if (!is_i32_bitwise_type(a) || !is_i32_bitwise_type(b)) {
               return fail_at("bitwise type mismatch", current_pc, current_opcode);
             }
           }
           if (a == ValType::Unknown || b == ValType::Unknown) {
             push_type(ValType::Unknown);
           } else {
-            push_type(a);
+            push_type((a == b) ? a : ValType::I32);
           }
           break;
         }
@@ -978,14 +983,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_i64_bitwise_type(a)) {
+            if (!is_i64_bitwise_type(a) || !is_i64_bitwise_type(b)) {
               return fail_at("bitwise type mismatch", current_pc, current_opcode);
             }
           }
           if (a == ValType::Unknown || b == ValType::Unknown) {
             push_type(ValType::Unknown);
           } else {
-            push_type(a);
+            push_type((a == b) ? a : ValType::I64);
           }
           break;
         }
@@ -1054,7 +1059,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_i32_arith_type(a)) {
+            if (!is_i32_numeric_type(a) || !is_i32_numeric_type(b)) {
               return fail_at("compare type mismatch", current_pc, current_opcode);
             }
           }
@@ -1070,7 +1075,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType b = pop_type();
           ValType a = pop_type();
           if (a != ValType::Unknown && b != ValType::Unknown) {
-            if (a != b || !is_u32_arith_type(a)) {
+            if (!is_u32_arith_type(a) || !is_u32_arith_type(b)) {
               return fail_at("compare type mismatch", current_pc, current_opcode);
             }
           }
@@ -1268,8 +1273,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(idx, ValType::I32, "ARRAY_SET type mismatch");
           if (!r2.ok) return r2;
-          VerifyResult r3 = check_type(value, ValType::I32, "ARRAY_SET type mismatch");
-          if (!r3.ok) return r3;
+          if (value != ValType::Unknown && !is_i32_numeric_type(value)) {
+            return fail_at("ARRAY_SET type mismatch", current_pc, current_opcode);
+          }
           break;
         }
         case OpCode::ArraySetI64: {
@@ -1385,8 +1391,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(idx, ValType::I32, "LIST_SET type mismatch");
           if (!r2.ok) return r2;
-          VerifyResult r3 = check_type(value, ValType::I32, "LIST_SET type mismatch");
-          if (!r3.ok) return r3;
+          if (value != ValType::Unknown && !is_i32_numeric_type(value)) {
+            return fail_at("LIST_SET type mismatch", current_pc, current_opcode);
+          }
           break;
         }
         case OpCode::ListSetI64: {
@@ -1442,8 +1449,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           ValType list = pop_type();
           VerifyResult r1 = check_type(list, ValType::Ref, "LIST_PUSH type mismatch");
           if (!r1.ok) return r1;
-          VerifyResult r2 = check_type(value, ValType::I32, "LIST_PUSH type mismatch");
-          if (!r2.ok) return r2;
+          if (value != ValType::Unknown && !is_i32_numeric_type(value)) {
+            return fail_at("LIST_PUSH type mismatch", current_pc, current_opcode);
+          }
           break;
         }
         case OpCode::ListPushI64: {
@@ -1525,8 +1533,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r1.ok) return r1;
           VerifyResult r2 = check_type(idx, ValType::I32, "LIST_INSERT type mismatch");
           if (!r2.ok) return r2;
-          VerifyResult r3 = check_type(value, ValType::I32, "LIST_INSERT type mismatch");
-          if (!r3.ok) return r3;
+          if (value != ValType::Unknown && !is_i32_numeric_type(value)) {
+            return fail_at("LIST_INSERT type mismatch", current_pc, current_opcode);
+          }
           break;
         }
         case OpCode::ListInsertI64: {
@@ -1879,8 +1888,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
               if (!stack_types.empty()) return fail_at("return value on void", pc, opcode);
             } else {
               if (stack_types.size() != 1) return fail_at("return stack size mismatch", pc, opcode);
-              VerifyResult r = check_type(stack_types.back(), expected_ret, "return type mismatch");
-              if (!r.ok) return r;
+              if (expected_ret == ValType::I32) {
+                ValType got = stack_types.back();
+                if (got != ValType::Unknown && !is_i32_numeric_type(got)) {
+                  return fail_at("return type mismatch", pc, opcode);
+                }
+              } else {
+                VerifyResult r = check_type(stack_types.back(), expected_ret, "return type mismatch");
+                if (!r.ok) return r;
+              }
             }
           }
           fall_through = false;

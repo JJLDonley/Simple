@@ -27,8 +27,28 @@ using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-inline bool IsExactKind(TypeKind kind, TypeKind expected) {
-  return kind == expected;
+inline bool IsI32LikeImportType(TypeKind kind) {
+  switch (kind) {
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+      return true;
+    default:
+      return false;
+  }
+}
+
+inline bool IsI64LikeImportType(TypeKind kind) {
+  return kind == TypeKind::I64 || kind == TypeKind::U64;
+}
+
+inline bool IsStringLikeImportType(TypeKind kind) {
+  return kind == TypeKind::String || kind == TypeKind::Ref;
 }
 
 float BitsToF32(uint32_t bits) {
@@ -538,7 +558,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.os") {
       if (sym == "args_count") {
-        if (IsExactKind(ret_kind, TypeKind::I32)) {
+        if (IsI32LikeImportType(ret_kind)) {
           out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
           return true;
         }
@@ -546,7 +566,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return false;
       }
       if (sym == "args_get" || sym == "env_get") {
-        if (!IsExactKind(ret_kind, TypeKind::String)) {
+        if (!IsStringLikeImportType(ret_kind)) {
           out_error = "core.os ref return type mismatch";
           return false;
         }
@@ -594,7 +614,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "cwd_get") {
-        if (!IsExactKind(ret_kind, TypeKind::String)) {
+        if (!IsStringLikeImportType(ret_kind)) {
           out_error = "core.os.cwd_get return type mismatch";
           return false;
         }
@@ -609,7 +629,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
-        if (!IsExactKind(ret_kind, TypeKind::I64)) {
+        if (!IsI64LikeImportType(ret_kind)) {
           out_error = "core.os time return type mismatch";
           return false;
         }
@@ -639,7 +659,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "core.fs") {
       if (sym == "open") {
-        if (!IsExactKind(ret_kind, TypeKind::I32)) {
+        if (!IsI32LikeImportType(ret_kind)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -677,7 +697,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "read" || sym == "write") {
-        if (!IsExactKind(ret_kind, TypeKind::I32)) {
+        if (!IsI32LikeImportType(ret_kind)) {
           out_error = "core.fs return type mismatch";
           return false;
         }
@@ -762,7 +782,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error = text;
       };
       if (sym == "open") {
-        if (!IsExactKind(ret_kind, TypeKind::I64)) {
+        if (!IsI64LikeImportType(ret_kind)) {
           out_error = "core.dl.open return type mismatch";
           return false;
         }
@@ -796,7 +816,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "sym") {
-        if (!IsExactKind(ret_kind, TypeKind::I64)) {
+        if (!IsI64LikeImportType(ret_kind)) {
           out_error = "core.dl.sym return type mismatch";
           return false;
         }
@@ -836,7 +856,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "close") {
-        if (!IsExactKind(ret_kind, TypeKind::I32)) {
+        if (!IsI32LikeImportType(ret_kind)) {
           out_error = "core.dl.close return type mismatch";
           return false;
         }
@@ -862,7 +882,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "last_error") {
-        if (!IsExactKind(ret_kind, TypeKind::String)) {
+        if (!IsStringLikeImportType(ret_kind)) {
           out_error = "core.dl.last_error return type mismatch";
           return false;
         }
