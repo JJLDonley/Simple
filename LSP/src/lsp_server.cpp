@@ -360,6 +360,15 @@ std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_
   return line_text.substr(begin, end - begin);
 }
 
+struct TokenRef {
+  size_t index = 0;
+  Simple::Lang::Token token;
+  uint32_t depth = 0;
+};
+
+std::vector<TokenRef> LexTokenRefs(const std::string& text);
+bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
+
 std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -405,16 +414,39 @@ void ReplyHover(std::ostream& out,
           JsonEscape(ident) + "`\"}}}");
 }
 
-void ReplyCompletion(std::ostream& out, const std::string& id_raw) {
+void ReplyCompletion(std::ostream& out,
+                     const std::string& id_raw,
+                     const std::string& uri,
+                     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
       "fn", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
-  std::string items;
-  for (size_t i = 0; i < kKeywords.size(); ++i) {
-    if (i) items += ",";
-    items += "{\"label\":\"" + kKeywords[i] + "\",\"kind\":14}";
+  std::vector<std::string> labels = kKeywords;
+  labels.push_back("IO.println");
+  labels.push_back("IO.print");
+
+  auto doc_it = open_docs.find(uri);
+  if (doc_it != open_docs.end()) {
+    std::unordered_set<std::string> seen(labels.begin(), labels.end());
+    const auto refs = LexTokenRefs(doc_it->second);
+    for (const auto& ref : refs) {
+      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      if (!IsDeclNameAt(refs, ref.index)) continue;
+      if (seen.insert(ref.token.text).second) {
+        labels.push_back(ref.token.text);
+      }
+    }
+    std::sort(labels.begin(), labels.end());
   }
-  items += ",{\"label\":\"IO.println\",\"kind\":3}";
-  items += ",{\"label\":\"IO.print\",\"kind\":3}";
+
+  std::string items;
+  for (size_t i = 0; i < labels.size(); ++i) {
+    if (i) items += ",";
+    const std::string& label = labels[i];
+    const bool is_builtin = (label == "IO.println" || label == "IO.print");
+    const bool is_keyword = std::find(kKeywords.begin(), kKeywords.end(), label) != kKeywords.end();
+    const int kind = is_builtin ? 3 : (is_keyword ? 14 : 6);
+    items += "{\"label\":\"" + JsonEscape(label) + "\",\"kind\":" + std::to_string(kind) + "}";
+  }
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
@@ -579,12 +611,6 @@ void ReplySemanticTokensFull(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                            ",\"result\":{\"data\":[" + data + "]}}");
 }
-
-struct TokenRef {
-  size_t index = 0;
-  Simple::Lang::Token token;
-  uint32_t depth = 0;
-};
 
 std::vector<TokenRef> LexTokenRefs(const std::string& text) {
   std::vector<TokenRef> out;
@@ -1105,7 +1131,11 @@ int RunServer(std::istream& in, std::ostream& out) {
     }
 
     if (method == "textDocument/completion") {
-      if (has_id) ReplyCompletion(out, id_raw);
+      if (has_id) {
+        std::string uri;
+        ExtractJsonStringField(body, "uri", &uri);
+        ReplyCompletion(out, id_raw, uri, open_docs);
+      }
       continue;
     }
 

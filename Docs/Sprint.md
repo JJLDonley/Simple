@@ -1074,3 +1074,8 @@
 - Expanded LSP regression suite with duplicate-version coverage:
   - validates second `didChange` with the same version number is ignored,
   - validates no extra diagnostics publish is emitted for duplicate-version events.
+- Improved LSP completion quality with document-aware symbol suggestions:
+  - `textDocument/completion` now reads the active document URI and augments keyword/builtin items with declared identifiers from the open source,
+  - completion candidates are deduplicated and deterministically ordered for stable editor behavior.
+- Expanded LSP regression suite with local-completion coverage:
+  - validates completion responses include top-level declared symbols from the current open document (for example `alpha`, `beta`).
