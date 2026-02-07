@@ -129,17 +129,20 @@ Authoritative doc:
 - `Docs/LSP.md`
 
 Status:
-- CLI surface exists for `simple lsp` but currently returns not implemented.
+- `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features, completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
+- VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 
 Next-module execution focus:
-- [ ] Implement stdio JSON-RPC LSP server lifecycle (`initialize`, `shutdown`, `exit`).
-- [ ] Implement document sync and publish diagnostics from `Simple::Lang` parser/validator.
-- [ ] Implement navigation/features:
+- [x] Implement stdio JSON-RPC LSP server lifecycle (`initialize`, `shutdown`, `exit`).
+- [x] Implement document sync and publish diagnostics from `Simple::Lang` parser/validator.
+- [x] Implement navigation/features:
   - hover, definition, references, document symbols, completion.
-- [ ] Implement syntax highlighting:
+- [x] Implement syntax highlighting:
   - semantic tokens (`textDocument/semanticTokens/full`),
   - TextMate grammar fallback for editor startup/non-LSP highlight.
-- [ ] Add integration tests for protocol lifecycle, diagnostics, and semantic token snapshots.
+- [x] Add integration tests for protocol lifecycle, diagnostics, and semantic token snapshots.
+- [ ] Add release automation for VS Code extension artifacts to publish `.vsix` from CI/release tags.
+- [ ] Build/ship VS Code extension install docs and quickstart validation checklist.
 
 Gate to close:
 - LSP is functionally usable in editor workflows with diagnostics, navigation, completion, and highlighting.

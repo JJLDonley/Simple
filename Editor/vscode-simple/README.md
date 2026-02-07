@@ -21,6 +21,19 @@ This extension wires VS Code to the `simple lsp` language server and provides Te
 3. Press `F5` to start Extension Development Host.
 4. Open a `.simple` file in the host window.
 
+## Install From VSIX
+
+1. Build the package:
+   - `npx --yes @vscode/vsce package --out simple-vscode.vsix`
+2. Install in VS Code:
+   - `code --install-extension simple-vscode.vsix`
+
+## CI Packaging
+
+- GitHub Actions workflow: `.github/workflows/vscode-extension.yml`
+- On pushes to `main` that touch `Editor/vscode-simple/**`, CI builds `simple-vscode.vsix` and uploads it as an artifact.
+- Manual dispatch can optionally attach the VSIX and checksum to an existing release tag via `tag_name` input.
+
 ## Notes
 
 This extension expects the CLI to support the `lsp` command and be available on your `PATH` (or configured via `simple.lspPath`).

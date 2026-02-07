@@ -1,0 +1,59 @@
+name: VS Code Extension
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Editor/vscode-simple/**"
+      - ".github/workflows/vscode-extension.yml"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Optional release tag (for attaching VSIX to a GitHub release)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package-vsix:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Editor/vscode-simple
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package --out simple-vscode.vsix
+
+      - name: Compute checksum
+        run: sha256sum simple-vscode.vsix > simple-vscode.vsix.sha256
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-vscode-vsix
+          path: |
+            Editor/vscode-simple/simple-vscode.vsix
+            Editor/vscode-simple/simple-vscode.vsix.sha256
+
+      - name: Publish to GitHub release (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          files: |
+            Editor/vscode-simple/simple-vscode.vsix
+            Editor/vscode-simple/simple-vscode.vsix.sha256

@@ -106,6 +106,15 @@ Planned layout:
   - `simple.lspPath`
   - `simple.lspArgs`
 
+### VS Code Packaging + Release Automation
+
+- CI workflow: `.github/workflows/vscode-extension.yml`
+- behavior:
+  - on `main` pushes that touch `Editor/vscode-simple/**`, build `simple-vscode.vsix` and publish as workflow artifact
+  - on manual dispatch, if `tag_name` is provided, attach VSIX + checksum to that GitHub release tag
+- packaging command used by CI:
+  - `npx --yes @vscode/vsce package --out simple-vscode.vsix`
+
 ## Milestones
 
 ### M1: Functional Server Skeleton

@@ -1170,3 +1170,11 @@
   - declaration candidates are now aggregated from active + secondary open documents before prefix/member filtering, improving multi-file editing suggestions.
 - Expanded LSP regression suite with open-document completion coverage:
   - validates completion responses include declaration candidates contributed by another open document while still honoring typed-prefix filtering.
+- Added VS Code extension CI packaging workflow at `.github/workflows/vscode-extension.yml`:
+  - builds `Editor/vscode-simple/simple-vscode.vsix`,
+  - emits sha256 checksum,
+  - uploads VSIX artifacts on `main` pushes touching extension files,
+  - supports manual release attachment to an existing tag via workflow dispatch `tag_name`.
+- Updated `Editor/vscode-simple/README.md` with local VSIX packaging/install instructions and CI packaging behavior.
+- Updated `Docs/LSP.md` with VS Code packaging/release automation details.
+- Updated `Docs/Implementation.md` LSP status/focus section to reflect implemented server features and remaining packaging/documentation work.
