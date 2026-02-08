@@ -2030,6 +2030,44 @@ bool LspCancelRequestSuppressesResponse() {
          out_contents.find("\"id\":2") != std::string::npos;
 }
 
+bool LspResponsesFollowRequestOrder() {
+  const std::string in_path = TempPath("simple_lsp_order_in.txt");
+  const std::string out_path = TempPath("simple_lsp_order_out.txt");
+  const std::string err_path = TempPath("simple_lsp_order_err.txt");
+  const std::string uri = "file:///workspace/order.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1; foo;\"}}}";
+  const std::string hover_req_1 =
+      "{\"jsonrpc\":\"2.0\",\"id\":31,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":1}}}";
+  const std::string hover_req_2 =
+      "{\"jsonrpc\":\"2.0\",\"id\":30,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":15}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(hover_req_1) +
+      BuildLspFrame(hover_req_2) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  const size_t pos_31 = out_contents.find("\"id\":31");
+  const size_t pos_30 = out_contents.find("\"id\":30");
+  return err_contents.empty() &&
+         pos_31 != std::string::npos &&
+         pos_30 != std::string::npos &&
+         pos_31 < pos_30;
+}
+
 const TestCase kLspTests[] = {
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
@@ -2089,6 +2127,7 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
+  {"lsp_responses_follow_request_order", LspResponsesFollowRequestOrder},
 };
 
 const TestSection kLspSections[] = {

@@ -1388,3 +1388,9 @@
 - Verified regression coverage after canonicalization updates:
   - `./build.sh --suite lang` -> `332/332`,
   - `./build.sh --suite lsp` -> `57/57`.
+- Synced LSP docs with actual shipped protocol/features:
+  - moved `signatureHelp`, `rename`, `prepareRename`, `codeAction`, and `workspace/symbol` into v1 must-have list,
+  - documented current server-order/cancellation behavior (single-thread ordered replies, stale/duplicate `didChange` version guards, pre-dispatch `$/cancelRequest` handling),
+  - corrected Implementation plan stale/duplicate LSP status lines and phase checkboxes.
+- Added LSP regression for request ordering:
+  - new test asserts responses are emitted in request order for sequential requests.

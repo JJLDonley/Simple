@@ -132,7 +132,7 @@ Authoritative doc:
 
 Status:
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
-- `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/documentHighlight/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
+- `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/documentHighlight/references), completion, rename, code actions, workspace symbols, signature help, semantic tokens, and cross-document indexing for open files.
 - completion includes import-path mode inside import declarations (quoted and unquoted), covering `System.*` aliases, legacy reserved modules, and open-document module stems.
 - completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
 - code-action quick-fix declaration insertion respects top-of-file import headers.
@@ -157,7 +157,7 @@ Next-module execution focus:
   - semantic tokens (`textDocument/semanticTokens/full`),
   - TextMate grammar fallback for editor startup/non-LSP highlight.
 - [x] Add integration tests for protocol lifecycle, diagnostics, and semantic token snapshots.
-- [ ] Add release automation for VS Code extension artifacts to publish `.vsix` from CI/release tags.
+- [x] Add release automation for VS Code extension artifacts to publish `.vsix` from CI/release tags.
 - [x] Build/ship VS Code extension install docs and quickstart validation checklist.
 
 Gate to close:
@@ -212,10 +212,10 @@ For Linux x86_64 release jobs, publish:
 Exit criteria:
 - All module docs are current and internally consistent.
 
-### Phase B: LSP + Editor UX (Next)
-- [ ] Ship M1 server skeleton from `Docs/LSP.md` (lifecycle + open/change/close + diagnostics).
-- [ ] Ship M2 navigation/completion features (hover/definition/references/document symbols/completion).
-- [ ] Ship M3 highlighting stack (semantic tokens + TextMate grammar fallback).
+### Phase B: LSP + Editor UX
+- [x] Ship M1 server skeleton from `Docs/LSP.md` (lifecycle + open/change/close + diagnostics).
+- [x] Ship M2 navigation/completion features (hover/definition/references/document symbols/completion).
+- [x] Ship M3 highlighting stack (semantic tokens + TextMate grammar fallback).
 - [ ] Add protocol and editor smoke tests to CI.
 
 Exit criteria:

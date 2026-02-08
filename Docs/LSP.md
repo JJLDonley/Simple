@@ -18,6 +18,9 @@ Primary goals:
 - single workspace first, multi-root later
 - incremental document sync (`textDocument/didChange`)
 - authoritative parse/validate path reuses `Lang` front-end pipeline
+- deterministic single-thread request handling (responses emitted in request order)
+- document version guards for `didChange` (stale/duplicate versions ignored)
+- `$\/cancelRequest` support for pre-dispatch cancellation
 
 ### Core Data Pipeline
 
@@ -32,6 +35,7 @@ Primary goals:
 ### Must-Have Methods
 
 - `initialize` / `initialized` / `shutdown` / `exit`
+- `$/cancelRequest`
 - `textDocument/didOpen`
 - `textDocument/didChange`
 - `textDocument/didClose`
@@ -43,14 +47,17 @@ Primary goals:
 - `textDocument/references`
 - `textDocument/documentSymbol`
 - `textDocument/completion`
+- `textDocument/signatureHelp`
+- `textDocument/rename`
+- `textDocument/prepareRename`
+- `textDocument/codeAction`
 - `textDocument/semanticTokens/full`
+- `workspace/symbol`
 
 ### Nice-to-Have (post-v1)
 
-- `textDocument/signatureHelp`
-- `textDocument/rename`
-- `textDocument/codeAction`
-- `workspace/symbol`
+- cancellation-aware long-running feature handlers (mid-dispatch checkpoints)
+- multi-root workspace indexing
 
 ## Semantic Features
 
