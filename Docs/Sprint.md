@@ -1394,3 +1394,10 @@
   - corrected Implementation plan stale/duplicate LSP status lines and phase checkboxes.
 - Added LSP regression for request ordering:
   - new test asserts responses are emitted in request order for sequential requests.
+- Synced active documentation to current root-layout/runtime behavior:
+  - removed stale `Simple/...` path prefixes from active module docs (`README`, `Modules`, `Byte`, `IR`, `VM`, `CLI`),
+  - normalized verification/build commands to root form (for example `./build.sh --suite ...`),
+  - updated CLI docs to reflect that `simple lsp` is implemented (not placeholder),
+  - updated language reserved-alias mapping text to canonical internal IDs (`Core.IO`, `Core.Math`, `Core.Time`),
+  - added `StdLib.md` note documenting canonical internal reserved module IDs,
+  - marked implementation-plan stale-path cleanup item complete for active module docs.

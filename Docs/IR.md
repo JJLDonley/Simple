@@ -10,7 +10,7 @@ This module is the bridge between language-level emission and bytecode runtime c
 
 ### 1) SIR Front-End
 
-Implemented primarily in `Simple/IR/src/ir_lang.cpp`:
+Implemented primarily in `IR/src/ir_lang.cpp`:
 
 - tokenization/parsing of SIR text
 - section parsing (`types`, `sigs`, `consts`, `imports`, `globals`, `func`)
@@ -18,7 +18,7 @@ Implemented primarily in `Simple/IR/src/ir_lang.cpp`:
 
 ### 2) IR Builder
 
-Implemented in `Simple/IR/src/ir_builder.cpp`:
+Implemented in `IR/src/ir_builder.cpp`:
 
 - structured opcode emission
 - label binding and fixup resolution
@@ -101,16 +101,16 @@ Unsupported or constrained paths fail explicitly with diagnostics.
 
 ## Files
 
-- `Simple/IR/src/ir_lang.cpp`
-- `Simple/IR/src/ir_builder.cpp`
-- `Simple/IR/include/ir_lang.h`
-- `Simple/IR/include/ir_builder.h`
+- `IR/src/ir_lang.cpp`
+- `IR/src/ir_builder.cpp`
+- `IR/include/ir_lang.h`
+- `IR/include/ir_builder.h`
 
 ## Verification Commands
 
-- `./Simple/build.sh --suite ir`
-- `./Simple/build.sh --suite all`
+- `./build.sh --suite ir`
+- `./build.sh --suite all`
 
 ## Legacy Migration Notes
 
-`Simple/Docs/legacy/SBC_IR.md` is non-authoritative historical reference.
+`Docs/legacy/SBC_IR.md` is non-authoritative historical reference.

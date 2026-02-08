@@ -18,7 +18,7 @@
 - `compile`: alias of `build` (Deno-style command shape)
 - `run`: compile/execute pipeline
 - `emit`: emit intermediate/bytecode artifacts
-- `lsp`: reserved command (currently returns not implemented)
+- `lsp`: launch stdio LSP server (`simple lsp`)
 
 ### UX Contract
 
@@ -39,22 +39,22 @@ For `.simple` input paths, CLI also resolves non-reserved imports as local proje
 
 ## Build/Runtime Interface Notes
 
-- `Simple/build.sh` is the canonical dev/test orchestration entrypoint.
+- `build.sh` is the canonical dev/test orchestration entrypoint.
 - runtime/static-shared linking behavior is controlled by build scripts + CLI integration.
 - `simple build <file.simple>` defaults to embedding SBC+runtime into an executable.
 - `simple build <file.simple> --out <name.sbc>` forces SBC bytecode output.
 - `simple compile ...` is equivalent to `simple build ...`.
 - Embedded executable builds resolve runtime/include paths from either:
-  - source layout (`Simple/VM/include`, `Simple/Byte/include`, `Simple/bin`), or
+  - source layout (`VM/include`, `Byte/include`, `bin`), or
   - installed layout (`<prefix>/include/simplevm`, `<prefix>/lib`).
 
 ## Distribution Install Design
 
 - Build release archive from source build outputs:
-  - `./Simple/release.sh --version <tag> [--target <os-arch>]`
+  - `./release.sh --version <tag> [--target <os-arch>]`
 - Install for end users without rebuilding source:
-  - `./Simple/install.sh --from-file ./Simple/dist/simple-<tag>-<target>.tar.gz --version <tag>`
-  - or `./Simple/install.sh --url <https://...tar.gz> --version <tag>`
+  - `./install.sh --from-file ./dist/simple-<tag>-<target>.tar.gz --version <tag>`
+  - or `./install.sh --url <https://...tar.gz> --version <tag>`
 - Installer layout:
   - `${HOME}/.simple/<version>/bin/simple`
   - `${HOME}/.simple/<version>/lib/libsimplevm_runtime.{a,so}`
@@ -69,10 +69,10 @@ For `.simple` input paths, CLI also resolves non-reserved imports as local proje
 
 ## Files
 
-- `Simple/CLI/src/main.cpp`
-- `Simple/build.sh`
+- `CLI/src/main.cpp`
+- `build.sh`
 
 ## Verification Commands
 
-- `./Simple/build.sh --suite lang`
-- `./Simple/build.sh --suite all`
+- `./build.sh --suite lang`
+- `./build.sh --suite all`

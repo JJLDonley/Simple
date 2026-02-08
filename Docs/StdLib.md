@@ -28,6 +28,16 @@ Preferred naming for new code:
 
 Legacy aliases remain supported for compatibility (`IO`, `File`, `Core.*`, `System.stream`).
 
+Internal canonical module IDs used by compiler validation/lowering are:
+
+- `Core.Math`
+- `Core.IO`
+- `Core.Time`
+- `Core.Fs`
+- `Core.DL`
+- `Core.Os`
+- `Core.Log`
+
 ## Mapping
 
 | Import Path | Runtime Namespace | Backend |

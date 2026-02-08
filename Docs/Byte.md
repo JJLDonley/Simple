@@ -14,7 +14,7 @@ This document is authoritative for the module-level design and behavior.
 
 ### 1) Data Model
 
-Primary structs are defined in `Simple/Byte/include/sbc_types.h`:
+Primary structs are defined in `Byte/include/sbc_types.h`:
 
 - `SbcHeader`
 - `SectionEntry`
@@ -23,7 +23,7 @@ Primary structs are defined in `Simple/Byte/include/sbc_types.h`:
 
 ### 2) Loader Pipeline
 
-Implemented in `Simple/Byte/src/sbc_loader.cpp`:
+Implemented in `Byte/src/sbc_loader.cpp`:
 
 1. Parse and validate fixed header.
 2. Parse section table and reject overlap/out-of-bounds/alignment violations.
@@ -33,7 +33,7 @@ Implemented in `Simple/Byte/src/sbc_loader.cpp`:
 
 ### 3) Verifier Pipeline
 
-Implemented in `Simple/Byte/src/sbc_verifier.cpp`:
+Implemented in `Byte/src/sbc_verifier.cpp`:
 
 1. Validate per-function instruction decode boundaries.
 2. Enforce stack discipline (underflow/merge compatibility/return shape).
@@ -79,7 +79,7 @@ IDs are fixed in `SectionId` enum. Loader requires:
 
 ## Opcode Contract
 
-Opcode definitions are frozen by `Simple/Byte/include/opcode.h` and stack/operand semantics by `Simple/Byte/src/opcode.cpp` (`GetOpInfo`).
+Opcode definitions are frozen by `Byte/include/opcode.h` and stack/operand semantics by `Byte/src/opcode.cpp` (`GetOpInfo`).
 
 ### Full Opcode Catalog
 
@@ -315,17 +315,17 @@ Opcode definitions are frozen by `Simple/Byte/include/opcode.h` and stack/operan
 
 ## Files
 
-- `Simple/Byte/include/sbc_types.h`
-- `Simple/Byte/include/opcode.h`
-- `Simple/Byte/src/sbc_loader.cpp`
-- `Simple/Byte/src/sbc_verifier.cpp`
-- `Simple/Byte/src/opcode.cpp`
+- `Byte/include/sbc_types.h`
+- `Byte/include/opcode.h`
+- `Byte/src/sbc_loader.cpp`
+- `Byte/src/sbc_verifier.cpp`
+- `Byte/src/opcode.cpp`
 
 ## Verification Commands
 
-- `./Simple/build.sh --suite core`
-- `./Simple/build.sh --suite all`
+- `./build.sh --suite core`
+- `./build.sh --suite all`
 
 ## Legacy Migration Notes
 
-Legacy files in `Simple/Docs/legacy/` are non-authoritative references retained for migration/history.
+Legacy files in `Docs/legacy/` are non-authoritative references retained for migration/history.

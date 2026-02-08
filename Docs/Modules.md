@@ -60,9 +60,9 @@ This document defines module boundaries and ownership for the current project st
 
 ## Ownership Docs
 
-- Format + verification: `Simple/Docs/Byte.md`
-- Runtime + ABI behavior: `Simple/Docs/VM.md`
-- IR contract: `Simple/Docs/IR.md`
-- CLI contract: `Simple/Docs/CLI.md`
-- Language contract: `Simple/Docs/Lang.md`
-- Core imports/stdlib contract: `Simple/Docs/StdLib.md`
+- Format + verification: `Docs/Byte.md`
+- Runtime + ABI behavior: `Docs/VM.md`
+- IR contract: `Docs/IR.md`
+- CLI contract: `Docs/CLI.md`
+- Language contract: `Docs/Lang.md`
+- Core imports/stdlib contract: `Docs/StdLib.md`

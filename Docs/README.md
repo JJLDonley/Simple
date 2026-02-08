@@ -13,37 +13,37 @@ High-level module docs are authoritative for their module:
 - `Lang.md` is authoritative for language syntax/semantics.
 - `StdLib.md` is authoritative for reserved imports/core module surface.
 
-`Simple/Docs/legacy/` exists as migration/reference material only and is not authoritative.
+`Docs/legacy/` exists as migration/reference material only and is not authoritative.
 
 ## Start Here
 
-- `Simple/Docs/README.md`
+- `Docs/README.md`
   - Documentation map and ownership.
-- `Simple/Docs/Modules.md`
+- `Docs/Modules.md`
   - Project architecture map and module boundaries.
-- `Simple/Docs/Implementation.md`
+- `Docs/Implementation.md`
   - Current implementation plan and freeze checklist.
-- `Simple/Docs/Sprint.md`
+- `Docs/Sprint.md`
   - Chronological engineering log.
 
 ## Core Runtime + Compiler Docs
 
-- `Simple/Docs/Byte.md`
+- `Docs/Byte.md`
   - SBC format, loader, verifier, and compatibility policy.
-- `Simple/Docs/VM.md`
+- `Docs/VM.md`
   - Runtime execution model, GC/JIT status, and ABI/runtime constraints.
-- `Simple/Docs/IR.md`
+- `Docs/IR.md`
   - SIR text/lowering contract and IR compiler behavior.
-- `Simple/Docs/CLI.md`
+- `Docs/CLI.md`
   - User-facing CLI behavior and command contracts.
-- `Simple/Docs/Lang.md`
+- `Docs/Lang.md`
   - Language syntax and semantics.
-- `Simple/Docs/StdLib.md`
+- `Docs/StdLib.md`
   - Reserved imports and core library surface.
 
 ## Legacy Reference Docs
 
-Legacy design references are kept in `Simple/Docs/legacy/`.
+Legacy design references are kept in `Docs/legacy/`.
 
 These are historical references, not the primary source of truth for current behavior.
 

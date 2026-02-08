@@ -125,13 +125,12 @@ Remaining alpha work:
 Gate to close:
 - CLI contract is frozen for alpha and release-tested.
 
-### 6. `Simple::LSP` (Editor Protocol + Highlighting) [Next Module]
+### 6. `Simple::LSP` (Editor Protocol + Highlighting)
 
 Authoritative doc:
 - `Docs/LSP.md`
 
 Status:
-- `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/documentHighlight/references), completion, rename, code actions, workspace symbols, signature help, semantic tokens, and cross-document indexing for open files.
 - completion includes import-path mode inside import declarations (quoted and unquoted), covering `System.*` aliases, legacy reserved modules, and open-document module stems.
 - completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
@@ -206,7 +205,7 @@ For Linux x86_64 release jobs, publish:
 
 ### Phase A: Contract Freeze
 - [ ] Finalize docs for Byte/VM/IR/Lang/CLI alpha contract sections.
-- [ ] Remove stale path references (`Simple/...`) from docs.
+- [x] Remove stale path references (`Simple/...`) from active module docs.
 - [ ] Confirm examples run from repository root exactly as documented.
 
 Exit criteria:

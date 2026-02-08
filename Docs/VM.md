@@ -10,7 +10,7 @@ This document is authoritative for VM runtime behavior and constraints.
 
 ### 1) Entry + Verification Gate
 
-Execution entrypoints (`ExecuteModule`) are defined in `Simple/VM/include/vm.h` and implemented in `Simple/VM/src/vm.cpp`.
+Execution entrypoints (`ExecuteModule`) are defined in `VM/include/vm.h` and implemented in `VM/src/vm.cpp`.
 
 Execution flow:
 
@@ -44,7 +44,7 @@ Supports:
 
 ### 4) Heap/Object Model
 
-Implemented by `Simple/VM/src/heap.cpp` and used from `vm.cpp`.
+Implemented by `VM/src/heap.cpp` and used from `vm.cpp`.
 
 Object kinds include:
 
@@ -123,17 +123,17 @@ Explicit limitation:
 
 ## Primary Files
 
-- `Simple/VM/include/vm.h`
-- `Simple/VM/src/vm.cpp`
-- `Simple/VM/src/heap.cpp`
-- `Simple/VM/include/heap.h`
+- `VM/include/vm.h`
+- `VM/src/vm.cpp`
+- `VM/src/heap.cpp`
+- `VM/include/heap.h`
 
 ## Verification Commands
 
-- `./Simple/build.sh --suite core`
-- `./Simple/build.sh --suite jit`
-- `./Simple/build.sh --suite all`
+- `./build.sh --suite core`
+- `./build.sh --suite jit`
+- `./build.sh --suite all`
 
 ## Legacy Migration Notes
 
-Legacy runtime docs in `Simple/Docs/legacy/` are non-authoritative references.
+Legacy runtime docs in `Docs/legacy/` are non-authoritative references.
