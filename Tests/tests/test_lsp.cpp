@@ -1764,6 +1764,74 @@ bool LspCodeActionInfersBoolDeclarationType() {
          out_contents.find("\"newText\":\"enabled : bool = false;\\n\"") != std::string::npos;
 }
 
+bool LspCodeActionInfersStringDeclarationType() {
+  const std::string in_path = TempPath("simple_lsp_code_action_string_infer_in.txt");
+  const std::string out_path = TempPath("simple_lsp_code_action_string_infer_out.txt");
+  const std::string err_path = TempPath("simple_lsp_code_action_string_infer_err.txt");
+  const std::string uri = "file:///workspace/code_action_string_infer.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"name = \\\"Simple\\\";\"}}}";
+  const std::string action_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":43,\"method\":\"textDocument/codeAction\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},"
+      "\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},"
+      "\"context\":{\"diagnostics\":[{\"code\":\"E0001\"}]}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(action_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":43") != std::string::npos &&
+         out_contents.find("Declare 'name' as string") != std::string::npos &&
+         out_contents.find("\"newText\":\"name : string = \\\"\\\";\\n\"") != std::string::npos;
+}
+
+bool LspCodeActionInfersCharDeclarationType() {
+  const std::string in_path = TempPath("simple_lsp_code_action_char_infer_in.txt");
+  const std::string out_path = TempPath("simple_lsp_code_action_char_infer_out.txt");
+  const std::string err_path = TempPath("simple_lsp_code_action_char_infer_err.txt");
+  const std::string uri = "file:///workspace/code_action_char_infer.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"ch = 'A';\"}}}";
+  const std::string action_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":44,\"method\":\"textDocument/codeAction\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},"
+      "\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},"
+      "\"context\":{\"diagnostics\":[{\"code\":\"E0001\"}]}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(action_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":44") != std::string::npos &&
+         out_contents.find("Declare 'ch' as char") != std::string::npos &&
+         out_contents.find("\"newText\":\"ch : char = '\\\\0';\\n\"") != std::string::npos;
+}
+
 bool LspCodeActionRespectsOnlyFilter() {
   const std::string in_path = TempPath("simple_lsp_code_action_only_in.txt");
   const std::string out_path = TempPath("simple_lsp_code_action_only_out.txt");
@@ -1916,6 +1984,8 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_inserts_after_imports", LspCodeActionInsertsAfterImports},
   {"lsp_code_action_infers_float_declaration_type", LspCodeActionInfersFloatDeclarationType},
   {"lsp_code_action_infers_bool_declaration_type", LspCodeActionInfersBoolDeclarationType},
+  {"lsp_code_action_infers_string_declaration_type", LspCodeActionInfersStringDeclarationType},
+  {"lsp_code_action_infers_char_declaration_type", LspCodeActionInfersCharDeclarationType},
   {"lsp_code_action_respects_only_filter", LspCodeActionRespectsOnlyFilter},
   {"lsp_code_action_respects_diagnostic_code_filter", LspCodeActionRespectsDiagnosticCodeFilter},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},

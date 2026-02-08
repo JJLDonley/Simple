@@ -1295,3 +1295,7 @@
 - Added regression coverage for bool literal inference:
   - new test validates `enabled = true;` produces quick-fix `Declare 'enabled' as bool` and declaration edit `enabled : bool = false;`.
 - Updated LSP and implementation docs to reflect broader scalar quick-fix inference behavior.
+- Expanded LSP quick-fix scalar inference regression coverage:
+  - added code-action test for string literal assignment inference (`name = "Simple"`) expecting declaration `name : string = "";`.
+  - added code-action test for char literal assignment inference (`ch = 'A'`) expecting declaration `ch : char = '\\0';`.
+- Verified scalar inference suite now covers numeric (`i32`/`f64`), bool, string, and char undeclared-assignment quick-fix generation paths.
