@@ -82,15 +82,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libffi-dev pkg-config
 
-      - name: Setup Windows vcpkg
-        if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
-
-      - name: Install Windows libffi (vcpkg)
+      - name: Setup Windows vcpkg + libffi
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libffi:x64-windows
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          & "$vcpkgRoot/bootstrap-vcpkg.bat"
+          & "$vcpkgRoot/vcpkg.exe" install libffi:x64-windows
+          "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build + package (Linux/macOS)
         if: runner.os != 'Windows'
