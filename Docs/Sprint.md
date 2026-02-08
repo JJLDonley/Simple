@@ -1217,3 +1217,9 @@
 - Tightened LSP initialize capability contract for cast ergonomics:
   - signature-help trigger characters now include `@` so editors can invoke help immediately while typing `@T(...)` casts.
 - Added regression assertion in `lsp_initialize_handshake` to lock signature-help trigger-character payload (`( , @`) and prevent capability drift.
+- Added import-path aware LSP completion:
+  - `textDocument/completion` now detects cursor context inside `import "..."` strings and switches from keyword/symbol completion to module suggestions.
+  - import suggestions include reserved modules (`IO`, `Math`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) plus stems from open `.simple` documents.
+- Added LSP regression coverage for import completion:
+  - new test validates `import "Co` completion suggests `Core.*` modules and excludes keyword noise.
+- Updated implementation/LSP docs to document import-path completion behavior and current module-suggestion sources.

@@ -374,6 +374,12 @@ bool IsCallNameChar(char c) {
 }
 
 bool IsAtCastCallName(const std::string& name);
+bool ImportPrefixAtPosition(const std::string& text,
+                            uint32_t line,
+                            uint32_t character,
+                            std::string* out_prefix);
+std::vector<std::string> CollectImportCandidates(
+    const std::unordered_map<std::string, std::string>& open_docs);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -512,6 +518,54 @@ std::string CompletionMemberReceiverAtPosition(const std::string& text,
   return line_text.substr(recv_begin, recv_end - recv_begin);
 }
 
+bool ImportPrefixAtPosition(const std::string& text,
+                            uint32_t line,
+                            uint32_t character,
+                            std::string* out_prefix) {
+  if (!out_prefix) return false;
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return false;
+  const size_t cursor = std::min<size_t>(character, line_text.size());
+  if (cursor == 0) return false;
+  const size_t quote = line_text.rfind('"', cursor - 1);
+  if (quote == std::string::npos) return false;
+  const size_t close_quote = line_text.find('"', quote + 1);
+  if (close_quote != std::string::npos && close_quote < cursor) return false;
+
+  size_t token_end = quote;
+  while (token_end > 0 && std::isspace(static_cast<unsigned char>(line_text[token_end - 1]))) --token_end;
+  size_t token_begin = token_end;
+  while (token_begin > 0 && IsIdentChar(line_text[token_begin - 1])) --token_begin;
+  if (token_end <= token_begin || line_text.substr(token_begin, token_end - token_begin) != "import") {
+    return false;
+  }
+  *out_prefix = line_text.substr(quote + 1, cursor - (quote + 1));
+  return true;
+}
+
+std::vector<std::string> CollectImportCandidates(
+    const std::unordered_map<std::string, std::string>& open_docs) {
+  static const std::vector<std::string> kReservedImports = {
+      "IO", "Math", "Time", "File", "Core.DL", "Core.Os", "Core.Fs", "Core.Log"};
+  std::vector<std::string> labels = kReservedImports;
+  std::unordered_set<std::string> seen(labels.begin(), labels.end());
+  for (const auto& [uri, _] : open_docs) {
+    constexpr const char* kSuffix = ".simple";
+    if (uri.size() <= std::strlen(kSuffix) ||
+        uri.compare(uri.size() - std::strlen(kSuffix), std::strlen(kSuffix), kSuffix) != 0) {
+      continue;
+    }
+    const size_t slash = uri.find_last_of('/');
+    const size_t base = (slash == std::string::npos) ? 0 : slash + 1;
+    const size_t stem_end = uri.size() - std::strlen(kSuffix);
+    if (base >= stem_end) continue;
+    const std::string stem = uri.substr(base, stem_end - base);
+    if (seen.insert(stem).second) labels.push_back(stem);
+  }
+  std::sort(labels.begin(), labels.end());
+  return labels;
+}
+
 void ReplyHover(std::ostream& out,
                 const std::string& id_raw,
                 const std::string& uri,
@@ -571,12 +625,25 @@ void ReplyCompletion(std::ostream& out,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
       "fn", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
-  std::vector<std::string> labels = kKeywords;
-  labels.push_back("IO.println");
-  labels.push_back("IO.print");
+  std::vector<std::string> labels;
 
   auto doc_it = open_docs.find(uri);
-  {
+  bool import_context = false;
+  std::string prefix_lc;
+  std::string receiver_lc;
+  if (doc_it != open_docs.end()) {
+    std::string import_prefix;
+    import_context = ImportPrefixAtPosition(doc_it->second, line, character, &import_prefix);
+    prefix_lc =
+        LowerAscii(import_context ? import_prefix : CompletionPrefixAtPosition(doc_it->second, line, character));
+    receiver_lc = LowerAscii(CompletionMemberReceiverAtPosition(doc_it->second, line, character));
+  }
+  if (import_context) {
+    labels = CollectImportCandidates(open_docs);
+  } else {
+    labels = kKeywords;
+    labels.push_back("IO.println");
+    labels.push_back("IO.print");
     std::unordered_set<std::string> seen(labels.begin(), labels.end());
     auto add_doc_decls = [&](const std::string& text) {
       const auto refs = LexTokenRefs(text);
@@ -598,13 +665,6 @@ void ReplyCompletion(std::ostream& out,
     std::sort(labels.begin(), labels.end());
   }
 
-  std::string prefix_lc;
-  std::string receiver_lc;
-  if (doc_it != open_docs.end()) {
-    prefix_lc = LowerAscii(CompletionPrefixAtPosition(doc_it->second, line, character));
-    receiver_lc = LowerAscii(CompletionMemberReceiverAtPosition(doc_it->second, line, character));
-  }
-
   std::string items;
   bool first_item = true;
   for (size_t i = 0; i < labels.size(); ++i) {
@@ -624,7 +684,7 @@ void ReplyCompletion(std::ostream& out,
     first_item = false;
     const bool is_builtin = (label == "IO.println" || label == "IO.print");
     const bool is_keyword = std::find(kKeywords.begin(), kKeywords.end(), label) != kKeywords.end();
-    const int kind = is_builtin ? 3 : (is_keyword ? 14 : 6);
+    const int kind = import_context ? 9 : (is_builtin ? 3 : (is_keyword ? 14 : 6));
     items += "{\"label\":\"" + JsonEscape(label) + "\",\"kind\":" + std::to_string(kind) + "}";
   }
   WriteLspMessage(

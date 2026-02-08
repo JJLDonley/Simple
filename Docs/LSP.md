@@ -69,7 +69,9 @@ Primary goals:
 - keywords and builtins
 - in-scope identifiers
 - member completion (`Module.member`, `Artifact.member`, `IO.println`, etc.)
-- import path completion for `.simple` files and reserved import names
+- import path completion inside `import "..."` strings:
+  - reserved module names (`IO`, `Math`, `Time`, `File`, `Core.*`)
+  - open-document `.simple` module stems
 
 ### Signature Help (Current)
 
