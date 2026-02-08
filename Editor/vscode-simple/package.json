@@ -5,14 +5,20 @@
   "version": "0.1.0",
   "publisher": "jjldonley",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JJLDonley/Simple.git",
+    "directory": "Editor/vscode-simple"
+  },
+  "homepage": "https://github.com/JJLDonley/Simple/tree/main/Editor/vscode-simple",
+  "bugs": {
+    "url": "https://github.com/JJLDonley/Simple/issues"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages"
-  ],
-  "activationEvents": [
-    "onLanguage:simple"
   ],
   "main": "./extension.js",
   "contributes": {
