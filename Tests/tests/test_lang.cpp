@@ -253,6 +253,10 @@ bool LangSimpleFixtureReservedFile() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_file.simple", 0);
 }
 
+bool LangSimpleFixtureReservedIoBuffer() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_io_buffer.simple", 0);
+}
+
 bool LangSimpleFixtureReservedMathPi() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_math_pi.simple", 0);
 }
@@ -1402,6 +1406,20 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'println'") != std::string::npos;
+}
+
+bool LangValidateSystemIoBufferApis() {
+  const char* src =
+      "import system.io\n"
+      "main : i32 () {\n"
+      "  a : i32[] = io.buffer_new(4);\n"
+      "  b : i32[] = io.buffer_new(4);\n"
+      "  io.buffer_fill(a, 7, 3);\n"
+      "  io.buffer_copy(b, a, 4);\n"
+      "  return io.buffer_len(b);\n"
+      "}";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangParsesExternDecl() {
@@ -2851,6 +2869,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
+  {"lang_validate_system_io_buffer_apis", LangValidateSystemIoBufferApis},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},
@@ -2916,6 +2935,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},
   {"lang_simple_fixture_reserved_math_pi", LangSimpleFixtureReservedMathPi},
   {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
+  {"lang_simple_fixture_reserved_io_buffer", LangSimpleFixtureReservedIoBuffer},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},

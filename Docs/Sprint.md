@@ -1362,3 +1362,20 @@
   - added explicit `stdlib.v1` compatibility contract,
   - documented preferred `System.*` naming for new code,
   - added per-module happy/failure examples.
+- Added `System.io` buffer API surface with strict module ownership:
+  - `buffer_new(length) -> i32[]`
+  - `buffer_len(buffer) -> i32`
+  - `buffer_fill(buffer, value, count) -> i32`
+  - `buffer_copy(dst, src, count) -> i32`
+  - stream printing remains in `IO.print/IO.println`.
+- Wired `System.io` buffer APIs end-to-end:
+  - validator reserved members/signatures + argument diagnostics,
+  - SIR reserved import lowering to `core.io`,
+  - VM import dispatch for `core.io` functions.
+- Added coverage:
+  - language validation test for `system.io` buffer APIs,
+  - language fixture test `Tests/simple/reserved_io_buffer.simple`,
+  - LSP completion regression now verifies `io.buffer_*` members.
+- Updated docs for runtime/module contracts:
+  - `StdLib.md` now documents IO buffer helpers and `core_io` alias normalization,
+  - `VM.md` import-dispatch module list now includes `core.io`.

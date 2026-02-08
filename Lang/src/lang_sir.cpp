@@ -211,6 +211,7 @@ std::string NormalizeCoreDlMember(const std::string& name) {
 
 std::string ResolveImportModule(const std::string& module) {
   if (module == "core_os") return "core.os";
+  if (module == "core_io") return "core.io";
   if (module == "core_fs") return "core.fs";
   if (module == "core_log") return "core.log";
   if (module == "core_dl") return "core.dl";
@@ -3608,6 +3609,38 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("IO") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("IO")) {
+      std::vector<TypeRef> new_params;
+      new_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.io", "buffer_new", std::move(new_params), make_list_type("i32"))) {
+        return false;
+      }
+
+      std::vector<TypeRef> len_params;
+      len_params.push_back(make_list_type("i32"));
+      if (!add_reserved_import(alias, "core.io", "buffer_len", std::move(len_params), make_type("i32"))) {
+        return false;
+      }
+
+      std::vector<TypeRef> fill_params;
+      fill_params.push_back(make_list_type("i32"));
+      fill_params.push_back(make_type("i32"));
+      fill_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.io", "buffer_fill", std::move(fill_params), make_type("i32"))) {
+        return false;
+      }
+
+      std::vector<TypeRef> copy_params;
+      copy_params.push_back(make_list_type("i32"));
+      copy_params.push_back(make_list_type("i32"));
+      copy_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.io", "buffer_copy", std::move(copy_params), make_type("i32"))) {
+        return false;
+      }
     }
   }
 

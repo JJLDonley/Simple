@@ -68,6 +68,7 @@ Null reference sentinel is `0xFFFFFFFF`.
 Core import modules supported in runtime dispatch:
 
 - `core.os`
+- `core.io`
 - `core.fs`
 - `core.log`
 - `core.dl`

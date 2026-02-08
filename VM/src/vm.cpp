@@ -1790,6 +1790,130 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
+    if (mod == "core.io") {
+      if (sym == "buffer_new") {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "core.io.buffer_new return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.io.buffer_new arg count mismatch";
+          return false;
+        }
+        int32_t requested = UnpackI32(args[0]);
+        if (requested < 0) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        uint32_t length = static_cast<uint32_t>(requested);
+        uint32_t size = 8u + length * 4u;
+        uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+        HeapObject* obj = heap.Get(handle);
+        if (!obj) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        WriteU32Payload(obj->payload, 0, length);
+        WriteU32Payload(obj->payload, 4, length);
+        out_ret = PackRef(handle);
+        return true;
+      }
+      if (sym == "buffer_len") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.io.buffer_len return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.io.buffer_len arg count mismatch";
+          return false;
+        }
+        uint32_t buf_ref = UnpackRef(args[0]);
+        if (buf_ref == kNullRef) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        HeapObject* buf_obj = heap.Get(buf_ref);
+        if (!buf_obj || (buf_obj->header.kind != ObjectKind::List &&
+                         buf_obj->header.kind != ObjectKind::Array)) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        uint32_t length = ReadU32Payload(buf_obj->payload, 0);
+        out_ret = PackI32(static_cast<int32_t>(length));
+        return true;
+      }
+      if (sym == "buffer_fill") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.io.buffer_fill return type mismatch";
+          return false;
+        }
+        if (args.size() != 3) {
+          out_error = "core.io.buffer_fill arg count mismatch";
+          return false;
+        }
+        uint32_t buf_ref = UnpackRef(args[0]);
+        int32_t value = UnpackI32(args[1]);
+        int32_t count = UnpackI32(args[2]);
+        if (buf_ref == kNullRef || count < 0) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        HeapObject* buf_obj = heap.Get(buf_ref);
+        if (!buf_obj || (buf_obj->header.kind != ObjectKind::List &&
+                         buf_obj->header.kind != ObjectKind::Array)) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        uint32_t length = ReadU32Payload(buf_obj->payload, 0);
+        const size_t elem_base = (buf_obj->header.kind == ObjectKind::List) ? 8u : 4u;
+        uint32_t n = static_cast<uint32_t>(count);
+        if (n > length) n = length;
+        for (uint32_t i = 0; i < n; ++i) {
+          WriteU32Payload(buf_obj->payload, elem_base + i * 4, static_cast<uint32_t>(value));
+        }
+        out_ret = PackI32(static_cast<int32_t>(n));
+        return true;
+      }
+      if (sym == "buffer_copy") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.io.buffer_copy return type mismatch";
+          return false;
+        }
+        if (args.size() != 3) {
+          out_error = "core.io.buffer_copy arg count mismatch";
+          return false;
+        }
+        uint32_t dst_ref = UnpackRef(args[0]);
+        uint32_t src_ref = UnpackRef(args[1]);
+        int32_t count = UnpackI32(args[2]);
+        if (dst_ref == kNullRef || src_ref == kNullRef || count < 0) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        HeapObject* dst_obj = heap.Get(dst_ref);
+        HeapObject* src_obj = heap.Get(src_ref);
+        if (!dst_obj || (dst_obj->header.kind != ObjectKind::List &&
+                         dst_obj->header.kind != ObjectKind::Array) ||
+            !src_obj || (src_obj->header.kind != ObjectKind::List &&
+                         src_obj->header.kind != ObjectKind::Array)) {
+          out_ret = PackI32(-1);
+          return true;
+        }
+        uint32_t dst_len = ReadU32Payload(dst_obj->payload, 0);
+        uint32_t src_len = ReadU32Payload(src_obj->payload, 0);
+        const size_t dst_base = (dst_obj->header.kind == ObjectKind::List) ? 8u : 4u;
+        const size_t src_base = (src_obj->header.kind == ObjectKind::List) ? 8u : 4u;
+        uint32_t n = static_cast<uint32_t>(count);
+        if (n > dst_len) n = dst_len;
+        if (n > src_len) n = src_len;
+        for (uint32_t i = 0; i < n; ++i) {
+          uint32_t v = ReadU32Payload(src_obj->payload, src_base + i * 4);
+          WriteU32Payload(dst_obj->payload, dst_base + i * 4, v);
+        }
+        out_ret = PackI32(static_cast<int32_t>(n));
+        return true;
+      }
+    }
     if (mod == "core.log") {
       if (sym == "log") {
         out_has_ret = false;

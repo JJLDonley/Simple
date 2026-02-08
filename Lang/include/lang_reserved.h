@@ -18,7 +18,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     *out = "Math";
     return true;
   }
-  if (key == "io" || key == "system.io" || key == "system.stream") {
+  if (key == "io" || key == "system.io" || key == "system.stream" || key == "core.io") {
     *out = "IO";
     return true;
   }

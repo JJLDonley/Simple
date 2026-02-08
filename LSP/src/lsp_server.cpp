@@ -715,7 +715,7 @@ std::string DefaultImportAlias(const std::string& path) {
 
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
   static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
-      {"IO", {"print", "println"}},
+      {"IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
       {"Math", {"abs", "min", "max", "pi"}},
       {"Time", {"mono_ns", "wall_ns"}},
       {"File", {"open", "close", "read", "write"}},
@@ -837,6 +837,26 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "print" || member == "println") {
       out->params = {"value"};
       out->return_type = "void";
+      return true;
+    }
+    if (member == "buffer_new") {
+      out->params = {"length"};
+      out->return_type = "i32[]";
+      return true;
+    }
+    if (member == "buffer_len") {
+      out->params = {"buffer"};
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "buffer_fill") {
+      out->params = {"buffer", "value", "count"};
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "buffer_copy") {
+      out->params = {"dst", "src", "count"};
+      out->return_type = "i32";
       return true;
     }
     return false;

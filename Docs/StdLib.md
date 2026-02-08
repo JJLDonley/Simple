@@ -33,7 +33,7 @@ Legacy aliases remain supported for compatibility (`IO`, `File`, `Core.*`, `Syst
 | Import Path | Runtime Namespace | Backend |
 |---|---|---|
 | `Math` | `core.math` | intrinsics |
-| `IO` | `core.io` | intrinsics |
+| `IO` | `core.io` | intrinsics + import calls |
 | `Time` | `core.time` | intrinsics |
 | `File` | `core.fs` | import calls |
 | `Core.DL` | `core.dl` | import calls |
@@ -64,6 +64,10 @@ Stdlib surface follows a contract tag: `stdlib.v1`.
 - `IO.println(x)`
 - `IO.print("format {} ...", args...)`
 - `IO.println("format {} ...", args...)`
+- `IO.buffer_new(length: i32) -> i32[]`
+- `IO.buffer_len(buffer: i32[]) -> i32`
+- `IO.buffer_fill(buffer: i32[], value: i32, count: i32) -> i32`
+- `IO.buffer_copy(dst: i32[], src: i32[], count: i32) -> i32`
 
 Format-call rules:
 - first argument must be a string literal,
@@ -80,6 +84,15 @@ Failure path:
 ```simple
 import system.io
 io.println("x={}, y={}", 1) // placeholder mismatch
+```
+
+Buffer helpers:
+```simple
+import system.io
+src: i32[] = io.buffer_new(8)
+io.buffer_fill(src, 65, 8)
+dst: i32[] = io.buffer_new(8)
+io.buffer_copy(dst, src, 8)
 ```
 
 ### Time
@@ -175,6 +188,7 @@ Explicit limitation:
 Compiler alias normalization for extern modules:
 
 - `core_os` -> `core.os`
+- `core_io` -> `core.io`
 - `core_fs` -> `core.fs`
 - `core_log` -> `core.log`
 - `core_dl` -> `core.dl`

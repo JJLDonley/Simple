@@ -757,7 +757,7 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import system.io\\nio.pr\"}}}";
+      "\"text\":\"import system.io\\nio.bu\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":47,\"method\":\"textDocument/completion\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
@@ -776,8 +776,8 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
-         out_contents.find("\"label\":\"io.print\"") != std::string::npos &&
-         out_contents.find("\"label\":\"io.println\"") != std::string::npos;
+         out_contents.find("\"label\":\"io.buffer_new\"") != std::string::npos &&
+         out_contents.find("\"label\":\"io.buffer_copy\"") != std::string::npos;
 }
 
 bool LspSignatureHelpReturnsSignature() {

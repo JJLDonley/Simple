@@ -242,7 +242,7 @@ size_t EditDistance(const std::string& a, const std::string& b) {
 }
 
 std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
-  if (resolved == "IO") return {"print", "println"};
+  if (resolved == "IO") return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
   if (resolved == "Math") return {"abs", "min", "max", "PI"};
   if (resolved == "Time") return {"mono_ns", "wall_ns"};
   if (resolved == "Core.DL") {
@@ -390,6 +390,36 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   if (resolved == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "IO") {
+    if (member == "buffer_new") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeListType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "buffer_len") {
+      out->params.push_back(MakeListType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "buffer_fill") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "buffer_copy") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -1810,7 +1840,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
     const Expr& base = callee.children[0];
     std::string module_name;
     if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
-      const std::string& mod = module_name;
+      std::string mod = module_name;
+      std::string resolved_mod;
+      if (ResolveReservedModuleName(ctx, module_name, &resolved_mod)) mod = resolved_mod;
       const std::string& name = callee.text;
       auto infer_arg = [&](size_t index, TypeRef* out_type) -> bool {
         if (!out_type) return false;
@@ -1842,6 +1874,53 @@ bool CheckCallArgTypes(const Expr& call_expr,
           };
           if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
             if (error) *error = "Math." + name + " expects two numeric arguments of the same type";
+            return false;
+          }
+          return true;
+        }
+      }
+      if (mod == "IO") {
+        if (name == "buffer_new") {
+          if (call_expr.args.size() != 1) return true;
+          TypeRef len;
+          if (!infer_arg(0, &len)) return true;
+          if (len.name != "i32" || !len.dims.empty()) {
+            if (error) *error = "IO.buffer_new expects (i32)";
+            return false;
+          }
+          return true;
+        }
+        if (name == "buffer_len") {
+          if (call_expr.args.size() != 1) return true;
+          TypeRef buf;
+          if (!infer_arg(0, &buf)) return true;
+          if (!is_i32_buffer(buf)) {
+            if (error) *error = "IO.buffer_len expects (i32[])";
+            return false;
+          }
+          return true;
+        }
+        if (name == "buffer_fill") {
+          if (call_expr.args.size() != 3) return true;
+          TypeRef buf;
+          TypeRef value;
+          TypeRef count;
+          if (!infer_arg(0, &buf) || !infer_arg(1, &value) || !infer_arg(2, &count)) return true;
+          if (!is_i32_buffer(buf) || value.name != "i32" || !value.dims.empty() ||
+              count.name != "i32" || !count.dims.empty()) {
+            if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
+            return false;
+          }
+          return true;
+        }
+        if (name == "buffer_copy") {
+          if (call_expr.args.size() != 3) return true;
+          TypeRef dst;
+          TypeRef src;
+          TypeRef count;
+          if (!infer_arg(0, &dst) || !infer_arg(1, &src) || !infer_arg(2, &count)) return true;
+          if (!is_i32_buffer(dst) || !is_i32_buffer(src) || count.name != "i32" || !count.dims.empty()) {
+            if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
             return false;
           }
           return true;
