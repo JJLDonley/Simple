@@ -680,6 +680,39 @@ bool LspCompletionSuggestsReservedImportModules() {
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
+bool LspCompletionSuggestsReservedImportModulesUnquoted() {
+  const std::string in_path = TempPath("simple_lsp_completion_import_unquoted_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_import_unquoted_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_import_unquoted_err.txt");
+  const std::string uri = "file:///workspace/import_complete_unquoted.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Sys\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":46,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":10}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":46") != std::string::npos &&
+         out_contents.find("\"label\":\"System.io\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.dl\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.os\"") != std::string::npos;
+}
+
 bool LspCompletionIncludesReservedModuleAliasMembers() {
   const std::string in_path = TempPath("simple_lsp_completion_alias_member_in.txt");
   const std::string out_path = TempPath("simple_lsp_completion_alias_member_out.txt");
@@ -713,6 +746,38 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
          out_contents.find("\"label\":\"DL.call_str0\"") != std::string::npos &&
          out_contents.find("\"label\":\"DL.open\"") == std::string::npos &&
          out_contents.find("\"label\":\"import\"") == std::string::npos;
+}
+
+bool LspCompletionIncludesSystemImplicitAliasMembers() {
+  const std::string in_path = TempPath("simple_lsp_completion_system_implicit_alias_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_system_implicit_alias_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_system_implicit_alias_err.txt");
+  const std::string uri = "file:///workspace/complete_system_implicit_alias.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import system.io\\nio.pr\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":47,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":47") != std::string::npos &&
+         out_contents.find("\"label\":\"io.print\"") != std::string::npos &&
+         out_contents.find("\"label\":\"io.println\"") != std::string::npos;
 }
 
 bool LspSignatureHelpReturnsSignature() {
@@ -1984,7 +2049,10 @@ const TestCase kLspTests[] = {
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
   {"lsp_completion_filters_member_suffix_by_receiver", LspCompletionFiltersMemberSuffixByReceiver},
   {"lsp_completion_suggests_reserved_import_modules", LspCompletionSuggestsReservedImportModules},
+  {"lsp_completion_suggests_reserved_import_modules_unquoted",
+   LspCompletionSuggestsReservedImportModulesUnquoted},
   {"lsp_completion_includes_reserved_module_alias_members", LspCompletionIncludesReservedModuleAliasMembers},
+  {"lsp_completion_includes_system_implicit_alias_members", LspCompletionIncludesSystemImplicitAliasMembers},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},
   {"lsp_signature_help_returns_format_signature", LspSignatureHelpReturnsFormatSignature},

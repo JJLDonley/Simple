@@ -638,21 +638,38 @@ bool ImportPrefixAtPosition(const std::string& text,
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return false;
   const size_t cursor = std::min<size_t>(character, line_text.size());
-  if (cursor == 0) return false;
-  const size_t quote = line_text.rfind('"', cursor - 1);
-  if (quote == std::string::npos) return false;
-  const size_t close_quote = line_text.find('"', quote + 1);
-  if (close_quote != std::string::npos && close_quote < cursor) return false;
+  if (cursor == 0 || cursor > line_text.size()) return false;
 
-  size_t token_end = quote;
-  while (token_end > 0 && std::isspace(static_cast<unsigned char>(line_text[token_end - 1]))) --token_end;
-  size_t token_begin = token_end;
-  while (token_begin > 0 && IsIdentChar(line_text[token_begin - 1])) --token_begin;
-  if (token_end <= token_begin || line_text.substr(token_begin, token_end - token_begin) != "import") {
-    return false;
+  size_t first = 0;
+  while (first < line_text.size() && std::isspace(static_cast<unsigned char>(line_text[first]))) ++first;
+  if (line_text.compare(first, 6, "import") != 0) return false;
+  size_t pos = first + 6;
+  if (pos < line_text.size() && !std::isspace(static_cast<unsigned char>(line_text[pos]))) return false;
+  while (pos < line_text.size() && std::isspace(static_cast<unsigned char>(line_text[pos]))) ++pos;
+  if (pos >= line_text.size() || cursor <= pos) return false;
+
+  if (line_text[pos] == '"') {
+    const size_t quote = line_text.rfind('"', cursor - 1);
+    if (quote == std::string::npos) return false;
+    const size_t close_quote = line_text.find('"', quote + 1);
+    if (close_quote != std::string::npos && close_quote < cursor) return false;
+    size_t token_end = quote;
+    while (token_end > 0 && std::isspace(static_cast<unsigned char>(line_text[token_end - 1]))) --token_end;
+    size_t token_begin = token_end;
+    while (token_begin > 0 && IsIdentChar(line_text[token_begin - 1])) --token_begin;
+    if (token_end <= token_begin || line_text.substr(token_begin, token_end - token_begin) != "import") {
+      return false;
+    }
+    *out_prefix = line_text.substr(quote + 1, cursor - (quote + 1));
+    return true;
   }
-  *out_prefix = line_text.substr(quote + 1, cursor - (quote + 1));
-  return true;
+
+  for (size_t i = pos; i < cursor; ++i) {
+    const char c = line_text[i];
+    if (!(IsIdentChar(c) || c == '.')) return false;
+  }
+  *out_prefix = line_text.substr(pos, cursor - pos);
+  return !out_prefix->empty();
 }
 
 std::vector<std::string> CollectImportCandidates(

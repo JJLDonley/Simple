@@ -9,6 +9,7 @@
     { "include": "#numbers" },
     { "include": "#keywords" },
     { "include": "#types" },
+    { "include": "#symbols" },
     { "include": "#operators" }
   ],
   "repository": {
@@ -92,6 +93,32 @@
         {
           "name": "storage.type.simple",
           "match": "\\b(?:void|bool|char|string|i8|i16|i32|i64|i128|u8|u16|u32|u64|u128|f32|f64)\\b"
+        }
+      ]
+    },
+    "symbols": {
+      "patterns": [
+        {
+          "name": "meta.member.function.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "variable.other.object.simple" },
+            "2": { "name": "punctuation.accessor.dot.simple" },
+            "3": { "name": "entity.name.function.member.simple" }
+          }
+        },
+        {
+          "name": "meta.member.access.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "variable.other.object.simple" },
+            "2": { "name": "punctuation.accessor.dot.simple" },
+            "3": { "name": "variable.other.member.simple" }
+          }
+        },
+        {
+          "name": "entity.name.function.call.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()"
         }
       ]
     },

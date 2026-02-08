@@ -1334,3 +1334,13 @@
 - Fixed CLI help flag handling for installed `simple` binary UX:
   - `simple --help`, `simple -h`, and `simple help` now print usage and exit successfully,
   - avoids misclassifying `--help` as an input path (previously emitted `simple expects .simple input`).
+- Improved LSP completion ergonomics for `System.*` imports:
+  - `textDocument/completion` now detects unquoted import prefix contexts (for example `import Sys`) and returns reserved module suggestions.
+  - added completion coverage for implicit alias member discovery from `import system.io` (for example `io.print`, `io.println`).
+- Improved VS Code TextMate highlighting for JS-like symbol readability:
+  - added explicit member/method scopes for dotted expressions (`object.member`, `object.method(...)`),
+  - added dedicated dot-operator scope,
+  - added function-call identifier scopes to improve visual distinction between symbols and plain identifiers.
+- Added LSP regression coverage:
+  - `lsp_completion_suggests_reserved_import_modules_unquoted`
+  - `lsp_completion_includes_system_implicit_alias_members`
