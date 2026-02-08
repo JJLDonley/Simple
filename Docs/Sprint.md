@@ -1344,3 +1344,6 @@
 - Added LSP regression coverage:
   - `lsp_completion_suggests_reserved_import_modules_unquoted`
   - `lsp_completion_includes_system_implicit_alias_members`
+- Fixed VS Code extension activation packaging regression:
+  - removed `node_modules` exclusion from `Editor/vscode-simple/.vscodeignore` so VSIX includes `vscode-languageclient` runtime dependency.
+  - documented recovery for `Cannot find module 'vscode-languageclient/node'` activation errors in extension README.

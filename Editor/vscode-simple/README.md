@@ -37,3 +37,7 @@ This extension wires VS Code to the `simple lsp` language server and provides Te
 ## Notes
 
 This extension expects the CLI to support the `lsp` command and be available on your `PATH` (or configured via `simple.lspPath`).
+
+Packaging note:
+- Runtime dependency `vscode-languageclient` must be included in the VSIX (`extension/node_modules/...`).
+- If activation fails with `Cannot find module 'vscode-languageclient/node'`, rebuild the VSIX after `npm install` and reinstall it.
