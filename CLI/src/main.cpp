@@ -681,7 +681,7 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
 int main(int argc, char** argv) {
   const std::string tool_name = BaseName(argv[0]);
   const bool simple_only = (tool_name == "simple");
-  if (argc < 2) {
+  auto print_usage = [&]() {
     std::cerr << "usage:\n";
     if (simple_only) {
       std::cerr << "  " << tool_name << " run <file.simple> [--no-verify]\n"
@@ -704,7 +704,16 @@ int main(int argc, char** argv) {
                 << "  " << tool_name << " lsp\n"
                 << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
     }
+  };
+  if (argc < 2) {
+    print_usage();
     return 1;
+  }
+
+  if (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h" ||
+      std::string(argv[1]) == "help") {
+    print_usage();
+    return 0;
   }
 
   const std::string cmd = argv[1];

@@ -1331,3 +1331,6 @@
   - added incremental object caching for CLI/link targets (avoids recompiling CLI + front-end sources every run),
   - auto-uses `ccache` when available,
   - added `--no-tests` flag to build artifacts without running the test executable (fast iteration mode).
+- Fixed CLI help flag handling for installed `simple` binary UX:
+  - `simple --help`, `simple -h`, and `simple help` now print usage and exit successfully,
+  - avoids misclassifying `--help` as an input path (previously emitted `simple expects .simple input`).
