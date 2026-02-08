@@ -55,6 +55,31 @@ h1 { font-size: clamp(2.2rem, 7vw, 5rem); line-height: 0.95; margin: 0.2rem 0 1r
   margin: 1rem 0;
 }
 
+.vm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  margin-bottom: 0.85rem;
+}
+
+.vm-item {
+  background: #fff6e7;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.vm-item h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.98rem;
+}
+
+.vm-item p {
+  margin: 0;
+  color: #3d3931;
+  font-size: 0.96rem;
+}
+
 pre {
   overflow-x: auto;
   padding: 0.9rem;
@@ -103,6 +128,7 @@ ul { margin: 0.6rem 0 0; padding-left: 1.2rem; }
 
 @media (max-width: 900px) {
   .grid-3 { grid-template-columns: 1fr; }
+  .vm-grid { grid-template-columns: 1fr; }
   .lang-grid { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; }
 }

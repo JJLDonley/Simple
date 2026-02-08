@@ -54,8 +54,51 @@ simple emit -ir Tests/simple/math.simple --out math.sir
 # emit bytecode artifact
 simple emit -sbc Tests/simple/hello.simple --out hello.sbc
 
+# run bytecode directly in the VM
+simplevm run hello.sbc
+
 # check correctness only
 simple check Tests/simple/hello.simple</code></pre>
+    </section>
+
+    <section id="vm-details" class="panel">
+      <h2>Bytecode VM: Detailed Breakdown</h2>
+      <p>The VM is designed as a clean host boundary: deterministic bytecode execution, validated input, and explicit system-facing imports.</p>
+      <div class="vm-grid">
+        <article class="vm-item">
+          <h3>1) Loader + Artifact Model</h3>
+          <p>`.sbc` artifacts are loaded with explicit sections for code, constants, and metadata. The runtime resolves symbols and function entry points before execution starts.</p>
+        </article>
+        <article class="vm-item">
+          <h3>2) Verifier</h3>
+          <p>The verifier checks structural and type invariants before execution: bad opcodes, malformed control flow, and invalid signatures fail early.</p>
+        </article>
+        <article class="vm-item">
+          <h3>3) Interpreter Core</h3>
+          <p>The interpreter executes stack/register operations with strict runtime checks. The model favors predictable semantics and easy debugging over opaque optimization.</p>
+        </article>
+        <article class="vm-item">
+          <h3>4) System Libraries</h3>
+          <p>Core features are segmented into modules (I/O streams, files, math, OS, DL). This keeps VM behavior explicit and allows policy decisions by module.</p>
+        </article>
+        <article class="vm-item">
+          <h3>5) Embedding Boundary</h3>
+          <p>Host applications can load bytecode, expose externs, and control execution lifecycle. This makes the VM usable for tools, plugins, and app scripting.</p>
+        </article>
+        <article class="vm-item">
+          <h3>6) Safety + Performance Modes</h3>
+          <p>Current focus is correctness and testability. Optional JIT/fast paths can be layered without changing the language contract or artifact shape.</p>
+        </article>
+      </div>
+      <pre><code># inspect pipeline output
+simple emit -ir Tests/simple/fib_iter.simple --out fib.sir
+simple emit -sbc Tests/simple/fib_iter.simple --out fib.sbc
+
+# VM execution path
+simplevm run fib.sbc
+
+# language execution path (compile + execute)
+simple run Tests/simple/fib_iter.simple</code></pre>
     </section>
 
     <section id="language" class="panel">
@@ -111,6 +154,38 @@ simple check Tests/simple/hello.simple</code></pre>
       <div class="note">
         <p><strong>Design intent:</strong> keep the stack understandable and hackable while still practical enough for real embedding workflows.</p>
       </div>
+    </section>
+
+    <section id="stdlib" class="panel">
+      <h2>System Library Surface</h2>
+      <p>Simple keeps runtime features modular so programs can import only what they need.</p>
+      <div class="vm-grid">
+        <article class="vm-item">
+          <h3>Streams / IO</h3>
+          <p>Console and stream-style output flows for scripts and tools.</p>
+        </article>
+        <article class="vm-item">
+          <h3>File + FS</h3>
+          <p>Open, close, read, and write workflows for local artifacts and automation.</p>
+        </article>
+        <article class="vm-item">
+          <h3>Math + Time</h3>
+          <p>Numeric helpers and time-related operations for deterministic utility code.</p>
+        </article>
+        <article class="vm-item">
+          <h3>OS + DL</h3>
+          <p>Platform and dynamic-library boundaries for native interop and host integration.</p>
+        </article>
+      </div>
+      <pre class="code-simple"><code><span class="tok-kw">import</span> <span class="tok-str">"System.io"</span>
+<span class="tok-kw">import</span> <span class="tok-str">"System.math"</span>
+
+<span class="tok-fn">main</span> : <span class="tok-type">i32</span> () {
+  <span class="tok-id">io</span>.<span class="tok-fn">println</span>(<span class="tok-str">"ready"</span>)
+  <span class="tok-id">n</span> : <span class="tok-type">i32</span> = <span class="tok-num">16</span>
+  <span class="tok-id">io</span>.<span class="tok-fn">println</span>(<span class="tok-str">"sqrt(n) = {}"</span>, <span class="tok-id">math</span>.<span class="tok-fn">sqrt</span>(<span class="tok-id">n</span>))
+  <span class="tok-kw">return</span> <span class="tok-num">0</span>
+}</code></pre>
     </section>
 
     <section id="start" class="panel">
