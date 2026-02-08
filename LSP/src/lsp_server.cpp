@@ -430,6 +430,10 @@ struct ReservedSignature {
 bool ResolveReservedModuleSignature(const std::string& call_name,
                                     const std::string& text,
                                     ReservedSignature* out);
+bool ResolveImportedModuleAndMember(const std::string& call_name,
+                                    const std::string& text,
+                                    std::string* out_module,
+                                    std::string* out_member);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -763,14 +767,9 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (!out) return false;
   out->params.clear();
   out->return_type.clear();
-  const size_t dot = call_name.find('.');
-  if (dot == std::string::npos || dot == 0 || dot + 1 >= call_name.size()) return false;
-  const std::string alias = call_name.substr(0, dot);
-  std::string member = call_name.substr(dot + 1);
-  const auto aliases = CollectImportAliasMap(text);
-  const auto alias_it = aliases.find(alias);
-  if (alias_it == aliases.end()) return false;
-  const std::string& module = alias_it->second;
+  std::string module;
+  std::string member;
+  if (!ResolveImportedModuleAndMember(call_name, text, &module, &member)) return false;
   if (module == "Math") {
     if (member == "abs") {
       out->params = {"value"};
@@ -870,6 +869,25 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     return false;
   }
   return false;
+}
+
+bool ResolveImportedModuleAndMember(const std::string& call_name,
+                                    const std::string& text,
+                                    std::string* out_module,
+                                    std::string* out_member) {
+  if (!out_module || !out_member) return false;
+  const size_t dot = call_name.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 >= call_name.size()) return false;
+  const std::string alias = call_name.substr(0, dot);
+  std::string member = call_name.substr(dot + 1);
+  const auto aliases = CollectImportAliasMap(text);
+  const auto alias_it = aliases.find(alias);
+  if (alias_it == aliases.end()) return false;
+  std::string module = alias_it->second;
+  if (module == "Core.DL") member = NormalizeCoreDlMember(member);
+  *out_module = std::move(module);
+  *out_member = std::move(member);
+  return true;
 }
 
 void ReplyHover(std::ostream& out,
@@ -1033,6 +1051,25 @@ void ReplySignatureHelp(std::ostream& out,
   const std::string call_name = CallNameAtPosition(it->second, line, character);
   const uint32_t active_parameter = ActiveParameterAtPosition(it->second, line, character);
   if (call_name == "IO.println" || call_name == "IO.print") {
+    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
+    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":["
+            "{\"label\":\"" + call_name +
+            "(value)\",\"parameters\":[{\"label\":\"value\"}]},"
+            "{\"label\":\"" + call_name +
+            "(format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
+            "],\"activeSignature\":" + std::to_string(active_signature) +
+            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
+    return;
+  }
+
+  std::string imported_module;
+  std::string imported_member;
+  if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
+      imported_module == "IO" && (imported_member == "print" || imported_member == "println")) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(

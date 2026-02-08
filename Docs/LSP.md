@@ -83,6 +83,7 @@ Primary goals:
 - builtins:
   - `IO.print(value)` / `IO.println(value)`
   - `IO.print(format, values...)` / `IO.println(format, values...)` for `{}` format-placeholder calls
+- IO aliases imported via `as` keep the same overloaded signature-help behavior (for example `Out.println(format, values...)`)
 - language casts:
   - `@T(value)` cast-call signature help (for example `@i32(value)`)
 - reserved imported modules (including `as` aliases):

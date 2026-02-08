@@ -136,6 +136,7 @@ Status:
 - completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
 - code-action quick-fix declaration insertion respects top-of-file import headers.
 - signature help now resolves reserved-module alias members with parameter labels (for example `OS.args_get(index)`).
+- signature help now preserves IO format/value overload semantics for IO aliases imported via `as`.
 - hover now renders reserved-module alias callable signatures (for example `OS.args_get(index) -> string`) when no local declaration type exists.
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 - signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.

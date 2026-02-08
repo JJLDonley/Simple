@@ -1252,3 +1252,9 @@
 - Added regression coverage for reserved alias hover signatures:
   - new test validates `textDocument/hover` on `OS.args_get` returns signature + return type markdown content.
 - Updated LSP and implementation docs to reflect reserved alias hover enrichment behavior.
+- Extended LSP signature help for IO aliases:
+  - alias-qualified IO calls now use the same dual signature model as direct IO calls (`value` and `format, values...`).
+  - `textDocument/signatureHelp` now returns correct active signature/parameter for calls like `Out.println("x={}", 1)` after `import "IO" as Out`.
+- Added regression coverage for IO alias signature-help behavior:
+  - new test validates format-call signature label and active argument indexing for alias-qualified IO print calls.
+- Updated LSP and implementation docs to reflect IO alias overload support.
