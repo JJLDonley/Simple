@@ -87,9 +87,19 @@ jobs:
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          if (Test-Path Env:VCPKG_ROOT) { Remove-Item Env:VCPKG_ROOT }
           git clone https://github.com/microsoft/vcpkg.git $vcpkgRoot
           & "$vcpkgRoot/bootstrap-vcpkg.bat"
-          & "$vcpkgRoot/vcpkg.exe" install libffi:x64-windows
+          $env:VCPKG_ROOT = $vcpkgRoot
+          $env:VCPKG_FORCE_SYSTEM_BINARIES = "1"
+          $maxAttempts = 4
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            & "$vcpkgRoot/vcpkg.exe" install libffi:x64-windows
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq $maxAttempts) { exit $LASTEXITCODE }
+            Write-Host "vcpkg install failed (attempt $attempt/$maxAttempts), retrying in 15s..."
+            Start-Sleep -Seconds 15
+          }
           "VCPKG_INSTALLATION_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build + package (Linux/macOS)
