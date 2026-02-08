@@ -1350,6 +1350,27 @@ bool LangParsesImportDeclAlias() {
   return true;
 }
 
+bool LangParsesImportDeclUnquotedPath() {
+  const char* src = "import System.io";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Import) return false;
+  if (decl.import_decl.path != "System.io") return false;
+  if (decl.import_decl.has_alias) return false;
+  return true;
+}
+
+bool LangValidateSystemImportCaseInsensitive() {
+  const char* src =
+      "import sYsTeM.iO as IO\n"
+      "main : void () { IO.println(1); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangParsesExternDecl() {
   const char* src = "extern Ray.InitWindow : void (w : i32, h : i32)";
   Simple::Lang::Program program;
@@ -2791,6 +2812,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_module_decl", LangParsesModuleDecl},
   {"lang_parse_import_decl", LangParsesImportDecl},
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
+  {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
+  {"lang_validate_system_import_case_insensitive", LangValidateSystemImportCaseInsensitive},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},

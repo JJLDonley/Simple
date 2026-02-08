@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "lang_parser.h"
+#include "lang_reserved.h"
 
 namespace Simple::Lang {
 namespace {
@@ -73,20 +74,6 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
   "bool", "char", "string",
 };
 
-bool IsReservedImportPath(const std::string& path) {
-  static const std::unordered_set<std::string> kReserved = {
-    "Math",
-    "IO",
-    "Time",
-    "File",
-    "Core.DL",
-    "Core.Os",
-    "Core.Fs",
-    "Core.Log",
-  };
-  return kReserved.find(path) != kReserved.end();
-}
-
 bool IsPrimitiveCastName(const std::string& name) {
   if (name == "string") return false;
   return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
@@ -135,16 +122,21 @@ bool CountFormatPlaceholders(const std::string& fmt,
 }
 
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
-  return ctx.reserved_imports.find(name) != ctx.reserved_imports.end() ||
-         ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end();
+  if (ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end()) return true;
+  if (ctx.reserved_imports.find(name) != ctx.reserved_imports.end()) return true;
+  std::string canonical;
+  if (!CanonicalizeReservedImportPath(name, &canonical)) return false;
+  return ctx.reserved_imports.find(canonical) != ctx.reserved_imports.end();
 }
 
 bool ResolveReservedModuleName(const ValidateContext& ctx,
                                const std::string& name,
                                std::string* out) {
   if (!out) return false;
-  if (ctx.reserved_imports.find(name) != ctx.reserved_imports.end()) {
-    *out = name;
+  std::string canonical;
+  if (CanonicalizeReservedImportPath(name, &canonical) &&
+      ctx.reserved_imports.find(canonical) != ctx.reserved_imports.end()) {
+    *out = canonical;
     return true;
   }
   auto it = ctx.reserved_import_aliases.find(name);
@@ -163,8 +155,9 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
     const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier && root.text == "Core") {
-      *out = "Core." + base.text;
+    if (root.kind == ExprKind::Identifier &&
+        (root.text == "Core" || root.text == "System")) {
+      *out = root.text + "." + base.text;
       return true;
     }
   }
@@ -3338,15 +3331,18 @@ bool ValidateProgram(const Program& program, std::string* error) {
     const std::string* name_ptr = nullptr;
     switch (decl.kind) {
       case DeclKind::Import:
-        if (!IsReservedImportPath(decl.import_decl.path)) {
+      {
+        std::string canonical_import;
+        if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
           if (error) *error = "unsupported import path: " + decl.import_decl.path;
           return false;
         }
-        ctx.reserved_imports.insert(decl.import_decl.path);
+        ctx.reserved_imports.insert(canonical_import);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
-          ctx.reserved_import_aliases[decl.import_decl.alias] = decl.import_decl.path;
+          ctx.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
         }
         break;
+      }
       case DeclKind::Extern:
         if (decl.ext.has_module) {
           ctx.externs_by_module[decl.ext.module][decl.ext.name] = &decl.ext;

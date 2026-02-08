@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "lang_lexer.h"
+#include "lang_reserved.h"
 #include "lang_token.h"
 #include "lang_validate.h"
 
@@ -371,6 +372,59 @@ std::string TrimLeftAscii(const std::string& text) {
   return text.substr(i);
 }
 
+bool IsIdentChar(char c);
+std::string DefaultImportAlias(const std::string& path);
+bool IsValidIdentifierName(const std::string& name);
+
+bool ParseImportDeclLine(const std::string& line_text,
+                         std::string* out_import_path,
+                         std::string* out_alias) {
+  if (!out_import_path || !out_alias) return false;
+  const std::string trimmed = TrimLeftAscii(line_text);
+  if (trimmed.rfind("import", 0) != 0 ||
+      (trimmed.size() > 6 && !std::isspace(static_cast<unsigned char>(trimmed[6])))) {
+    return false;
+  }
+  size_t pos = 6;
+  while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
+  if (pos >= trimmed.size()) return false;
+
+  std::string import_path;
+  if (trimmed[pos] == '"') {
+    ++pos;
+    const size_t end_quote = trimmed.find('"', pos);
+    if (end_quote == std::string::npos) return false;
+    import_path = trimmed.substr(pos, end_quote - pos);
+    pos = end_quote + 1;
+  } else {
+    size_t end = pos;
+    while (end < trimmed.size()) {
+      const char c = trimmed[end];
+      if (std::isspace(static_cast<unsigned char>(c)) || c == ';') break;
+      if (!(IsIdentChar(c) || c == '.')) break;
+      ++end;
+    }
+    if (end == pos) return false;
+    import_path = trimmed.substr(pos, end - pos);
+    pos = end;
+  }
+
+  std::string alias = DefaultImportAlias(import_path);
+  while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
+  if (pos + 2 <= trimmed.size() && trimmed.compare(pos, 2, "as") == 0) {
+    pos += 2;
+    while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
+    size_t alias_end = pos;
+    while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
+    if (alias_end > pos) alias = trimmed.substr(pos, alias_end - pos);
+  }
+  if (!IsValidIdentifierName(alias)) return false;
+
+  *out_import_path = std::move(import_path);
+  *out_alias = std::move(alias);
+  return true;
+}
+
 bool StartsWithImportLine(const std::string& line_text) {
   const std::string trimmed = TrimLeftAscii(line_text);
   return trimmed.rfind("import", 0) == 0 &&
@@ -604,6 +658,8 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
+      "System.io", "System.math", "System.time", "System.file", "System.dl",
+      "System.os", "System.fs", "System.log", "System.stream",
       "IO", "Math", "Time", "File", "Core.DL", "Core.Os", "Core.Fs", "Core.Log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
@@ -660,30 +716,15 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
   for (size_t i = 0; i <= text.size(); ++i) {
     if (i != text.size() && text[i] != '\n') continue;
     const std::string line = text.substr(start, i - start);
-    std::string trimmed = TrimLeftAscii(line);
-    if (trimmed.rfind("import", 0) == 0) {
-      size_t pos = 6;
-      while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
-      if (pos < trimmed.size() && trimmed[pos] == '"') {
-        ++pos;
-        const size_t end_quote = trimmed.find('"', pos);
-        if (end_quote != std::string::npos) {
-          const std::string import_path = trimmed.substr(pos, end_quote - pos);
-          std::string alias = DefaultImportAlias(import_path);
-          size_t tail = end_quote + 1;
-          while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
-          if (tail + 2 <= trimmed.size() && trimmed.compare(tail, 2, "as") == 0) {
-            tail += 2;
-            while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
-            size_t alias_end = tail;
-            while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
-            if (alias_end > tail) alias = trimmed.substr(tail, alias_end - tail);
-          }
-          const auto mod_it = kModuleMembers.find(import_path);
-          if (mod_it != kModuleMembers.end() && IsValidIdentifierName(alias)) {
-            for (const auto& member : mod_it->second) {
-              labels.insert(alias + "." + member);
-            }
+    std::string import_path;
+    std::string alias;
+    if (ParseImportDeclLine(line, &import_path, &alias)) {
+      std::string canonical;
+      if (Simple::Lang::CanonicalizeReservedImportPath(import_path, &canonical)) {
+        const auto mod_it = kModuleMembers.find(canonical);
+        if (mod_it != kModuleMembers.end()) {
+          for (const auto& member : mod_it->second) {
+            labels.insert(alias + "." + member);
           }
         }
       }
@@ -724,27 +765,14 @@ std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::st
   for (size_t i = 0; i <= text.size(); ++i) {
     if (i != text.size() && text[i] != '\n') continue;
     const std::string line = text.substr(start, i - start);
-    const std::string trimmed = TrimLeftAscii(line);
-    if (trimmed.rfind("import", 0) == 0) {
-      size_t pos = 6;
-      while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
-      if (pos < trimmed.size() && trimmed[pos] == '"') {
-        ++pos;
-        const size_t end_quote = trimmed.find('"', pos);
-        if (end_quote != std::string::npos) {
-          const std::string import_path = trimmed.substr(pos, end_quote - pos);
-          std::string alias = DefaultImportAlias(import_path);
-          size_t tail = end_quote + 1;
-          while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
-          if (tail + 2 <= trimmed.size() && trimmed.compare(tail, 2, "as") == 0) {
-            tail += 2;
-            while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
-            size_t alias_end = tail;
-            while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
-            if (alias_end > tail) alias = trimmed.substr(tail, alias_end - tail);
-          }
-          if (IsValidIdentifierName(alias)) aliases[alias] = import_path;
-        }
+    std::string import_path;
+    std::string alias;
+    if (ParseImportDeclLine(line, &import_path, &alias)) {
+      std::string canonical;
+      if (Simple::Lang::CanonicalizeReservedImportPath(import_path, &canonical)) {
+        aliases[alias] = canonical;
+      } else {
+        aliases[alias] = import_path;
       }
     }
     start = i + 1;

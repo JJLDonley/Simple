@@ -99,6 +99,22 @@ Composite/supporting types:
 
 Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Docs/StdLib.md`.
 
+`System.*` import aliases are also accepted (case-insensitive) and map to the same runtime modules:
+
+- `System.io` / `System.stream` -> `IO`
+- `System.math` -> `Math`
+- `System.time` -> `Time`
+- `System.file` -> `File`
+- `System.dl` -> `Core.DL`
+- `System.os` -> `Core.Os`
+- `System.fs` -> `Core.Fs`
+- `System.log` -> `Core.Log`
+
+Import declarations accept both quoted and unquoted module paths:
+
+- `import "Core.DL" as DL`
+- `import System.dl as DL`
+
 ### Project-Local Imports (CLI)
 
 For `.simple` entry files compiled through CLI commands (`run/check/build/compile/emit -ir/-sbc`):

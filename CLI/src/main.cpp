@@ -17,6 +17,7 @@
 #include "ir_compiler.h"
 #include "ir_lang.h"
 #include "lang_parser.h"
+#include "lang_reserved.h"
 #include "lang_validate.h"
 #include "lang_sir.h"
 #include "lsp_server.h"
@@ -36,20 +37,6 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   buffer << in.rdbuf();
   *out = buffer.str();
   return true;
-}
-
-bool IsReservedImportPath(const std::string& path) {
-  static const std::unordered_set<std::string> kReserved = {
-    "Math",
-    "IO",
-    "Time",
-    "File",
-    "Core.DL",
-    "Core.Os",
-    "Core.Fs",
-    "Core.Log",
-  };
-  return kReserved.find(path) != kReserved.end();
 }
 
 bool LooksLikeProjectRoot(const std::filesystem::path& root) {
@@ -221,7 +208,7 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
   const fs::path base_dir = canon.parent_path();
   for (const auto& decl : program.decls) {
     if (decl.kind != Simple::Lang::DeclKind::Import) continue;
-    if (IsReservedImportPath(decl.import_decl.path)) continue;
+    if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
     fs::path import_file;
     if (!ResolveLocalImportPath(base_dir, project_index, decl.import_decl.path, &import_file, error)) {
       visiting->erase(key);
@@ -234,7 +221,8 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
   }
 
   for (auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::DeclKind::Import && !IsReservedImportPath(decl.import_decl.path)) {
+    if (decl.kind == Simple::Lang::DeclKind::Import &&
+        !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
       continue;
     }
     out->decls.push_back(std::move(decl));

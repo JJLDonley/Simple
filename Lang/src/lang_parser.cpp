@@ -278,15 +278,31 @@ bool Parser::ParseDecl(Decl* out) {
     return true;
   }
   if (Match(TokenKind::KwImport)) {
+    std::string import_path;
     const Token& path_tok = Peek();
-    if (path_tok.kind != TokenKind::String) {
-      error_ = "expected string literal after 'import'";
+    if (path_tok.kind == TokenKind::String) {
+      import_path = path_tok.text;
+      Advance();
+    } else if (path_tok.kind == TokenKind::Identifier) {
+      import_path = path_tok.text;
+      Advance();
+      while (Match(TokenKind::Dot)) {
+        const Token& seg_tok = Peek();
+        if (seg_tok.kind != TokenKind::Identifier) {
+          error_ = "expected identifier after '.' in import path";
+          return false;
+        }
+        import_path += ".";
+        import_path += seg_tok.text;
+        Advance();
+      }
+    } else {
+      error_ = "expected string literal or module path after 'import'";
       return false;
     }
-    Advance();
     if (out) {
       out->kind = DeclKind::Import;
-      out->import_decl.path = path_tok.text;
+      out->import_decl.path = import_path;
       out->import_decl.has_alias = false;
       out->import_decl.alias.clear();
     }

@@ -689,7 +689,7 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.DL\\\" as DL\\nDL.ca\"}}}";
+      "\"text\":\"import System.dl as DL\\nDL.ca\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":33,\"method\":\"textDocument/completion\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";

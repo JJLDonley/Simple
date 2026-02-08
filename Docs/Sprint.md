@@ -1304,3 +1304,20 @@
 - Added regression coverage for IO alias hover signatures:
   - new test validates hover response payload for `Out.println(...)` includes callable signature markdown output.
 - Updated LSP and implementation docs to reflect IO alias hover enrichment parity with reserved-module alias behavior.
+- Added reserved-import canonicalization for compiler + tooling:
+  - introduced shared mapping utility (`lang_reserved.h`) so parser/validator/SIR/CLI/LSP resolve the same reserved modules.
+  - `System.*` aliases now map case-insensitively to runtime reserved modules (`System.io`, `System.dl`, `System.math`, `System.file`, `System.stream`, `System.os`, plus `System.fs`/`System.log`).
+  - legacy import names (`IO`, `Core.DL`, `Core.Os`, etc.) remain supported for backward compatibility.
+- Expanded import parsing to support unquoted dotted module paths:
+  - import declarations now accept both `import "Core.DL"` and `import System.dl`.
+- Updated validator/SIR reserved-module binding flow:
+  - import declarations are canonicalized before alias/module registration, avoiding path-form drift across parser forms and casing.
+- Updated CLI local-import loader to use shared reserved-module detection:
+  - reserved imports are consistently excluded from project-local file resolution regardless of case or `System.*` alias form.
+- Added language regression coverage for new import forms:
+  - parse test for unquoted module path (`import System.io`),
+  - validation test for case-insensitive `System.*` import alias (`import sYsTeM.iO as IO`).
+- Updated language/LSP/implementation docs to reflect:
+  - accepted `System.*` reserved imports,
+  - quoted + unquoted import declaration behavior,
+  - LSP import completion coverage for the new reserved import surface.

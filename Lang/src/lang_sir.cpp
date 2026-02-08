@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "lang_parser.h"
+#include "lang_reserved.h"
 #include "lang_validate.h"
 #include "intrinsic_ids.h"
 
@@ -224,8 +225,9 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
     const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier && root.text == "Core") {
-      *out = "Core." + base.text;
+    if (root.kind == ExprKind::Identifier &&
+        (root.text == "Core" || root.text == "System")) {
+      *out = root.text + "." + base.text;
       return true;
     }
   }
@@ -236,8 +238,10 @@ bool ResolveReservedModuleName(const EmitState& st,
                                const std::string& name,
                                std::string* out) {
   if (!out) return false;
-  if (st.reserved_imports.find(name) != st.reserved_imports.end()) {
-    *out = name;
+  std::string canonical;
+  if (CanonicalizeReservedImportPath(name, &canonical) &&
+      st.reserved_imports.find(canonical) != st.reserved_imports.end()) {
+    *out = canonical;
     return true;
   }
   auto it = st.reserved_import_aliases.find(name);
@@ -3178,9 +3182,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
-        st.reserved_imports.insert(decl.import_decl.path);
+        std::string canonical_import;
+        if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
+          if (error) *error = "unsupported import path: " + decl.import_decl.path;
+          return false;
+        }
+        st.reserved_imports.insert(canonical_import);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
-          st.reserved_import_aliases[decl.import_decl.alias] = decl.import_decl.path;
+          st.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
         }
       }
       if (decl.kind == DeclKind::Extern) {

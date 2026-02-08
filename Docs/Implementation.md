@@ -133,7 +133,7 @@ Authoritative doc:
 Status:
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/documentHighlight/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
-- completion includes import-path mode inside `import "..."` strings (reserved modules + open-document module stems).
+- completion includes import-path mode inside import declarations (quoted and unquoted), covering `System.*` aliases, legacy reserved modules, and open-document module stems.
 - completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
 - code-action quick-fix declaration insertion respects top-of-file import headers.
 - signature help now resolves reserved-module alias members with parameter labels (for example `OS.args_get(index)`).

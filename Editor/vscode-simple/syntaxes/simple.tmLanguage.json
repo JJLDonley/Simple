@@ -4,6 +4,7 @@
   "scopeName": "source.simple",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#imports" },
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#keywords" },
@@ -21,6 +22,18 @@
           "name": "comment.block.simple",
           "begin": "/\\*",
           "end": "\\*/"
+        }
+      ]
+    },
+    "imports": {
+      "patterns": [
+        {
+          "name": "support.module.import.simple",
+          "match": "(?<=\\bimport\\s+)[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*"
+        },
+        {
+          "name": "variable.other.import-alias.simple",
+          "match": "(?<=\\bas\\s+)[A-Za-z_][A-Za-z0-9_]*"
         }
       ]
     },
