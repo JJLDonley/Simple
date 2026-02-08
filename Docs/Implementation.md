@@ -140,6 +140,7 @@ Status:
 - signature help now emits overload-aware signatures for reserved aliases where language semantics support multiple call forms (for example `DL.open(path)` and `DL.open(path, manifest)`).
 - hover now renders reserved-module alias callable signatures (for example `OS.args_get(index) -> string`) when no local declaration type exists.
 - undeclared-identifier quick-fix code action infers numeric declaration type from assignment usage (`i32` vs `f64`) before emitting the declaration edit.
+- rename/prepareRename now protect reserved imported module member symbols from edit operations to avoid invalid API symbol rewrites.
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 - signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.
 

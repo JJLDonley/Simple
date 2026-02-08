@@ -1270,3 +1270,10 @@
 - Added regression coverage for float inference:
   - new code-action test validates `rate = 1.5` produces quick-fix declaration `rate : f64 = 0.0;` and title `Declare 'rate' as f64`.
 - Updated LSP and implementation docs to include quick-fix numeric type inference behavior.
+- Hardened LSP rename workflows for reserved imported module members:
+  - `textDocument/rename` now returns `null` when the target token is a reserved imported member access (for example `OS.args_get`, `IO.println`).
+  - `textDocument/prepareRename` now enforces the same protection rule to prevent invalid rename prep ranges on reserved API members.
+- Added regression coverage for rename protections:
+  - new test validates rename rejection on reserved alias member tokens.
+  - new test validates prepareRename rejection on reserved alias member tokens.
+- Updated LSP and implementation docs to document reserved API rename protections.

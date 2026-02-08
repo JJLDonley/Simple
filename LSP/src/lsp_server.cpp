@@ -421,6 +421,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
 std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text);
 std::string NormalizeCoreDlMember(const std::string& member);
 std::string QualifiedMemberAtPosition(const std::string& text, uint32_t line, uint32_t character);
+struct TokenRef;
 
 struct ReservedSignature {
   std::vector<std::string> params;
@@ -434,6 +435,9 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
                                     const std::string& text,
                                     std::string* out_module,
                                     std::string* out_member);
+bool IsProtectedReservedMemberToken(const std::vector<TokenRef>& refs,
+                                    size_t index,
+                                    const std::string& text);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -888,6 +892,20 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   *out_module = std::move(module);
   *out_member = std::move(member);
   return true;
+}
+
+bool IsProtectedReservedMemberToken(const std::vector<TokenRef>& refs,
+                                    size_t index,
+                                    const std::string& text) {
+  if (index >= refs.size()) return false;
+  if (refs[index].token.kind != Simple::Lang::TokenKind::Identifier) return false;
+  if (index < 2) return false;
+  if (refs[index - 1].token.kind != Simple::Lang::TokenKind::Dot) return false;
+  if (refs[index - 2].token.kind != Simple::Lang::TokenKind::Identifier) return false;
+  std::string module;
+  std::string member;
+  const std::string call_name = refs[index - 2].token.text + "." + refs[index].token.text;
+  return ResolveImportedModuleAndMember(call_name, text, &module, &member);
 }
 
 void ReplyHover(std::ostream& out,
@@ -1743,6 +1761,10 @@ void ReplyRename(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
     return;
   }
+  if (IsProtectedReservedMemberToken(refs, target->index, doc_it->second)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
   const std::string old_name = target->token.text;
 
   struct RenameHit {
@@ -1810,6 +1832,10 @@ void ReplyPrepareRename(std::ostream& out,
   const auto refs = LexTokenRefs(doc_it->second);
   const TokenRef* target = FindIdentifierAt(refs, line, character);
   if (!target || !IsValidIdentifierName(target->token.text)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  if (IsProtectedReservedMemberToken(refs, target->index, doc_it->second)) {
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
     return;
   }
