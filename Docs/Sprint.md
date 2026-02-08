@@ -1277,3 +1277,10 @@
   - new test validates rename rejection on reserved alias member tokens.
   - new test validates prepareRename rejection on reserved alias member tokens.
 - Updated LSP and implementation docs to document reserved API rename protections.
+- Added LSP document highlight support:
+  - server now advertises `documentHighlightProvider` in initialize capabilities.
+  - implemented `textDocument/documentHighlight` with local-document symbol highlight ranges.
+  - declaration occurrences are emitted as write-kind highlights (`kind:3`), non-declaration occurrences as read-kind highlights (`kind:2`).
+- Added regression coverage for document highlights:
+  - new test validates capability advertisement and response payload contains both declaration/read highlight entries for repeated local identifiers.
+- Updated LSP and implementation docs to include `textDocument/documentHighlight` in implemented navigation surface.

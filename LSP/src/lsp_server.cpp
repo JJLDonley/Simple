@@ -1449,6 +1449,16 @@ std::string TextEditJson(const Simple::Lang::Token& tk, const std::string& new_t
          "}},\"newText\":\"" + JsonEscape(new_text) + "\"}";
 }
 
+std::string DocumentHighlightJson(const Simple::Lang::Token& tk, uint32_t kind) {
+  const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
+  const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  return "{\"range\":{\"start\":{\"line\":" + std::to_string(line) +
+         ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
+         std::to_string(line) + ",\"character\":" + std::to_string(col + len) +
+         "}},\"kind\":" + std::to_string(kind) + "}";
+}
+
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
@@ -1632,6 +1642,35 @@ void ReplyReferences(std::ostream& out,
   for (const auto& hit : hits) {
     if (!result.empty()) result += ",";
     result += LocationJson(hit.doc_uri, hit.token);
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+void ReplyDocumentHighlight(std::ostream& out,
+                            const std::string& id_raw,
+                            const std::string& uri,
+                            uint32_t line,
+                            uint32_t character,
+                            const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const std::string name = target->token.text;
+  std::string result;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != name) continue;
+    const uint32_t kind = IsDeclNameAt(refs, ref.index) ? 3u : 2u;
+    if (!result.empty()) result += ",";
+    result += DocumentHighlightJson(ref.token, kind);
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
@@ -1937,6 +1976,7 @@ int RunServer(std::istream& in, std::ostream& out) {
             "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                 ",\"result\":{\"capabilities\":{\"textDocumentSync\":2,"
                 "\"hoverProvider\":true,\"definitionProvider\":true,\"declarationProvider\":true,"
+                "\"documentHighlightProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
                 "\"renameProvider\":{\"prepareProvider\":true},"
@@ -2130,6 +2170,22 @@ int RunServer(std::istream& in, std::ostream& out) {
             ExtractJsonUintField(body, "line", &line) &&
             ExtractJsonUintField(body, "character", &character)) {
           ReplyReferences(out, id_raw, uri, line, character, include_declaration, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/documentHighlight") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyDocumentHighlight(out, id_raw, uri, line, character, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

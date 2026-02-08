@@ -39,6 +39,7 @@ Primary goals:
 - `textDocument/hover`
 - `textDocument/definition`
 - `textDocument/declaration`
+- `textDocument/documentHighlight`
 - `textDocument/references`
 - `textDocument/documentSymbol`
 - `textDocument/completion`

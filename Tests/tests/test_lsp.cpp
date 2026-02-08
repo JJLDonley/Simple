@@ -1242,6 +1242,41 @@ bool LspReferencesCanExcludeDeclaration() {
          out_contents.find("\"character\":6") != std::string::npos;
 }
 
+bool LspDocumentHighlightReturnsLocalHighlights() {
+  const std::string in_path = TempPath("simple_lsp_doc_highlight_in.txt");
+  const std::string out_path = TempPath("simple_lsp_doc_highlight_out.txt");
+  const std::string err_path = TempPath("simple_lsp_doc_highlight_err.txt");
+  const std::string uri = "file:///workspace/highlight.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\\nfoo = foo + 1;\"}}}";
+  const std::string highlight_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":41,\"method\":\"textDocument/documentHighlight\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(highlight_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"documentHighlightProvider\":true") != std::string::npos &&
+         out_contents.find("\"id\":41") != std::string::npos &&
+         out_contents.find("\"kind\":3") != std::string::npos &&
+         out_contents.find("\"kind\":2") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"line\":1") != std::string::npos;
+}
+
 bool LspDocumentSymbolReturnsTopLevel() {
   const std::string in_path = TempPath("simple_lsp_symbols_in.txt");
   const std::string out_path = TempPath("simple_lsp_symbols_out.txt");
@@ -1828,6 +1863,7 @@ const TestCase kLspTests[] = {
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
   {"lsp_references_span_open_documents", LspReferencesSpanOpenDocuments},
   {"lsp_references_can_exclude_declaration", LspReferencesCanExcludeDeclaration},
+  {"lsp_document_highlight_returns_local_highlights", LspDocumentHighlightReturnsLocalHighlights},
   {"lsp_document_symbol_returns_top_level", LspDocumentSymbolReturnsTopLevel},
   {"lsp_document_symbol_marks_function_kind", LspDocumentSymbolMarksFunctionKind},
   {"lsp_workspace_symbol_returns_symbols", LspWorkspaceSymbolReturnsSymbols},
