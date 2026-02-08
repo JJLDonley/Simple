@@ -7,8 +7,8 @@
 #include <cstring>
 #if !defined(_WIN32)
 #include <dlfcn.h>
-#endif
 #include <ffi.h>
+#endif
 #include <filesystem>
 #include <limits>
 #include <sstream>
@@ -425,6 +425,7 @@ bool DispatchDlCall2(TypeKind arg0_kind,
   }
 }
 
+#if !defined(_WIN32)
 struct DlOwnedFfiType {
   ffi_type type{};
   std::vector<ffi_type*> elements;
@@ -1053,6 +1054,21 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
       return false;
   }
 }
+#else
+bool DispatchDynamicDlCall(int64_t /*ptr_bits*/,
+                           const SbcModule& /*module*/,
+                           uint32_t /*ret_type_id*/,
+                           bool /*has_ret*/,
+                           const std::vector<uint32_t>& /*arg_type_ids*/,
+                           const std::vector<Slot>& /*args*/,
+                           size_t /*arg_base*/,
+                           Heap& /*heap*/,
+                           Slot* /*out_ret*/,
+                           std::string* out_error) {
+  if (out_error) *out_error = "core.dl.call is unsupported on windows";
+  return false;
+}
+#endif
 
 #undef SIMPLE_DL_FOREACH_TYPE
 

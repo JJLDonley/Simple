@@ -1502,3 +1502,7 @@
   - `build_linux`, `build_macos`, and `build_windows` now report whether `simple` is on PATH and print version output when available.
 - Removed unused DL helper functions in `VM/src/vm.cpp` (`DispatchDlCall1Void`, `DispatchDlCall2Void`, `PackDlI32LikeRet`, `ConvertDlPackedU64Arg` and dependent helper) to eliminate legacy-build warning noise.
 - Updated GitHub release workflow (`.github/workflows/release.yml`) to build/package Linux, macOS, and Windows artifacts using authoritative scripts (`build_linux`, `build_macos`, `build_windows`), then publish all platform artifacts with versioned + latest filenames and SHA256 sidecars.
+- Enabled Windows `libffi` path for CI/source builds:
+  - removed CMake Windows ffi-disable gate so `libffi` is required on Windows when available via toolchain.
+  - added `build_windows --cmake-arg <arg>` support for passing vcpkg/CMake toolchain flags.
+  - updated release workflow Windows job to install `libffi:x64-windows` via vcpkg and pass `CMAKE_TOOLCHAIN_FILE` + `VCPKG_TARGET_TRIPLET` into `build_windows`.

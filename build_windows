@@ -17,6 +17,7 @@ SKIP_RELEASE=0
 SKIP_INSTALL=0
 NO_LINK=0
 ADD_PATH=0
+CMAKE_ARGS=()
 PREFIX="${LOCALAPPDATA:-$HOME/AppData/Local}/Simple"
 BIN_DIR="${PREFIX}/bin"
 ARCH="${PROCESSOR_ARCHITECTURE:-x86_64}"
@@ -34,6 +35,7 @@ Options:
   --version <name>
   --prefix <dir>
   --bin-dir <dir>
+  --cmake-arg <arg>   Additional CMake configure arg (repeatable)
   --tests | --no-tests
   --skip-build
   --skip-release
@@ -74,6 +76,7 @@ while [[ $# -gt 0 ]]; do
     --version) VERSION="${2:-}"; shift 2 ;;
     --prefix) PREFIX="${2:-}"; shift 2 ;;
     --bin-dir) BIN_DIR="${2:-}"; shift 2 ;;
+    --cmake-arg) CMAKE_ARGS+=("${2:-}"); shift 2 ;;
     --tests) RUN_TESTS=1; shift ;;
     --no-tests) RUN_TESTS=0; shift ;;
     --skip-build) SKIP_BUILD=1; shift ;;
@@ -95,7 +98,7 @@ TEST_BIN_DIR="$ROOT_DIR/Tests/bin"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   mkdir -p "$TEST_BIN_DIR"
-  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" "${CMAKE_ARGS[@]}"
   cmake --build "$BUILD_DIR" --config Release --target \
     simplevm \
     simplevm_core_static \

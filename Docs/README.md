@@ -24,6 +24,7 @@ Platform notes:
 - Windows:
   - `build_windows` is CMake-based (no legacy mode)
   - install CMake + MSVC (or equivalent C++ toolchain), run via Git Bash/MSYS/Cygwin
+  - install `libffi` via `vcpkg` and pass vcpkg toolchain args to `build_windows --cmake-arg ...`
 
 ## Install
 

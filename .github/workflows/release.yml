@@ -82,13 +82,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libffi-dev pkg-config
 
-      - name: Build + package
+      - name: Setup Windows vcpkg
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11
+
+      - name: Install Windows libffi (vcpkg)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install libffi:x64-windows
+
+      - name: Build + package (Linux/macOS)
+        if: runner.os != 'Windows'
         shell: bash
         env:
           VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
           chmod +x ./build_linux ./build_macos ./build_windows
           ${{ matrix.script }} --version "${VERSION}" --no-tests --skip-install
+
+      - name: Build + package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+          VCPKG_INSTALLATION_ROOT: ${{ env.VCPKG_INSTALLATION_ROOT }}
+        run: |
+          chmod +x ./build_linux ./build_macos ./build_windows
+          ./build_windows \
+            --version "${VERSION}" \
+            --no-tests \
+            --skip-install \
+            --cmake-arg "-DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+            --cmake-arg "-DVCPKG_TARGET_TRIPLET=x64-windows"
 
       - name: Upload platform package artifacts
         uses: actions/upload-artifact@v4

@@ -7,11 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Resolve libffi once and link it from core/runtime targets so downstream
 # executables (simplevm/tests) inherit the dependency transitively.
-# Windows builds currently gate core.dl behavior and do not require libffi.
 set(SIMPLEVM_NEEDS_FFI ON)
-if (WIN32)
-  set(SIMPLEVM_NEEDS_FFI OFF)
-endif()
 if (SIMPLEVM_NEEDS_FFI)
   find_package(PkgConfig QUIET)
   if (PkgConfig_FOUND)
