@@ -410,12 +410,14 @@ bool IsCallNameChar(char c) {
 }
 
 bool IsAtCastCallName(const std::string& name);
+bool IsValidIdentifierName(const std::string& name);
 bool ImportPrefixAtPosition(const std::string& text,
                             uint32_t line,
                             uint32_t character,
                             std::string* out_prefix);
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs);
+std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -602,6 +604,79 @@ std::vector<std::string> CollectImportCandidates(
   return labels;
 }
 
+std::string DefaultImportAlias(const std::string& path) {
+  const size_t slash = path.find_last_of('/');
+  const size_t start = (slash == std::string::npos) ? 0 : slash + 1;
+  const size_t dot = path.find_last_of('.');
+  size_t end = path.size();
+  if (dot != std::string::npos && dot > start && path.compare(dot, 7, ".simple") == 0) {
+    end = dot;
+  }
+  std::string base = path.substr(start, end - start);
+  const size_t module_dot = base.find_last_of('.');
+  if (module_dot != std::string::npos && module_dot + 1 < base.size()) {
+    base = base.substr(module_dot + 1);
+  }
+  return base;
+}
+
+std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
+  static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
+      {"IO", {"print", "println"}},
+      {"Math", {"abs", "min", "max", "pi"}},
+      {"Time", {"mono_ns", "wall_ns"}},
+      {"File", {"open", "close", "read", "write"}},
+      {"Core.DL",
+       {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
+        "call_str0"}},
+      {"Core.Os", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns", "sleep_ms"}},
+      {"Core.Fs", {"open", "close", "read", "write"}},
+      {"Core.Log", {"log"}},
+  };
+
+  std::unordered_set<std::string> labels;
+  uint32_t line_index = 0;
+  size_t start = 0;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i != text.size() && text[i] != '\n') continue;
+    const std::string line = text.substr(start, i - start);
+    std::string trimmed = TrimLeftAscii(line);
+    if (trimmed.rfind("import", 0) == 0) {
+      size_t pos = 6;
+      while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
+      if (pos < trimmed.size() && trimmed[pos] == '"') {
+        ++pos;
+        const size_t end_quote = trimmed.find('"', pos);
+        if (end_quote != std::string::npos) {
+          const std::string import_path = trimmed.substr(pos, end_quote - pos);
+          std::string alias = DefaultImportAlias(import_path);
+          size_t tail = end_quote + 1;
+          while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
+          if (tail + 2 <= trimmed.size() && trimmed.compare(tail, 2, "as") == 0) {
+            tail += 2;
+            while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
+            size_t alias_end = tail;
+            while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
+            if (alias_end > tail) alias = trimmed.substr(tail, alias_end - tail);
+          }
+          const auto mod_it = kModuleMembers.find(import_path);
+          if (mod_it != kModuleMembers.end() && IsValidIdentifierName(alias)) {
+            for (const auto& member : mod_it->second) {
+              labels.insert(alias + "." + member);
+            }
+          }
+        }
+      }
+    }
+    ++line_index;
+    start = i + 1;
+  }
+
+  std::vector<std::string> out(labels.begin(), labels.end());
+  std::sort(out.begin(), out.end());
+  return out;
+}
+
 void ReplyHover(std::ostream& out,
                 const std::string& id_raw,
                 const std::string& uri,
@@ -678,17 +753,23 @@ void ReplyCompletion(std::ostream& out,
     labels = CollectImportCandidates(open_docs);
   } else {
     labels = kKeywords;
-    labels.push_back("IO.println");
-    labels.push_back("IO.print");
+    auto add_label = [&](const std::string& label, std::unordered_set<std::string>* seen) {
+      if (!seen) return;
+      if (seen->insert(label).second) labels.push_back(label);
+    };
     std::unordered_set<std::string> seen(labels.begin(), labels.end());
+    add_label("IO.println", &seen);
+    add_label("IO.print", &seen);
+    if (doc_it != open_docs.end()) {
+      const auto reserved_labels = CollectReservedModuleMemberLabels(doc_it->second);
+      for (const auto& label : reserved_labels) add_label(label, &seen);
+    }
     auto add_doc_decls = [&](const std::string& text) {
       const auto refs = LexTokenRefs(text);
       for (const auto& ref : refs) {
         if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
         if (!IsDeclNameAt(refs, ref.index)) continue;
-        if (seen.insert(ref.token.text).second) {
-          labels.push_back(ref.token.text);
-        }
+        add_label(ref.token.text, &seen);
       }
     };
     if (doc_it != open_docs.end()) {
@@ -718,7 +799,7 @@ void ReplyCompletion(std::ostream& out,
     }
     if (!first_item) items += ",";
     first_item = false;
-    const bool is_builtin = (label == "IO.println" || label == "IO.print");
+    const bool is_builtin = label.find('.') != std::string::npos;
     const bool is_keyword = std::find(kKeywords.begin(), kKeywords.end(), label) != kKeywords.end();
     const int kind = import_context ? 9 : (is_builtin ? 3 : (is_keyword ? 14 : 6));
     items += "{\"label\":\"" + JsonEscape(label) + "\",\"kind\":" + std::to_string(kind) + "}";

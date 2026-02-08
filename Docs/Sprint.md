@@ -1234,3 +1234,9 @@
 - Added LSP regression coverage for import-aware quick-fix placement:
   - new test validates `textDocument/codeAction` emits edit range start at line 1 for `import "IO"` + undeclared assignment fixtures.
 - Updated LSP/implementation docs to reflect import-aware quick-fix insertion behavior.
+- Extended LSP completion with import-alias aware reserved-module members:
+  - completion now parses active-document `import "..." [as Alias]` lines and contributes member labels for reserved modules (IO/Math/Time/File/Core.*).
+  - example: `import "Core.DL" as DL` enables `DL.call_i32`, `DL.call_i64`, `DL.call_str0`, etc. in member completion flows.
+- Added regression coverage for alias member completion:
+  - new test validates `DL.ca` completion returns Core.DL call members and preserves prefix filtering (for example excludes `DL.open`).
+- Updated LSP and implementation docs to record reserved-module alias-member completion behavior.

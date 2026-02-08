@@ -618,6 +618,41 @@ bool LspCompletionSuggestsReservedImportModules() {
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
+bool LspCompletionIncludesReservedModuleAliasMembers() {
+  const std::string in_path = TempPath("simple_lsp_completion_alias_member_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_alias_member_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_alias_member_err.txt");
+  const std::string uri = "file:///workspace/complete_alias_member.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import \\\"Core.DL\\\" as DL\\nDL.ca\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":33,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":33") != std::string::npos &&
+         out_contents.find("\"label\":\"DL.call_i32\"") != std::string::npos &&
+         out_contents.find("\"label\":\"DL.call_i64\"") != std::string::npos &&
+         out_contents.find("\"label\":\"DL.call_str0\"") != std::string::npos &&
+         out_contents.find("\"label\":\"DL.open\"") == std::string::npos &&
+         out_contents.find("\"label\":\"import\"") == std::string::npos;
+}
+
 bool LspSignatureHelpReturnsSignature() {
   const std::string in_path = TempPath("simple_lsp_signature_help_in.txt");
   const std::string out_path = TempPath("simple_lsp_signature_help_out.txt");
@@ -1546,6 +1581,7 @@ const TestCase kLspTests[] = {
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
   {"lsp_completion_filters_member_suffix_by_receiver", LspCompletionFiltersMemberSuffixByReceiver},
   {"lsp_completion_suggests_reserved_import_modules", LspCompletionSuggestsReservedImportModules},
+  {"lsp_completion_includes_reserved_module_alias_members", LspCompletionIncludesReservedModuleAliasMembers},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},
   {"lsp_signature_help_returns_format_signature", LspSignatureHelpReturnsFormatSignature},

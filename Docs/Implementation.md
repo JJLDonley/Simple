@@ -133,6 +133,7 @@ Authoritative doc:
 Status:
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features (hover/definition/declaration/references), completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
 - completion includes import-path mode inside `import "..."` strings (reserved modules + open-document module stems).
+- completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
 - code-action quick-fix declaration insertion respects top-of-file import headers.
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 - signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.

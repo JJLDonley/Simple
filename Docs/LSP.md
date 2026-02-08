@@ -71,6 +71,7 @@ Primary goals:
 - keywords and builtins
 - in-scope identifiers
 - member completion (`Module.member`, `Artifact.member`, `IO.println`, etc.)
+- reserved module member completion for imported modules/aliases (for example `import "Core.DL" as DL` enables `DL.call_i32`, `DL.open`, ...)
 - import path completion inside `import "..."` strings:
   - reserved module names (`IO`, `Math`, `Time`, `File`, `Core.*`)
   - open-document `.simple` module stems
