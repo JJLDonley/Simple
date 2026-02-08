@@ -115,6 +115,13 @@ Import declarations accept both quoted and unquoted module paths:
 - `import "Core.DL" as DL`
 - `import System.dl as DL`
 
+Reserved imports also register an implicit lowercase leaf alias when no explicit `as` alias is provided:
+
+- `import system.io` enables `io.println(...)`
+- `import System.DL` enables `dl.open(...)`
+
+Legacy direct `IO.print/IO.println` calls remain supported.
+
 ### Project-Local Imports (CLI)
 
 For `.simple` entry files compiled through CLI commands (`run/check/build/compile/emit -ir/-sbc`):

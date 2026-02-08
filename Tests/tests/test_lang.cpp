@@ -1371,6 +1371,14 @@ bool LangValidateSystemImportCaseInsensitive() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangValidateSystemImportImplicitLowerAlias() {
+  const char* src =
+      "import system.io\n"
+      "main : void () { io.println(1); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangParsesExternDecl() {
   const char* src = "extern Ray.InitWindow : void (w : i32, h : i32)";
   Simple::Lang::Program program;
@@ -2814,6 +2822,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_case_insensitive", LangValidateSystemImportCaseInsensitive},
+  {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},

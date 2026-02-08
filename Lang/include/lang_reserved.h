@@ -54,4 +54,20 @@ inline bool IsReservedImportPath(const std::string& path) {
   return CanonicalizeReservedImportPath(path, &canonical);
 }
 
+inline std::string DefaultImportAlias(const std::string& import_path) {
+  if (import_path.empty()) return {};
+  size_t start = 0;
+  const size_t slash = import_path.find_last_of('/');
+  if (slash != std::string::npos) start = slash + 1;
+  size_t end = import_path.size();
+  if (end >= 7 && import_path.compare(end - 7, 7, ".simple") == 0) end -= 7;
+  if (end <= start) return {};
+  const std::string base = import_path.substr(start, end - start);
+  const size_t dot = base.find_last_of('.');
+  const std::string leaf = (dot == std::string::npos || dot + 1 >= base.size())
+                               ? base
+                               : base.substr(dot + 1);
+  return LowerAscii(leaf);
+}
+
 } // namespace Simple::Lang

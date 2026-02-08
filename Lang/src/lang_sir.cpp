@@ -252,6 +252,16 @@ bool ResolveReservedModuleName(const EmitState& st,
   return false;
 }
 
+bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
+  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
+  if (!IsIoPrintName(callee.text)) return false;
+  if (callee.children[0].kind == ExprKind::Identifier && callee.children[0].text == "IO") return true;
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  std::string resolved;
+  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "IO";
+}
+
 bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
   if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
   const Expr& callee = expr.children[0];
@@ -872,7 +882,7 @@ bool InferExprType(const Expr& expr,
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
-        if (base.kind == ExprKind::Identifier && base.text == "IO" && IsIoPrintName(callee.text)) {
+        if (IsIoPrintCallExpr(callee, st)) {
           out->name = "void";
           out->type_args.clear();
           out->dims.clear();
@@ -1767,7 +1777,7 @@ bool EmitExpr(EmitState& st,
       const Expr& callee = expr.children[0];
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
-        if (base.kind == ExprKind::Identifier && base.text == "IO" && IsIoPrintName(callee.text)) {
+        if (IsIoPrintCallExpr(callee, st)) {
           if (expr.args.empty()) {
             if (error) *error = "call argument count mismatch for 'IO." + callee.text + "'";
             return false;
@@ -3190,6 +3200,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         st.reserved_imports.insert(canonical_import);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
           st.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+        } else {
+          const std::string implicit_alias = DefaultImportAlias(decl.import_decl.path);
+          if (!implicit_alias.empty()) {
+            st.reserved_import_aliases[implicit_alias] = canonical_import;
+          }
         }
       }
       if (decl.kind == DeclKind::Extern) {

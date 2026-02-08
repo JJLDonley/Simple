@@ -1321,3 +1321,9 @@
   - accepted `System.*` reserved imports,
   - quoted + unquoted import declaration behavior,
   - LSP import completion coverage for the new reserved import surface.
+- Fixed reserved import alias resolution regression for `system.io` style usage:
+  - reserved imports now register implicit lowercase leaf aliases when no explicit alias is provided (for example `import system.io` -> `io`, `import System.DL` -> `dl`).
+  - validator and SIR IO-call handling now resolve through reserved-module aliases (not only literal `IO` base identifier), so `io.println(...)` works when imported.
+  - preserved legacy no-import `IO.print/IO.println` behavior for existing programs/tests.
+- Added regression coverage:
+  - `lang_validate_system_import_implicit_lower_alias` validates `import system.io` + `io.println(...)`.

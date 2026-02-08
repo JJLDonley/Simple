@@ -88,14 +88,19 @@ bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
 }
 
 bool IsIoPrintName(const std::string& name);
+bool ResolveReservedModuleName(const ValidateContext& ctx,
+                               const std::string& name,
+                               std::string* out);
+bool GetModuleNameFromExpr(const Expr& base, std::string* out);
 
-bool IsIoPrintCallExpr(const Expr& callee) {
-  return callee.kind == ExprKind::Member &&
-         callee.op == "." &&
-         !callee.children.empty() &&
-         callee.children[0].kind == ExprKind::Identifier &&
-         callee.children[0].text == "IO" &&
-         IsIoPrintName(callee.text);
+bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
+  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
+  if (!IsIoPrintName(callee.text)) return false;
+  if (callee.children[0].kind == ExprKind::Identifier && callee.children[0].text == "IO") return true;
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  std::string resolved;
+  return ResolveReservedModuleName(ctx, module_name, &resolved) && resolved == "IO";
 }
 
 bool CountFormatPlaceholders(const std::string& fmt,
@@ -1325,7 +1330,7 @@ bool CheckCallTarget(const Expr& callee,
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     if (base.kind == ExprKind::Identifier) {
-      if (base.text == "IO" && IsIoPrintName(callee.text)) {
+      if (IsIoPrintCallExpr(callee, ctx)) {
         if (arg_count == 0) {
           if (error) *error = "call argument count mismatch for IO." + callee.text;
           return false;
@@ -1541,7 +1546,7 @@ bool GetCallTargetInfo(const Expr& callee,
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     if (base.kind == ExprKind::Identifier) {
-      if (base.text == "IO" && IsIoPrintName(callee.text)) {
+      if (IsIoPrintCallExpr(callee, ctx)) {
         out->params.clear();
         TypeRef param;
         param.name = "T";
@@ -2936,7 +2941,7 @@ bool CheckExpr(const Expr& expr,
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
       }
       if (!CheckCallTarget(expr.children[0], expr.args.size(), ctx, scopes, current_artifact, error)) return false;
-      if (IsIoPrintCallExpr(expr.children[0])) {
+      if (IsIoPrintCallExpr(expr.children[0], ctx)) {
         if (expr.args.empty()) {
           if (error) *error = "call argument count mismatch for IO." + expr.children[0].text;
           return false;
@@ -3065,7 +3070,7 @@ bool CheckExpr(const Expr& expr,
           }
         }
       }
-      if (!IsIoPrintCallExpr(expr.children[0]) &&
+      if (!IsIoPrintCallExpr(expr.children[0], ctx) &&
           !(expr.children[0].kind == ExprKind::Identifier &&
             (expr.children[0].text == "len" || expr.children[0].text == "str" ||
              GetAtCastTargetName(expr.children[0].text, nullptr)))) {
@@ -3076,8 +3081,7 @@ bool CheckExpr(const Expr& expr,
       if (expr.op == "." && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
-            base.text == "IO" &&
-            IsIoPrintName(expr.text)) {
+            IsIoPrintCallExpr(expr, ctx)) {
           return true;
         }
         if (base.kind == ExprKind::Identifier &&
@@ -3340,6 +3344,11 @@ bool ValidateProgram(const Program& program, std::string* error) {
         ctx.reserved_imports.insert(canonical_import);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
           ctx.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+        } else {
+          const std::string implicit_alias = DefaultImportAlias(decl.import_decl.path);
+          if (!implicit_alias.empty()) {
+            ctx.reserved_import_aliases[implicit_alias] = canonical_import;
+          }
         }
         break;
       }
