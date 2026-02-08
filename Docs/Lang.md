@@ -104,10 +104,9 @@ Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `
 - `System.io` / `System.stream` -> `IO`
 - `System.math` -> `Math`
 - `System.time` -> `Time`
-- `System.file` -> `File`
+- `System.file` / `System.fs` -> `Core.Fs`
 - `System.dl` -> `Core.DL`
 - `System.os` -> `Core.Os`
-- `System.fs` -> `Core.Fs`
 - `System.log` -> `Core.Log`
 
 Import declarations accept both quoted and unquoted module paths:

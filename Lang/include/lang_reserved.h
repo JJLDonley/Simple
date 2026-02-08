@@ -26,10 +26,6 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     *out = "Time";
     return true;
   }
-  if (key == "file" || key == "system.file") {
-    *out = "File";
-    return true;
-  }
   if (key == "core.dl" || key == "system.dl") {
     *out = "Core.DL";
     return true;
@@ -38,7 +34,8 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     *out = "Core.Os";
     return true;
   }
-  if (key == "core.fs" || key == "system.fs") {
+  if (key == "file" || key == "system.file" ||
+      key == "core.fs" || key == "system.fs") {
     *out = "Core.Fs";
     return true;
   }

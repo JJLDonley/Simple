@@ -721,8 +721,9 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"File", {"open", "close", "read", "write"}},
       {"Core.DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
-        "call_str0"}},
-      {"Core.Os", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns", "sleep_ms"}},
+        "call_str0", "supported"}},
+      {"Core.Os", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+                   "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Core.Fs", {"open", "close", "read", "write"}},
       {"Core.Log", {"log"}},
   };

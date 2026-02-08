@@ -1,8 +1,10 @@
 #include "lang_validate.h"
 
+#include <algorithm>
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "lang_parser.h"
 #include "lang_reserved.h"
@@ -224,6 +226,67 @@ bool IsSupportedDlAbiType(const TypeRef& type,
   return ctx.artifacts.find(type.name) != ctx.artifacts.end();
 }
 
+size_t EditDistance(const std::string& a, const std::string& b) {
+  std::vector<size_t> prev(b.size() + 1);
+  std::vector<size_t> cur(b.size() + 1);
+  for (size_t j = 0; j <= b.size(); ++j) prev[j] = j;
+  for (size_t i = 1; i <= a.size(); ++i) {
+    cur[0] = i;
+    for (size_t j = 1; j <= b.size(); ++j) {
+      const size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+      cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost});
+    }
+    prev.swap(cur);
+  }
+  return prev[b.size()];
+}
+
+std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
+  if (resolved == "IO") return {"print", "println"};
+  if (resolved == "Math") return {"abs", "min", "max", "PI"};
+  if (resolved == "Time") return {"mono_ns", "wall_ns"};
+  if (resolved == "Core.DL") {
+    return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
+            "call_str0", "supported"};
+  }
+  if (resolved == "Core.Os") {
+    return {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+            "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
+  }
+  if (resolved == "Core.Fs") return {"open", "close", "read", "write"};
+  if (resolved == "Core.Log") return {"log"};
+  return {};
+}
+
+std::vector<std::string> ModuleMembers(const ModuleDecl* module) {
+  std::vector<std::string> out;
+  if (!module) return out;
+  out.reserve(module->variables.size() + module->functions.size());
+  for (const auto& v : module->variables) out.push_back(v.name);
+  for (const auto& f : module->functions) out.push_back(f.name);
+  return out;
+}
+
+std::string UnknownMemberErrorWithSuggestion(const std::string& module_name,
+                                             const std::string& member,
+                                             const std::vector<std::string>& candidates) {
+  std::string out = "unknown module member: " + module_name + "." + member;
+  if (candidates.empty()) return out;
+  size_t best_dist = static_cast<size_t>(-1);
+  std::string best;
+  for (const auto& c : candidates) {
+    const size_t d = EditDistance(member, c);
+    if (d < best_dist) {
+      best_dist = d;
+      best = c;
+    }
+  }
+  if (!best.empty() && best_dist <= 3) {
+    out += " (did you mean '" + best + "'?)";
+  }
+  return out;
+}
+
 bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
                                    const ValidateContext& ctx,
                                    std::string* error) {
@@ -283,6 +346,15 @@ bool GetReservedModuleVarType(const ValidateContext& ctx,
   if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
   if (resolved == "Math" && member == "PI") {
     if (out) *out = MakeSimpleType("f64");
+    return true;
+  }
+  if (resolved == "Core.DL" && member == "supported") {
+    if (out) *out = MakeSimpleType("bool");
+    return true;
+  }
+  if (resolved == "Core.Os" &&
+      (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
+    if (out) *out = MakeSimpleType("bool");
     return true;
   }
   return false;
@@ -459,29 +531,6 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (module == "File") {
-    if (member == "open") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "close") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "read" || member == "write") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -3110,7 +3159,10 @@ bool CheckExpr(const Expr& expr,
           if (module_it != ctx.modules.end()) {
             if (!FindModuleVar(module_it->second, expr.text) &&
                 !FindModuleFunc(module_it->second, expr.text)) {
-              if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              if (error) {
+                *error = UnknownMemberErrorWithSuggestion(
+                    base.text, expr.text, ModuleMembers(module_it->second));
+              }
               PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
@@ -3124,7 +3176,12 @@ bool CheckExpr(const Expr& expr,
                 GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
-            if (error) *error = "unknown module member: " + module_name + "." + expr.text;
+            if (error) {
+              std::string resolved;
+              ResolveReservedModuleName(ctx, module_name, &resolved);
+              *error = UnknownMemberErrorWithSuggestion(
+                  module_name, expr.text, ReservedModuleMembers(resolved.empty() ? module_name : resolved));
+            }
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }
@@ -3147,7 +3204,10 @@ bool CheckExpr(const Expr& expr,
           if (module_it != ctx.modules.end()) {
             if (!FindModuleVar(module_it->second, expr.text) &&
                 !FindModuleFunc(module_it->second, expr.text)) {
-              if (error) *error = "unknown module member: " + base.text + "." + expr.text;
+              if (error) {
+                *error = UnknownMemberErrorWithSuggestion(
+                    base.text, expr.text, ModuleMembers(module_it->second));
+              }
               PrefixErrorLocation(expr.line, expr.column, error);
               return false;
             }
@@ -3161,7 +3221,12 @@ bool CheckExpr(const Expr& expr,
                 GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
-            if (error) *error = "unknown module member: " + module_name + "." + expr.text;
+            if (error) {
+              std::string resolved;
+              ResolveReservedModuleName(ctx, module_name, &resolved);
+              *error = UnknownMemberErrorWithSuggestion(
+                  module_name, expr.text, ReservedModuleMembers(resolved.empty() ? module_name : resolved));
+            }
             PrefixErrorLocation(expr.line, expr.column, error);
             return false;
           }
@@ -3174,7 +3239,12 @@ bool CheckExpr(const Expr& expr,
               GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
             return true;
           }
-          if (error) *error = "unknown module member: " + module_name + "." + expr.text;
+          if (error) {
+            std::string resolved;
+            ResolveReservedModuleName(ctx, module_name, &resolved);
+            *error = UnknownMemberErrorWithSuggestion(
+                module_name, expr.text, ReservedModuleMembers(resolved.empty() ? module_name : resolved));
+          }
           PrefixErrorLocation(expr.line, expr.column, error);
           return false;
         }

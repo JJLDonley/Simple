@@ -1379,6 +1379,31 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangValidateSystemOsCapabilityConstants() {
+  const char* src =
+      "import system.os\n"
+      "main : i32 () { if os.is_linux || os.is_macos || os.is_windows { return 1 } return 0 }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateSystemDlCapabilityConstant() {
+  const char* src =
+      "import system.dl\n"
+      "main : i32 () { if dl.supported { return 1 } return 0 }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateUnknownReservedMemberSuggestsClosest() {
+  const char* src =
+      "import system.io\n"
+      "main : void () { io.printlnn(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("did you mean 'println'") != std::string::npos;
+}
+
 bool LangParsesExternDecl() {
   const char* src = "extern Ray.InitWindow : void (w : i32, h : i32)";
   Simple::Lang::Program program;
@@ -2823,6 +2848,9 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_case_insensitive", LangValidateSystemImportCaseInsensitive},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
+  {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
+  {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
+  {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},

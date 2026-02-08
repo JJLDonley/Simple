@@ -1347,3 +1347,18 @@
 - Fixed VS Code extension activation packaging regression:
   - removed `node_modules` exclusion from `Editor/vscode-simple/.vscodeignore` so VSIX includes `vscode-languageclient` runtime dependency.
   - documented recovery for `Cannot find module 'vscode-languageclient/node'` activation errors in extension README.
+- Unified reserved stdlib naming internals for fs/file overlap:
+  - canonicalized `File`, `System.file`, and `System.fs` to a single reserved module target (`Core.Fs`) while preserving compatibility aliases.
+- Improved module/member diagnostics:
+  - unknown module-member errors now suggest the closest valid member name (for reserved modules and user-defined modules).
+- Added platform capability constants for reserved modules:
+  - `System.os`/`Core.Os`: `is_linux`, `is_macos`, `is_windows`, `has_dl` (bool constants),
+  - `System.dl`/`Core.DL`: `supported` (bool constant).
+- Extended SIR + validator support for capability constants and added language regression tests for:
+  - `system.os` capability members,
+  - `system.dl.supported`,
+  - reserved-member typo suggestion diagnostics.
+- Expanded stdlib docs:
+  - added explicit `stdlib.v1` compatibility contract,
+  - documented preferred `System.*` naming for new code,
+  - added per-module happy/failure examples.

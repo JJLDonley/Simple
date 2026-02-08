@@ -262,6 +262,34 @@ bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "IO";
 }
 
+bool HostIsLinux() {
+#if defined(__linux__)
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool HostIsMacOs() {
+#if defined(__APPLE__)
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool HostIsWindows() {
+#if defined(_WIN32)
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool HostHasDl() {
+  return HostIsLinux() || HostIsMacOs();
+}
+
 bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
   if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
   const Expr& callee = expr.children[0];
@@ -828,6 +856,18 @@ bool InferExprType(const Expr& expr,
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
             resolved == "Math" && expr.text == "PI") {
           out->name = "f64";
+          return true;
+        }
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Core.DL" && expr.text == "supported") {
+          out->name = "bool";
+          return true;
+        }
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Core.Os" &&
+            (expr.text == "is_linux" || expr.text == "is_macos" ||
+             expr.text == "is_windows" || expr.text == "has_dl")) {
+          out->name = "bool";
           return true;
         }
         auto enum_it = st.enum_values.find(base.text);
@@ -2622,6 +2662,23 @@ bool EmitExpr(EmitState& st,
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
             resolved == "Math" && expr.text == "PI") {
           (*st.out) << "  const.f64 3.141592653589793\n";
+          return PushStack(st, 1);
+        }
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Core.DL" && expr.text == "supported") {
+          (*st.out) << "  const.i32 " << (HostHasDl() ? 1 : 0) << "\n";
+          return PushStack(st, 1);
+        }
+        if (ResolveReservedModuleName(st, base.text, &resolved) &&
+            resolved == "Core.Os" &&
+            (expr.text == "is_linux" || expr.text == "is_macos" ||
+             expr.text == "is_windows" || expr.text == "has_dl")) {
+          bool value = false;
+          if (expr.text == "is_linux") value = HostIsLinux();
+          else if (expr.text == "is_macos") value = HostIsMacOs();
+          else if (expr.text == "is_windows") value = HostIsWindows();
+          else if (expr.text == "has_dl") value = HostHasDl();
+          (*st.out) << "  const.i32 " << (value ? 1 : 0) << "\n";
           return PushStack(st, 1);
         }
         auto enum_it = st.enum_values.find(base.text);
