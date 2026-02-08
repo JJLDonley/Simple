@@ -56,13 +56,13 @@ jobs:
         include:
           - os: ubuntu-latest
             script: ./build_linux
-            pkg_glob: "dist/simple-${VERSION}-*.tar.gz"
+            pkg_ext: tar.gz
           - os: macos-latest
             script: ./build_macos
-            pkg_glob: "dist/simple-${VERSION}-*.tar.gz"
+            pkg_ext: tar.gz
           - os: windows-latest
             script: ./build_windows
-            pkg_glob: "dist/simple-${VERSION}-*.zip"
+            pkg_ext: zip
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -92,11 +92,9 @@ jobs:
 
       - name: Upload platform package artifacts
         uses: actions/upload-artifact@v4
-        env:
-          VERSION: ${{ needs.compute-version.outputs.version }}
         with:
           name: release-${{ runner.os }}
-          path: ${{ matrix.pkg_glob }}
+          path: dist/simple-${{ needs.compute-version.outputs.version }}-*.${{ matrix.pkg_ext }}
           if-no-files-found: error
 
   publish-release:

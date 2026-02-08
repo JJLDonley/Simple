@@ -7,14 +7,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Resolve libffi once and link it from core/runtime targets so downstream
 # executables (simplevm/tests) inherit the dependency transitively.
-find_package(PkgConfig QUIET)
-if (PkgConfig_FOUND)
-  pkg_check_modules(FFI QUIET IMPORTED_TARGET libffi)
+# Windows builds currently gate core.dl behavior and do not require libffi.
+set(SIMPLEVM_NEEDS_FFI ON)
+if (WIN32)
+  set(SIMPLEVM_NEEDS_FFI OFF)
 endif()
-if (TARGET PkgConfig::FFI)
-  set(SIMPLEVM_FFI_TARGET PkgConfig::FFI)
-else()
-  find_library(SIMPLEVM_FFI_LIB NAMES ffi REQUIRED)
+if (SIMPLEVM_NEEDS_FFI)
+  find_package(PkgConfig QUIET)
+  if (PkgConfig_FOUND)
+    pkg_check_modules(FFI QUIET IMPORTED_TARGET libffi)
+  endif()
+  if (TARGET PkgConfig::FFI)
+    set(SIMPLEVM_FFI_TARGET PkgConfig::FFI)
+  else()
+    find_library(SIMPLEVM_FFI_LIB NAMES ffi REQUIRED)
+  endif()
 endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -76,10 +83,14 @@ target_include_directories(simplevm_core_static PUBLIC
   ${SIMPLEVM_LANG_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-if (TARGET PkgConfig::FFI)
-  target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+if (SIMPLEVM_NEEDS_FFI)
+  if (TARGET PkgConfig::FFI)
+    target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+  else()
+    target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  endif()
 else()
-  target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS})
 endif()
 
 add_library(simplevm_core_shared SHARED $<TARGET_OBJECTS:simplevm_core_obj>)
@@ -90,10 +101,14 @@ target_include_directories(simplevm_core_shared PUBLIC
   ${SIMPLEVM_LANG_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-if (TARGET PkgConfig::FFI)
-  target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+if (SIMPLEVM_NEEDS_FFI)
+  if (TARGET PkgConfig::FFI)
+    target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+  else()
+    target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  endif()
 else()
-  target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS})
 endif()
 target_compile_definitions(simplevm_core_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
@@ -103,10 +118,14 @@ target_include_directories(simplevm_runtime_static PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-if (TARGET PkgConfig::FFI)
-  target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+if (SIMPLEVM_NEEDS_FFI)
+  if (TARGET PkgConfig::FFI)
+    target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+  else()
+    target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  endif()
 else()
-  target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS})
 endif()
 set_target_properties(simplevm_runtime_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -116,10 +135,14 @@ target_include_directories(simplevm_runtime_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-if (TARGET PkgConfig::FFI)
-  target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+if (SIMPLEVM_NEEDS_FFI)
+  if (TARGET PkgConfig::FFI)
+    target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+  else()
+    target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  endif()
 else()
-  target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+  target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS})
 endif()
 target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
