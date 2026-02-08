@@ -1,0 +1,8 @@
+.vscode/
+Editor/
+Tests/
+bin/
+build/
+dist/
+node_modules/
+*.vsix
