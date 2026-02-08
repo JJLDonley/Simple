@@ -418,6 +418,16 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs);
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text);
+std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text);
+std::string NormalizeCoreDlMember(const std::string& member);
+
+struct ReservedSignature {
+  std::vector<std::string> params;
+};
+
+bool ResolveReservedModuleSignature(const std::string& call_name,
+                                    const std::string& text,
+                                    ReservedSignature* out);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -677,6 +687,146 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
   return out;
 }
 
+std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text) {
+  std::unordered_map<std::string, std::string> aliases;
+  size_t start = 0;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i != text.size() && text[i] != '\n') continue;
+    const std::string line = text.substr(start, i - start);
+    const std::string trimmed = TrimLeftAscii(line);
+    if (trimmed.rfind("import", 0) == 0) {
+      size_t pos = 6;
+      while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
+      if (pos < trimmed.size() && trimmed[pos] == '"') {
+        ++pos;
+        const size_t end_quote = trimmed.find('"', pos);
+        if (end_quote != std::string::npos) {
+          const std::string import_path = trimmed.substr(pos, end_quote - pos);
+          std::string alias = DefaultImportAlias(import_path);
+          size_t tail = end_quote + 1;
+          while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
+          if (tail + 2 <= trimmed.size() && trimmed.compare(tail, 2, "as") == 0) {
+            tail += 2;
+            while (tail < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[tail]))) ++tail;
+            size_t alias_end = tail;
+            while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
+            if (alias_end > tail) alias = trimmed.substr(tail, alias_end - tail);
+          }
+          if (IsValidIdentifierName(alias)) aliases[alias] = import_path;
+        }
+      }
+    }
+    start = i + 1;
+  }
+  return aliases;
+}
+
+std::string NormalizeCoreDlMember(const std::string& member) {
+  if (member == "Open") return "open";
+  if (member == "Sym") return "sym";
+  if (member == "Close") return "close";
+  if (member == "LastError") return "last_error";
+  if (member == "CallI32") return "call_i32";
+  if (member == "CallI64") return "call_i64";
+  if (member == "CallF32") return "call_f32";
+  if (member == "CallF64") return "call_f64";
+  if (member == "CallStr0") return "call_str0";
+  return member;
+}
+
+bool ResolveReservedModuleSignature(const std::string& call_name,
+                                    const std::string& text,
+                                    ReservedSignature* out) {
+  if (!out) return false;
+  out->params.clear();
+  const size_t dot = call_name.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 >= call_name.size()) return false;
+  const std::string alias = call_name.substr(0, dot);
+  std::string member = call_name.substr(dot + 1);
+  const auto aliases = CollectImportAliasMap(text);
+  const auto alias_it = aliases.find(alias);
+  if (alias_it == aliases.end()) return false;
+  const std::string& module = alias_it->second;
+  if (module == "Math") {
+    if (member == "abs") {
+      out->params = {"value"};
+      return true;
+    }
+    if (member == "min" || member == "max") {
+      out->params = {"lhs", "rhs"};
+      return true;
+    }
+    return false;
+  }
+  if (module == "Time") {
+    if (member == "mono_ns" || member == "wall_ns") return true;
+    return false;
+  }
+  if (module == "File" || module == "Core.Fs") {
+    if (member == "open") {
+      out->params = {"path", "flags"};
+      return true;
+    }
+    if (member == "close") {
+      out->params = {"fd"};
+      return true;
+    }
+    if (member == "read" || member == "write") {
+      out->params = {"fd", "buffer", "count"};
+      return true;
+    }
+    return false;
+  }
+  if (module == "Core.Os") {
+    if (member == "args_count" || member == "cwd_get" || member == "time_mono_ns" ||
+        member == "time_wall_ns") {
+      return true;
+    }
+    if (member == "args_get") {
+      out->params = {"index"};
+      return true;
+    }
+    if (member == "env_get") {
+      out->params = {"key"};
+      return true;
+    }
+    if (member == "sleep_ms") {
+      out->params = {"milliseconds"};
+      return true;
+    }
+    return false;
+  }
+  if (module == "Core.Log") {
+    if (member == "log") {
+      out->params = {"message", "level"};
+      return true;
+    }
+    return false;
+  }
+  if (module == "Core.DL") {
+    member = NormalizeCoreDlMember(member);
+    if (member == "open") {
+      out->params = {"path"};
+      return true;
+    }
+    if (member == "sym") {
+      out->params = {"handle", "name"};
+      return true;
+    }
+    if (member == "close" || member == "call_str0") {
+      out->params = {"handle"};
+      return true;
+    }
+    if (member == "last_error") return true;
+    if (member == "call_i32" || member == "call_i64" || member == "call_f32" || member == "call_f64") {
+      out->params = {"fn_ptr", "a0", "a1"};
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
+
 void ReplyHover(std::ostream& out,
                 const std::string& id_raw,
                 const std::string& uri,
@@ -846,6 +996,31 @@ void ReplySignatureHelp(std::ostream& out,
             ",\"result\":{\"signatures\":[{\"label\":\"" + call_name +
             "(value)\",\"parameters\":[{\"label\":\"value\"}]}],"
             "\"activeSignature\":0,\"activeParameter\":0}}");
+    return;
+  }
+
+  ReservedSignature reserved_sig;
+  if (ResolveReservedModuleSignature(call_name, it->second, &reserved_sig)) {
+    std::string params;
+    std::string parameters_json;
+    for (size_t i = 0; i < reserved_sig.params.size(); ++i) {
+      if (!params.empty()) params += ", ";
+      params += reserved_sig.params[i];
+      if (!parameters_json.empty()) parameters_json += ",";
+      parameters_json += "{\"label\":\"" + JsonEscape(reserved_sig.params[i]) + "\"}";
+    }
+    const uint32_t clamped_active =
+        reserved_sig.params.empty() ? 0
+                                    : std::min(active_parameter,
+                                               static_cast<uint32_t>(reserved_sig.params.size() - 1));
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":[{\"label\":\"" +
+            JsonEscape(call_name + "(" + params + ")") +
+            "\",\"parameters\":[" + parameters_json + "]}],"
+            "\"activeSignature\":0,\"activeParameter\":" +
+            std::to_string(clamped_active) + "}}");
     return;
   }
 

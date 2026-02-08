@@ -1240,3 +1240,9 @@
 - Added regression coverage for alias member completion:
   - new test validates `DL.ca` completion returns Core.DL call members and preserves prefix filtering (for example excludes `DL.open`).
 - Updated LSP and implementation docs to record reserved-module alias-member completion behavior.
+- Extended LSP signature help for reserved-module imports and aliases:
+  - `textDocument/signatureHelp` now resolves known reserved-module member calls from active import aliases (for example `OS.args_get(index)`, `DL.open(path)`, `FS.read(fd, buffer, count)`).
+  - Core.DL member normalization supports canonical + legacy-cased spellings in signature lookup (`Open`/`open`, `CallI32`/`call_i32`, etc.).
+- Added regression coverage for reserved alias signature help:
+  - new test validates `import "Core.Os" as OS` + `OS.args_get(...)` signature payload/parameter labels and active parameter behavior.
+- Updated LSP and implementation docs to include reserved-module alias signature-help behavior.

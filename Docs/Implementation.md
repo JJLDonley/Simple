@@ -135,6 +135,7 @@ Status:
 - completion includes import-path mode inside `import "..."` strings (reserved modules + open-document module stems).
 - completion now also surfaces reserved-module member suggestions for active import aliases (for example `DL.call_i32` from `import "Core.DL" as DL`).
 - code-action quick-fix declaration insertion respects top-of-file import headers.
+- signature help now resolves reserved-module alias members with parameter labels (for example `OS.args_get(index)`).
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 - signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.
 

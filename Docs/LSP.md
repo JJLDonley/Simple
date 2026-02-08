@@ -84,6 +84,8 @@ Primary goals:
   - `IO.print(format, values...)` / `IO.println(format, values...)` for `{}` format-placeholder calls
 - language casts:
   - `@T(value)` cast-call signature help (for example `@i32(value)`)
+- reserved imported modules (including `as` aliases):
+  - signature help resolves known reserved-module members such as `OS.args_get(index)`, `DL.open(path)`, `FS.read(fd, buffer, count)`, etc.
 - local function-style declarations:
   - resolves `name : type (params)` declarations to signature payloads with per-parameter labels
 
