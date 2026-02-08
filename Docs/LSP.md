@@ -68,6 +68,7 @@ Primary goals:
 - local scopes for function/block-level identifiers
 - import-aware resolution for project-local files and reserved modules
 - hover enriches reserved imported alias members with callable signatures (for example `OS.args_get(index) -> string`)
+- hover also enriches IO aliases with callable signature text (for example `Out.println(value) -> void`)
 - rename/prepareRename reject reserved imported module member symbols (for example `OS.args_get`, `IO.println`) to prevent invalid API rewrites
 - document highlights classify declaration + assignment targets as write highlights and other uses as read highlights
 

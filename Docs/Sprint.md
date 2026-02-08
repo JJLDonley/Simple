@@ -1299,3 +1299,8 @@
   - added code-action test for string literal assignment inference (`name = "Simple"`) expecting declaration `name : string = "";`.
   - added code-action test for char literal assignment inference (`ch = 'A'`) expecting declaration `ch : char = '\\0';`.
 - Verified scalar inference suite now covers numeric (`i32`/`f64`), bool, string, and char undeclared-assignment quick-fix generation paths.
+- Extended LSP hover signature enrichment to IO aliases:
+  - hover now resolves alias-qualified IO member calls to signature text, e.g. `Out.println(value) -> void` after `import "IO" as Out`.
+- Added regression coverage for IO alias hover signatures:
+  - new test validates hover response payload for `Out.println(...)` includes callable signature markdown output.
+- Updated LSP and implementation docs to reflect IO alias hover enrichment parity with reserved-module alias behavior.

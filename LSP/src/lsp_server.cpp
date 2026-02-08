@@ -787,6 +787,14 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
+  if (module == "IO") {
+    if (member == "print" || member == "println") {
+      out->params = {"value"};
+      out->return_type = "void";
+      return true;
+    }
+    return false;
+  }
   if (module == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = "i64";

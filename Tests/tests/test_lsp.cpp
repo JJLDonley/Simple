@@ -446,6 +446,37 @@ bool LspHoverShowsReservedAliasSignature() {
          out_contents.find("`OS.args_get(index) -> string`") != std::string::npos;
 }
 
+bool LspHoverShowsIoAliasSignature() {
+  const std::string in_path = TempPath("simple_lsp_hover_io_alias_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_io_alias_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_io_alias_err.txt");
+  const std::string uri = "file:///workspace/hover_io_alias.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import \\\"IO\\\" as Out\\nOut.println(\\\"hi\\\");\"}}}";
+  const std::string hover_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":45,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":6}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(hover_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":45") != std::string::npos &&
+         out_contents.find("`Out.println(value) -> void`") != std::string::npos;
+}
+
 bool LspCompletionReturnsItems() {
   const std::string in_path = TempPath("simple_lsp_completion_in.txt");
   const std::string out_path = TempPath("simple_lsp_completion_out.txt");
@@ -1946,6 +1977,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_includes_declared_type", LspHoverIncludesDeclaredType},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},
+  {"lsp_hover_shows_io_alias_signature", LspHoverShowsIoAliasSignature},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
   {"lsp_completion_includes_open_document_declarations", LspCompletionIncludesOpenDocumentDeclarations},

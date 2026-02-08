@@ -144,6 +144,7 @@ Status:
 - rename/prepareRename now protect reserved imported module member symbols from edit operations to avoid invalid API symbol rewrites.
 - documentHighlight now differentiates write contexts (declarations and assignment targets) from read contexts for local symbol occurrences.
 - undeclared-identifier quick-fix inference now covers scalar literals beyond numeric (`bool`/`string`/`char` plus numeric `i32`/`f64`).
+- hover signature enrichment now includes IO aliases (for example `Out.println(value) -> void`) in addition to reserved Core aliases.
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
 - signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.
 
