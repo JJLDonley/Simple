@@ -152,7 +152,7 @@ for src in "${SOURCES[@]}"; do
   if [[ "$rebuild" -eq 1 ]]; then
     $CXX "${CXXFLAGS[@]}" \
       "${INCLUDES[@]}" \
-      "${TEST_DEFINES[@]}" -MMD -MP -c "$src" -o "$obj"
+      ${TEST_DEFINES[@]+"${TEST_DEFINES[@]}"} -MMD -MP -c "$src" -o "$obj"
   fi
 done
 

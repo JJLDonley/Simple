@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#if !defined(_WIN32)
 #include <dlfcn.h>
+#endif
 #include <ffi.h>
 #include <filesystem>
 #include <limits>
@@ -1946,6 +1948,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         std::string path = U16ToAscii(ReadString(path_obj));
+#if defined(_WIN32)
+        (void)path;
+        set_dl_error("core.dl.open is unsupported on windows");
+        out_ret = PackI64(0);
+        return true;
+#else
         dlerror();
         void* handle = dlopen(path.c_str(), RTLD_LAZY);
         if (!handle) {
@@ -1957,6 +1965,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error.clear();
         out_ret = PackI64(reinterpret_cast<int64_t>(handle));
         return true;
+#endif
       }
       if (sym == "sym") {
         if (!IsI64LikeImportType(ret_kind)) {
@@ -1986,6 +1995,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         std::string name = U16ToAscii(ReadString(name_obj));
+#if defined(_WIN32)
+        (void)name;
+        set_dl_error("core.dl.sym is unsupported on windows");
+        out_ret = PackI64(0);
+        return true;
+#else
         dlerror();
         void* sym_ptr = dlsym(reinterpret_cast<void*>(handle_bits), name.c_str());
         const char* err = dlerror();
@@ -1997,6 +2012,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error.clear();
         out_ret = PackI64(reinterpret_cast<int64_t>(sym_ptr));
         return true;
+#endif
       }
       if (sym == "close") {
         if (!IsI32LikeImportType(ret_kind)) {
@@ -2013,6 +2029,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_ret = PackI32(-1);
           return true;
         }
+#if defined(_WIN32)
+        set_dl_error("core.dl.close is unsupported on windows");
+        out_ret = PackI32(-1);
+        return true;
+#else
         int rc = dlclose(reinterpret_cast<void*>(handle_bits));
         if (rc != 0) {
           const char* err = dlerror();
@@ -2023,6 +2044,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         dl_last_error.clear();
         out_ret = PackI32(0);
         return true;
+#endif
       }
       if (sym == "last_error") {
         if (!IsStringLikeImportType(ret_kind)) {

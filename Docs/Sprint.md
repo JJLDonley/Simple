@@ -1401,3 +1401,17 @@
   - updated language reserved-alias mapping text to canonical internal IDs (`Core.IO`, `Core.Math`, `Core.Time`),
   - added `StdLib.md` note documenting canonical internal reserved module IDs,
   - marked implementation-plan stale-path cleanup item complete for active module docs.
+
+## 2026-02-08
+- Fixed cross-platform CI build regressions:
+  - guarded POSIX dynamic loader include/usage in `VM/src/vm.cpp` so Windows builds compile cleanly.
+  - `core.dl` calls now return clear unsupported errors on Windows instead of compile-time failure.
+- Fixed macOS shell compatibility bug in `build.sh`:
+  - avoided unbound empty-array expansion for `TEST_DEFINES` when running `--suite all` under strict Bash settings.
+- Hardened Windows build scripts:
+  - `build.ps1` now fails fast immediately after CMake configure/build errors.
+  - `build.ps1` now discovers both `simplevm_tests.exe` and `simplevm_tests_all.exe` output names.
+  - `build.bat` updated with the same fail-fast behavior and test executable fallback list.
+- Local verification:
+  - `./build.sh --suite core` passed (`507/507`).
+  - `./build.sh --suite all --no-tests` completed successfully.
