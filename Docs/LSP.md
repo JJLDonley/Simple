@@ -69,6 +69,7 @@ Primary goals:
 - import-aware resolution for project-local files and reserved modules
 - hover enriches reserved imported alias members with callable signatures (for example `OS.args_get(index) -> string`)
 - rename/prepareRename reject reserved imported module member symbols (for example `OS.args_get`, `IO.println`) to prevent invalid API rewrites
+- document highlights classify declaration + assignment targets as write highlights and other uses as read highlights
 
 ### Completion
 

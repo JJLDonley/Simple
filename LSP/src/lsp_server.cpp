@@ -1429,6 +1429,15 @@ bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   return false;
 }
 
+bool IsWriteUsageAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size()) return false;
+  if (refs[i].token.kind != TK::Identifier) return false;
+  if (IsDeclNameAt(refs, i)) return true;
+  if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::Assign) return true;
+  return false;
+}
+
 std::string LocationJson(const std::string& uri, const Simple::Lang::Token& tk) {
   const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
   const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
@@ -1668,7 +1677,7 @@ void ReplyDocumentHighlight(std::ostream& out,
   for (const auto& ref : refs) {
     if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
     if (ref.token.text != name) continue;
-    const uint32_t kind = IsDeclNameAt(refs, ref.index) ? 3u : 2u;
+    const uint32_t kind = IsWriteUsageAt(refs, ref.index) ? 3u : 2u;
     if (!result.empty()) result += ",";
     result += DocumentHighlightJson(ref.token, kind);
   }

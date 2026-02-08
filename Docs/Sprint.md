@@ -1284,3 +1284,8 @@
 - Added regression coverage for document highlights:
   - new test validates capability advertisement and response payload contains both declaration/read highlight entries for repeated local identifiers.
 - Updated LSP and implementation docs to include `textDocument/documentHighlight` in implemented navigation surface.
+- Refined LSP document highlight semantics:
+  - highlight classification now marks declaration + assignment-target occurrences as write highlights (`kind:3`), while non-writing symbol uses remain read highlights (`kind:2`).
+- Strengthened document highlight regression assertions:
+  - existing highlight test now verifies at least two write highlights are present for `foo : i32 = 1; foo = foo + 1;` (declaration + assignment LHS) and that read highlight entries are still present.
+- Updated LSP and implementation docs to reflect write/read highlight differentiation behavior.

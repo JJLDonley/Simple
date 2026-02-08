@@ -1268,10 +1268,14 @@ bool LspDocumentHighlightReturnsLocalHighlights() {
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
+  const size_t first_write = out_contents.find("\"kind\":3");
+  const size_t second_write =
+      first_write == std::string::npos ? std::string::npos : out_contents.find("\"kind\":3", first_write + 1);
   return err_contents.empty() &&
          out_contents.find("\"documentHighlightProvider\":true") != std::string::npos &&
          out_contents.find("\"id\":41") != std::string::npos &&
-         out_contents.find("\"kind\":3") != std::string::npos &&
+         first_write != std::string::npos &&
+         second_write != std::string::npos &&
          out_contents.find("\"kind\":2") != std::string::npos &&
          out_contents.find("\"line\":0") != std::string::npos &&
          out_contents.find("\"line\":1") != std::string::npos;
