@@ -11,12 +11,39 @@ TEST_DIR="$ROOT_DIR/Tests/tests"
 OUT_DIR="$ROOT_DIR/bin"
 BUILD_DIR="$ROOT_DIR/build"
 CORE_OBJ_DIR="$BUILD_DIR/obj_runtime"
+CLI_OBJ_DIR="$BUILD_DIR/obj_cli"
+
+CXX="g++"
+if command -v ccache >/dev/null 2>&1; then
+  CXX="ccache g++"
+fi
+CXXFLAGS=(-std=c++17 -O2 -Wall -Wextra)
+INCLUDES=(
+  -I"$VM_DIR/include"
+  -I"$IR_DIR/include"
+  -I"$ROOT_DIR/Lang/include"
+  -I"$LSP_DIR/include"
+  -I"$BYTE_DIR/include"
+)
 
 SUITE="all"
+RUN_TESTS=1
 if [[ "${1:-}" == "--suite" && -n "${2:-}" ]]; then
   SUITE="$2"
   shift 2
 fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-tests)
+      RUN_TESTS=0
+      shift
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
 
 case "$SUITE" in
   all|core|ir|jit|lang|lsp) ;;
@@ -30,6 +57,7 @@ OBJ_DIR="$BUILD_DIR/obj_$SUITE"
 mkdir -p "$OUT_DIR"
 mkdir -p "$OBJ_DIR"
 mkdir -p "$CORE_OBJ_DIR"
+mkdir -p "$CLI_OBJ_DIR"
 
 FFI_C="$ROOT_DIR/Tests/ffi/simple_ffi.c"
 FFI_SO="$ROOT_DIR/Tests/ffi/libsimpleffi.so"
@@ -122,12 +150,8 @@ for src in "${SOURCES[@]}"; do
   fi
 
   if [[ "$rebuild" -eq 1 ]]; then
-    g++ -std=c++17 -O2 -Wall -Wextra \
-      -I"$VM_DIR/include" \
-      -I"$IR_DIR/include" \
-      -I"$ROOT_DIR/Lang/include" \
-      -I"$LSP_DIR/include" \
-      -I"$BYTE_DIR/include" \
+    $CXX "${CXXFLAGS[@]}" \
+      "${INCLUDES[@]}" \
       "${TEST_DEFINES[@]}" -MMD -MP -c "$src" -o "$obj"
   fi
 done
@@ -156,26 +180,62 @@ for src in "${RUNTIME_SOURCES[@]}"; do
   fi
 
   if [[ "$rebuild" -eq 1 ]]; then
-    g++ -std=c++17 -O2 -Wall -Wextra -fPIC \
+    $CXX "${CXXFLAGS[@]}" -fPIC \
       -I"$VM_DIR/include" \
       -I"$BYTE_DIR/include" \
       -MMD -MP -c "$src" -o "$obj"
   fi
 done
 
+CLI_ALL_SOURCES=(
+  "${CLI_SOURCES[@]}"
+  "$IR_DIR/src/ir_builder.cpp"
+  "$IR_DIR/src/ir_compiler.cpp"
+  "$IR_DIR/src/ir_lang.cpp"
+  "$ROOT_DIR/Lang/src/lang_lexer.cpp"
+  "$ROOT_DIR/Lang/src/lang_parser.cpp"
+  "$ROOT_DIR/Lang/src/lang_validate.cpp"
+  "$ROOT_DIR/Lang/src/lang_sir.cpp"
+)
+
+CLI_OBJECTS=()
+for src in "${CLI_ALL_SOURCES[@]}"; do
+  base="$(basename "$src" .cpp)"
+  obj="$CLI_OBJ_DIR/$base.o"
+  dep="$CLI_OBJ_DIR/$base.d"
+  CLI_OBJECTS+=("$obj")
+  rebuild=0
+  if [[ ! -f "$obj" ]]; then
+    rebuild=1
+  elif [[ "$src" -nt "$obj" ]]; then
+    rebuild=1
+  elif [[ -f "$dep" ]]; then
+    deps="$(sed -e 's/^[^:]*://;s/\\\\$//g' "$dep")"
+    for d in $deps; do
+      if [[ -f "$d" && "$d" -nt "$obj" ]]; then
+        rebuild=1
+        break
+      fi
+    done
+  else
+    rebuild=1
+  fi
+  if [[ "$rebuild" -eq 1 ]]; then
+    $CXX "${CXXFLAGS[@]}" \
+      "${INCLUDES[@]}" \
+      -MMD -MP -c "$src" -o "$obj"
+  fi
+done
+
 ar rcs "$OUT_DIR/libsimplevm_runtime.a" "${CORE_OBJECTS[@]}"
-g++ -shared -fPIC -O2 -Wall -Wextra \
+$CXX -shared -fPIC "${CXXFLAGS[@]}" \
   "${CORE_OBJECTS[@]}" \
   -ldl \
   -lffi \
   -o "$OUT_DIR/libsimplevm_runtime.so"
 
-g++ -std=c++17 -O2 -Wall -Wextra \
-  -I"$VM_DIR/include" \
-  -I"$IR_DIR/include" \
-  -I"$ROOT_DIR/Lang/include" \
-  -I"$LSP_DIR/include" \
-  -I"$BYTE_DIR/include" \
+$CXX "${CXXFLAGS[@]}" \
+  "${INCLUDES[@]}" \
   "${TEST_DEFINES[@]}" \
   "${OBJECTS[@]}" \
   "$OUT_DIR/libsimplevm_runtime.a" \
@@ -183,20 +243,9 @@ g++ -std=c++17 -O2 -Wall -Wextra \
   -lffi \
   -o "$OUT_DIR/simplevm_tests_$SUITE"
 
-g++ -std=c++17 -O2 -Wall -Wextra \
-  -I"$VM_DIR/include" \
-  -I"$IR_DIR/include" \
-  -I"$ROOT_DIR/Lang/include" \
-  -I"$LSP_DIR/include" \
-  -I"$BYTE_DIR/include" \
-  "${CLI_SOURCES[@]}" \
-  "$IR_DIR/src/ir_builder.cpp" \
-  "$IR_DIR/src/ir_compiler.cpp" \
-  "$IR_DIR/src/ir_lang.cpp" \
-  "$ROOT_DIR/Lang/src/lang_lexer.cpp" \
-  "$ROOT_DIR/Lang/src/lang_parser.cpp" \
-  "$ROOT_DIR/Lang/src/lang_validate.cpp" \
-  "$ROOT_DIR/Lang/src/lang_sir.cpp" \
+$CXX "${CXXFLAGS[@]}" \
+  "${INCLUDES[@]}" \
+  "${CLI_OBJECTS[@]}" \
   "$OUT_DIR/libsimplevm_runtime.a" \
   -DSIMPLEVM_PROJECT_ROOT=\"$ROOT_DIR\" \
   -ldl \
@@ -211,5 +260,9 @@ echo "built: $OUT_DIR/libsimplevm_runtime.a"
 echo "built: $OUT_DIR/libsimplevm_runtime.so"
 echo "built: $OUT_DIR/simplevm_tests_$SUITE"
 
-echo "running: $OUT_DIR/simplevm_tests_$SUITE"
-"$OUT_DIR/simplevm_tests_$SUITE"
+if [[ "$RUN_TESTS" -eq 1 ]]; then
+  echo "running: $OUT_DIR/simplevm_tests_$SUITE"
+  "$OUT_DIR/simplevm_tests_$SUITE"
+else
+  echo "skipping tests (--no-tests)"
+fi

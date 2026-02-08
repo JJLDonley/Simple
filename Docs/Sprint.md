@@ -1327,3 +1327,7 @@
   - preserved legacy no-import `IO.print/IO.println` behavior for existing programs/tests.
 - Added regression coverage:
   - `lang_validate_system_import_implicit_lower_alias` validates `import system.io` + `io.println(...)`.
+- Improved local build throughput in `build.sh`:
+  - added incremental object caching for CLI/link targets (avoids recompiling CLI + front-end sources every run),
+  - auto-uses `ccache` when available,
+  - added `--no-tests` flag to build artifacts without running the test executable (fast iteration mode).
