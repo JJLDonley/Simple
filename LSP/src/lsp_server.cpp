@@ -1521,6 +1521,13 @@ std::string InferNumericDeclarationType(const std::string& text, const std::stri
     ++i;
     while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
     if (i >= text.size()) break;
+    auto boundary_ok = [&](size_t pos) {
+      return pos >= text.size() || !IsIdentChar(text[pos]);
+    };
+    if (text.compare(i, 4, "true") == 0 && boundary_ok(i + 4)) return "bool";
+    if (text.compare(i, 5, "false") == 0 && boundary_ok(i + 5)) return "bool";
+    if (text[i] == '"') return "string";
+    if (text[i] == '\'') return "char";
     bool seen_digit = false;
     bool seen_dot = false;
     if (text[i] == '-') ++i;
@@ -1927,7 +1934,11 @@ void ReplyCodeAction(std::ostream& out,
     return;
   }
   const std::string inferred_type = InferNumericDeclarationType(doc_it->second, ident);
-  const std::string inferred_init = inferred_type == "f64" ? "0.0" : "0";
+  std::string inferred_init = "0";
+  if (inferred_type == "f64") inferred_init = "0.0";
+  else if (inferred_type == "bool") inferred_init = "false";
+  else if (inferred_type == "string") inferred_init = "\"\"";
+  else if (inferred_type == "char") inferred_init = "'\\0'";
   const uint32_t insert_line = PreferredDeclarationInsertLine(doc_it->second);
   const std::string declaration = ident + " : " + inferred_type + " = " + inferred_init + ";\n";
   WriteLspMessage(

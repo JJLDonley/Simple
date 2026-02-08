@@ -1289,3 +1289,9 @@
 - Strengthened document highlight regression assertions:
   - existing highlight test now verifies at least two write highlights are present for `foo : i32 = 1; foo = foo + 1;` (declaration + assignment LHS) and that read highlight entries are still present.
 - Updated LSP and implementation docs to reflect write/read highlight differentiation behavior.
+- Expanded undeclared-identifier quick-fix type inference to scalar literals:
+  - code-action declaration inference now recognizes assignment literals for `bool` (`true`/`false`), `string` (`"..."`), and `char` (`x`) in addition to existing numeric inference (`i32`/`f64`).
+  - generated default initializer now matches inferred type (`false`, `""`, `\0` char literal, `0`, `0.0`).
+- Added regression coverage for bool literal inference:
+  - new test validates `enabled = true;` produces quick-fix `Declare 'enabled' as bool` and declaration edit `enabled : bool = false;`.
+- Updated LSP and implementation docs to reflect broader scalar quick-fix inference behavior.
