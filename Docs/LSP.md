@@ -65,6 +65,7 @@ Primary goals:
 - declarations: functions, variables, modules, artifacts, enums, externs
 - local scopes for function/block-level identifiers
 - import-aware resolution for project-local files and reserved modules
+- hover enriches reserved imported alias members with callable signatures (for example `OS.args_get(index) -> string`)
 
 ### Completion
 

@@ -420,9 +420,11 @@ std::vector<std::string> CollectImportCandidates(
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text);
 std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text);
 std::string NormalizeCoreDlMember(const std::string& member);
+std::string QualifiedMemberAtPosition(const std::string& text, uint32_t line, uint32_t character);
 
 struct ReservedSignature {
   std::vector<std::string> params;
+  std::string return_type;
 };
 
 bool ResolveReservedModuleSignature(const std::string& call_name,
@@ -687,6 +689,27 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
   return out;
 }
 
+std::string QualifiedMemberAtPosition(const std::string& text, uint32_t line, uint32_t character) {
+  const std::string line_text = GetLineText(text, line);
+  if (line_text.empty()) return {};
+  size_t pos = std::min<size_t>(character, line_text.size() ? line_text.size() - 1 : 0);
+  if (!IsIdentChar(line_text[pos])) {
+    if (pos > 0 && IsIdentChar(line_text[pos - 1])) --pos;
+    else return {};
+  }
+  size_t member_begin = pos;
+  while (member_begin > 0 && IsIdentChar(line_text[member_begin - 1])) --member_begin;
+  size_t member_end = pos + 1;
+  while (member_end < line_text.size() && IsIdentChar(line_text[member_end])) ++member_end;
+  if (member_begin == 0 || line_text[member_begin - 1] != '.') return {};
+  size_t recv_end = member_begin - 1;
+  size_t recv_begin = recv_end;
+  while (recv_begin > 0 && IsIdentChar(line_text[recv_begin - 1])) --recv_begin;
+  if (recv_begin == recv_end) return {};
+  return line_text.substr(recv_begin, recv_end - recv_begin) + "." +
+         line_text.substr(member_begin, member_end - member_begin);
+}
+
 std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::string& text) {
   std::unordered_map<std::string, std::string> aliases;
   size_t start = 0;
@@ -739,6 +762,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
                                     ReservedSignature* out) {
   if (!out) return false;
   out->params.clear();
+  out->return_type.clear();
   const size_t dot = call_name.find('.');
   if (dot == std::string::npos || dot == 0 || dot + 1 >= call_name.size()) return false;
   const std::string alias = call_name.substr(0, dot);
@@ -750,29 +774,37 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (module == "Math") {
     if (member == "abs") {
       out->params = {"value"};
+      out->return_type = "i32|i64";
       return true;
     }
     if (member == "min" || member == "max") {
       out->params = {"lhs", "rhs"};
+      out->return_type = "numeric";
       return true;
     }
     return false;
   }
   if (module == "Time") {
-    if (member == "mono_ns" || member == "wall_ns") return true;
+    if (member == "mono_ns" || member == "wall_ns") {
+      out->return_type = "i64";
+      return true;
+    }
     return false;
   }
   if (module == "File" || module == "Core.Fs") {
     if (member == "open") {
       out->params = {"path", "flags"};
+      out->return_type = "i32";
       return true;
     }
     if (member == "close") {
       out->params = {"fd"};
+      out->return_type = "void";
       return true;
     }
     if (member == "read" || member == "write") {
       out->params = {"fd", "buffer", "count"};
+      out->return_type = "i32";
       return true;
     }
     return false;
@@ -780,18 +812,23 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (module == "Core.Os") {
     if (member == "args_count" || member == "cwd_get" || member == "time_mono_ns" ||
         member == "time_wall_ns") {
+      out->return_type =
+          (member == "args_count") ? "i32" : ((member == "cwd_get") ? "string" : "i64");
       return true;
     }
     if (member == "args_get") {
       out->params = {"index"};
+      out->return_type = "string";
       return true;
     }
     if (member == "env_get") {
       out->params = {"key"};
+      out->return_type = "string";
       return true;
     }
     if (member == "sleep_ms") {
       out->params = {"milliseconds"};
+      out->return_type = "void";
       return true;
     }
     return false;
@@ -799,6 +836,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (module == "Core.Log") {
     if (member == "log") {
       out->params = {"message", "level"};
+      out->return_type = "void";
       return true;
     }
     return false;
@@ -807,19 +845,26 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     member = NormalizeCoreDlMember(member);
     if (member == "open") {
       out->params = {"path"};
+      out->return_type = "i64";
       return true;
     }
     if (member == "sym") {
       out->params = {"handle", "name"};
+      out->return_type = "i64";
       return true;
     }
     if (member == "close" || member == "call_str0") {
       out->params = {"handle"};
+      out->return_type = (member == "close") ? "i32" : "string";
       return true;
     }
-    if (member == "last_error") return true;
+    if (member == "last_error") {
+      out->return_type = "string";
+      return true;
+    }
     if (member == "call_i32" || member == "call_i64" || member == "call_f32" || member == "call_f64") {
       out->params = {"fn_ptr", "a0", "a1"};
+      out->return_type = member.substr(5);
       return true;
     }
     return false;
@@ -870,7 +915,21 @@ void ReplyHover(std::ostream& out,
       if (resolve_decl_type(other_text, &decl_type)) break;
     }
   }
-  if (!decl_type.empty()) hover_text = ident + " : " + decl_type;
+  if (!decl_type.empty()) {
+    hover_text = ident + " : " + decl_type;
+  } else {
+    const std::string call_name = QualifiedMemberAtPosition(it->second, line, character);
+    ReservedSignature reserved_sig;
+    if (!call_name.empty() && ResolveReservedModuleSignature(call_name, it->second, &reserved_sig)) {
+      std::string params;
+      for (size_t i = 0; i < reserved_sig.params.size(); ++i) {
+        if (!params.empty()) params += ", ";
+        params += reserved_sig.params[i];
+      }
+      hover_text = call_name + "(" + params + ")";
+      if (!reserved_sig.return_type.empty()) hover_text += " -> " + reserved_sig.return_type;
+    }
+  }
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +

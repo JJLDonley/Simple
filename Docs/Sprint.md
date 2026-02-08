@@ -1246,3 +1246,9 @@
 - Added regression coverage for reserved alias signature help:
   - new test validates `import "Core.Os" as OS` + `OS.args_get(...)` signature payload/parameter labels and active parameter behavior.
 - Updated LSP and implementation docs to include reserved-module alias signature-help behavior.
+- Extended LSP hover behavior for reserved module aliases:
+  - hover now resolves alias-qualified reserved member calls to signature text when local declaration typing is unavailable.
+  - example hover payload: `OS.args_get(index) -> string` for `import "Core.Os" as OS`.
+- Added regression coverage for reserved alias hover signatures:
+  - new test validates `textDocument/hover` on `OS.args_get` returns signature + return type markdown content.
+- Updated LSP and implementation docs to reflect reserved alias hover enrichment behavior.
