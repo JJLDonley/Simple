@@ -1223,3 +1223,9 @@
 - Added LSP regression coverage for import completion:
   - new test validates `import "Co` completion suggests `Core.*` modules and excludes keyword noise.
 - Updated implementation/LSP docs to document import-path completion behavior and current module-suggestion sources.
+- Added LSP declaration navigation support:
+  - server now advertises `declarationProvider` during `initialize` capability handshake.
+  - `textDocument/declaration` requests are handled and return declaration locations using the same declaration-resolution path as go-to-definition for Simple symbols.
+- Expanded LSP regression coverage:
+  - initialize handshake test now asserts `declarationProvider` capability is present.
+  - new declaration navigation test validates `textDocument/declaration` returns the expected declaration location for local symbols.

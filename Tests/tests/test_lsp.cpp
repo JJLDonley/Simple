@@ -87,6 +87,7 @@ bool LspInitializeHandshake() {
          out_contents.find("Content-Length:") != std::string::npos &&
          out_contents.find("\"id\":1") != std::string::npos &&
          out_contents.find("\"capabilities\"") != std::string::npos &&
+         out_contents.find("\"declarationProvider\":true") != std::string::npos &&
          out_contents.find("\"semanticTokensProvider\"") != std::string::npos &&
          out_contents.find("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\",\"@\"]}") !=
              std::string::npos;
@@ -932,6 +933,39 @@ bool LspDefinitionResolvesAcrossOpenDocuments() {
          out_contents.find("\"character\":0") != std::string::npos;
 }
 
+bool LspDeclarationReturnsLocation() {
+  const std::string in_path = TempPath("simple_lsp_declaration_in.txt");
+  const std::string out_path = TempPath("simple_lsp_declaration_out.txt");
+  const std::string err_path = TempPath("simple_lsp_declaration_err.txt");
+  const std::string uri = "file:///workspace/decl.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"foo : i32 = 1;\\nbar : i32 = foo;\"}}}";
+  const std::string decl_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":31,\"method\":\"textDocument/declaration\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":12}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(decl_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":31") != std::string::npos &&
+         out_contents.find("\"uri\":\"" + uri + "\"") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos;
+}
+
 bool LspReferencesReturnsLocations() {
   const std::string in_path = TempPath("simple_lsp_references_in.txt");
   const std::string out_path = TempPath("simple_lsp_references_out.txt");
@@ -1486,6 +1520,7 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
+  {"lsp_declaration_returns_location", LspDeclarationReturnsLocation},
   {"lsp_references_returns_locations", LspReferencesReturnsLocations},
   {"lsp_references_span_open_documents", LspReferencesSpanOpenDocuments},
   {"lsp_references_can_exclude_declaration", LspReferencesCanExcludeDeclaration},

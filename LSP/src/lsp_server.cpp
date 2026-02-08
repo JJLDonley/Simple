@@ -1456,7 +1456,7 @@ int RunServer(std::istream& in, std::ostream& out) {
             out,
             "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                 ",\"result\":{\"capabilities\":{\"textDocumentSync\":2,"
-                "\"hoverProvider\":true,\"definitionProvider\":true,"
+                "\"hoverProvider\":true,\"definitionProvider\":true,\"declarationProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
                 "\"renameProvider\":{\"prepareProvider\":true},"
@@ -1608,6 +1608,22 @@ int RunServer(std::istream& in, std::ostream& out) {
     }
 
     if (method == "textDocument/definition") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyDefinition(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/declaration") {
       if (has_id) {
         std::string uri;
         uint32_t line = 0;

@@ -38,6 +38,7 @@ Primary goals:
 - `textDocument/publishDiagnostics`
 - `textDocument/hover`
 - `textDocument/definition`
+- `textDocument/declaration`
 - `textDocument/references`
 - `textDocument/documentSymbol`
 - `textDocument/completion`
