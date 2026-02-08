@@ -1203,3 +1203,17 @@
   - IO format signature-help payload,
   - `@T(value)` cast signature-help payload,
   - active-signature selection for IO format calls.
+
+- Extended LSP signature-help quality and docs alignment:
+  - signature help now distinguishes IO scalar vs format-call forms with correct active signature/parameter behavior,
+  - signature help now supports cast-call forms like `@i32(value)` by recognizing `@`-prefixed call identifiers.
+- Expanded LSP regression coverage for signature help:
+  - validates IO format signature payload and active-signature selection on multi-argument calls,
+  - validates cast-call signature help payload for `@T(value)`.
+- Updated language/tooling docs to match implemented behavior:
+  - cast contract remains `@T(value)`,
+  - IO `print/println` format-placeholder usage is documented in language + stdlib docs,
+  - implementation/LSP docs updated to reflect non-stub server status and current signature-help capabilities.
+- Tightened LSP initialize capability contract for cast ergonomics:
+  - signature-help trigger characters now include `@` so editors can invoke help immediately while typing `@T(...)` casts.
+- Added regression assertion in `lsp_initialize_handshake` to lock signature-help trigger-character payload (`( , @`) and prevent capability drift.

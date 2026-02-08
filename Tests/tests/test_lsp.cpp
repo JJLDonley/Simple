@@ -87,7 +87,9 @@ bool LspInitializeHandshake() {
          out_contents.find("Content-Length:") != std::string::npos &&
          out_contents.find("\"id\":1") != std::string::npos &&
          out_contents.find("\"capabilities\"") != std::string::npos &&
-         out_contents.find("\"semanticTokensProvider\"") != std::string::npos;
+         out_contents.find("\"semanticTokensProvider\"") != std::string::npos &&
+         out_contents.find("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\",\"@\"]}") !=
+             std::string::npos;
 }
 
 bool LspDidOpenPublishesDiagnostics() {

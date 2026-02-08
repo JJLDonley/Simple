@@ -1401,7 +1401,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"workspaceSymbolProvider\":true,"
                 "\"renameProvider\":{\"prepareProvider\":true},"
                 "\"codeActionProvider\":true,"
-                "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
+                "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\",\"@\"]},"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
                 "\"keyword\",\"type\",\"function\",\"variable\",\"parameter\","

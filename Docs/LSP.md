@@ -73,6 +73,7 @@ Primary goals:
 
 ### Signature Help (Current)
 
+- trigger characters: `(`, `,`, `@` (cast-call friendly)
 - builtins:
   - `IO.print(value)` / `IO.println(value)`
   - `IO.print(format, values...)` / `IO.println(format, values...)` for `{}` format-placeholder calls
