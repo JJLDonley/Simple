@@ -1433,3 +1433,28 @@
 - Verification:
   - `./build.sh --suite lang` passed (`362/362`).
   - `./build.sh --suite lsp` passed (`60/60`).
+- Additional unlogged in-progress work from current branch/worktree:
+  - Language function-value and callback surface updates:
+    - added `callback` keyword/token parsing as a dedicated proc marker type.
+    - added explicit `fn` shorthand variable-binding parse path (`x : fn = RetType(args) { ... }`) for top-level and local declarations.
+    - added callback validation restrictions (`callback` allowed in parameter position; rejected in variable/field/return positions).
+    - updated fn/callback docs in `Docs/Lang.md`, including explicit note that direct inline fn-literal invocation remains unsupported.
+  - SIR/validation behavior improvements:
+    - improved proc/callback type cloning and call-target inference paths.
+    - improved dynamic `Core.DL` module resolution for identifiers by checking both local and global DL handles.
+    - added float-literal type alignment in binary/inference paths where one side is a typed float lane.
+  - VS Code extension/LSP usability updates:
+    - added `Simple: Restart Language Server` command, editor-title button, status item, and config-triggered restart.
+    - expanded TextMate grammar for declarations/import captures and added `callback` keyword highlighting.
+    - removed redundant extension activation-event warnings by relying on contribution-driven activation.
+    - added LSP regression coverage for empty-document diagnostics and local-file import resolution.
+  - Runtime/IR/Byte fixes and diagnostics:
+    - fixed IR text lowering so primitive types with zero fields use `field_start=0` reliably.
+    - improved SBC loader error detail when primitive/ref/string kinds incorrectly carry fields.
+    - hardened VM `core.dl.call*` null-pointer behavior to return explicit runtime errors instead of silently fabricating return values.
+  - Test/fixture expansion:
+    - expanded language stress fixtures for import-chain/deep imports/cycles/ambiguity/relative imports under `Tests/simple_modules/*`.
+    - added callback/fn-proc regression tests and additional local-import fixtures.
+    - updated reserved-module fixtures to exercise canonical `system.*` import spellings.
+  - Repo hygiene:
+    - added `/raylib/` to `.gitignore` for local raylib build artifacts.
