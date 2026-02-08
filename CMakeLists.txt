@@ -5,6 +5,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Resolve libffi once and link it from core/runtime targets so downstream
+# executables (simplevm/tests) inherit the dependency transitively.
+find_package(PkgConfig QUIET)
+if (PkgConfig_FOUND)
+  pkg_check_modules(FFI QUIET IMPORTED_TARGET libffi)
+endif()
+if (TARGET PkgConfig::FFI)
+  set(SIMPLEVM_FFI_TARGET PkgConfig::FFI)
+else()
+  find_library(SIMPLEVM_FFI_LIB NAMES ffi REQUIRED)
+endif()
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -64,7 +76,11 @@ target_include_directories(simplevm_core_static PUBLIC
   ${SIMPLEVM_LANG_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS})
+if (TARGET PkgConfig::FFI)
+  target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+else()
+  target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+endif()
 
 add_library(simplevm_core_shared SHARED $<TARGET_OBJECTS:simplevm_core_obj>)
 set_target_properties(simplevm_core_shared PROPERTIES OUTPUT_NAME simplevm_core)
@@ -74,7 +90,11 @@ target_include_directories(simplevm_core_shared PUBLIC
   ${SIMPLEVM_LANG_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS})
+if (TARGET PkgConfig::FFI)
+  target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+else()
+  target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+endif()
 target_compile_definitions(simplevm_core_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
 add_library(simplevm_runtime_static STATIC ${SIMPLEVM_RUNTIME_SRC})
@@ -83,7 +103,11 @@ target_include_directories(simplevm_runtime_static PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS})
+if (TARGET PkgConfig::FFI)
+  target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+else()
+  target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+endif()
 set_target_properties(simplevm_runtime_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(simplevm_runtime_shared SHARED ${SIMPLEVM_RUNTIME_SRC})
@@ -92,7 +116,11 @@ target_include_directories(simplevm_runtime_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
-target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS})
+if (TARGET PkgConfig::FFI)
+  target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
+else()
+  target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_LIB})
+endif()
 target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
 add_executable(simplevm
@@ -110,6 +138,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_ir.cpp
   ${SIMPLEVM_TEST_ROOT}/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lang.cpp
+  ${SIMPLEVM_TEST_ROOT}/test_lsp.cpp
   ${SIMPLEVM_TEST_ROOT}/test_main.cpp
   ${SIMPLEVM_TEST_ROOT}/sir_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/simple_runner.cpp

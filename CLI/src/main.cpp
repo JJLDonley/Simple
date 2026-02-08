@@ -26,6 +26,12 @@
 #include "vm.h"
 
 namespace {
+#ifndef SIMPLEVM_VERSION
+#define SIMPLEVM_VERSION "v0.02"
+#endif
+
+const char* ToolVersion() { return SIMPLEVM_VERSION; }
+
 bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
   if (!out) return false;
   std::ifstream in(path);
@@ -687,7 +693,10 @@ int main(int argc, char** argv) {
   auto print_usage = [&]() {
     std::cerr << "usage:\n";
     if (simple_only) {
-      std::cerr << "  " << tool_name << " run <file.simple> [--no-verify]\n"
+      std::cerr << "  " << tool_name << " --version | -v\n"
+                << "  " << tool_name << " --help | -h\n"
+                << "  " << tool_name << " help\n"
+                << "  " << tool_name << " run <file.simple> [--no-verify]\n"
                 << "  " << tool_name
                 << " build <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name
@@ -698,7 +707,10 @@ int main(int argc, char** argv) {
                 << "  " << tool_name << " lsp\n"
                 << "  " << tool_name << " <file.simple> [--no-verify]\n";
     } else {
-      std::cerr << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
+      std::cerr << "  " << tool_name << " --version | -v\n"
+                << "  " << tool_name << " --help | -h\n"
+                << "  " << tool_name << " help\n"
+                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
                 << "  " << tool_name << " build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " compile <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
@@ -711,6 +723,12 @@ int main(int argc, char** argv) {
   if (argc < 2) {
     print_usage();
     return 1;
+  }
+
+  if (std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v" ||
+      std::string(argv[1]) == "version") {
+    std::cout << tool_name << " " << ToolVersion() << "\n";
+    return 0;
   }
 
   if (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h" ||

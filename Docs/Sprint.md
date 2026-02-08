@@ -1458,3 +1458,47 @@
     - updated reserved-module fixtures to exercise canonical `system.*` import spellings.
   - Repo hygiene:
     - added `/raylib/` to `.gitignore` for local raylib build artifacts.
+- Added unified ship pipeline:
+  - new `ship.sh` orchestrates `build.sh` -> `release.sh` -> `install.sh` in one command.
+  - supports OS/arch target detection, optional suite/test toggles, skip flags, and optional PATH profile updates.
+  - applies macOS Homebrew `libffi` detection (`/opt/homebrew/opt/libffi` and `/usr/local/opt/libffi`) for build compatibility.
+- Improved `build.sh` portability for ship/install workflows:
+  - now honors injected compile/link flags from environment (`CXXFLAGS`, `LDFLAGS`, `SIMPLE_EXTRA_CXXFLAGS`, `SIMPLE_EXTRA_LDFLAGS`).
+  - uses platform-specific default link flags (`-ldl -lffi` on Linux, `-lffi` elsewhere).
+- Updated shipping/build defaults for better cross-platform ergonomics:
+  - `ship.sh` now skips tests by default and adds explicit `--tests` opt-in.
+  - `ship.sh` now has Windows-aware build/package/install flow (uses `build.ps1`/`build.bat`, stages/copies `.exe` artifacts, emits `.zip` release when packager is available).
+  - `build.ps1` and `build.bat` now support `--no-tests` to allow build-only runs.
+- Reduced script redundancy and added fixed platform installers:
+  - added shared platform helper `scripts/platform.sh` for OS/arch normalization, target detection, and default install/bin paths.
+  - refactored `ship.sh`, `release.sh`, and `install.sh` to consume shared platform helpers instead of duplicating host detection logic.
+  - added fixed installer entrypoints:
+    - `install-linux.sh` (Linux-only wrapper over `install.sh` with fixed Linux defaults),
+    - `install-macos.sh` (macOS-only wrapper over `install.sh` with fixed macOS defaults),
+    - `install-windows.ps1` (Windows-native ZIP installer with fixed Windows defaults, optional PATH update).
+  - `install.sh` now explicitly rejects Windows targets and points users to `install-windows.ps1`.
+- Replaced all prior build/install wrappers with strict authoritative OS entrypoints:
+  - added `build_linux`, `build_macos`, and `build_windows` as the only supported scripts for source build, packaging, and install.
+  - removed legacy scripts: `build.sh`, `build.ps1`, `build.bat`, `build-linux.sh`, `build-macos.sh`, `install.sh`, `install-linux.sh`, `install-macos.sh`, `install-windows.ps1`, `release.sh`, `ship.sh`, and shared helper `scripts/platform.sh`.
+- Updated `Docs/README.md` with a new quickstart section covering:
+  - required build dependencies by platform,
+  - authoritative install/build commands (`build_linux`, `build_macos`, `build_windows`),
+  - default install locations,
+  - common script flags and system-wide install examples.
+- Moved generated SBC core.fs test artifacts out of repo-root `bin/` into `Tests/bin/`:
+  - updated `Tests/tests/test_core.cpp` fixture paths from `bin/sbc_fs_*.bin` to `Tests/bin/sbc_fs_*.bin`,
+  - added `Tests/bin/.gitignore` to keep generated test binaries out of source control,
+  - kept `bin/` for runtime/compiler binaries and compatibility libs only.
+- Updated authoritative OS build scripts default package/install version from `dev` to `v0.02`:
+  - `build_linux`, `build_macos`, and `build_windows` now default to `--version v0.02` behavior.
+  - documented the new default version in `Docs/README.md`.
+- Added optional legacy build path for users without CMake:
+  - `build_linux --legacy` and `build_macos --legacy` now run old manual compile/link flow (build.sh-style) and still package/install through the same script pipeline.
+  - `build_windows` remains CMake-based.
+- Updated `Docs/README.md` build requirements to document default CMake mode vs legacy (`--legacy`) mode per OS.
+- Added CLI version flag support:
+  - `simple --version`, `simple -v` (and `simplevm --version`, `simplevm -v`) now print tool version (`v0.02`).
+- Added post-install PATH/version reporting in authoritative build scripts:
+  - `build_linux`, `build_macos`, and `build_windows` now report whether `simple` is on PATH and print version output when available.
+- Removed unused DL helper functions in `VM/src/vm.cpp` (`DispatchDlCall1Void`, `DispatchDlCall2Void`, `PackDlI32LikeRet`, `ConvertDlPackedU64Arg` and dependent helper) to eliminate legacy-build warning noise.
+- Updated GitHub release workflow (`.github/workflows/release.yml`) to build/package Linux, macOS, and Windows artifacts using authoritative scripts (`build_linux`, `build_macos`, `build_windows`), then publish all platform artifacts with versioned + latest filenames and SHA256 sidecars.

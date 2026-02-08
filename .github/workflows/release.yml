@@ -15,33 +15,10 @@ permissions:
   contents: write
 
 jobs:
-  smoke-build-platforms:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build + test (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          chmod +x ./build.sh
-          ./build.sh --suite all
-
-      - name: Build + test (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          ./build.ps1 -Config Release
-
-  build-and-release:
-    needs: smoke-build-platforms
+  compute-version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,34 +47,116 @@ jobs:
             fi
           fi
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
-          echo "VERSION=${ver}" >> "$GITHUB_ENV"
 
-      - name: Build + test
+  build-packages:
+    needs: compute-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            script: ./build_linux
+            pkg_glob: "dist/simple-${VERSION}-*.tar.gz"
+          - os: macos-latest
+            script: ./build_macos
+            pkg_glob: "dist/simple-${VERSION}-*.tar.gz"
+          - os: windows-latest
+            script: ./build_windows
+            pkg_glob: "dist/simple-${VERSION}-*.zip"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup macOS deps
+        if: runner.os == 'macOS'
         shell: bash
         run: |
-          chmod +x ./build.sh ./release.sh ./install.sh
-          ./build.sh --suite all
+          brew update
+          brew install libffi pkg-config
 
-      - name: Package release artifact
+      - name: Setup Linux deps
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          ./release.sh --version "${VERSION}" --target "linux-x86_64"
-          cp "dist/simple-${VERSION}-linux-x86_64.tar.gz" "dist/simple-latest-linux-x86_64.tar.gz"
-          sha256sum "dist/simple-${VERSION}-linux-x86_64.tar.gz" > "dist/simple-${VERSION}-linux-x86_64.tar.gz.sha256"
-          sha256sum "dist/simple-latest-linux-x86_64.tar.gz" > "dist/simple-latest-linux-x86_64.tar.gz.sha256"
+          sudo apt-get update
+          sudo apt-get install -y libffi-dev pkg-config
+
+      - name: Build + package
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        run: |
+          chmod +x ./build_linux ./build_macos ./build_windows
+          ${{ matrix.script }} --version "${VERSION}" --no-tests --skip-install
+
+      - name: Upload platform package artifacts
+        uses: actions/upload-artifact@v4
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        with:
+          name: release-${{ runner.os }}
+          path: ${{ matrix.pkg_glob }}
+          if-no-files-found: error
+
+  publish-release:
+    needs:
+      - compute-version
+      - build-packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten artifact layout
+        shell: bash
+        run: |
+          find dist -type f -name 'simple-*' -exec cp {} dist/ \;
+
+      - name: Create latest aliases + checksums
+        shell: bash
+        env:
+          VERSION: ${{ needs.compute-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for pkg in dist/simple-"${VERSION}"-*.tar.gz dist/simple-"${VERSION}"-*.zip; do
+            file="$(basename "$pkg")"
+            if [[ "$file" == *.tar.gz ]]; then
+              target="${file#simple-${VERSION}-}"
+              target="${target%.tar.gz}"
+              latest="dist/simple-latest-${target}.tar.gz"
+            elif [[ "$file" == *.zip ]]; then
+              target="${file#simple-${VERSION}-}"
+              target="${target%.zip}"
+              latest="dist/simple-latest-${target}.zip"
+            else
+              continue
+            fi
+            cp "$pkg" "$latest"
+            sha256sum "$pkg" > "${pkg}.sha256"
+            sha256sum "$latest" > "${latest}.sha256"
+          done
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
+          tag_name: ${{ needs.compute-version.outputs.version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
           body: |
-            Linux release artifacts are attached below.
-
-            Windows and macOS builds are currently untested and should be compiled from source.
+            Release artifacts for Linux, macOS, and Windows are attached below.
           files: |
-            dist/simple-${{ env.VERSION }}-linux-x86_64.tar.gz
-            dist/simple-${{ env.VERSION }}-linux-x86_64.tar.gz.sha256
-            dist/simple-latest-linux-x86_64.tar.gz
-            dist/simple-latest-linux-x86_64.tar.gz.sha256
+            dist/simple-${{ needs.compute-version.outputs.version }}-*.tar.gz
+            dist/simple-${{ needs.compute-version.outputs.version }}-*.tar.gz.sha256
+            dist/simple-${{ needs.compute-version.outputs.version }}-*.zip
+            dist/simple-${{ needs.compute-version.outputs.version }}-*.zip.sha256
+            dist/simple-latest-*.tar.gz
+            dist/simple-latest-*.tar.gz.sha256
+            dist/simple-latest-*.zip
+            dist/simple-latest-*.zip.sha256

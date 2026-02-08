@@ -1,0 +1,306 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "build_linux can only run on Linux hosts." >&2
+  exit 1
+fi
+
+VERSION="v0.02"
+RUN_TESTS=0
+SKIP_BUILD=0
+SKIP_RELEASE=0
+SKIP_INSTALL=0
+NO_LINK=0
+LEGACY_BUILD=0
+PREFIX="${HOME}/.simple"
+BIN_DIR="${HOME}/.local/bin"
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64|amd64) ARCH="x86_64" ;;
+  aarch64|arm64) ARCH="arm64" ;;
+  i686|x86) ARCH="x86" ;;
+esac
+TARGET="linux-${ARCH}"
+
+usage() {
+  cat <<'EOT'
+Usage: ./build_linux [options]
+Options:
+  --version <name>
+  --prefix <dir>
+  --bin-dir <dir>
+  --tests | --no-tests
+  --legacy            Build without CMake (old build.sh-style)
+  --skip-build
+  --skip-release
+  --skip-install
+  --no-link
+EOT
+}
+
+report_path_status() {
+  if command -v simple >/dev/null 2>&1; then
+    local resolved
+    resolved="$(command -v simple)"
+    echo "PATH check: simple is available at $resolved"
+    local ver
+    if ver="$(simple --version 2>/dev/null)"; then
+      echo "PATH check: $ver"
+    elif ver="$(simple -v 2>/dev/null)"; then
+      echo "PATH check: $ver"
+    else
+      echo "PATH check: unable to read version from PATH simple"
+    fi
+  else
+    echo "PATH check: simple is not on PATH"
+    echo "PATH hint: add $BIN_DIR to your PATH"
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version) VERSION="${2:-}"; shift 2 ;;
+    --prefix) PREFIX="${2:-}"; shift 2 ;;
+    --bin-dir) BIN_DIR="${2:-}"; shift 2 ;;
+    --tests) RUN_TESTS=1; shift ;;
+    --no-tests) RUN_TESTS=0; shift ;;
+    --legacy) LEGACY_BUILD=1; shift ;;
+    --skip-build) SKIP_BUILD=1; shift ;;
+    --skip-release) SKIP_RELEASE=1; shift ;;
+    --skip-install) SKIP_INSTALL=1; shift ;;
+    --no-link) NO_LINK=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; usage; exit 1 ;;
+  esac
+done
+
+BUILD_DIR="$ROOT_DIR/build"
+DIST_DIR="$ROOT_DIR/dist"
+STAGE_DIR="$DIST_DIR/simple-${VERSION}-${TARGET}"
+PKG_PATH="$DIST_DIR/simple-${VERSION}-${TARGET}.tar.gz"
+COMPAT_BIN_DIR="$ROOT_DIR/bin"
+TEST_BIN_DIR="$ROOT_DIR/Tests/bin"
+
+build_legacy_unix() {
+  local vm_dir ir_dir byte_dir cli_dir lsp_dir lang_dir test_dir
+  local obj_dir runtime_obj_dir cli_obj_dir
+  local cxx
+  local user_cxxflags user_ldflags
+
+  vm_dir="$ROOT_DIR/VM"
+  ir_dir="$ROOT_DIR/IR"
+  byte_dir="$ROOT_DIR/Byte"
+  cli_dir="$ROOT_DIR/CLI"
+  lsp_dir="$ROOT_DIR/LSP"
+  lang_dir="$ROOT_DIR/Lang"
+  test_dir="$ROOT_DIR/Tests/tests"
+
+  obj_dir="$BUILD_DIR/legacy_obj"
+  runtime_obj_dir="$BUILD_DIR/legacy_obj_runtime"
+  cli_obj_dir="$BUILD_DIR/legacy_obj_cli"
+
+  mkdir -p "$COMPAT_BIN_DIR" "$obj_dir" "$runtime_obj_dir" "$cli_obj_dir"
+
+  cxx="g++"
+  if command -v ccache >/dev/null 2>&1; then
+    cxx="ccache g++"
+  fi
+
+  user_cxxflags="${CXXFLAGS:-}"
+  user_ldflags="${LDFLAGS:-}"
+
+  local cxxflags=(-std=c++17 -O2 -Wall -Wextra)
+  local includes=(
+    -I"$vm_dir/include"
+    -I"$ir_dir/include"
+    -I"$lang_dir/include"
+    -I"$lsp_dir/include"
+    -I"$byte_dir/include"
+  )
+  local link_flags=(-ldl -lffi)
+
+  if [[ -n "$user_cxxflags" ]]; then
+    # shellcheck disable=SC2206
+    local extra_cxx=($user_cxxflags)
+    cxxflags+=("${extra_cxx[@]}")
+  fi
+  if [[ -n "$user_ldflags" ]]; then
+    # shellcheck disable=SC2206
+    local extra_ld=($user_ldflags)
+    link_flags=("${extra_ld[@]}" "${link_flags[@]}")
+  fi
+
+  local runtime_sources=(
+    "$vm_dir/src/heap.cpp"
+    "$vm_dir/src/vm.cpp"
+    "$byte_dir/src/opcode.cpp"
+    "$byte_dir/src/sbc_loader.cpp"
+    "$byte_dir/src/sbc_verifier.cpp"
+  )
+  local cli_sources=(
+    "$cli_dir/src/main.cpp"
+    "$lsp_dir/src/lsp_server.cpp"
+    "$ir_dir/src/ir_builder.cpp"
+    "$ir_dir/src/ir_compiler.cpp"
+    "$ir_dir/src/ir_lang.cpp"
+    "$lang_dir/src/lang_lexer.cpp"
+    "$lang_dir/src/lang_parser.cpp"
+    "$lang_dir/src/lang_validate.cpp"
+    "$lang_dir/src/lang_sir.cpp"
+  )
+
+  local runtime_objects=()
+  local src base obj
+  for src in "${runtime_sources[@]}"; do
+    base="$(basename "$src" .cpp)"
+    obj="$runtime_obj_dir/$base.o"
+    runtime_objects+=("$obj")
+    $cxx "${cxxflags[@]}" -fPIC -I"$vm_dir/include" -I"$byte_dir/include" -c "$src" -o "$obj"
+  done
+
+  ar rcs "$COMPAT_BIN_DIR/libsimplevm_runtime.a" "${runtime_objects[@]}"
+  $cxx -shared -fPIC "${cxxflags[@]}" "${runtime_objects[@]}" "${link_flags[@]}" -o "$COMPAT_BIN_DIR/libsimplevm_runtime.so"
+
+  local cli_objects=()
+  for src in "${cli_sources[@]}"; do
+    base="$(basename "$src" .cpp)"
+    obj="$cli_obj_dir/$base.o"
+    cli_objects+=("$obj")
+    $cxx "${cxxflags[@]}" "${includes[@]}" -c "$src" -o "$obj"
+  done
+
+  $cxx "${cxxflags[@]}" "${includes[@]}" "${cli_objects[@]}" \
+    "$COMPAT_BIN_DIR/libsimplevm_runtime.a" \
+    -DSIMPLEVM_PROJECT_ROOT=\"$ROOT_DIR\" \
+    "${link_flags[@]}" \
+    -o "$COMPAT_BIN_DIR/simplevm"
+  cp "$COMPAT_BIN_DIR/simplevm" "$COMPAT_BIN_DIR/simple"
+
+  if [[ "$RUN_TESTS" -eq 1 ]]; then
+    local test_sources=(
+      "$ir_dir/src/ir_builder.cpp"
+      "$ir_dir/src/ir_compiler.cpp"
+      "$ir_dir/src/ir_lang.cpp"
+      "$lang_dir/src/lang_lexer.cpp"
+      "$lang_dir/src/lang_parser.cpp"
+      "$lang_dir/src/lang_validate.cpp"
+      "$lang_dir/src/lang_sir.cpp"
+      "$byte_dir/src/opcode.cpp"
+      "$byte_dir/src/sbc_loader.cpp"
+      "$byte_dir/src/sbc_verifier.cpp"
+      "$test_dir/test_core.cpp"
+      "$test_dir/test_ir.cpp"
+      "$test_dir/test_jit.cpp"
+      "$test_dir/test_lang.cpp"
+      "$test_dir/test_lsp.cpp"
+      "$test_dir/test_main.cpp"
+      "$test_dir/sir_runner.cpp"
+      "$test_dir/simple_runner.cpp"
+      "$test_dir/test_utils.cpp"
+    )
+    local test_objects=()
+    for src in "${test_sources[@]}"; do
+      base="$(basename "$src" .cpp)"
+      obj="$obj_dir/$base.o"
+      test_objects+=("$obj")
+      $cxx "${cxxflags[@]}" "${includes[@]}" -c "$src" -o "$obj"
+    done
+
+    $cxx "${cxxflags[@]}" "${includes[@]}" "${test_objects[@]}" \
+      "$COMPAT_BIN_DIR/libsimplevm_runtime.a" \
+      "${link_flags[@]}" \
+      -o "$COMPAT_BIN_DIR/simplevm_tests"
+
+    "$COMPAT_BIN_DIR/simplevm_tests"
+  fi
+}
+
+if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  mkdir -p "$TEST_BIN_DIR" "$COMPAT_BIN_DIR"
+  if [[ "$LEGACY_BUILD" -eq 1 ]]; then
+    build_legacy_unix
+  else
+    export LDFLAGS="${LDFLAGS:-} -lffi"
+    cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$BUILD_DIR" --config Release --target \
+      simplevm \
+      simplevm_core_static \
+      simplevm_core_shared \
+      simplevm_runtime_static \
+      simplevm_runtime_shared
+
+    for p in "$BUILD_DIR/bin/simplevm" "$BUILD_DIR/bin/Release/simplevm" "$BUILD_DIR/Release/simplevm"; do
+      if [[ -x "$p" ]]; then
+        cp "$p" "$COMPAT_BIN_DIR/simplevm"
+        cp "$p" "$COMPAT_BIN_DIR/simple"
+        break
+      fi
+    done
+    for lib in \
+      "$BUILD_DIR/bin/libsimplevm_runtime.so" \
+      "$BUILD_DIR/bin/libsimplevm_runtime.a" \
+      "$BUILD_DIR/bin/libsimplevm_core.so" \
+      "$BUILD_DIR/bin/libsimplevm_core.a"; do
+      if [[ -f "$lib" ]]; then cp "$lib" "$COMPAT_BIN_DIR/"; fi
+    done
+
+    if [[ "$RUN_TESTS" -eq 1 ]]; then
+      cmake --build "$BUILD_DIR" --config Release --target simplevm_tests
+      test_exe=""
+      for p in \
+        "$BUILD_DIR/bin/simplevm_tests" \
+        "$BUILD_DIR/bin/Release/simplevm_tests" \
+        "$BUILD_DIR/Release/simplevm_tests"; do
+        if [[ -x "$p" ]]; then test_exe="$p"; break; fi
+      done
+      [[ -n "$test_exe" ]] || { echo "simplevm_tests not found" >&2; exit 1; }
+      "$test_exe"
+    fi
+  fi
+fi
+
+if [[ "$SKIP_RELEASE" -eq 0 ]]; then
+  mkdir -p "$DIST_DIR"
+  rm -rf "$STAGE_DIR"
+  mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/lib" "$STAGE_DIR/include/simplevm" "$STAGE_DIR/share/simple"
+
+  [[ -x "$COMPAT_BIN_DIR/simplevm" ]] || { echo "simplevm not found" >&2; exit 1; }
+  cp "$COMPAT_BIN_DIR/simplevm" "$STAGE_DIR/bin/simplevm"
+  cp "$COMPAT_BIN_DIR/simple" "$STAGE_DIR/bin/simple"
+
+  for lib in \
+    "$COMPAT_BIN_DIR/libsimplevm_runtime.so" \
+    "$COMPAT_BIN_DIR/libsimplevm_runtime.a" \
+    "$COMPAT_BIN_DIR/libsimplevm_core.so" \
+    "$COMPAT_BIN_DIR/libsimplevm_core.a"; do
+    if [[ -f "$lib" ]]; then cp "$lib" "$STAGE_DIR/lib/"; fi
+  done
+
+  cp "$ROOT_DIR/VM/include/"*.h "$STAGE_DIR/include/simplevm/"
+  cp "$ROOT_DIR/Byte/include/"*.h "$STAGE_DIR/include/simplevm/"
+  [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
+
+  tar -czf "$PKG_PATH" -C "$DIST_DIR" "$(basename "$STAGE_DIR")"
+fi
+
+if [[ "$SKIP_INSTALL" -eq 0 ]]; then
+  [[ -d "$STAGE_DIR" ]] || { echo "release stage missing: $STAGE_DIR" >&2; exit 1; }
+  install_root="${PREFIX}/${VERSION}"
+  rm -rf "$install_root"
+  mkdir -p "$install_root"
+  cp -R "$STAGE_DIR/"* "$install_root/"
+  mkdir -p "$PREFIX"
+  ln -sfn "$install_root" "${PREFIX}/current"
+  if [[ "$NO_LINK" -eq 0 ]]; then
+    mkdir -p "$BIN_DIR"
+    ln -sfn "${PREFIX}/current/bin/simple" "${BIN_DIR}/simple"
+    ln -sfn "${PREFIX}/current/bin/simplevm" "${BIN_DIR}/simplevm"
+    report_path_status
+  fi
+fi
+
+echo "build_linux complete"
+echo "target: $TARGET"
+echo "version: $VERSION"

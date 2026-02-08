@@ -384,24 +384,6 @@ bool DispatchDlCall2Arg1Void(TypeKind arg1_kind,
   }
 }
 
-bool DispatchDlCall1Void(TypeKind arg0_kind,
-                         int64_t ptr_bits,
-                         const std::vector<Slot>& args,
-                         size_t arg_base,
-                         Heap& heap,
-                         std::string* out_error) {
-  switch (arg0_kind) {
-#define SIMPLE_DL_CASE_ARG0_VOID(kind, cpp_type) \
-    case kind:                                   \
-      return InvokeDlFunctionVoidTyped<cpp_type>(ptr_bits, args, arg_base, heap, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_VOID)
-#undef SIMPLE_DL_CASE_ARG0_VOID
-    default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
-      return false;
-  }
-}
-
 template <typename Ret, typename Arg0>
 bool DispatchDlCall2Arg1(TypeKind arg1_kind,
                          int64_t ptr_bits,
@@ -441,74 +423,6 @@ bool DispatchDlCall2(TypeKind arg0_kind,
       if (out_error) *out_error = "core.dl.call unsupported parameter type";
       return false;
   }
-}
-
-bool DispatchDlCall2Void(TypeKind arg0_kind,
-                         TypeKind arg1_kind,
-                         int64_t ptr_bits,
-                         const std::vector<Slot>& args,
-                         size_t arg_base,
-                         Heap& heap,
-                         std::string* out_error) {
-  switch (arg0_kind) {
-#define SIMPLE_DL_CASE_ARG0_2_VOID(kind, cpp_type) \
-    case kind:                                     \
-      return DispatchDlCall2Arg1Void<cpp_type>(arg1_kind, ptr_bits, args, arg_base, heap, out_error);
-    SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2_VOID)
-#undef SIMPLE_DL_CASE_ARG0_2_VOID
-    default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
-      return false;
-  }
-}
-
-int32_t ConvertDlI32LikeArg(TypeKind kind, Slot value) {
-  switch (kind) {
-    case TypeKind::I8: return static_cast<int32_t>(static_cast<int8_t>(UnpackI32(value)));
-    case TypeKind::I16: return static_cast<int32_t>(static_cast<int16_t>(UnpackI32(value)));
-    case TypeKind::I32: return UnpackI32(value);
-    case TypeKind::U8: return static_cast<int32_t>(static_cast<uint8_t>(UnpackI32(value)));
-    case TypeKind::U16: return static_cast<int32_t>(static_cast<uint16_t>(UnpackI32(value)));
-    case TypeKind::U32: return static_cast<int32_t>(static_cast<uint32_t>(UnpackI32(value)));
-    case TypeKind::Bool: return (UnpackI32(value) != 0) ? 1 : 0;
-    case TypeKind::Char: return static_cast<int32_t>(static_cast<uint8_t>(UnpackI32(value)));
-    default: return UnpackI32(value);
-  }
-}
-
-Slot PackDlI32LikeRet(TypeKind kind, int32_t value) {
-  switch (kind) {
-    case TypeKind::I8: return PackI32(static_cast<int32_t>(static_cast<int8_t>(value)));
-    case TypeKind::I16: return PackI32(static_cast<int32_t>(static_cast<int16_t>(value)));
-    case TypeKind::I32: return PackI32(value);
-    case TypeKind::U8: return PackI32(static_cast<int32_t>(static_cast<uint8_t>(value)));
-    case TypeKind::U16: return PackI32(static_cast<int32_t>(static_cast<uint16_t>(value)));
-    case TypeKind::U32: return PackI32(static_cast<int32_t>(static_cast<uint32_t>(value)));
-    case TypeKind::Bool: return PackI32((value != 0) ? 1 : 0);
-    case TypeKind::Char: return PackI32(static_cast<int32_t>(static_cast<uint8_t>(value)));
-    default: return PackI32(value);
-  }
-}
-
-bool ConvertDlPackedU64Arg(TypeKind kind,
-                           Slot value,
-                           Heap& heap,
-                           std::vector<std::string>& owned_strings,
-                           uint64_t* out,
-                           std::string* out_error) {
-  if (!out) return false;
-  if (kind == TypeKind::String) {
-    const char* text = nullptr;
-    if (!ConvertDlArg<const char*>(value, heap, owned_strings, &text, out_error)) return false;
-    *out = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(text));
-    return true;
-  }
-  if (IsI32LikeImportType(kind)) {
-    *out = static_cast<uint64_t>(static_cast<uint32_t>(ConvertDlI32LikeArg(kind, value)));
-    return true;
-  }
-  if (out_error) *out_error = "core.dl.call packed ABI supports i32-like and string args only";
-  return false;
 }
 
 struct DlOwnedFfiType {

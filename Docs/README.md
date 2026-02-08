@@ -2,6 +2,77 @@
 
 This folder is the source of truth for the current Simple project state.
 
+## Build Requirements
+
+- C++17 compiler
+- `libffi` development package
+- Git + a shell environment
+
+Build modes:
+
+- Default mode: requires CMake 3.16+
+- Legacy mode (`--legacy` on Linux/macOS): does not require CMake
+
+Platform notes:
+
+- Linux:
+  - default: `cmake`, `g++`/`clang++`, `pkg-config`, `libffi-dev`
+  - legacy: `g++`/`clang++`, `ar`, `libffi-dev`
+- macOS:
+  - default: `cmake`, LLVM or Apple Clang, `pkg-config`, `libffi` (Homebrew)
+  - legacy: Apple Clang or LLVM toolchain, `libffi` (Homebrew)
+- Windows:
+  - `build_windows` is CMake-based (no legacy mode)
+  - install CMake + MSVC (or equivalent C++ toolchain), run via Git Bash/MSYS/Cygwin
+
+## Install
+
+Authoritative scripts (from repo root):
+
+- Linux: `./build_linux`
+- macOS: `./build_macos`
+- Windows: `./build_windows`
+
+Each script performs:
+
+1. Source build (CMake)
+2. Package creation under `dist/`
+3. Installation to default user-local paths
+
+Defaults:
+
+- default version: `v0.02`
+- Linux/macOS install prefix: `~/.simple`
+- Linux/macOS linked binaries: `~/.local/bin`
+- Windows install prefix: `%LOCALAPPDATA%/Simple`
+- Windows copied binaries: `%LOCALAPPDATA%/Simple/bin`
+
+Common options:
+
+- `--tests` to build and run tests (default is no tests)
+- `--version <name>` package/install version tag
+- `--legacy` (Linux/macOS) to use old non-CMake build flow
+- `--skip-build`, `--skip-release`, `--skip-install`
+- `--prefix <dir>`, `--bin-dir <dir>` to override install destinations
+- `--no-link` (Linux/macOS) or `--no-link` (Windows) to skip binary links/copies
+
+Legacy mode note:
+
+- `--legacy` is supported in `build_linux` and `build_macos` only.
+- `build_windows` remains CMake-based.
+
+After install:
+
+- build scripts now print a PATH check.
+- if `simple` is discoverable, scripts print `simple --version` (or `simple -v`) output.
+- CLI supports both `simple --version` and `simple -v`.
+
+System-wide install examples:
+
+- Linux: `sudo ./build_linux --prefix /opt/simple --bin-dir /usr/local/bin`
+- macOS: `sudo ./build_macos --prefix /opt/simple --bin-dir /usr/local/bin`
+- Windows: `./build_windows --prefix \"C:/Program Files/Simple\" --bin-dir \"C:/Program Files/Simple/bin\" --add-path`
+
 ## Authority Policy
 
 High-level module docs are authoritative for their module:

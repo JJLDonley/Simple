@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) ;;
+  *)
+    echo "build_windows can only run on Windows hosts (Git Bash/MSYS/Cygwin)." >&2
+    exit 1
+    ;;
+esac
+
+VERSION="v0.02"
+RUN_TESTS=0
+SKIP_BUILD=0
+SKIP_RELEASE=0
+SKIP_INSTALL=0
+NO_LINK=0
+ADD_PATH=0
+PREFIX="${LOCALAPPDATA:-$HOME/AppData/Local}/Simple"
+BIN_DIR="${PREFIX}/bin"
+ARCH="${PROCESSOR_ARCHITECTURE:-x86_64}"
+case "$ARCH" in
+  AMD64|x86_64|amd64) ARCH="x86_64" ;;
+  ARM64|arm64|aarch64) ARCH="arm64" ;;
+  x86|i686) ARCH="x86" ;;
+esac
+TARGET="windows-${ARCH}"
+
+usage() {
+  cat <<'EOT'
+Usage: ./build_windows [options]
+Options:
+  --version <name>
+  --prefix <dir>
+  --bin-dir <dir>
+  --tests | --no-tests
+  --skip-build
+  --skip-release
+  --skip-install
+  --no-link
+  --add-path
+EOT
+}
+
+report_path_status() {
+  local cmd=""
+  if command -v simple >/dev/null 2>&1; then
+    cmd="simple"
+  elif command -v simple.exe >/dev/null 2>&1; then
+    cmd="simple.exe"
+  fi
+
+  if [[ -n "$cmd" ]]; then
+    local resolved
+    resolved="$(command -v "$cmd")"
+    echo "PATH check: $cmd is available at $resolved"
+    local ver
+    if ver="$("$cmd" --version 2>/dev/null)"; then
+      echo "PATH check: $ver"
+    elif ver="$("$cmd" -v 2>/dev/null)"; then
+      echo "PATH check: $ver"
+    else
+      echo "PATH check: unable to read version from PATH $cmd"
+    fi
+  else
+    echo "PATH check: simple is not on PATH"
+    echo "PATH hint: add $BIN_DIR to your User PATH"
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version) VERSION="${2:-}"; shift 2 ;;
+    --prefix) PREFIX="${2:-}"; shift 2 ;;
+    --bin-dir) BIN_DIR="${2:-}"; shift 2 ;;
+    --tests) RUN_TESTS=1; shift ;;
+    --no-tests) RUN_TESTS=0; shift ;;
+    --skip-build) SKIP_BUILD=1; shift ;;
+    --skip-release) SKIP_RELEASE=1; shift ;;
+    --skip-install) SKIP_INSTALL=1; shift ;;
+    --no-link) NO_LINK=1; shift ;;
+    --add-path) ADD_PATH=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; usage; exit 1 ;;
+  esac
+done
+
+BUILD_DIR="$ROOT_DIR/build"
+DIST_DIR="$ROOT_DIR/dist"
+STAGE_DIR="$DIST_DIR/simple-${VERSION}-${TARGET}"
+PKG_PATH="$DIST_DIR/simple-${VERSION}-${TARGET}.zip"
+COMPAT_BIN_DIR="$ROOT_DIR/bin"
+TEST_BIN_DIR="$ROOT_DIR/Tests/bin"
+
+if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  mkdir -p "$TEST_BIN_DIR"
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+  cmake --build "$BUILD_DIR" --config Release --target \
+    simplevm \
+    simplevm_core_static \
+    simplevm_core_shared \
+    simplevm_runtime_static \
+    simplevm_runtime_shared
+
+  # Keep repo-root bin/ populated for existing tests and tooling that shell out
+  # to bin/simple(.exe) and bin/simplevm(.exe).
+  mkdir -p "$COMPAT_BIN_DIR"
+  for p in "$BUILD_DIR/bin/simplevm.exe" "$BUILD_DIR/bin/Release/simplevm.exe" "$BUILD_DIR/Release/simplevm.exe"; do
+    if [[ -f "$p" ]]; then
+      cp "$p" "$COMPAT_BIN_DIR/simplevm.exe"
+      cp "$p" "$COMPAT_BIN_DIR/simple.exe"
+      break
+    fi
+  done
+  for lib in \
+    "$BUILD_DIR/bin/simplevm_runtime.dll" \
+    "$BUILD_DIR/bin/simplevm_runtime.lib" \
+    "$BUILD_DIR/bin/simplevm_core.dll" \
+    "$BUILD_DIR/bin/simplevm_core.lib"; do
+    if [[ -f "$lib" ]]; then cp "$lib" "$COMPAT_BIN_DIR/"; fi
+  done
+
+  if [[ "$RUN_TESTS" -eq 1 ]]; then
+    cmake --build "$BUILD_DIR" --config Release --target simplevm_tests
+    test_exe=""
+    for p in \
+      "$BUILD_DIR/bin/simplevm_tests.exe" \
+      "$BUILD_DIR/bin/Release/simplevm_tests.exe" \
+      "$BUILD_DIR/Release/simplevm_tests.exe" \
+      "$BUILD_DIR/bin/simplevm_tests_all.exe" \
+      "$BUILD_DIR/bin/Release/simplevm_tests_all.exe" \
+      "$BUILD_DIR/Release/simplevm_tests_all.exe"; do
+      if [[ -f "$p" ]]; then test_exe="$p"; break; fi
+    done
+    [[ -n "$test_exe" ]] || { echo "simplevm_tests.exe not found" >&2; exit 1; }
+    "$test_exe"
+  fi
+fi
+
+if [[ "$SKIP_RELEASE" -eq 0 ]]; then
+  mkdir -p "$DIST_DIR"
+  rm -rf "$STAGE_DIR"
+  mkdir -p "$STAGE_DIR/bin" "$STAGE_DIR/lib" "$STAGE_DIR/include/simplevm" "$STAGE_DIR/share/simple"
+
+  simplevm=""
+  for p in "$BUILD_DIR/bin/simplevm.exe" "$BUILD_DIR/bin/Release/simplevm.exe" "$BUILD_DIR/Release/simplevm.exe"; do
+    if [[ -f "$p" ]]; then simplevm="$p"; break; fi
+  done
+  [[ -n "$simplevm" ]] || { echo "simplevm.exe not found" >&2; exit 1; }
+
+  cp "$simplevm" "$STAGE_DIR/bin/simplevm.exe"
+  cp "$simplevm" "$STAGE_DIR/bin/simple.exe"
+
+  for lib in \
+    "$BUILD_DIR/bin/simplevm_runtime.dll" \
+    "$BUILD_DIR/bin/simplevm_runtime.lib" \
+    "$BUILD_DIR/bin/simplevm_core.dll" \
+    "$BUILD_DIR/bin/simplevm_core.lib"; do
+    if [[ -f "$lib" ]]; then cp "$lib" "$STAGE_DIR/lib/"; fi
+  done
+
+  cp "$ROOT_DIR/VM/include/"*.h "$STAGE_DIR/include/simplevm/"
+  cp "$ROOT_DIR/Byte/include/"*.h "$STAGE_DIR/include/simplevm/"
+  [[ -f "$ROOT_DIR/Docs/README.md" ]] && cp "$ROOT_DIR/Docs/README.md" "$STAGE_DIR/share/simple/README.md"
+
+  rm -f "$PKG_PATH"
+  if command -v powershell.exe >/dev/null 2>&1; then
+    src_win="$STAGE_DIR"
+    dst_win="$PKG_PATH"
+    if command -v cygpath >/dev/null 2>&1; then
+      src_win="$(cygpath -w "$STAGE_DIR")"
+      dst_win="$(cygpath -w "$PKG_PATH")"
+    fi
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '${src_win}\\*' -DestinationPath '${dst_win}' -Force" >/dev/null
+  elif command -v zip >/dev/null 2>&1; then
+    (cd "$DIST_DIR" && zip -qr "$PKG_PATH" "$(basename "$STAGE_DIR")")
+  else
+    echo "warning: zip packager not found; stage kept at $STAGE_DIR" >&2
+  fi
+fi
+
+if [[ "$SKIP_INSTALL" -eq 0 ]]; then
+  [[ -d "$STAGE_DIR" ]] || { echo "release stage missing: $STAGE_DIR" >&2; exit 1; }
+  install_root="${PREFIX}/${VERSION}"
+  rm -rf "$install_root"
+  mkdir -p "$install_root"
+  cp -R "$STAGE_DIR/"* "$install_root/"
+
+  rm -rf "${PREFIX}/current"
+  cp -R "$install_root" "${PREFIX}/current"
+
+  if [[ "$NO_LINK" -eq 0 ]]; then
+    mkdir -p "$BIN_DIR"
+    cp -f "${PREFIX}/current/bin/simple.exe" "$BIN_DIR/simple.exe"
+    cp -f "${PREFIX}/current/bin/simplevm.exe" "$BIN_DIR/simplevm.exe"
+    report_path_status
+  fi
+
+  if [[ "$ADD_PATH" -eq 1 && "$NO_LINK" -eq 0 ]] && command -v powershell.exe >/dev/null 2>&1; then
+    bin_win="$BIN_DIR"
+    if command -v cygpath >/dev/null 2>&1; then
+      bin_win="$(cygpath -w "$BIN_DIR")"
+    fi
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command '$p=[Environment]::GetEnvironmentVariable("Path","User"); if(-not $p){$p=""}; $arr=$p -split ";" | ?{$_}; if($arr -notcontains "'"$bin_win"'"){ [Environment]::SetEnvironmentVariable("Path", ($p + ($(if($p){";"}else{""})) + "'"$bin_win"'"), "User") }' >/dev/null
+  fi
+fi
+
+echo "build_windows complete"
+echo "target: $TARGET"
+echo "version: $VERSION"
