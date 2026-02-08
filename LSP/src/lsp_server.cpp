@@ -1462,6 +1462,51 @@ bool ExtractUndeclaredIdentifierName(const std::string& error, std::string* out_
   return true;
 }
 
+std::string InferNumericDeclarationType(const std::string& text, const std::string& ident) {
+  if (ident.empty()) return "i32";
+  size_t search_from = 0;
+  while (search_from < text.size()) {
+    const size_t found = text.find(ident, search_from);
+    if (found == std::string::npos) break;
+    const bool left_ok = found == 0 || !IsIdentChar(text[found - 1]);
+    const size_t after = found + ident.size();
+    const bool right_ok = after >= text.size() || !IsIdentChar(text[after]);
+    if (!left_ok || !right_ok) {
+      search_from = found + ident.size();
+      continue;
+    }
+    size_t i = after;
+    while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
+    if (i >= text.size() || text[i] != '=') {
+      search_from = found + ident.size();
+      continue;
+    }
+    ++i;
+    while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
+    if (i >= text.size()) break;
+    bool seen_digit = false;
+    bool seen_dot = false;
+    if (text[i] == '-') ++i;
+    while (i < text.size()) {
+      const char c = text[i];
+      if (std::isdigit(static_cast<unsigned char>(c))) {
+        seen_digit = true;
+        ++i;
+        continue;
+      }
+      if (c == '.') {
+        seen_dot = true;
+        ++i;
+        continue;
+      }
+      break;
+    }
+    if (seen_digit) return seen_dot ? "f64" : "i32";
+    search_from = found + ident.size();
+  }
+  return "i32";
+}
+
 void ReplyDefinition(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -1807,13 +1852,15 @@ void ReplyCodeAction(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
     return;
   }
+  const std::string inferred_type = InferNumericDeclarationType(doc_it->second, ident);
+  const std::string inferred_init = inferred_type == "f64" ? "0.0" : "0";
   const uint32_t insert_line = PreferredDeclarationInsertLine(doc_it->second);
-  const std::string declaration = ident + " : i32 = 0;\n";
+  const std::string declaration = ident + " : " + inferred_type + " = " + inferred_init + ";\n";
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
           ",\"result\":[{\"title\":\"Declare '" + JsonEscape(ident) +
-          "' as i32\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
+          "' as " + inferred_type + "\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
           JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":" + std::to_string(insert_line) +
           ",\"character\":0},\"end\":{\"line\":" + std::to_string(insert_line) +
           ",\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +

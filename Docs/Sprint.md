@@ -1264,3 +1264,9 @@
 - Added regression coverage for Core.DL.open overload signatures:
   - new test validates both `DL.open(path)` and `DL.open(path, manifest)` labels are present and that active signature/parameter are set to overload index 1 / parameter 1 for second-argument positions.
 - Updated LSP and implementation docs to reflect overload-aware reserved alias signature behavior.
+- Improved LSP undeclared-identifier quick-fix typing:
+  - code action declaration generation now infers numeric type from nearby assignment usage (`i32` vs `f64`) instead of always forcing `i32`.
+  - generated declaration initializer now matches inferred numeric type (`0` for i32, `0.0` for f64).
+- Added regression coverage for float inference:
+  - new code-action test validates `rate = 1.5` produces quick-fix declaration `rate : f64 = 0.0;` and title `Declare 'rate' as f64`.
+- Updated LSP and implementation docs to include quick-fix numeric type inference behavior.

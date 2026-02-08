@@ -59,6 +59,7 @@ Primary goals:
 - map parser/validator errors to LSP diagnostics with stable codes (`E0001`, etc.)
 - include related information where possible (for example duplicate symbol sites)
 - quick-fix code actions for undeclared identifiers insert declarations after top-of-file import headers (instead of always line 0)
+- undeclared-identifier quick-fix now infers numeric declaration type for simple assignments (`i32` vs `f64`)
 
 ### Symbols and Navigation
 
