@@ -121,6 +121,10 @@ bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
 }
 
+bool IsFloatLiteralExpr(const Expr& expr) {
+  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float;
+}
+
 bool IsFloatType(const std::string& name) {
   return name == "f32" || name == "f64";
 }
@@ -314,6 +318,29 @@ bool GetDlOpenManifestModule(const Expr& expr, const EmitState& st, std::string*
   return true;
 }
 
+bool ResolveDlModuleForIdentifier(const std::string& ident,
+                                  const EmitState& st,
+                                  std::string* out_module) {
+  if (!out_module) return false;
+  auto dl_local_it = st.local_dl_modules.find(ident);
+  if (dl_local_it != st.local_dl_modules.end()) {
+    *out_module = dl_local_it->second;
+    return true;
+  }
+  auto dl_global_it = st.global_dl_modules.find(ident);
+  if (dl_global_it != st.global_dl_modules.end()) {
+    *out_module = dl_global_it->second;
+    return true;
+  }
+  for (const auto* glob : st.global_decls) {
+    if (!glob || glob->name != ident || !glob->has_init_expr) continue;
+    if (GetDlOpenManifestModule(glob->init_expr, st, out_module)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   if (!out_id) return false;
   for (const auto& entry : st.extern_ids_by_module) {
@@ -419,6 +446,7 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   }
   out->dims = src.dims;
   out->is_proc = src.is_proc;
+  out->proc_is_callback = src.proc_is_callback;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
   out->proc_params.reserve(src.proc_params.size());
@@ -823,6 +851,12 @@ bool InferExprType(const Expr& expr,
       if (IsIntegerLiteralExpr(expr.children[1]) && IsIntegralType(left.name)) {
         return CloneTypeRef(left, out);
       }
+      if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right.name)) {
+        return CloneTypeRef(right, out);
+      }
+      if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left.name)) {
+        return CloneTypeRef(left, out);
+      }
       if (error) *error = "operand type mismatch for '" + expr.op + "'";
       return false;
     }
@@ -920,6 +954,30 @@ bool InferExprType(const Expr& expr,
         if (ext_it != st.extern_returns.end()) {
           return CloneTypeRef(ext_it->second, out);
         }
+        auto local_it = st.local_types.find(callee.text);
+        if (local_it != st.local_types.end() && local_it->second.is_proc) {
+          if (local_it->second.proc_return) return CloneTypeRef(*local_it->second.proc_return, out);
+          out->name = "void";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_is_callback = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
+        auto global_it = st.global_types.find(callee.text);
+        if (global_it != st.global_types.end() && global_it->second.is_proc) {
+          if (global_it->second.proc_return) return CloneTypeRef(*global_it->second.proc_return, out);
+          out->name = "void";
+          out->type_args.clear();
+          out->dims.clear();
+          out->is_proc = false;
+          out->proc_is_callback = false;
+          out->proc_params.clear();
+          out->proc_return.reset();
+          return true;
+        }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
@@ -928,24 +986,15 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
+          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
         }
         if (base.kind == ExprKind::Identifier) {
-          auto dl_local_it = st.local_dl_modules.find(base.text);
-          if (dl_local_it != st.local_dl_modules.end()) {
-            auto ext_mod_it = st.extern_returns_by_module.find(dl_local_it->second);
-            if (ext_mod_it != st.extern_returns_by_module.end()) {
-              auto ext_it = ext_mod_it->second.find(callee.text);
-              if (ext_it != ext_mod_it->second.end()) {
-                return CloneTypeRef(ext_it->second, out);
-              }
-            }
-          }
-          auto dl_global_it = st.global_dl_modules.find(base.text);
-          if (dl_global_it != st.global_dl_modules.end()) {
-            auto ext_mod_it = st.extern_returns_by_module.find(dl_global_it->second);
+          std::string dl_module;
+          if (ResolveDlModuleForIdentifier(base.text, st, &dl_module)) {
+            auto ext_mod_it = st.extern_returns_by_module.find(dl_module);
             if (ext_mod_it != st.extern_returns_by_module.end()) {
               auto ext_it = ext_mod_it->second.find(callee.text);
               if (ext_it != ext_mod_it->second.end()) {
@@ -974,6 +1023,7 @@ bool InferExprType(const Expr& expr,
               out->type_args.clear();
               out->dims.clear();
               out->is_proc = false;
+              out->proc_is_callback = false;
               out->proc_params.clear();
               out->proc_return.reset();
               return true;
@@ -1646,6 +1696,10 @@ bool EmitBinary(EmitState& st,
       if (!CloneTypeRef(right_type, &left_type)) return false;
     } else if (rhs_lit && lhs_int) {
       if (!CloneTypeRef(left_type, &right_type)) return false;
+    } else if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right_type.name)) {
+      if (!CloneTypeRef(right_type, &left_type)) return false;
+    } else if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left_type.name)) {
+      if (!CloneTypeRef(left_type, &right_type)) return false;
     } else {
       if (error) *error = "operand type mismatch for '" + expr.op + "'";
       return false;
@@ -1884,15 +1938,7 @@ bool EmitExpr(EmitState& st,
         }
         if (base.kind == ExprKind::Identifier) {
           std::string dl_module;
-          auto dl_local_it = st.local_dl_modules.find(base.text);
-          if (dl_local_it != st.local_dl_modules.end()) {
-            dl_module = dl_local_it->second;
-          } else {
-            auto dl_global_it = st.global_dl_modules.find(base.text);
-            if (dl_global_it != st.global_dl_modules.end()) {
-              dl_module = dl_global_it->second;
-            }
-          }
+          ResolveDlModuleForIdentifier(base.text, st, &dl_module);
           if (!dl_module.empty()) {
             auto params_mod_it = st.extern_params_by_module.find(dl_module);
             auto returns_mod_it = st.extern_returns_by_module.find(dl_module);
@@ -2358,19 +2404,34 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "call target is not a function: " + name;
             return false;
           }
-          if (expr.args.size() != proc_type.proc_params.size()) {
-            if (error) *error = "call argument count mismatch for '" + name + "'";
-            return false;
-          }
-          for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
-            if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
+          TypeRef call_type;
+          if (!CloneTypeRef(proc_type, &call_type)) return false;
+          if (proc_type.proc_is_callback) {
+            call_type.proc_is_callback = false;
+            call_type.proc_params.clear();
+            for (const auto& arg : expr.args) {
+              TypeRef arg_type;
+              if (!InferExprType(arg, st, &arg_type, error)) return false;
+              if (!EmitExpr(st, arg, &arg_type, error)) return false;
+              call_type.proc_params.push_back(std::move(arg_type));
+            }
+            call_type.proc_return = std::make_unique<TypeRef>();
+            call_type.proc_return->name = "void";
+          } else {
+            if (expr.args.size() != proc_type.proc_params.size()) {
+              if (error) *error = "call argument count mismatch for '" + name + "'";
+              return false;
+            }
+            for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+              if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
+            }
           }
           if (!EmitExpr(st, callee, &proc_type, error)) return false;
-          std::string sig_name = GetProcSigName(st, proc_type, error);
+          std::string sig_name = GetProcSigName(st, call_type, error);
           if (sig_name.empty()) return false;
-          (*st.out) << "  call.indirect " << sig_name << " " << proc_type.proc_params.size() << "\n";
-          PopStack(st, static_cast<uint32_t>(proc_type.proc_params.size() + 1));
-          if (proc_type.proc_return && proc_type.proc_return->name != "void") {
+          (*st.out) << "  call.indirect " << sig_name << " " << call_type.proc_params.size() << "\n";
+          PopStack(st, static_cast<uint32_t>(call_type.proc_params.size() + 1));
+          if (call_type.proc_return && call_type.proc_return->name != "void") {
             PushStack(st, 1);
           }
           return true;
@@ -2441,19 +2502,34 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "call target not supported in SIR emission";
         return false;
       }
-      if (expr.args.size() != callee_type.proc_params.size()) {
-        if (error) *error = "call argument count mismatch for callee";
-        return false;
-      }
-      for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
-        if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
+      TypeRef call_type;
+      if (!CloneTypeRef(callee_type, &call_type)) return false;
+      if (callee_type.proc_is_callback) {
+        call_type.proc_is_callback = false;
+        call_type.proc_params.clear();
+        for (const auto& arg : expr.args) {
+          TypeRef arg_type;
+          if (!InferExprType(arg, st, &arg_type, error)) return false;
+          if (!EmitExpr(st, arg, &arg_type, error)) return false;
+          call_type.proc_params.push_back(std::move(arg_type));
+        }
+        call_type.proc_return = std::make_unique<TypeRef>();
+        call_type.proc_return->name = "void";
+      } else {
+        if (expr.args.size() != callee_type.proc_params.size()) {
+          if (error) *error = "call argument count mismatch for callee";
+          return false;
+        }
+        for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
+          if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
+        }
       }
       if (!EmitExpr(st, callee, &callee_type, error)) return false;
-      std::string sig_name = GetProcSigName(st, callee_type, error);
+      std::string sig_name = GetProcSigName(st, call_type, error);
       if (sig_name.empty()) return false;
-      (*st.out) << "  call.indirect " << sig_name << " " << callee_type.proc_params.size() << "\n";
-      PopStack(st, static_cast<uint32_t>(callee_type.proc_params.size() + 1));
-      if (callee_type.proc_return && callee_type.proc_return->name != "void") {
+      (*st.out) << "  call.indirect " << sig_name << " " << call_type.proc_params.size() << "\n";
+      PopStack(st, static_cast<uint32_t>(call_type.proc_params.size() + 1));
+      if (call_type.proc_return && call_type.proc_return->name != "void") {
         PushStack(st, 1);
       }
       return true;
@@ -3512,6 +3588,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     out.type_args.clear();
     out.dims.clear();
     out.is_proc = false;
+    out.proc_is_callback = false;
     out.proc_params.clear();
     out.proc_return.reset();
     return out;

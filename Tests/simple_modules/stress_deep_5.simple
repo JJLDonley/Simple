@@ -1,0 +1,3 @@
+deep_value_5 : i32 () {
+  return 38
+}

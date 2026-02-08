@@ -1,0 +1,5 @@
+import "./stress_cycle_a"
+
+main : i32 () {
+  return cycle_a()
+}

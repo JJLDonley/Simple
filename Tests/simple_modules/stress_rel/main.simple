@@ -1,0 +1,5 @@
+import "./nested/leaf"
+
+main : i32 () {
+  return leaf_rel_value() + 10
+}

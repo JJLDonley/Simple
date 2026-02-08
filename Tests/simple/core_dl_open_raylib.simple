@@ -1,5 +1,5 @@
-import "Core.DL" as DL
-import "IO"
+import system.dl as DL
+import system.io as IO
 
 Color :: artifact {
     r: u8
@@ -47,7 +47,11 @@ DrawText : void (text: string, x: i32, y: i32, size: i32, tint: i32) {
 }
 
 main : i32 () {
-    
+    if lib == 0 {
+        IO.println(DL.LastError())
+        return 1
+    }
+
     InitWindow(1280, 720, "SimpleVM + Raylib")
 
     // Packed as r | (g << 8) | (b << 16) | (a << 24)
@@ -62,4 +66,5 @@ main : i32 () {
     }
 
     CloseWindow()
+    return 0
 }

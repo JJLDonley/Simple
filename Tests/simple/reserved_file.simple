@@ -1,4 +1,4 @@
-import "File"
+import system.file as File
 
 main : i32 () {
   File.close(-1)

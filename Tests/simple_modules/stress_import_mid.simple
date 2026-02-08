@@ -1,0 +1,5 @@
+import "./stress_import_leaf"
+
+mid_value : i32 () {
+  return leaf_value() + 2
+}

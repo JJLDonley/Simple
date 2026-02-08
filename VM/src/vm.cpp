@@ -2084,23 +2084,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         int64_t ptr_bits = UnpackI64(args[0]);
         if (ptr_bits == 0) {
-          set_dl_error("core.dl.call null ptr");
-          if (out_has_ret) {
-            if (IsStructTypeId(module, sig.ret_type_id)) {
-              out_ret = PackRef(kNullRef);
-            } else if (ret_kind == TypeKind::String || ret_kind == TypeKind::Ref) {
-              out_ret = PackRef(kNullRef);
-            } else if (ret_kind == TypeKind::I64 || ret_kind == TypeKind::U64) {
-              out_ret = PackI64(0);
-            } else if (ret_kind == TypeKind::F64) {
-              out_ret = PackF64Bits(0);
-            } else if (ret_kind == TypeKind::F32) {
-              out_ret = PackF32Bits(0);
-            } else {
-              out_ret = PackI32(0);
-            }
+          if (dl_last_error.empty()) {
+            set_dl_error("core.dl.call null ptr");
+            out_error = "core.dl.call null ptr";
+          } else {
+            out_error = "core.dl.call null ptr: " + dl_last_error;
           }
-          return true;
+          return false;
         }
         std::vector<uint32_t> arg_type_ids;
         arg_type_ids.reserve(sig.param_count > 0 ? static_cast<size_t>(sig.param_count - 1) : 0u);

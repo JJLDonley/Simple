@@ -4286,6 +4286,26 @@ bool RunIrTextFieldOutOfBoundsTest() {
   return RunIrTextExpectFail(text, "ir_text_field_oob");
 }
 
+bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=8 kind=artifact\n"
+      "  field a i32 offset=0\n"
+      "  field b i32 offset=4\n"
+      "  type KeyboardKey size=4 kind=i32\n"
+      "sigs:\n"
+      "  sig main: () -> i32\n"
+      "func main locals=0 stack=4 sig=main\n"
+      "  enter 0\n"
+      "  const.i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_primitive_type_after_artifact");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
 bool RunIrTextBadConstNameTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -7457,6 +7477,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
+  {"ir_text_primitive_type_after_artifact", RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},

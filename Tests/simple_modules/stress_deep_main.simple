@@ -1,0 +1,5 @@
+import "./stress_deep_1"
+
+main : i32 () {
+  return deep_value_1()
+}

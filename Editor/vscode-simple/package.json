@@ -32,6 +32,7 @@
         "extensions": [
           ".simple"
         ],
+        "semanticHighlighting": true,
         "configuration": "./language-configuration.json"
       }
     ],
@@ -42,6 +43,28 @@
         "path": "./syntaxes/simple.tmLanguage.json"
       }
     ],
+    "commands": [
+      {
+        "command": "simple.restartLanguageServer",
+        "title": "Simple: Restart Language Server",
+        "category": "Simple",
+        "icon": "$(debug-restart)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "simple.restartLanguageServer"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "simple.restartLanguageServer",
+          "when": "editorLangId == simple",
+          "group": "navigation@90"
+        }
+      ]
+    },
     "configuration": {
       "title": "Simple",
       "properties": {

@@ -49,6 +49,7 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwElse:
     case TokenKind::KwDefault:
     case TokenKind::KwFn:
+    case TokenKind::KwCallback:
     case TokenKind::KwSelf:
     case TokenKind::KwArtifact:
     case TokenKind::KwEnum:
@@ -161,9 +162,20 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   while (Match(TokenKind::Star)) {
     ++pointer_depth;
   }
+  if (Match(TokenKind::KwCallback)) {
+    TypeRef proc;
+    proc.is_proc = true;
+    proc.proc_is_callback = true;
+    proc.pointer_depth = pointer_depth;
+    proc.proc_params.clear();
+    proc.proc_return.reset();
+    if (out) *out = std::move(proc);
+    return true;
+  }
   if (Match(TokenKind::KwFn)) {
     TypeRef proc;
     proc.is_proc = true;
+    proc.proc_is_callback = false;
     if (Match(TokenKind::Colon)) {
       proc.proc_return_mutability = Mutability::Mutable;
     } else if (Match(TokenKind::DoubleColon)) {
@@ -183,6 +195,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   if (Match(TokenKind::LParen)) {
     TypeRef proc;
     proc.is_proc = true;
+    proc.proc_is_callback = false;
     if (!Match(TokenKind::RParen)) {
       for (;;) {
         TypeRef param;
@@ -219,6 +232,7 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   out->type_args.clear();
   out->dims.clear();
   out->is_proc = false;
+  out->proc_is_callback = false;
   out->proc_params.clear();
   out->proc_return.reset();
   out->proc_return_mutability = Mutability::Mutable;
@@ -450,6 +464,26 @@ bool Parser::ParseDecl(Decl* out) {
   }
 
   TypeRef return_or_type;
+  if (Peek().kind == TokenKind::KwFn && Peek(1).kind == TokenKind::Assign) {
+    Advance(); // consume 'fn'
+    if (!Match(TokenKind::Assign)) {
+      error_ = "expected '=' after 'fn' in variable declaration";
+      return false;
+    }
+    Expr init;
+    TypeRef inferred_proc_type;
+    if (!ParseTypedFnLiteral(&init, &inferred_proc_type)) return false;
+    if (!ConsumeStmtTerminator("variable declaration")) return false;
+    if (out) {
+      out->kind = DeclKind::Variable;
+      out->var.name = name_tok.text;
+      out->var.mutability = mut;
+      out->var.type = std::move(inferred_proc_type);
+      out->var.has_init_expr = true;
+      out->var.init_expr = std::move(init);
+    }
+    return true;
+  }
   if (!ParseTypeInner(&return_or_type)) return false;
 
   if (Match(TokenKind::LParen)) {
@@ -892,6 +926,26 @@ bool Parser::ParseStmt(Stmt* out) {
       mut = Mutability::Immutable;
     }
     TypeRef type;
+    if (Peek().kind == TokenKind::KwFn && Peek(1).kind == TokenKind::Assign) {
+      Advance(); // consume 'fn'
+      if (!Match(TokenKind::Assign)) {
+        error_ = "expected '=' after 'fn' in variable declaration";
+        return false;
+      }
+      Expr init;
+      TypeRef inferred_proc_type;
+      if (!ParseTypedFnLiteral(&init, &inferred_proc_type)) return false;
+      if (!ConsumeStmtTerminator("variable declaration")) return false;
+      if (out) {
+        out->kind = StmtKind::VarDecl;
+        out->var_decl.name = name_tok.text;
+        out->var_decl.mutability = mut;
+        out->var_decl.type = std::move(inferred_proc_type);
+        out->var_decl.has_init_expr = true;
+        out->var_decl.init_expr = std::move(init);
+      }
+      return true;
+    }
     if (!ParseTypeInner(&type)) return false;
     bool has_init = false;
     Expr init;
@@ -1453,6 +1507,55 @@ bool Parser::ParseFnLiteral(Expr* out) {
     out->kind = ExprKind::FnLiteral;
     out->fn_params = std::move(params);
     out->fn_body_tokens = std::move(body_tokens);
+  }
+  return true;
+}
+
+bool Parser::ParseTypedFnLiteral(Expr* out, TypeRef* out_proc_type) {
+  TypeRef return_type;
+  if (!ParseTypeInner(&return_type)) return false;
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after function return type";
+    return false;
+  }
+  Token lparen_tok = tokens_[index_ - 1];
+  std::vector<ParamDecl> params;
+  if (!Match(TokenKind::RParen)) {
+    for (;;) {
+      ParamDecl param;
+      if (!ParseParam(&param)) return false;
+      params.push_back(std::move(param));
+      if (Match(TokenKind::Comma)) continue;
+      if (Match(TokenKind::RParen)) break;
+      error_ = "expected ',' or ')' after parameter";
+      return false;
+    }
+  }
+
+  std::vector<Token> body_tokens;
+  if (!ParseBlockTokens(&body_tokens)) return false;
+  body_tokens.insert(body_tokens.begin(), lparen_tok);
+
+  if (out) {
+    out->kind = ExprKind::FnLiteral;
+    out->fn_params = params;
+    out->fn_body_tokens = std::move(body_tokens);
+  }
+
+  if (out_proc_type) {
+    out_proc_type->name.clear();
+    out_proc_type->pointer_depth = 0;
+    out_proc_type->type_args.clear();
+    out_proc_type->dims.clear();
+    out_proc_type->is_proc = true;
+    out_proc_type->proc_is_callback = false;
+    out_proc_type->proc_return_mutability = Mutability::Mutable;
+    out_proc_type->proc_params.clear();
+    out_proc_type->proc_params.reserve(params.size());
+    for (const auto& param : params) {
+      out_proc_type->proc_params.push_back(param.type);
+    }
+    out_proc_type->proc_return = std::make_unique<TypeRef>(std::move(return_type));
   }
   return true;
 }

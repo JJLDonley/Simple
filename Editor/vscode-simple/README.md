@@ -8,11 +8,16 @@ This extension wires VS Code to the `simple lsp` language server and provides Te
 - Registers `.simple` language id (`simple`)
 - Provides TextMate grammar fallback highlighting
 - Provides bracket/comment language configuration
+- Adds `Simple: Restart Language Server` command and editor-title restart button for `.simple` files
 
 ## Settings
 
 - `simple.lspPath`: path to `simple` CLI executable (default: `simple`)
 - `simple.lspArgs`: args used to launch LSP (default: `["lsp"]`)
+
+## Commands
+
+- `Simple: Restart Language Server`
 
 ## Local Development
 

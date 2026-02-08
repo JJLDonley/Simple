@@ -63,6 +63,10 @@ bool GetCallTargetInfo(const Expr& callee,
                        const ArtifactDecl* current_artifact,
                        CallTargetInfo* out,
                        std::string* error);
+bool IsCallbackType(const TypeRef& type);
+const LocalInfo* FindLocal(
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    const std::string& name);
 
 enum class TypeUse : uint8_t {
   Value,
@@ -210,6 +214,29 @@ bool GetDlOpenManifestModule(const Expr& expr,
   return true;
 }
 
+bool ResolveDlModuleForIdentifier(
+    const std::string& ident,
+    const ValidateContext& ctx,
+    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+    std::string* out_module) {
+  if (!out_module) return false;
+  if (const LocalInfo* local = FindLocal(scopes, ident)) {
+    if (!local->dl_module.empty()) {
+      *out_module = local->dl_module;
+      return true;
+    }
+  }
+  auto global_it = ctx.globals.find(ident);
+  if (global_it != ctx.globals.end() &&
+      global_it->second &&
+      global_it->second->has_init_expr) {
+    if (GetDlOpenManifestModule(global_it->second->init_expr, ctx, out_module)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool IsSupportedDlAbiType(const TypeRef& type,
                           const ValidateContext& ctx,
                           bool allow_void) {
@@ -325,6 +352,7 @@ TypeRef MakeSimpleType(const std::string& name) {
   out.type_args.clear();
   out.dims.clear();
   out.is_proc = false;
+  out.proc_is_callback = false;
   out.proc_params.clear();
   out.proc_return.reset();
   return out;
@@ -581,6 +609,7 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   out->type_args.clear();
   out->dims = src.dims;
   out->is_proc = src.is_proc;
+  out->proc_is_callback = src.proc_is_callback;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
   out->proc_return.reset();
@@ -633,6 +662,7 @@ bool TypeEquals(const TypeRef& a, const TypeRef& b) {
   if (a.pointer_depth != b.pointer_depth) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
+    if (a.proc_is_callback || b.proc_is_callback) return true;
     if (a.proc_return_mutability != b.proc_return_mutability) return false;
     if (a.proc_params.size() != b.proc_params.size()) return false;
     for (size_t i = 0; i < a.proc_params.size(); ++i) {
@@ -652,17 +682,34 @@ bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
 }
 
+bool IsFloatLiteralExpr(const Expr& expr) {
+  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float;
+}
+
 bool IsIntegerScalarTypeName(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
 }
 
+bool IsFloatScalarTypeName(const std::string& name) {
+  return name == "f32" || name == "f64";
+}
+
+bool IsLiteralCompatibleWithScalarType(const Expr& expr, const TypeRef& expected) {
+  if (expected.pointer_depth != 0 || expected.is_proc || !expected.type_args.empty() ||
+      !expected.dims.empty()) {
+    return false;
+  }
+  if (IsIntegerLiteralExpr(expr) && IsIntegerScalarTypeName(expected.name)) return true;
+  if (IsFloatLiteralExpr(expr) && IsFloatScalarTypeName(expected.name)) return true;
+  return false;
+}
+
 bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
   if (TypeEquals(expected, actual)) return true;
-  if (IsIntegerLiteralExpr(expr) &&
-      expected.pointer_depth == 0 && actual.pointer_depth == 0 &&
-      expected.dims.empty() && actual.dims.empty() &&
-      IsIntegerScalarTypeName(expected.name)) {
+  if (actual.pointer_depth == 0 && !actual.is_proc && actual.type_args.empty() &&
+      actual.dims.empty() &&
+      IsLiteralCompatibleWithScalarType(expr, expected)) {
     return true;
   }
   return false;
@@ -768,6 +815,7 @@ bool UnifyTypeParams(const TypeRef& param,
     if (!UnifyTypeParams(param.type_args[i], arg.type_args[i], type_params, mapping)) return false;
   }
   if (param.is_proc) {
+    if (param.proc_is_callback || arg.proc_is_callback) return true;
     if (param.proc_params.size() != arg.proc_params.size()) return false;
     for (size_t i = 0; i < param.proc_params.size(); ++i) {
       if (!UnifyTypeParams(param.proc_params[i], arg.proc_params[i], type_params, mapping)) return false;
@@ -822,6 +870,14 @@ bool CheckTypeRef(const TypeRef& type,
     return CheckTypeRef(pointee, ctx, type_params, TypeUse::Value, error);
   }
   if (type.is_proc) {
+    if (type.proc_is_callback) {
+      if (!type.proc_params.empty() || type.proc_return) {
+        if (error) *error = "callback type cannot declare parameter or return types";
+        PrefixErrorLocation(type.line, type.column, error);
+        return false;
+      }
+      return true;
+    }
     for (const auto& param : type.proc_params) {
       if (!CheckTypeRef(param, ctx, type_params, TypeUse::Value, error)) return false;
     }
@@ -936,6 +992,7 @@ bool InferExprType(const Expr& expr,
   switch (expr.kind) {
     case ExprKind::Literal:
       out->is_proc = false;
+      out->proc_is_callback = false;
       out->type_args.clear();
       out->dims.clear();
       switch (expr.literal_kind) {
@@ -1048,6 +1105,7 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
+          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1057,6 +1115,7 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
+          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1067,6 +1126,7 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
+          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1105,6 +1165,7 @@ bool InferExprType(const Expr& expr,
       if (!CloneTypeRef(base_type, &result)) return false;
       result.dims.erase(result.dims.begin());
       result.is_proc = false;
+      result.proc_is_callback = false;
       result.proc_params.clear();
       result.proc_return.reset();
       return CloneTypeRef(result, out);
@@ -1122,6 +1183,7 @@ bool InferExprType(const Expr& expr,
         out->type_args.clear();
         out->dims.clear();
         out->is_proc = false;
+        out->proc_is_callback = false;
         out->proc_params.clear();
         out->proc_return.reset();
         return true;
@@ -1144,13 +1206,9 @@ bool InferExprType(const Expr& expr,
       if (TypeEquals(lhs, rhs)) {
         if (!CloneTypeRef(lhs, &common)) return false;
       } else {
-        const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
-        const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
-        const bool lhs_int = IsIntegerScalarTypeName(lhs.name);
-        const bool rhs_int = IsIntegerScalarTypeName(rhs.name);
-        if (lhs_lit && rhs_int) {
+        if (IsLiteralCompatibleWithScalarType(expr.children[0], rhs)) {
           if (!CloneTypeRef(rhs, &common)) return false;
-        } else if (rhs_lit && lhs_int) {
+        } else if (IsLiteralCompatibleWithScalarType(expr.children[1], lhs)) {
           if (!CloneTypeRef(lhs, &common)) return false;
         } else {
           return false;
@@ -1165,6 +1223,7 @@ bool InferExprType(const Expr& expr,
         out->type_args.clear();
         out->dims.clear();
         out->is_proc = false;
+        out->proc_is_callback = false;
         out->proc_params.clear();
         out->proc_return.reset();
         return true;
@@ -1344,6 +1403,7 @@ bool CheckCallArgs(const FuncDecl* fn, size_t arg_count, std::string* error) {
 
 bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error) {
   if (!type || !type->is_proc) return false;
+  if (type->proc_is_callback) return true;
   if (type->proc_params.size() != arg_count) {
     if (error) {
       *error = "call argument count mismatch: expected " +
@@ -1427,29 +1487,28 @@ bool CheckCallTarget(const Expr& callee,
         }
         return true;
       }
-      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-        if (!local->dl_module.empty()) {
-          auto mod_it = ctx.externs_by_module.find(local->dl_module);
-          if (mod_it != ctx.externs_by_module.end()) {
-            auto ext_it = mod_it->second.find(callee.text);
-            if (ext_it != mod_it->second.end()) {
-              if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
-              if (ext_it->second->params.size() != arg_count) {
-                if (error) {
-                  *error = "call argument count mismatch for dynamic symbol " +
-                           base.text + "." + callee.text + ": expected " +
-                           std::to_string(ext_it->second->params.size()) +
-                           ", got " + std::to_string(arg_count);
-                }
-                return false;
+      std::string dl_module;
+      if (ResolveDlModuleForIdentifier(base.text, ctx, scopes, &dl_module)) {
+        auto mod_it = ctx.externs_by_module.find(dl_module);
+        if (mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = mod_it->second.find(callee.text);
+          if (ext_it != mod_it->second.end()) {
+            if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
+            if (ext_it->second->params.size() != arg_count) {
+              if (error) {
+                *error = "call argument count mismatch for dynamic symbol " +
+                         base.text + "." + callee.text + ": expected " +
+                         std::to_string(ext_it->second->params.size()) +
+                         ", got " + std::to_string(arg_count);
               }
-              return true;
+              return false;
             }
-            if (error) {
-              *error = "unknown dynamic symbol: " + base.text + "." + callee.text;
-            }
-            return false;
+            return true;
           }
+          if (error) {
+            *error = "unknown dynamic symbol: " + base.text + "." + callee.text;
+          }
+          return false;
         }
       }
       auto module_it = ctx.modules.find(base.text);
@@ -1600,6 +1659,8 @@ bool GetCallTargetInfo(const Expr& callee,
         if (!CloneTypeVector(local->type->proc_params, &out->params)) return false;
         if (local->type->proc_return) {
           if (!CloneTypeRef(*local->type->proc_return, &out->return_type)) return false;
+        } else if (local->type->proc_is_callback) {
+          out->return_type = MakeSimpleType("void");
         }
         out->return_mutability = local->type->proc_return_mutability;
         out->type_params.clear();
@@ -1614,6 +1675,8 @@ bool GetCallTargetInfo(const Expr& callee,
         if (!CloneTypeVector(global_it->second->type.proc_params, &out->params)) return false;
         if (global_it->second->type.proc_return) {
           if (!CloneTypeRef(*global_it->second->type.proc_return, &out->return_type)) return false;
+        } else if (global_it->second->type.proc_is_callback) {
+          out->return_type = MakeSimpleType("void");
         }
         out->return_mutability = global_it->second->type.proc_return_mutability;
         out->type_params.clear();
@@ -1634,6 +1697,7 @@ bool GetCallTargetInfo(const Expr& callee,
         param.type_args.clear();
         param.dims.clear();
         param.is_proc = false;
+        param.proc_is_callback = false;
         param.proc_params.clear();
         param.proc_return.reset();
         out->params.push_back(std::move(param));
@@ -1642,6 +1706,7 @@ bool GetCallTargetInfo(const Expr& callee,
         out->return_type.type_args.clear();
         out->return_type.dims.clear();
         out->return_type.is_proc = false;
+        out->return_type.proc_is_callback = false;
         out->return_type.proc_params.clear();
         out->return_type.proc_return.reset();
         out->return_mutability = Mutability::Mutable;
@@ -1664,25 +1729,24 @@ bool GetCallTargetInfo(const Expr& callee,
         }
         return true;
       }
-      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-        if (!local->dl_module.empty()) {
-          auto mod_it = ctx.externs_by_module.find(local->dl_module);
-          if (mod_it != ctx.externs_by_module.end()) {
-            auto ext_it = mod_it->second.find(callee.text);
-            if (ext_it != mod_it->second.end()) {
-              if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
-              out->params.clear();
-              if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
-              out->return_mutability = ext_it->second->return_mutability;
-              out->type_params.clear();
-              out->is_proc = false;
-              for (const auto& param : ext_it->second->params) {
-                TypeRef copy;
-                if (!CloneTypeRef(param.type, &copy)) return false;
-                out->params.push_back(std::move(copy));
-              }
-              return true;
+      std::string dl_module;
+      if (ResolveDlModuleForIdentifier(base.text, ctx, scopes, &dl_module)) {
+        auto mod_it = ctx.externs_by_module.find(dl_module);
+        if (mod_it != ctx.externs_by_module.end()) {
+          auto ext_it = mod_it->second.find(callee.text);
+          if (ext_it != mod_it->second.end()) {
+            if (!IsSupportedDlDynamicSignature(*ext_it->second, ctx, error)) return false;
+            out->params.clear();
+            if (!CloneTypeRef(ext_it->second->return_type, &out->return_type)) return false;
+            out->return_mutability = ext_it->second->return_mutability;
+            out->type_params.clear();
+            out->is_proc = false;
+            for (const auto& param : ext_it->second->params) {
+              TypeRef copy;
+              if (!CloneTypeRef(param.type, &copy)) return false;
+              out->params.push_back(std::move(copy));
             }
+            return true;
           }
         }
       }
@@ -1707,6 +1771,8 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(var->type.proc_params, &out->params)) return false;
           if (var->type.proc_return) {
             if (!CloneTypeRef(*var->type.proc_return, &out->return_type)) return false;
+          } else if (var->type.proc_is_callback) {
+            out->return_type = MakeSimpleType("void");
           }
           out->return_mutability = var->type.proc_return_mutability;
           out->type_params.clear();
@@ -1778,6 +1844,8 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
           if (resolved_field.proc_return) {
             if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
+          } else if (resolved_field.proc_is_callback) {
+            out->return_type = MakeSimpleType("void");
           }
           return true;
         }
@@ -1821,6 +1889,8 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
           if (resolved_field.proc_return) {
             if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
+          } else if (resolved_field.proc_is_callback) {
+            out->return_type = MakeSimpleType("void");
           }
           return true;
         }
@@ -2337,7 +2407,13 @@ bool CheckStmt(const Stmt& stmt,
         if (have_target && have_value && stmt.assign_op != "=") {
           std::string op = stmt.assign_op;
           if (!op.empty() && op.back() == '=') op.pop_back();
-          if (!CheckCompoundAssignOp(op, target_type, value_type, error)) return false;
+          TypeRef rhs_for_op;
+          if (!CloneTypeRef(value_type, &rhs_for_op)) return false;
+          if (!TypeEquals(target_type, rhs_for_op) &&
+              IsLiteralCompatibleWithScalarType(stmt.expr, target_type)) {
+            if (!CloneTypeRef(target_type, &rhs_for_op)) return false;
+          }
+          if (!CheckCompoundAssignOp(op, target_type, rhs_for_op, error)) return false;
         }
         if (have_target &&
             (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral) &&
@@ -2373,6 +2449,10 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::VarDecl:
       if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
+      if (IsCallbackType(stmt.var_decl.type)) {
+        if (error) *error = "callback is only valid as a parameter type";
+        return false;
+      }
       {
         LocalInfo info;
         info.mutability = stmt.var_decl.mutability;
@@ -2783,11 +2863,8 @@ bool CheckBinaryOpTypes(const Expr& expr,
   if (!RequireScalar(lhs, expr.op, error)) return false;
   if (!RequireScalar(rhs, expr.op, error)) return false;
   if (!TypeEquals(lhs, rhs)) {
-    const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
-    const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
-    const bool lhs_int = IsIntegerScalarTypeName(lhs.name);
-    const bool rhs_int = IsIntegerScalarTypeName(rhs.name);
-    if (!(lhs_lit && rhs_int) && !(rhs_lit && lhs_int)) {
+    if (!IsLiteralCompatibleWithScalarType(expr.children[0], rhs) &&
+        !IsLiteralCompatibleWithScalarType(expr.children[1], lhs)) {
       if (error) *error = "operator '" + expr.op + "' requires matching operand types";
       return false;
     }
@@ -2915,6 +2992,7 @@ bool CheckFnLiteralAgainstType(const Expr& fn_expr,
     if (error) *error = "fn literal requires procedure type";
     return false;
   }
+  if (target_type.proc_is_callback) return true;
   if (fn_expr.fn_params.size() != target_type.proc_params.size()) {
     if (error) {
       *error = "fn literal parameter count mismatch: expected " +
@@ -2930,6 +3008,10 @@ bool CheckFnLiteralAgainstType(const Expr& fn_expr,
     }
   }
   return true;
+}
+
+bool IsCallbackType(const TypeRef& type) {
+  return type.is_proc && type.proc_is_callback;
 }
 
 bool CheckExpr(const Expr& expr,
@@ -3019,7 +3101,13 @@ bool CheckExpr(const Expr& expr,
         bool have_target = InferExprType(expr.children[0], ctx, scopes, current_artifact, &target_type);
         bool have_value = InferExprType(expr.children[1], ctx, scopes, current_artifact, &value_type);
         if (expr.op != "=" && have_target && have_value) {
-          if (!CheckCompoundAssignOp(expr.op, target_type, value_type, error)) return false;
+          TypeRef rhs_for_op;
+          if (!CloneTypeRef(value_type, &rhs_for_op)) return false;
+          if (!TypeEquals(target_type, rhs_for_op) &&
+              IsLiteralCompatibleWithScalarType(expr.children[1], target_type)) {
+            if (!CloneTypeRef(target_type, &rhs_for_op)) return false;
+          }
+          if (!CheckCompoundAssignOp(expr.op, target_type, rhs_for_op, error)) return false;
           return true;
         }
         if (have_target && expr.children[1].kind == ExprKind::FnLiteral) {
@@ -3229,13 +3317,12 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
         if (base.kind == ExprKind::Identifier) {
-          if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-            if (!local->dl_module.empty()) {
-              auto mod_it = ctx.externs_by_module.find(local->dl_module);
-              if (mod_it != ctx.externs_by_module.end() &&
-                  mod_it->second.find(expr.text) != mod_it->second.end()) {
-                return true;
-              }
+          std::string dl_module;
+          if (ResolveDlModuleForIdentifier(base.text, ctx, scopes, &dl_module)) {
+            auto mod_it = ctx.externs_by_module.find(dl_module);
+            if (mod_it != ctx.externs_by_module.end() &&
+                mod_it->second.find(expr.text) != mod_it->second.end()) {
+              return true;
             }
           }
           auto module_it = ctx.modules.find(base.text);
@@ -3274,13 +3361,12 @@ bool CheckExpr(const Expr& expr,
       if (expr.op == "." && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier) {
-          if (const LocalInfo* local = FindLocal(scopes, base.text)) {
-            if (!local->dl_module.empty()) {
-              auto mod_it = ctx.externs_by_module.find(local->dl_module);
-              if (mod_it != ctx.externs_by_module.end() &&
-                  mod_it->second.find(expr.text) != mod_it->second.end()) {
-                return true;
-              }
+          std::string dl_module;
+          if (ResolveDlModuleForIdentifier(base.text, ctx, scopes, &dl_module)) {
+            auto mod_it = ctx.externs_by_module.find(dl_module);
+            if (mod_it != ctx.externs_by_module.end() &&
+                mod_it->second.find(expr.text) != mod_it->second.end()) {
+              return true;
             }
           }
           auto module_it = ctx.modules.find(base.text);
@@ -3444,6 +3530,10 @@ bool CheckFunctionBody(const FuncDecl& fn,
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
   const bool is_main = (fn.name == "main" && fn.return_type.name == "i32");
+  if (IsCallbackType(fn.return_type)) {
+    if (error) *error = "callback is only valid as a parameter type";
+    return false;
+  }
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
@@ -3592,6 +3682,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
+          if (IsCallbackType(decl.ext.return_type)) {
+            if (error) *error = "callback is only valid as a parameter type";
+            return false;
+          }
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
           for (const auto& param : decl.ext.params) {
             if (!param_names.insert(param.name).second) {
@@ -3622,6 +3716,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
           for (const auto& field : decl.artifact.fields) {
             if (!names.insert(field.name).second) {
               if (error) *error = "duplicate artifact member: " + field.name;
+              return false;
+            }
+            if (IsCallbackType(field.type)) {
+              if (error) *error = "callback is only valid as a parameter type";
               return false;
             }
             if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
@@ -3658,6 +3756,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
               return false;
             }
             std::unordered_set<std::string> type_params;
+            if (IsCallbackType(var.type)) {
+              if (error) *error = "callback is only valid as a parameter type";
+              return false;
+            }
             if (!CheckTypeRef(var.type, ctx, type_params, TypeUse::Value, error)) return false;
           }
           for (const auto& fn : decl.module.functions) {
@@ -3682,6 +3784,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Variable:
         if (decl.kind == DeclKind::Variable) {
           std::unordered_set<std::string> type_params;
+          if (IsCallbackType(decl.var.type)) {
+            if (error) *error = "callback is only valid as a parameter type";
+            return false;
+          }
           if (!CheckTypeRef(decl.var.type, ctx, type_params, TypeUse::Value, error)) return false;
         }
         break;

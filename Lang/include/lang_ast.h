@@ -26,11 +26,50 @@ struct TypeRef {
   std::vector<TypeRef> type_args;
   std::vector<TypeDim> dims;
   bool is_proc = false;
+  bool proc_is_callback = false;
   Mutability proc_return_mutability = Mutability::Mutable;
   std::vector<TypeRef> proc_params;
   std::unique_ptr<TypeRef> proc_return;
   uint32_t line = 0;
   uint32_t column = 0;
+
+  TypeRef() = default;
+  TypeRef(const TypeRef& other)
+      : name(other.name),
+        pointer_depth(other.pointer_depth),
+        type_args(other.type_args),
+        dims(other.dims),
+        is_proc(other.is_proc),
+        proc_is_callback(other.proc_is_callback),
+        proc_return_mutability(other.proc_return_mutability),
+        proc_params(other.proc_params),
+        line(other.line),
+        column(other.column) {
+    if (other.proc_return) {
+      proc_return = std::make_unique<TypeRef>(*other.proc_return);
+    }
+  }
+  TypeRef& operator=(const TypeRef& other) {
+    if (this == &other) return *this;
+    name = other.name;
+    pointer_depth = other.pointer_depth;
+    type_args = other.type_args;
+    dims = other.dims;
+    is_proc = other.is_proc;
+    proc_is_callback = other.proc_is_callback;
+    proc_return_mutability = other.proc_return_mutability;
+    proc_params = other.proc_params;
+    line = other.line;
+    column = other.column;
+    if (other.proc_return) {
+      proc_return = std::make_unique<TypeRef>(*other.proc_return);
+    } else {
+      proc_return.reset();
+    }
+    return *this;
+  }
+  TypeRef(TypeRef&&) noexcept = default;
+  TypeRef& operator=(TypeRef&&) noexcept = default;
 };
 
 struct ParamDecl {

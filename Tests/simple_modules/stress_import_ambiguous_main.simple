@@ -1,0 +1,5 @@
+import "stress_dup"
+
+main : i32 () {
+  return dup_value()
+}

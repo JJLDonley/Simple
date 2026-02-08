@@ -78,6 +78,31 @@ Composite/supporting types:
 - user types (`artifact`, `enum`, `module`)
 - pointers (`*T`, `*void`) for FFI boundaries
 
+### Callback Type
+
+`callback` is a parameter-only type marker that means “a procedure is passed in”.
+
+- valid: `apply : void (cb : callback, value : i32) { ... }`
+- invalid: callback in variable, field, or return type positions
+
+### Procedure Literal Shorthand
+
+Procedure-typed variable bindings support a shorthand initializer form that matches procedure signature style:
+
+- mutable: `x : fn = RetType(params...) { ... }`
+- immutable: `x :: fn = RetType(params...) { ... }`
+
+Examples:
+
+- `f : fn= i32 (a : i32, b : i32) { return a + b }`
+- `update : fn = void (p : Player) { p.position.y += p.velocity.x }`
+- `update(player)`
+
+Direct inline call of a function literal is intentionally unsupported.
+
+- unsupported: `((a : i32, b : i32) { return a + b })(20, 22)`
+- supported: bind first, then call (`f : fn = ...` and `f(...)`)
+
 ### Cast Syntax
 
 - Primitive casts use `@T(value)` syntax.

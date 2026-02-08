@@ -7,3 +7,4 @@
 /Editor/vscode-simple/node_modules/
 /Editor/vscode-simple/*.vsix
 /Tests/extra/
+/raylib/

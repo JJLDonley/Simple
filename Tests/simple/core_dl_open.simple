@@ -1,5 +1,5 @@
-import "Core.DL" as DL
-import "IO"
+import system.dl as DL
+import system.io as IO
 Color :: artifact {
   r : i8;
   g : i8;

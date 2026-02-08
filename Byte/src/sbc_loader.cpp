@@ -227,7 +227,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         case TypeKind::Ref:
         case TypeKind::String:
           if (row.field_start != 0 || row.field_count != 0) {
-            return Fail("type kind has fields");
+            return Fail("type kind has fields (type_id=" + std::to_string(i) +
+                        " name_str=" + std::to_string(row.name_str) +
+                        " kind=" + std::to_string(static_cast<uint32_t>(row.kind)) +
+                        " field_start=" + std::to_string(row.field_start) +
+                        " field_count=" + std::to_string(row.field_count) + ")");
           }
           break;
         case TypeKind::Unspecified:

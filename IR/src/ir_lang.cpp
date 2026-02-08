@@ -946,7 +946,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       field_count++;
     }
-    types[type_id].field_start = field_start;
+    types[type_id].field_start = (field_count == 0) ? 0u : field_start;
     types[type_id].field_count = field_count;
   }
 
