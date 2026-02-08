@@ -1258,3 +1258,9 @@
 - Added regression coverage for IO alias signature-help behavior:
   - new test validates format-call signature label and active argument indexing for alias-qualified IO print calls.
 - Updated LSP and implementation docs to reflect IO alias overload support.
+- Extended LSP reserved-module signature help with overload-aware Core.DL.open support:
+  - alias-qualified `DL.open(...)` now exposes both supported call forms in signature help: `(path)` and `(path, manifest)`.
+  - active signature/parameter selection now correctly moves to the second overload when cursor is in argument 2.
+- Added regression coverage for Core.DL.open overload signatures:
+  - new test validates both `DL.open(path)` and `DL.open(path, manifest)` labels are present and that active signature/parameter are set to overload index 1 / parameter 1 for second-argument positions.
+- Updated LSP and implementation docs to reflect overload-aware reserved alias signature behavior.

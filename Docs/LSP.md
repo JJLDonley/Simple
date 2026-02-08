@@ -88,6 +88,7 @@ Primary goals:
   - `@T(value)` cast-call signature help (for example `@i32(value)`)
 - reserved imported modules (including `as` aliases):
   - signature help resolves known reserved-module members such as `OS.args_get(index)`, `DL.open(path)`, `FS.read(fd, buffer, count)`, etc.
+  - overload-aware signatures are emitted where applicable (for example `DL.open(path)` and `DL.open(path, manifest)`)
 - local function-style declarations:
   - resolves `name : type (params)` declarations to signature payloads with per-parameter labels
 

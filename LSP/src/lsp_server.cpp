@@ -1085,6 +1085,23 @@ void ReplySignatureHelp(std::ostream& out,
     return;
   }
 
+  if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
+      imported_module == "Core.DL" && imported_member == "open") {
+    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
+    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":["
+            "{\"label\":\"" + call_name +
+            "(path)\",\"parameters\":[{\"label\":\"path\"}]},"
+            "{\"label\":\"" + call_name +
+            "(path, manifest)\",\"parameters\":[{\"label\":\"path\"},{\"label\":\"manifest\"}]}"
+            "],\"activeSignature\":" + std::to_string(active_signature) +
+            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
+    return;
+  }
+
   if (IsAtCastCallName(call_name)) {
     WriteLspMessage(
         out,
