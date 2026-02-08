@@ -2,6 +2,9 @@
 
 #include <cctype>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
@@ -10,6 +13,7 @@
 #include <utility>
 
 #include "lang_lexer.h"
+#include "lang_parser.h"
 #include "lang_reserved.h"
 #include "lang_token.h"
 #include "lang_validate.h"
@@ -23,6 +27,308 @@ std::string TrimCopy(const std::string& input) {
   size_t end = input.size();
   while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) --end;
   return input.substr(start, end - start);
+}
+
+bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
+  if (!out) return false;
+  std::ifstream in(path);
+  if (!in) {
+    if (error) *error = "failed to open file";
+    return false;
+  }
+  std::ostringstream buffer;
+  buffer << in.rdbuf();
+  *out = buffer.str();
+  return true;
+}
+
+bool DecodeHexNibble(char c, uint8_t* out) {
+  if (!out) return false;
+  if (c >= '0' && c <= '9') {
+    *out = static_cast<uint8_t>(c - '0');
+    return true;
+  }
+  if (c >= 'a' && c <= 'f') {
+    *out = static_cast<uint8_t>(10 + (c - 'a'));
+    return true;
+  }
+  if (c >= 'A' && c <= 'F') {
+    *out = static_cast<uint8_t>(10 + (c - 'A'));
+    return true;
+  }
+  return false;
+}
+
+bool DecodeUriPath(const std::string& encoded, std::string* out) {
+  if (!out) return false;
+  out->clear();
+  out->reserve(encoded.size());
+  for (size_t i = 0; i < encoded.size(); ++i) {
+    const char c = encoded[i];
+    if (c == '%') {
+      if (i + 2 >= encoded.size()) return false;
+      uint8_t hi = 0;
+      uint8_t lo = 0;
+      if (!DecodeHexNibble(encoded[i + 1], &hi) || !DecodeHexNibble(encoded[i + 2], &lo)) {
+        return false;
+      }
+      out->push_back(static_cast<char>((hi << 4) | lo));
+      i += 2;
+      continue;
+    }
+    out->push_back(c);
+  }
+  return true;
+}
+
+bool StartsWithCaseInsensitive(const std::string& text, const std::string& prefix);
+
+bool FileUriToPath(const std::string& uri, std::string* out_path) {
+  if (!out_path) return false;
+  if (!StartsWithCaseInsensitive(uri, "file://")) return false;
+  const std::string rest = uri.substr(7);
+  if (rest.empty()) return false;
+  size_t path_pos = 0;
+  if (rest[0] != '/') {
+    const size_t slash = rest.find('/');
+    if (slash == std::string::npos) return false;
+    const std::string host = rest.substr(0, slash);
+    if (!host.empty() && !StartsWithCaseInsensitive(host, "localhost")) return false;
+    path_pos = slash;
+  }
+  return DecodeUriPath(rest.substr(path_pos), out_path);
+}
+
+bool LooksLikeProjectRoot(const std::filesystem::path& root) {
+  namespace fs = std::filesystem;
+  return fs::exists(root / "VM" / "include" / "vm.h") &&
+         fs::exists(root / "Lang" / "include" / "lang_parser.h") &&
+         fs::exists(root / "Byte" / "include" / "sbc_loader.h");
+}
+
+std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path cursor = fs::weakly_canonical(entry_path, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(entry_path);
+  if (fs::is_regular_file(cursor)) cursor = cursor.parent_path();
+  while (!cursor.empty()) {
+    if (LooksLikeProjectRoot(cursor)) return cursor;
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
+  }
+  fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+  if (!ec && !cwd.empty()) return cwd;
+  return fs::current_path();
+}
+
+bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
+                          std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
+  if (!out) return false;
+  out->clear();
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::recursive_directory_iterator it(
+      project_root,
+      fs::directory_options::skip_permission_denied,
+      ec);
+  if (ec) return false;
+  for (const auto& entry : it) {
+    if (!entry.is_regular_file()) continue;
+    const fs::path& path = entry.path();
+    if (path.extension() != ".simple") continue;
+    (*out)[path.filename().string()].push_back(fs::weakly_canonical(path, ec));
+    if (ec) {
+      ec.clear();
+      (*out)[path.filename().string()].push_back(fs::absolute(path));
+    }
+  }
+  return true;
+}
+
+bool ResolveProjectRootImportPath(
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
+  if (!out) return false;
+  const std::string target = import_path.size() >= 7 &&
+                                     import_path.rfind(".simple") == import_path.size() - 7
+                                 ? import_path
+                                 : import_path + ".simple";
+  auto it = index.find(target);
+  if (it == index.end() || it->second.empty()) {
+    if (error) *error = "import not found in project root: " + import_path;
+    return false;
+  }
+  if (it->second.size() > 1) {
+    if (error) *error = "ambiguous import path: " + import_path;
+    return false;
+  }
+  *out = it->second.front();
+  return true;
+}
+
+bool ResolveLocalImportPath(
+    const std::filesystem::path& base_dir,
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
+  if (!out) return false;
+  namespace fs = std::filesystem;
+  fs::path raw(import_path);
+  const bool has_separator =
+      import_path.find('/') != std::string::npos || import_path.find('\\') != std::string::npos;
+  const bool explicit_relative = raw.is_relative() && !import_path.empty() &&
+                                 (import_path[0] == '.' || has_separator);
+
+  if (raw.is_absolute()) {
+    if (fs::exists(raw)) {
+      *out = fs::weakly_canonical(raw);
+      return true;
+    }
+    if (!raw.has_extension()) {
+      fs::path with_ext = raw;
+      with_ext += ".simple";
+      if (fs::exists(with_ext)) {
+        *out = fs::weakly_canonical(with_ext);
+        return true;
+      }
+    }
+  } else if (explicit_relative) {
+    fs::path cand = base_dir / raw;
+    if (fs::exists(cand)) {
+      *out = fs::weakly_canonical(cand);
+      return true;
+    }
+    if (!raw.has_extension()) {
+      fs::path with_ext = base_dir / (import_path + ".simple");
+      if (fs::exists(with_ext)) {
+        *out = fs::weakly_canonical(with_ext);
+        return true;
+      }
+    }
+    if (error) *error = "import file not found: " + import_path;
+    return false;
+  } else {
+    if (ResolveProjectRootImportPath(project_index, import_path, out, error)) {
+      return true;
+    }
+    return false;
+  }
+  if (error) *error = "import file not found: " + import_path;
+  return false;
+}
+
+bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
+                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+                                   Simple::Lang::Program* out,
+                                   std::unordered_set<std::string>* visiting,
+                                   std::unordered_set<std::string>* visited,
+                                   std::string* error,
+                                   const std::string* override_text = nullptr) {
+  if (!out || !visiting || !visited) return false;
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path canon = fs::weakly_canonical(file_path, ec);
+  if (ec || canon.empty()) canon = fs::absolute(file_path);
+  const std::string key = canon.string();
+  if (visited->find(key) != visited->end()) return true;
+  if (!visiting->insert(key).second) {
+    if (error) *error = "cyclic import detected: " + key;
+    return false;
+  }
+
+  std::string text;
+  if (override_text) {
+    text = *override_text;
+  } else if (!ReadFileText(key, &text, error)) {
+    visiting->erase(key);
+    return false;
+  }
+
+  Simple::Lang::Program program;
+  std::string parse_error;
+  if (!Simple::Lang::ParseProgramFromString(text, &program, &parse_error)) {
+    if (error) *error = key + ": " + parse_error;
+    visiting->erase(key);
+    return false;
+  }
+
+  const fs::path base_dir = canon.parent_path();
+  for (const auto& decl : program.decls) {
+    if (decl.kind != Simple::Lang::DeclKind::Import) continue;
+    if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
+    fs::path import_file;
+    if (!ResolveLocalImportPath(base_dir, project_index, decl.import_decl.path, &import_file, error)) {
+      visiting->erase(key);
+      return false;
+    }
+    if (!AppendProgramWithLocalImports(import_file, project_index, out, visiting, visited, error)) {
+      visiting->erase(key);
+      return false;
+    }
+  }
+
+  for (auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::DeclKind::Import &&
+        !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
+      continue;
+    }
+    out->decls.push_back(std::move(decl));
+  }
+  for (auto& stmt : program.top_level_stmts) {
+    out->top_level_stmts.push_back(std::move(stmt));
+  }
+
+  visiting->erase(key);
+  visited->insert(key);
+  return true;
+}
+
+bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& source_text, std::string* error) {
+  std::string entry_path;
+  if (!FileUriToPath(uri, &entry_path)) {
+    Simple::Lang::Program parsed;
+    std::string parse_error;
+    if (!Simple::Lang::ParseProgramFromString(source_text, &parsed, &parse_error)) {
+      if (error) *error = parse_error;
+      return false;
+    }
+    for (const auto& decl : parsed.decls) {
+      if (decl.kind != Simple::Lang::DeclKind::Import) continue;
+      if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
+      if (error) {
+        *error = "non-reserved imports require a file:// document URI: " + decl.import_decl.path;
+      }
+      return false;
+    }
+    return Simple::Lang::ValidateProgramFromString(source_text, error);
+  }
+  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
+  std::unordered_map<std::string, std::vector<std::filesystem::path>> project_index;
+  if (!BuildSimpleFileIndex(project_root, &project_index)) {
+    if (error) {
+      *error = "failed to enumerate .simple files under project root: " + project_root.string();
+    }
+    return false;
+  }
+
+  Simple::Lang::Program program;
+  program.decls.clear();
+  std::unordered_set<std::string> visiting;
+  std::unordered_set<std::string> visited;
+  if (!AppendProgramWithLocalImports(entry_path,
+                                     project_index,
+                                     &program,
+                                     &visiting,
+                                     &visited,
+                                     error,
+                                     &source_text)) {
+    return false;
+  }
+  return Simple::Lang::ValidateProgram(program, error);
 }
 
 std::vector<std::string> SortedOpenDocUris(
@@ -296,8 +602,17 @@ std::string JsonEscape(const std::string& text) {
 void PublishDiagnostics(std::ostream& out,
                         const std::string& uri,
                         const std::string& source_text) {
+  const size_t first_content = source_text.find_first_not_of(" \t\r\n");
+  if (first_content == std::string::npos) {
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
+        "\"params\":{\"uri\":\"" + JsonEscape(uri) + "\",\"diagnostics\":[]}}");
+    return;
+  }
+
   std::string error;
-  const bool ok = Simple::Lang::ValidateProgramFromString(source_text, &error);
+  const bool ok = ValidateProgramFromUriAndText(uri, source_text, &error);
   if (ok) {
     WriteLspMessage(
         out,
@@ -1054,7 +1369,7 @@ void ReplyCompletion(std::ostream& out,
                      uint32_t character,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
-      "fn", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
+      "fn", "callback", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
   std::vector<std::string> labels;
 
   auto doc_it = open_docs.find(uri);
@@ -1545,7 +1860,7 @@ std::string DocumentHighlightJson(const Simple::Lang::Token& tk, uint32_t kind) 
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "self", "artifact", "enum", "module", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "enum", "module", "import", "extern", "as",
       "true", "false",
   };
   if (name.empty()) return false;

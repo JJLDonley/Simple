@@ -1415,3 +1415,21 @@
 - Local verification:
   - `./build.sh --suite core` passed (`507/507`).
   - `./build.sh --suite all --no-tests` completed successfully.
+- Fixed dynamic Core.DL global-handle regression for member calls:
+  - restored dynamic symbol resolution when the DL handle comes from a global initialized with `DL.Open(..., manifest)` (not only locals).
+  - updated validator dynamic-member resolution paths to derive DL manifest modules from both locals and globals.
+  - updated SIR emitter/inference dynamic-member resolution paths to derive DL manifest modules from both locals and globals.
+- Added regression coverage:
+  - new fixture `Tests/simple/core_dl_open_global.simple` validates `lib :: i64 = DL.Open(..., ffi)` followed by `lib.symbol(...)` calls from functions.
+  - registered `lang_simple_fixture_core_dl_open_global` in language test suite.
+- Verification:
+  - `./bin/simple check ./Tests/simple/core_dl_open_raylib.simple` now succeeds (no `member access base is not an artifact` error).
+  - `./build.sh --suite lang` passed (`333/333`).
+- Improved non-reserved import diagnostics to reduce misleading `unsupported import path` errors:
+  - CLI and LSP local import resolution now report `import file not found: <path>` for missing absolute/relative imports.
+  - project-root bare imports continue to report specific `import not found in project root` or `ambiguous import path` errors.
+  - LSP now reports `non-reserved imports require a file:// document URI: <path>` for untitled/non-file documents that use local imports.
+- Updated regression expectations for import-diagnostic wording in language tests.
+- Verification:
+  - `./build.sh --suite lang` passed (`362/362`).
+  - `./build.sh --suite lsp` passed (`60/60`).

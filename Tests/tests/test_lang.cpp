@@ -43,6 +43,14 @@ std::string RunCommandCaptureStdout(const std::string& command) {
   return ReadFileText(out_path);
 }
 
+std::string RunCommandCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
+  const std::string err_path = TempPath("simple_command_stderr_capture.txt");
+  const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
+  const int result = std::system(wrapped.c_str());
+  if (out_exit_code) *out_exit_code = result;
+  return ReadFileText(err_path);
+}
+
 bool RunCommandExpectFail(const std::string& command) {
   const std::string err_path = TempPath("simple_expect_fail_err.txt");
   const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
@@ -241,6 +249,14 @@ bool LangSimpleFixtureCoreDlOpen() {
   return RunSimpleFileExpectExit("Tests/simple/core_dl_open.simple", 1);
 }
 
+bool LangSimpleFixtureCoreDlOpenGlobal() {
+  return RunSimpleFileExpectExit("Tests/simple/core_dl_open_global.simple", 1);
+}
+
+bool LangSimpleFixtureFloatLiteralContext() {
+  return RunSimpleFileExpectExit("Tests/simple/float_literal_context.simple", 0);
+}
+
 bool LangSimpleFixtureReservedMath() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_math.simple", 0);
 }
@@ -289,6 +305,271 @@ bool LangSimpleFixtureCastI8ToI32() {
   return RunSimpleFileExpectExit("Tests/simple/cast_i8_to_i32.simple", 42);
 }
 
+bool LangStressEnumAsTypeRuntime() {
+  const char* src =
+      "State :: enum { Idle = 0, Running = 1 }\n"
+      "Task :: artifact { state : State }\n"
+      "touch : State (s : State) { return s }\n"
+      "main : i32 () {\n"
+      "  t : Task = { touch(State.Running) }\n"
+      "  return 1\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 1);
+}
+
+bool LangStressEnumAsTypeRejectScalarAssignment() {
+  const char* src =
+      "State :: enum { Idle = 0, Running = 1 }\n"
+      "main : i32 () {\n"
+      "  s : State = 1\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("type mismatch") != std::string::npos;
+}
+
+bool LangStressArtifactMethodMutationRuntime() {
+  const char* src =
+      "Counter :: artifact {\n"
+      "  value : i32\n"
+      "  add : void (step : i32) { self.value = self.value + step }\n"
+      "  get : i32 () { return self.value }\n"
+      "}\n"
+      "main : i32 () {\n"
+      "  c : Counter = { 0 }\n"
+      "  c.add(19)\n"
+      "  c.add(23)\n"
+      "  return c.get()\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangStressArtifactMethodTypeStrict() {
+  const char* src =
+      "Counter :: artifact {\n"
+      "  value : i32\n"
+      "  add : void (step : i32) { self.value = self.value + step }\n"
+      "}\n"
+      "main : i32 () {\n"
+      "  c : Counter = { 0 }\n"
+      "  c.add(\"bad\")\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("call argument type mismatch") != std::string::npos;
+}
+
+bool LangStressProcedureVariableRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : (i32, i32) : i32 = (a : i32, b : i32) { return a + b }\n"
+      "  g : (i32) : i32 = (x : i32) { return x + 2 }\n"
+      "  h : (i32, i32) : i32 = f\n"
+      "  return 42\n"
+      "}";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangStressProcedureParameterRuntime() {
+  const char* src =
+      "accept : void (f : (i32, i32) : i32) { return }\n"
+      "main : i32 () {\n"
+      "  accept((x : i32, y : i32) { return x + y })\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangStressProcedureArgTypeStrict() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : (i32) : i32 = (x : i32) { return x }\n"
+      "  return f(\"oops\")\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("call argument type mismatch") != std::string::npos;
+}
+
+bool LangStressProcedureReturnTypeStrict() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : (i32) : i32 = (x : i32) { return true }\n"
+      "  g : (i32) : string = f\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("initializer type mismatch") != std::string::npos;
+}
+
+bool LangStressEnumArtifactProcedureCompositionRuntime() {
+  const char* src =
+      "Op :: enum { Add = 1, Mul = 2 }\n"
+      "add : i32 (a : i32, b : i32) { return a + b }\n"
+      "mul : i32 (a : i32, b : i32) { return a * b }\n"
+      "Acc :: artifact {\n"
+      "  op : Op\n"
+      "  value : i32\n"
+      "  step_add : void (x : i32) { self.value = add(self.value, x) }\n"
+      "  step_mul : void (x : i32) { self.value = mul(self.value, x) }\n"
+      "}\n"
+      "main : i32 () {\n"
+      "  a : Acc = { Op.Add, 2 }\n"
+      "  a.step_add(5)\n"
+      "  a.step_mul(6)\n"
+      "  return a.value\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangStressImportChainCliRun() {
+  return RunCommand("bin/simple run Tests/simple_modules/stress_import_main.simple");
+}
+
+bool LangStressImportMissingCliCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_import_missing_main.simple",
+                              &exit_code);
+  return exit_code != 0 &&
+         stderr_text.find("import file not found") != std::string::npos;
+}
+
+bool LangStressImportAmbiguousCliCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_import_ambiguous_main.simple",
+                              &exit_code);
+  return exit_code != 0 &&
+         stderr_text.find("ambiguous import path") != std::string::npos;
+}
+
+bool LangStressTypeExplicitArtifactFieldFail() {
+  const char* src =
+      "Wrap :: artifact { x : i32 }\n"
+      "main : i32 () {\n"
+      "  w : Wrap = { 1 }\n"
+      "  w.x = \"bad\"\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("type mismatch") != std::string::npos;
+}
+
+bool LangStressParseCallMemberIndexPrecedence() {
+  const char* src =
+      "main : i32 () { return f(1).items[2].value + 3; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::Return) return false;
+  const auto& expr = stmt.expr;
+  if (expr.kind != Simple::Lang::ExprKind::Binary || expr.op != "+") return false;
+  const auto& lhs = expr.children[0];
+  if (lhs.kind != Simple::Lang::ExprKind::Member || lhs.text != "value") return false;
+  if (lhs.children.empty()) return false;
+  const auto& idx = lhs.children[0];
+  if (idx.kind != Simple::Lang::ExprKind::Index) return false;
+  if (idx.children.empty()) return false;
+  const auto& items = idx.children[0];
+  if (items.kind != Simple::Lang::ExprKind::Member || items.text != "items") return false;
+  if (items.children.empty()) return false;
+  if (items.children[0].kind != Simple::Lang::ExprKind::Call) return false;
+  return true;
+}
+
+bool LangStressParseFnLiteralCallInCallArg() {
+  const char* src =
+      "apply : i32 (f : (i32) : i32, x : i32) { return x; }"
+      "main : i32 () { return apply((x : i32) { return x + 1; }, 41); }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 2) return false;
+  const auto& call = program.decls[1].func.body[0].expr;
+  if (call.kind != Simple::Lang::ExprKind::Call) return false;
+  if (call.args.size() != 2) return false;
+  if (call.args[0].kind != Simple::Lang::ExprKind::FnLiteral) return false;
+  return true;
+}
+
+bool LangStressParseForLoopComplexStep() {
+  const char* src =
+      "main : i32 () {"
+      "  i : i32 = 0;"
+      "  for i = 0; i < 10; i += 2 { skip; }"
+      "  return i;"
+      "}";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.size() < 2) return false;
+  const auto& loop = body[1];
+  if (loop.kind != Simple::Lang::StmtKind::ForLoop) return false;
+  if (loop.loop_step.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (loop.loop_step.op != "+=") return false;
+  return true;
+}
+
+bool LangStressParseNestedIfElseInElseBranch() {
+  const char* src =
+      "main : i32 () {"
+      "  if false { return 0; }"
+      "  else { if true { return 1; } else { return 2; } }"
+      "}";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::IfStmt) return false;
+  if (stmt.if_else.size() != 1) return false;
+  if (stmt.if_else[0].kind != Simple::Lang::StmtKind::IfStmt) return false;
+  return true;
+}
+
+bool LangStressImportDeepChainCliRun() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_deep_main.simple",
+                              &exit_code);
+  return exit_code == 0 && stderr_text.empty();
+}
+
+bool LangStressImportRelativeSubdirCliRun() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_rel/main.simple",
+                              &exit_code);
+  return exit_code == 0 && stderr_text.empty();
+}
+
+bool LangStressImportCycleCliCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_cycle_main.simple",
+                              &exit_code);
+  return exit_code != 0 &&
+         stderr_text.find("cyclic import detected") != std::string::npos;
+}
+
 bool LangSimpleBadMissingReturn() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/missing_return.simple",
@@ -310,7 +591,7 @@ bool LangSimpleBadPrintArray() {
 bool LangSimpleBadImportUnknown() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/import_unknown.simple",
-      "unsupported import path");
+      "import");
 }
 
 bool LangSimpleBadEnumUnqualified() {
@@ -2163,6 +2444,80 @@ bool LangValidateFnLiteralAssignNotProcType() {
   return true;
 }
 
+bool LangValidateFnShorthandAssignAndCallOk() {
+  const char* src =
+      "Player :: artifact { position : i32 velocity : i32 }\n"
+      "main : i32 () {\n"
+      "  update : fn = void (p : Player) { p.position += p.velocity }\n"
+      "  player : Player = { 40, 2 }\n"
+      "  update(player)\n"
+      "  return player.position\n"
+      "}";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangSirEmitsFnShorthandAssignAndCall() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : fn = i32 (a : i32, b : i32) { return a + b }\n"
+      "  return f(20, 22)\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangValidateCallbackParamWithFnArgOk() {
+  const char* src =
+      "invoke : void (cb : callback, x : i32) { cb(x) }\n"
+      "main : i32 () {\n"
+      "  printv : fn = void (v : i32) { IO.println(v) }\n"
+      "  invoke(printv, 42)\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangSirEmitsCallbackParamWithFnArgCall() {
+  const char* src =
+      "invoke : void (cb : callback, x : i32) { cb(x) }\n"
+      "main : i32 () {\n"
+      "  noop : fn = void (v : i32) { return; }\n"
+      "  invoke(noop, 7)\n"
+      "  return 0\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 0);
+}
+
+bool LangValidateCallbackTypeInVarDeclRejected() {
+  const char* src = "main : void () { cb : callback; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallbackTypeInReturnRejected() {
+  const char* src = "make : callback () { return; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateCallbackTypeInArtifactFieldRejected() {
+  const char* src = "Node :: artifact { cb : callback }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
 bool LangValidateCompoundAssignNumericOk() {
   const char* src = "main : void () { x : i32 = 1; x += 2; x <<= 1; }";
   std::string error;
@@ -2749,6 +3104,26 @@ bool LangParsesFnLiteral() {
   return true;
 }
 
+bool LangParsesFnShorthandLiteralBinding() {
+  const char* src = "main : void () { f : fn = i32 (a : i32, b : i32) { return a + b; }; }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& body = program.decls[0].func.body;
+  if (body.empty()) return false;
+  if (body[0].kind != Simple::Lang::StmtKind::VarDecl) return false;
+  if (!body[0].var_decl.type.is_proc) return false;
+  if (!body[0].var_decl.type.proc_return) return false;
+  if (body[0].var_decl.type.proc_return->name != "i32") return false;
+  if (body[0].var_decl.type.proc_params.size() != 2) return false;
+  if (body[0].var_decl.type.proc_params[0].name != "i32") return false;
+  if (body[0].var_decl.type.proc_params[1].name != "i32") return false;
+  if (!body[0].var_decl.has_init_expr) return false;
+  if (body[0].var_decl.init_expr.kind != Simple::Lang::ExprKind::FnLiteral) return false;
+  if (body[0].var_decl.init_expr.fn_params.size() != 2) return false;
+  return true;
+}
+
 bool LangParsesAssignments() {
   const char* src = "main : i32 () { x : i32 = 1; x += 2; x = x * 3; return x; }";
   Simple::Lang::Program program;
@@ -2932,11 +3307,33 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
   {"lang_simple_fixture_extern_core_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
   {"lang_simple_fixture_core_dl_open", LangSimpleFixtureCoreDlOpen},
+  {"lang_simple_fixture_core_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
+  {"lang_simple_fixture_float_literal_context", LangSimpleFixtureFloatLiteralContext},
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},
   {"lang_simple_fixture_reserved_math_pi", LangSimpleFixtureReservedMathPi},
   {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
   {"lang_simple_fixture_reserved_io_buffer", LangSimpleFixtureReservedIoBuffer},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
+  {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
+  {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
+  {"lang_stress_artifact_method_mutation_runtime", LangStressArtifactMethodMutationRuntime},
+  {"lang_stress_artifact_method_type_strict", LangStressArtifactMethodTypeStrict},
+  {"lang_stress_procedure_variable_runtime", LangStressProcedureVariableRuntime},
+  {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
+  {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
+  {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
+  {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
+  {"lang_stress_import_chain_cli_run", LangStressImportChainCliRun},
+  {"lang_stress_import_missing_cli_check", LangStressImportMissingCliCheck},
+  {"lang_stress_import_ambiguous_cli_check", LangStressImportAmbiguousCliCheck},
+  {"lang_stress_type_explicit_artifact_field_fail", LangStressTypeExplicitArtifactFieldFail},
+  {"lang_stress_parse_call_member_index_precedence", LangStressParseCallMemberIndexPrecedence},
+  {"lang_stress_parse_fn_literal_call_in_call_arg", LangStressParseFnLiteralCallInCallArg},
+  {"lang_stress_parse_for_loop_complex_step", LangStressParseForLoopComplexStep},
+  {"lang_stress_parse_nested_if_else_in_else_branch", LangStressParseNestedIfElseInElseBranch},
+  {"lang_stress_import_deep_chain_cli_run", LangStressImportDeepChainCliRun},
+  {"lang_stress_import_relative_subdir_cli_run", LangStressImportRelativeSubdirCliRun},
+  {"lang_stress_import_cycle_cli_check", LangStressImportCycleCliCheck},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},
@@ -3012,6 +3409,8 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_artifact_member_assign", LangSirEmitsArtifactMemberAssign},
   {"lang_sir_emit_enum_value", LangSirEmitsEnumValue},
   {"lang_sir_emit_fn_literal_call", LangSirEmitsFnLiteralCall},
+  {"lang_sir_emit_fn_shorthand_assign_call", LangSirEmitsFnShorthandAssignAndCall},
+  {"lang_sir_emit_callback_param_fn_arg_call", LangSirEmitsCallbackParamWithFnArgCall},
   {"lang_validate_enum_qualified", LangValidateEnumQualified},
   {"lang_validate_enum_qualified_dot", LangValidateEnumQualifiedDot},
   {"lang_validate_enum_unqualified", LangValidateEnumUnqualified},
@@ -3087,6 +3486,11 @@ const TestCase kLangTests[] = {
   {"lang_run_simple_fixtures", LangRunsSimpleFixtures},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},
+  {"lang_validate_fn_shorthand_assign_call_ok", LangValidateFnShorthandAssignAndCallOk},
+  {"lang_validate_callback_param_fn_arg_ok", LangValidateCallbackParamWithFnArgOk},
+  {"lang_validate_callback_type_var_rejected", LangValidateCallbackTypeInVarDeclRejected},
+  {"lang_validate_callback_type_return_rejected", LangValidateCallbackTypeInReturnRejected},
+  {"lang_validate_callback_type_artifact_field_rejected", LangValidateCallbackTypeInArtifactFieldRejected},
   {"lang_validate_artifact_member_requires_self_field", LangValidateArtifactMemberRequiresSelfField},
   {"lang_validate_artifact_member_requires_self_method", LangValidateArtifactMemberRequiresSelfMethod},
   {"lang_validate_artifact_member_self_ok", LangValidateArtifactMemberSelfOk},
@@ -3168,6 +3572,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_array_list_index", LangParsesArrayListAndIndex},
   {"lang_parse_artifact_literal", LangParsesArtifactLiteral},
   {"lang_parse_fn_literal", LangParsesFnLiteral},
+  {"lang_parse_fn_shorthand_literal_binding", LangParsesFnShorthandLiteralBinding},
   {"lang_parse_assignments", LangParsesAssignments},
   {"lang_ast_type_coverage", LangAstTypeCoverage},
   {"lang_parse_recover_in_block", LangParserRecoversInBlock},

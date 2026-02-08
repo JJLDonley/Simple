@@ -165,12 +165,15 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
         return true;
       }
     }
+    if (error) *error = "import file not found: " + import_path;
+    return false;
   } else {
     if (ResolveProjectRootImportPath(project_index, import_path, out, error)) {
       return true;
     }
+    return false;
   }
-  if (error && error->empty()) *error = "unsupported import path: " + import_path;
+  if (error) *error = "import file not found: " + import_path;
   return false;
 }
 
