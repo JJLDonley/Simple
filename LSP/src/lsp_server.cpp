@@ -715,9 +715,9 @@ std::string DefaultImportAlias(const std::string& path) {
 
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
   static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
-      {"IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
-      {"Math", {"abs", "min", "max", "pi"}},
-      {"Time", {"mono_ns", "wall_ns"}},
+      {"Core.IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
+      {"Core.Math", {"abs", "min", "max", "pi"}},
+      {"Core.Time", {"mono_ns", "wall_ns"}},
       {"File", {"open", "close", "read", "write"}},
       {"Core.DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
@@ -820,7 +820,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   std::string module;
   std::string member;
   if (!ResolveImportedModuleAndMember(call_name, text, &module, &member)) return false;
-  if (module == "Math") {
+  if (module == "Core.Math") {
     if (member == "abs") {
       out->params = {"value"};
       out->return_type = "i32|i64";
@@ -833,7 +833,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "IO") {
+  if (module == "Core.IO") {
     if (member == "print" || member == "println") {
       out->params = {"value"};
       out->return_type = "void";
@@ -861,7 +861,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Time") {
+  if (module == "Core.Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = "i64";
       return true;
@@ -1161,7 +1161,7 @@ void ReplySignatureHelp(std::ostream& out,
   std::string imported_module;
   std::string imported_member;
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "IO" && (imported_member == "print" || imported_member == "println")) {
+      imported_module == "Core.IO" && (imported_member == "print" || imported_member == "println")) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(

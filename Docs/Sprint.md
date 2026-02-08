@@ -1379,3 +1379,12 @@
 - Updated docs for runtime/module contracts:
   - `StdLib.md` now documents IO buffer helpers and `core_io` alias normalization,
   - `VM.md` import-dispatch module list now includes `core.io`.
+- Unified reserved-module canonical IDs to `Core.*` for internal consistency:
+  - `IO`/`System.io`/`core.io` now canonicalize to `Core.IO`,
+  - `Math`/`System.math`/`core.math` now canonicalize to `Core.Math`,
+  - `Time`/`System.time`/`core.time` now canonicalize to `Core.Time`.
+- Updated validator, SIR, and LSP reserved-module handling to use `Core.IO/Core.Math/Core.Time` uniformly while preserving legacy import spellings.
+- Fixed SIR module-resolution edge cases introduced by canonicalization so user-defined `Math` modules still resolve correctly and reserved extern dispatch remains stable.
+- Verified regression coverage after canonicalization updates:
+  - `./build.sh --suite lang` -> `332/332`,
+  - `./build.sh --suite lsp` -> `57/57`.

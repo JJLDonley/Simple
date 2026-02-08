@@ -102,7 +102,7 @@ bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
-  return ResolveReservedModuleName(ctx, module_name, &resolved) && resolved == "IO";
+  return ResolveReservedModuleName(ctx, module_name, &resolved) && resolved == "Core.IO";
 }
 
 bool CountFormatPlaceholders(const std::string& fmt,
@@ -242,9 +242,11 @@ size_t EditDistance(const std::string& a, const std::string& b) {
 }
 
 std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
-  if (resolved == "IO") return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
-  if (resolved == "Math") return {"abs", "min", "max", "PI"};
-  if (resolved == "Time") return {"mono_ns", "wall_ns"};
+  if (resolved == "Core.IO") {
+    return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
+  }
+  if (resolved == "Core.Math") return {"abs", "min", "max", "PI"};
+  if (resolved == "Core.Time") return {"mono_ns", "wall_ns"};
   if (resolved == "Core.DL") {
     return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
             "call_str0", "supported"};
@@ -344,7 +346,7 @@ bool GetReservedModuleVarType(const ValidateContext& ctx,
                               TypeRef* out) {
   std::string resolved;
   if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
-  if (resolved == "Math" && member == "PI") {
+  if (resolved == "Core.Math" && member == "PI") {
     if (out) *out = MakeSimpleType("f64");
     return true;
   }
@@ -370,7 +372,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   out->params.clear();
   out->type_params.clear();
   out->is_proc = false;
-  if (resolved == "Math") {
+  if (resolved == "Core.Math") {
     if (member == "abs") {
       out->params.push_back(MakeSimpleType("T"));
       out->return_type = MakeSimpleType("T");
@@ -387,14 +389,14 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Time") {
+  if (resolved == "Core.Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
   }
-  if (resolved == "IO") {
+  if (resolved == "Core.IO") {
     if (member == "buffer_new") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeListType("i32");
@@ -1853,7 +1855,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return t.name == "i32" && !t.is_proc && t.type_args.empty() &&
                t.dims.size() == 1;
       };
-      if (mod == "Math") {
+      if (mod == "Core.Math") {
         if (name == "abs") {
           if (call_expr.args.size() != 1) return true;
           TypeRef arg;
@@ -1879,7 +1881,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
           return true;
         }
       }
-      if (mod == "IO") {
+      if (mod == "Core.IO") {
         if (name == "buffer_new") {
           if (call_expr.args.size() != 1) return true;
           TypeRef len;
@@ -1926,7 +1928,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
           return true;
         }
       }
-      if (mod == "Time") {
+      if (mod == "Core.Time") {
         if (name == "mono_ns" || name == "wall_ns") {
           if (!call_expr.args.empty()) {
             if (error) *error = "Time." + name + " expects no arguments";
@@ -2946,8 +2948,10 @@ bool CheckExpr(const Expr& expr,
         return true;
       }
       if (expr.text == "Core") {
-        if (IsReservedModuleEnabled(ctx, "Core.DL") || IsReservedModuleEnabled(ctx, "Core.Os") ||
-            IsReservedModuleEnabled(ctx, "Core.Fs") || IsReservedModuleEnabled(ctx, "Core.Log")) {
+        if (IsReservedModuleEnabled(ctx, "Core.Math") || IsReservedModuleEnabled(ctx, "Core.IO") ||
+            IsReservedModuleEnabled(ctx, "Core.Time") || IsReservedModuleEnabled(ctx, "Core.DL") ||
+            IsReservedModuleEnabled(ctx, "Core.Os") || IsReservedModuleEnabled(ctx, "Core.Fs") ||
+            IsReservedModuleEnabled(ctx, "Core.Log")) {
           return true;
         }
       }

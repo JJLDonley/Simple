@@ -14,16 +14,16 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
   if (!out) return false;
   const std::string key = LowerAscii(path);
 
-  if (key == "math" || key == "system.math") {
-    *out = "Math";
+  if (key == "math" || key == "system.math" || key == "core.math") {
+    *out = "Core.Math";
     return true;
   }
   if (key == "io" || key == "system.io" || key == "system.stream" || key == "core.io") {
-    *out = "IO";
+    *out = "Core.IO";
     return true;
   }
-  if (key == "time" || key == "system.time") {
-    *out = "Time";
+  if (key == "time" || key == "system.time" || key == "core.time") {
+    *out = "Core.Time";
     return true;
   }
   if (key == "core.dl" || key == "system.dl") {

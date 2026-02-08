@@ -260,7 +260,7 @@ bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
-  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "IO";
+  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "Core.IO";
 }
 
 bool HostIsLinux() {
@@ -855,7 +855,7 @@ bool InferExprType(const Expr& expr,
       if (base.kind == ExprKind::Identifier) {
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Math" && expr.text == "PI") {
+            resolved == "Core.Math" && expr.text == "PI") {
           out->name = "f64";
           return true;
         }
@@ -956,18 +956,19 @@ bool InferExprType(const Expr& expr,
         }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
-          std::string resolved;
-          if (ResolveReservedModuleName(st, module_name, &resolved)) {
-            module_name = resolved;
+          std::string reserved_module;
+          const bool has_reserved_module =
+              ResolveReservedModuleName(st, module_name, &reserved_module);
+          if (has_reserved_module) {
             const std::string member_name =
-                (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (resolved == "Math" &&
+                (reserved_module == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (reserved_module == "Core.Math" &&
                 (member_name == "abs" || member_name == "min" || member_name == "max") &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if (resolved == "Time" &&
+            if (reserved_module == "Core.Time" &&
                 (member_name == "mono_ns" || member_name == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -979,9 +980,16 @@ bool InferExprType(const Expr& expr,
             }
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
+          std::string ext_module_name = module_name;
+          if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
+            ext_mod_it = st.extern_returns_by_module.find(reserved_module);
+            if (ext_mod_it != st.extern_returns_by_module.end()) {
+              ext_module_name = reserved_module;
+            }
+          }
           if (ext_mod_it != st.extern_returns_by_module.end()) {
             const std::string member_name =
-                (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+                (ext_module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
             auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
@@ -1950,8 +1958,8 @@ bool EmitExpr(EmitState& st,
           if (!ResolveReservedModuleName(st, module_name, &resolved)) {
             // Not a reserved module; fall through to normal call handling.
           } else {
-            module_name = resolved;
-            if (resolved == "Math") {
+            const std::string reserved_module = resolved;
+            if (reserved_module == "Core.Math") {
               if (NormalizeCoreDlMember(callee.text) == "abs") {
                 if (expr.args.size() != 1) {
                   if (error) *error = "call argument count mismatch for 'Math.abs'";
@@ -1976,14 +1984,14 @@ bool EmitExpr(EmitState& st,
               }
             }
             const std::string member_name =
-                (resolved == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (resolved == "Core.DL") {
+                (reserved_module == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (reserved_module == "Core.DL") {
               if (member_name == "open") {
                 if (expr.args.size() != 1 && expr.args.size() != 2) {
                   if (error) *error = "call argument count mismatch for 'Core.DL.open'";
                   return false;
                 }
-                auto ext_mod_it = st.extern_ids_by_module.find(module_name);
+                auto ext_mod_it = st.extern_ids_by_module.find(reserved_module);
                 if (ext_mod_it == st.extern_ids_by_module.end()) {
                   if (error) *error = "missing extern module for 'Core.DL.open'";
                   return false;
@@ -1993,10 +2001,10 @@ bool EmitExpr(EmitState& st,
                   if (error) *error = "missing extern id for 'Core.DL.open'";
                   return false;
                 }
-                auto params_it = st.extern_params_by_module[module_name].find(member_name);
-                auto ret_it = st.extern_returns_by_module[module_name].find(member_name);
-                if (params_it == st.extern_params_by_module[module_name].end() ||
-                    ret_it == st.extern_returns_by_module[module_name].end()) {
+                auto params_it = st.extern_params_by_module[reserved_module].find(member_name);
+                auto ret_it = st.extern_returns_by_module[reserved_module].find(member_name);
+                if (params_it == st.extern_params_by_module[reserved_module].end() ||
+                    ret_it == st.extern_returns_by_module[reserved_module].end()) {
                   if (error) *error = "missing signature for extern 'Core.DL.open'";
                   return false;
                 }
@@ -2113,7 +2121,7 @@ bool EmitExpr(EmitState& st,
               return true;
             }
           }
-          if (module_name == "Time") {
+          if (resolved == "Core.Time") {
             if (NormalizeCoreDlMember(callee.text) == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
@@ -2135,10 +2143,6 @@ bool EmitExpr(EmitState& st,
           }
         }
         if (GetModuleNameFromExpr(base, &module_name)) {
-          std::string resolved;
-          if (ResolveReservedModuleName(st, module_name, &resolved)) {
-            module_name = resolved;
-          }
           const std::string member_name =
               (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
@@ -2175,22 +2179,31 @@ bool EmitExpr(EmitState& st,
             }
             return true;
           }
-          auto ext_mod_it = st.extern_ids_by_module.find(module_name);
+          std::string ext_module_name = module_name;
+          auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
+          if (ext_mod_it == st.extern_ids_by_module.end()) {
+            std::string resolved_module;
+            if (ResolveReservedModuleName(st, module_name, &resolved_module)) {
+              ext_module_name = resolved_module;
+              ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
+            }
+          }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
             const std::string member_name =
-                (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+                (ext_module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            const std::string ext_key = ext_module_name + "." + member_name;
             auto id_it = ext_mod_it->second.find(member_name);
             if (id_it != ext_mod_it->second.end()) {
-              auto params_it = st.extern_params_by_module[module_name].find(member_name);
-              auto ret_it = st.extern_returns_by_module[module_name].find(member_name);
-              if (params_it == st.extern_params_by_module[module_name].end() ||
-                  ret_it == st.extern_returns_by_module[module_name].end()) {
-                if (error) *error = "missing signature for extern '" + key + "'";
+              auto params_it = st.extern_params_by_module[ext_module_name].find(member_name);
+              auto ret_it = st.extern_returns_by_module[ext_module_name].find(member_name);
+              if (params_it == st.extern_params_by_module[ext_module_name].end() ||
+                  ret_it == st.extern_returns_by_module[ext_module_name].end()) {
+                if (error) *error = "missing signature for extern '" + ext_key + "'";
                 return false;
               }
               const auto& params = params_it->second;
               if (expr.args.size() != params.size()) {
-                if (error) *error = "call argument count mismatch for '" + key + "'";
+                if (error) *error = "call argument count mismatch for '" + ext_key + "'";
                 return false;
               }
               for (size_t i = 0; i < params.size(); ++i) {
@@ -2661,7 +2674,7 @@ bool EmitExpr(EmitState& st,
       if (base.kind == ExprKind::Identifier) {
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Math" && expr.text == "PI") {
+            resolved == "Core.Math" && expr.text == "PI") {
           (*st.out) << "  const.f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
@@ -3612,8 +3625,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("IO") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("IO")) {
+  if (st.reserved_imports.find("Core.IO") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Core.IO")) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.io", "buffer_new", std::move(new_params), make_list_type("i32"))) {
