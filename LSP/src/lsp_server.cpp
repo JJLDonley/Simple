@@ -365,6 +365,42 @@ std::string GetLineText(const std::string& text, uint32_t line_index) {
   return {};
 }
 
+std::string TrimLeftAscii(const std::string& text) {
+  size_t i = 0;
+  while (i < text.size() && std::isspace(static_cast<unsigned char>(text[i]))) ++i;
+  return text.substr(i);
+}
+
+bool StartsWithImportLine(const std::string& line_text) {
+  const std::string trimmed = TrimLeftAscii(line_text);
+  return trimmed.rfind("import", 0) == 0 &&
+         (trimmed.size() == 6 || std::isspace(static_cast<unsigned char>(trimmed[6])) ||
+          trimmed[6] == '"');
+}
+
+uint32_t PreferredDeclarationInsertLine(const std::string& text) {
+  uint32_t line_index = 0;
+  size_t start = 0;
+  bool seen_nonempty = false;
+  bool in_import_header = true;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i != text.size() && text[i] != '\n') continue;
+    const std::string line = text.substr(start, i - start);
+    const std::string trimmed = TrimLeftAscii(line);
+    if (!trimmed.empty()) seen_nonempty = true;
+    if (in_import_header) {
+      if (!seen_nonempty || StartsWithImportLine(line)) {
+        ++line_index;
+        start = i + 1;
+        continue;
+      }
+      return line_index;
+    }
+    start = i + 1;
+  }
+  return line_index;
+}
+
 bool IsIdentChar(char c) {
   return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
 }
@@ -1402,14 +1438,16 @@ void ReplyCodeAction(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
     return;
   }
+  const uint32_t insert_line = PreferredDeclarationInsertLine(doc_it->second);
   const std::string declaration = ident + " : i32 = 0;\n";
   WriteLspMessage(
       out,
       "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
           ",\"result\":[{\"title\":\"Declare '" + JsonEscape(ident) +
           "' as i32\",\"kind\":\"quickfix\",\"edit\":{\"changes\":{\"" +
-          JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":0,\"character\":0},"
-          "\"end\":{\"line\":0,\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +
+          JsonEscape(uri) + "\":[{\"range\":{\"start\":{\"line\":" + std::to_string(insert_line) +
+          ",\"character\":0},\"end\":{\"line\":" + std::to_string(insert_line) +
+          ",\"character\":0}},\"newText\":\"" + JsonEscape(declaration) +
           "\"}]}}}]}");
 }
 

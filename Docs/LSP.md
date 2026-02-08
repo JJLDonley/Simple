@@ -58,6 +58,7 @@ Primary goals:
 - reuse existing rust-style diagnostic formatter behavior and source span extraction
 - map parser/validator errors to LSP diagnostics with stable codes (`E0001`, etc.)
 - include related information where possible (for example duplicate symbol sites)
+- quick-fix code actions for undeclared identifiers insert declarations after top-of-file import headers (instead of always line 0)
 
 ### Symbols and Navigation
 

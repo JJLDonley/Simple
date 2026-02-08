@@ -1229,3 +1229,8 @@
 - Expanded LSP regression coverage:
   - initialize handshake test now asserts `declarationProvider` capability is present.
   - new declaration navigation test validates `textDocument/declaration` returns the expected declaration location for local symbols.
+- Improved LSP undeclared-identifier quick-fix placement:
+  - code action declaration insertion now targets the first non-import top-level line, preserving import headers at file start.
+- Added LSP regression coverage for import-aware quick-fix placement:
+  - new test validates `textDocument/codeAction` emits edit range start at line 1 for `import "IO"` + undeclared assignment fixtures.
+- Updated LSP/implementation docs to reflect import-aware quick-fix insertion behavior.
