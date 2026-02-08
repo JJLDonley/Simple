@@ -71,6 +71,16 @@ Primary goals:
 - member completion (`Module.member`, `Artifact.member`, `IO.println`, etc.)
 - import path completion for `.simple` files and reserved import names
 
+### Signature Help (Current)
+
+- builtins:
+  - `IO.print(value)` / `IO.println(value)`
+  - `IO.print(format, values...)` / `IO.println(format, values...)` for `{}` format-placeholder calls
+- language casts:
+  - `@T(value)` cast-call signature help (for example `@i32(value)`)
+- local function-style declarations:
+  - resolves `name : type (params)` declarations to signature payloads with per-parameter labels
+
 ## Syntax Highlighting Plan
 
 Deliver both layers:

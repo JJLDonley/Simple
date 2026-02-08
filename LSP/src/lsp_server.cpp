@@ -370,8 +370,10 @@ bool IsIdentChar(char c) {
 }
 
 bool IsCallNameChar(char c) {
-  return IsIdentChar(c) || c == '.';
+  return IsIdentChar(c) || c == '.' || c == '@';
 }
+
+bool IsAtCastCallName(const std::string& name);
 
 std::string LowerAscii(const std::string& text) {
   std::string out = text;
@@ -645,13 +647,28 @@ void ReplySignatureHelp(std::ostream& out,
   const std::string call_name = CallNameAtPosition(it->second, line, character);
   const uint32_t active_parameter = ActiveParameterAtPosition(it->second, line, character);
   if (call_name == "IO.println" || call_name == "IO.print") {
+    const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
+    const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
+    WriteLspMessage(
+        out,
+        "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+            ",\"result\":{\"signatures\":["
+            "{\"label\":\"" + call_name +
+            "(value)\",\"parameters\":[{\"label\":\"value\"}]},"
+            "{\"label\":\"" + call_name +
+            "(format, values...)\",\"parameters\":[{\"label\":\"format\"},{\"label\":\"values...\"}]}"
+            "],\"activeSignature\":" + std::to_string(active_signature) +
+            ",\"activeParameter\":" + std::to_string(active_param_for_sig) + "}}");
+    return;
+  }
+
+  if (IsAtCastCallName(call_name)) {
     WriteLspMessage(
         out,
         "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
             ",\"result\":{\"signatures\":[{\"label\":\"" + call_name +
             "(value)\",\"parameters\":[{\"label\":\"value\"}]}],"
-            "\"activeSignature\":0,\"activeParameter\":" +
-            std::to_string(active_parameter) + "}}");
+            "\"activeSignature\":0,\"activeParameter\":0}}");
     return;
   }
 
@@ -777,6 +794,13 @@ bool IsPrimitiveTypeName(const std::string& name) {
       {"void", 1},
   };
   return kTypeNames.find(name) != kTypeNames.end();
+}
+
+bool IsAtCastCallName(const std::string& name) {
+  if (name.size() < 2 || name[0] != '@') return false;
+  const std::string target = name.substr(1);
+  if (target == "void" || target == "string") return false;
+  return IsPrimitiveTypeName(target);
 }
 
 uint32_t SemanticTokenTypeIndex(const Simple::Lang::Token& token) {

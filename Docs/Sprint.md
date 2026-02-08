@@ -1190,3 +1190,16 @@
   - validator recognizes `@T(...)` casts and rejects legacy bare `T(...)` with explicit guidance (`use @T(value)`),
   - SIR type inference/emission updated to compile `@T(...)` casts only.
 - Added regression coverage to ensure `i32(x)` fails and `@i32(x)` remains valid.
+- Updated docs to reflect recent language/runtime contracts:
+  - `Docs/Lang.md` now documents enforced `@T(value)` casts and IO format-placeholder call rules,
+  - `Docs/StdLib.md` now documents `IO.print/println` format-call forms and validation constraints,
+  - `Docs/Implementation.md` baseline/LSP status updated to remove stale stub wording and include current cast/format behavior,
+  - `Docs/LSP.md` signature-help section updated for IO format variants and `@T(value)` cast-call support.
+- Extended LSP signature help behavior:
+  - IO builtins now expose both `value` and `format, values...` signatures,
+  - active signature/parameter selection now tracks format-call argument position,
+  - cast-call signature help supports `@T(value)` forms (for example `@i32(value)`).
+- Added/updated LSP regression tests for:
+  - IO format signature-help payload,
+  - `@T(value)` cast signature-help payload,
+  - active-signature selection for IO format calls.

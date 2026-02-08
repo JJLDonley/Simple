@@ -41,6 +41,13 @@ These paths are compiler-reserved and do not resolve to source files:
 ### IO
 - `IO.print(x)`
 - `IO.println(x)`
+- `IO.print("format {} ...", args...)`
+- `IO.println("format {} ...", args...)`
+
+Format-call rules:
+- first argument must be a string literal,
+- `{}` placeholder count must match provided args,
+- args must be scalar printable types (`numeric`, `bool`, `char`, `string`).
 
 ### Time
 - `Time.mono_ns()`

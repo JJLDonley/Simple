@@ -32,8 +32,10 @@ This is the active execution plan for shipping and maintaining Simple from repos
   - top-level function declarations are declarations only (not auto-called),
   - explicit `main` is used as entry when no top-level script statements exist.
 - Top-level `return` is explicitly rejected at validation time.
+- Cast syntax is enforced as `@T(value)` (legacy bare `T(value)` cast style is rejected).
+- `IO.print`/`IO.println` support typed format placeholders via string-literal `{}` forms.
 - CLI diagnostics are context-rich and include source spans + help hints.
-- LSP command exists as a stub (`simple lsp`) and needs full protocol implementation.
+- LSP server is implemented and test-covered (lifecycle, diagnostics, navigation, completion, signature help, semantic tokens, rename/code-actions).
 - Main branch CI workflow publishes GitHub Release artifacts for installer consumption.
 
 ## Module Plan
@@ -131,6 +133,7 @@ Authoritative doc:
 Status:
 - `simple lsp` is implemented with protocol lifecycle, diagnostics, navigation features, completion, rename, signature help, semantic tokens, and cross-document indexing for open files.
 - VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
+- signature-help coverage includes IO format-call variants and `@T(value)` cast-call help.
 
 Next-module execution focus:
 - [x] Implement stdio JSON-RPC LSP server lifecycle (`initialize`, `shutdown`, `exit`).
@@ -142,7 +145,7 @@ Next-module execution focus:
   - TextMate grammar fallback for editor startup/non-LSP highlight.
 - [x] Add integration tests for protocol lifecycle, diagnostics, and semantic token snapshots.
 - [ ] Add release automation for VS Code extension artifacts to publish `.vsix` from CI/release tags.
-- [ ] Build/ship VS Code extension install docs and quickstart validation checklist.
+- [x] Build/ship VS Code extension install docs and quickstart validation checklist.
 
 Gate to close:
 - LSP is functionally usable in editor workflows with diagnostics, navigation, completion, and highlighting.

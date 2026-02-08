@@ -78,6 +78,23 @@ Composite/supporting types:
 - user types (`artifact`, `enum`, `module`)
 - pointers (`*T`, `*void`) for FFI boundaries
 
+### Cast Syntax
+
+- Primitive casts use `@T(value)` syntax.
+- Example: `x : i32 = @i32(raw_i8)`.
+- Bare call-style casts (`i32(value)`) are rejected with an explicit diagnostic directing `@T(value)`.
+- Cast validation/emission remains strict and type-checked (for example unsupported source/target combinations still fail).
+
+### IO Formatting
+
+- `IO.print` / `IO.println` support both:
+  - single-value form: `IO.println(value)`
+  - format form: `IO.println("x={}, y={}", x, y)`
+- Format form rules:
+  - first argument must be a string literal,
+  - `{}` placeholder count must match provided value arguments,
+  - value arguments must be scalar printable types (`numeric`, `bool`, `char`, `string`).
+
 ### Reserved Imports / Stdlib Surface
 
 Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Docs/StdLib.md`.

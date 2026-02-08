@@ -643,8 +643,74 @@ bool LspSignatureHelpTracksActiveParameter() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":18") != std::string::npos &&
-         out_contents.find("\"activeSignature\":0") != std::string::npos &&
+         out_contents.find("\"activeSignature\":1") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
+}
+
+bool LspSignatureHelpReturnsFormatSignature() {
+  const std::string in_path = TempPath("simple_lsp_signature_format_in.txt");
+  const std::string out_path = TempPath("simple_lsp_signature_format_out.txt");
+  const std::string err_path = TempPath("simple_lsp_signature_format_err.txt");
+  const std::string uri = "file:///workspace/signature_format.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import \\\"IO\\\"\\nIO.println(\\\"x={}\\\", 1);\"}}}";
+  const std::string signature_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":28,\"method\":\"textDocument/signatureHelp\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":20}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(signature_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":28") != std::string::npos &&
+         out_contents.find("IO.println(format, values...)") != std::string::npos &&
+         out_contents.find("\"activeSignature\":1") != std::string::npos &&
+         out_contents.find("\"activeParameter\":1") != std::string::npos;
+}
+
+bool LspSignatureHelpSupportsAtCastCalls() {
+  const std::string in_path = TempPath("simple_lsp_signature_cast_in.txt");
+  const std::string out_path = TempPath("simple_lsp_signature_cast_out.txt");
+  const std::string err_path = TempPath("simple_lsp_signature_cast_err.txt");
+  const std::string uri = "file:///workspace/signature_cast.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { x : i8 = 1; return @i32(x); }\"}}}";
+  const std::string signature_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":29,\"method\":\"textDocument/signatureHelp\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":40}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(signature_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":29") != std::string::npos &&
+         out_contents.find("@i32(value)") != std::string::npos &&
+         out_contents.find("\"activeSignature\":0") != std::string::npos &&
+         out_contents.find("\"activeParameter\":0") != std::string::npos;
 }
 
 bool LspSignatureHelpForLocalFunctionDeclaration() {
@@ -1375,6 +1441,8 @@ const TestCase kLspTests[] = {
   {"lsp_completion_filters_member_suffix_by_receiver", LspCompletionFiltersMemberSuffixByReceiver},
   {"lsp_signature_help_returns_signature", LspSignatureHelpReturnsSignature},
   {"lsp_signature_help_tracks_active_parameter", LspSignatureHelpTracksActiveParameter},
+  {"lsp_signature_help_returns_format_signature", LspSignatureHelpReturnsFormatSignature},
+  {"lsp_signature_help_supports_at_cast_calls", LspSignatureHelpSupportsAtCastCalls},
   {"lsp_signature_help_for_local_function_declaration", LspSignatureHelpForLocalFunctionDeclaration},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
