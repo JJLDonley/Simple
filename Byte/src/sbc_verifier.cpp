@@ -523,9 +523,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
       }
 
       if (opcode == static_cast<uint8_t>(OpCode::Enter)) {
-        uint16_t locals = 0;
-        if (!ReadU16(code, pc + 1, &locals)) return fail_at("ENTER operand out of bounds", pc, opcode);
-        if (locals != local_count) return fail_at("ENTER local count mismatch", pc, opcode);
+        uint16_t enter_locals = 0;
+        if (!ReadU16(code, pc + 1, &enter_locals)) return fail_at("ENTER operand out of bounds", pc, opcode);
+        if (enter_locals != local_count) return fail_at("ENTER local count mismatch", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::LoadLocal) ||
           opcode == static_cast<uint8_t>(OpCode::StoreLocal)) {
@@ -550,12 +550,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (type_id >= module.types.size()) return fail_at("NEW_OBJECT bad type id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewClosure)) {
-        uint32_t method_id = 0;
-        if (!ReadU32(code, pc + 1, &method_id)) {
-          return fail_at("NEW_CLOSURE method id out of bounds", pc, opcode);
-        }
-        if (pc + 5 >= code.size()) return fail_at("NEW_CLOSURE upvalue count out of bounds", pc, opcode);
-        if (method_id >= module.methods.size()) return fail_at("NEW_CLOSURE bad method id", pc, opcode);
+          uint32_t closure_method_id = 0;
+          if (!ReadU32(code, pc + 1, &closure_method_id)) {
+            return fail_at("NEW_CLOSURE method id out of bounds", pc, opcode);
+          }
+          if (pc + 5 >= code.size()) return fail_at("NEW_CLOSURE upvalue count out of bounds", pc, opcode);
+          if (closure_method_id >= module.methods.size()) return fail_at("NEW_CLOSURE bad method id", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::NewArray) ||
           opcode == static_cast<uint8_t>(OpCode::NewArrayI64) ||
@@ -1692,21 +1692,21 @@ VerifyResult VerifyModule(const SbcModule& module) {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);
           if (!IsKnownIntrinsic(id)) return fail_at("INTRINSIC id invalid", pc, opcode);
-          IntrinsicSig sig{};
-          if (!GetIntrinsicSig(id, &sig)) return fail_at("INTRINSIC signature missing", pc, opcode);
-          if (stack_types.size() < sig.param_count) return fail_at("INTRINSIC stack underflow", pc, opcode);
-          for (int i = static_cast<int>(sig.param_count) - 1; i >= 0; --i) {
+          IntrinsicSig intrinsic_sig{};
+          if (!GetIntrinsicSig(id, &intrinsic_sig)) return fail_at("INTRINSIC signature missing", pc, opcode);
+          if (stack_types.size() < intrinsic_sig.param_count) return fail_at("INTRINSIC stack underflow", pc, opcode);
+          for (int i = static_cast<int>(intrinsic_sig.param_count) - 1; i >= 0; --i) {
             ValType arg = pop_type();
-            ValType expected = from_intrinsic_type(sig.params[static_cast<size_t>(i)]);
+            ValType expected = from_intrinsic_type(intrinsic_sig.params[static_cast<size_t>(i)]);
             VerifyResult r = check_type(arg, expected, "INTRINSIC param type mismatch");
             if (!r.ok) return r;
           }
-          if (sig.ret != 0) {
-            ValType ret = from_intrinsic_type(sig.ret);
+          if (intrinsic_sig.ret != 0) {
+            ValType ret = from_intrinsic_type(intrinsic_sig.ret);
             push_type(ret);
           }
-          extra_pops = static_cast<int>(sig.param_count);
-          extra_pushes = (sig.ret != 0) ? 1 : 0;
+          extra_pops = static_cast<int>(intrinsic_sig.param_count);
+          extra_pushes = (intrinsic_sig.ret != 0) ? 1 : 0;
           break;
         }
         case OpCode::SysCall: {
@@ -1726,9 +1726,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (func_id >= module.functions.size()) return fail_at("CALL function id out of range", pc, opcode);
           uint32_t callee_method = module.functions[func_id].method_id;
           if (callee_method >= module.methods.size()) return fail_at("CALL method id out of range", pc, opcode);
-          uint32_t sig_id = module.methods[callee_method].sig_id;
-          if (sig_id >= module.sigs.size()) return fail_at("CALL signature id out of range", pc, opcode);
-          const auto& call_sig = module.sigs[sig_id];
+          uint32_t call_sig_id = module.methods[callee_method].sig_id;
+          if (call_sig_id >= module.sigs.size()) return fail_at("CALL signature id out of range", pc, opcode);
+          const auto& call_sig = module.sigs[call_sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
             return fail_at("CALL signature param types out of range", pc, opcode);
@@ -1759,12 +1759,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (stack_types.size() < static_cast<size_t>(arg_count) + 1u) {
             return fail_at("CALL_INDIRECT stack underflow", pc, opcode);
           }
-          uint32_t sig_id = 0;
-          if (!ReadU32(code, pc + 1, &sig_id)) return fail_at("CALL_INDIRECT sig id out of bounds", pc, opcode);
-          if (sig_id >= module.sigs.size()) {
+          uint32_t indirect_sig_id = 0;
+          if (!ReadU32(code, pc + 1, &indirect_sig_id)) return fail_at("CALL_INDIRECT sig id out of bounds", pc, opcode);
+          if (indirect_sig_id >= module.sigs.size()) {
             return fail_at("CALL_INDIRECT signature id out of range", pc, opcode);
           }
-          const auto& call_sig = module.sigs[sig_id];
+          const auto& call_sig = module.sigs[indirect_sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
             return fail_at("CALL_INDIRECT signature param types out of range", pc, opcode);
@@ -1805,9 +1805,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (func_id >= module.functions.size()) return fail_at("TAILCALL function id out of range", pc, opcode);
           uint32_t callee_method = module.functions[func_id].method_id;
           if (callee_method >= module.methods.size()) return fail_at("TAILCALL method id out of range", pc, opcode);
-          uint32_t sig_id = module.methods[callee_method].sig_id;
-          if (sig_id >= module.sigs.size()) return fail_at("TAILCALL signature id out of range", pc, opcode);
-          const auto& call_sig = module.sigs[sig_id];
+          uint32_t tail_sig_id = module.methods[callee_method].sig_id;
+          if (tail_sig_id >= module.sigs.size()) return fail_at("TAILCALL signature id out of range", pc, opcode);
+          const auto& call_sig = module.sigs[tail_sig_id];
           if (call_sig.param_count > 0 &&
               call_sig.param_type_start + call_sig.param_count > module.param_types.size()) {
             return fail_at("TAILCALL signature param types out of range", pc, opcode);

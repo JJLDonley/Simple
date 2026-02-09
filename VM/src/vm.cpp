@@ -63,6 +63,35 @@ std::string U16ToAscii(const std::u16string& text);
 uint32_t CreateString(Heap& heap, const std::u16string& text);
 std::u16string ReadString(const HeapObject* obj);
 
+const char* GetEnvVar(const std::string& name, std::string* owned_value) {
+#if defined(_WIN32)
+  if (!owned_value) return nullptr;
+  char* raw_value = nullptr;
+  size_t raw_len = 0;
+  if (_dupenv_s(&raw_value, &raw_len, name.c_str()) != 0 || !raw_value) {
+    return nullptr;
+  }
+  owned_value->assign(raw_value, raw_len > 0 ? raw_len - 1 : 0);
+  std::free(raw_value);
+  return owned_value->c_str();
+#else
+  (void)owned_value;
+  return std::getenv(name.c_str());
+#endif
+}
+
+std::FILE* OpenFileForMode(const std::string& path, const char* mode) {
+#if defined(_WIN32)
+  std::FILE* file = nullptr;
+  if (fopen_s(&file, path.c_str(), mode) != 0) {
+    return nullptr;
+  }
+  return file;
+#else
+  return std::fopen(path.c_str(), mode);
+#endif
+}
+
 inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
   if (allow_void && kind == TypeKind::Unspecified) return true;
   switch (kind) {
@@ -1552,7 +1581,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             out_ret = PackRef(kNullRef);
             return true;
           }
-          const char* value = std::getenv(name.c_str());
+          std::string env_value_storage;
+          const char* value = GetEnvVar(name, &env_value_storage);
           if (!value) {
             out_ret = PackRef(kNullRef);
             return true;
@@ -1638,7 +1668,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         } else {
           mode = "rb";
         }
-        std::FILE* f = std::fopen(path.c_str(), mode);
+        std::FILE* f = OpenFileForMode(path, mode);
         if (!f) {
           out_ret = PackI32(-1);
           return true;
@@ -4682,15 +4712,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           HeapObject* obj = heap.Get(handle);
           if (obj && obj->header.kind == ObjectKind::Closure) {
             uint32_t method_id = ReadU32Payload(obj->payload, 0);
-            bool found = false;
+            bool closure_found = false;
             for (size_t i = 0; i < module.functions.size(); ++i) {
               if (module.functions[i].method_id == method_id) {
                 func_index = static_cast<int64_t>(i);
-                found = true;
+                closure_found = true;
                 break;
               }
             }
-            if (!found) return Trap("CALL_INDIRECT closure method not found");
+            if (!closure_found) return Trap("CALL_INDIRECT closure method not found");
             closure_ref = handle;
           }
         }
@@ -4796,9 +4826,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           if (has_ret) Push(stack, ret);
           current = caller;
           pc = current.return_pc;
-          const auto& func = module.functions[current.func_index];
-          func_start = func.code_offset;
-          end = func_start + func.code_size;
+          const auto& current_func = module.functions[current.func_index];
+          func_start = current_func.code_offset;
+          end = func_start + current_func.code_size;
           break;
         }
 
@@ -4825,9 +4855,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (has_ret) Push(stack, ret);
             current = caller;
             pc = current.return_pc;
-            const auto& func = module.functions[current.func_index];
-            func_start = func.code_offset;
-            end = func_start + func.code_size;
+            const auto& current_func = module.functions[current.func_index];
+            func_start = current_func.code_offset;
+            end = func_start + current_func.code_size;
             break;
           }
           jit_stubs[func_id].compiled = false;

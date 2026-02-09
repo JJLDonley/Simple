@@ -2235,13 +2235,13 @@ bool EmitExpr(EmitState& st,
             }
           }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
-            const std::string member_name =
+            const std::string extern_member_name =
                 (ext_module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            const std::string ext_key = ext_module_name + "." + member_name;
-            auto id_it = ext_mod_it->second.find(member_name);
+            const std::string ext_key = ext_module_name + "." + extern_member_name;
+            auto id_it = ext_mod_it->second.find(extern_member_name);
             if (id_it != ext_mod_it->second.end()) {
-              auto params_it = st.extern_params_by_module[ext_module_name].find(member_name);
-              auto ret_it = st.extern_returns_by_module[ext_module_name].find(member_name);
+              auto params_it = st.extern_params_by_module[ext_module_name].find(extern_member_name);
+              auto ret_it = st.extern_returns_by_module[ext_module_name].find(extern_member_name);
               if (params_it == st.extern_params_by_module[ext_module_name].end() ||
                   ret_it == st.extern_returns_by_module[ext_module_name].end()) {
                 if (error) *error = "missing signature for extern '" + ext_key + "'";

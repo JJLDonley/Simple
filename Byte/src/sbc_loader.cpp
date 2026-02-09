@@ -379,21 +379,21 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       return Fail("failed to read debug section");
     }
     if (module.debug.size() < 16) return Fail("debug section too small");
-    DebugHeader header;
-    if (!ReadU32At(module.debug, 0, &header.file_count)) return Fail("debug header read failed");
-    if (!ReadU32At(module.debug, 4, &header.line_count)) return Fail("debug header read failed");
-    if (!ReadU32At(module.debug, 8, &header.sym_count)) return Fail("debug header read failed");
-    if (!ReadU32At(module.debug, 12, &header.reserved)) return Fail("debug header read failed");
-    if (header.reserved != 0) return Fail("debug header reserved nonzero");
+    DebugHeader dbg_header;
+    if (!ReadU32At(module.debug, 0, &dbg_header.file_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 4, &dbg_header.line_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 8, &dbg_header.sym_count)) return Fail("debug header read failed");
+    if (!ReadU32At(module.debug, 12, &dbg_header.reserved)) return Fail("debug header read failed");
+    if (dbg_header.reserved != 0) return Fail("debug header reserved nonzero");
     size_t expected = 16;
-    expected += static_cast<size_t>(header.file_count) * 8u;
-    expected += static_cast<size_t>(header.line_count) * 20u;
-    expected += static_cast<size_t>(header.sym_count) * 16u;
+    expected += static_cast<size_t>(dbg_header.file_count) * 8u;
+    expected += static_cast<size_t>(dbg_header.line_count) * 20u;
+    expected += static_cast<size_t>(dbg_header.sym_count) * 16u;
     if (expected != module.debug.size()) return Fail("debug section size mismatch");
-    module.debug_header = header;
+    module.debug_header = dbg_header;
     size_t cursor = 16;
-    module.debug_files.resize(header.file_count);
-    for (uint32_t i = 0; i < header.file_count; ++i) {
+    module.debug_files.resize(dbg_header.file_count);
+    for (uint32_t i = 0; i < dbg_header.file_count; ++i) {
       DebugFileRow row;
       if (!ReadU32At(module.debug, cursor + 0, &row.file_name_str)) return Fail("debug file row read failed");
       if (!ReadU32At(module.debug, cursor + 4, &row.file_hash)) return Fail("debug file row read failed");
@@ -403,8 +403,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       module.debug_files[i] = row;
       cursor += 8;
     }
-    module.debug_lines.resize(header.line_count);
-    for (uint32_t i = 0; i < header.line_count; ++i) {
+    module.debug_lines.resize(dbg_header.line_count);
+    for (uint32_t i = 0; i < dbg_header.line_count; ++i) {
       DebugLineRow row;
       if (!ReadU32At(module.debug, cursor + 0, &row.method_id)) return Fail("debug line row read failed");
       if (!ReadU32At(module.debug, cursor + 4, &row.code_offset)) return Fail("debug line row read failed");
@@ -412,7 +412,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(module.debug, cursor + 12, &row.line)) return Fail("debug line row read failed");
       if (!ReadU32At(module.debug, cursor + 16, &row.column)) return Fail("debug line row read failed");
       if (row.method_id >= module.methods.size()) return Fail("debug line method id out of range");
-      if (row.file_id >= header.file_count) return Fail("debug line file id out of range");
+      if (row.file_id >= dbg_header.file_count) return Fail("debug line file id out of range");
       if (row.line == 0 || row.column == 0) return Fail("debug line invalid line/column");
       bool found = false;
       for (const auto& func : module.functions) {
@@ -428,8 +428,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       module.debug_lines[i] = row;
       cursor += 20;
     }
-    module.debug_syms.resize(header.sym_count);
-    for (uint32_t i = 0; i < header.sym_count; ++i) {
+    module.debug_syms.resize(dbg_header.sym_count);
+    for (uint32_t i = 0; i < dbg_header.sym_count; ++i) {
       DebugSymRow row;
       if (!ReadU32At(module.debug, cursor + 0, &row.kind)) return Fail("debug sym row read failed");
       if (!ReadU32At(module.debug, cursor + 4, &row.owner_id)) return Fail("debug sym row read failed");
