@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag/version (e.g. v0.01). Leave empty for auto-increment."
+        description: "Release tag/version (e.g. v0.03.1). Leave empty for auto-increment."
         required: false
         type: string
 
@@ -31,19 +31,22 @@ jobs:
           if [[ -n "${{ github.event.inputs.version || '' }}" ]]; then
             ver="${{ github.event.inputs.version }}"
           else
-            latest="$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]{2}$' | head -n 1 || true)"
+            latest="$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]{2}(\.[0-9]+)?$' | head -n 1 || true)"
             if [[ -z "${latest}" ]]; then
-              ver="v0.01"
+              ver="v0.01.1"
             else
-              major="${latest#v}"
-              major="${major%%.*}"
-              minor="${latest##*.}"
-              next_minor=$((10#${minor} + 1))
-              if (( next_minor > 99 )); then
-                major=$((major + 1))
-                next_minor=0
+              core="${latest#v}"
+              major="${core%%.*}"
+              rest="${core#*.}"
+              if [[ "${rest}" == *.* ]]; then
+                minor="${rest%%.*}"
+                patch="${rest##*.}"
+                next_patch=$((10#${patch} + 1))
+                ver="v${major}.${minor}.${next_patch}"
+              else
+                minor="${rest}"
+                ver="v${major}.${minor}.1"
               fi
-              ver="v${major}.$(printf '%02d' "${next_minor}")"
             fi
           fi
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
