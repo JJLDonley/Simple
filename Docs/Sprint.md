@@ -1512,6 +1512,3 @@
   - `DL.Close(...)` / `DL.LastError()` and other alias-based Core.DL members now normalize correctly during both type inference and call emission.
   - normalized member resolution now uses resolved reserved module identity (not raw alias text) in fallback extern lookup paths.
 - Kept reserved import semantics aligned with current policy (`system.*`/short aliases user-facing; internal canonical lowering remains `Core.*`).
-- Verification:
-  - `./build_linux --tests --skip-release --skip-install` passed.
-  - totals: `1287/1287` (core `507/507`, ir `280/280`, jit `78/78`, lang `362/362`, lsp `60/60`).

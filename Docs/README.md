@@ -331,19 +331,19 @@ Each script supports source build, package generation, and install flow.
 ### Linux
 
 ```bash
-./build_linux --version v0.03.1
+./build_linux --version v0.02.2
 ```
 
 ### macOS
 
 ```bash
-./build_macos --version v0.03.1
+./build_macos --version v0.02.2
 ```
 
 ### Windows
 
 ```bash
-./build_windows --version v0.03.1
+./build_windows --version v0.02.2
 ```
 
 For Windows + vcpkg `libffi`, pass toolchain args via `--cmake-arg` (see `Docs/CLI.md`).
