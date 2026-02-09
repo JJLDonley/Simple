@@ -991,8 +991,11 @@ std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
       "System.io", "System.math", "System.time", "System.file", "System.dl",
-      "System.os", "System.fs", "System.log", "System.stream",
-      "IO", "Math", "Time", "File", "Core.DL", "Core.Os", "Core.Fs", "Core.Log"};
+      "System.os", "System.fs", "System.log",
+      "system.io", "system.math", "system.time", "system.file", "system.dl",
+      "system.os", "system.fs", "system.log",
+      "IO", "Math", "Time", "File", "DL", "OS", "FS", "Log",
+      "io", "math", "time", "file", "dl", "os", "fs", "log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1037,9 +1040,9 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Core.DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
         "call_str0", "supported"}},
-      {"Core.Os", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+      {"Core.OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
-      {"Core.Fs", {"open", "close", "read", "write"}},
+      {"Core.FS", {"open", "close", "read", "write"}},
       {"Core.Log", {"log"}},
   };
 
@@ -1183,7 +1186,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "File" || module == "Core.Fs") {
+  if (module == "File" || module == "Core.FS") {
     if (member == "open") {
       out->params = {"path", "flags"};
       out->return_type = "i32";
@@ -1201,7 +1204,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.Os") {
+  if (module == "Core.OS") {
     if (member == "args_count" || member == "cwd_get" || member == "time_mono_ns" ||
         member == "time_wall_ns") {
       out->return_type =

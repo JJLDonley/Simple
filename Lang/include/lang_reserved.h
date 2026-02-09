@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cctype>
+#include <array>
 #include <string>
 
 namespace Simple::Lang {
@@ -12,36 +13,30 @@ inline std::string LowerAscii(std::string text) {
 
 inline bool CanonicalizeReservedImportPath(const std::string& path, std::string* out) {
   if (!out) return false;
-  const std::string key = LowerAscii(path);
 
-  if (key == "math" || key == "system.math" || key == "core.math") {
-    *out = "Core.Math";
-    return true;
-  }
-  if (key == "io" || key == "system.io" || key == "system.stream" || key == "core.io") {
-    *out = "Core.IO";
-    return true;
-  }
-  if (key == "time" || key == "system.time" || key == "core.time") {
-    *out = "Core.Time";
-    return true;
-  }
-  if (key == "core.dl" || key == "system.dl") {
-    *out = "Core.DL";
-    return true;
-  }
-  if (key == "core.os" || key == "system.os") {
-    *out = "Core.Os";
-    return true;
-  }
-  if (key == "file" || key == "system.file" ||
-      key == "core.fs" || key == "system.fs") {
-    *out = "Core.Fs";
-    return true;
-  }
-  if (key == "core.log" || key == "system.log") {
-    *out = "Core.Log";
-    return true;
+  struct ReservedImportEntry {
+    const char* canonical;
+    std::array<const char*, 8> aliases;
+    size_t alias_count;
+  };
+
+  static constexpr std::array<ReservedImportEntry, 7> kReserved = {{
+      {"Core.Math", {"Math", "math", "System.math", "system.math"}, 4},
+      {"Core.IO", {"IO", "io", "System.io", "system.io"}, 4},
+      {"Core.Time", {"Time", "time", "System.time", "system.time"}, 4},
+      {"Core.DL", {"DL", "dl", "System.dl", "system.dl"}, 4},
+      {"Core.OS", {"OS", "os", "System.os", "system.os"}, 4},
+      {"Core.FS", {"FS", "fs", "File", "file", "System.file", "system.file", "System.fs", "system.fs"}, 8},
+      {"Core.Log", {"Log", "log", "System.log", "system.log"}, 4},
+  }};
+
+  for (const auto& entry : kReserved) {
+    for (size_t i = 0; i < entry.alias_count; ++i) {
+      if (path == entry.aliases[i]) {
+        *out = entry.canonical;
+        return true;
+      }
+    }
   }
   return false;
 }

@@ -1,331 +1,114 @@
 # Simple::Byte (Authoritative)
 
-## Scope
+`Simple::Byte` defines the SBC binary contract and verification layer.
 
-`Simple::Byte` defines and enforces the SBC module contract:
+## What SBC Means
 
-- binary format (`header`, `sections`, tables, const pool, code)
-- loader validation rules
-- verifier validation rules
+SBC is the executable bytecode format consumed by the VM.
 
-This document is authoritative for the module-level design and behavior.
+Goals:
 
-## Component Design
+- deterministic binary layout
+- strict table references
+- verifier-enforced control-flow and type safety
 
-### 1) Data Model
+## SBC Data Model
 
-Primary structs are defined in `Byte/include/sbc_types.h`:
+Primary structures are defined in `Byte/include/sbc_types.h`.
+
+Core parts:
 
 - `SbcHeader`
-- `SectionEntry`
-- table rows (`TypeRow`, `FieldRow`, `MethodRow`, `SigRow`, `GlobalRow`, `FunctionRow`, `ImportRow`, `ExportRow`)
-- `SbcModule` (fully materialized module)
+- section table (`SectionEntry[]`)
+- metadata tables (types/sigs/methods/functions/globals/imports/exports)
+- const pool
+- code bytes
 
-### 2) Loader Pipeline
+## Binary Layout
 
-Implemented in `Byte/src/sbc_loader.cpp`:
+1. Header (`SBC0`, version, endian, section metadata)
+2. Section table
+3. Sections (aligned, non-overlapping)
 
-1. Parse and validate fixed header.
-2. Parse section table and reject overlap/out-of-bounds/alignment violations.
-3. Decode each section by row size and count.
-4. Validate cross-table references (type ids, sig ids, param ranges, const offsets).
-5. Return materialized `SbcModule` or deterministic error.
+Common sections:
 
-### 3) Verifier Pipeline
+- `types`
+- `fields`
+- `methods`
+- `sigs`
+- `globals`
+- `functions`
+- `imports`
+- `exports`
+- `const_pool`
+- `code`
+- `debug` (optional)
 
-Implemented in `Byte/src/sbc_verifier.cpp`:
+## Loader Meaning
 
-1. Validate per-function instruction decode boundaries.
-2. Enforce stack discipline (underflow/merge compatibility/return shape).
-3. Enforce call and signature compatibility for `call`, `call.indirect`, `tailcall`.
-4. Enforce local/global type usage and initialized-state constraints.
-5. Return success or precise failure location (`func`, `pc`, `op`).
+Loader (`Byte/src/sbc_loader.cpp`) is responsible for:
 
-## Binary Contract
+- structural validation (bounds, alignment, overlaps)
+- row-size/count validation per section
+- cross-table reference validation
+- const pool offset/type validation
+- deterministic error messages on failure
 
-### Header
+## Verifier Meaning
 
-- magic: `0x30434253` (`SBC0`)
-- version: current supported loader version
-- endian: little-endian only
-- reserved fields must be zero
+Verifier (`Byte/src/sbc_verifier.cpp`) is responsible for:
 
-### Sections
+- instruction boundary correctness
+- jump target validity
+- stack discipline and merge compatibility
+- call/indirect/tailcall signature checks
+- local/global initialization and type checks
 
-IDs are fixed in `SectionId` enum. Loader requires:
+## TypeKinds
 
-- in-bounds section ranges
-- non-overlap
-- 4-byte alignment
+SBC encodes type kinds used by verifier/runtime contracts:
 
-### TypeKind Contract
+- ints: `i8..i128`, `u8..u128`
+- floats: `f32`, `f64`
+- scalar misc: `bool`, `char`
+- references: `string`, `ref`
+- `unspecified` (special metadata role)
 
-`TypeKind` includes exact primitive kinds plus reference/unspecified categories:
+## Opcode Families (Compacted)
 
-- signed/unsigned widths: `i8/i16/i32/i64/i128`, `u8/u16/u32/u64/u128`
-- floats: `f32/f64`
-- misc: `bool`, `char`, `string`, `ref`, `unspecified`
+Canonical enum is in `Byte/include/opcode.h`.
 
-`TypeRow.size` and field-shape constraints are validated against kind.
+Grouped overview:
 
-## Verifier Invariants (Authoritative)
-
-- every instruction decode must stay in code bounds
-- jump targets must land at valid boundaries
-- stack effects must match opcode contract (`GetOpInfo`)
-- call arity and arg types must match signature metadata
-- return types must match function signatures
-- table index usage must remain in range
-
-## Opcode Contract
-
-Opcode definitions are frozen by `Byte/include/opcode.h` and stack/operand semantics by `Byte/src/opcode.cpp` (`GetOpInfo`).
-
-### Full Opcode Catalog
-
-| Opcode | ID |
+| Family | Shape |
 |---|---|
-| `Nop` | `0x00` |
-| `Halt` | `0x01` |
-| `Trap` | `0x02` |
-| `Breakpoint` | `0x03` |
-| `Jmp` | `0x04` |
-| `JmpTrue` | `0x05` |
-| `JmpFalse` | `0x06` |
-| `JmpTable` | `0x07` |
-| `Pop` | `0x10` |
-| `Dup` | `0x11` |
-| `Dup2` | `0x12` |
-| `Swap` | `0x13` |
-| `Rot` | `0x14` |
-| `ConstI8` | `0x18` |
-| `ConstI16` | `0x19` |
-| `ConstI32` | `0x1A` |
-| `ConstI64` | `0x1B` |
-| `ConstI128` | `0x1C` |
-| `ConstU8` | `0x1D` |
-| `ConstU16` | `0x1E` |
-| `ConstU32` | `0x1F` |
-| `ConstU64` | `0x20` |
-| `ConstU128` | `0x21` |
-| `ConstF32` | `0x22` |
-| `ConstF64` | `0x23` |
-| `ConstBool` | `0x24` |
-| `ConstChar` | `0x25` |
-| `ConstString` | `0x26` |
-| `ConstNull` | `0x27` |
-| `LoadLocal` | `0x30` |
-| `StoreLocal` | `0x31` |
-| `LoadGlobal` | `0x32` |
-| `StoreGlobal` | `0x33` |
-| `LoadUpvalue` | `0x34` |
-| `StoreUpvalue` | `0x35` |
-| `NewListRef` | `0x36` |
-| `ListGetRef` | `0x37` |
-| `ListSetRef` | `0x38` |
-| `ListPushRef` | `0x39` |
-| `ListPopRef` | `0x3A` |
-| `ListInsertRef` | `0x3B` |
-| `ListRemoveRef` | `0x3C` |
-| `AddI32` | `0x40` |
-| `SubI32` | `0x41` |
-| `MulI32` | `0x42` |
-| `DivI32` | `0x43` |
-| `ModI32` | `0x44` |
-| `AddI64` | `0x45` |
-| `SubI64` | `0x46` |
-| `MulI64` | `0x47` |
-| `DivI64` | `0x48` |
-| `ModI64` | `0x49` |
-| `AddF32` | `0x4A` |
-| `SubF32` | `0x4B` |
-| `MulF32` | `0x4C` |
-| `DivF32` | `0x4D` |
-| `AddF64` | `0x4E` |
-| `SubF64` | `0x4F` |
-| `MulF64` | `0x5C` |
-| `DivF64` | `0x5D` |
-| `NegI32` | `0x5E` |
-| `NegI64` | `0x5F` |
-| `IncI32` | `0x83` |
-| `DecI32` | `0x84` |
-| `IncI64` | `0x85` |
-| `DecI64` | `0x86` |
-| `IncF32` | `0x87` |
-| `DecF32` | `0x88` |
-| `IncF64` | `0x89` |
-| `DecF64` | `0x8A` |
-| `IncU32` | `0x8B` |
-| `DecU32` | `0x8C` |
-| `IncU64` | `0x8D` |
-| `DecU64` | `0x8E` |
-| `IncI8` | `0x92` |
-| `DecI8` | `0x93` |
-| `IncI16` | `0x94` |
-| `DecI16` | `0x95` |
-| `IncU8` | `0x96` |
-| `DecU8` | `0x97` |
-| `IncU16` | `0x98` |
-| `DecU16` | `0x99` |
-| `NegI8` | `0x9A` |
-| `NegI16` | `0x9B` |
-| `NegU8` | `0x9C` |
-| `NegU16` | `0x9D` |
-| `NegU32` | `0x9E` |
-| `NegU64` | `0x9F` |
-| `NegF32` | `0x7E` |
-| `NegF64` | `0x7F` |
-| `CmpEqI32` | `0x50` |
-| `CmpLtI32` | `0x51` |
-| `CmpNeI32` | `0x52` |
-| `CmpLeI32` | `0x53` |
-| `CmpGtI32` | `0x54` |
-| `CmpGeI32` | `0x55` |
-| `CmpEqI64` | `0x56` |
-| `CmpNeI64` | `0x57` |
-| `CmpLtI64` | `0x58` |
-| `CmpLeI64` | `0x59` |
-| `CmpGtI64` | `0x5A` |
-| `CmpGeI64` | `0x5B` |
-| `CmpEqF32` | `0x63` |
-| `CmpNeF32` | `0x64` |
-| `CmpLtF32` | `0x65` |
-| `CmpLeF32` | `0x66` |
-| `CmpGtF32` | `0x67` |
-| `CmpGeF32` | `0x68` |
-| `CmpEqF64` | `0x69` |
-| `CmpNeF64` | `0x6A` |
-| `CmpLtF64` | `0x6B` |
-| `CmpLeF64` | `0x6C` |
-| `CmpGtF64` | `0x6D` |
-| `CmpGeF64` | `0x6E` |
-| `BoolNot` | `0x60` |
-| `BoolAnd` | `0x61` |
-| `BoolOr` | `0x62` |
-| `Call` | `0x70` |
-| `CallIndirect` | `0x71` |
-| `TailCall` | `0x72` |
-| `Ret` | `0x73` |
-| `Enter` | `0x74` |
-| `Leave` | `0x75` |
-| `ConvI32ToI64` | `0x76` |
-| `ConvI64ToI32` | `0x77` |
-| `ConvI32ToF32` | `0x78` |
-| `ConvI32ToF64` | `0x79` |
-| `ConvF32ToI32` | `0x7A` |
-| `ConvF64ToI32` | `0x7B` |
-| `ConvF32ToF64` | `0x7C` |
-| `ConvF64ToF32` | `0x7D` |
-| `Line` | `0x80` |
-| `ProfileStart` | `0x81` |
-| `ProfileEnd` | `0x82` |
-| `Intrinsic` | `0x90` |
-| `SysCall` | `0x91` |
-| `NewObject` | `0xA0` |
-| `NewClosure` | `0xA1` |
-| `LoadField` | `0xA2` |
-| `StoreField` | `0xA3` |
-| `IsNull` | `0xA4` |
-| `RefEq` | `0xA5` |
-| `RefNe` | `0xA6` |
-| `TypeOf` | `0xA7` |
-| `NewListF64` | `0xA8` |
-| `ListGetF64` | `0xA9` |
-| `ListSetF64` | `0xAA` |
-| `ListPushF64` | `0xAB` |
-| `ListPopF64` | `0xAC` |
-| `ListInsertF64` | `0xAD` |
-| `ListRemoveF64` | `0xAE` |
-| `NewArray` | `0xB0` |
-| `ArrayLen` | `0xB1` |
-| `ArrayGetI32` | `0xB2` |
-| `ArraySetI32` | `0xB3` |
-| `NewArrayI64` | `0xB4` |
-| `ArrayGetI64` | `0xB5` |
-| `ArraySetI64` | `0xB6` |
-| `NewArrayF32` | `0xB7` |
-| `ArrayGetF32` | `0xB8` |
-| `ArraySetF32` | `0xB9` |
-| `NewArrayF64` | `0xBA` |
-| `ArrayGetF64` | `0xBB` |
-| `ArraySetF64` | `0xBC` |
-| `NewArrayRef` | `0xBD` |
-| `ArrayGetRef` | `0xBE` |
-| `ArraySetRef` | `0xBF` |
-| `NewList` | `0xC0` |
-| `ListLen` | `0xC1` |
-| `ListGetI32` | `0xC2` |
-| `ListSetI32` | `0xC3` |
-| `ListPushI32` | `0xC4` |
-| `ListPopI32` | `0xC5` |
-| `ListInsertI32` | `0xC6` |
-| `ListRemoveI32` | `0xC7` |
-| `ListClear` | `0xC8` |
-| `NewListF32` | `0xC9` |
-| `ListGetF32` | `0xCA` |
-| `ListSetF32` | `0xCB` |
-| `ListPushF32` | `0xCC` |
-| `ListPopF32` | `0xCD` |
-| `ListInsertF32` | `0xCE` |
-| `ListRemoveF32` | `0xCF` |
-| `StringLen` | `0xD0` |
-| `StringConcat` | `0xD1` |
-| `StringGetChar` | `0xD2` |
-| `StringSlice` | `0xD3` |
-| `CallCheck` | `0xE0` |
-| `AddU32` | `0xE1` |
-| `SubU32` | `0xE2` |
-| `MulU32` | `0xE3` |
-| `DivU32` | `0xE4` |
-| `ModU32` | `0xE5` |
-| `AddU64` | `0xE6` |
-| `SubU64` | `0xE7` |
-| `MulU64` | `0xE8` |
-| `DivU64` | `0xE9` |
-| `ModU64` | `0xEA` |
-| `CmpEqU32` | `0xEB` |
-| `CmpNeU32` | `0xEC` |
-| `CmpLtU32` | `0xED` |
-| `CmpLeU32` | `0xEE` |
-| `CmpGtU32` | `0xEF` |
-| `CmpGeU32` | `0xF0` |
-| `CmpEqU64` | `0xF1` |
-| `CmpNeU64` | `0xF2` |
-| `CmpLtU64` | `0xF3` |
-| `CmpLeU64` | `0xF4` |
-| `CmpGtU64` | `0xF5` |
-| `CmpGeU64` | `0xF6` |
-| `AndI64` | `0xD4` |
-| `OrI64` | `0xD5` |
-| `XorI64` | `0xD6` |
-| `ShlI64` | `0xD7` |
-| `ShrI64` | `0xD8` |
-| `NewListI64` | `0xD9` |
-| `ListGetI64` | `0xDA` |
-| `ListSetI64` | `0xDB` |
-| `ListPushI64` | `0xDC` |
-| `ListPopI64` | `0xDD` |
-| `ListInsertI64` | `0xDE` |
-| `ListRemoveI64` | `0xDF` |
-| `AndI32` | `0xF7` |
-| `OrI32` | `0xF8` |
-| `XorI32` | `0xF9` |
-| `ShlI32` | `0xFA` |
-| `ShrI32` | `0xFB` |
+| Control flow | `jmp`, `jmp_true`, `jmp_false`, `jmp_table`, `ret`, `halt`, `trap` |
+| Stack | `pop`, `dup`, `dup2`, `swap`, `rot` |
+| Constants | `const_<T>`, `const_string`, `const_null` |
+| Local/global/upvalue | `load_*`, `store_*` |
+| Numeric arithmetic | `add_<T>`, `sub_<T>`, `mul_<T>`, `div_<T>`, `mod_<T>` |
+| Unary numeric | `neg_<T>`, `inc_<T>`, `dec_<T>` |
+| Comparisons | `cmp_<op>_<T>` |
+| Bool logic | `bool_not`, `bool_and`, `bool_or` |
+| Calls | `call`, `call_indirect`, `tailcall`, `enter`, `leave` |
+| Conversions | `conv_<from>_to_<to>` |
+| Objects/refs | `new_object`, `new_closure`, `load_field`, `store_field`, `is_null`, `ref_eq`, `ref_ne`, `type_of` |
+| Arrays/lists | `new_array_<T>`, `array_get_<T>`, `array_set_<T>`, `new_list_<T>`, `list_get_<T>`, `list_set_<T>`, push/pop/insert/remove |
+| String ops | `string_len`, `string_concat`, `string_get_char`, `string_slice` |
+| Runtime hooks | `intrinsic`, `sys_call` |
+| Debug/profile | `line`, `profile_start`, `profile_end` |
 
-## Files
+`<T>` indicates a type-specialized lane (for example `i32`, `i64`, `f32`, `f64`, `ref`).
 
-- `Byte/include/sbc_types.h`
-- `Byte/include/opcode.h`
-- `Byte/src/sbc_loader.cpp`
-- `Byte/src/sbc_verifier.cpp`
-- `Byte/src/opcode.cpp`
+## Invariants You Can Rely On
 
-## Verification Commands
+- invalid modules fail load/verify before VM execution
+- signature mismatch is rejected, not coerced
+- branch targets must hit valid instruction boundaries
+- table IDs and const offsets must be valid
 
-- `./build.sh --suite core`
-- `./build.sh --suite all`
+## Ownership
 
-## Legacy Migration Notes
-
-Legacy files in `Docs/legacy/` are non-authoritative references retained for migration/history.
+- Loader: `Byte/src/sbc_loader.cpp`
+- Verifier: `Byte/src/sbc_verifier.cpp`
+- Opcode metadata: `Byte/src/opcode.cpp`

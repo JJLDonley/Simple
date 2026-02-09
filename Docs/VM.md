@@ -1,52 +1,37 @@
 # Simple::VM (Authoritative)
 
-## Scope
+`Simple::VM` executes verified SBC modules and hosts runtime services.
 
-`Simple::VM` owns runtime execution, heap/GC, import dispatch, and dynamic FFI execution.
+## Runtime Purpose
 
-This document is authoritative for VM runtime behavior and constraints.
+- deterministic interpreter execution
+- strict slot/type expectations enforced by verifier contracts
+- heap + object model + GC
+- core import module dispatch
+- dynamic library interop via `DL`
 
-## Runtime Architecture
+## Execution Model
 
-### 1) Entry + Verification Gate
+`ExecuteModule` flow:
 
-Execution entrypoints (`ExecuteModule`) are defined in `VM/include/vm.h` and implemented in `VM/src/vm.cpp`.
+1. optional verifier gate
+2. global initialization
+3. frame + stack setup
+4. interpreter loop
+5. `ExecResult` with status/exit/diagnostics
 
-Execution flow:
+Primary implementation: `VM/src/vm.cpp`.
 
-1. receive materialized `SbcModule`
-2. optionally verify (`Simple::Byte::VerifyModule`)
-3. initialize globals, heap, and frame state
-4. run interpreter loop (JIT tiers may be attempted)
-5. return `ExecResult` with status, exit code, and diagnostics
+## Slot And Frame Model
 
-### 2) Slot Model
+- stack/locals/globals use 64-bit slots
+- ref null sentinel: `0xFFFFFFFF`
+- call frame tracks function index, return pc, local range, stack base
+- supports direct call, indirect call, and tailcall
 
-- runtime stack/local/global slots are untagged 64-bit values
-- semantic type correctness is enforced by verifier + metadata contracts
-- helpers pack/unpack numeric, float-bit, and ref values
+## Heap/Object Model
 
-### 3) Call/Frame Model
-
-Each frame tracks:
-
-- function index + return PC
-- stack base
-- locals base/count
-- closure reference (if applicable)
-- debug location fields
-
-Supports:
-
-- direct calls
-- indirect calls via closure/sig
-- tailcalls
-
-### 4) Heap/Object Model
-
-Implemented by `VM/src/heap.cpp` and used from `vm.cpp`.
-
-Object kinds include:
+Kinds include:
 
 - string
 - array
@@ -54,86 +39,57 @@ Object kinds include:
 - artifact
 - closure
 
-Object header carries:
+Heap implementation: `VM/src/heap.cpp`.
 
-- kind
-- size
-- type_id
-- GC mark/alive state
+## Core Runtime Library Surface
 
-Null reference sentinel is `0xFFFFFFFF`.
+Runtime import dispatch supports:
 
-### 5) Import Dispatch
-
-Core import modules supported in runtime dispatch:
-
-- `core.os`
 - `core.io`
 - `core.fs`
+- `core.os`
 - `core.log`
 - `core.dl`
 
-Optional custom import hook can be injected through `ExecOptions.import_resolver`.
+See full API tables in `Docs/StdLib.md`.
 
-## Dynamic FFI / `core.dl` Design
+## DLL / C-C++ Interop Path
 
-### Manifest Call Path
+`DL` path:
 
-Language extern manifests produce `core.dl.call$*` imports.
+1. open dynamic library
+2. load symbol
+3. bind call signature from `extern` manifest metadata
+4. marshal VM values -> native ABI values
+5. call native symbol
+6. marshal native return -> VM value
 
-Runtime dispatch:
+Current ABI backend is libffi-driven on supported platforms.
 
-1. resolve function pointer from first arg
-2. derive arg/ret ABI types from SBC `type_id` metadata
-3. build libffi call interface (`ffi_cif`)
-4. marshal VM args -> native ABI values
-5. invoke symbol
-6. marshal native return -> VM slot/object
+Supported shapes:
 
-### Struct/Artifact Marshalling
+- scalar numeric/char/bool
+- pointers (`*T`, `*void`)
+- enums
+- artifacts by value
 
-- artifact values are marshalled by-value using field metadata
-- nested structs are supported
-- pointer/scalar fields are converted by exact field kind
-- struct returns are materialized back into VM artifact objects
+Known limitation:
 
-Explicit limitation:
+- recursive artifact struct ABI is rejected
 
-- recursive struct ABI layouts are rejected
+## Import + Extern For Static Files
 
-## Authoritative Runtime Contract
+- `import` resolves reserved modules and project files (see `Docs/Lang.md`)
+- `extern` defines typed native symbol signatures used by `DL`
+- runtime does not guess signature layouts; it uses declared metadata
 
-- module must be verifier-valid in safe mode
-- trap conditions fail fast with deterministic error text
-- globals/locals/stack obey verifier contracts at runtime boundaries
-- reference values are explicit and null-safe via sentinel semantics
+## JIT Note
 
-## Authoritative FFI Contract
+Interpreter is the canonical correctness path.
+JIT/tier scaffolding exists, but runtime behavior must always be valid without relying on JIT.
 
-- extern signatures drive runtime ABI shape exactly
-- mismatched pointer/type/signature uses fail at runtime with explicit errors
-- by-value artifact FFI is supported for dynamic calls
-- unsupported ABI combinations are rejected (not coerced)
+## Ownership
 
-## JIT Status
-
-- tier counters and tier state tracking exist in runtime
-- interpreter remains the baseline correctness path
-- JIT includes fallback/placeholder paths; alpha stability should treat interpreter as canonical
-
-## Primary Files
-
-- `VM/include/vm.h`
-- `VM/src/vm.cpp`
-- `VM/src/heap.cpp`
-- `VM/include/heap.h`
-
-## Verification Commands
-
-- `./build.sh --suite core`
-- `./build.sh --suite jit`
-- `./build.sh --suite all`
-
-## Legacy Migration Notes
-
-Legacy runtime docs in `Docs/legacy/` are non-authoritative references.
+- VM runtime: `VM/src/vm.cpp`
+- Heap/GC: `VM/src/heap.cpp`
+- Public headers: `VM/include/vm.h`, `VM/include/heap.h`

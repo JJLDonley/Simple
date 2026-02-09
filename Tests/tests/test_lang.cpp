@@ -1648,12 +1648,12 @@ bool LangParsesImportDeclUnquotedPath() {
   return true;
 }
 
-bool LangValidateSystemImportCaseInsensitive() {
+bool LangValidateSystemImportRejectsMixedCase() {
   const char* src =
       "import sYsTeM.iO as IO\n"
       "main : void () { IO.println(1); }";
   std::string error;
-  return Simple::Lang::ValidateProgramFromString(src, &error);
+  return !Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemImportImplicitLowerAlias() {
@@ -3239,7 +3239,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl", LangParsesImportDecl},
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
-  {"lang_validate_system_import_case_insensitive", LangValidateSystemImportCaseInsensitive},
+  {"lang_validate_system_import_rejects_mixed_case", LangValidateSystemImportRejectsMixedCase},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},

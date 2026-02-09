@@ -492,7 +492,7 @@ bool LspHoverShowsReservedAliasSignature() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.Os\\\" as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import \\\"OS\\\" as OS\\nOS.args_get(0);\"}}}";
   const std::string hover_req =
       "{\"jsonrpc\":\"2.0\",\"id\":35,\"method\":\"textDocument/hover\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";
@@ -722,7 +722,7 @@ bool LspCompletionSuggestsReservedImportModules() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Co\"}}}";
+      "\"text\":\"import \\\"Sy\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":30,\"method\":\"textDocument/completion\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":10}}}";
@@ -741,10 +741,10 @@ bool LspCompletionSuggestsReservedImportModules() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":30") != std::string::npos &&
-         out_contents.find("\"label\":\"Core.DL\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Core.Os\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Core.Fs\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Core.Log\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.dl\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.os\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.fs\"") != std::string::npos &&
+         out_contents.find("\"label\":\"System.log\"") != std::string::npos &&
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
@@ -1025,7 +1025,7 @@ bool LspSignatureHelpForReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.Os\\\" as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import \\\"OS\\\" as OS\\nOS.args_get(0);\"}}}";
   const std::string signature_req =
       "{\"jsonrpc\":\"2.0\",\"id\":34,\"method\":\"textDocument/signatureHelp\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":13}}}";
@@ -1092,7 +1092,7 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.DL\\\" as DL\\nDL.open(\\\"raylib\\\", Lib);\"}}}";
+      "\"text\":\"import \\\"DL\\\" as DL\\nDL.open(\\\"raylib\\\", Lib);\"}}}";
   const std::string signature_req =
       "{\"jsonrpc\":\"2.0\",\"id\":37,\"method\":\"textDocument/signatureHelp\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":21}}}";
@@ -1659,7 +1659,7 @@ bool LspRenameRejectsReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.Os\\\" as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import \\\"OS\\\" as OS\\nOS.args_get(0);\"}}}";
   const std::string rename_req =
       "{\"jsonrpc\":\"2.0\",\"id\":39,\"method\":\"textDocument/rename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
@@ -1766,7 +1766,7 @@ bool LspPrepareRenameRejectsReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"Core.Os\\\" as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import \\\"OS\\\" as OS\\nOS.args_get(0);\"}}}";
   const std::string prepare_req =
       "{\"jsonrpc\":\"2.0\",\"id\":40,\"method\":\"textDocument/prepareRename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";

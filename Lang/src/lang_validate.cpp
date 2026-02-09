@@ -278,11 +278,11 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
     return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
             "call_str0", "supported"};
   }
-  if (resolved == "Core.Os") {
+  if (resolved == "Core.OS") {
     return {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
             "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
   }
-  if (resolved == "Core.Fs") return {"open", "close", "read", "write"};
+  if (resolved == "Core.FS") return {"open", "close", "read", "write"};
   if (resolved == "Core.Log") return {"log"};
   return {};
 }
@@ -382,7 +382,7 @@ bool GetReservedModuleVarType(const ValidateContext& ctx,
     if (out) *out = MakeSimpleType("bool");
     return true;
   }
-  if (resolved == "Core.Os" &&
+  if (resolved == "Core.OS" &&
       (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
     if (out) *out = MakeSimpleType("bool");
     return true;
@@ -528,7 +528,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Core.Os") {
+  if (resolved == "Core.OS") {
     if (member == "args_count") {
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
@@ -563,7 +563,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Core.Fs") {
+  if (resolved == "Core.FS") {
     if (member == "open") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
@@ -3032,7 +3032,7 @@ bool CheckExpr(const Expr& expr,
       if (expr.text == "Core") {
         if (IsReservedModuleEnabled(ctx, "Core.Math") || IsReservedModuleEnabled(ctx, "Core.IO") ||
             IsReservedModuleEnabled(ctx, "Core.Time") || IsReservedModuleEnabled(ctx, "Core.DL") ||
-            IsReservedModuleEnabled(ctx, "Core.Os") || IsReservedModuleEnabled(ctx, "Core.Fs") ||
+            IsReservedModuleEnabled(ctx, "Core.OS") || IsReservedModuleEnabled(ctx, "Core.FS") ||
             IsReservedModuleEnabled(ctx, "Core.Log")) {
           return true;
         }

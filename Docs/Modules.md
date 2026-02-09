@@ -1,68 +1,59 @@
 # Simple Module Map
 
-This document defines module boundaries and ownership for the current project state.
+This file defines ownership boundaries across the stack.
 
-## Compiler + Runtime Pipeline
+## End-To-End Flow
 
-1. `Simple::Lang`
-   - Parses and validates `.simple` source.
-   - Emits SIR text.
-2. `Simple::IR`
-   - Parses/validates SIR.
-   - Lowers SIR to SBC module bytes.
-3. `Simple::Byte`
-   - Loads SBC binaries.
-   - Verifies structural and type safety.
-4. `Simple::VM`
-   - Executes verified SBC.
-   - Handles heap, GC, imports, and dynamic DL dispatch.
-5. `Simple::CLI`
-   - User entrypoints (`simple`, `simplevm`) for check/build/run/emit.
+1. `Simple::Lang` (`.simple` parser/validator)
+2. `Simple::IR` (`SIR` parser/lowering)
+3. `Simple::Byte` (`SBC` load/verify)
+4. `Simple::VM` (runtime execution)
+5. `Simple::CLI` (user command orchestration)
 
-## Module Responsibilities
+## Ownership
 
 ### Simple::Lang
-- Source language grammar and semantic validation.
-- Type checking, mutability checks, import/extern checks.
-- SIR emission, including globals and extern import signatures.
+
+- language grammar and AST
+- type validation and mutability checks
+- import/extern semantics
+- SIR emission
 
 ### Simple::IR
-- SIR text parser and metadata resolution.
-- Lowering to SBC tables + code sections.
-- SIR diagnostics and fixture support.
+
+- SIR parsing
+- label/fixup resolution
+- lowering to SBC tables + code bytes
 
 ### Simple::Byte
-- SBC header/section/table parsing.
-- Loader bounds/alignment validation.
-- Verifier stack/type/control-flow validation.
+
+- SBC binary contract
+- loader structural validation
+- verifier control-flow/type-stack invariants
 
 ### Simple::VM
-- Interpreter execution engine.
-- Heap object model and GC root scanning.
-- Import resolver handling (`core.os`, `core.fs`, `core.log`, `core.dl`).
-- Dynamic FFI dispatch (`Core.DL` manifests), including by-value struct marshalling.
+
+- interpreter execution
+- stack/frame/heap model
+- core import dispatch
+- DLL ABI call path (`DL`)
 
 ### Simple::CLI
-- User command UX (`run`, `build`, `check`, `emit`).
-- Front-end orchestration for `.simple` and `.sir`.
-- Build/link mode controls for runtime embedding.
 
-### Simple::Tests
-- Unit tests for core/ir/jit/lang suites.
-- `.simple` and `.sir` fixtures (positive and negative).
-- Regression coverage for runtime traps and verifier failures.
+- `run/check/build/compile/emit/lsp`
+- source/IR/runtime pipeline wiring
+- user-facing diagnostics and command behavior
 
-## Current Stability Notes
+### Tests
 
-- Interpreter path is the stability baseline.
-- JIT exists but should be treated as lower-stability than interpreter for alpha freeze decisions.
-- Dynamic DL FFI supports exact extern signatures, including structs and pointers, with explicit unsupported recursive-struct limits.
+- regression coverage for Lang/IR/Byte/VM/LSP/CLI interactions
+- positive and negative behavior contracts
 
-## Ownership Docs
+## Canonical Docs
 
-- Format + verification: `Docs/Byte.md`
-- Runtime + ABI behavior: `Docs/VM.md`
-- IR contract: `Docs/IR.md`
-- CLI contract: `Docs/CLI.md`
-- Language contract: `Docs/Lang.md`
-- Core imports/stdlib contract: `Docs/StdLib.md`
+- Language: `Docs/Lang.md`
+- Stdlib/import APIs: `Docs/StdLib.md`
+- Bytecode: `Docs/Byte.md`
+- IR: `Docs/IR.md`
+- VM runtime: `Docs/VM.md`
+- CLI behavior: `Docs/CLI.md`

@@ -899,7 +899,7 @@ bool InferExprType(const Expr& expr,
           return true;
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.Os" &&
+            resolved == "Core.OS" &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           out->name = "bool";
@@ -1031,6 +1031,8 @@ bool InferExprType(const Expr& expr,
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
+          const bool ext_is_core_dl =
+              (module_name == "Core.DL") || (has_reserved_module && reserved_module == "Core.DL");
           if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
             ext_mod_it = st.extern_returns_by_module.find(reserved_module);
             if (ext_mod_it != st.extern_returns_by_module.end()) {
@@ -1039,14 +1041,19 @@ bool InferExprType(const Expr& expr,
           }
           if (ext_mod_it != st.extern_returns_by_module.end()) {
             const std::string member_name =
-                (ext_module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
             auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
             }
           }
+          std::string resolved_module_name;
+          const bool module_is_reserved =
+              ResolveReservedModuleName(st, module_name, &resolved_module_name);
+          const bool module_is_core_dl =
+              module_name == "Core.DL" || (module_is_reserved && resolved_module_name == "Core.DL");
           const std::string member_name =
-              (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -2006,7 +2013,7 @@ bool EmitExpr(EmitState& st,
           } else {
             const std::string reserved_module = resolved;
             if (reserved_module == "Core.Math") {
-              if (NormalizeCoreDlMember(callee.text) == "abs") {
+              if (callee.text == "abs") {
                 if (expr.args.size() != 1) {
                   if (error) *error = "call argument count mismatch for 'Math.abs'";
                   return false;
@@ -2168,7 +2175,7 @@ bool EmitExpr(EmitState& st,
             }
           }
           if (resolved == "Core.Time") {
-            if (NormalizeCoreDlMember(callee.text) == "mono_ns") {
+            if (callee.text == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
                 return false;
@@ -2177,7 +2184,7 @@ bool EmitExpr(EmitState& st,
               PushStack(st, 1);
               return true;
             }
-            if (NormalizeCoreDlMember(callee.text) == "wall_ns") {
+            if (callee.text == "wall_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.wall_ns expects no arguments";
                 return false;
@@ -2189,8 +2196,13 @@ bool EmitExpr(EmitState& st,
           }
         }
         if (GetModuleNameFromExpr(base, &module_name)) {
+          std::string resolved_module_name;
+          const bool module_is_reserved =
+              ResolveReservedModuleName(st, module_name, &resolved_module_name);
+          const bool module_is_core_dl =
+              module_name == "Core.DL" || (module_is_reserved && resolved_module_name == "Core.DL");
           const std::string member_name =
-              (module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -2226,17 +2238,22 @@ bool EmitExpr(EmitState& st,
             return true;
           }
           std::string ext_module_name = module_name;
+          std::string resolved_module_name_for_ext;
+          const bool has_resolved_module_for_ext =
+              ResolveReservedModuleName(st, module_name, &resolved_module_name_for_ext);
+          bool ext_is_core_dl = (ext_module_name == "Core.DL") ||
+                                (has_resolved_module_for_ext &&
+                                 resolved_module_name_for_ext == "Core.DL");
           auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
           if (ext_mod_it == st.extern_ids_by_module.end()) {
-            std::string resolved_module;
-            if (ResolveReservedModuleName(st, module_name, &resolved_module)) {
-              ext_module_name = resolved_module;
+            if (has_resolved_module_for_ext) {
+              ext_module_name = resolved_module_name_for_ext;
               ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
             }
           }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
             const std::string extern_member_name =
-                (ext_module_name == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
             const std::string ext_key = ext_module_name + "." + extern_member_name;
             auto id_it = ext_mod_it->second.find(extern_member_name);
             if (id_it != ext_mod_it->second.end()) {
@@ -2760,7 +2777,7 @@ bool EmitExpr(EmitState& st,
           return PushStack(st, 1);
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.Os" &&
+            resolved == "Core.OS" &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           bool value = false;
@@ -3608,7 +3625,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
                                  std::vector<TypeRef>&& params,
                                  TypeRef&& ret) -> bool {
     std::string key = module + '\0' + symbol;
-    if (import_index_by_key.find(key) != import_index_by_key.end()) return true;
+    auto existing_it = import_index_by_key.find(key);
+    if (existing_it != import_index_by_key.end()) {
+      const size_t existing_idx = existing_it->second;
+      st.extern_ids_by_module[module_alias][symbol] = st.imports[existing_idx].name;
+      std::vector<TypeRef> param_copy;
+      if (!clone_params(st.imports[existing_idx].params, &param_copy)) return false;
+      TypeRef ret_copy;
+      if (!CloneTypeRef(st.imports[existing_idx].ret, &ret_copy)) return false;
+      st.extern_params_by_module[module_alias][symbol] = std::move(param_copy);
+      st.extern_returns_by_module[module_alias][symbol] = std::move(ret_copy);
+      return true;
+    }
     EmitState::ImportItem item;
     item.name = "import_" + std::to_string(st.imports.size());
     item.module = module;
@@ -3638,8 +3666,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return aliases;
   };
 
-  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("File")) {
+  if (st.reserved_imports.find("Core.FS") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Core.FS")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));
@@ -3680,8 +3708,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.Os") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.Os")) {
+  if (st.reserved_imports.find("Core.OS") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Core.OS")) {
       if (!add_reserved_import(alias, "core.os", "args_count", {}, make_type("i32"))) return false;
 
       std::vector<TypeRef> idx_params;
@@ -3734,8 +3762,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.Fs") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.Fs")) {
+  if (st.reserved_imports.find("Core.FS") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Core.FS")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));

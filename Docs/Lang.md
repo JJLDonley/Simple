@@ -1,225 +1,231 @@
 # Simple::Lang (Authoritative)
 
-This document is authoritative for the Simple language front-end design and current supported semantics.
+This document is authoritative for Simple language syntax and semantics.
 
-## Scope
+## Core Principles
 
-`Simple::Lang` owns:
+- Strict typing everywhere
+- Explicit mutability model
+- Deterministic validation errors
+- No implicit fallback for unsupported constructs
 
-- tokenization/parsing of `.simple` source
-- AST/type representation
-- semantic validation and diagnostics
-- lowering to SIR text consumed by `Simple::IR`
+## Mutability
 
-## Compiler Architecture
-
-### 1) Lexer
-
-- token stream generation with line/column tracking
-- literal/operator/keyword classification
-- error production for malformed tokens and unterminated constructs
-
-### 2) Parser
-
-- top-level declarations: import/extern/function/variable/artifact/module/enum
-- statement and expression parsing with precedence
-- type parsing including arrays/lists/procedures/generics/pointers
-
-### 3) AST
-
-Core shape is defined in `Lang/include/lang_ast.h`:
-
-- `TypeRef` (name, pointer depth, generics, dims, proc type)
-- `Expr` variants (literal/call/member/index/array/list/artifact/fn)
-- declarations (`VarDecl`, `FuncDecl`, `ArtifactDecl`, `ModuleDecl`, `EnumDecl`, `ExternDecl`)
-
-### 4) Validator
-
-Implemented in `Lang/src/lang_validate.cpp`:
-
-- symbol/scope checks
-- mutability enforcement (`:` vs `::`)
-- expression type compatibility
-- control-flow checks (return paths/conditions)
-- import/extern/module contract checks
-- dynamic DL manifest signature checks
-
-### 5) SIR Emitter
-
-Implemented in `Lang/src/lang_sir.cpp`:
-
-- emits types/sigs/consts/globals/imports/functions sections
-- lowers control flow and typed operations to SIR opcodes
-- lowers extern calls/imports and `Core.*` reserved modules
-- emits global init function flow when needed
-
-## Language Design Contracts
-
-### Mutability Model
-
-- `:` mutable binding/member/return
-- `::` immutable binding/member/return
-- immutable assignment attempts are compile errors
-
-### Type Model (Current)
-
-Supported primitives:
-
-- signed ints: `i8`, `i16`, `i32`, `i64`, `i128`
-- unsigned ints: `u8`, `u16`, `u32`, `u64`, `u128`
-- floats: `f32`, `f64`
-- misc: `bool`, `char`, `string`
-
-Composite/supporting types:
-
-- arrays (`T[N]`)
-- lists (`T[]`)
-- procedure types
-- user types (`artifact`, `enum`, `module`)
-- pointers (`*T`, `*void`) for FFI boundaries
-
-### Callback Type
-
-`callback` is a parameter-only type marker that means “a procedure is passed in”.
-
-- valid: `apply : void (cb : callback, value : i32) { ... }`
-- invalid: callback in variable, field, or return type positions
-
-### Procedure Literal Shorthand
-
-Procedure-typed variable bindings support a shorthand initializer form that matches procedure signature style:
-
-- mutable: `x : fn = RetType(params...) { ... }`
-- immutable: `x :: fn = RetType(params...) { ... }`
+- `:` mutable binding/member
+- `::` immutable binding/member
 
 Examples:
 
-- `f : fn= i32 (a : i32, b : i32) { return a + b }`
-- `update : fn = void (p : Player) { p.position.y += p.velocity.x }`
-- `update(player)`
+```simple
+x : i32 = 10
+name :: string = "Simple"
+```
 
-Direct inline call of a function literal is intentionally unsupported.
+## Type System
 
-- unsupported: `((a : i32, b : i32) { return a + b })(20, 22)`
-- supported: bind first, then call (`f : fn = ...` and `f(...)`)
+Primitives:
 
-### Cast Syntax
+- `i8 i16 i32 i64 i128`
+- `u8 u16 u32 u64 u128`
+- `f32 f64`
+- `bool char string`
 
-- Primitive casts use `@T(value)` syntax.
-- Example: `x : i32 = @i32(raw_i8)`.
-- Bare call-style casts (`i32(value)`) are rejected with an explicit diagnostic directing `@T(value)`.
-- Cast validation/emission remains strict and type-checked (for example unsupported source/target combinations still fail).
+Composite/supporting:
 
-### IO Formatting
+- arrays: `T[N]`
+- lists: `T[]`
+- pointers: `*T`, `*void`
+- user types: `artifact`, `enum`, module namespaces
 
-- `IO.print` / `IO.println` support both:
-  - single-value form: `IO.println(value)`
-  - format form: `IO.println("x={}, y={}", x, y)`
-- Format form rules:
-  - first argument must be a string literal,
-  - `{}` placeholder count must match provided value arguments,
-  - value arguments must be scalar printable types (`numeric`, `bool`, `char`, `string`).
+## Variable Declarations
 
-### Reserved Imports / Stdlib Surface
+```simple
+count : i32 = 42
+label :: string = "ready"
+```
 
-Reserved paths (`Math`, `IO`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) are compiler-mapped to core runtime modules; see `Docs/StdLib.md`.
+## Procedures
 
-`System.*` import aliases are also accepted (case-insensitive) and map to the same runtime modules:
+### Procedure Declarations
 
-- `System.io` / `System.stream` -> `Core.IO`
-- `System.math` -> `Core.Math`
-- `System.time` -> `Core.Time`
-- `System.file` / `System.fs` -> `Core.Fs`
-- `System.dl` -> `Core.DL`
-- `System.os` -> `Core.Os`
-- `System.log` -> `Core.Log`
+```simple
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+```
 
-Import declarations accept both quoted and unquoted module paths:
+### First-Class Procedure Values (`fn`)
 
-- `import "Core.DL" as DL`
-- `import System.dl as DL`
+Procedure value binding syntax follows signature style:
 
-Reserved imports also register an implicit lowercase leaf alias when no explicit `as` alias is provided:
+- mutable: `x : fn = RetType (params...) { ... }`
+- immutable: `x :: fn = RetType (params...) { ... }`
 
-- `import system.io` enables `io.println(...)`
-- `import System.DL` enables `dl.open(...)`
+Examples:
 
-Legacy direct `IO.print/IO.println` calls remain supported.
+```simple
+f : fn = i32 (a : i32, b : i32) { return a + b }
+update : fn = void (p : Player) { p.position.y += p.velocity.x }
+result : i32 = f(20, 22)
+```
 
-### Project-Local Imports (CLI)
+### Callback Parameter Type
 
-For `.simple` entry files compiled through CLI commands (`run/check/build/compile/emit -ir/-sbc`):
+`callback` is a dedicated parameter type marker for procedure-accepting params.
 
-- non-reserved imports are resolved relative to the importing file directory,
-- extensionless imports are allowed (`import "./raylib"` resolves `./raylib.simple`),
-- imports are loaded recursively,
-- cyclic local imports are rejected.
+- valid in parameter positions
+- not a general variable/field/return type
 
-## Program Entry / Script Semantics
+Example:
 
-- A `.simple` program may run without defining `main`.
-- If top-level statements exist, the compiler synthesizes an implicit entry (`__script_entry`) and executes those statements in source order.
-- Top-level function declarations are not auto-invoked.
-- Top-level `return` is disallowed and reported as a validation error.
-- If no top-level statements exist, normal function entry selection applies (`main` when present).
+```simple
+run : void (cb : callback) {
+  cb()
+}
+```
 
-## FFI + Extern Design
+## Control Flow
 
-### Extern Syntax
+### If/Else/Chains
 
-Authoritative extern declaration shape:
+Chain form:
 
-- `extern ffi.symbol : RetType (args...)`
-- declaration-only (no body)
+```simple
+|> hp <= 0 { state = 0 }
+|> hp < 50 { state = 1 }
+|> default { state = 2 }
+```
 
-### Dynamic DL Manifest Flow
+Equivalent `if/else` form:
 
-`DL.Open(path, manifest_module)` uses extern declarations under that module as call signatures.
+```simple
+if hp <= 0 {
+  state = 0
+} else {
+  if hp < 50 {
+    state = 1
+  } else {
+    state = 2
+  }
+}
+```
 
-Current support:
+### While
 
-- exact primitive lanes
-- pointers
-- enums
-- artifacts by-value (runtime struct marshalling)
+```simple
+i : i32 = 0
+while i < 10 {
+  i += 1
+}
+```
 
-Explicit limitation:
+### For
 
-- recursive struct ABI unsupported
+```simple
+sum : i32 = 0
+for i : i32 = 0; i < 10; i += 1 {
+  sum += i
+}
+```
 
-## Global Initialization Design
+## Enums (Scoped)
 
-- globals are emitted with init constants and optional generated `__global_init`
-- globals with init expressions are initialized through generated init call before main logic
-- ref-like fallback init values are normalized to VM null-ref semantics at runtime
+```simple
+Status :: enum { Idle = 0, Running = 1, Failed = 2 }
+
+s : Status = Status.Running
+```
+
+Enums are strongly typed and scoped under their enum name.
+
+## Artifacts
+
+Artifacts are structured user-defined types with optional methods.
+
+### Field Mutability
+
+- mutable field: `field : T`
+- immutable field: `field :: T`
+
+Example:
+
+```simple
+Player :: artifact {
+  hp : i32
+
+  damage : void (amount : i32) {
+    self.hp -= amount
+  }
+}
+```
+
+### Initialization Styles
+
+```simple
+p1 : Player = { 100 }
+p2 : Player = { .hp = 100 }
+```
+
+### Method Call Style
+
+```simple
+p : Player = { .hp = 100 }
+p.damage(10)
+```
+
+## Namespaces / Modules With Constants
+
+```simple
+module Config {
+  MAX_PLAYERS :: i32 = 16
+}
+
+count : i32 = Config.MAX_PLAYERS
+```
+
+## Imports
+
+Simple supports two import domains.
+
+### Reserved Library Imports
+
+Examples:
+
+```simple
+import System.io
+import System.dl as DL
+import FS
+```
+
+These map to compiler/runtime-reserved modules (see `Docs/StdLib.md`).
+
+### File/Path Imports
+
+Examples:
+
+```simple
+import "raylib"
+import "./raylib.simple"
+import "../another/raylib.simple"
+```
+
+For local project imports, resolution is importer-relative.
+
+## Extern + DLL Interop Entry
+
+`extern` declarations define typed signatures used by `DL` dynamic loading.
+
+See `Docs/StdLib.md` and `Docs/VM.md` for ABI/runtime details.
 
 ## Diagnostics Contract
 
-- errors include stable message text and location context when available
-- unsupported constructs fail explicitly at validation/emission stage
-- no silent type coercion across unsupported language surfaces
+- Type mismatches are compile errors.
+- Invalid mutability writes are compile errors.
+- Unsupported syntax/constructs fail explicitly.
 
-## Supported Surface (Alpha Snapshot)
+## Source Ownership
 
-Implemented and expected to be stable:
-
-- functions, variables, control-flow, expressions
-- arrays/lists/artifacts/enums/modules
-- imports/externs and reserved core modules
-- pointer syntax for FFI boundaries
-- typed dynamic DL call path
-
-Deferred/not fully finalized surfaces are treated as compile errors, not partial runtime behavior.
-
-## Primary Files
-
-- `Lang/include/lang_ast.h`
-- `Lang/src/lang_lexer.cpp`
-- `Lang/src/lang_parser.cpp`
-- `Lang/src/lang_validate.cpp`
-- `Lang/src/lang_sir.cpp`
-
-## Verification Commands
-
-- `./build.sh --suite lang`
-- `./build.sh --suite all`
+- Lexer: `Lang/src/lang_lexer.cpp`
+- Parser: `Lang/src/lang_parser.cpp`
+- Validator: `Lang/src/lang_validate.cpp`
+- SIR emission: `Lang/src/lang_sir.cpp`

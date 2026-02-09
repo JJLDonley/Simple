@@ -1506,3 +1506,12 @@
   - removed CMake Windows ffi-disable gate so `libffi` is required on Windows when available via toolchain.
   - added `build_windows --cmake-arg <arg>` support for passing vcpkg/CMake toolchain flags.
   - updated release workflow Windows job to install `libffi:x64-windows` via vcpkg and pass `CMAKE_TOOLCHAIN_FILE` + `VCPKG_TARGET_TRIPLET` into `build_windows`.
+
+## 2026-02-09
+- Fixed Lang SIR emission regression for reserved `system.dl` alias calls after reserved-import canonicalization/list refactor.
+  - `DL.Close(...)` / `DL.LastError()` and other alias-based Core.DL members now normalize correctly during both type inference and call emission.
+  - normalized member resolution now uses resolved reserved module identity (not raw alias text) in fallback extern lookup paths.
+- Kept reserved import semantics aligned with current policy (`system.*`/short aliases user-facing; internal canonical lowering remains `Core.*`).
+- Verification:
+  - `./build_linux --tests --skip-release --skip-install` passed.
+  - totals: `1287/1287` (core `507/507`, ir `280/280`, jit `78/78`, lang `362/362`, lsp `60/60`).

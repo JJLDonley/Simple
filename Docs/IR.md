@@ -1,116 +1,98 @@
 # Simple::IR (Authoritative)
 
-## Scope
+`Simple::IR` owns SIR parsing and lowering to SBC.
 
-`Simple::IR` owns SIR ingestion and lowering to SBC.
+## What SIR Means
 
-This module is the bridge between language-level emission and bytecode runtime contract.
+SIR is the typed intermediate representation between language AST and SBC bytecode.
 
-## Component Design
+Purpose:
 
-### 1) SIR Front-End
+- isolate language-front-end complexity from SBC emission
+- keep lowering rules explicit and testable
+- provide a stable textual intermediate for tooling/tests
 
-Implemented primarily in `IR/src/ir_lang.cpp`:
+## SIR Data Model
 
-- tokenization/parsing of SIR text
-- section parsing (`types`, `sigs`, `consts`, `imports`, `globals`, `func`)
-- symbol/name resolution across sections
+SIR is section-oriented.
 
-### 2) IR Builder
-
-Implemented in `IR/src/ir_builder.cpp`:
-
-- structured opcode emission
-- label binding and fixup resolution
-- instruction stream finalization
-
-### 3) Lowering to SBC
-
-- resolves names to table IDs
-- emits tables (types/fields/methods/sigs/globals/functions/imports/exports)
-- emits code bytes with fixed operand widths
-- ensures output matches loader/verifier constraints
-
-## SIR Program Design
-
-A valid SIR module is section-oriented:
+Typical structure:
 
 1. optional metadata sections (`types`, `sigs`, `consts`, `imports`, `globals`)
 2. one or more `func` blocks
 3. `entry` declaration
 
-### Function Form
-
-Each function declares:
+Function metadata includes:
 
 - `locals=<u16>`
 - `stack=<u16>`
-- `sig=<id|name>`
-- body instructions
+- `sig=<name-or-id>`
 
-### Labels and Control Flow
+## Example: SIR Shape
 
-- labels are single-function scope
-- jump offsets are fixed at finalize time
-- unresolved/duplicate labels are errors
+```txt
+types:
+  t0 = i32
 
-## Type and Signature Design
+sigs:
+  sig0 = i32(i32,i32)
 
-### Declared SIR Types
+func add locals=2 stack=2 sig=sig0
+  enter 2
+  load_local 0
+  load_local 1
+  add_i32
+  ret
 
-SIR accepts richer names (including small ints/bool/char/string/user types), then lowers to VM-relevant table rows.
+entry add
+```
 
-### Signature Constraints
+## Lowering Rules
 
-- callsites must match signature param count and types
-- return shape must match signature return type
-- indirect calls require matching signature row
+`IR/src/ir_lang.cpp` + `IR/src/ir_builder.cpp` enforce:
 
-### Globals
+- names resolved before emission
+- all opcode operand widths valid for target opcode
+- all table indices emitted in-range
+- generated SBC must satisfy loader/verifier constraints
 
-- globals are declared in `globals:` with type and optional init binding
-- init constant handling follows current IR const-kind constraints
-
-## Emission Contract
-
-- every emitted opcode must exist in `OpCode` enum
-- operand widths must match `GetOpInfo`
-- emitted table indices must be in range
-- generated module must pass `Simple::Byte` loader + verifier
-
-## Validation Rules (Authoritative)
+## Validation Behavior
 
 SIR lowering rejects:
 
-- unknown section kinds/row forms
-- unresolved names (types/sigs/consts/functions/globals)
-- malformed constants or unsupported const kinds
-- mismatched function metadata (`locals`/`sig`/body expectations)
-- invalid jump targets/label references
+- unknown section/type/opcode names
+- malformed constants
+- unresolved labels or duplicate labels
+- mismatched signatures at calls
+- unsupported metadata combinations
 
-## Supported SIR Surface (Current)
+## Example: Control Flow Labels
 
-- arithmetic/compare/bool/bitwise opcode families
-- locals/globals/upvalues
-- call/call-indirect/tailcall
-- object/field/ref operations
-- arrays/lists/strings
-- intrinsic/syscall op emission
+```txt
+func loop locals=1 stack=2 sig=sig_main
+  enter 1
+L0:
+  load_local 0
+  const_i32 10
+  cmp_lt_i32
+  jmp_false L1
+  load_local 0
+  const_i32 1
+  add_i32
+  store_local 0
+  jmp L0
+L1:
+  ret
+```
 
-Unsupported or constrained paths fail explicitly with diagnostics.
+## Relationship To Language
 
-## Files
+`Simple::Lang` emits SIR.
 
-- `IR/src/ir_lang.cpp`
-- `IR/src/ir_builder.cpp`
-- `IR/include/ir_lang.h`
-- `IR/include/ir_builder.h`
+`Simple::IR` does not define surface syntax for `.simple`; it defines lowering correctness from SIR to SBC.
 
-## Verification Commands
+## Ownership
 
-- `./build.sh --suite ir`
-- `./build.sh --suite all`
-
-## Legacy Migration Notes
-
-`Docs/legacy/SBC_IR.md` is non-authoritative historical reference.
+- Parser/lowering: `IR/src/ir_lang.cpp`
+- Builder/fixups: `IR/src/ir_builder.cpp`
+- Headers: `IR/include/ir_lang.h`, `IR/include/ir_builder.h`
