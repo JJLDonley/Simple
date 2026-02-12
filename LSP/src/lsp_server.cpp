@@ -1769,7 +1769,9 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<std::string>& import_aliases,
                                       const std::unordered_set<size_t>& enum_member_indices,
-                                      const std::unordered_set<std::string>& enum_names) {
+                                      const std::unordered_set<std::string>& enum_names,
+                                      const std::unordered_set<std::string>& module_names,
+                                      const std::unordered_set<std::string>& artifact_names) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
@@ -1782,6 +1784,8 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
       return 6; // enumMember
     }
+    if (module_names.find(token.text) != module_names.end()) return 7; // namespace
+    if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
     if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
       if (refs[i + 2].token.kind == TK::KwModule) return 7; // namespace
       if (refs[i + 2].token.kind == TK::KwEnum) return 1; // type
@@ -2032,13 +2036,20 @@ void ReplySemanticTokensFull(std::ostream& out,
   if (!refs.empty()) {
     entries.reserve(refs.size());
     std::unordered_set<std::string> enum_names;
+    std::unordered_set<std::string> module_names;
+    std::unordered_set<std::string> artifact_names;
     {
       using TK = Simple::Lang::TokenKind;
       for (size_t i = 0; i + 2 < refs.size(); ++i) {
         if (refs[i].token.kind != TK::Identifier) continue;
         if (refs[i + 1].token.kind != TK::DoubleColon) continue;
-        if (refs[i + 2].token.kind != TK::KwEnum) continue;
-        enum_names.insert(refs[i].token.text);
+        if (refs[i + 2].token.kind == TK::KwEnum) {
+          enum_names.insert(refs[i].token.text);
+        } else if (refs[i + 2].token.kind == TK::KwModule) {
+          module_names.insert(refs[i].token.text);
+        } else if (refs[i + 2].token.kind == TK::KwArtifact) {
+          artifact_names.insert(refs[i].token.text);
+        }
       }
     }
     for (size_t i = 0; i < refs.size(); ++i) {
@@ -2051,7 +2062,13 @@ void ReplySemanticTokensFull(std::ostream& out,
           token.line > 0 ? (token.line - 1) : 0,
           token.column > 0 ? (token.column - 1) : 0,
           static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
-          SemanticTokenTypeIndexForRef(refs, i, import_aliases, enum_member_indices, enum_names),
+          SemanticTokenTypeIndexForRef(refs,
+                                       i,
+                                       import_aliases,
+                                       enum_member_indices,
+                                       enum_names,
+                                       module_names,
+                                       artifact_names),
           SemanticTokenModifiersForRef(refs, i),
       });
     }

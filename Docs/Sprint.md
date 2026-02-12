@@ -1538,3 +1538,7 @@
   - `EnumName.Member` now emits `enumMember` token for the member when `EnumName` is a declared enum.
 - Added LSP regression coverage:
   - semantic token test for enum member access classification.
+- Improved semantic token classification for module names:
+  - declared `module` identifiers are now emitted as `namespace` tokens, including `Module.member` usage.
+- Added LSP regression coverage:
+  - semantic token test for module access classification.
