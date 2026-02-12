@@ -1767,7 +1767,8 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
 
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
-                                      const std::unordered_set<std::string>& import_aliases) {
+                                      const std::unordered_set<std::string>& import_aliases,
+                                      const std::unordered_set<size_t>& enum_member_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
@@ -1776,6 +1777,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
+    if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enumMember
     if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
       if (refs[i + 2].token.kind == TK::KwModule) return 7; // namespace
       if (refs[i + 2].token.kind == TK::KwEnum) return 1; // type
@@ -1989,6 +1991,39 @@ void ReplySemanticTokensFull(std::ostream& out,
   const auto refs = LexTokenRefs(it->second);
   std::unordered_set<std::string> import_aliases;
   CollectImportAliases(text, &import_aliases);
+  std::unordered_set<size_t> enum_member_indices;
+  {
+    using TK = Simple::Lang::TokenKind;
+    bool pending_enum = false;
+    bool in_enum = false;
+    uint32_t enum_depth = 0;
+    for (size_t i = 0; i < refs.size(); ++i) {
+      const auto& ref = refs[i];
+      if (!in_enum) {
+        if (ref.token.kind == TK::Identifier &&
+            i + 2 < refs.size() &&
+            refs[i + 1].token.kind == TK::DoubleColon &&
+            refs[i + 2].token.kind == TK::KwEnum) {
+          pending_enum = true;
+          continue;
+        }
+        if (pending_enum && ref.token.kind == TK::LBrace) {
+          enum_depth = ref.depth + 1;
+          in_enum = true;
+          pending_enum = false;
+          continue;
+        }
+      } else {
+        if (ref.token.kind == TK::RBrace && ref.depth == enum_depth) {
+          in_enum = false;
+          continue;
+        }
+        if (ref.depth == enum_depth && ref.token.kind == TK::Identifier) {
+          enum_member_indices.insert(i);
+        }
+      }
+    }
+  }
   std::vector<SemanticTokenEntry> entries;
   if (!refs.empty()) {
     entries.reserve(refs.size());
@@ -2002,7 +2037,7 @@ void ReplySemanticTokensFull(std::ostream& out,
           token.line > 0 ? (token.line - 1) : 0,
           token.column > 0 ? (token.column - 1) : 0,
           static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
-          SemanticTokenTypeIndexForRef(refs, i, import_aliases),
+          SemanticTokenTypeIndexForRef(refs, i, import_aliases, enum_member_indices),
           SemanticTokenModifiersForRef(refs, i),
       });
     }

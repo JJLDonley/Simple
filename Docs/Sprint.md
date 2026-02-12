@@ -1530,3 +1530,7 @@
   - `module`/`artifact`/`enum` declaration names are now classified as type/namespace tokens.
 - Added LSP regression coverage:
   - semantic token classification test to ensure import aliases emit namespace tokens.
+- Improved semantic token classification for enums:
+  - enum members now emit `enumMember` tokens inside enum bodies for more stable coloring.
+- Added LSP regression coverage:
+  - semantic token test for enum member classification.
