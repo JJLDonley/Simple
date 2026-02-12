@@ -841,6 +841,8 @@ struct TokenRef {
 
 std::vector<TokenRef> LexTokenRefs(const std::string& text);
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
+bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
+const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character);
 
 std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
@@ -1232,6 +1234,56 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   return false;
 }
 
+bool ResolveFunctionSignatureInRefs(const std::vector<TokenRef>& refs,
+                                    const std::string& name,
+                                    std::string* out) {
+  if (!out) return false;
+  using TK = Simple::Lang::TokenKind;
+  for (size_t i = 0; i < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::Identifier) continue;
+    if (refs[i].token.text != name) continue;
+    if (!IsFunctionDeclNameAt(refs, i)) continue;
+    std::string return_type;
+    if (i + 2 < refs.size() &&
+        refs[i + 1].token.kind == TK::Colon &&
+        refs[i + 2].token.kind == TK::Identifier) {
+      return_type = refs[i + 2].token.text;
+    }
+    if (i + 3 >= refs.size() || refs[i + 3].token.kind != TK::LParen) continue;
+    std::vector<std::string> params;
+    int depth = 1;
+    for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
+      const auto& tk = refs[j].token;
+      if (tk.kind == TK::LParen) {
+        ++depth;
+        continue;
+      }
+      if (tk.kind == TK::RParen) {
+        --depth;
+        continue;
+      }
+      if (depth != 1) continue;
+      if (tk.kind != TK::Identifier) continue;
+      if (j + 1 >= refs.size() || refs[j + 1].token.kind != TK::Colon) continue;
+      std::string param = tk.text;
+      if (j + 2 < refs.size() && refs[j + 2].token.kind == TK::Identifier) {
+        param += " : " + refs[j + 2].token.text;
+      }
+      params.push_back(std::move(param));
+    }
+    std::string sig = name + "(";
+    for (size_t p = 0; p < params.size(); ++p) {
+      if (p > 0) sig += ", ";
+      sig += params[p];
+    }
+    sig += ")";
+    if (!return_type.empty()) sig += " -> " + return_type;
+    *out = std::move(sig);
+    return true;
+  }
+  return false;
+}
+
 bool ResolveImportedModuleAndMember(const std::string& call_name,
                                     const std::string& text,
                                     std::string* out_module,
@@ -1282,6 +1334,8 @@ void ReplyHover(std::ostream& out,
     return;
   }
   std::string hover_text = ident;
+  const auto refs = LexTokenRefs(it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
   auto resolve_decl_type = [&](const std::string& text, std::string* out_type) -> bool {
     if (!out_type) return false;
     const auto refs = LexTokenRefs(text);
@@ -1298,6 +1352,46 @@ void ReplyHover(std::ostream& out,
     }
     return false;
   };
+  auto resolve_signature = [&](const std::string& text,
+                               const std::string& name,
+                               std::string* out_sig) -> bool {
+    if (name.empty() || name.find('.') != std::string::npos || name[0] == '@') return false;
+    const auto refs = LexTokenRefs(text);
+    return ResolveFunctionSignatureInRefs(refs, name, out_sig);
+  };
+  std::string signature;
+  bool has_signature = false;
+  if (target && IsFunctionDeclNameAt(refs, target->index)) {
+    has_signature = ResolveFunctionSignatureInRefs(refs, ident, &signature);
+  } else {
+    std::string call_name;
+    if (target &&
+        target->index + 1 < refs.size() &&
+        refs[target->index + 1].token.kind == Simple::Lang::TokenKind::LParen &&
+        !IsDeclNameAt(refs, target->index)) {
+      call_name = ident;
+    } else {
+      call_name = CallNameAtPosition(it->second, line, character);
+    }
+    if (!call_name.empty()) {
+      if (ResolveFunctionSignatureInRefs(refs, call_name, &signature)) {
+        has_signature = true;
+      } else {
+        const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+        for (const auto& other_uri : sorted_uris) {
+          const auto other_it = open_docs.find(other_uri);
+          if (other_it == open_docs.end()) continue;
+          if (resolve_signature(other_it->second, call_name, &signature)) {
+            has_signature = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+  if (has_signature) {
+    hover_text = signature;
+  } else {
   std::string decl_type;
   if (!resolve_decl_type(it->second, &decl_type)) {
     const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
@@ -1322,6 +1416,7 @@ void ReplyHover(std::ostream& out,
       hover_text = call_name + "(" + params + ")";
       if (!reserved_sig.return_type.empty()) hover_text += " -> " + reserved_sig.return_type;
     }
+  }
   }
   WriteLspMessage(
       out,
