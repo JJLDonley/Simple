@@ -2576,6 +2576,47 @@ std::vector<uint8_t> BuildJitCompiledStringLenModule() {
   return BuildModuleWithFunctionsAndSigsWithTables(funcs, locals, sig_ids, {entry_sig, callee_sig}, const_pool, types);
 }
 
+std::vector<uint8_t> BuildJitCompiledCallModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> caller;
+  AppendU8(caller, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(caller, 0);
+  AppendU8(caller, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(caller, 2);
+  AppendU8(caller, 0);
+  AppendU8(caller, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(caller, 1);
+  AppendU8(caller, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(caller, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 6);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, caller, callee}, {0, 0, 0});
+}
+
 std::vector<uint8_t> BuildJitOpcodeHotI32CompareModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> entry;
@@ -6347,6 +6388,50 @@ bool RunJitCompiledStringLenTest() {
   return true;
 }
 
+bool RunJitCompiledCallTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledCallModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 3) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for compiled caller\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 3) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for caller\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[2] == 0) {
+    std::cerr << "expected compiled exec count for callee\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected exit code 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitParamCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitParamCalleeModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -7545,6 +7630,7 @@ static const TestCase kJitTests[] = {
   {"jit_compiled_array_ops", RunJitCompiledArrayOpsTest},
   {"jit_compiled_list_ops", RunJitCompiledListOpsTest},
   {"jit_compiled_string_len", RunJitCompiledStringLenTest},
+  {"jit_compiled_call", RunJitCompiledCallTest},
   {"jit_compiled_i32_locals_arith", RunJitCompiledI32LocalsArithmeticTest},
   {"jit_compiled_i32_compare", RunJitCompiledI32CompareTest},
   {"jit_compiled_compare_bool_indirect", RunJitCompiledCompareBoolIndirectTest},

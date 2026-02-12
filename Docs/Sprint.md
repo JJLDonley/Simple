@@ -1639,3 +1639,6 @@
   - allow ref/string param/return types for compiled eligibility.
   - add compiled support for ref ops and array/list/string access (len/get/set).
   - add regression tests for compiled ref ops, array/list ops, and string length.
+- JIT Phase 4 (call support):
+  - allow compiled direct calls to compiled-safe callees.
+  - add compiled call regression coverage.

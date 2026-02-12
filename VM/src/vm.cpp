@@ -2106,8 +2106,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     out_error = "import not supported: " + mod + "." + sym;
     return false;
   };
-  auto can_compile = [&](size_t func_index) -> bool {
+  std::vector<uint8_t> compile_stack(module.functions.size(), 0);
+  auto can_compile = [&](auto&& self, size_t func_index) -> bool {
     if (func_index >= module.functions.size()) return false;
+    if (compile_stack[func_index]) return false;
+    struct Guard {
+      std::vector<uint8_t>& stack;
+      size_t index;
+      Guard(std::vector<uint8_t>& stack, size_t index) : stack(stack), index(index) {
+        stack[index] = 1;
+      }
+      ~Guard() { stack[index] = 0; }
+    } guard(compile_stack, func_index);
     const auto& func = module.functions[func_index];
     if (func.method_id >= module.methods.size()) return false;
     const auto& method = module.methods[func.method_id];
@@ -2356,6 +2366,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           if (idx >= locals_count) return false;
           break;
         }
+        case OpCode::Call: {
+          if (pc + 5 > end_pc) return false;
+          uint32_t call_id = ReadU32(module.code, pc);
+          uint8_t arg_count = ReadU8(module.code, pc);
+          if (call_id >= module.functions.size()) return false;
+          if (call_id == func_index) return false;
+          if (call_id < module.function_is_import.size() && module.function_is_import[call_id]) return false;
+          const auto& target_func = module.functions[call_id];
+          if (target_func.method_id >= module.methods.size()) return false;
+          const auto& target_method = module.methods[target_func.method_id];
+          if (target_method.sig_id >= module.sigs.size()) return false;
+          const auto& target_sig = module.sigs[target_method.sig_id];
+          if (arg_count != target_sig.param_count) return false;
+          if (!self(self, call_id)) return false;
+          break;
+        }
         default:
           return false;
       }
@@ -2366,7 +2392,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     return true;
   };
-  auto run_compiled = [&](size_t func_index, const std::vector<Slot>& args, Slot& out_ret,
+  auto can_compile_func = [&](size_t func_index) -> bool { return can_compile(can_compile, func_index); };
+  auto update_tier = [&](size_t func_index) {
+    if (!enable_jit) return;
+    if (func_index >= call_counts.size()) return;
+    uint32_t count = ++call_counts[func_index];
+    if (count >= kJitTier1Threshold) {
+      if (jit_tiers[func_index] != JitTier::Tier1) {
+        jit_tiers[func_index] = JitTier::Tier1;
+        jit_stubs[func_index].active = true;
+        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile_func(func_index);
+        compile_counts[func_index] += 1;
+        compile_ticks_tier1[func_index] = ++compile_tick;
+      }
+    } else if (count >= kJitTier0Threshold) {
+      if (jit_tiers[func_index] == JitTier::None) {
+        jit_tiers[func_index] = JitTier::Tier0;
+        jit_stubs[func_index].active = true;
+        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile_func(func_index);
+        compile_counts[func_index] += 1;
+        compile_ticks_tier0[func_index] = ++compile_tick;
+      }
+    }
+  };
+  auto run_compiled = [&](auto&& self, size_t func_index, const std::vector<Slot>& args, Slot& out_ret,
                           bool& out_has_ret, std::string& error) -> bool {
     if (func_index >= module.functions.size()) {
       std::ostringstream out;
@@ -2392,10 +2441,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     size_t pc = func.code_offset;
     size_t end_pc = func.code_offset + func.code_size;
-    jit_stack.clear();
-    jit_locals.clear();
-    std::vector<Slot>& local_stack = jit_stack;
-    std::vector<Slot>& locals = jit_locals;
+    std::vector<Slot> local_stack;
+    std::vector<Slot> locals;
+    std::vector<Slot> call_args;
     bool saw_enter = false;
     bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
     auto jit_fail = [&](const char* msg, uint8_t op, size_t inst_pc) -> bool {
@@ -3557,6 +3605,54 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           local_stack.push_back(PackI32(static_cast<int32_t>(length)));
           break;
         }
+        case OpCode::Call: {
+          if (pc + 5 > end_pc) {
+            return jit_fail("JIT compiled CALL out of bounds", op, inst_pc);
+          }
+          uint32_t func_id = ReadU32(module.code, pc);
+          uint8_t arg_count = ReadU8(module.code, pc);
+          if (func_id >= module.functions.size()) {
+            return jit_fail("JIT compiled CALL invalid function id", op, inst_pc);
+          }
+          const auto& target_func = module.functions[func_id];
+          if (target_func.method_id >= module.methods.size()) {
+            return jit_fail("JIT compiled CALL invalid method id", op, inst_pc);
+          }
+          const auto& target_method = module.methods[target_func.method_id];
+          if (target_method.sig_id >= module.sigs.size()) {
+            return jit_fail("JIT compiled CALL invalid signature id", op, inst_pc);
+          }
+          const auto& target_sig = module.sigs[target_method.sig_id];
+          if (arg_count != target_sig.param_count) {
+            return jit_fail("JIT compiled CALL arg count mismatch", op, inst_pc);
+          }
+          if (local_stack.size() < arg_count) {
+            return jit_fail("JIT compiled CALL underflow", op, inst_pc);
+          }
+          if (!can_compile_func(func_id)) {
+            return jit_fail("JIT compiled CALL callee unsupported", op, inst_pc);
+          }
+          call_args.resize(arg_count);
+          for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
+            call_args[static_cast<size_t>(i)] = local_stack.back();
+            local_stack.pop_back();
+          }
+          update_tier(func_id);
+          jit_compiled_exec_counts[func_id] += 1;
+          if (jit_tiers[func_id] == JitTier::Tier1) {
+            jit_tier1_exec_counts[func_id] += 1;
+          }
+          Slot ret = 0;
+          bool has_ret = false;
+          std::string error;
+          if (!self(self, func_id, call_args, ret, has_ret, error)) {
+            return jit_fail(error.c_str(), op, inst_pc);
+          }
+          if (has_ret) {
+            local_stack.push_back(ret);
+          }
+          break;
+        }
         case OpCode::JmpTrue:
         case OpCode::JmpFalse: {
           if (pc + 4 > end_pc) {
@@ -3707,28 +3803,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     return jit_fail("JIT compiled missing RET", static_cast<uint8_t>(OpCode::Ret), end_pc);
-  };
-  auto update_tier = [&](size_t func_index) {
-    if (!enable_jit) return;
-    if (func_index >= call_counts.size()) return;
-    uint32_t count = ++call_counts[func_index];
-    if (count >= kJitTier1Threshold) {
-      if (jit_tiers[func_index] != JitTier::Tier1) {
-        jit_tiers[func_index] = JitTier::Tier1;
-        jit_stubs[func_index].active = true;
-        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
-        compile_counts[func_index] += 1;
-        compile_ticks_tier1[func_index] = ++compile_tick;
-      }
-    } else if (count >= kJitTier0Threshold) {
-      if (jit_tiers[func_index] == JitTier::None) {
-        jit_tiers[func_index] = JitTier::Tier0;
-        jit_stubs[func_index].active = true;
-        jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
-        compile_counts[func_index] += 1;
-        compile_ticks_tier0[func_index] = ++compile_tick;
-      }
-    }
   };
   auto finish = [&](ExecResult result) {
     result.jit_tiers = jit_tiers;
@@ -3935,7 +4009,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         jit_tiers[current.func_index] = JitTier::Tier0;
         jit_stubs[current.func_index].active = true;
         jit_stubs[current.func_index].compiled =
-            jit_stubs[current.func_index].disabled ? false : can_compile(current.func_index);
+            jit_stubs[current.func_index].disabled ? false : can_compile_func(current.func_index);
         compile_counts[current.func_index] += 1;
         compile_ticks_tier0[current.func_index] = ++compile_tick;
       }
@@ -5891,7 +5965,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, call_args, ret, has_ret, error)) {
+          if (run_compiled(run_compiled, func_id, call_args, ret, has_ret, error)) {
             if (has_ret) Push(stack, ret);
             break;
           }
@@ -5979,7 +6053,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(static_cast<size_t>(func_index), call_args, ret, has_ret, error)) {
+          if (run_compiled(run_compiled, static_cast<size_t>(func_index), call_args, ret, has_ret, error)) {
             if (has_ret) Push(stack, ret);
             break;
           }
@@ -6055,7 +6129,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, call_args, ret, has_ret, error)) {
+          if (run_compiled(run_compiled, func_id, call_args, ret, has_ret, error)) {
             if (call_stack.empty()) {
               ExecResult result;
               result.status = ExecStatus::Halted;

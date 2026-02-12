@@ -83,7 +83,7 @@ JIT upgrade plan (interpreter must remain canonical):
 - [x] Phase 3 scope: opt-in compiled support for ref-like ops with explicit safety checks.
 - [ ] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
 - [ ] Phase 4: call support + tier tuning.
-- [ ] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.
+- [x] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.
 - [ ] Phase 4 tuning: revisit tier thresholds and heuristics with bench coverage.
 - Phase 2: locals + params parity (still no heap/refs)
   - Allow parameters and local access for scalar-only functions.
