@@ -1594,8 +1594,36 @@ bool LangParsesArtifactDecl() {
   return true;
 }
 
+bool LangParsesArtifactDeclCapitalized() {
+  const char* src = "Point :: Artifact { x : f32 y :: f32 len : i32 () { return 1; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
+  if (decl.artifact.name != "Point") return false;
+  if (decl.artifact.fields.size() != 2) return false;
+  if (decl.artifact.methods.size() != 1) return false;
+  return true;
+}
+
 bool LangParsesModuleDecl() {
   const char* src = "Math :: module { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Module) return false;
+  if (decl.module.name != "Math") return false;
+  if (decl.module.variables.size() != 1) return false;
+  if (decl.module.functions.size() != 1) return false;
+  return true;
+}
+
+bool LangParsesModuleDeclCapitalized() {
+  const char* src = "Math :: Module { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
@@ -1760,6 +1788,25 @@ bool LangParsesEnumDecl() {
   return true;
 }
 
+bool LangParsesEnumDeclCapitalized() {
+  const char* src =
+    "Status :: Enum { Pending = 1, Active = 2 }"
+    "Color :: Enum { Red, Green, Blue }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 2) return false;
+  const auto& status = program.decls[0];
+  if (status.kind != Simple::Lang::DeclKind::Enum) return false;
+  if (status.enm.name != "Status") return false;
+  if (status.enm.members.size() != 2) return false;
+  const auto& color = program.decls[1];
+  if (color.kind != Simple::Lang::DeclKind::Enum) return false;
+  if (color.enm.name != "Color") return false;
+  if (color.enm.members.size() != 3) return false;
+  if (color.enm.members[0].has_value) return false;
+  return true;
+}
 bool LangParsesReturnExpr() {
   const char* src = "main : i32 () { return 1 + 2 * 3; }";
   Simple::Lang::Program program;
@@ -3235,7 +3282,9 @@ const TestCase kLangTests[] = {
   {"lang_parse_var_decl_no_init", LangParsesVarDeclNoInit},
   {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
+  {"lang_parse_artifact_decl_capitalized", LangParsesArtifactDeclCapitalized},
   {"lang_parse_module_decl", LangParsesModuleDecl},
+  {"lang_parse_module_decl_capitalized", LangParsesModuleDeclCapitalized},
   {"lang_parse_import_decl", LangParsesImportDecl},
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
@@ -3249,6 +3298,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
+  {"lang_parse_enum_decl_capitalized", LangParsesEnumDeclCapitalized},
   {"lang_parse_return_expr", LangParsesReturnExpr},
   {"lang_parse_call_member", LangParsesCallAndMember},
   {"lang_parse_self", LangParsesSelf},

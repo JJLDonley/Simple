@@ -62,7 +62,7 @@ Composite/supporting:
 - arrays: `T[N]`
 - lists: `T[]`
 - pointers: `*T`, `*void`
-- user types: `artifact`, `enum`, module namespaces
+- user types: `Artifact`, `Enum`, module namespaces (lowercase `artifact`/`enum`/`module` still accepted)
 
 ## Variable Declarations
 
@@ -153,7 +153,7 @@ for i : i32 = 0; i < 10; i += 1 {
 ## Enums (Scoped)
 
 ```simple
-Status :: enum { Idle = 0, Running = 1, Failed = 2 }
+Status :: Enum { Idle = 0, Running = 1, Failed = 2 }
 
 s : Status = Status.Running
 ```
@@ -170,7 +170,7 @@ Artifacts are structured user-defined types with optional methods.
 Example:
 
 ```simple
-Player :: artifact {
+Player :: Artifact {
   hp : i32
 
   damage : void (amount : i32) {
@@ -196,7 +196,7 @@ p.damage(10)
 ## Namespaces / Modules With Constants
 
 ```simple
-module Config {
+Module Config {
   MAX_PLAYERS :: i32 = 16
 }
 
