@@ -1534,3 +1534,7 @@
   - enum members now emit `enumMember` tokens inside enum bodies for more stable coloring.
 - Added LSP regression coverage:
   - semantic token test for enum member classification.
+- Improved semantic token classification for enum member access:
+  - `EnumName.Member` now emits `enumMember` token for the member when `EnumName` is a declared enum.
+- Added LSP regression coverage:
+  - semantic token test for enum member access classification.
