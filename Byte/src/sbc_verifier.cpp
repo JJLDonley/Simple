@@ -303,9 +303,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
     uint32_t method_id = func.method_id;
     if (method_id >= module.methods.size()) return Fail("function method id out of range");
     uint16_t local_count = module.methods[method_id].local_count;
-    uint32_t sig_id = module.methods[method_id].sig_id;
-    if (sig_id >= module.sigs.size()) return Fail("function signature out of range");
-    const auto& sig = module.sigs[sig_id];
+    uint32_t method_sig_id = module.methods[method_id].sig_id;
+    if (method_sig_id >= module.sigs.size()) return Fail("function signature out of range");
+    const auto& sig = module.sigs[method_sig_id];
     uint32_t ret_type_id = sig.ret_type_id;
 
     bool expect_void = (ret_type_id == 0xFFFFFFFFu);

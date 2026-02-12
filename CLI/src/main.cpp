@@ -140,10 +140,8 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
   if (!out) return false;
   namespace fs = std::filesystem;
   fs::path raw(import_path);
-  const bool has_separator =
-      import_path.find('/') != std::string::npos || import_path.find('\\') != std::string::npos;
   const bool explicit_relative = raw.is_relative() && !import_path.empty() &&
-                                 (import_path[0] == '.' || has_separator);
+                                 (import_path[0] == '.' || raw.has_parent_path());
 
   if (raw.is_absolute()) {
     if (fs::exists(raw)) {
@@ -324,15 +322,14 @@ bool WriteFileBytes(const std::string& path,
 }
 
 bool HasExt(const std::string& path, const char* ext) {
-  const size_t len = std::strlen(ext);
-  if (path.size() < len) return false;
-  return path.rfind(ext) == path.size() - len;
+  const std::filesystem::path p(path);
+  return p.extension() == ext;
 }
 
 std::string ReplaceExt(const std::string& path, const char* ext) {
-  const size_t dot = path.find_last_of('.');
-  if (dot == std::string::npos) return path + ext;
-  return path.substr(0, dot) + ext;
+  std::filesystem::path p(path);
+  p.replace_extension(ext);
+  return p.string();
 }
 
 std::string QuoteArg(const std::string& arg) {
@@ -419,9 +416,8 @@ bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
 
 std::string BaseName(const char* argv0) {
   if (!argv0 || !*argv0) return "simplevm";
-  std::string name = argv0;
-  const size_t slash = name.find_last_of("/\\");
-  if (slash != std::string::npos) name = name.substr(slash + 1);
+  const std::filesystem::path p(argv0);
+  std::string name = p.filename().string();
   if (name.empty()) return "simplevm";
   return name;
 }
@@ -595,8 +591,7 @@ ErrorLocation ParseErrorLocation(const std::string& raw_message) {
     out.column = col;
 
     if (!before.empty()) {
-      const bool maybe_path = before.find('/') != std::string::npos ||
-                              before.find('\\') != std::string::npos ||
+      const bool maybe_path = std::filesystem::path(before).has_parent_path() ||
                               before.find(".simple") != std::string::npos;
       if (maybe_path) {
         out.file = before;
