@@ -1,0 +1,1066 @@
+// Core Types
+Color :: artifact {
+    r: u8
+    g: u8
+    b: u8
+    a: u8
+}
+
+Vector2 :: artifact {
+    x: f32
+    y: f32
+}
+
+Vector3 :: artifact {
+    x: f32
+    y: f32
+    z: f32
+}
+
+Vector4 :: artifact {
+    x: f32
+    y: f32
+    z: f32
+    w: f32
+}
+
+Rectangle :: artifact {
+    x: f32
+    y: f32
+    width: f32
+    height: f32
+}
+
+Camera2D :: artifact {
+    offset: Vector2
+    target: Vector2
+    rotation: f32
+    zoom: f32
+}
+
+Texture :: artifact {
+    id: u32
+    width: i32
+    height: i32
+    mipmaps: i32
+    format: i32
+}
+
+RenderTexture :: artifact {
+    id: u32
+    texture: Texture
+    depth: Texture
+}
+
+Font :: artifact {
+    baseSize: i32
+    glyphCount: i32
+    glyphPadding: i32
+    texture: Texture
+}
+
+// Core / Window Functions
+extern ffi.InitWindow: void (width: i32, height: i32, title: string)
+extern ffi.WindowShouldClose: bool ()
+extern ffi.CloseWindow: void ()
+extern ffi.IsWindowReady: bool ()
+extern ffi.IsWindowFullscreen: bool ()
+extern ffi.IsWindowHidden: bool ()
+extern ffi.IsWindowMinimized: bool ()
+extern ffi.IsWindowMaximized: bool ()
+extern ffi.IsWindowFocused: bool ()
+extern ffi.IsWindowResized: bool ()
+extern ffi.IsWindowState: bool (flag: u32)
+extern ffi.SetWindowState: void (flags: u32)
+extern ffi.ClearWindowState: void (flags: u32)
+extern ffi.ToggleFullscreen: void ()
+extern ffi.ToggleBorderlessWindowed: void ()
+extern ffi.MaximizeWindow: void ()
+extern ffi.MinimizeWindow: void ()
+extern ffi.RestoreWindow: void ()
+extern ffi.SetWindowIcon: void (image: i64)
+extern ffi.SetWindowTitle: void (title: string)
+extern ffi.SetWindowPosition: void (x: i32, y: i32)
+extern ffi.SetWindowMonitor: void (monitor: i32)
+extern ffi.SetWindowMinSize: void (width: i32, height: i32)
+extern ffi.SetWindowMaxSize: void (width: i32, height: i32)
+extern ffi.SetWindowSize: void (width: i32, height: i32)
+extern ffi.SetWindowOpacity: void (opacity: f32)
+extern ffi.SetWindowFocused: void ()
+extern ffi.GetWindowHandle: i64 ()
+extern ffi.GetScreenWidth: i32 ()
+extern ffi.GetScreenHeight: i32 ()
+extern ffi.GetRenderWidth: i32 ()
+extern ffi.GetRenderHeight: i32 ()
+extern ffi.GetMonitorCount: i32 ()
+extern ffi.GetCurrentMonitor: i32 ()
+extern ffi.GetMonitorWidth: i32 (monitor: i32)
+extern ffi.GetMonitorHeight: i32 (monitor: i32)
+extern ffi.GetMonitorPhysicalWidth: i32 (monitor: i32)
+extern ffi.GetMonitorPhysicalHeight: i32 (monitor: i32)
+extern ffi.GetMonitorRefreshRate: i32 (monitor: i32)
+extern ffi.GetWindowPosition: Vector2 ()
+extern ffi.GetWindowScaleDPI: Vector2 ()
+extern ffi.GetMonitorName: string (monitor: i32)
+extern ffi.SetClipboardText: void (text: string)
+extern ffi.GetClipboardText: string ()
+extern ffi.EnableEventWaiting: void ()
+extern ffi.DisableEventWaiting: void ()
+
+// Cursor
+extern ffi.ShowCursor: void ()
+extern ffi.HideCursor: void ()
+extern ffi.IsCursorHidden: bool ()
+extern ffi.EnableCursor: void ()
+extern ffi.DisableCursor: void ()
+extern ffi.IsCursorOnScreen: bool ()
+
+// Timing
+extern ffi.SetTargetFPS: void (fps: i32)
+extern ffi.GetFrameTime: f32 ()
+extern ffi.GetTime: f64 ()
+extern ffi.GetFPS: i32 ()
+extern ffi.SwapScreenBuffer: void ()
+extern ffi.PollInputEvents: void ()
+extern ffi.WaitTime: void (seconds: f64)
+extern ffi.SetRandomSeed: void (seed: u32)
+extern ffi.GetRandomValue: i32 (min: i32, max: i32)
+extern ffi.TakeScreenshot: void (fileName: string)
+extern ffi.SetConfigFlags: void (flags: u32)
+extern ffi.OpenURL: void (url: string)
+
+// Drawing
+extern ffi.BeginDrawing: void ()
+extern ffi.EndDrawing: void ()
+extern ffi.ClearBackground: void (color: Color)
+extern ffi.BeginMode2D: void (camera: Camera2D)
+extern ffi.EndMode2D: void ()
+extern ffi.BeginTextureMode: void (target: RenderTexture)
+extern ffi.EndTextureMode: void ()
+extern ffi.BeginScissorMode: void (x: i32, y: i32, width: i32, height: i32)
+extern ffi.EndScissorMode: void ()
+
+// Text
+extern ffi.DrawText: void (text: string, posX: i32, posY: i32, fontSize: i32, color: Color)
+extern ffi.DrawTextEx: void (font: Font, text: string, position: Vector2, fontSize: f32, spacing: f32, tint: Color)
+extern ffi.MeasureText: i32 (text: string, fontSize: i32)
+extern ffi.MeasureTextEx: Vector2 (font: Font, text: string, fontSize: f32, spacing: f32)
+extern ffi.LoadFont: Font (fileName: string)
+extern ffi.LoadFontEx: Font (fileName: string, fontSize: i32, codepoints: i64, codepointCount: i32)
+extern ffi.LoadFontDefault: Font ()
+extern ffi.UnloadFont: void (font: Font)
+extern ffi.GetFontDefault: Font ()
+extern ffi.DrawFPS: void (posX: i32, posY: i32)
+
+// 2D Shapes
+extern ffi.DrawPixel: void (posX: i32, posY: i32, color: Color)
+extern ffi.DrawLine: void (startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, color: Color)
+extern ffi.DrawLineV: void (startPos: Vector2, endPos: Vector2, color: Color)
+extern ffi.DrawLineEx: void (startPos: Vector2, endPos: Vector2, thick: f32, color: Color)
+extern ffi.DrawCircle: void (centerX: i32, centerY: i32, radius: f32, color: Color)
+extern ffi.DrawCircleV: void (center: Vector2, radius: f32, color: Color)
+extern ffi.DrawCircleLines: void (centerX: i32, centerY: i32, radius: f32, color: Color)
+extern ffi.DrawRectangle: void (posX: i32, posY: i32, width: i32, height: i32, color: Color)
+extern ffi.DrawRectangleV: void (position: Vector2, size: Vector2, color: Color)
+extern ffi.DrawRectangleRec: void (rec: Rectangle, color: Color)
+extern ffi.DrawRectangleLines: void (posX: i32, posY: i32, width: i32, height: i32, color: Color)
+extern ffi.DrawRectangleRounded: void (rec: Rectangle, roundness: f32, segments: i32, color: Color)
+extern ffi.DrawTriangle: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color)
+extern ffi.DrawTriangleLines: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color)
+
+// Textures
+extern ffi.LoadTexture: Texture (fileName: string)
+extern ffi.LoadTextureFromImage: Texture (image: i64)
+extern ffi.UnloadTexture: void (texture: Texture)
+extern ffi.IsTextureValid: bool (texture: Texture)
+extern ffi.DrawTexture: void (texture: Texture, posX: i32, posY: i32, tint: Color)
+extern ffi.DrawTextureV: void (texture: Texture, position: Vector2, tint: Color)
+extern ffi.DrawTextureEx: void (texture: Texture, position: Vector2, rotation: f32, scale: f32, tint: Color)
+extern ffi.DrawTextureRec: void (texture: Texture, source: Rectangle, position: Vector2, tint: Color)
+extern ffi.DrawTexturePro: void (texture: Texture, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color)
+extern ffi.LoadRenderTexture: RenderTexture (width: i32, height: i32)
+extern ffi.UnloadRenderTexture: void (target: RenderTexture)
+extern ffi.IsRenderTextureValid: bool (target: RenderTexture)
+
+// Input: Keyboard
+extern ffi.IsKeyPressed: bool (key: i32)
+extern ffi.IsKeyPressedRepeat: bool (key: i32)
+extern ffi.IsKeyDown: bool (key: i32)
+extern ffi.IsKeyReleased: bool (key: i32)
+extern ffi.IsKeyUp: bool (key: i32)
+extern ffi.GetKeyPressed: i32 ()
+extern ffi.GetCharPressed: i32 ()
+extern ffi.SetExitKey: void (key: i32)
+
+// Input: Gamepad
+extern ffi.IsGamepadAvailable: bool (gamepad: i32)
+extern ffi.GetGamepadName: string (gamepad: i32)
+extern ffi.IsGamepadButtonPressed: bool (gamepad: i32, button: i32)
+extern ffi.IsGamepadButtonDown: bool (gamepad: i32, button: i32)
+extern ffi.IsGamepadButtonReleased: bool (gamepad: i32, button: i32)
+extern ffi.IsGamepadButtonUp: bool (gamepad: i32, button: i32)
+extern ffi.GetGamepadButtonPressed: i32 ()
+extern ffi.GetGamepadAxisCount: i32 (gamepad: i32)
+extern ffi.GetGamepadAxisMovement: f32 (gamepad: i32, axis: i32)
+extern ffi.SetGamepadMappings: i32 (mappings: string)
+extern ffi.SetGamepadVibration: void (gamepad: i32, leftMotor: f32, rightMotor: f32, duration: f32)
+
+// Input: Mouse
+extern ffi.IsMouseButtonPressed: bool (button: i32)
+extern ffi.IsMouseButtonDown: bool (button: i32)
+extern ffi.IsMouseButtonReleased: bool (button: i32)
+extern ffi.IsMouseButtonUp: bool (button: i32)
+extern ffi.GetMouseX: i32 ()
+extern ffi.GetMouseY: i32 ()
+extern ffi.GetMousePosition: Vector2 ()
+extern ffi.GetMouseDelta: Vector2 ()
+extern ffi.SetMousePosition: void (x: i32, y: i32)
+extern ffi.SetMouseOffset: void (offsetX: i32, offsetY: i32)
+extern ffi.SetMouseScale: void (scaleX: f32, scaleY: f32)
+extern ffi.GetMouseWheelMove: f32 ()
+extern ffi.GetMouseWheelMoveV: Vector2 ()
+extern ffi.SetMouseCursor: void (cursor: i32)
+
+// Input: Touch
+extern ffi.GetTouchX: i32 ()
+extern ffi.GetTouchY: i32 ()
+extern ffi.GetTouchPosition: Vector2 (index: i32)
+extern ffi.GetTouchPointId: i32 (index: i32)
+extern ffi.GetTouchPointCount: i32 ()
+
+// Gestures
+extern ffi.SetGesturesEnabled: void (flags: u32)
+extern ffi.IsGestureDetected: bool (gesture: u32)
+extern ffi.GetGestureDetected: i32 ()
+extern ffi.GetGestureHoldDuration: f32 ()
+extern ffi.GetGestureDragVector: Vector2 ()
+extern ffi.GetGestureDragAngle: f32 ()
+extern ffi.GetGesturePinchVector: Vector2 ()
+extern ffi.GetGesturePinchAngle: f32 ()
+
+// Collision Helpers
+extern ffi.CheckCollisionRecs: bool (rec1: Rectangle, rec2: Rectangle)
+extern ffi.CheckCollisionCircles: bool (center1: Vector2, radius1: f32, center2: Vector2, radius2: f32)
+extern ffi.CheckCollisionCircleRec: bool (center: Vector2, radius: f32, rec: Rectangle)
+extern ffi.CheckCollisionPointRec: bool (point: Vector2, rec: Rectangle)
+extern ffi.CheckCollisionPointCircle: bool (point: Vector2, center: Vector2, radius: f32)
+extern ffi.CheckCollisionPointTriangle: bool (point: Vector2, p1: Vector2, p2: Vector2, p3: Vector2)
+
+// Audio
+extern ffi.InitAudioDevice: void ()
+extern ffi.CloseAudioDevice: void ()
+extern ffi.IsAudioDeviceReady: bool ()
+extern ffi.SetMasterVolume: void (volume: f32)
+extern ffi.GetMasterVolume: f32 ()
+
+lib:: i64 = dl.open("./blobs/libraylib.so", ffi) 
+
+// Common Colors
+LIGHTGRAY :: Color = { 200, 200, 200, 255 }
+GRAY :: Color = { 130, 130, 130, 255 }
+DARKGRAY :: Color = { 80, 80, 80, 255 }
+YELLOW :: Color = { 253, 249, 0, 255 }
+GOLD :: Color = { 255, 203, 0, 255 }
+ORANGE :: Color = { 255, 161, 0, 255 }
+PINK :: Color = { 255, 109, 194, 255 }
+RED :: Color = { 230, 41, 55, 255 }
+MAROON :: Color = { 190, 33, 55, 255 }
+GREEN :: Color = { 0, 228, 48, 255 }
+LIME :: Color = { 0, 158, 47, 255 }
+DARKGREEN :: Color = { 0, 117, 44, 255 }
+SKYBLUE :: Color = { 102, 191, 255, 255 }
+BLUE :: Color = { 0, 121, 241, 255 }
+DARKBLUE :: Color = { 0, 82, 172, 255 }
+PURPLE :: Color = { 200, 122, 255, 255 }
+VIOLET :: Color = { 135, 60, 190, 255 }
+DARKPURPLE :: Color = { 112, 31, 126, 255 }
+BEIGE :: Color = { 211, 176, 131, 255 }
+BROWN :: Color = { 127, 106, 79, 255 }
+DARKBROWN :: Color = { 76, 63, 47, 255 }
+WHITE :: Color = { 255, 255, 255, 255 }
+BLACK :: Color = { 0, 0, 0, 255 }
+BLANK :: Color = { 0, 0, 0, 0 }
+MAGENTA :: Color = { 255, 0, 255, 255 }
+RAYWHITE :: Color = { 245, 245, 245, 255 }
+
+KeyboardKey :: enum {
+    NULL            = 0,        // Key: NULL, used for no key pressed
+    // Alphanumeric keys
+    APOSTROPHE      = 39,       // Key: '
+    COMMA           = 44,       // Key: ,
+    MINUS           = 45,       // Key: -
+    PERIOD          = 46,       // Key: .
+    SLASH           = 47,       // Key: /
+    ZERO            = 48,       // Key: 0
+    ONE             = 49,       // Key: 1
+    TWO             = 50,       // Key: 2
+    THREE           = 51,       // Key: 3
+    FOUR            = 52,       // Key: 4
+    FIVE            = 53,       // Key: 5
+    SIX             = 54,       // Key: 6
+    SEVEN           = 55,       // Key: 7
+    EIGHT           = 56,       // Key: 8
+    NINE            = 57,       // Key: 9
+    SEMICOLON       = 59,       // Key: ;
+    EQUAL           = 61,       // Key: =
+    A               = 65,       // Key: A | a
+    B               = 66,       // Key: B | b
+    C               = 67,       // Key: C | c
+    D               = 68,       // Key: D | d
+    E               = 69,       // Key: E | e
+    F               = 70,       // Key: F | f
+    G               = 71,       // Key: G | g
+    H               = 72,       // Key: H | h
+    I               = 73,       // Key: I | i
+    J               = 74,       // Key: J | j
+    K               = 75,       // Key: K | k
+    L               = 76,       // Key: L | l
+    M               = 77,       // Key: M | m
+    N               = 78,       // Key: N | n
+    O               = 79,       // Key: O | o
+    P               = 80,       // Key: P | p
+    Q               = 81,       // Key: Q | q
+    R               = 82,       // Key: R | r
+    S               = 83,       // Key: S | s
+    T               = 84,       // Key: T | t
+    U               = 85,       // Key: U | u
+    V               = 86,       // Key: V | v
+    W               = 87,       // Key: W | w
+    X               = 88,       // Key: X | x
+    Y               = 89,       // Key: Y | y
+    Z               = 90,       // Key: Z | z
+    LEFT_BRACKET    = 91,       // Key: [
+    BACKSLASH       = 92,       // Key: '\'
+    RIGHT_BRACKET   = 93,       // Key: ]
+    GRAVE           = 96,       // Key: `
+    // Function keys
+    SPACE           = 32,       // Key: Space
+    ESCAPE          = 256,      // Key: Esc
+    ENTER           = 257,      // Key: Enter
+    TAB             = 258,      // Key: Tab
+    BACKSPACE       = 259,      // Key: Backspace
+    INSERT          = 260,      // Key: Ins
+    DELETE          = 261,      // Key: Del
+    RIGHT           = 262,      // Key: Cursor right
+    LEFT            = 263,      // Key: Cursor left
+    DOWN            = 264,      // Key: Cursor down
+    UP              = 265,      // Key: Cursor up
+    PAGE_UP         = 266,      // Key: Page up
+    PAGE_DOWN       = 267,      // Key: Page down
+    HOME            = 268,      // Key: Home
+    END             = 269,      // Key: End
+    CAPS_LOCK       = 280,      // Key: Caps lock
+    SCROLL_LOCK     = 281,      // Key: Scroll down
+    NUM_LOCK        = 282,      // Key: Num lock
+    PRINT_SCREEN    = 283,      // Key: Print screen
+    PAUSE           = 284,      // Key: Pause
+    F1              = 290,      // Key: F1
+    F2              = 291,      // Key: F2
+    F3              = 292,      // Key: F3
+    F4              = 293,      // Key: F4
+    F5              = 294,      // Key: F5
+    F6              = 295,      // Key: F6
+    F7              = 296,      // Key: F7
+    F8              = 297,      // Key: F8
+    F9              = 298,      // Key: F9
+    F10             = 299,      // Key: F10
+    F11             = 300,      // Key: F11
+    F12             = 301,      // Key: F12
+    LEFT_SHIFT      = 340,      // Key: Shift left
+    LEFT_CONTROL    = 341,      // Key: Control left
+    LEFT_ALT        = 342,      // Key: Alt left
+    LEFT_SUPER      = 343,      // Key: Super left
+    RIGHT_SHIFT     = 344,      // Key: Shift right
+    RIGHT_CONTROL   = 345,      // Key: Control right
+    RIGHT_ALT       = 346,      // Key: Alt right
+    RIGHT_SUPER     = 347,      // Key: Super right
+    KB_MENU         = 348,      // Key: KB menu
+    // Keypad keys
+    KP_0            = 320,      // Key: Keypad 0
+    KP_1            = 321,      // Key: Keypad 1
+    KP_2            = 322,      // Key: Keypad 2
+    KP_3            = 323,      // Key: Keypad 3
+    KP_4            = 324,      // Key: Keypad 4
+    KP_5            = 325,      // Key: Keypad 5
+    KP_6            = 326,      // Key: Keypad 6
+    KP_7            = 327,      // Key: Keypad 7
+    KP_8            = 328,      // Key: Keypad 8
+    KP_9            = 329,      // Key: Keypad 9
+    KP_DECIMAL      = 330,      // Key: Keypad .
+    KP_DIVIDE       = 331,      // Key: Keypad /
+    KP_MULTIPLY     = 332,      // Key: Keypad *
+    KP_SUBTRACT     = 333,      // Key: Keypad -
+    KP_ADD          = 334,      // Key: Keypad +
+    KP_ENTER        = 335,      // Key: Keypad Enter
+    KP_EQUAL        = 336,      // Key: Keypad =
+    // Android key buttons
+    BACK            = 4,        // Key: Android back button
+    MENU            = 5,        // Key: Android menu button
+    VOLUME_UP       = 24,       // Key: Android volume up button
+    VOLUME_DOWN     = 25        // Key: Android volume down button
+}
+
+InitWindow: void (width: i32, height: i32, title: string) {
+    lib.InitWindow(width, height, title)
+}
+
+WindowShouldClose: bool () {
+    return lib.WindowShouldClose()
+}
+
+CloseWindow: void () {
+    lib.CloseWindow()
+}
+
+IsWindowReady: bool () {
+    return lib.IsWindowReady()
+}
+
+IsWindowFullscreen: bool () {
+    return lib.IsWindowFullscreen()
+}
+
+IsWindowHidden: bool () {
+    return lib.IsWindowHidden()
+}
+
+IsWindowMinimized: bool () {
+    return lib.IsWindowMinimized()
+}
+
+IsWindowMaximized: bool () {
+    return lib.IsWindowMaximized()
+}
+
+IsWindowFocused: bool () {
+    return lib.IsWindowFocused()
+}
+
+IsWindowResized: bool () {
+    return lib.IsWindowResized()
+}
+
+IsWindowState: bool (flag: u32) {
+    return lib.IsWindowState(flag)
+}
+
+SetWindowState: void (flags: u32) {
+    lib.SetWindowState(flags)
+}
+
+ClearWindowState: void (flags: u32) {
+    lib.ClearWindowState(flags)
+}
+
+ToggleFullscreen: void () {
+    lib.ToggleFullscreen()
+}
+
+ToggleBorderlessWindowed: void () {
+    lib.ToggleBorderlessWindowed()
+}
+
+MaximizeWindow: void () {
+    lib.MaximizeWindow()
+}
+
+MinimizeWindow: void () {
+    lib.MinimizeWindow()
+}
+
+RestoreWindow: void () {
+    lib.RestoreWindow()
+}
+
+SetWindowIcon: void (image: i64) {
+    lib.SetWindowIcon(image)
+}
+
+SetWindowTitle: void (title: string) {
+    lib.SetWindowTitle(title)
+}
+
+SetWindowPosition: void (x: i32, y: i32) {
+    lib.SetWindowPosition(x, y)
+}
+
+SetWindowMonitor: void (monitor: i32) {
+    lib.SetWindowMonitor(monitor)
+}
+
+SetWindowMinSize: void (width: i32, height: i32) {
+    lib.SetWindowMinSize(width, height)
+}
+
+SetWindowMaxSize: void (width: i32, height: i32) {
+    lib.SetWindowMaxSize(width, height)
+}
+
+SetWindowSize: void (width: i32, height: i32) {
+    lib.SetWindowSize(width, height)
+}
+
+SetWindowOpacity: void (opacity: f32) {
+    lib.SetWindowOpacity(opacity)
+}
+
+SetWindowFocused: void () {
+    lib.SetWindowFocused()
+}
+
+GetWindowHandle: i64 () {
+    return lib.GetWindowHandle()
+}
+
+GetScreenWidth: i32 () {
+    return lib.GetScreenWidth()
+}
+
+GetScreenHeight: i32 () {
+    return lib.GetScreenHeight()
+}
+
+GetRenderWidth: i32 () {
+    return lib.GetRenderWidth()
+}
+
+GetRenderHeight: i32 () {
+    return lib.GetRenderHeight()
+}
+
+GetMonitorCount: i32 () {
+    return lib.GetMonitorCount()
+}
+
+GetCurrentMonitor: i32 () {
+    return lib.GetCurrentMonitor()
+}
+
+GetMonitorWidth: i32 (monitor: i32) {
+    return lib.GetMonitorWidth(monitor)
+}
+
+GetMonitorHeight: i32 (monitor: i32) {
+    return lib.GetMonitorHeight(monitor)
+}
+
+GetMonitorPhysicalWidth: i32 (monitor: i32) {
+    return lib.GetMonitorPhysicalWidth(monitor)
+}
+
+GetMonitorPhysicalHeight: i32 (monitor: i32) {
+    return lib.GetMonitorPhysicalHeight(monitor)
+}
+
+GetMonitorRefreshRate: i32 (monitor: i32) {
+    return lib.GetMonitorRefreshRate(monitor)
+}
+
+GetWindowPosition: Vector2 () {
+    return lib.GetWindowPosition()
+}
+
+GetWindowScaleDPI: Vector2 () {
+    return lib.GetWindowScaleDPI()
+}
+
+GetMonitorName: string (monitor: i32) {
+    return lib.GetMonitorName(monitor)
+}
+
+SetClipboardText: void (text: string) {
+    lib.SetClipboardText(text)
+}
+
+GetClipboardText: string () {
+    return lib.GetClipboardText()
+}
+
+EnableEventWaiting: void () {
+    lib.EnableEventWaiting()
+}
+
+DisableEventWaiting: void () {
+    lib.DisableEventWaiting()
+}
+
+ShowCursor: void () {
+    lib.ShowCursor()
+}
+
+HideCursor: void () {
+    lib.HideCursor()
+}
+
+IsCursorHidden: bool () {
+    return lib.IsCursorHidden()
+}
+
+EnableCursor: void () {
+    lib.EnableCursor()
+}
+
+DisableCursor: void () {
+    lib.DisableCursor()
+}
+
+IsCursorOnScreen: bool () {
+    return lib.IsCursorOnScreen()
+}
+
+SetTargetFPS: void (fps: i32) {
+    lib.SetTargetFPS(fps)
+}
+
+GetFrameTime: f32 () {
+    return lib.GetFrameTime()
+}
+
+GetTime: f64 () {
+    return lib.GetTime()
+}
+
+GetFPS: i32 () {
+    return lib.GetFPS()
+}
+
+SwapScreenBuffer: void () {
+    lib.SwapScreenBuffer()
+}
+
+PollInputEvents: void () {
+    lib.PollInputEvents()
+}
+
+WaitTime: void (seconds: f64) {
+    lib.WaitTime(seconds)
+}
+
+SetRandomSeed: void (seed: u32) {
+    lib.SetRandomSeed(seed)
+}
+
+GetRandomValue: i32 (min: i32, max: i32) {
+    return lib.GetRandomValue(min, max)
+}
+
+TakeScreenshot: void (fileName: string) {
+    lib.TakeScreenshot(fileName)
+}
+
+SetConfigFlags: void (flags: u32) {
+    lib.SetConfigFlags(flags)
+}
+
+OpenURL: void (url: string) {
+    lib.OpenURL(url)
+}
+
+BeginDrawing: void () {
+    lib.BeginDrawing()
+}
+
+EndDrawing: void () {
+    lib.EndDrawing()
+}
+
+ClearBackground: void (color: Color) {
+    lib.ClearBackground(color)
+}
+
+BeginMode2D: void (camera: Camera2D) {
+    lib.BeginMode2D(camera)
+}
+
+EndMode2D: void () {
+    lib.EndMode2D()
+}
+
+BeginTextureMode: void (target: RenderTexture) {
+    lib.BeginTextureMode(target)
+}
+
+EndTextureMode: void () {
+    lib.EndTextureMode()
+}
+
+BeginScissorMode: void (x: i32, y: i32, width: i32, height: i32) {
+    lib.BeginScissorMode(x, y, width, height)
+}
+
+EndScissorMode: void () {
+    lib.EndScissorMode()
+}
+
+DrawText: void (text: string, posX: i32, posY: i32, fontSize: i32, color: Color) {
+    lib.DrawText(text, posX, posY, fontSize, color)
+}
+
+DrawTextEx: void (font: Font, text: string, position: Vector2, fontSize: f32, spacing: f32, tint: Color) {
+    lib.DrawTextEx(font, text, position, fontSize, spacing, tint)
+}
+
+MeasureText: i32 (text: string, fontSize: i32) {
+    return lib.MeasureText(text, fontSize)
+}
+
+MeasureTextEx: Vector2 (font: Font, text: string, fontSize: f32, spacing: f32) {
+    return lib.MeasureTextEx(font, text, fontSize, spacing)
+}
+
+LoadFont: Font (fileName: string) {
+    return lib.LoadFont(fileName)
+}
+
+LoadFontEx: Font (fileName: string, fontSize: i32, codepoints: i64, codepointCount: i32) {
+    return lib.LoadFontEx(fileName, fontSize, codepoints, codepointCount)
+}
+
+LoadFontDefault: Font () {
+    return lib.LoadFontDefault()
+}
+
+UnloadFont: void (font: Font) {
+    lib.UnloadFont(font)
+}
+
+GetFontDefault: Font () {
+    return lib.GetFontDefault()
+}
+
+DrawFPS: void (posX: i32, posY: i32) {
+    lib.DrawFPS(posX, posY)
+}
+
+DrawPixel: void (posX: i32, posY: i32, color: Color) {
+    lib.DrawPixel(posX, posY, color)
+}
+
+DrawLine: void (startPosX: i32, startPosY: i32, endPosX: i32, endPosY: i32, color: Color) {
+    lib.DrawLine(startPosX, startPosY, endPosX, endPosY, color)
+}
+
+DrawLineV: void (startPos: Vector2, endPos: Vector2, color: Color) {
+    lib.DrawLineV(startPos, endPos, color)
+}
+
+DrawLineEx: void (startPos: Vector2, endPos: Vector2, thick: f32, color: Color) {
+    lib.DrawLineEx(startPos, endPos, thick, color)
+}
+
+DrawCircle: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
+    lib.DrawCircle(centerX, centerY, radius, color)
+}
+
+DrawCircleV: void (center: Vector2, radius: f32, color: Color) {
+    lib.DrawCircleV(center, radius, color)
+}
+
+DrawCircleLines: void (centerX: i32, centerY: i32, radius: f32, color: Color) {
+    lib.DrawCircleLines(centerX, centerY, radius, color)
+}
+
+DrawRectangle: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
+    lib.DrawRectangle(posX, posY, width, height, color)
+}
+
+DrawRectangleV: void (position: Vector2, size: Vector2, color: Color) {
+    lib.DrawRectangleV(position, size, color)
+}
+
+DrawRectangleRec: void (rec: Rectangle, color: Color) {
+    lib.DrawRectangleRec(rec, color)
+}
+
+DrawRectangleLines: void (posX: i32, posY: i32, width: i32, height: i32, color: Color) {
+    lib.DrawRectangleLines(posX, posY, width, height, color)
+}
+
+DrawRectangleRounded: void (rec: Rectangle, roundness: f32, segments: i32, color: Color) {
+    lib.DrawRectangleRounded(rec, roundness, segments, color)
+}
+
+DrawTriangle: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
+    lib.DrawTriangle(v1, v2, v3, color)
+}
+
+DrawTriangleLines: void (v1: Vector2, v2: Vector2, v3: Vector2, color: Color) {
+    lib.DrawTriangleLines(v1, v2, v3, color)
+}
+
+LoadTexture: Texture (fileName: string) {
+    return lib.LoadTexture(fileName)
+}
+
+LoadTextureFromImage: Texture (image: i64) {
+    return lib.LoadTextureFromImage(image)
+}
+
+UnloadTexture: void (texture: Texture) {
+    lib.UnloadTexture(texture)
+}
+
+IsTextureValid: bool (texture: Texture) {
+    return lib.IsTextureValid(texture)
+}
+
+DrawTexture: void (texture: Texture, posX: i32, posY: i32, tint: Color) {
+    lib.DrawTexture(texture, posX, posY, tint)
+}
+
+DrawTextureV: void (texture: Texture, position: Vector2, tint: Color) {
+    lib.DrawTextureV(texture, position, tint)
+}
+
+DrawTextureEx: void (texture: Texture, position: Vector2, rotation: f32, scale: f32, tint: Color) {
+    lib.DrawTextureEx(texture, position, rotation, scale, tint)
+}
+
+DrawTextureRec: void (texture: Texture, source: Rectangle, position: Vector2, tint: Color) {
+    lib.DrawTextureRec(texture, source, position, tint)
+}
+
+DrawTexturePro: void (texture: Texture, source: Rectangle, dest: Rectangle, origin: Vector2, rotation: f32, tint: Color) {
+    lib.DrawTexturePro(texture, source, dest, origin, rotation, tint)
+}
+
+LoadRenderTexture: RenderTexture (width: i32, height: i32) {
+    return lib.LoadRenderTexture(width, height)
+}
+
+UnloadRenderTexture: void (target: RenderTexture) {
+    lib.UnloadRenderTexture(target)
+}
+
+IsRenderTextureValid: bool (target: RenderTexture) {
+    return lib.IsRenderTextureValid(target)
+}
+
+IsKeyPressed: bool (key: i32) {
+    return lib.IsKeyPressed(key)
+}
+
+IsKeyPressedRepeat: bool (key: i32) {
+    return lib.IsKeyPressedRepeat(key)
+}
+
+IsKeyDown: bool (key: i32) {
+    return lib.IsKeyDown(key)
+}
+
+IsKeyReleased: bool (key: i32) {
+    return lib.IsKeyReleased(key)
+}
+
+IsKeyUp: bool (key: i32) {
+    return lib.IsKeyUp(key)
+}
+
+GetKeyPressed: i32 () {
+    return lib.GetKeyPressed()
+}
+
+GetCharPressed: i32 () {
+    return lib.GetCharPressed()
+}
+
+SetExitKey: void (key: i32) {
+    lib.SetExitKey(key)
+}
+
+IsGamepadAvailable: bool (gamepad: i32) {
+    return lib.IsGamepadAvailable(gamepad)
+}
+
+GetGamepadName: string (gamepad: i32) {
+    return lib.GetGamepadName(gamepad)
+}
+
+IsGamepadButtonPressed: bool (gamepad: i32, button: i32) {
+    return lib.IsGamepadButtonPressed(gamepad, button)
+}
+
+IsGamepadButtonDown: bool (gamepad: i32, button: i32) {
+    return lib.IsGamepadButtonDown(gamepad, button)
+}
+
+IsGamepadButtonReleased: bool (gamepad: i32, button: i32) {
+    return lib.IsGamepadButtonReleased(gamepad, button)
+}
+
+IsGamepadButtonUp: bool (gamepad: i32, button: i32) {
+    return lib.IsGamepadButtonUp(gamepad, button)
+}
+
+GetGamepadButtonPressed: i32 () {
+    return lib.GetGamepadButtonPressed()
+}
+
+GetGamepadAxisCount: i32 (gamepad: i32) {
+    return lib.GetGamepadAxisCount(gamepad)
+}
+
+GetGamepadAxisMovement: f32 (gamepad: i32, axis: i32) {
+    return lib.GetGamepadAxisMovement(gamepad, axis)
+}
+
+SetGamepadMappings: i32 (mappings: string) {
+    return lib.SetGamepadMappings(mappings)
+}
+
+SetGamepadVibration: void (gamepad: i32, leftMotor: f32, rightMotor: f32, duration: f32) {
+    lib.SetGamepadVibration(gamepad, leftMotor, rightMotor, duration)
+}
+
+IsMouseButtonPressed: bool (button: i32) {
+    return lib.IsMouseButtonPressed(button)
+}
+
+IsMouseButtonDown: bool (button: i32) {
+    return lib.IsMouseButtonDown(button)
+}
+
+IsMouseButtonReleased: bool (button: i32) {
+    return lib.IsMouseButtonReleased(button)
+}
+
+IsMouseButtonUp: bool (button: i32) {
+    return lib.IsMouseButtonUp(button)
+}
+
+GetMouseX: i32 () {
+    return lib.GetMouseX()
+}
+
+GetMouseY: i32 () {
+    return lib.GetMouseY()
+}
+
+GetMousePosition: Vector2 () {
+    return lib.GetMousePosition()
+}
+
+GetMouseDelta: Vector2 () {
+    return lib.GetMouseDelta()
+}
+
+SetMousePosition: void (x: i32, y: i32) {
+    lib.SetMousePosition(x, y)
+}
+
+SetMouseOffset: void (offsetX: i32, offsetY: i32) {
+    lib.SetMouseOffset(offsetX, offsetY)
+}
+
+SetMouseScale: void (scaleX: f32, scaleY: f32) {
+    lib.SetMouseScale(scaleX, scaleY)
+}
+
+GetMouseWheelMove: f32 () {
+    return lib.GetMouseWheelMove()
+}
+
+GetMouseWheelMoveV: Vector2 () {
+    return lib.GetMouseWheelMoveV()
+}
+
+SetMouseCursor: void (cursor: i32) {
+    lib.SetMouseCursor(cursor)
+}
+
+GetTouchX: i32 () {
+    return lib.GetTouchX()
+}
+
+GetTouchY: i32 () {
+    return lib.GetTouchY()
+}
+
+GetTouchPosition: Vector2 (index: i32) {
+    return lib.GetTouchPosition(index)
+}
+
+GetTouchPointId: i32 (index: i32) {
+    return lib.GetTouchPointId(index)
+}
+
+GetTouchPointCount: i32 () {
+    return lib.GetTouchPointCount()
+}
+
+SetGesturesEnabled: void (flags: u32) {
+    lib.SetGesturesEnabled(flags)
+}
+
+IsGestureDetected: bool (gesture: u32) {
+    return lib.IsGestureDetected(gesture)
+}
+
+GetGestureDetected: i32 () {
+    return lib.GetGestureDetected()
+}
+
+GetGestureHoldDuration: f32 () {
+    return lib.GetGestureHoldDuration()
+}
+
+GetGestureDragVector: Vector2 () {
+    return lib.GetGestureDragVector()
+}
+
+GetGestureDragAngle: f32 () {
+    return lib.GetGestureDragAngle()
+}
+
+GetGesturePinchVector: Vector2 () {
+    return lib.GetGesturePinchVector()
+}
+
+GetGesturePinchAngle: f32 () {
+    return lib.GetGesturePinchAngle()
+}
+
+CheckCollisionRecs: bool (rec1: Rectangle, rec2: Rectangle) {
+    return lib.CheckCollisionRecs(rec1, rec2)
+}
+
+CheckCollisionCircles: bool (center1: Vector2, radius1: f32, center2: Vector2, radius2: f32) {
+    return lib.CheckCollisionCircles(center1, radius1, center2, radius2)
+}
+
+CheckCollisionCircleRec: bool (center: Vector2, radius: f32, rec: Rectangle) {
+    return lib.CheckCollisionCircleRec(center, radius, rec)
+}
+
+CheckCollisionPointRec: bool (point: Vector2, rec: Rectangle) {
+    return lib.CheckCollisionPointRec(point, rec)
+}
+
+CheckCollisionPointCircle: bool (point: Vector2, center: Vector2, radius: f32) {
+    return lib.CheckCollisionPointCircle(point, center, radius)
+}
+
+CheckCollisionPointTriangle: bool (point: Vector2, p1: Vector2, p2: Vector2, p3: Vector2) {
+    return lib.CheckCollisionPointTriangle(point, p1, p2, p3)
+}
+
+InitAudioDevice: void () {
+    lib.InitAudioDevice()
+}
+
+CloseAudioDevice: void () {
+    lib.CloseAudioDevice()
+}
+
+IsAudioDeviceReady: bool () {
+    return lib.IsAudioDeviceReady()
+}
+
+SetMasterVolume: void (volume: f32) {
+    lib.SetMasterVolume(volume)
+}
+
+GetMasterVolume: f32 () {
+    return lib.GetMasterVolume()
+}
+

@@ -1,0 +1,5 @@
+main : i32 () { 
+  player.Update()
+  UpdatePlayer(player)
+  player.position.x = 1
+}

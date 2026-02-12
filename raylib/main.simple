@@ -1,0 +1,55 @@
+import system.dl
+import "raylib.simple"
+
+Player :: artifact {
+    position: Vector2
+    velocity: Vector2
+    size: Vector2
+    speed: f32
+
+    Update: void () {
+        |> IsKeyDown(KeyboardKey.RIGHT) { self.velocity.x = self.speed } 
+        |> IsKeyDown(KeyboardKey.LEFT) { self.velocity.x = -self.speed }
+        |> default { self.velocity.x = 0.0 }
+
+        |> IsKeyDown(KeyboardKey.DOWN) { self.velocity.y = self.speed } 
+        |> IsKeyDown(KeyboardKey.UP) { self.velocity.y = -self.speed }
+        |> default { self.velocity.y = 0.0 }
+
+        self.position.x += self.velocity.x
+        self.position.y += self.velocity.y
+    }
+}
+
+
+main: i32 () {
+    if lib == 0 {
+        IO.println(dl.LastError())
+        return 1
+    }
+
+    player :: Player = {
+        .position = {0.0, 0.0},
+        .velocity = {0.0, 0.0},
+        .size = {100.0, 100.0},
+        .speed = 5.0
+    }
+
+    InitWindow(800, 600, "Hello Raylib from Simple!")
+    SetTargetFPS(60)
+    
+    while !WindowShouldClose() {
+        player.Update()
+        
+        BeginDrawing()
+        ClearBackground(BLACK)
+        DrawText("Hello, Raylib!", 190, 200, 20, WHITE)
+        DrawCircle(400, 300, 50.0, BLUE)
+        DrawRectangleV(player.position, player.size, RED)
+        DrawFPS(10, 10)
+        EndDrawing()
+    }
+
+    CloseWindow()
+
+}

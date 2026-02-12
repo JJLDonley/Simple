@@ -15,14 +15,27 @@
 
   <header class="hero wrap">
     <p class="eyebrow">Simple Project</p>
-    <h1>Simple Lang,</h1>
-    <h1>Simple IR,</h1> 
-    <h1>Simple VM</h1>
-    <p class="lead">A strict language and runtime stack focused on predictable behavior, explicit boundaries, and an inspectable pipeline.</p>
-    <div class="cta-row">
-      <a class="btn solid" href="#quick-start">Get Started</a>
-      <a class="btn ghost" href="#core-ideas">Language Core Ideas</a>
-      <a class="btn ghost" href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">Downloads</a>
+    <div class="hero-row">
+      <div class="hero-text">
+        <div class="header-logo">
+          <div class="header-text">
+            <h1>Simple Lang,</h1>
+            <h1>Simple IR,</h1> 
+            <h1>Simple VM</h1>
+          </div>
+          <div class="logo-block">
+            <div class="logo-wrap">
+              <img class="logo" src="SimpleLogo.png" alt="Simple logo" />
+            </div>
+          </div>
+        </div>
+        <p class="lead">A strict language and runtime stack focused on predictable behavior, explicit boundaries, and an inspectable pipeline.</p>
+        <div class="cta-row">
+          <a class="btn solid" href="#quick-start">Get Started</a>
+          <a class="btn ghost" href="#core-ideas">Language Core Ideas</a>
+          <a class="btn ghost" href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">Downloads</a>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -46,61 +59,128 @@
       </div>
     </section>
 
+    <section class="panel" id="supported">
+      <h2>Supported Surface</h2>
+      <div class="two-col">
+        <div>
+          <h3>Language</h3>
+          <p>Strict typing, explicit mutability, artifacts, enums, modules, and script-style top-level execution.</p>
+        </div>
+        <div>
+          <h3>Pipeline</h3>
+          <p>.simple -> SIR -> SBC -> VM execution with loader/verifier gates and deterministic diagnostics.</p>
+        </div>
+        <div>
+          <h3>Runtime</h3>
+          <p>Interpreter execution, heap/GC, arrays/lists/strings, and core system module dispatch.</p>
+        </div>
+        <div>
+          <h3>Interop</h3>
+          <p>DL-based C/C++ interop with strict extern signatures and ABI marshalling.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="docs">
+      <h2>Authoritative Docs</h2>
+      <div class="pillars">
+        <article class="card">
+          <h3>Language</h3>
+          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/Lang.md" target="_blank" rel="noopener noreferrer">Docs/Lang.md</a> - syntax, semantics, and validation.</p>
+        </article>
+        <article class="card">
+          <h3>StdLib</h3>
+          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/StdLib.md" target="_blank" rel="noopener noreferrer">Docs/StdLib.md</a> - reserved imports and APIs.</p>
+        </article>
+        <article class="card">
+          <h3>IR + Bytecode</h3>
+          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/IR.md" target="_blank" rel="noopener noreferrer">Docs/IR.md</a> and <a href="https://github.com/JJLDonley/Simple/blob/main/Docs/Byte.md" target="_blank" rel="noopener noreferrer">Docs/Byte.md</a>.</p>
+        </article>
+      </div>
+    </section>
+
     <section class="panel" id="core-ideas">
       <h2>Simple Lang: Core Ideas</h2>
-      <div class="concept-grid">
-        <article class="concept">
-          <h3>1) Typed declarations</h3>
-          <p>Variables, parameters, and returns are explicit. Type mismatches fail at validation, not in random runtime paths.</p>
-          <pre><code>count: i32 = 3
-name: string = "simple"
-enabled: bool = true</code></pre>
-        </article>
-        <article class="concept">
-          <h3>2) Mutability is explicit</h3>
-          <p>Simple treats mutability as a language contract: <code>:</code> is mutable, <code>::</code> is immutable. Reassigning immutable bindings is a compile error.</p>
-          <pre><code>counter: i32 = 1
-app_name:: string = "Simple"
+      <div class="tabs" data-default="tab-decl">
+        <div class="tab-bar" role="tablist" aria-label="Simple core ideas">
+          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-decl" id="btn-decl" data-target="tab-decl">Declarations</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-mutable" id="btn-mutable" data-target="tab-mutable">Mutability</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-script" id="btn-script" data-target="tab-script">Scripting</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-data" id="btn-data" data-target="tab-data">Data Model</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-system" id="btn-system" data-target="tab-system">System</button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-interop" id="btn-interop" data-target="tab-interop">Interop</button>
+        </div>
 
-counter = counter + 1   # ok
-app_name = "Next"       # compile error</code></pre>
+        <article class="tab-panel active" id="tab-decl" role="tabpanel" aria-labelledby="btn-decl">
+          <h3>Declarations are explicit</h3>
+          <p>Variables, parameters, and returns are typed. Type mismatches fail at validation.</p>
+          <pre><code>count : i32 = 42
+label :: string = "ready"
+
+add : i32 (a : i32, b : i32) {
+  return a + b
+}</code></pre>
+          <p class="muted">Strict typing is enforced across variables, parameters, and returns.</p>
         </article>
-        <article class="concept">
-          <h3>3) Top-level scripting + functions</h3>
-          <p>Top-level statements execute in order. Function declarations are declarations only and run when called.</p>
-          <pre><code>import "System.io"
+
+        <article class="tab-panel" id="tab-mutable" role="tabpanel" aria-labelledby="btn-mutable" hidden>
+          <h3>Mutability is explicit</h3>
+          <p><code>:</code> is mutable. <code>::</code> is immutable.</p>
+          <pre><code>x : i32 = 10
+name :: string = "Simple"
+
+x = x + 1        # ok
+name = "Next"    # compile error</code></pre>
+          <p class="muted">The same rules apply to artifact fields.</p>
+        </article>
+
+        <article class="tab-panel" id="tab-script" role="tabpanel" aria-labelledby="btn-script" hidden>
+          <h3>Script-style top level</h3>
+          <p>Top-level statements execute in source order via implicit <code>__script_entry</code>. Function declarations do not execute implicitly.</p>
+          <pre><code>import System.io
 io.println("boot")
 
-sum: i32 (a: i32, b: i32) {
+sum : i32 (a : i32, b : i32) {
   return a + b
 }
 
 io.println(sum(2, 3))</code></pre>
+          <p class="muted">An explicit <code>main</code> is used only when no top-level statements exist.</p>
         </article>
-        <article class="concept">
-          <h3>4) Artifact-based data model</h3>
-          <p>Artifacts define structured data layouts that map cleanly through validation, IR lowering, and VM object handling.</p>
-          <pre><code>Color :: artifact {
-  r: i32
-  g: i32
-  b: i32
-  a: i32
-}</code></pre>
-        </article>
-        <article class="concept">
-          <h3>5) Namespaced system modules</h3>
-          <p>Reserved system modules use keyword-style paths (no quotes). Project/local modules should use path/name literals.</p>
-          <pre><code>import System.io
-import System.file
 
-import "math_utils"
-import "./render/raylib_bridge"</code></pre>
+        <article class="tab-panel" id="tab-data" role="tabpanel" aria-labelledby="btn-data" hidden>
+          <h3>Artifact, Enum, and Module</h3>
+          <p>Artifact defines structured layouts with fields and optional methods. Enum is scoped and strongly typed. Module exposes constants.</p>
+          <pre><code>Status :: Enum { Idle = 0, Running = 1 }
+
+Player :: Artifact {
+  hp : i32
+  damage : void (amount : i32) { self.hp -= amount }
+}
+
+Config :: Module {
+  MAX_PLAYERS :: i32 = 16
+}</code></pre>
+          <p class="muted">These map cleanly through validation and IR lowering.</p>
         </article>
-        <article class="concept">
-          <h3>6) C/C++ interop is a first-class path</h3>
-          <p><code>extern</code> is designed to be easy to declare and call, so native integration is practical without rewriting app code in another layer.</p>
-          <pre><code>import "System.dl"
-import "System.io"
+
+        <article class="tab-panel" id="tab-system" role="tabpanel" aria-labelledby="btn-system" hidden>
+          <h3>System modules are reserved</h3>
+          <p>Reserved modules use keyword-style paths. Local modules use quoted paths.</p>
+          <pre><code>import System.io
+import System.dl as DL
+import FS
+
+import "raylib"
+import "./raylib.simple"</code></pre>
+          <p class="muted">Reserved imports map to runtime namespaces defined in <code>Docs/StdLib.md</code>.</p>
+        </article>
+
+        <article class="tab-panel" id="tab-interop" role="tabpanel" aria-labelledby="btn-interop" hidden>
+          <h3>Interop is first-class</h3>
+          <p><code>extern</code> declares native signatures, and <code>DL</code> handles ABI marshaling.</p>
+          <pre><code>import System.dl
+import System.io
 
 extern raylib.InitWindow : void (w: i32, h: i32, title: string)
 extern raylib.CloseWindow : void ()
@@ -108,10 +188,8 @@ extern raylib.CloseWindow : void ()
 lib: i64 = dl.open("raylib.dll", raylib)
 if lib == 0 {
   io.println("raylib load failed: {}", dl.last_error())
-}
-
-raylib.InitWindow(800, 450, "Simple + raylib")
-raylib.CloseWindow()</code></pre>
+}</code></pre>
+          <p class="muted">Signatures are strict; unsupported ABI shapes are rejected.</p>
         </article>
       </div>
     </section>
@@ -301,6 +379,46 @@ RET_I32     0</code></pre>
       </div>
     </section>
 
+    <section class="panel" id="cli">
+      <h2>CLI Quick Reference</h2>
+      <div class="two-col">
+        <div>
+          <h3>Commands</h3>
+          <p><code>run</code>, <code>check</code>, <code>build</code>, <code>compile</code>, <code>emit</code>, <code>lsp</code></p>
+        </div>
+        <div>
+          <h3>Inputs</h3>
+          <p><code>.simple</code>, <code>.sir</code>, <code>.sbc</code> (VM path)</p>
+        </div>
+        <div>
+          <h3>Version</h3>
+          <p><code>simple --version</code>, <code>simple -v</code>, <code>simple version</code></p>
+        </div>
+        <div>
+          <h3>Build Scripts</h3>
+          <p><code>./build_linux</code>, <code>./build_macos</code>, <code>./build_windows</code></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="interop">
+      <h2>Interop With C/C++</h2>
+      <p>Use <code>extern</code> to declare native symbols and call them through <code>DL</code>.</p>
+      <pre><code>import System.dl
+import System.io
+
+extern raylib.InitWindow : void (w: i32, h: i32, title: string)
+extern raylib.CloseWindow : void ()
+
+lib: i64 = dl.open("raylib.dll", raylib)
+if lib == 0 {
+  io.println("raylib load failed: {}", dl.last_error())
+}
+
+raylib.InitWindow(800, 450, "Simple + raylib")
+raylib.CloseWindow()</code></pre>
+    </section>
+
     <section class="panel" id="examples">
       <h2>Practical Examples</h2>
       <div class="examples-grid">
@@ -390,6 +508,7 @@ cd Simple
         take(/(?:^|\s)(#.*)$/gm, "tok-cmt");
         take(/(?:^|\s)(;.*)$/gm, "tok-cmt");
         take(/\b(?:\d+\.\d+|\d+)\b/g, "tok-num");
+        take(/\b(?:artifact|enum|module|Artifact|Enum|Module)\b/g, "tok-kw-strong");
         take(/\b(?:import|extern|if|else|return|fn|call|void)\b/g, "tok-kw");
         take(/\b(?:i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|string|char)\b/g, "tok-type");
         take(/\b(?:CONST_I32|ADD_I32|SUB_I32|MUL_I32|DIV_I32|CALL|CALL_INDIRECT|JMP|JMP_TRUE|JMP_FALSE|RET|RET_I32|STORE_LOCAL|LOAD_LOCAL|IMPORT_CALL)\b/g, "tok-op");
