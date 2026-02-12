@@ -68,7 +68,7 @@ Status:
 Remaining alpha work:
 - [ ] Finalize JIT posture for alpha (explicitly supported, experimental, or disabled-by-default).
 - [ ] Remove/label placeholder runtime paths that are not alpha-grade.
-- [ ] Add focused runtime smoke profile for import + trap diagnostics.
+ - [x] Add focused runtime smoke profile for import + trap diagnostics (`simplevm_tests --smoke`).
 - [ ] JIT upgrade plan (scope + milestones) is documented and tracked.
 
 JIT upgrade plan (interpreter must remain canonical):

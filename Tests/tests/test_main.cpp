@@ -36,6 +36,7 @@ namespace Simple::VM::Tests {
 
 #if SIMPLEVM_TEST_INCLUDE_CORE
 const TestSection* GetCoreSections(size_t* count);
+const TestSection* GetRuntimeSmokeSections(size_t* count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
 const TestSection* GetIrSections(size_t* count);
@@ -156,6 +157,18 @@ int main(int argc, char** argv) {
     std::cerr << "--bench is only available in the JIT test suite\n";
     return 2;
 #endif
+  }
+  if (argc > 1 && std::string(argv[1]) == "--smoke") {
+    std::vector<Simple::VM::Tests::TestSection> sections;
+#if SIMPLEVM_TEST_INCLUDE_CORE
+    size_t smoke_count = 0;
+    const Simple::VM::Tests::TestSection* smoke_sections =
+        Simple::VM::Tests::GetRuntimeSmokeSections(&smoke_count);
+    sections.insert(sections.end(), smoke_sections, smoke_sections + smoke_count);
+#endif
+    Simple::VM::Tests::TestResult result = Simple::VM::Tests::RunAllSections(sections.data(),
+                                                                            sections.size());
+    return result.failed == 0 ? 0 : 1;
   }
 
   std::vector<Simple::VM::Tests::TestSection> sections;

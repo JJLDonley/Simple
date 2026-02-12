@@ -23599,8 +23599,28 @@ static const TestCase kCoreTests[] = {
   {"list_overflow", RunListOverflowTrapTest},
 };
 
+static const TestCase kRuntimeSmokeTests[] = {
+  {"import_call", RunImportCallTest},
+  {"import_call_indirect", RunImportCallIndirectTest},
+  {"import_dl_open_null", RunImportDlOpenNullTest},
+  {"import_args_count", RunImportArgsCountTest},
+  {"import_env_get_missing", RunImportEnvGetMissingTest},
+  {"import_fs_open_null_path", RunImportFsOpenNullPathTest},
+  {"import_fs_read_bad_fd", RunImportFsReadBadFdTest},
+  {"import_fs_write_bad_fd", RunImportFsWriteBadFdTest},
+  {"import_fs_close_bad_fd", RunImportFsCloseBadFdTest},
+  {"diag_line_trap", RunLineTrapDiagTest},
+  {"diag_trap_operands", RunTrapOperandDiagTest},
+  {"intrinsic_trap", RunIntrinsicTrapTest},
+  {"syscall_trap", RunSysCallTrapTest},
+};
+
 static const TestSection kCoreSections[] = {
   {"core", kCoreTests, sizeof(kCoreTests) / sizeof(kCoreTests[0])},
+};
+
+static const TestSection kRuntimeSmokeSections[] = {
+  {"runtime_smoke", kRuntimeSmokeTests, sizeof(kRuntimeSmokeTests) / sizeof(kRuntimeSmokeTests[0])},
 };
 
 const TestSection* GetCoreSections(size_t* count) {
@@ -23608,5 +23628,12 @@ const TestSection* GetCoreSections(size_t* count) {
     *count = sizeof(kCoreSections) / sizeof(kCoreSections[0]);
   }
   return kCoreSections;
+}
+
+const TestSection* GetRuntimeSmokeSections(size_t* count) {
+  if (count) {
+    *count = sizeof(kRuntimeSmokeSections) / sizeof(kRuntimeSmokeSections[0]);
+  }
+  return kRuntimeSmokeSections;
 }
 } // namespace Simple::VM::Tests
