@@ -1586,6 +1586,10 @@
   - identifier tokens are no longer emitted for non-call identifiers (let TextMate keep them white).
 - Updated LSP regression coverage:
   - semantic token tests now only assert function-call tokens or non-empty responses.
+- Reduced TextMate fallback noise:
+  - removed member-access highlighting patterns so member names remain neutral when LSP tokens are inactive.
+- Added LSP regression coverage:
+  - semantic token test for member-call function tokens.
 - Added semantic token debug probe:
   - `SIMPLE_LSP_DEBUG_TOKENS=1` logs LSP semantic tokens (line/col/len/type/modifiers) to stderr for color inspection.
 - Added LSP regression coverage:

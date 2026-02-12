@@ -134,24 +134,6 @@
     "symbols": {
       "patterns": [
         {
-          "name": "meta.member.function.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
-          "captures": {
-            "1": { "name": "variable.other.object.simple" },
-            "2": { "name": "punctuation.accessor.dot.simple" },
-            "3": { "name": "entity.name.function.member.simple" }
-          }
-        },
-        {
-          "name": "meta.member.access.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)\\b",
-          "captures": {
-            "1": { "name": "variable.other.object.simple" },
-            "2": { "name": "punctuation.accessor.dot.simple" },
-            "3": { "name": "variable.other.member.simple" }
-          }
-        },
-        {
           "name": "entity.name.function.call.simple",
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()"
         }

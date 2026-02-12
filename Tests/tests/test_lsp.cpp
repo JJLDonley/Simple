@@ -1287,6 +1287,40 @@ bool LspSemanticTokensClassifyFunctionsAndParameters() {
          has_function_tokens;
 }
 
+bool LspSemanticTokensMemberCallIsFunction() {
+  const std::string in_path = TempPath("simple_lsp_tokens_member_call_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_member_call_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_member_call_err.txt");
+  const std::string uri = "file:///workspace/tokens_member_call.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"player.Update();\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":68,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty()) return false;
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
+  const bool has_function_tokens = SemanticDataContainsTokenType(data, 2);
+  return out_contents.find("\"id\":68") != std::string::npos &&
+         has_function_tokens;
+}
+
 bool LspSemanticTokensFallbackOnMalformedSource() {
   const std::string in_path = TempPath("simple_lsp_tokens_fallback_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_fallback_out.txt");
@@ -2763,6 +2797,7 @@ const TestCase kLspTests[] = {
    LspSemanticTokensDebugEnvDoesNotBreakResponse},
   {"lsp_semantic_tokens_classify_functions_and_parameters",
    LspSemanticTokensClassifyFunctionsAndParameters},
+  {"lsp_semantic_tokens_member_call_is_function", LspSemanticTokensMemberCallIsFunction},
   {"lsp_semantic_tokens_fallback_on_malformed_source", LspSemanticTokensFallbackOnMalformedSource},
   {"lsp_semantic_tokens_classify_import_alias_as_namespace",
    LspSemanticTokensClassifyImportAliasAsNamespace},
