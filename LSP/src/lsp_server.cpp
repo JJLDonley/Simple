@@ -815,42 +815,6 @@ std::string LowerAscii(const std::string& text) {
   return out;
 }
 
-std::string ExtractWorkspaceSymbolQuery(const std::string& body) {
-  const size_t method_pos = body.find("\"method\":\"workspace/symbol\"");
-  if (method_pos == std::string::npos) return {};
-  const size_t query_key = body.find("\"query\"", method_pos);
-  if (query_key == std::string::npos) return {};
-  const size_t colon = body.find(':', query_key);
-  if (colon == std::string::npos) return {};
-  size_t i = colon + 1;
-  while (i < body.size() && std::isspace(static_cast<unsigned char>(body[i]))) ++i;
-  if (i >= body.size() || body[i] != '"') return {};
-  ++i;
-  std::string query;
-  while (i < body.size()) {
-    char c = body[i++];
-    if (c == '\\') {
-      if (i >= body.size()) return {};
-      const char esc = body[i++];
-      switch (esc) {
-        case '"': query.push_back('"'); break;
-        case '\\': query.push_back('\\'); break;
-        case '/': query.push_back('/'); break;
-        case 'b': query.push_back('\b'); break;
-        case 'f': query.push_back('\f'); break;
-        case 'n': query.push_back('\n'); break;
-        case 'r': query.push_back('\r'); break;
-        case 't': query.push_back('\t'); break;
-        default: query.push_back(esc); break;
-      }
-      continue;
-    }
-    if (c == '"') return query;
-    query.push_back(c);
-  }
-  return {};
-}
-
 std::string IdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -1766,20 +1730,6 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
          refs[i - 2].token.kind == TK::Identifier;
 }
 
-uint32_t MemberAccessDepthAt(const std::vector<TokenRef>& refs, size_t i) {
-  using TK = Simple::Lang::TokenKind;
-  if (!IsMemberNameAt(refs, i)) return 0;
-  uint32_t depth = 0;
-  size_t j = i;
-  while (j >= 2 &&
-         refs[j - 1].token.kind == TK::Dot &&
-         refs[j - 2].token.kind == TK::Identifier) {
-    ++depth;
-    j -= 2;
-  }
-  return depth;
-}
-
 uint32_t MemberAccessTokenTypeForDepth(uint32_t depth) {
   if (depth == 0) return 5;
   switch ((depth - 1) % 3) {
@@ -1787,6 +1737,46 @@ uint32_t MemberAccessTokenTypeForDepth(uint32_t depth) {
     case 1: return 6; // enumMember
     default: return 7; // namespace
   }
+}
+
+bool MemberAccessInfoFromText(const std::string& text,
+                              const Simple::Lang::Token& token,
+                              uint32_t* out_depth,
+                              std::string* out_receiver) {
+  if (!out_depth) return false;
+  *out_depth = 0;
+  if (out_receiver) out_receiver->clear();
+  if (token.line == 0 || token.column == 0) return false;
+  const uint32_t line_index = token.line - 1;
+  const uint32_t col_index = token.column - 1;
+  const std::string line_text = GetLineText(text, line_index);
+  if (col_index >= line_text.size()) return false;
+  size_t cursor = col_index;
+  while (cursor > 0 && std::isspace(static_cast<unsigned char>(line_text[cursor - 1]))) {
+    --cursor;
+  }
+  if (cursor == 0 || line_text[cursor - 1] != '.') return false;
+  size_t dot_pos = cursor - 1;
+  uint32_t depth = 0;
+  while (true) {
+    ++depth;
+    size_t left = dot_pos;
+    while (left > 0 && std::isspace(static_cast<unsigned char>(line_text[left - 1]))) --left;
+    size_t ident_end = left;
+    size_t ident_begin = ident_end;
+    while (ident_begin > 0 && IsIdentChar(line_text[ident_begin - 1])) --ident_begin;
+    if (ident_begin == ident_end) break;
+    if (depth == 1 && out_receiver) {
+      *out_receiver = line_text.substr(ident_begin, ident_end - ident_begin);
+    }
+    if (ident_begin == 0) break;
+    size_t before = ident_begin;
+    while (before > 0 && std::isspace(static_cast<unsigned char>(line_text[before - 1]))) --before;
+    if (before == 0 || line_text[before - 1] != '.') break;
+    dot_pos = before - 1;
+  }
+  *out_depth = depth;
+  return depth > 0;
 }
 
 bool IsReservedModuleAliasToken(const std::string& name) {
@@ -1804,7 +1794,9 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       const std::unordered_set<std::string>& enum_names,
                                       const std::unordered_set<std::string>& module_names,
                                       const std::unordered_set<std::string>& artifact_names,
-                                      const std::unordered_set<size_t>& artifact_field_indices) {
+                                      const std::unordered_set<size_t>& artifact_field_indices,
+                                      const std::vector<uint32_t>& member_depths,
+                                      const std::vector<std::string>& member_receivers) {
   using TK = Simple::Lang::TokenKind;
   (void)import_aliases;
   (void)enum_member_indices;
@@ -1819,10 +1811,14 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
-    if (IsMemberNameAt(refs, i)) {
+    if (i < member_depths.size() && member_depths[i] > 0) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
-      if (i >= 2 && enum_names.find(refs[i - 2].token.text) != enum_names.end()) return 6;
-      return MemberAccessTokenTypeForDepth(MemberAccessDepthAt(refs, i));
+      if (i < member_receivers.size() &&
+          !member_receivers[i].empty() &&
+          enum_names.find(member_receivers[i]) != enum_names.end()) {
+        return 6;
+      }
+      return MemberAccessTokenTypeForDepth(member_depths[i]);
     }
     if (IsFunctionDeclNameAt(refs, i)) return 3; // function declaration -> identifier
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
@@ -2081,6 +2077,10 @@ void ReplySemanticTokensFull(std::ostream& out,
   }
   const std::string& text = it->second;
   const auto refs = LexTokenRefs(it->second);
+  const char* debug_env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
+  if (debug_env && debug_env[0] != '\0' && debug_env[0] != '0') {
+    std::cerr << "[simple-lsp] token refs: " << refs.size() << "\n";
+  }
   std::unordered_set<std::string> import_aliases;
   CollectImportAliases(text, &import_aliases);
   std::unordered_set<size_t> enum_member_indices;
@@ -2172,6 +2172,32 @@ void ReplySemanticTokensFull(std::ostream& out,
         }
       }
     }
+    std::vector<uint32_t> member_depths(refs.size(), 0);
+    std::vector<std::string> member_receivers(refs.size());
+    for (size_t i = 0; i < refs.size(); ++i) {
+      if (refs[i].token.kind != Simple::Lang::TokenKind::Identifier) continue;
+      uint32_t depth = 0;
+      std::string receiver;
+      if (MemberAccessInfoFromText(text, refs[i].token, &depth, &receiver)) {
+        member_depths[i] = depth;
+        member_receivers[i] = std::move(receiver);
+      }
+    }
+    const char* debug_env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
+    if (debug_env && debug_env[0] != '\0' && debug_env[0] != '0') {
+      std::cerr << "[simple-lsp] member access scan\n";
+      for (size_t i = 0; i < refs.size(); ++i) {
+        if (refs[i].token.kind != Simple::Lang::TokenKind::Identifier) continue;
+        std::cerr << "  " << (refs[i].token.line > 0 ? refs[i].token.line - 1 : 0)
+                  << ":" << (refs[i].token.column > 0 ? refs[i].token.column - 1 : 0)
+                  << " " << refs[i].token.text
+                  << " depth=" << member_depths[i];
+        if (!member_receivers[i].empty()) {
+          std::cerr << " recv=" << member_receivers[i];
+        }
+        std::cerr << "\n";
+      }
+    }
     for (size_t i = 0; i < refs.size(); ++i) {
       const auto& token = refs[i].token;
       if (token.kind == Simple::Lang::TokenKind::End ||
@@ -2185,7 +2211,9 @@ void ReplySemanticTokensFull(std::ostream& out,
                                                                enum_names,
                                                                module_names,
                                                                artifact_names,
-                                                               artifact_field_indices);
+                                                               artifact_field_indices,
+                                                               member_depths,
+                                                               member_receivers);
       if (token_type == 3 && token.kind == Simple::Lang::TokenKind::Identifier) {
         continue;
       }
@@ -2638,7 +2666,7 @@ void ReplyWorkspaceSymbols(std::ostream& out,
       if (!IsDeclNameAt(refs, ref.index)) continue;
       if (!query_lc.empty()) {
         const std::string name_lc = LowerAscii(ref.token.text);
-        if (name_lc.rfind(query_lc, 0) != 0) continue;
+        if (name_lc.find(query_lc) == std::string::npos) continue;
       }
       SymbolInfo info;
       info.uri = uri;
@@ -3163,7 +3191,8 @@ int RunServer(std::istream& in, std::ostream& out) {
 
     if (method == "workspace/symbol") {
       if (has_id) {
-        const std::string query = ExtractWorkspaceSymbolQuery(body);
+        std::string query;
+        ExtractJsonStringField(body, "query", &query);
         ReplyWorkspaceSymbols(out, id_raw, query, open_docs);
       }
       continue;

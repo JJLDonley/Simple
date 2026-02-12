@@ -202,6 +202,9 @@
 ## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.
 - Strengthened LSP semantic token tests to assert member call classification, enum-member access type, and depth-based member cycling.
+- Adjusted workspace symbol filtering to use substring matching and added coverage for the query filter.
+- Added text-based member access detection for semantic tokens and expanded debug output to include token refs and member depth scans when enabled.
+- Updated LSP tests to resolve the LSP binary from build artifacts for CMake builds and added workspace symbol filter test isolation.
 - Added compiled locals compare+bool chain JIT test to validate LOAD/STORE with CMP/BOOL ops.
 - Added opcode-hot locals compare+bool chain JIT test with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot locals compare+bool chain coverage for CALL_INDIRECT path.

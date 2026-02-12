@@ -19,6 +19,36 @@ std::string TempPath(const std::string& name) {
   return (fs::temp_directory_path() / name).string();
 }
 
+std::string LspBinaryPath() {
+  namespace fs = std::filesystem;
+  fs::path cursor = fs::current_path();
+  for (int i = 0; i < 6; ++i) {
+    const fs::path build_simplevm = cursor / "build" / "bin" / "simplevm";
+    if (fs::exists(build_simplevm)) return build_simplevm.string();
+    const fs::path simplevm = cursor / "bin" / "simplevm";
+    if (fs::exists(simplevm)) return simplevm.string();
+    const fs::path simple = cursor / "bin" / "simple";
+    if (fs::exists(simple)) return simple.string();
+    if (!cursor.has_parent_path()) break;
+    const fs::path parent = cursor.parent_path();
+    if (parent == cursor) break;
+    cursor = parent;
+  }
+  return "bin/simple";
+}
+
+std::string LspPipeCommand(const std::string& in_path,
+                           const std::string& out_path,
+                           const std::string& err_path,
+                           const std::string& env_prefix = {}) {
+  std::string cmd;
+  if (!env_prefix.empty()) {
+    cmd = env_prefix + " ";
+  }
+  cmd += "cat " + in_path + " | " + LspBinaryPath() + " lsp 1> " + out_path + " 2> " + err_path;
+  return cmd;
+}
+
 std::string ReadFileText(const std::string& path) {
   std::ifstream in(path, std::ios::binary);
   if (!in) return {};
@@ -118,7 +148,7 @@ bool LspInitializeHandshake() {
   const std::string input =
       BuildLspFrame(init_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -150,7 +180,7 @@ bool LspDidOpenPublishesDiagnostics() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -179,7 +209,7 @@ bool LspDidOpenEmptyDocumentClearsDiagnostics() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -217,7 +247,7 @@ bool LspDidOpenResolvesLocalFileImport() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -247,7 +277,7 @@ bool LspDiagnosticsSpanUndeclaredIdentifierLength() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -281,7 +311,7 @@ bool LspDidChangeRefreshesDiagnostics() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -318,7 +348,7 @@ bool LspDidChangeIgnoresStaleVersion() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -357,7 +387,7 @@ bool LspDidChangeIgnoresUnknownDocument() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -396,7 +426,7 @@ bool LspDidChangeIgnoresDuplicateVersion() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -444,7 +474,7 @@ bool LspHoverReturnsIdentifier() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -476,7 +506,7 @@ bool LspHoverIncludesDeclaredType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -513,7 +543,7 @@ bool LspHoverResolvesTypeAcrossOpenDocuments() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -544,7 +574,7 @@ bool LspHoverShowsReservedAliasSignature() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -575,7 +605,7 @@ bool LspHoverShowsIoAliasSignature() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -606,7 +636,7 @@ bool LspCompletionReturnsItems() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -639,7 +669,7 @@ bool LspCompletionIncludesLocalDeclarations() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -677,7 +707,7 @@ bool LspCompletionIncludesOpenDocumentDeclarations() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -709,7 +739,7 @@ bool LspCompletionFiltersByTypedPrefix() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -741,7 +771,7 @@ bool LspCompletionFiltersMemberSuffixByReceiver() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -774,7 +804,7 @@ bool LspCompletionSuggestsReservedImportModules() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -809,7 +839,7 @@ bool LspCompletionSuggestsReservedImportModulesUnquoted() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -842,7 +872,7 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -877,7 +907,7 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -909,7 +939,7 @@ bool LspSignatureHelpReturnsSignature() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -944,7 +974,7 @@ bool LspSignatureHelpTracksActiveParameter() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -976,7 +1006,7 @@ bool LspSignatureHelpReturnsFormatSignature() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1009,7 +1039,7 @@ bool LspSignatureHelpSupportsAtCastCalls() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1042,7 +1072,7 @@ bool LspSignatureHelpForLocalFunctionDeclaration() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1077,7 +1107,7 @@ bool LspSignatureHelpForReservedAliasMember() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1111,7 +1141,7 @@ bool LspSignatureHelpForIoAliasFormatCall() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1144,7 +1174,7 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1178,7 +1208,7 @@ bool LspSemanticTokensReturnsData() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1211,7 +1241,7 @@ bool LspSemanticTokensMarkFunctionDeclarations() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1244,9 +1274,7 @@ bool LspSemanticTokensDebugEnvDoesNotBreakResponse() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd =
-      "SIMPLE_LSP_DEBUG_TOKENS=1 cat " + in_path + " | bin/simple lsp 1> " +
-      out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path, "SIMPLE_LSP_DEBUG_TOKENS=1");
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   return out_contents.find("\"id\":67") != std::string::npos &&
@@ -1275,7 +1303,7 @@ bool LspSemanticTokensClassifyFunctionsAndParameters() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1309,7 +1337,7 @@ bool LspSemanticTokensMemberCallIsFunction() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1356,7 +1384,7 @@ bool LspSemanticTokensFallbackOnMalformedSource() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1389,7 +1417,7 @@ bool LspSemanticTokensClassifyImportAliasAsNamespace() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1424,7 +1452,7 @@ bool LspSemanticTokensClassifyEnumMembers() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1459,17 +1487,18 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t member_pos = open_text.find("Red;");
+  const std::string line_text = "value : Color = Color.Red;";
+  const size_t member_pos = line_text.find("Red");
   if (member_pos == std::string::npos) return false;
   const int target_line = 1;
-  const int target_col = static_cast<int>(member_pos - open_text.rfind('\n', member_pos) - 1);
+  const int target_col = static_cast<int>(member_pos);
   const int target_len = 3;
   int found_type = -1;
   for (const auto& entry : entries) {
@@ -1508,7 +1537,7 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1543,7 +1572,7 @@ bool LspSemanticTokensClassifyArtifactMembers() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1579,7 +1608,7 @@ bool LspSemanticTokensClassifyEnumNameAsType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1613,7 +1642,7 @@ bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1647,7 +1676,7 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1681,7 +1710,7 @@ bool LspSemanticTokensCycleMemberAccessDepth() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1738,7 +1767,7 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1772,7 +1801,7 @@ bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1806,7 +1835,7 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1854,7 +1883,7 @@ bool LspSemanticTokensArtifactDeclNameIsVariable() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1865,6 +1894,37 @@ bool LspSemanticTokensArtifactDeclNameIsVariable() {
          !data.empty();
 }
 
+bool LspWorkspaceSymbolsFilterBySubstring() {
+  const std::string in_path = TempPath("simple_lsp_workspace_symbols_filter_in.txt");
+  const std::string out_path = TempPath("simple_lsp_workspace_symbols_filter_out.txt");
+  const std::string err_path = TempPath("simple_lsp_workspace_symbols_filter_err.txt");
+  const std::string uri = "file:///workspace/workspace_symbols.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"Alpha : i32 = 1;\\nBetaAlpha : i32 = 2;\\nGamma : i32 = 3;\"}}}";
+  const std::string symbols_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":70,\"method\":\"workspace/symbol\",\"params\":{\"query\":\"pha\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(symbols_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":70") != std::string::npos &&
+         out_contents.find("\"name\":\"Alpha\"") != std::string::npos &&
+         out_contents.find("\"name\":\"BetaAlpha\"") != std::string::npos &&
+         out_contents.find("\"name\":\"Gamma\"") == std::string::npos;
+}
 bool LspDefinitionReturnsLocation() {
   const std::string in_path = TempPath("simple_lsp_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_definition_out.txt");
@@ -1887,7 +1947,7 @@ bool LspDefinitionReturnsLocation() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1925,7 +1985,7 @@ bool LspDefinitionResolvesAcrossOpenDocuments() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1958,7 +2018,7 @@ bool LspDeclarationReturnsLocation() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -1991,7 +2051,7 @@ bool LspReferencesReturnsLocations() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2032,7 +2092,7 @@ bool LspReferencesSpanOpenDocuments() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2065,7 +2125,7 @@ bool LspReferencesCanExcludeDeclaration() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2100,7 +2160,7 @@ bool LspDocumentHighlightReturnsLocalHighlights() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2139,7 +2199,7 @@ bool LspDocumentSymbolReturnsTopLevel() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2171,7 +2231,7 @@ bool LspDocumentSymbolMarksFunctionKind() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2203,7 +2263,7 @@ bool LspDocumentSymbolIncludesArtifactFields() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2237,7 +2297,7 @@ bool LspDocumentSymbolIncludesEnumMembers() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2277,7 +2337,7 @@ bool LspWorkspaceSymbolReturnsSymbols() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2286,7 +2346,7 @@ bool LspWorkspaceSymbolReturnsSymbols() {
          out_contents.find("\"id\":9") != std::string::npos &&
          out_contents.find("\"name\":\"main\"") != std::string::npos &&
          out_contents.find("\"name\":\"main_worker\"") != std::string::npos &&
-         out_contents.find("\"name\":\"domain\"") == std::string::npos &&
+         out_contents.find("\"name\":\"domain\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_a + "\"") != std::string::npos &&
          out_contents.find("\"uri\":\"" + uri_b + "\"") != std::string::npos;
 }
@@ -2312,7 +2372,7 @@ bool LspWorkspaceSymbolMarksFunctionKind() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2345,7 +2405,7 @@ bool LspRenameReturnsWorkspaceEdit() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2382,7 +2442,7 @@ bool LspRenameRejectsReservedKeyword() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2414,7 +2474,7 @@ bool LspRenameRejectsReservedAliasMember() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2452,7 +2512,7 @@ bool LspRenameSpansOpenDocuments() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2485,7 +2545,7 @@ bool LspPrepareRenameReturnsRangeAndPlaceholder() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2520,7 +2580,7 @@ bool LspPrepareRenameRejectsReservedAliasMember() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2553,7 +2613,7 @@ bool LspCodeActionReturnsQuickFix() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2590,7 +2650,7 @@ bool LspCodeActionInsertsAfterImports() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2625,7 +2685,7 @@ bool LspCodeActionInfersFloatDeclarationType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2659,7 +2719,7 @@ bool LspCodeActionInfersBoolDeclarationType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2693,7 +2753,7 @@ bool LspCodeActionInfersStringDeclarationType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2727,7 +2787,7 @@ bool LspCodeActionInfersCharDeclarationType() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2761,7 +2821,7 @@ bool LspCodeActionRespectsOnlyFilter() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2794,7 +2854,7 @@ bool LspCodeActionRespectsDiagnosticCodeFilter() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2829,7 +2889,7 @@ bool LspCancelRequestSuppressesResponse() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2865,7 +2925,7 @@ bool LspResponsesFollowRequestOrder() {
       BuildLspFrame(shutdown_req) +
       BuildLspFrame(exit_req);
   if (!WriteBinaryFile(in_path, input)) return false;
-  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
   if (!RunCommand(cmd)) return false;
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
@@ -2939,6 +2999,8 @@ const TestCase kLspTests[] = {
    LspSemanticTokensMarkReservedMemberDefaultLibrary},
   {"lsp_semantic_tokens_artifact_decl_name_is_variable",
    LspSemanticTokensArtifactDeclNameIsVariable},
+  {"lsp_workspace_symbols_filter_by_substring",
+   LspWorkspaceSymbolsFilterBySubstring},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
   {"lsp_declaration_returns_location", LspDeclarationReturnsLocation},
