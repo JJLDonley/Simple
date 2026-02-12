@@ -707,9 +707,9 @@ bool LspCompletionReturnsEnumMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":48") != std::string::npos &&
-         out_contents.find("\"label\":\"Color.Red\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Color.Green\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Color.Blue\"") != std::string::npos;
+         out_contents.find("\"label\":\"Red\"") != std::string::npos &&
+         out_contents.find("\"label\":\"Green\"") != std::string::npos &&
+         out_contents.find("\"label\":\"Blue\"") != std::string::npos;
 }
 
 bool LspCompletionReturnsArtifactMembers() {
@@ -721,7 +721,7 @@ bool LspCompletionReturnsArtifactMembers() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Vec2 :: artifact { x : f32, y : f32 }\\npoint : Vec2 = { 0, 0 }\\npoint.\"}}}";
+      "\"text\":\"Vec2 :: artifact { x : f32; y : f32 }\\npoint : Vec2 = { 0, 0 }\\npoint.\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":49,\"method\":\"textDocument/completion\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":6}}}";
@@ -740,8 +740,8 @@ bool LspCompletionReturnsArtifactMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":49") != std::string::npos &&
-         out_contents.find("\"label\":\"Vec2.x\"") != std::string::npos &&
-         out_contents.find("\"label\":\"Vec2.y\"") != std::string::npos;
+         out_contents.find("\"label\":\"x\"") != std::string::npos &&
+         out_contents.find("\"label\":\"y\"") != std::string::npos;
 }
 
 bool LspCompletionIncludesLocalDeclarations() {
@@ -874,8 +874,8 @@ bool LspCompletionFiltersMemberSuffixByReceiver() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":17") != std::string::npos &&
-         out_contents.find("\"label\":\"IO.print\"") != std::string::npos &&
-         out_contents.find("\"label\":\"IO.println\"") != std::string::npos &&
+         out_contents.find("\"label\":\"print\"") != std::string::npos &&
+         out_contents.find("\"label\":\"println\"") != std::string::npos &&
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
@@ -975,10 +975,10 @@ bool LspCompletionIncludesReservedModuleAliasMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":33") != std::string::npos &&
-         out_contents.find("\"label\":\"DL.call_i32\"") != std::string::npos &&
-         out_contents.find("\"label\":\"DL.call_i64\"") != std::string::npos &&
-         out_contents.find("\"label\":\"DL.call_str0\"") != std::string::npos &&
-         out_contents.find("\"label\":\"DL.open\"") == std::string::npos &&
+         out_contents.find("\"label\":\"call_i32\"") != std::string::npos &&
+         out_contents.find("\"label\":\"call_i64\"") != std::string::npos &&
+         out_contents.find("\"label\":\"call_str0\"") != std::string::npos &&
+         out_contents.find("\"label\":\"open\"") == std::string::npos &&
          out_contents.find("\"label\":\"import\"") == std::string::npos;
 }
 
@@ -1010,8 +1010,8 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
-         out_contents.find("\"label\":\"io.buffer_new\"") != std::string::npos &&
-         out_contents.find("\"label\":\"io.buffer_copy\"") != std::string::npos;
+         out_contents.find("\"label\":\"buffer_new\"") != std::string::npos &&
+         out_contents.find("\"label\":\"buffer_copy\"") != std::string::npos;
 }
 
 bool LspSignatureHelpReturnsSignature() {

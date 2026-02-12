@@ -844,6 +844,23 @@ bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
 bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
 const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character);
 
+bool ResolveDeclaredTypeForIdent(const std::string& text, const std::string& ident, std::string* out_type) {
+  if (!out_type || ident.empty()) return false;
+  const auto refs = LexTokenRefs(text);
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != ident) continue;
+    if (!IsDeclNameAt(refs, ref.index)) continue;
+    if (ref.index + 2 < refs.size() &&
+        refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
+        refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+      *out_type = refs[ref.index + 2].token.text;
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string CallNameAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -958,11 +975,11 @@ std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
       "System.io", "System.math", "System.time", "System.file", "System.dl",
-      "System.os", "System.fs", "System.log",
+      "System.os", "System.log",
       "system.io", "system.math", "system.time", "system.file", "system.dl",
-      "system.os", "system.fs", "system.log",
-      "IO", "Math", "Time", "File", "DL", "OS", "FS", "Log",
-      "io", "math", "time", "file", "dl", "os", "fs", "log"};
+      "system.os", "system.log",
+      "IO", "Math", "Time", "File", "DL", "OS", "Log",
+      "io", "math", "time", "file", "dl", "os", "log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1452,22 +1469,6 @@ void ReplyHover(std::ostream& out,
   std::string hover_text = ident;
   const auto refs = LexTokenRefs(it->second);
   const TokenRef* target = FindIdentifierAt(refs, line, character);
-  auto resolve_decl_type = [&](const std::string& text, std::string* out_type) -> bool {
-    if (!out_type) return false;
-    const auto refs = LexTokenRefs(text);
-    for (const auto& ref : refs) {
-      if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
-      if (ref.token.text != ident) continue;
-      if (!IsDeclNameAt(refs, ref.index)) continue;
-      if (ref.index + 2 < refs.size() &&
-          refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon &&
-          refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
-        *out_type = refs[ref.index + 2].token.text;
-        return true;
-      }
-    }
-    return false;
-  };
   auto resolve_signature = [&](const std::string& text,
                                const std::string& name,
                                std::string* out_sig) -> bool {
@@ -1509,13 +1510,13 @@ void ReplyHover(std::ostream& out,
     hover_text = signature;
   } else {
   std::string decl_type;
-  if (!resolve_decl_type(it->second, &decl_type)) {
+  if (!ResolveDeclaredTypeForIdent(it->second, ident, &decl_type)) {
     const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
     for (const auto& other_uri : sorted_uris) {
       const auto other_it = open_docs.find(other_uri);
       if (other_it == open_docs.end()) continue;
       const std::string& other_text = other_it->second;
-      if (resolve_decl_type(other_text, &decl_type)) break;
+      if (ResolveDeclaredTypeForIdent(other_text, ident, &decl_type)) break;
     }
   }
   if (!decl_type.empty()) {
@@ -1555,12 +1556,27 @@ void ReplyCompletion(std::ostream& out,
   bool import_context = false;
   std::string prefix_lc;
   std::string receiver_lc;
+  std::string receiver_text;
+  std::string receiver_type_lc;
   if (doc_it != open_docs.end()) {
     std::string import_prefix;
     import_context = ImportPrefixAtPosition(doc_it->second, line, character, &import_prefix);
     prefix_lc =
         LowerAscii(import_context ? import_prefix : CompletionPrefixAtPosition(doc_it->second, line, character));
-    receiver_lc = LowerAscii(CompletionMemberReceiverAtPosition(doc_it->second, line, character));
+    receiver_text = CompletionMemberReceiverAtPosition(doc_it->second, line, character);
+    receiver_lc = LowerAscii(receiver_text);
+    if (!receiver_text.empty()) {
+      std::string receiver_type;
+      if (!ResolveDeclaredTypeForIdent(doc_it->second, receiver_text, &receiver_type)) {
+        const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+        for (const auto& other_uri : sorted_uris) {
+          const auto other_it = open_docs.find(other_uri);
+          if (other_it == open_docs.end()) continue;
+          if (ResolveDeclaredTypeForIdent(other_it->second, receiver_text, &receiver_type)) break;
+        }
+      }
+      receiver_type_lc = LowerAscii(receiver_type);
+    }
   }
   if (import_context) {
     labels = CollectImportCandidates(open_docs);
@@ -1607,13 +1623,15 @@ void ReplyCompletion(std::ostream& out,
   bool first_item = true;
   for (size_t i = 0; i < labels.size(); ++i) {
     const std::string& label = labels[i];
+    std::string item_label = label;
     if (!receiver_lc.empty()) {
       const size_t dot = label.find('.');
       if (dot == std::string::npos) continue;
       const std::string left = LowerAscii(label.substr(0, dot));
       const std::string right = LowerAscii(label.substr(dot + 1));
-      if (left != receiver_lc) continue;
+      if (left != receiver_lc && (receiver_type_lc.empty() || left != receiver_type_lc)) continue;
       if (!prefix_lc.empty() && right.rfind(prefix_lc, 0) != 0) continue;
+      item_label = label.substr(dot + 1);
     } else if (!prefix_lc.empty()) {
       const std::string label_lc = LowerAscii(label);
       if (label_lc.rfind(prefix_lc, 0) != 0) continue;
@@ -1623,7 +1641,7 @@ void ReplyCompletion(std::ostream& out,
     const bool is_builtin = label.find('.') != std::string::npos;
     const bool is_keyword = std::find(kKeywords.begin(), kKeywords.end(), label) != kKeywords.end();
     const int kind = import_context ? 9 : (is_builtin ? 3 : (is_keyword ? 14 : 6));
-    items += "{\"label\":\"" + JsonEscape(label) + "\",\"kind\":" + std::to_string(kind) + "}";
+    items += "{\"label\":\"" + JsonEscape(item_label) + "\",\"kind\":" + std::to_string(kind) + "}";
   }
   WriteLspMessage(
       out,

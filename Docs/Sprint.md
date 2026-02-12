@@ -1615,3 +1615,8 @@
   - function declaration semantic token test now expects identifier + declaration modifier.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.
+- Improved LSP member completion:
+  - member completions now resolve receiver variable types (e.g. `point.` suggests `Vec2` fields).
+  - completion labels for member contexts now show member suffixes only (e.g. `print`, `x`) with updated tests.
+- Updated LSP regression coverage:
+  - enum/artifact/member completion tests now expect suffix labels and artifact syntax uses semicolons.
