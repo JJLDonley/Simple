@@ -1766,7 +1766,28 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
          refs[i - 2].token.kind == TK::Identifier;
 }
 
-// MemberAccessDepthAt removed after switching to neutral member identifiers.
+uint32_t MemberAccessDepthAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (!IsMemberNameAt(refs, i)) return 0;
+  uint32_t depth = 0;
+  size_t j = i;
+  while (j >= 2 &&
+         refs[j - 1].token.kind == TK::Dot &&
+         refs[j - 2].token.kind == TK::Identifier) {
+    ++depth;
+    j -= 2;
+  }
+  return depth;
+}
+
+uint32_t MemberAccessTokenTypeForDepth(uint32_t depth) {
+  if (depth == 0) return 5;
+  switch ((depth - 1) % 3) {
+    case 0: return 5; // property
+    case 1: return 6; // enumMember
+    default: return 7; // namespace
+  }
+}
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
@@ -1800,7 +1821,8 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Identifier) {
     if (IsMemberNameAt(refs, i)) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
-      return 3; // identifier
+      if (i >= 2 && enum_names.find(refs[i - 2].token.text) != enum_names.end()) return 6;
+      return MemberAccessTokenTypeForDepth(MemberAccessDepthAt(refs, i));
     }
     if (IsFunctionDeclNameAt(refs, i)) return 3; // function declaration -> identifier
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
