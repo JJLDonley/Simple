@@ -643,8 +643,8 @@ void PublishDiagnostics(std::ostream& out,
       size_t ident_len = 0;
       while (ident_len < ident.size()) {
         const char c = ident[ident_len];
-        const bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '_';
-        if (!ok) break;
+        const bool is_ident_char = std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+        if (!is_ident_char) break;
         ++ident_len;
       }
       if (ident_len > 0) {
@@ -1688,6 +1688,83 @@ uint32_t SemanticTokenTypeIndex(const Simple::Lang::Token& token) {
   return 3;                                      // variable
 }
 
+struct SemanticTokenEntry {
+  uint32_t line = 0;
+  uint32_t col = 0;
+  uint32_t len = 1;
+  uint32_t type = 3;
+  uint32_t modifiers = 0;
+};
+
+bool IsKeywordText(const std::string& text) {
+  static const std::unordered_set<std::string> kKeywords = {
+      "while", "for", "break", "skip", "return", "if", "else", "default",
+      "fn", "callback", "self", "artifact", "enum", "module", "import", "extern", "as",
+      "true", "false",
+  };
+  return kKeywords.find(text) != kKeywords.end();
+}
+
+bool IsFunctionSignatureLParenAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size() || refs[i].token.kind != TK::LParen) return false;
+  if (i < 3) return false;
+  return refs[i - 1].token.kind == TK::Identifier &&
+         refs[i - 2].token.kind == TK::Colon &&
+         refs[i - 3].token.kind == TK::Identifier;
+}
+
+bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
+  return i + 3 < refs.size() &&
+         refs[i + 1].token.kind == TK::Colon &&
+         refs[i + 3].token.kind == TK::LParen;
+}
+
+bool IsParameterDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
+  if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::Colon) return false;
+  if (i > 0 && (refs[i - 1].token.kind == TK::LParen || refs[i - 1].token.kind == TK::Comma)) {
+    return true;
+  }
+  size_t depth = 0;
+  for (size_t j = i; j > 0; --j) {
+    const size_t idx = j - 1;
+    if (refs[idx].token.kind == TK::RParen) {
+      ++depth;
+      continue;
+    }
+    if (refs[idx].token.kind != TK::LParen) continue;
+    if (depth > 0) {
+      --depth;
+      continue;
+    }
+    return IsFunctionSignatureLParenAt(refs, idx);
+  }
+  return false;
+}
+
+bool IsFunctionCallNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
+  if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::LParen) return false;
+  if (IsDeclNameAt(refs, i)) return false;
+  if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(refs[i].token.text)) {
+    return false;
+  }
+  return true;
+}
+
+bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  return i >= 2 &&
+         refs[i].token.kind == TK::Identifier &&
+         refs[i - 1].token.kind == TK::Dot &&
+         refs[i - 2].token.kind == TK::Identifier;
+}
+
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 3;
@@ -1697,15 +1774,18 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t 
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
-    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
-    if (IsDeclNameAt(refs, i)) {
-      if (i + 3 < refs.size() &&
-          refs[i + 1].token.kind == TK::Colon &&
-          refs[i + 3].token.kind == TK::LParen) {
-        return 2; // function declaration
-      }
-      return 3; // variable-like declaration
+    if (IsMemberNameAt(refs, i)) {
+      if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
+      return 5; // property
     }
+    if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
+    if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
+    if (IsFunctionCallNameAt(refs, i)) return 2; // function call
+    if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::Dot) return 7; // namespace/receiver
+    if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
+    if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
+    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
+    if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
     if (IsPrimitiveTypeName(token.text)) return 1;
   }
   return SemanticTokenTypeIndex(token);
@@ -1714,10 +1794,162 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t 
 uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 0;
-  if (refs[i].token.kind == TK::Identifier && IsDeclNameAt(refs, i)) {
+  if (refs[i].token.kind == TK::Identifier &&
+      (IsDeclNameAt(refs, i) || IsParameterDeclNameAt(refs, i))) {
     return 1u << 0; // declaration
   }
   return 0;
+}
+
+void CollectSemanticTokensFallback(const std::string& text, std::vector<SemanticTokenEntry>* out) {
+  if (!out) return;
+  out->clear();
+  uint32_t line = 0;
+  uint32_t col = 0;
+  size_t i = 0;
+  while (i < text.size()) {
+    const char c = text[i];
+    if (c == '\n') {
+      ++line;
+      col = 0;
+      ++i;
+      continue;
+    }
+    if (std::isspace(static_cast<unsigned char>(c))) {
+      ++col;
+      ++i;
+      continue;
+    }
+    if (c == '/' && i + 1 < text.size() && text[i + 1] == '/') {
+      while (i < text.size() && text[i] != '\n') {
+        ++i;
+        ++col;
+      }
+      continue;
+    }
+    if (c == '/' && i + 1 < text.size() && text[i + 1] == '*') {
+      i += 2;
+      col += 2;
+      while (i < text.size()) {
+        if (text[i] == '\n') {
+          ++line;
+          col = 0;
+          ++i;
+          continue;
+        }
+        if (text[i] == '*' && i + 1 < text.size() && text[i + 1] == '/') {
+          i += 2;
+          col += 2;
+          break;
+        }
+        ++i;
+        ++col;
+      }
+      continue;
+    }
+    if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
+      const uint32_t start_col = col;
+      const size_t start_i = i;
+      ++i;
+      ++col;
+      while (i < text.size() && IsIdentChar(text[i])) {
+        ++i;
+        ++col;
+      }
+      const std::string ident = text.substr(start_i, i - start_i);
+      uint32_t type = 3;
+      if (IsKeywordText(ident)) type = 0;
+      else if (IsPrimitiveTypeName(ident)) type = 1;
+      out->push_back(SemanticTokenEntry{line, start_col, static_cast<uint32_t>(ident.size()), type, 0});
+      continue;
+    }
+    if (std::isdigit(static_cast<unsigned char>(c))) {
+      const uint32_t start_col = col;
+      size_t start_i = i;
+      ++i;
+      ++col;
+      bool seen_dot = false;
+      while (i < text.size()) {
+        const char n = text[i];
+        if (std::isdigit(static_cast<unsigned char>(n))) {
+          ++i;
+          ++col;
+          continue;
+        }
+        if (!seen_dot && n == '.' && i + 1 < text.size() &&
+            std::isdigit(static_cast<unsigned char>(text[i + 1]))) {
+          seen_dot = true;
+          ++i;
+          ++col;
+          continue;
+        }
+        break;
+      }
+      out->push_back(SemanticTokenEntry{
+          line,
+          start_col,
+          static_cast<uint32_t>(i - start_i),
+          9,
+          0,
+      });
+      continue;
+    }
+    if (c == '"' || c == '\'') {
+      const char quote = c;
+      const uint32_t start_col = col;
+      size_t start_i = i;
+      ++i;
+      ++col;
+      bool escaped = false;
+      while (i < text.size()) {
+        const char n = text[i];
+        if (n == '\n') break;
+        ++i;
+        ++col;
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (n == '\\') {
+          escaped = true;
+          continue;
+        }
+        if (n == quote) break;
+      }
+      out->push_back(SemanticTokenEntry{
+          line,
+          start_col,
+          static_cast<uint32_t>(i - start_i),
+          8,
+          0,
+      });
+      continue;
+    }
+    if (std::ispunct(static_cast<unsigned char>(c))) {
+      out->push_back(SemanticTokenEntry{line, col, 1, 10, 0});
+    }
+    ++i;
+    ++col;
+  }
+}
+
+std::string EncodeSemanticTokenData(const std::vector<SemanticTokenEntry>& entries) {
+  std::string data;
+  uint32_t prev_line = 0;
+  uint32_t prev_col = 0;
+  bool first = true;
+  for (const auto& entry : entries) {
+    const uint32_t delta_line = first ? entry.line : (entry.line - prev_line);
+    const uint32_t delta_start = first ? entry.col : (entry.line == prev_line ? (entry.col - prev_col) : entry.col);
+    if (!data.empty()) data += ",";
+    data += std::to_string(delta_line) + "," + std::to_string(delta_start) + "," +
+            std::to_string(entry.len) + "," + std::to_string(entry.type) + "," +
+            std::to_string(entry.modifiers);
+    prev_line = entry.line;
+    prev_col = entry.col;
+    first = false;
+  }
+  return data;
 }
 
 void ReplySemanticTokensFull(std::ostream& out,
@@ -1729,38 +1961,30 @@ void ReplySemanticTokensFull(std::ostream& out,
     WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
     return;
   }
-  Simple::Lang::Lexer lexer(it->second);
-  if (!lexer.Lex()) {
-    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":{\"data\":[]}}");
-    return;
-  }
-  const auto& tokens = lexer.Tokens();
+  const std::string& text = it->second;
   const auto refs = LexTokenRefs(it->second);
-  std::string data;
-  uint32_t prev_line = 0;
-  uint32_t prev_col = 0;
-  bool first = true;
-  for (size_t i = 0; i < tokens.size(); ++i) {
-    const auto& token = tokens[i];
-    if (token.kind == Simple::Lang::TokenKind::End ||
-        token.kind == Simple::Lang::TokenKind::Invalid) {
-      continue;
+  std::vector<SemanticTokenEntry> entries;
+  if (!refs.empty()) {
+    entries.reserve(refs.size());
+    for (size_t i = 0; i < refs.size(); ++i) {
+      const auto& token = refs[i].token;
+      if (token.kind == Simple::Lang::TokenKind::End ||
+          token.kind == Simple::Lang::TokenKind::Invalid) {
+        continue;
+      }
+      entries.push_back(SemanticTokenEntry{
+          token.line > 0 ? (token.line - 1) : 0,
+          token.column > 0 ? (token.column - 1) : 0,
+          static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
+          SemanticTokenTypeIndexForRef(refs, i),
+          SemanticTokenModifiersForRef(refs, i),
+      });
     }
-    const uint32_t line = token.line > 0 ? (token.line - 1) : 0;
-    const uint32_t col = token.column > 0 ? (token.column - 1) : 0;
-    const uint32_t len = static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1);
-    const uint32_t token_type = SemanticTokenTypeIndexForRef(refs, i);
-    const uint32_t modifiers = SemanticTokenModifiersForRef(refs, i);
-    const uint32_t delta_line = first ? line : (line - prev_line);
-    const uint32_t delta_start = first ? col : (line == prev_line ? (col - prev_col) : col);
-    if (!data.empty()) data += ",";
-    data += std::to_string(delta_line) + "," + std::to_string(delta_start) + "," +
-            std::to_string(len) + "," + std::to_string(token_type) + "," +
-            std::to_string(modifiers);
-    prev_line = line;
-    prev_col = col;
-    first = false;
   }
+  if (entries.empty()) {
+    CollectSemanticTokensFallback(text, &entries);
+  }
+  const std::string data = EncodeSemanticTokenData(entries);
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                            ",\"result\":{\"data\":[" + data + "]}}");
 }
@@ -2352,18 +2576,18 @@ int RunServer(std::istream& in, std::ostream& out) {
   std::unordered_map<std::string, uint32_t> open_doc_versions;
   std::unordered_set<std::string> canceled_request_ids;
   for (;;) {
-    std::string line;
+    std::string header_line;
     int content_length = -1;
     bool saw_any_header = false;
     for (;;) {
-      if (!std::getline(in, line)) {
+      if (!std::getline(in, header_line)) {
         return 0;
       }
       saw_any_header = true;
-      if (!line.empty() && line.back() == '\r') line.pop_back();
-      if (line.empty()) break;
-      if (StartsWithCaseInsensitive(line, "Content-Length:")) {
-        const std::string value = TrimCopy(line.substr(std::strlen("Content-Length:")));
+      if (!header_line.empty() && header_line.back() == '\r') header_line.pop_back();
+      if (header_line.empty()) break;
+      if (StartsWithCaseInsensitive(header_line, "Content-Length:")) {
+        const std::string value = TrimCopy(header_line.substr(std::strlen("Content-Length:")));
         try {
           content_length = std::stoi(value);
         } catch (...) {

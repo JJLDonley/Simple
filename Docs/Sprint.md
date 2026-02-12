@@ -1512,3 +1512,16 @@
   - `DL.Close(...)` / `DL.LastError()` and other alias-based Core.DL members now normalize correctly during both type inference and call emission.
   - normalized member resolution now uses resolved reserved module identity (not raw alias text) in fallback extern lookup paths.
 - Kept reserved import semantics aligned with current policy (`system.*`/short aliases user-facing; internal canonical lowering remains `Core.*`).
+
+## 2026-02-12
+- Hardened LSP semantic token stability for broken/in-progress edits:
+  - `textDocument/semanticTokens/full` now falls back to a lightweight line scanner when lexer tokenization fails, instead of returning empty token data.
+  - fallback emits keyword/type/string/number/operator/identifier lanes so editor colors stay usable while the document is temporarily malformed.
+- Improved semantic token classification quality (LSP-first highlighting posture):
+  - classify function declarations/calls as `function`,
+  - classify parameter declarations as `parameter`,
+  - classify member access names as `property` and member calls as `function`,
+  - classify receiver/import stems as `namespace`.
+- Added LSP regression coverage:
+  - semantic token classification test for function + parameter lanes,
+  - semantic token fallback test for malformed source (unterminated string) to ensure non-empty token output.
