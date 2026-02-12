@@ -202,6 +202,8 @@
 ## 2026-02-12
 - Added env overrides for JIT tier thresholds (SIMPLE_JIT_TIER0/TIER1/OPCODE) to support tuning and bench work.
 - Added JIT test coverage validating env-driven tier promotion and compiled execution.
+- Gated JIT ref-like ops on verifier stack maps for GC safety and added no-stack-map fallback coverage.
+- Allowed JIT compiled path to skip Line/Profile opcodes and updated opcode-hot unsupported coverage to use CONST_STRING.
 
 ## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.

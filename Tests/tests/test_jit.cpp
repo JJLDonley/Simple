@@ -1747,14 +1747,23 @@ std::vector<uint8_t> BuildJitOpcodeHotUnsupportedModule() {
   for (uint32_t i = 0; i < Simple::VM::kJitOpcodeThreshold + 1; ++i) {
     AppendU8(callee, static_cast<uint8_t>(OpCode::Nop));
   }
-  AppendU8(callee, static_cast<uint8_t>(OpCode::Line));
-  AppendU32(callee, 1);
-  AppendU32(callee, 2);
+  uint32_t const_id = 0;
+  std::vector<uint8_t> const_pool;
+  uint32_t str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "hot"));
+  AppendConstString(const_pool, str_offset, &const_id);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(callee, const_id);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(callee, 3);
   AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
 
-  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+  SigSpec entry_sig{0, 0, {}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{0, 0};
+  std::vector<uint32_t> sig_ids{0, 0};
+  std::vector<uint8_t> types = BuildTypesI32RefString();
+  return BuildModuleWithFunctionsAndSigsWithTables(funcs, locals, sig_ids, {entry_sig}, const_pool, types);
 }
 
 std::vector<uint8_t> BuildJitTypedArrayFallbackModule() {
@@ -2364,6 +2373,9 @@ std::vector<uint8_t> BuildJitCompiledRefOpsModule() {
   std::vector<uint8_t> callee;
   AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(callee, 1);
+  AppendU32(callee, 1);
   AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(callee, static_cast<uint8_t>(OpCode::IsNull));
   AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
@@ -2374,6 +2386,39 @@ std::vector<uint8_t> BuildJitCompiledRefOpsModule() {
   AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
   AppendU8(callee, static_cast<uint8_t>(OpCode::RefNe));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitCompiledRefOpsNoStackMapModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::RefEq));
   AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(callee, 0);
@@ -2430,6 +2475,9 @@ std::vector<uint8_t> BuildJitCompiledArrayOpsModule() {
   std::vector<uint8_t> callee;
   AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(callee, 1);
+  AppendU32(callee, 1);
   AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
   AppendU32(callee, 0);
   AppendU8(callee, static_cast<uint8_t>(OpCode::Dup));
@@ -2497,6 +2545,9 @@ std::vector<uint8_t> BuildJitCompiledListOpsModule() {
   std::vector<uint8_t> callee;
   AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(callee, 1);
+  AppendU32(callee, 1);
   AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
   AppendU32(callee, 0);
   AppendU8(callee, static_cast<uint8_t>(OpCode::ListLen));
@@ -2562,6 +2613,9 @@ std::vector<uint8_t> BuildJitCompiledStringLenModule() {
   std::vector<uint8_t> callee;
   AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Line));
+  AppendU32(callee, 1);
+  AppendU32(callee, 1);
   AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
   AppendU32(callee, 0);
   AppendU8(callee, static_cast<uint8_t>(OpCode::StringLen));
@@ -6265,6 +6319,54 @@ bool RunJitCompiledRefOpsTest() {
   return true;
 }
 
+bool RunJitCompiledRefOpsNoStackMapTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledRefOpsNoStackMapModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for no-stack-map callee\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts.size() < 2) {
+    std::cerr << "expected jit dispatch counts for functions\n";
+    return false;
+  }
+  if (exec.jit_dispatch_counts[1] == 0) {
+    std::cerr << "expected jit dispatch count for no-stack-map callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] != 0) {
+    std::cerr << "expected no compiled execs for no-stack-map callee\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected exit code 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitCompiledArrayOpsTest() {
   std::vector<uint8_t> module_bytes = BuildJitCompiledArrayOpsModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -7703,6 +7805,7 @@ static const TestCase kJitTests[] = {
   {"jit_compiled_conversions", RunJitCompiledConversionsTest},
   {"jit_compiled_compare_scalar", RunJitCompiledCompareScalarTest},
   {"jit_compiled_ref_ops", RunJitCompiledRefOpsTest},
+  {"jit_compiled_ref_ops_no_stack_map", RunJitCompiledRefOpsNoStackMapTest},
   {"jit_compiled_array_ops", RunJitCompiledArrayOpsTest},
   {"jit_compiled_list_ops", RunJitCompiledListOpsTest},
   {"jit_compiled_string_len", RunJitCompiledStringLenTest},

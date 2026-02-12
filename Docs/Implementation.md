@@ -81,7 +81,7 @@ JIT upgrade plan (interpreter must remain canonical):
 - [x] Phase 2 guardrails: enforce type-safe stack discipline and retain fallback-on-failure.
 - [x] Phase 3: controlled heap/refs (strings/lists/arrays).
 - [x] Phase 3 scope: opt-in compiled support for ref-like ops with explicit safety checks.
-- [ ] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
+- [x] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
 - [ ] Phase 4: call support + tier tuning.
 - [x] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.
 - [ ] Phase 4 tuning: revisit tier thresholds and heuristics with bench coverage.

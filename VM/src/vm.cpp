@@ -2158,6 +2158,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     size_t locals_count = 0;
     bool saw_enter = false;
+    bool needs_stack_map = false;
+    auto note_ref_op = [&]() { needs_stack_map = true; };
     size_t pc = func.code_offset;
     size_t end_pc = func.code_offset + func.code_size;
     while (pc < end_pc) {
@@ -2175,6 +2177,17 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::Pop:
         case OpCode::Ret:
           break;
+        case OpCode::Line: {
+          if (pc + 8 > end_pc) return false;
+          pc += 8;
+          break;
+        }
+        case OpCode::ProfileStart:
+        case OpCode::ProfileEnd: {
+          if (pc + 4 > end_pc) return false;
+          pc += 4;
+          break;
+        }
         case OpCode::ConstI8:
         case OpCode::ConstU8:
         case OpCode::ConstBool: {
@@ -2204,6 +2217,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
         case OpCode::ConstNull: {
+          note_ref_op();
           break;
         }
         case OpCode::AddI32:
@@ -2340,6 +2354,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IsNull:
         case OpCode::RefEq:
         case OpCode::RefNe: {
+          note_ref_op();
           break;
         }
         case OpCode::ArrayLen:
@@ -2349,6 +2364,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ListGetI32:
         case OpCode::ListSetI32:
         case OpCode::StringLen: {
+          note_ref_op();
           break;
         }
         case OpCode::JmpTrue:
@@ -2407,6 +2423,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (sig.param_count > 0) {
       if (!saw_enter) return false;
       if (locals_count < sig.param_count) return false;
+    }
+    if (needs_stack_map) {
+      if (!have_meta) return false;
+      if (func_index >= vr.methods.size()) return false;
+      if (vr.methods[func_index].stack_maps.empty()) return false;
     }
     return true;
   };
@@ -2560,6 +2581,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             break;
           }
           break;
+        case OpCode::Line: {
+          if (pc + 8 > end_pc) {
+            return jit_fail("JIT compiled LINE out of bounds", op, inst_pc);
+          }
+          ReadU32(module.code, pc);
+          ReadU32(module.code, pc);
+          break;
+        }
+        case OpCode::ProfileStart:
+        case OpCode::ProfileEnd: {
+          if (pc + 4 > end_pc) {
+            return jit_fail("JIT compiled PROFILE out of bounds", op, inst_pc);
+          }
+          ReadU32(module.code, pc);
+          break;
+        }
         case OpCode::Dup: {
           if (local_stack.empty()) {
             return jit_fail("JIT compiled DUP underflow", op, inst_pc);
