@@ -2108,9 +2108,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::Pop:
         case OpCode::Ret:
           break;
-        case OpCode::ConstI32: {
+        case OpCode::ConstI8:
+        case OpCode::ConstU8:
+        case OpCode::ConstBool: {
+          if (pc + 1 > end_pc) return false;
+          pc += 1;
+          break;
+        }
+        case OpCode::ConstI16:
+        case OpCode::ConstU16:
+        case OpCode::ConstChar: {
+          if (pc + 2 > end_pc) return false;
+          pc += 2;
+          break;
+        }
+        case OpCode::ConstI32:
+        case OpCode::ConstU32:
+        case OpCode::ConstF32: {
           if (pc + 4 > end_pc) return false;
           pc += 4;
+          break;
+        }
+        case OpCode::ConstI64:
+        case OpCode::ConstU64:
+        case OpCode::ConstF64: {
+          if (pc + 8 > end_pc) return false;
+          pc += 8;
           break;
         }
         case OpCode::AddI32:
@@ -2124,6 +2147,63 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ModI32: {
           break;
         }
+        case OpCode::NegI32:
+        case OpCode::NegI64:
+        case OpCode::NegU32:
+        case OpCode::NegU64:
+        case OpCode::NegI8:
+        case OpCode::NegI16:
+        case OpCode::NegU8:
+        case OpCode::NegU16:
+        case OpCode::NegF32:
+        case OpCode::NegF64:
+        case OpCode::IncI32:
+        case OpCode::DecI32:
+        case OpCode::IncI64:
+        case OpCode::DecI64:
+        case OpCode::IncU32:
+        case OpCode::DecU32:
+        case OpCode::IncU64:
+        case OpCode::DecU64:
+        case OpCode::IncI8:
+        case OpCode::DecI8:
+        case OpCode::IncI16:
+        case OpCode::DecI16:
+        case OpCode::IncU8:
+        case OpCode::DecU8:
+        case OpCode::IncU16:
+        case OpCode::DecU16:
+        case OpCode::IncF32:
+        case OpCode::DecF32:
+        case OpCode::IncF64:
+        case OpCode::DecF64: {
+          break;
+        }
+        case OpCode::AddI64:
+        case OpCode::SubI64:
+        case OpCode::MulI64:
+        case OpCode::DivI64:
+        case OpCode::ModI64:
+        case OpCode::AddU32:
+        case OpCode::SubU32:
+        case OpCode::MulU32:
+        case OpCode::DivU32:
+        case OpCode::ModU32:
+        case OpCode::AddU64:
+        case OpCode::SubU64:
+        case OpCode::MulU64:
+        case OpCode::DivU64:
+        case OpCode::ModU64:
+        case OpCode::AddF32:
+        case OpCode::SubF32:
+        case OpCode::MulF32:
+        case OpCode::DivF32:
+        case OpCode::AddF64:
+        case OpCode::SubF64:
+        case OpCode::MulF64:
+        case OpCode::DivF64: {
+          break;
+        }
         case OpCode::CmpEqI32:
         case OpCode::CmpNeI32:
         case OpCode::CmpLtI32:
@@ -2132,9 +2212,59 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGeI32: {
           break;
         }
+        case OpCode::CmpEqU32:
+        case OpCode::CmpNeU32:
+        case OpCode::CmpLtU32:
+        case OpCode::CmpLeU32:
+        case OpCode::CmpGtU32:
+        case OpCode::CmpGeU32:
+        case OpCode::CmpEqI64:
+        case OpCode::CmpNeI64:
+        case OpCode::CmpLtI64:
+        case OpCode::CmpLeI64:
+        case OpCode::CmpGtI64:
+        case OpCode::CmpGeI64:
+        case OpCode::CmpEqU64:
+        case OpCode::CmpNeU64:
+        case OpCode::CmpLtU64:
+        case OpCode::CmpLeU64:
+        case OpCode::CmpGtU64:
+        case OpCode::CmpGeU64:
+        case OpCode::CmpEqF32:
+        case OpCode::CmpNeF32:
+        case OpCode::CmpLtF32:
+        case OpCode::CmpLeF32:
+        case OpCode::CmpGtF32:
+        case OpCode::CmpGeF32:
+        case OpCode::CmpEqF64:
+        case OpCode::CmpNeF64:
+        case OpCode::CmpLtF64:
+        case OpCode::CmpLeF64:
+        case OpCode::CmpGtF64:
+        case OpCode::CmpGeF64: {
+          break;
+        }
         case OpCode::BoolNot:
         case OpCode::BoolAnd:
         case OpCode::BoolOr: {
+          break;
+        }
+        case OpCode::AndI32:
+        case OpCode::OrI32:
+        case OpCode::XorI32:
+        case OpCode::ShlI32:
+        case OpCode::ShrI32:
+        case OpCode::AndI64:
+        case OpCode::OrI64:
+        case OpCode::XorI64:
+        case OpCode::ShlI64:
+        case OpCode::ShrI64: {
+          break;
+        }
+        case OpCode::Dup:
+        case OpCode::Dup2:
+        case OpCode::Swap:
+        case OpCode::Rot: {
           break;
         }
         case OpCode::JmpTrue:
@@ -2146,6 +2276,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::Jmp: {
           if (pc + 4 > end_pc) return false;
           pc += 4;
+          break;
+        }
+        case OpCode::ConvI32ToI64:
+        case OpCode::ConvI64ToI32:
+        case OpCode::ConvI32ToF32:
+        case OpCode::ConvI32ToF64:
+        case OpCode::ConvF32ToI32:
+        case OpCode::ConvF64ToI32:
+        case OpCode::ConvF32ToF64:
+        case OpCode::ConvF64ToF32: {
           break;
         }
         case OpCode::LoadLocal: {
@@ -2270,12 +2410,139 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             break;
           }
           break;
+        case OpCode::Dup: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled DUP underflow", op, inst_pc);
+          }
+          local_stack.push_back(local_stack.back());
+          break;
+        }
+        case OpCode::Dup2: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled DUP2 underflow", op, inst_pc);
+          }
+          Slot a = local_stack[local_stack.size() - 2];
+          Slot b = local_stack[local_stack.size() - 1];
+          local_stack.push_back(a);
+          local_stack.push_back(b);
+          break;
+        }
+        case OpCode::Swap: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled SWAP underflow", op, inst_pc);
+          }
+          Slot a = local_stack[local_stack.size() - 1];
+          Slot b = local_stack[local_stack.size() - 2];
+          local_stack[local_stack.size() - 1] = b;
+          local_stack[local_stack.size() - 2] = a;
+          break;
+        }
+        case OpCode::Rot: {
+          if (local_stack.size() < 3) {
+            return jit_fail("JIT compiled ROT underflow", op, inst_pc);
+          }
+          Slot c = local_stack[local_stack.size() - 1];
+          Slot b = local_stack[local_stack.size() - 2];
+          Slot a = local_stack[local_stack.size() - 3];
+          local_stack[local_stack.size() - 3] = b;
+          local_stack[local_stack.size() - 2] = c;
+          local_stack[local_stack.size() - 1] = a;
+          break;
+        }
+        case OpCode::ConstI8: {
+          if (pc + 1 > end_pc) {
+            return jit_fail("JIT compiled CONST_I8 out of bounds", op, inst_pc);
+          }
+          int8_t value = static_cast<int8_t>(ReadU8(module.code, pc));
+          local_stack.push_back(PackI32(value));
+          break;
+        }
+        case OpCode::ConstU8: {
+          if (pc + 1 > end_pc) {
+            return jit_fail("JIT compiled CONST_U8 out of bounds", op, inst_pc);
+          }
+          uint8_t value = ReadU8(module.code, pc);
+          local_stack.push_back(PackI32(static_cast<int32_t>(value)));
+          break;
+        }
+        case OpCode::ConstBool: {
+          if (pc + 1 > end_pc) {
+            return jit_fail("JIT compiled CONST_BOOL out of bounds", op, inst_pc);
+          }
+          uint8_t value = ReadU8(module.code, pc);
+          local_stack.push_back(PackI32(value ? 1 : 0));
+          break;
+        }
+        case OpCode::ConstI16: {
+          if (pc + 2 > end_pc) {
+            return jit_fail("JIT compiled CONST_I16 out of bounds", op, inst_pc);
+          }
+          int16_t value = static_cast<int16_t>(ReadU16(module.code, pc));
+          local_stack.push_back(PackI32(value));
+          break;
+        }
+        case OpCode::ConstU16: {
+          if (pc + 2 > end_pc) {
+            return jit_fail("JIT compiled CONST_U16 out of bounds", op, inst_pc);
+          }
+          uint16_t value = ReadU16(module.code, pc);
+          local_stack.push_back(PackI32(static_cast<int32_t>(value)));
+          break;
+        }
+        case OpCode::ConstChar: {
+          if (pc + 2 > end_pc) {
+            return jit_fail("JIT compiled CONST_CHAR out of bounds", op, inst_pc);
+          }
+          uint16_t value = ReadU16(module.code, pc);
+          local_stack.push_back(PackI32(static_cast<int32_t>(value)));
+          break;
+        }
         case OpCode::ConstI32: {
           if (pc + 4 > end_pc) {
             return jit_fail("JIT compiled CONST_I32 out of bounds", op, inst_pc);
           }
           int32_t value = ReadI32(module.code, pc);
           local_stack.push_back(PackI32(value));
+          break;
+        }
+        case OpCode::ConstU32: {
+          if (pc + 4 > end_pc) {
+            return jit_fail("JIT compiled CONST_U32 out of bounds", op, inst_pc);
+          }
+          uint32_t value = ReadU32(module.code, pc);
+          local_stack.push_back(PackI32(static_cast<int32_t>(value)));
+          break;
+        }
+        case OpCode::ConstI64: {
+          if (pc + 8 > end_pc) {
+            return jit_fail("JIT compiled CONST_I64 out of bounds", op, inst_pc);
+          }
+          int64_t value = ReadI64(module.code, pc);
+          local_stack.push_back(PackI64(value));
+          break;
+        }
+        case OpCode::ConstU64: {
+          if (pc + 8 > end_pc) {
+            return jit_fail("JIT compiled CONST_U64 out of bounds", op, inst_pc);
+          }
+          uint64_t value = ReadU64(module.code, pc);
+          local_stack.push_back(PackI64(static_cast<int64_t>(value)));
+          break;
+        }
+        case OpCode::ConstF32: {
+          if (pc + 4 > end_pc) {
+            return jit_fail("JIT compiled CONST_F32 out of bounds", op, inst_pc);
+          }
+          uint32_t bits = ReadU32(module.code, pc);
+          local_stack.push_back(PackF32Bits(bits));
+          break;
+        }
+        case OpCode::ConstF64: {
+          if (pc + 8 > end_pc) {
+            return jit_fail("JIT compiled CONST_F64 out of bounds", op, inst_pc);
+          }
+          uint64_t bits = ReadU64(module.code, pc);
+          local_stack.push_back(PackF64Bits(bits));
           break;
         }
         case OpCode::AddI32: {
@@ -2339,6 +2606,361 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           local_stack.push_back(PackI32(static_cast<int32_t>(a % b)));
           break;
         }
+        case OpCode::NegI32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_I32 underflow", op, inst_pc);
+          }
+          int32_t a = UnpackI32(local_stack.back());
+          local_stack.back() = PackI32(static_cast<int32_t>(-a));
+          break;
+        }
+        case OpCode::IncI32:
+        case OpCode::DecI32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_I32 underflow", op, inst_pc);
+          }
+          int32_t a = UnpackI32(local_stack.back());
+          a = (static_cast<OpCode>(op) == OpCode::IncI32) ? (a + 1) : (a - 1);
+          local_stack.back() = PackI32(a);
+          break;
+        }
+        case OpCode::AddU32:
+        case OpCode::SubU32:
+        case OpCode::MulU32:
+        case OpCode::DivU32:
+        case OpCode::ModU32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled U32 binop underflow", op, inst_pc);
+          }
+          uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          uint32_t out = 0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AddU32:
+              out = a + b;
+              break;
+            case OpCode::SubU32:
+              out = a - b;
+              break;
+            case OpCode::MulU32:
+              out = a * b;
+              break;
+            case OpCode::DivU32:
+              out = (b == 0) ? 0u : (a / b);
+              break;
+            case OpCode::ModU32:
+              out = (b == 0) ? 0u : (a % b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(static_cast<int32_t>(out)));
+          break;
+        }
+        case OpCode::NegU32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_U32 underflow", op, inst_pc);
+          }
+          uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          uint32_t out = 0u - a;
+          local_stack.back() = PackI32(static_cast<int32_t>(out));
+          break;
+        }
+        case OpCode::IncU32:
+        case OpCode::DecU32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_U32 underflow", op, inst_pc);
+          }
+          uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncU32) ? (a + 1u) : (a - 1u);
+          local_stack.back() = PackI32(static_cast<int32_t>(a));
+          break;
+        }
+        case OpCode::AddI64:
+        case OpCode::SubI64:
+        case OpCode::MulI64:
+        case OpCode::DivI64:
+        case OpCode::ModI64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled I64 binop underflow", op, inst_pc);
+          }
+          int64_t b = UnpackI64(local_stack.back());
+          local_stack.pop_back();
+          int64_t a = UnpackI64(local_stack.back());
+          local_stack.pop_back();
+          int64_t out = 0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AddI64:
+              out = a + b;
+              break;
+            case OpCode::SubI64:
+              out = a - b;
+              break;
+            case OpCode::MulI64:
+              out = a * b;
+              break;
+            case OpCode::DivI64:
+              out = (b == 0) ? 0 : (a / b);
+              break;
+            case OpCode::ModI64:
+              out = (b == 0) ? 0 : (a % b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI64(out));
+          break;
+        }
+        case OpCode::NegI64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_I64 underflow", op, inst_pc);
+          }
+          int64_t a = UnpackI64(local_stack.back());
+          local_stack.back() = PackI64(-a);
+          break;
+        }
+        case OpCode::IncI64:
+        case OpCode::DecI64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_I64 underflow", op, inst_pc);
+          }
+          int64_t a = UnpackI64(local_stack.back());
+          a = (static_cast<OpCode>(op) == OpCode::IncI64) ? (a + 1) : (a - 1);
+          local_stack.back() = PackI64(a);
+          break;
+        }
+        case OpCode::AddU64:
+        case OpCode::SubU64:
+        case OpCode::MulU64:
+        case OpCode::DivU64:
+        case OpCode::ModU64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled U64 binop underflow", op, inst_pc);
+          }
+          uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          uint64_t out = 0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AddU64:
+              out = a + b;
+              break;
+            case OpCode::SubU64:
+              out = a - b;
+              break;
+            case OpCode::MulU64:
+              out = a * b;
+              break;
+            case OpCode::DivU64:
+              out = (b == 0) ? 0u : (a / b);
+              break;
+            case OpCode::ModU64:
+              out = (b == 0) ? 0u : (a % b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI64(static_cast<int64_t>(out)));
+          break;
+        }
+        case OpCode::NegU64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_U64 underflow", op, inst_pc);
+          }
+          uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          uint64_t out = 0u - a;
+          local_stack.back() = PackI64(static_cast<int64_t>(out));
+          break;
+        }
+        case OpCode::IncU64:
+        case OpCode::DecU64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_U64 underflow", op, inst_pc);
+          }
+          uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncU64) ? (a + 1u) : (a - 1u);
+          local_stack.back() = PackI64(static_cast<int64_t>(a));
+          break;
+        }
+        case OpCode::AddF32:
+        case OpCode::SubF32:
+        case OpCode::MulF32:
+        case OpCode::DivF32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled F32 binop underflow", op, inst_pc);
+          }
+          float b = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.pop_back();
+          float a = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.pop_back();
+          float out = 0.0f;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AddF32:
+              out = a + b;
+              break;
+            case OpCode::SubF32:
+              out = a - b;
+              break;
+            case OpCode::MulF32:
+              out = a * b;
+              break;
+            case OpCode::DivF32:
+              out = (b == 0.0f) ? 0.0f : (a / b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackF32Bits(F32ToBits(out)));
+          break;
+        }
+        case OpCode::NegF32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_F32 underflow", op, inst_pc);
+          }
+          float a = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.back() = PackF32Bits(F32ToBits(-a));
+          break;
+        }
+        case OpCode::IncF32:
+        case OpCode::DecF32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_F32 underflow", op, inst_pc);
+          }
+          float a = BitsToF32(UnpackU32Bits(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncF32) ? (a + 1.0f) : (a - 1.0f);
+          local_stack.back() = PackF32Bits(F32ToBits(a));
+          break;
+        }
+        case OpCode::AddF64:
+        case OpCode::SubF64:
+        case OpCode::MulF64:
+        case OpCode::DivF64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled F64 binop underflow", op, inst_pc);
+          }
+          double b = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.pop_back();
+          double a = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.pop_back();
+          double out = 0.0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AddF64:
+              out = a + b;
+              break;
+            case OpCode::SubF64:
+              out = a - b;
+              break;
+            case OpCode::MulF64:
+              out = a * b;
+              break;
+            case OpCode::DivF64:
+              out = (b == 0.0) ? 0.0 : (a / b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackF64Bits(F64ToBits(out)));
+          break;
+        }
+        case OpCode::NegF64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_F64 underflow", op, inst_pc);
+          }
+          double a = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.back() = PackF64Bits(F64ToBits(-a));
+          break;
+        }
+        case OpCode::IncF64:
+        case OpCode::DecF64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_F64 underflow", op, inst_pc);
+          }
+          double a = BitsToF64(UnpackU64Bits(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncF64) ? (a + 1.0) : (a - 1.0);
+          local_stack.back() = PackF64Bits(F64ToBits(a));
+          break;
+        }
+        case OpCode::NegI8: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_I8 underflow", op, inst_pc);
+          }
+          int8_t a = static_cast<int8_t>(UnpackI32(local_stack.back()));
+          local_stack.back() = PackI32(static_cast<int8_t>(-a));
+          break;
+        }
+        case OpCode::NegI16: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_I16 underflow", op, inst_pc);
+          }
+          int16_t a = static_cast<int16_t>(UnpackI32(local_stack.back()));
+          local_stack.back() = PackI32(static_cast<int16_t>(-a));
+          break;
+        }
+        case OpCode::NegU8: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_U8 underflow", op, inst_pc);
+          }
+          uint8_t a = static_cast<uint8_t>(UnpackI32(local_stack.back()));
+          uint8_t out = static_cast<uint8_t>(0u - a);
+          local_stack.back() = PackI32(static_cast<int32_t>(out));
+          break;
+        }
+        case OpCode::NegU16: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled NEG_U16 underflow", op, inst_pc);
+          }
+          uint16_t a = static_cast<uint16_t>(UnpackI32(local_stack.back()));
+          uint16_t out = static_cast<uint16_t>(0u - a);
+          local_stack.back() = PackI32(static_cast<int32_t>(out));
+          break;
+        }
+        case OpCode::IncI8:
+        case OpCode::DecI8: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_I8 underflow", op, inst_pc);
+          }
+          int8_t a = static_cast<int8_t>(UnpackI32(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncI8) ? static_cast<int8_t>(a + 1)
+                                                         : static_cast<int8_t>(a - 1);
+          local_stack.back() = PackI32(a);
+          break;
+        }
+        case OpCode::IncI16:
+        case OpCode::DecI16: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_I16 underflow", op, inst_pc);
+          }
+          int16_t a = static_cast<int16_t>(UnpackI32(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncI16) ? static_cast<int16_t>(a + 1)
+                                                          : static_cast<int16_t>(a - 1);
+          local_stack.back() = PackI32(a);
+          break;
+        }
+        case OpCode::IncU8:
+        case OpCode::DecU8: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_U8 underflow", op, inst_pc);
+          }
+          uint8_t a = static_cast<uint8_t>(UnpackI32(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncU8) ? static_cast<uint8_t>(a + 1u)
+                                                         : static_cast<uint8_t>(a - 1u);
+          local_stack.back() = PackI32(static_cast<int32_t>(a));
+          break;
+        }
+        case OpCode::IncU16:
+        case OpCode::DecU16: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled INC/DEC_U16 underflow", op, inst_pc);
+          }
+          uint16_t a = static_cast<uint16_t>(UnpackI32(local_stack.back()));
+          a = (static_cast<OpCode>(op) == OpCode::IncU16) ? static_cast<uint16_t>(a + 1u)
+                                                          : static_cast<uint16_t>(a - 1u);
+          local_stack.back() = PackI32(static_cast<int32_t>(a));
+          break;
+        }
         case OpCode::CmpEqI32:
         case OpCode::CmpNeI32:
         case OpCode::CmpLtI32:
@@ -2380,6 +3002,201 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           local_stack.push_back(PackI32(result ? 1 : 0));
           break;
         }
+        case OpCode::CmpEqU32:
+        case OpCode::CmpNeU32:
+        case OpCode::CmpLtU32:
+        case OpCode::CmpLeU32:
+        case OpCode::CmpGtU32:
+        case OpCode::CmpGeU32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled CMP_U32 underflow", op, inst_pc);
+          }
+          uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          bool result = false;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::CmpEqU32:
+              result = (a == b);
+              break;
+            case OpCode::CmpNeU32:
+              result = (a != b);
+              break;
+            case OpCode::CmpLtU32:
+              result = (a < b);
+              break;
+            case OpCode::CmpLeU32:
+              result = (a <= b);
+              break;
+            case OpCode::CmpGtU32:
+              result = (a > b);
+              break;
+            case OpCode::CmpGeU32:
+              result = (a >= b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
+        case OpCode::CmpEqI64:
+        case OpCode::CmpNeI64:
+        case OpCode::CmpLtI64:
+        case OpCode::CmpLeI64:
+        case OpCode::CmpGtI64:
+        case OpCode::CmpGeI64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled CMP_I64 underflow", op, inst_pc);
+          }
+          int64_t b = UnpackI64(local_stack.back());
+          local_stack.pop_back();
+          int64_t a = UnpackI64(local_stack.back());
+          local_stack.pop_back();
+          bool result = false;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::CmpEqI64:
+              result = (a == b);
+              break;
+            case OpCode::CmpNeI64:
+              result = (a != b);
+              break;
+            case OpCode::CmpLtI64:
+              result = (a < b);
+              break;
+            case OpCode::CmpLeI64:
+              result = (a <= b);
+              break;
+            case OpCode::CmpGtI64:
+              result = (a > b);
+              break;
+            case OpCode::CmpGeI64:
+              result = (a >= b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
+        case OpCode::CmpEqU64:
+        case OpCode::CmpNeU64:
+        case OpCode::CmpLtU64:
+        case OpCode::CmpLeU64:
+        case OpCode::CmpGtU64:
+        case OpCode::CmpGeU64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled CMP_U64 underflow", op, inst_pc);
+          }
+          uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          bool result = false;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::CmpEqU64:
+              result = (a == b);
+              break;
+            case OpCode::CmpNeU64:
+              result = (a != b);
+              break;
+            case OpCode::CmpLtU64:
+              result = (a < b);
+              break;
+            case OpCode::CmpLeU64:
+              result = (a <= b);
+              break;
+            case OpCode::CmpGtU64:
+              result = (a > b);
+              break;
+            case OpCode::CmpGeU64:
+              result = (a >= b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
+        case OpCode::CmpEqF32:
+        case OpCode::CmpNeF32:
+        case OpCode::CmpLtF32:
+        case OpCode::CmpLeF32:
+        case OpCode::CmpGtF32:
+        case OpCode::CmpGeF32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled CMP_F32 underflow", op, inst_pc);
+          }
+          float b = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.pop_back();
+          float a = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.pop_back();
+          bool result = false;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::CmpEqF32:
+              result = (a == b);
+              break;
+            case OpCode::CmpNeF32:
+              result = (a != b);
+              break;
+            case OpCode::CmpLtF32:
+              result = (a < b);
+              break;
+            case OpCode::CmpLeF32:
+              result = (a <= b);
+              break;
+            case OpCode::CmpGtF32:
+              result = (a > b);
+              break;
+            case OpCode::CmpGeF32:
+              result = (a >= b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
+        case OpCode::CmpEqF64:
+        case OpCode::CmpNeF64:
+        case OpCode::CmpLtF64:
+        case OpCode::CmpLeF64:
+        case OpCode::CmpGtF64:
+        case OpCode::CmpGeF64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled CMP_F64 underflow", op, inst_pc);
+          }
+          double b = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.pop_back();
+          double a = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.pop_back();
+          bool result = false;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::CmpEqF64:
+              result = (a == b);
+              break;
+            case OpCode::CmpNeF64:
+              result = (a != b);
+              break;
+            case OpCode::CmpLtF64:
+              result = (a < b);
+              break;
+            case OpCode::CmpLeF64:
+              result = (a <= b);
+              break;
+            case OpCode::CmpGtF64:
+              result = (a > b);
+              break;
+            case OpCode::CmpGeF64:
+              result = (a >= b);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
         case OpCode::BoolNot: {
           if (local_stack.empty()) {
             return jit_fail("JIT compiled BOOL_NOT underflow", op, inst_pc);
@@ -2405,6 +3222,76 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             result = (UnpackI32(lhs) != 0) || (UnpackI32(rhs) != 0);
           }
           local_stack.push_back(PackI32(result ? 1 : 0));
+          break;
+        }
+        case OpCode::AndI32:
+        case OpCode::OrI32:
+        case OpCode::XorI32:
+        case OpCode::ShlI32:
+        case OpCode::ShrI32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled I32 bitop underflow", op, inst_pc);
+          }
+          uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
+          local_stack.pop_back();
+          uint32_t out = 0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AndI32:
+              out = a & b;
+              break;
+            case OpCode::OrI32:
+              out = a | b;
+              break;
+            case OpCode::XorI32:
+              out = a ^ b;
+              break;
+            case OpCode::ShlI32:
+              out = a << (b & 31u);
+              break;
+            case OpCode::ShrI32:
+              out = a >> (b & 31u);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI32(static_cast<int32_t>(out)));
+          break;
+        }
+        case OpCode::AndI64:
+        case OpCode::OrI64:
+        case OpCode::XorI64:
+        case OpCode::ShlI64:
+        case OpCode::ShrI64: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled I64 bitop underflow", op, inst_pc);
+          }
+          uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
+          local_stack.pop_back();
+          uint64_t out = 0;
+          switch (static_cast<OpCode>(op)) {
+            case OpCode::AndI64:
+              out = a & b;
+              break;
+            case OpCode::OrI64:
+              out = a | b;
+              break;
+            case OpCode::XorI64:
+              out = a ^ b;
+              break;
+            case OpCode::ShlI64:
+              out = a << (b & 63u);
+              break;
+            case OpCode::ShrI64:
+              out = a >> (b & 63u);
+              break;
+            default:
+              break;
+          }
+          local_stack.push_back(PackI64(static_cast<int64_t>(out)));
           break;
         }
         case OpCode::JmpTrue:
@@ -2471,6 +3358,70 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           locals[idx] = local_stack.back();
           local_stack.pop_back();
+          break;
+        }
+        case OpCode::ConvI32ToI64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_I32_TO_I64 underflow", op, inst_pc);
+          }
+          int32_t v = UnpackI32(local_stack.back());
+          local_stack.back() = PackI64(static_cast<int64_t>(v));
+          break;
+        }
+        case OpCode::ConvI64ToI32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_I64_TO_I32 underflow", op, inst_pc);
+          }
+          int64_t v = UnpackI64(local_stack.back());
+          local_stack.back() = PackI32(static_cast<int32_t>(v));
+          break;
+        }
+        case OpCode::ConvI32ToF32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_I32_TO_F32 underflow", op, inst_pc);
+          }
+          int32_t v = UnpackI32(local_stack.back());
+          local_stack.back() = PackF32Bits(F32ToBits(static_cast<float>(v)));
+          break;
+        }
+        case OpCode::ConvI32ToF64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_I32_TO_F64 underflow", op, inst_pc);
+          }
+          int32_t v = UnpackI32(local_stack.back());
+          local_stack.back() = PackF64Bits(F64ToBits(static_cast<double>(v)));
+          break;
+        }
+        case OpCode::ConvF32ToI32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_F32_TO_I32 underflow", op, inst_pc);
+          }
+          float v = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.back() = PackI32(static_cast<int32_t>(v));
+          break;
+        }
+        case OpCode::ConvF64ToI32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_F64_TO_I32 underflow", op, inst_pc);
+          }
+          double v = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.back() = PackI32(static_cast<int32_t>(v));
+          break;
+        }
+        case OpCode::ConvF32ToF64: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_F32_TO_F64 underflow", op, inst_pc);
+          }
+          float v = BitsToF32(UnpackU32Bits(local_stack.back()));
+          local_stack.back() = PackF64Bits(F64ToBits(static_cast<double>(v)));
+          break;
+        }
+        case OpCode::ConvF64ToF32: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled CONV_F64_TO_F32 underflow", op, inst_pc);
+          }
+          double v = BitsToF64(UnpackU64Bits(local_stack.back()));
+          local_stack.back() = PackF32Bits(F32ToBits(static_cast<float>(v)));
           break;
         }
         case OpCode::Pop: {
