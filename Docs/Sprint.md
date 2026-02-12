@@ -1578,6 +1578,14 @@
   - `artifact`/`enum`/`module` declaration names now emit identifier tokens (variable) with declaration modifier.
 - Added LSP regression coverage:
   - semantic token test for artifact declaration name classification.
+- Simplified semantic token palette for identifiers:
+  - non-call identifiers (types, enum members, module names, member access) now emit identifier tokens to avoid blue overload.
+- Updated LSP regression coverage:
+  - member/type/enum/module tests now expect identifier tokens for non-call names.
+- Added semantic token debug probe:
+  - `SIMPLE_LSP_DEBUG_TOKENS=1` logs LSP semantic tokens (line/col/len/type/modifiers) to stderr for color inspection.
+- Added LSP regression coverage:
+  - debug env does not break semantic token response.
 - Adjusted semantic token classification for declarations:
   - function declarations now emit identifier tokens (variable) instead of function tokens to keep declaration names neutral.
 - Updated LSP regression coverage:

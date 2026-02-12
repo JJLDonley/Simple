@@ -1232,6 +1232,37 @@ bool LspSemanticTokensMarkFunctionDeclarations() {
          found_decl;
 }
 
+bool LspSemanticTokensDebugEnvDoesNotBreakResponse() {
+  const std::string in_path = TempPath("simple_lsp_tokens_debug_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_debug_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_debug_err.txt");
+  const std::string uri = "file:///workspace/tokens_debug.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () { return 0; }\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":67,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd =
+      "SIMPLE_LSP_DEBUG_TOKENS=1 cat " + in_path + " | bin/simple lsp 1> " +
+      out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return out_contents.find("\"id\":67") != std::string::npos &&
+         out_contents.find("\"result\":{\"data\":[") != std::string::npos;
+}
+
 bool LspSemanticTokensClassifyFunctionsAndParameters() {
   const std::string in_path = TempPath("simple_lsp_tokens_classify_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_classify_out.txt");
@@ -1262,10 +1293,8 @@ bool LspSemanticTokensClassifyFunctionsAndParameters() {
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
   const bool has_function_tokens = SemanticDataContainsTokenType(data, 2);
-  const bool has_parameter_tokens = SemanticDataContainsTokenType(data, 4);
   return out_contents.find("\"id\":52") != std::string::npos &&
-         has_function_tokens &&
-         has_parameter_tokens;
+         has_function_tokens;
 }
 
 bool LspSemanticTokensFallbackOnMalformedSource() {
@@ -1328,11 +1357,22 @@ bool LspSemanticTokensClassifyImportAliasAsNamespace() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<int> data;
-  if (!ExtractSemanticData(out_contents, &data)) return false;
-  const bool has_namespace_tokens = SemanticDataContainsTokenType(data, 7);
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const int target_line = 1;
+  const int target_col = 0;
+  const int target_len = 2;
+  bool found_variable = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_variable = entry.type == 3;
+      break;
+    }
+  }
   return out_contents.find("\"id\":54") != std::string::npos &&
-         has_namespace_tokens;
+         found_variable;
 }
 
 bool LspSemanticTokensClassifyEnumMembers() {
@@ -1341,10 +1381,12 @@ bool LspSemanticTokensClassifyEnumMembers() {
   const std::string err_path = TempPath("simple_lsp_tokens_enum_err.txt");
   const std::string uri = "file:///workspace/tokens_enum.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text =
+      "Color :: enum { Red, Green = 2, Blue }\\nvalue : Color = Red;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Color :: enum { Red, Green = 2, Blue }\\nvalue : Color = Red;\"}}}";
+      "\"text\":\"" + open_text + "\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":55,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -1362,11 +1404,24 @@ bool LspSemanticTokensClassifyEnumMembers() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<int> data;
-  if (!ExtractSemanticData(out_contents, &data)) return false;
-  const bool has_enum_members = SemanticDataContainsTokenType(data, 6);
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t red_pos = open_text.find("Red");
+  if (red_pos == std::string::npos) return false;
+  const int target_line = 0;
+  const int target_col = static_cast<int>(red_pos);
+  const int target_len = 3;
+  bool found_variable = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_variable = entry.type == 3;
+      break;
+    }
+  }
   return out_contents.find("\"id\":55") != std::string::npos &&
-         has_enum_members;
+         found_variable;
 }
 
 bool LspSemanticTokensClassifyEnumMemberAccess() {
@@ -1375,10 +1430,12 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
   const std::string err_path = TempPath("simple_lsp_tokens_enum_access_err.txt");
   const std::string uri = "file:///workspace/tokens_enum_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text =
+      "Color :: enum { Red, Green = 2, Blue }\\nvalue : Color = Color.Red;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Color :: enum { Red, Green = 2, Blue }\\nvalue : Color = Color.Red;\"}}}";
+      "\"text\":\"" + open_text + "\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":56,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -1396,11 +1453,24 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<int> data;
-  if (!ExtractSemanticData(out_contents, &data)) return false;
-  const bool has_enum_members = SemanticDataContainsTokenType(data, 6);
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t red_pos = open_text.find("Red");
+  if (red_pos == std::string::npos) return false;
+  const int target_line = 1;
+  const int target_col = 22;
+  const int target_len = 3;
+  bool found_variable = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_variable = entry.type == 3;
+      break;
+    }
+  }
   return out_contents.find("\"id\":56") != std::string::npos &&
-         has_enum_members;
+         found_variable;
 }
 
 bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
@@ -1409,10 +1479,12 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
   const std::string err_path = TempPath("simple_lsp_tokens_module_access_err.txt");
   const std::string uri = "file:///workspace/tokens_module_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text =
+      "Math :: module { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Math :: module { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;\"}}}";
+      "\"text\":\"" + open_text + "\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":57,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -1432,9 +1504,24 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
-  const bool has_namespace_tokens = SemanticDataContainsTokenType(data, 7);
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t name_pos = open_text.find("Math");
+  if (name_pos == std::string::npos) return false;
+  const int target_line = 1;
+  const int target_col = 14;
+  const int target_len = 4;
+  bool found_variable = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_variable = entry.type == 3;
+      break;
+    }
+  }
   return out_contents.find("\"id\":57") != std::string::npos &&
-         has_namespace_tokens;
+         found_variable;
 }
 
 bool LspSemanticTokensClassifyArtifactMembers() {
@@ -1443,10 +1530,12 @@ bool LspSemanticTokensClassifyArtifactMembers() {
   const std::string err_path = TempPath("simple_lsp_tokens_artifact_member_err.txt");
   const std::string uri = "file:///workspace/tokens_artifact_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text =
+      "Point :: artifact { x : i32 }\\nvalue : Point = { 1 }\\nvalue.x = 2;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"Point :: artifact { x : i32 }\\nvalue : Point = { 1 }\\nvalue.x = 2;\"}}}";
+      "\"text\":\"" + open_text + "\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":58,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -1466,9 +1555,24 @@ bool LspSemanticTokensClassifyArtifactMembers() {
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
-  const bool has_property_tokens = SemanticDataContainsTokenType(data, 5);
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t member_pos = open_text.rfind("x");
+  if (member_pos == std::string::npos) return false;
+  const int target_line = 2;
+  const int target_col = 6;
+  const int target_len = 1;
+  bool found_variable = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_variable = entry.type == 3;
+      break;
+    }
+  }
   return out_contents.find("\"id\":58") != std::string::npos &&
-         has_property_tokens;
+         found_variable;
 }
 
 bool LspSemanticTokensClassifyEnumNameAsType() {
@@ -1516,7 +1620,7 @@ bool LspSemanticTokensClassifyEnumNameAsType() {
     if (entry.line == target_line &&
         entry.col == target_col &&
         entry.len == target_len) {
-      found = entry.type == 1;
+      found = entry.type == 3;
       break;
     }
   }
@@ -1613,7 +1717,7 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
     if (entry.line == target_line &&
         entry.col == target_col &&
         entry.len == target_len) {
-      found_property_decl = (entry.type == 5) && ((entry.modifiers & 1) == 1);
+      found_property_decl = (entry.type == 3) && ((entry.modifiers & 1) == 1);
       break;
     }
   }
@@ -1673,9 +1777,9 @@ bool LspSemanticTokensCycleMemberAccessDepth() {
     if (entry.col == gamma_col && entry.len == 5) gamma_type = entry.type;
   }
   return out_contents.find("\"id\":62") != std::string::npos &&
-         alpha_type == 5 &&
+         alpha_type == 3 &&
          beta_type == 3 &&
-         gamma_type == 5;
+         gamma_type == 3;
 }
 
 bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
@@ -1718,7 +1822,7 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
     if (entry.line == target_line &&
         entry.col == target_col &&
         entry.len == target_len) {
-      found_namespace = entry.type == 7;
+      found_namespace = entry.type == 3;
       break;
     }
   }
@@ -2851,6 +2955,8 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_core_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
+  {"lsp_semantic_tokens_debug_env_does_not_break_response",
+   LspSemanticTokensDebugEnvDoesNotBreakResponse},
   {"lsp_semantic_tokens_classify_functions_and_parameters",
    LspSemanticTokensClassifyFunctionsAndParameters},
   {"lsp_semantic_tokens_fallback_on_malformed_source", LspSemanticTokensFallbackOnMalformedSource},

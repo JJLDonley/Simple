@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include <iostream>
 
 #include "lang_lexer.h"
 #include "lang_parser.h"
@@ -1765,20 +1766,7 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
          refs[i - 2].token.kind == TK::Identifier;
 }
 
-size_t MemberAccessDepthAt(const std::vector<TokenRef>& refs, size_t i) {
-  using TK = Simple::Lang::TokenKind;
-  size_t depth = 0;
-  size_t idx = i;
-  while (idx >= 2 &&
-         refs[idx].token.kind == TK::Identifier &&
-         refs[idx - 1].token.kind == TK::Dot &&
-         refs[idx - 2].token.kind == TK::Identifier) {
-    ++depth;
-    if (idx < 2) break;
-    idx -= 2;
-  }
-  return depth;
-}
+// MemberAccessDepthAt removed after switching to neutral member identifiers.
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
@@ -1797,6 +1785,12 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       const std::unordered_set<std::string>& artifact_names,
                                       const std::unordered_set<size_t>& artifact_field_indices) {
   using TK = Simple::Lang::TokenKind;
+  (void)import_aliases;
+  (void)enum_member_indices;
+  (void)enum_names;
+  (void)module_names;
+  (void)artifact_names;
+  (void)artifact_field_indices;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
   if (IsKeywordToken(token.kind)) return 0; // keyword
@@ -1804,38 +1798,18 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
-    if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
-      if (refs[i + 2].token.kind == TK::KwModule) return 3; // declaration name
-      if (refs[i + 2].token.kind == TK::KwEnum) return 3; // declaration name
-      if (refs[i + 2].token.kind == TK::KwArtifact) return 3; // declaration name
-    }
-    if (IsReservedModuleAliasToken(token.text)) return 7; // namespace
-    if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enumMember
-    if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
-      return 6; // enumMember
-    }
-    if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
-    if (enum_names.find(token.text) != enum_names.end()) return 1; // type
-    if (module_names.find(token.text) != module_names.end()) return 7; // namespace
-    if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
-    if (IsMemberNameAt(refs, i) && artifact_names.find(refs[i - 2].token.text) != artifact_names.end()) {
-      return 5; // property (artifact member)
-    }
-    if (import_aliases.find(token.text) != import_aliases.end()) return 7; // namespace
     if (IsMemberNameAt(refs, i)) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
-      const size_t depth = MemberAccessDepthAt(refs, i);
-      if ((depth % 2) == 0) return 3; // variable (cycled)
-      return 5; // property (cycled)
+      return 3; // identifier
     }
     if (IsFunctionDeclNameAt(refs, i)) return 3; // function declaration -> identifier
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
     if (IsFunctionCallNameAt(refs, i)) return 2; // function call
-    if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
-    if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
-    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
+    if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 3; // import module stem
+    if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 3;
+    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 3; // type position
     if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
-    if (IsPrimitiveTypeName(token.text)) return 1;
+    if (IsPrimitiveTypeName(token.text)) return 3;
   }
   return SemanticTokenTypeIndex(token);
 }
@@ -2035,6 +2009,45 @@ void CollectImportAliases(const std::string& text, std::unordered_set<std::strin
   }
 }
 
+std::string SemanticTokenTypeName(uint32_t type) {
+  switch (type) {
+    case 0: return "keyword";
+    case 1: return "type";
+    case 2: return "function";
+    case 3: return "variable";
+    case 4: return "parameter";
+    case 5: return "property";
+    case 6: return "enumMember";
+    case 7: return "namespace";
+    case 8: return "string";
+    case 9: return "number";
+    case 10: return "operator";
+    default: return "unknown";
+  }
+}
+
+std::string SemanticTokenModifiersName(uint32_t mods) {
+  std::string out;
+  if (mods & (1u << 0)) out += "declaration|";
+  if (mods & (1u << 1)) out += "readonly|";
+  if (mods & (1u << 2)) out += "defaultLibrary|";
+  if (!out.empty()) out.pop_back();
+  return out;
+}
+
+void DebugDumpSemanticTokens(const std::vector<SemanticTokenEntry>& entries) {
+  const char* env = std::getenv("SIMPLE_LSP_DEBUG_TOKENS");
+  if (!env || env[0] == '\0' || env[0] == '0') return;
+  std::cerr << "[simple-lsp] semantic tokens (" << entries.size() << ")\n";
+  for (const auto& entry : entries) {
+    std::cerr << "  " << entry.line << ":" << entry.col
+              << " len=" << entry.len
+              << " type=" << SemanticTokenTypeName(entry.type)
+              << " mods=" << SemanticTokenModifiersName(entry.modifiers)
+              << "\n";
+  }
+}
+
 void ReplySemanticTokensFull(std::ostream& out,
                              const std::string& id_raw,
                              const std::string& uri,
@@ -2162,6 +2175,7 @@ void ReplySemanticTokensFull(std::ostream& out,
   if (entries.empty()) {
     CollectSemanticTokensFallback(text, &entries);
   }
+  DebugDumpSemanticTokens(entries);
   const std::string data = EncodeSemanticTokenData(entries);
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
                            ",\"result\":{\"data\":[" + data + "]}}");
