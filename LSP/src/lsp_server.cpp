@@ -2156,18 +2156,22 @@ void ReplySemanticTokensFull(std::ostream& out,
           token.kind == Simple::Lang::TokenKind::Invalid) {
         continue;
       }
+      const uint32_t token_type = SemanticTokenTypeIndexForRef(refs,
+                                                               i,
+                                                               import_aliases,
+                                                               enum_member_indices,
+                                                               enum_names,
+                                                               module_names,
+                                                               artifact_names,
+                                                               artifact_field_indices);
+      if (token_type == 3 && token.kind == Simple::Lang::TokenKind::Identifier) {
+        continue;
+      }
       entries.push_back(SemanticTokenEntry{
           token.line > 0 ? (token.line - 1) : 0,
           token.column > 0 ? (token.column - 1) : 0,
           static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
-          SemanticTokenTypeIndexForRef(refs,
-                                       i,
-                                       import_aliases,
-                                       enum_member_indices,
-                                       enum_names,
-                                       module_names,
-                                       artifact_names,
-                                       artifact_field_indices),
+          token_type,
           SemanticTokenModifiersForRef(refs, i, enum_member_indices, artifact_field_indices),
       });
     }

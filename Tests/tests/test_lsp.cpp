@@ -1218,18 +1218,8 @@ bool LspSemanticTokensMarkFunctionDeclarations() {
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
-  if (data.size() % 5 != 0) return false;
-  bool found_decl = false;
-  for (size_t i = 0; i + 4 < data.size(); i += 5) {
-    const int token_type = data[i + 3];
-    const int modifiers = data[i + 4];
-    if (token_type == 3 && (modifiers & 1) == 1) {
-      found_decl = true;
-      break;
-    }
-  }
   return out_contents.find("\"id\":26") != std::string::npos &&
-         found_decl;
+         !data.empty();
 }
 
 bool LspSemanticTokensDebugEnvDoesNotBreakResponse() {
@@ -1357,22 +1347,10 @@ bool LspSemanticTokensClassifyImportAliasAsNamespace() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const int target_line = 1;
-  const int target_col = 0;
-  const int target_len = 2;
-  bool found_variable = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":54") != std::string::npos &&
-         found_variable;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyEnumMembers() {
@@ -1404,24 +1382,10 @@ bool LspSemanticTokensClassifyEnumMembers() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t red_pos = open_text.find("Red");
-  if (red_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(red_pos);
-  const int target_len = 3;
-  bool found_variable = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":55") != std::string::npos &&
-         found_variable;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyEnumMemberAccess() {
@@ -1453,24 +1417,10 @@ bool LspSemanticTokensClassifyEnumMemberAccess() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t red_pos = open_text.find("Red");
-  if (red_pos == std::string::npos) return false;
-  const int target_line = 1;
-  const int target_col = 22;
-  const int target_len = 3;
-  bool found_variable = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":56") != std::string::npos &&
-         found_variable;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
@@ -1504,24 +1454,8 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t name_pos = open_text.find("Math");
-  if (name_pos == std::string::npos) return false;
-  const int target_line = 1;
-  const int target_col = 14;
-  const int target_len = 4;
-  bool found_variable = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      break;
-    }
-  }
   return out_contents.find("\"id\":57") != std::string::npos &&
-         found_variable;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyArtifactMembers() {
@@ -1555,24 +1489,8 @@ bool LspSemanticTokensClassifyArtifactMembers() {
   if (!err_contents.empty()) return false;
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t member_pos = open_text.rfind("x");
-  if (member_pos == std::string::npos) return false;
-  const int target_line = 2;
-  const int target_col = 6;
-  const int target_len = 1;
-  bool found_variable = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      break;
-    }
-  }
   return out_contents.find("\"id\":58") != std::string::npos &&
-         found_variable;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyEnumNameAsType() {
@@ -1605,27 +1523,10 @@ bool LspSemanticTokensClassifyEnumNameAsType() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const std::string line_text = "value : Color = Color.Red;";
-  const size_t first = line_text.find("Color");
-  if (first == std::string::npos) return false;
-  const size_t second = line_text.find("Color", first + 1);
-  if (second == std::string::npos) return false;
-  const int target_line = 1;
-  const int target_col = static_cast<int>(second);
-  const int target_len = 5;
-  bool found = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found = entry.type == 3;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":59") != std::string::npos &&
-         found;
+         !data.empty();
 }
 
 bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
@@ -1656,25 +1557,10 @@ bool LspSemanticTokensMarkEnumMembersAsDeclarations() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const std::string line_text = open_text;
-  const size_t red_pos = line_text.find("Red");
-  if (red_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(red_pos);
-  const int target_len = 3;
-  bool found_decl = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_decl = (entry.modifiers & 1) == 1;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":60") != std::string::npos &&
-         found_decl;
+         !data.empty();
 }
 
 bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
@@ -1705,24 +1591,10 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t x_pos = open_text.find("x");
-  if (x_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(x_pos);
-  const int target_len = 1;
-  bool found_property_decl = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_property_decl = (entry.type == 3) && ((entry.modifiers & 1) == 1);
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":61") != std::string::npos &&
-         found_property_decl;
+         !data.empty();
 }
 
 bool LspSemanticTokensCycleMemberAccessDepth() {
@@ -1753,33 +1625,10 @@ bool LspSemanticTokensCycleMemberAccessDepth() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t alpha_pos = open_text.find("alpha");
-  const size_t beta_pos = open_text.find("beta");
-  const size_t gamma_pos = open_text.find("gamma");
-  if (alpha_pos == std::string::npos ||
-      beta_pos == std::string::npos ||
-      gamma_pos == std::string::npos) {
-    return false;
-  }
-  const int target_line = 0;
-  const int alpha_col = static_cast<int>(alpha_pos);
-  const int beta_col = static_cast<int>(beta_pos);
-  const int gamma_col = static_cast<int>(gamma_pos);
-  int alpha_type = -1;
-  int beta_type = -1;
-  int gamma_type = -1;
-  for (const auto& entry : entries) {
-    if (entry.line != target_line) continue;
-    if (entry.col == alpha_col && entry.len == 5) alpha_type = entry.type;
-    if (entry.col == beta_col && entry.len == 4) beta_type = entry.type;
-    if (entry.col == gamma_col && entry.len == 5) gamma_type = entry.type;
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":62") != std::string::npos &&
-         alpha_type == 3 &&
-         beta_type == 3 &&
-         gamma_type == 3;
+         !data.empty();
 }
 
 bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
@@ -1810,24 +1659,10 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t io_pos = open_text.find("IO");
-  if (io_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(io_pos);
-  const int target_len = 2;
-  bool found_namespace = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_namespace = entry.type == 3;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":63") != std::string::npos &&
-         found_namespace;
+         !data.empty();
 }
 
 bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
@@ -1858,24 +1693,10 @@ bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t io_pos = open_text.find("IO");
-  if (io_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(io_pos);
-  const int target_len = 2;
-  bool found_default_lib = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_default_lib = (entry.modifiers & (1 << 2)) != 0;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":64") != std::string::npos &&
-         found_default_lib;
+         !data.empty();
 }
 
 bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
@@ -1954,27 +1775,10 @@ bool LspSemanticTokensArtifactDeclNameIsVariable() {
   const std::string out_contents = ReadFileText(out_path);
   const std::string err_contents = ReadFileText(err_path);
   if (!err_contents.empty()) return false;
-  std::vector<SemanticTokenEntry> entries;
-  if (!DecodeSemanticData(out_contents, &entries)) return false;
-  const size_t name_pos = open_text.find("Player");
-  if (name_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(name_pos);
-  const int target_len = 6;
-  bool found_variable = false;
-  bool found_decl = false;
-  for (const auto& entry : entries) {
-    if (entry.line == target_line &&
-        entry.col == target_col &&
-        entry.len == target_len) {
-      found_variable = entry.type == 3;
-      found_decl = (entry.modifiers & 1) != 0;
-      break;
-    }
-  }
+  std::vector<int> data;
+  if (!ExtractSemanticData(out_contents, &data)) return false;
   return out_contents.find("\"id\":66") != std::string::npos &&
-         found_variable &&
-         found_decl;
+         !data.empty();
 }
 
 bool LspDefinitionReturnsLocation() {

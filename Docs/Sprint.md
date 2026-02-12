@@ -1582,6 +1582,10 @@
   - non-call identifiers (types, enum members, module names, member access) now emit identifier tokens to avoid blue overload.
 - Updated LSP regression coverage:
   - member/type/enum/module tests now expect identifier tokens for non-call names.
+- Simplified semantic tokens to reduce blue overload:
+  - identifier tokens are no longer emitted for non-call identifiers (let TextMate keep them white).
+- Updated LSP regression coverage:
+  - semantic token tests now only assert function-call tokens or non-empty responses.
 - Added semantic token debug probe:
   - `SIMPLE_LSP_DEBUG_TOKENS=1` logs LSP semantic tokens (line/col/len/type/modifiers) to stderr for color inspection.
 - Added LSP regression coverage:
