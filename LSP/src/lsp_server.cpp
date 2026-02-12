@@ -1284,6 +1284,49 @@ bool ResolveFunctionSignatureInRefs(const std::vector<TokenRef>& refs,
   return false;
 }
 
+bool ResolveFunctionSignaturePartsInRefs(const std::vector<TokenRef>& refs,
+                                         const std::string& name,
+                                         std::vector<std::string>* out_params,
+                                         std::string* out_return) {
+  if (!out_params || !out_return) return false;
+  out_params->clear();
+  out_return->clear();
+  using TK = Simple::Lang::TokenKind;
+  for (size_t i = 0; i < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::Identifier) continue;
+    if (refs[i].token.text != name) continue;
+    if (!IsFunctionDeclNameAt(refs, i)) continue;
+    if (i + 2 < refs.size() &&
+        refs[i + 1].token.kind == TK::Colon &&
+        refs[i + 2].token.kind == TK::Identifier) {
+      *out_return = refs[i + 2].token.text;
+    }
+    if (i + 3 >= refs.size() || refs[i + 3].token.kind != TK::LParen) return true;
+    int depth = 1;
+    for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
+      const auto& tk = refs[j].token;
+      if (tk.kind == TK::LParen) {
+        ++depth;
+        continue;
+      }
+      if (tk.kind == TK::RParen) {
+        --depth;
+        continue;
+      }
+      if (depth != 1) continue;
+      if (tk.kind != TK::Identifier) continue;
+      if (j + 1 >= refs.size() || refs[j + 1].token.kind != TK::Colon) continue;
+      std::string param = tk.text;
+      if (j + 2 < refs.size() && refs[j + 2].token.kind == TK::Identifier) {
+        param += " : " + refs[j + 2].token.text;
+      }
+      out_params->push_back(std::move(param));
+    }
+    return true;
+  }
+  return false;
+}
+
 bool ResolveImportedModuleAndMember(const std::string& call_name,
                                     const std::string& text,
                                     std::string* out_module,
@@ -1644,6 +1687,53 @@ void ReplySignatureHelp(std::ostream& out,
             "\"activeSignature\":0,\"activeParameter\":" +
             std::to_string(clamped_active) + "}}");
     return;
+  }
+
+  if (!call_name.empty() &&
+      call_name.find('.') == std::string::npos &&
+      call_name[0] != '@') {
+    std::vector<std::string> params;
+    std::string return_type;
+    if (!ResolveFunctionSignaturePartsInRefs(LexTokenRefs(it->second),
+                                             call_name,
+                                             &params,
+                                             &return_type)) {
+      const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+      for (const auto& other_uri : sorted_uris) {
+        const auto other_it = open_docs.find(other_uri);
+        if (other_it == open_docs.end()) continue;
+        if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(other_it->second),
+                                                call_name,
+                                                &params,
+                                                &return_type)) {
+          break;
+        }
+      }
+    }
+    if (!params.empty() || !return_type.empty()) {
+      std::string label = call_name + "(";
+      std::string parameters_json;
+      for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) label += ", ";
+        label += params[i];
+        if (!parameters_json.empty()) parameters_json += ",";
+        parameters_json += "{\"label\":\"" + JsonEscape(params[i]) + "\"}";
+      }
+      label += ")";
+      if (!return_type.empty()) label += " -> " + return_type;
+      const uint32_t clamped_active =
+          params.empty() ? 0
+                         : std::min(active_parameter,
+                                    static_cast<uint32_t>(params.size() - 1));
+      WriteLspMessage(
+          out,
+          "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+              ",\"result\":{\"signatures\":[{\"label\":\"" +
+              JsonEscape(label) + "\",\"parameters\":[" + parameters_json + "]}],"
+              "\"activeSignature\":0,\"activeParameter\":" +
+              std::to_string(clamped_active) + "}}");
+      return;
+    }
   }
 
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");

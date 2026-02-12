@@ -206,6 +206,7 @@
 - Added text-based member access detection for semantic tokens and expanded debug output to include token refs and member depth scans when enabled.
 - Updated LSP tests to resolve the LSP binary from build artifacts for CMake builds and added workspace symbol filter test isolation.
 - Added hover support for user-defined function signatures and a regression test for hover signature output.
+- Added user-defined function signature help for call sites and tests to validate user-function signature help.
 - Added compiled locals compare+bool chain JIT test to validate LOAD/STORE with CMP/BOOL ops.
 - Added opcode-hot locals compare+bool chain JIT test with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot locals compare+bool chain coverage for CALL_INDIRECT path.

@@ -1218,6 +1218,40 @@ bool LspSignatureHelpForCoreDlOpenOverloads() {
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
 
+bool LspSignatureHelpForUserFunction() {
+  const std::string in_path = TempPath("simple_lsp_signature_user_fn_in.txt");
+  const std::string out_path = TempPath("simple_lsp_signature_user_fn_out.txt");
+  const std::string err_path = TempPath("simple_lsp_signature_user_fn_err.txt");
+  const std::string uri = "file:///workspace/signature_user_fn.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"sum : i32 (lhs : i32, rhs : i32) { return lhs + rhs; }\\n"
+      "value : i32 = sum(1, 2);\"}}}";
+  const std::string signature_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":47,\"method\":\"textDocument/signatureHelp\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":21}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(signature_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":47") != std::string::npos &&
+         out_contents.find("sum(lhs : i32, rhs : i32) -> i32") != std::string::npos &&
+         out_contents.find("\"activeSignature\":0") != std::string::npos &&
+         out_contents.find("\"activeParameter\":1") != std::string::npos;
+}
+
 bool LspSemanticTokensReturnsData() {
   const std::string in_path = TempPath("simple_lsp_tokens_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_out.txt");
@@ -3003,6 +3037,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_reserved_alias_member", LspSignatureHelpForReservedAliasMember},
   {"lsp_signature_help_for_io_alias_format_call", LspSignatureHelpForIoAliasFormatCall},
   {"lsp_signature_help_for_core_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
+  {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",
