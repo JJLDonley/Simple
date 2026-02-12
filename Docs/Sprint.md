@@ -1550,5 +1550,9 @@
   - enum identifiers now emit `type` tokens at usage sites (for example `Color.Red`).
 - Added LSP regression coverage:
   - semantic token test for enum name type classification.
+- Improved semantic token modifiers for enums:
+  - enum members now emit the `declaration` modifier for consistent highlight semantics.
+- Added LSP regression coverage:
+  - semantic token test for enum member declaration modifiers.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

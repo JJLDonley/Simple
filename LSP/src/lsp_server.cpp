@@ -1812,9 +1812,14 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   return SemanticTokenTypeIndex(token);
 }
 
-uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs, size_t i) {
+uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
+                                      size_t i,
+                                      const std::unordered_set<size_t>& enum_member_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 0;
+  if (enum_member_indices.find(i) != enum_member_indices.end()) {
+    return 1u << 0; // declaration
+  }
   if (refs[i].token.kind == TK::Identifier &&
       (IsDeclNameAt(refs, i) || IsParameterDeclNameAt(refs, i))) {
     return 1u << 0; // declaration
@@ -2073,7 +2078,7 @@ void ReplySemanticTokensFull(std::ostream& out,
                                        enum_names,
                                        module_names,
                                        artifact_names),
-          SemanticTokenModifiersForRef(refs, i),
+          SemanticTokenModifiersForRef(refs, i, enum_member_indices),
       });
     }
   }
