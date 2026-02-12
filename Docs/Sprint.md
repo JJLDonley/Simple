@@ -1542,3 +1542,7 @@
   - declared `module` identifiers are now emitted as `namespace` tokens, including `Module.member` usage.
 - Added LSP regression coverage:
   - semantic token test for module access classification.
+- Improved semantic token classification for artifact members:
+  - `Artifact.member` now emits `property` tokens when `Artifact` is a declared artifact type.
+- Added LSP regression coverage:
+  - semantic token test for artifact member classification.

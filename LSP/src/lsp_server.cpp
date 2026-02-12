@@ -1786,6 +1786,9 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     }
     if (module_names.find(token.text) != module_names.end()) return 7; // namespace
     if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
+    if (IsMemberNameAt(refs, i) && artifact_names.find(refs[i - 2].token.text) != artifact_names.end()) {
+      return 5; // property (artifact member)
+    }
     if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
       if (refs[i + 2].token.kind == TK::KwModule) return 7; // namespace
       if (refs[i + 2].token.kind == TK::KwEnum) return 1; // type
