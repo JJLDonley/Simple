@@ -1765,6 +1765,21 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
          refs[i - 2].token.kind == TK::Identifier;
 }
 
+size_t MemberAccessDepthAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  size_t depth = 0;
+  size_t idx = i;
+  while (idx >= 2 &&
+         refs[idx].token.kind == TK::Identifier &&
+         refs[idx - 1].token.kind == TK::Dot &&
+         refs[idx - 2].token.kind == TK::Identifier) {
+    ++depth;
+    if (idx < 2) break;
+    idx -= 2;
+  }
+  return depth;
+}
+
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<std::string>& import_aliases,
@@ -1800,7 +1815,9 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (import_aliases.find(token.text) != import_aliases.end()) return 7; // namespace
     if (IsMemberNameAt(refs, i)) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
-      return 5; // property
+      const size_t depth = MemberAccessDepthAt(refs, i);
+      if ((depth % 2) == 0) return 3; // variable (cycled)
+      return 5; // property (cycled)
     }
     if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration

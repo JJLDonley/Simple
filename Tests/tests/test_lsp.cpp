@@ -1621,6 +1621,63 @@ bool LspSemanticTokensMarkArtifactFieldsAsProperties() {
          found_property_decl;
 }
 
+bool LspSemanticTokensCycleMemberAccessDepth() {
+  const std::string in_path = TempPath("simple_lsp_tokens_member_cycle_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_member_cycle_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_member_cycle_err.txt");
+  const std::string uri = "file:///workspace/tokens_member_cycle.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text = "obj.alpha.beta.gamma;";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"" + open_text + "\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":62,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty()) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t alpha_pos = open_text.find("alpha");
+  const size_t beta_pos = open_text.find("beta");
+  const size_t gamma_pos = open_text.find("gamma");
+  if (alpha_pos == std::string::npos ||
+      beta_pos == std::string::npos ||
+      gamma_pos == std::string::npos) {
+    return false;
+  }
+  const int target_line = 0;
+  const int alpha_col = static_cast<int>(alpha_pos);
+  const int beta_col = static_cast<int>(beta_pos);
+  const int gamma_col = static_cast<int>(gamma_pos);
+  int alpha_type = -1;
+  int beta_type = -1;
+  int gamma_type = -1;
+  for (const auto& entry : entries) {
+    if (entry.line != target_line) continue;
+    if (entry.col == alpha_col && entry.len == 5) alpha_type = entry.type;
+    if (entry.col == beta_col && entry.len == 4) beta_type = entry.type;
+    if (entry.col == gamma_col && entry.len == 5) gamma_type = entry.type;
+  }
+  return out_contents.find("\"id\":62") != std::string::npos &&
+         alpha_type == 5 &&
+         beta_type == 3 &&
+         gamma_type == 5;
+}
+
 bool LspDefinitionReturnsLocation() {
   const std::string in_path = TempPath("simple_lsp_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_definition_out.txt");
@@ -2614,6 +2671,7 @@ const TestCase kLspTests[] = {
    LspSemanticTokensMarkEnumMembersAsDeclarations},
   {"lsp_semantic_tokens_mark_artifact_fields_as_properties",
    LspSemanticTokensMarkArtifactFieldsAsProperties},
+  {"lsp_semantic_tokens_cycle_member_access_depth", LspSemanticTokensCycleMemberAccessDepth},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
   {"lsp_declaration_returns_location", LspDeclarationReturnsLocation},

@@ -1558,5 +1558,9 @@
   - artifact field identifiers now emit `property` tokens with `declaration` modifier.
 - Added LSP regression coverage:
   - semantic token test for artifact field property classification.
+- Improved semantic token differentiation for chained member access:
+  - alternating token types for `expr.member.member` chains to aid visual depth (cycled property/variable).
+- Added LSP regression coverage:
+  - semantic token test for member-chain depth cycling.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.
