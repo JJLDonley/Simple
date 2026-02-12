@@ -1570,5 +1570,9 @@
   - reserved aliases now emit the `defaultLibrary` modifier for clearer builtin styling.
 - Added LSP regression coverage:
   - semantic token test for reserved alias `defaultLibrary` modifier.
+- Improved semantic token modifiers for reserved members:
+  - reserved alias member calls (e.g. `IO.println`) now emit `defaultLibrary` modifier.
+- Added LSP regression coverage:
+  - semantic token test for reserved alias member `defaultLibrary` modifier.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

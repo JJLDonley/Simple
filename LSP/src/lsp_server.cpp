@@ -1850,6 +1850,10 @@ uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
       IsReservedModuleAliasToken(refs[i].token.text)) {
     return 1u << 2; // defaultLibrary
   }
+  if (IsMemberNameAt(refs, i) &&
+      IsReservedModuleAliasToken(refs[i - 2].token.text)) {
+    return 1u << 2; // defaultLibrary
+  }
   if (enum_member_indices.find(i) != enum_member_indices.end()) {
     return 1u << 0; // declaration
   }
