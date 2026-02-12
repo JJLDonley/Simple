@@ -1219,17 +1219,17 @@ bool LspSemanticTokensMarkFunctionDeclarations() {
   std::vector<int> data;
   if (!ExtractSemanticData(out_contents, &data)) return false;
   if (data.size() % 5 != 0) return false;
-  bool found_function_decl = false;
+  bool found_decl = false;
   for (size_t i = 0; i + 4 < data.size(); i += 5) {
     const int token_type = data[i + 3];
     const int modifiers = data[i + 4];
-    if (token_type == 2 && (modifiers & 1) == 1) {
-      found_function_decl = true;
+    if (token_type == 3 && (modifiers & 1) == 1) {
+      found_decl = true;
       break;
     }
   }
   return out_contents.find("\"id\":26") != std::string::npos &&
-         found_function_decl;
+         found_decl;
 }
 
 bool LspSemanticTokensClassifyFunctionsAndParameters() {

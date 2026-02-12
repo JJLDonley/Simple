@@ -1574,5 +1574,9 @@
   - reserved alias member calls (e.g. `IO.println`) now emit `defaultLibrary` modifier.
 - Added LSP regression coverage:
   - semantic token test for reserved alias member `defaultLibrary` modifier.
+- Adjusted semantic token classification for declarations:
+  - function declarations now emit identifier tokens (variable) instead of function tokens to keep declaration names neutral.
+- Updated LSP regression coverage:
+  - function declaration semantic token test now expects identifier + declaration modifier.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

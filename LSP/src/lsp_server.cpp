@@ -1828,7 +1828,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
       if ((depth % 2) == 0) return 3; // variable (cycled)
       return 5; // property (cycled)
     }
-    if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
+    if (IsFunctionDeclNameAt(refs, i)) return 3; // function declaration -> identifier
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
     if (IsFunctionCallNameAt(refs, i)) return 2; // function call
     if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
