@@ -66,10 +66,10 @@ Status:
 - Core imports + dynamic DL/FFI dispatch implemented.
 
 Remaining alpha work:
-- [ ] Finalize JIT posture for alpha (explicitly supported, experimental, or disabled-by-default).
-- [ ] Remove/label placeholder runtime paths that are not alpha-grade.
- - [x] Add focused runtime smoke profile for import + trap diagnostics (`simplevm_tests --smoke`).
-- [ ] JIT upgrade plan (scope + milestones) is documented and tracked.
+- [x] Finalize JIT posture for alpha: experimental, enabled-by-default in `ExecuteModule` (no CLI flag yet).
+- [x] Remove/label placeholder runtime paths that are not alpha-grade (see `Docs/VM.md`).
+- [x] Add focused runtime smoke profile for import + trap diagnostics (`simplevm_tests --smoke`).
+- [x] JIT upgrade plan (scope + milestones) is documented and tracked.
 
 JIT upgrade plan (interpreter must remain canonical):
 - [x] Phase 1: scalar parity (no heap/refs, no params).

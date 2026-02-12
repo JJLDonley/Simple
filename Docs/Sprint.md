@@ -206,6 +206,7 @@
 - Allowed JIT compiled path to skip Line/Profile opcodes and updated opcode-hot unsupported coverage to use CONST_STRING.
 - Added `scripts/jit_bench.sh` to run JIT bench loops with threshold overrides.
 - Added runtime smoke profile (`simplevm_tests --smoke`) covering import + trap diagnostics.
+- Documented JIT alpha posture and placeholder runtime paths in `Docs/VM.md`.
 
 ## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.

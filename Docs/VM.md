@@ -88,6 +88,16 @@ Known limitation:
 Interpreter is the canonical correctness path.
 JIT/tier scaffolding exists, but runtime behavior must always be valid without relying on JIT.
 
+## Placeholder / Non-Alpha Paths
+
+The following runtime paths are intentionally limited or placeholder-grade for alpha:
+
+- JIT stubs currently fall back to the interpreter path (no native codegen backend yet).
+- `core.dl` dynamic library calls are unsupported on Windows.
+- `core.dl.call` rejects unsupported ABI shapes (unsupported parameter/return types, recursive artifacts).
+- `INTRINSIC`/`SYS_CALL` reject unsupported IDs.
+- `print_any` rejects unsupported tags/ref kinds.
+
 ## Ownership
 
 - VM runtime: `VM/src/vm.cpp`
