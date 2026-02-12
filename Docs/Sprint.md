@@ -1624,3 +1624,10 @@
   - added const/unary/arithmetic/bitwise/shift/compare/convert support for i64/u64/u32/f32/f64 and small scalar ops.
 - Added JIT regression coverage:
   - new compiled tests for scalar i32/u32 ops, i64/u64 ops, float ops, conversions, and scalar comparisons.
+
+## 2026-02-12
+- Added fast test runner:
+  - `scripts/fast_tests.sh` configures a dedicated CMake build, builds `simplevm`, and runs `simplevm_tests`.
+  - Syncs the built `simplevm` into `build/bin` and `bin/` so LSP tests use the fresh binary.
+- Fixed LSP import completion:
+  - reserved import completion now includes `System.fs`/`system.fs` alongside the existing aliases.

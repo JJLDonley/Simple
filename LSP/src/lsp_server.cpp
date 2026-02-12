@@ -974,12 +974,12 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "System.io", "System.math", "System.time", "System.file", "System.dl",
-      "System.os", "System.log",
-      "system.io", "system.math", "system.time", "system.file", "system.dl",
-      "system.os", "system.log",
-      "IO", "Math", "Time", "File", "DL", "OS", "Log",
-      "io", "math", "time", "file", "dl", "os", "log"};
+      "System.io", "System.math", "System.time", "System.fs", "System.dl",
+      "System.os", "System.log", "System.file",
+      "system.io", "system.math", "system.time", "system.fs", "system.dl",
+      "system.os", "system.log", "system.file",
+      "IO", "Math", "Time", "FS", "File", "DL", "OS", "Log",
+      "io", "math", "time", "fs", "file", "dl", "os", "log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
