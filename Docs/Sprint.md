@@ -1631,3 +1631,7 @@
   - Syncs the built `simplevm` into `build/bin` and `bin/` so LSP tests use the fresh binary.
 - Fixed LSP import completion:
   - reserved import completion now includes `System.fs`/`system.fs` alongside the existing aliases.
+- JIT Phase 2 (locals + params parity, scalar-only):
+  - allow scalar param/return types for compiled eligibility and enforce local count guardrails.
+  - initialize compiled locals with passed args.
+  - update param-callee JIT tests to exercise compiled path.

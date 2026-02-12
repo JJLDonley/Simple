@@ -50,6 +50,26 @@ inline bool IsI32LikeImportType(TypeKind kind) {
   }
 }
 
+inline bool IsJitScalarKind(TypeKind kind) {
+  switch (kind) {
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::I64:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::U64:
+    case TypeKind::F32:
+    case TypeKind::F64:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+      return true;
+    default:
+      return false;
+  }
+}
+
 inline bool IsI64LikeImportType(TypeKind kind) {
   return kind == TypeKind::I64 || kind == TypeKind::U64;
 }
@@ -2088,7 +2108,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     const auto& method = module.methods[func.method_id];
     if (method.sig_id >= module.sigs.size()) return false;
     const auto& sig = module.sigs[method.sig_id];
-    if (sig.param_count != 0) return false;
+    if (sig.param_count > 0) {
+      if (sig.param_type_start + sig.param_count > module.param_types.size()) return false;
+      if (method.local_count < sig.param_count) return false;
+      for (uint16_t i = 0; i < sig.param_count; ++i) {
+        uint32_t type_id = module.param_types[sig.param_type_start + i];
+        if (type_id >= module.types.size()) return false;
+        TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
+        if (!IsJitScalarKind(kind)) return false;
+      }
+    }
+    if (sig.ret_type_id != 0xFFFFFFFFu) {
+      if (sig.ret_type_id >= module.types.size()) return false;
+      TypeKind ret_kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
+      if (!IsJitScalarKind(ret_kind)) return false;
+    }
     size_t locals_count = 0;
     bool saw_enter = false;
     size_t pc = func.code_offset;
@@ -2304,9 +2338,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
       }
     }
+    if (sig.param_count > 0) {
+      if (!saw_enter) return false;
+      if (locals_count < sig.param_count) return false;
+    }
     return true;
   };
-  auto run_compiled = [&](size_t func_index, Slot& out_ret, bool& out_has_ret, std::string& error) -> bool {
+  auto run_compiled = [&](size_t func_index, const std::vector<Slot>& args, Slot& out_ret,
+                          bool& out_has_ret, std::string& error) -> bool {
     if (func_index >= module.functions.size()) {
       std::ostringstream out;
       out << "JIT compiled invalid function id op 0xFF Unknown pc 0";
@@ -2314,6 +2353,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return false;
     }
     const auto& func = module.functions[func_index];
+    if (func.method_id >= module.methods.size()) {
+      error = "JIT compiled invalid method id";
+      return false;
+    }
+    const auto& method = module.methods[func.method_id];
+    if (method.sig_id >= module.sigs.size()) {
+      error = "JIT compiled invalid signature id";
+      return false;
+    }
+    const auto& sig = module.sigs[method.sig_id];
+    const uint16_t param_count = sig.param_count;
+    if (args.size() != param_count) {
+      error = "JIT compiled arg count mismatch";
+      return false;
+    }
     size_t pc = func.code_offset;
     size_t end_pc = func.code_offset + func.code_size;
     jit_stack.clear();
@@ -2399,6 +2453,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           uint16_t locals_count = ReadU16(module.code, pc);
           if (!saw_enter) {
             locals.assign(locals_count, 0);
+            if (param_count > 0) {
+              if (locals_count < param_count) {
+                return jit_fail("JIT compiled locals < param count", op, inst_pc);
+              }
+              for (uint16_t i = 0; i < param_count; ++i) {
+                locals[static_cast<size_t>(i)] = args[static_cast<size_t>(i)];
+              }
+            }
             saw_enter = true;
           } else if (locals.size() != locals_count) {
             return jit_fail("JIT compiled locals mismatch", op, inst_pc);
@@ -5628,7 +5690,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, ret, has_ret, error)) {
+          if (run_compiled(func_id, call_args, ret, has_ret, error)) {
             if (has_ret) Push(stack, ret);
             break;
           }
@@ -5716,7 +5778,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(static_cast<size_t>(func_index), ret, has_ret, error)) {
+          if (run_compiled(static_cast<size_t>(func_index), call_args, ret, has_ret, error)) {
             if (has_ret) Push(stack, ret);
             break;
           }
@@ -5792,7 +5854,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (run_compiled(func_id, ret, has_ret, error)) {
+          if (run_compiled(func_id, call_args, ret, has_ret, error)) {
             if (call_stack.empty()) {
               ExecResult result;
               result.status = ExecStatus::Halted;

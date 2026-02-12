@@ -2157,10 +2157,13 @@ std::vector<uint8_t> BuildJitParamCalleeModule() {
     AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
     AppendU32(entry, 1);
     AppendU8(entry, 1);
-    if (i + 1 < Simple::VM::kJitTier0Threshold) {
-      AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
-    }
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
   }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
   AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
 
   std::vector<uint8_t> callee;
@@ -2183,6 +2186,12 @@ std::vector<uint8_t> BuildJitOpcodeHotParamCalleeModule() {
   std::vector<uint8_t> entry;
   AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 7);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
   AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(entry, 7);
   AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
@@ -5812,8 +5821,8 @@ bool RunJitParamCalleeTest() {
     std::cerr << "expected compiled exec counts for functions\n";
     return false;
   }
-  if (exec.jit_compiled_exec_counts[1] != 0) {
-    std::cerr << "expected no compiled execs for param callee\n";
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled execs for param callee\n";
     return false;
   }
   if (exec.exit_code != 7) {
@@ -5852,8 +5861,8 @@ bool RunJitOpcodeHotParamCalleeTest() {
     std::cerr << "expected compiled exec counts for functions\n";
     return false;
   }
-  if (exec.jit_compiled_exec_counts[1] != 0) {
-    std::cerr << "expected no compiled execs for opcode-hot param callee\n";
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled execs for opcode-hot param callee\n";
     return false;
   }
   if (exec.exit_code != 7) {

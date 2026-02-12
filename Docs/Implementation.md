@@ -72,13 +72,13 @@ Remaining alpha work:
 - [ ] JIT upgrade plan (scope + milestones) is documented and tracked.
 
 JIT upgrade plan (interpreter must remain canonical):
-- [ ] Phase 1: scalar parity (no heap/refs, no params).
-- [ ] Phase 1 scope: scalar consts, unary ops, arithmetic, compare, bool, bitwise, shifts, and numeric conversions for i32/i64/u32/u64/f32/f64.
-- [ ] Phase 1 guardrails: zero-parameter functions only, no heap/refs, no globals, no calls.
-- [ ] Phase 1 tests: assert compiled exec counts for new opcode coverage.
-- [ ] Phase 2: locals + params parity (still no heap/refs).
-- [ ] Phase 2 scope: allow parameters and local access for scalar-only functions.
-- [ ] Phase 2 guardrails: enforce type-safe stack discipline and retain fallback-on-failure.
+- [x] Phase 1: scalar parity (no heap/refs, no params).
+- [x] Phase 1 scope: scalar consts, unary ops, arithmetic, compare, bool, bitwise, shifts, and numeric conversions for i32/i64/u32/u64/f32/f64.
+- [x] Phase 1 guardrails: zero-parameter functions only, no heap/refs, no globals, no calls.
+- [x] Phase 1 tests: assert compiled exec counts for new opcode coverage.
+- [x] Phase 2: locals + params parity (still no heap/refs).
+- [x] Phase 2 scope: allow parameters and local access for scalar-only functions.
+- [x] Phase 2 guardrails: enforce type-safe stack discipline and retain fallback-on-failure.
 - [ ] Phase 3: controlled heap/refs (strings/lists/arrays).
 - [ ] Phase 3 scope: opt-in compiled support for ref-like ops with explicit safety checks.
 - [ ] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
