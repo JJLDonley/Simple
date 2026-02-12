@@ -1077,6 +1077,43 @@ std::vector<std::string> CollectEnumMemberLabels(const std::string& text) {
   return labels;
 }
 
+std::vector<std::string> CollectArtifactFieldLabels(const std::string& text) {
+  std::vector<std::string> labels;
+  const auto refs = LexTokenRefs(text);
+  using TK = Simple::Lang::TokenKind;
+  std::string current_artifact;
+  bool in_artifact = false;
+  uint32_t artifact_depth = 0;
+  for (size_t i = 0; i < refs.size(); ++i) {
+    const auto& ref = refs[i];
+    if (!in_artifact) {
+      if (ref.token.kind == TK::Identifier &&
+          i + 2 < refs.size() &&
+          refs[i + 1].token.kind == TK::DoubleColon &&
+          refs[i + 2].token.kind == TK::KwArtifact) {
+        current_artifact = ref.token.text;
+        continue;
+      }
+      if (!current_artifact.empty() && ref.token.kind == TK::LBrace) {
+        artifact_depth = ref.depth + 1;
+        in_artifact = true;
+      }
+      continue;
+    }
+    if (ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
+      in_artifact = false;
+      current_artifact.clear();
+      continue;
+    }
+    if (ref.depth != artifact_depth || ref.token.kind != TK::Identifier) continue;
+    if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::Colon) continue;
+    labels.push_back(current_artifact + "." + ref.token.text);
+  }
+  std::sort(labels.begin(), labels.end());
+  labels.erase(std::unique(labels.begin(), labels.end()), labels.end());
+  return labels;
+}
+
 std::string QualifiedMemberAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -1541,6 +1578,8 @@ void ReplyCompletion(std::ostream& out,
       for (const auto& label : reserved_labels) add_label(label, &seen);
       const auto enum_labels = CollectEnumMemberLabels(doc_it->second);
       for (const auto& label : enum_labels) add_label(label, &seen);
+      const auto artifact_labels = CollectArtifactFieldLabels(doc_it->second);
+      for (const auto& label : artifact_labels) add_label(label, &seen);
     }
     auto add_doc_decls = [&](const std::string& text) {
       const auto refs = LexTokenRefs(text);
@@ -1557,6 +1596,8 @@ void ReplyCompletion(std::ostream& out,
       if (other_uri == uri) continue;
       const auto enum_labels = CollectEnumMemberLabels(other_text);
       for (const auto& label : enum_labels) add_label(label, &seen);
+      const auto artifact_labels = CollectArtifactFieldLabels(other_text);
+      for (const auto& label : artifact_labels) add_label(label, &seen);
       add_doc_decls(other_text);
     }
     std::sort(labels.begin(), labels.end());

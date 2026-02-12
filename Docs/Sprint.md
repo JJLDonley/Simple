@@ -208,6 +208,7 @@
 - Added hover support for user-defined function signatures and a regression test for hover signature output.
 - Added user-defined function signature help for call sites and tests to validate user-function signature help.
 - Added enum-member completion labels for user-defined enums and tests for enum-member completion results.
+- Added artifact member completion labels for user-defined artifacts and tests for artifact member completion results.
 - Added compiled locals compare+bool chain JIT test to validate LOAD/STORE with CMP/BOOL ops.
 - Added opcode-hot locals compare+bool chain JIT test with Tier0 promotion and compiled exec assertions.
 - Added opcode-hot locals compare+bool chain coverage for CALL_INDIRECT path.

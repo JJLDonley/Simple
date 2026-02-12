@@ -712,6 +712,38 @@ bool LspCompletionReturnsEnumMembers() {
          out_contents.find("\"label\":\"Color.Blue\"") != std::string::npos;
 }
 
+bool LspCompletionReturnsArtifactMembers() {
+  const std::string in_path = TempPath("simple_lsp_completion_artifact_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_artifact_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_artifact_err.txt");
+  const std::string uri = "file:///workspace/completion_artifact.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"Vec2 :: artifact { x : f32, y : f32 }\\npoint : Vec2 = { 0, 0 }\\npoint.\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":49,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":6}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":49") != std::string::npos &&
+         out_contents.find("\"label\":\"Vec2.x\"") != std::string::npos &&
+         out_contents.find("\"label\":\"Vec2.y\"") != std::string::npos;
+}
+
 bool LspCompletionIncludesLocalDeclarations() {
   const std::string in_path = TempPath("simple_lsp_completion_local_in.txt");
   const std::string out_path = TempPath("simple_lsp_completion_local_out.txt");
@@ -3054,6 +3086,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_function_signature", LspHoverShowsFunctionSignature},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
   {"lsp_completion_returns_enum_members", LspCompletionReturnsEnumMembers},
+  {"lsp_completion_returns_artifact_members", LspCompletionReturnsArtifactMembers},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
   {"lsp_completion_includes_open_document_declarations", LspCompletionIncludesOpenDocumentDeclarations},
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
