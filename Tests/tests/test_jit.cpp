@@ -6777,7 +6777,7 @@ int RunBenchLoop(size_t iterations) {
     }
     auto end = std::chrono::high_resolution_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    std::cout << bench_case.name << " " << (enable_jit ? "jit" : "nojit")
+    std::cout << bench_case.name << " " << (enable_jit ? "tiered" : "nojit")
               << " iterations=" << iterations << " ms=" << ms << "\n";
     return true;
   };
@@ -6785,6 +6785,66 @@ int RunBenchLoop(size_t iterations) {
   for (const auto& bench_case : cases) {
     if (!run_case(bench_case, false)) return 1;
     if (!run_case(bench_case, true)) return 1;
+  }
+  return 0;
+}
+
+int RunBenchHotLoop(size_t iterations) {
+  struct BenchCase {
+    const char* name;
+    std::vector<uint8_t> bytes;
+  };
+  std::vector<BenchCase> cases;
+  cases.push_back({"single_type", BuildJitCompiledLoopModule()});
+  cases.push_back({"mixed_ops", BuildBenchMixedOpsModule()});
+  cases.push_back({"calls", BuildBenchCallsModule()});
+
+  struct EnvGuard {
+    std::string name;
+    explicit EnvGuard(std::string name) : name(std::move(name)) {}
+    ~EnvGuard() { UnsetEnvVar(name); }
+  };
+
+  auto run_case = [&](const BenchCase& bench_case) {
+    Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(bench_case.bytes);
+    if (!load.ok) {
+      std::cerr << "bench load failed (" << bench_case.name << "): " << load.error << "\n";
+      return false;
+    }
+    Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+    if (!vr.ok) {
+      std::cerr << "bench verify failed (" << bench_case.name << "): " << vr.error << "\n";
+      return false;
+    }
+    SetEnvVar("SIMPLE_JIT_TIER0", "1");
+    SetEnvVar("SIMPLE_JIT_TIER1", "1");
+    SetEnvVar("SIMPLE_JIT_OPCODE", "1");
+    EnvGuard tier0_guard("SIMPLE_JIT_TIER0");
+    EnvGuard tier1_guard("SIMPLE_JIT_TIER1");
+    EnvGuard opcode_guard("SIMPLE_JIT_OPCODE");
+
+    Simple::VM::ExecResult warmup = Simple::VM::ExecuteModule(load.module, true, true);
+    if (warmup.status != Simple::VM::ExecStatus::Halted) {
+      std::cerr << "bench warmup failed (" << bench_case.name << ")\n";
+      return false;
+    }
+
+    auto start = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < iterations; ++i) {
+      Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true);
+      if (exec.status != Simple::VM::ExecStatus::Halted) {
+        std::cerr << "bench hot exec failed (" << bench_case.name << ")\n";
+        return false;
+      }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << bench_case.name << " hot iterations=" << iterations << " ms=" << ms << "\n";
+    return true;
+  };
+
+  for (const auto& bench_case : cases) {
+    if (!run_case(bench_case)) return 1;
   }
   return 0;
 }

@@ -44,6 +44,7 @@ const TestSection* GetIrSections(size_t* count);
 #if SIMPLEVM_TEST_INCLUDE_JIT
 const TestSection* GetJitSections(size_t* count);
 int RunBenchLoop(size_t iterations);
+int RunBenchHotLoop(size_t iterations);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_LANG
 const TestSection* GetLangSections(size_t* count);
@@ -155,6 +156,18 @@ int main(int argc, char** argv) {
     return Simple::VM::Tests::RunBenchLoop(iterations);
 #else
     std::cerr << "--bench is only available in the JIT test suite\n";
+    return 2;
+#endif
+  }
+  if (argc > 1 && std::string(argv[1]) == "--bench-hot") {
+#if SIMPLEVM_TEST_INCLUDE_JIT
+    size_t iterations = 1000;
+    if (argc > 2) {
+      iterations = static_cast<size_t>(std::stoul(argv[2]));
+    }
+    return Simple::VM::Tests::RunBenchHotLoop(iterations);
+#else
+    std::cerr << "--bench-hot is only available in the JIT test suite\n";
     return 2;
 #endif
   }

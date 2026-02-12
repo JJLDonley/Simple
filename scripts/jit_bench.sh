@@ -9,6 +9,7 @@ CMAKE_ARGS=()
 ITERATIONS=1000
 USE_CCACHE=1
 CLEAN=0
+MODE="bench"
 
 JIT_TIER0=""
 JIT_TIER1=""
@@ -19,6 +20,7 @@ usage() {
 Usage: scripts/jit_bench.sh [options]
 Options:
   --iters N         Number of iterations per bench case (default: 1000)
+  --hot             Run hot-loop bench (steady-state compiled path)
   --tier0 N         Override SIMPLE_JIT_TIER0
   --tier1 N         Override SIMPLE_JIT_TIER1
   --opcode N        Override SIMPLE_JIT_OPCODE
@@ -35,6 +37,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --iters)
       ITERATIONS="${2:-}"; shift 2 ;;
+    --hot)
+      MODE="bench-hot"; shift ;;
     --tier0)
       JIT_TIER0="${2:-}"; shift 2 ;;
     --tier1)
@@ -101,4 +105,4 @@ if [[ -n "${JIT_OPCODE}" ]]; then
   export SIMPLE_JIT_OPCODE="${JIT_OPCODE}"
 fi
 
-"$TEST_EXE" --bench "${ITERATIONS}"
+"$TEST_EXE" --${MODE} "${ITERATIONS}"
