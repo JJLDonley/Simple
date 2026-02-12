@@ -8,4 +8,4 @@
 /Editor/vscode-simple/*.vsix
 /Tests/extra/
 /raylib
-/scripts
+/scripts/*
