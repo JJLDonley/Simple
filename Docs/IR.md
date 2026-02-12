@@ -1,29 +1,40 @@
-# Simple::IR (Authoritative)
+# Simple::IR (API)
 
 `Simple::IR` owns SIR parsing and lowering to SBC.
 
-## What SIR Means
+## Supported
+- SIR parsing with section-oriented structure.
+- `types`, `sigs`, `consts`, `imports`, `globals`, `func`, and `entry` sections.
+- Label resolution and fixups within functions.
+- Deterministic lowering from SIR to SBC tables + code bytes.
+- Validation for opcode operand widths, table indices, and signature arity/type matches.
 
+## Not Supported
+- Unknown section/type/opcode names (rejected by lowering).
+- Malformed constants or unresolved/duplicate labels (rejected by lowering).
+- Unsupported metadata combinations (rejected by lowering).
+
+## Planned
+- Publish the explicit supported SIR subset and the unsupported forms list.
+- Add regression fixtures for each unsupported-but-diagnosed SIR class.
+
+## What SIR Means
 SIR is the typed intermediate representation between language AST and SBC bytecode.
 
 Purpose:
-
 - isolate language-front-end complexity from SBC emission
 - keep lowering rules explicit and testable
 - provide a stable textual intermediate for tooling/tests
 
 ## SIR Data Model
-
 SIR is section-oriented.
 
 Typical structure:
-
 1. optional metadata sections (`types`, `sigs`, `consts`, `imports`, `globals`)
 2. one or more `func` blocks
 3. `entry` declaration
 
 Function metadata includes:
-
 - `locals=<u16>`
 - `stack=<u16>`
 - `sig=<name-or-id>`
@@ -48,18 +59,14 @@ entry add
 ```
 
 ## Lowering Rules
-
 `IR/src/ir_lang.cpp` + `IR/src/ir_builder.cpp` enforce:
-
 - names resolved before emission
-- all opcode operand widths valid for target opcode
-- all table indices emitted in-range
+- opcode operand widths valid for target opcode
+- table indices emitted in-range
 - generated SBC must satisfy loader/verifier constraints
 
 ## Validation Behavior
-
 SIR lowering rejects:
-
 - unknown section/type/opcode names
 - malformed constants
 - unresolved labels or duplicate labels
@@ -86,13 +93,10 @@ L1:
 ```
 
 ## Relationship To Language
-
 `Simple::Lang` emits SIR.
-
 `Simple::IR` does not define surface syntax for `.simple`; it defines lowering correctness from SIR to SBC.
 
 ## Ownership
-
 - Parser/lowering: `IR/src/ir_lang.cpp`
 - Builder/fixups: `IR/src/ir_builder.cpp`
 - Headers: `IR/include/ir_lang.h`, `IR/include/ir_builder.h`

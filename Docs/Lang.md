@@ -1,16 +1,46 @@
-# Simple::Lang (Authoritative)
+# Simple::Lang (API)
 
 This document is authoritative for Simple language syntax and semantics.
 
-## Core Principles
+## Supported
+- Strict typing with explicit mutability markers (`:` mutable, `::` immutable).
+- Primitive types: `i8 i16 i32 i64 i128`, `u8 u16 u32 u64 u128`, `f32 f64`, `bool char string`.
+- Composite/supporting types: arrays `T[N]`, lists `T[]`, pointers `*T` and `*void`.
+- Variable declarations with explicit types and initializers.
+- Procedure declarations with explicit signatures and `return`.
+- First-class procedure values via `fn`.
+- `callback` parameter type marker (parameter positions only).
+- Control flow: `if/else`, chained guards (`|> ...`), `while`, `for`.
+- Enums with scoped member access (`Status.Running`).
+- Artifacts with fields, methods, and explicit field mutability.
+- Module namespaces with constant members.
+- Imports:
+  - reserved stdlib imports (see `Docs/StdLib.md`)
+  - file/path imports (importer-relative resolution)
+- `extern` declarations for native ABI binding through `DL`.
+- Script-style entry behavior:
+  - top-level statements execute in source order via implicit `__script_entry`
+  - top-level function declarations do not execute implicitly
+  - explicit `main` is used only when no top-level script statements exist
 
+## Not Supported
+- Top-level `return` (rejected at validation).
+- Legacy cast syntax `T(value)` (use `@T(value)` instead).
+- Import cycles (rejected at validation).
+- Using `callback` as a variable/field/return type (parameter-only).
+
+## Planned
+- Publish the explicit supported syntax/features list for alpha.
+- Publish the explicit deferred/unsupported syntax list for alpha.
+- Freeze diagnostic format expectations across parser/validator classes.
+
+## Core Principles
 - Strict typing everywhere
 - Explicit mutability model
 - Deterministic validation errors
 - No implicit fallback for unsupported constructs
 
 ## Mutability
-
 - `:` mutable binding/member
 - `::` immutable binding/member
 
@@ -22,16 +52,13 @@ name :: string = "Simple"
 ```
 
 ## Type System
-
 Primitives:
-
 - `i8 i16 i32 i64 i128`
 - `u8 u16 u32 u64 u128`
 - `f32 f64`
 - `bool char string`
 
 Composite/supporting:
-
 - arrays: `T[N]`
 - lists: `T[]`
 - pointers: `*T`, `*void`
@@ -55,9 +82,7 @@ add : i32 (a : i32, b : i32) {
 ```
 
 ### First-Class Procedure Values (`fn`)
-
 Procedure value binding syntax follows signature style:
-
 - mutable: `x : fn = RetType (params...) { ... }`
 - immutable: `x :: fn = RetType (params...) { ... }`
 
@@ -70,9 +95,7 @@ result : i32 = f(20, 22)
 ```
 
 ### Callback Parameter Type
-
 `callback` is a dedicated parameter type marker for procedure-accepting params.
-
 - valid in parameter positions
 - not a general variable/field/return type
 
@@ -87,7 +110,6 @@ run : void (cb : callback) {
 ## Control Flow
 
 ### If/Else/Chains
-
 Chain form:
 
 ```simple
@@ -139,11 +161,9 @@ s : Status = Status.Running
 Enums are strongly typed and scoped under their enum name.
 
 ## Artifacts
-
 Artifacts are structured user-defined types with optional methods.
 
 ### Field Mutability
-
 - mutable field: `field : T`
 - immutable field: `field :: T`
 
@@ -184,11 +204,9 @@ count : i32 = Config.MAX_PLAYERS
 ```
 
 ## Imports
-
 Simple supports two import domains.
 
 ### Reserved Library Imports
-
 Examples:
 
 ```simple
@@ -200,7 +218,6 @@ import FS
 These map to compiler/runtime-reserved modules (see `Docs/StdLib.md`).
 
 ### File/Path Imports
-
 Examples:
 
 ```simple
@@ -212,19 +229,15 @@ import "../another/raylib.simple"
 For local project imports, resolution is importer-relative.
 
 ## Extern + DLL Interop Entry
-
 `extern` declarations define typed signatures used by `DL` dynamic loading.
-
 See `Docs/StdLib.md` and `Docs/VM.md` for ABI/runtime details.
 
 ## Diagnostics Contract
-
 - Type mismatches are compile errors.
 - Invalid mutability writes are compile errors.
 - Unsupported syntax/constructs fail explicitly.
 
 ## Source Ownership
-
 - Lexer: `Lang/src/lang_lexer.cpp`
 - Parser: `Lang/src/lang_parser.cpp`
 - Validator: `Lang/src/lang_validate.cpp`

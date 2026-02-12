@@ -1,11 +1,24 @@
-# Simple Standard Library (Authoritative)
+# Simple Standard Library (API)
 
 This document defines reserved imports and core runtime module APIs.
 
+## Supported
+- Reserved import keywords mapped to runtime namespaces.
+- Modern `System.*` aliases and legacy short names.
+- Core module APIs listed in this document.
+- `extern` declarations as ABI contracts for `DL` dynamic calls.
+
+## Not Supported
+- Modules or members not listed here.
+- Implicit ABI coercion for `extern` calls.
+- Recursive artifact structs in `extern` ABI (rejected by the runtime).
+
+## Planned
+- Expanded standard library surface beyond the current core modules.
+- Formalized ABI compatibility guidance for `extern` contracts.
+
 ## Reserved Import Keywords
-
 Reserved (compiler-mapped):
-
 - `Math`
 - `IO`
 - `Time`
@@ -16,7 +29,6 @@ Reserved (compiler-mapped):
 - `Log`
 
 Preferred modern aliases:
-
 - `System.math`
 - `System.io`
 - `System.time`
@@ -40,7 +52,6 @@ Preferred modern aliases:
 ## Core Module API Tables
 
 ### Math
-
 | Member | Signature |
 |---|---|
 | `abs` | `abs(x)` |
@@ -49,7 +60,6 @@ Preferred modern aliases:
 | `PI` | constant |
 
 ### IO
-
 | Member | Signature |
 |---|---|
 | `print` | `print(x)` or `print("fmt {}", args...)` |
@@ -60,14 +70,12 @@ Preferred modern aliases:
 | `buffer_copy` | `(dst : i32[], src : i32[], count : i32) -> i32` |
 
 ### Time
-
 | Member | Signature |
 |---|---|
 | `mono_ns` | `() -> i64` |
 | `wall_ns` | `() -> i64` |
 
 ### Fs
-
 | Member | Signature |
 |---|---|
 | `open` | `(path : string, flags : i32) -> i32` |
@@ -76,7 +84,6 @@ Preferred modern aliases:
 | `close` | `(fd : i32) -> void` |
 
 ### Os
-
 | Member | Signature |
 |---|---|
 | `args_count` | `() -> i32` |
@@ -92,13 +99,11 @@ Preferred modern aliases:
 | `has_dl` | `bool` constant |
 
 ### Log
-
 | Member | Signature |
 |---|---|
 | `log` | `(message : string, level : i32) -> void` |
 
 ### DL
-
 | Member | Signature |
 |---|---|
 | `open` | `(path : string) -> i64` |
@@ -108,11 +113,9 @@ Preferred modern aliases:
 | `supported` | `bool` constant |
 
 ## Extern Interop
-
 `extern` signatures define ABI contracts for dynamic symbol calls.
-
 - signatures are strict
 - no implicit ABI coercion
-- artifacts by-value supported (non-recursive)
+- artifacts by value supported (non-recursive)
 
 See `Docs/VM.md` for runtime ABI details.

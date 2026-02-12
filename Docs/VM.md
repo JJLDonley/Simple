@@ -1,9 +1,28 @@
-# Simple::VM (Authoritative)
+# Simple::VM (API)
 
 `Simple::VM` executes verified SBC modules and hosts runtime services.
 
-## Runtime Purpose
+## Supported
+- Deterministic interpreter execution of verified SBC modules.
+- Strict slot/type expectations enforced by verifier contracts.
+- Heap/object model with GC (strings, arrays, lists, artifacts, closures).
+- Core import dispatch for runtime modules (`core.io`, `core.fs`, `core.os`, `core.log`, `core.dl`).
+- `DL` dynamic library interop on supported platforms via libffi.
+- Experimental JIT tiering scaffolding with interpreter fallback (interpreter remains canonical).
 
+## Not Supported
+- JIT native codegen for the full opcode surface (unsupported opcodes fall back to interpreter).
+- `core.dl` dynamic library calls on Windows.
+- `DL` ABI shapes outside the supported list (unsupported parameter/return types).
+- Recursive artifact structs in the `DL` ABI (rejected).
+- Unsupported `INTRINSIC`/`SYS_CALL` ids (rejected).
+
+## Planned
+- Expand JIT coverage and tuning (tier thresholds, eligibility, and more opcodes).
+- Broader `DL` support and platform parity.
+- Expanded intrinsic/syscall surface with explicit contracts.
+
+## Runtime Purpose
 - deterministic interpreter execution
 - strict slot/type expectations enforced by verifier contracts
 - heap + object model + GC
@@ -11,9 +30,7 @@
 - dynamic library interop via `DL`
 
 ## Execution Model
-
 `ExecuteModule` flow:
-
 1. optional verifier gate
 2. global initialization
 3. frame + stack setup
@@ -23,16 +40,13 @@
 Primary implementation: `VM/src/vm.cpp`.
 
 ## Slot And Frame Model
-
 - stack/locals/globals use 64-bit slots
 - ref null sentinel: `0xFFFFFFFF`
 - call frame tracks function index, return pc, local range, stack base
 - supports direct call, indirect call, and tailcall
 
 ## Heap/Object Model
-
 Kinds include:
-
 - string
 - array
 - list
@@ -42,9 +56,7 @@ Kinds include:
 Heap implementation: `VM/src/heap.cpp`.
 
 ## Core Runtime Library Surface
-
 Runtime import dispatch supports:
-
 - `core.io`
 - `core.fs`
 - `core.os`
@@ -54,9 +66,7 @@ Runtime import dispatch supports:
 See full API tables in `Docs/StdLib.md`.
 
 ## DLL / C-C++ Interop Path
-
 `DL` path:
-
 1. open dynamic library
 2. load symbol
 3. bind call signature from `extern` manifest metadata
@@ -67,39 +77,24 @@ See full API tables in `Docs/StdLib.md`.
 Current ABI backend is libffi-driven on supported platforms.
 
 Supported shapes:
-
 - scalar numeric/char/bool
 - pointers (`*T`, `*void`)
 - enums
-- artifacts by value
+- artifacts by value (non-recursive)
 
 Known limitation:
-
 - recursive artifact struct ABI is rejected
 
 ## Import + Extern For Static Files
-
 - `import` resolves reserved modules and project files (see `Docs/Lang.md`)
 - `extern` defines typed native symbol signatures used by `DL`
 - runtime does not guess signature layouts; it uses declared metadata
 
 ## JIT Note
-
 Interpreter is the canonical correctness path.
 JIT/tier scaffolding exists, but runtime behavior must always be valid without relying on JIT.
 
-## Placeholder / Non-Alpha Paths
-
-The following runtime paths are intentionally limited or placeholder-grade for alpha:
-
-- JIT stubs currently fall back to the interpreter path (no native codegen backend yet).
-- `core.dl` dynamic library calls are unsupported on Windows.
-- `core.dl.call` rejects unsupported ABI shapes (unsupported parameter/return types, recursive artifacts).
-- `INTRINSIC`/`SYS_CALL` reject unsupported IDs.
-- `print_any` rejects unsupported tags/ref kinds.
-
 ## Ownership
-
 - VM runtime: `VM/src/vm.cpp`
 - Heap/GC: `VM/src/heap.cpp`
 - Public headers: `VM/include/vm.h`, `VM/include/heap.h`

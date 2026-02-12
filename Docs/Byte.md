@@ -1,23 +1,34 @@
-# Simple::Byte (Authoritative)
+# Simple::Byte (API)
 
-`Simple::Byte` defines the SBC binary contract and verification layer.
+`Simple::Byte` defines the SBC binary contract and the loader/verifier behavior.
 
-## What SBC Means
+## Supported
+- SBC binary layout with header, section table, aligned sections, and code bytes.
+- Core sections: `types`, `fields`, `methods`, `sigs`, `globals`, `functions`, `imports`, `exports`, `const_pool`, `code`.
+- Optional `debug` section (accepted but not required for execution).
+- Loader structural validation: bounds, alignment, overlap checks, and row-size/count validation.
+- Cross-table reference validation across types/sigs/methods/functions/globals/imports/exports.
+- Const pool offset/type validation (strings, i128/u128 blobs, etc.).
+- Verifier enforcement:
+  - instruction boundaries and jump targets
+  - stack discipline + merge compatibility
+  - call/indirect/tailcall signature checks
+  - local/global initialization and type checks
+- Canonical opcode metadata defined in `Byte/include/opcode.h`.
 
-SBC is the executable bytecode format consumed by the VM.
+## Not Supported
+- Any forward/backward compatibility guarantee across SBC versions (policy not frozen yet).
+- Execution of modules that fail load/verify (they are rejected before VM execution).
 
-Goals:
-
-- deterministic binary layout
-- strict table references
-- verifier-enforced control-flow and type safety
+## Planned
+- Formal SBC compatibility/versioning policy.
+- Explicit forward/backward compatibility expectations for SBC consumers.
+- Compatibility smoke tests using archived SBC fixtures.
 
 ## SBC Data Model
-
 Primary structures are defined in `Byte/include/sbc_types.h`.
 
 Core parts:
-
 - `SbcHeader`
 - section table (`SectionEntry[]`)
 - metadata tables (types/sigs/methods/functions/globals/imports/exports)
@@ -25,39 +36,20 @@ Core parts:
 - code bytes
 
 ## Binary Layout
-
 1. Header (`SBC0`, version, endian, section metadata)
 2. Section table
 3. Sections (aligned, non-overlapping)
 
-Common sections:
-
-- `types`
-- `fields`
-- `methods`
-- `sigs`
-- `globals`
-- `functions`
-- `imports`
-- `exports`
-- `const_pool`
-- `code`
-- `debug` (optional)
-
-## Loader Meaning
-
-Loader (`Byte/src/sbc_loader.cpp`) is responsible for:
-
+## Loader Contract
+Loader (`Byte/src/sbc_loader.cpp`) responsibilities:
 - structural validation (bounds, alignment, overlaps)
 - row-size/count validation per section
 - cross-table reference validation
 - const pool offset/type validation
 - deterministic error messages on failure
 
-## Verifier Meaning
-
-Verifier (`Byte/src/sbc_verifier.cpp`) is responsible for:
-
+## Verifier Contract
+Verifier (`Byte/src/sbc_verifier.cpp`) responsibilities:
 - instruction boundary correctness
 - jump target validity
 - stack discipline and merge compatibility
@@ -65,9 +57,7 @@ Verifier (`Byte/src/sbc_verifier.cpp`) is responsible for:
 - local/global initialization and type checks
 
 ## TypeKinds
-
 SBC encodes type kinds used by verifier/runtime contracts:
-
 - ints: `i8..i128`, `u8..u128`
 - floats: `f32`, `f64`
 - scalar misc: `bool`, `char`
@@ -75,7 +65,6 @@ SBC encodes type kinds used by verifier/runtime contracts:
 - `unspecified` (special metadata role)
 
 ## Opcode Families (Compacted)
-
 Canonical enum is in `Byte/include/opcode.h`.
 
 Grouped overview:
@@ -101,14 +90,12 @@ Grouped overview:
 `<T>` indicates a type-specialized lane (for example `i32`, `i64`, `f32`, `f64`, `ref`).
 
 ## Invariants You Can Rely On
-
-- invalid modules fail load/verify before VM execution
-- signature mismatch is rejected, not coerced
-- branch targets must hit valid instruction boundaries
-- table IDs and const offsets must be valid
+- Invalid modules fail load/verify before VM execution.
+- Signature mismatch is rejected, not coerced.
+- Branch targets must hit valid instruction boundaries.
+- Table IDs and const offsets must be valid.
 
 ## Ownership
-
 - Loader: `Byte/src/sbc_loader.cpp`
 - Verifier: `Byte/src/sbc_verifier.cpp`
 - Opcode metadata: `Byte/src/opcode.cpp`

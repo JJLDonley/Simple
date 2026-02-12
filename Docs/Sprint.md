@@ -1,3 +1,22 @@
+# Sprint Log - Simple VM (API Change Log)
+
+This log records VM-related changes and is used as a historical reference for behavior and API evolution.
+
+## Supported (Current Summary)
+- Loader/verifier/VM feature coverage as documented across `Docs/Byte.md` and `Docs/VM.md`.
+- Broad opcode surface with extensive verifier/runtime test coverage.
+- JIT tiering scaffolding with interpreter fallback.
+
+## Not Supported (Current Summary)
+- Windows `core.dl` support.
+- Recursive artifact ABI for `extern`/`DL`.
+- Full JIT native codegen coverage for the opcode surface.
+
+## Planned (Current Summary)
+- Expand JIT coverage and tuning.
+- Formalize compatibility and subset contracts for SBC/SIR.
+- Expand CI and smoke-test gates.
+
 # Sprint Log - Simple VM
 
 ## Notes
@@ -1511,15 +1530,15 @@
   - updated `Tests/tests/test_core.cpp` fixture paths from `bin/sbc_fs_*.bin` to `Tests/bin/sbc_fs_*.bin`,
   - added `Tests/bin/.gitignore` to keep generated test binaries out of source control,
   - kept `bin/` for runtime/compiler binaries and compatibility libs only.
-- Updated authoritative OS build scripts default package/install version from `dev` to `v0.02`:
-  - `build_linux`, `build_macos`, and `build_windows` now default to `--version v0.02` behavior.
+- Updated authoritative OS build scripts default package/install version from `dev` to `v0.02.3`:
+  - `build_linux`, `build_macos`, and `build_windows` now default to `--version v0.02.3` behavior.
   - documented the new default version in `Docs/README.md`.
 - Added optional legacy build path for users without CMake:
   - `build_linux --legacy` and `build_macos --legacy` now run old manual compile/link flow (build.sh-style) and still package/install through the same script pipeline.
   - `build_windows` remains CMake-based.
 - Updated `Docs/README.md` build requirements to document default CMake mode vs legacy (`--legacy`) mode per OS.
 - Added CLI version flag support:
-  - `simple --version`, `simple -v` (and `simplevm --version`, `simplevm -v`) now print tool version (`v0.02`).
+  - `simple --version`, `simple -v` (and `simplevm --version`, `simplevm -v`) now print tool version (`v0.02.3`).
 - Added post-install PATH/version reporting in authoritative build scripts:
   - `build_linux`, `build_macos`, and `build_windows` now report whether `simple` is on PATH and print version output when available.
 - Removed unused DL helper functions in `VM/src/vm.cpp` (`DispatchDlCall1Void`, `DispatchDlCall2Void`, `PackDlI32LikeRet`, `ConvertDlPackedU64Arg` and dependent helper) to eliminate legacy-build warning noise.
