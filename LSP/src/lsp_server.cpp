@@ -2630,7 +2630,7 @@ std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
                                const std::string& children_json) {
   std::string out = "{\"name\":\"" + JsonEscape(name) + "\",\"kind\":" + std::to_string(kind) + ",";
   out += SymbolRangeJson(tk);
-  out += ",\"selectionRange\":{" + SymbolRangeJson(tk).substr(8) + "}";
+  out += ",\"selectionRange\":" + SymbolRangeJson(tk).substr(8);
   if (!children_json.empty()) {
     out += ",\"children\":[" + children_json + "]";
   }
@@ -2641,7 +2641,8 @@ std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "callback", "self", "artifact", "enum", "module", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Module",
+      "import", "extern", "as",
       "true", "false",
   };
   if (name.empty()) return false;

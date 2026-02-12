@@ -229,6 +229,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Ran `scripts/jit_bench.sh --iters 200`: single_type nojit=3ms jit=4ms; mixed_ops nojit=3ms jit=3ms; calls nojit=2ms jit=2ms.
 - Renamed bench output to `tiered` and added hot-loop bench mode (`simplevm_tests --bench-hot`, `scripts/jit_bench.sh --hot`).
 - Allowed capitalized `Artifact`/`Module`/`Enum` keywords while keeping lowercase forms valid; updated Lang docs and tests.
+- Fixed LSP document symbol JSON by correcting `selectionRange` formatting and reserved keyword set.
 
 ## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.
