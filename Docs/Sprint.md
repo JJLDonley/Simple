@@ -1635,3 +1635,7 @@
   - allow scalar param/return types for compiled eligibility and enforce local count guardrails.
   - initialize compiled locals with passed args.
   - update param-callee JIT tests to exercise compiled path.
+- JIT Phase 3 (controlled heap/refs):
+  - allow ref/string param/return types for compiled eligibility.
+  - add compiled support for ref ops and array/list/string access (len/get/set).
+  - add regression tests for compiled ref ops, array/list ops, and string length.

@@ -79,8 +79,8 @@ JIT upgrade plan (interpreter must remain canonical):
 - [x] Phase 2: locals + params parity (still no heap/refs).
 - [x] Phase 2 scope: allow parameters and local access for scalar-only functions.
 - [x] Phase 2 guardrails: enforce type-safe stack discipline and retain fallback-on-failure.
-- [ ] Phase 3: controlled heap/refs (strings/lists/arrays).
-- [ ] Phase 3 scope: opt-in compiled support for ref-like ops with explicit safety checks.
+- [x] Phase 3: controlled heap/refs (strings/lists/arrays).
+- [x] Phase 3 scope: opt-in compiled support for ref-like ops with explicit safety checks.
 - [ ] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
 - [ ] Phase 4: call support + tier tuning.
 - [ ] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.

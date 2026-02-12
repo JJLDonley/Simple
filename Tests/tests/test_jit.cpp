@@ -21,9 +21,12 @@ using Simple::Byte::sbc::AppendU8;
 using Simple::Byte::sbc::AppendU16;
 using Simple::Byte::sbc::AppendU32;
 using Simple::Byte::sbc::AppendU64;
+using Simple::Byte::sbc::AppendConstString;
+using Simple::Byte::sbc::AppendStringToPool;
 using Simple::Byte::sbc::BuildModule;
 using Simple::Byte::sbc::BuildModuleWithFunctionsAndSigs;
 using Simple::Byte::sbc::SigSpec;
+using Simple::Byte::sbc::SectionData;
 using Simple::Byte::sbc::WriteU32;
 
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
@@ -33,6 +36,15 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSig(const std::vector<std::vecto
                                                     uint32_t ret_type_id,
                                                     uint16_t param_count,
                                                     const std::vector<uint32_t>& param_types);
+std::vector<uint8_t> BuildModuleWithFunctionsAndSigsWithTables(
+    const std::vector<std::vector<uint8_t>>& funcs,
+    const std::vector<uint16_t>& local_counts,
+    const std::vector<uint32_t>& method_sig_ids,
+    const std::vector<SigSpec>& sig_specs,
+    const std::vector<uint8_t>& const_pool,
+    const std::vector<uint8_t>& types);
+
+std::vector<uint8_t> BuildTypesI32RefString();
 
 std::vector<uint8_t> BuildJitTierModule() {
   using Simple::Byte::OpCode;
@@ -87,6 +99,122 @@ std::vector<uint8_t> BuildJitCallIndirectModule() {
   AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
 
   return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildModuleWithFunctionsAndSigsWithTables(
+    const std::vector<std::vector<uint8_t>>& funcs,
+    const std::vector<uint16_t>& local_counts,
+    const std::vector<uint32_t>& method_sig_ids,
+    const std::vector<SigSpec>& sig_specs,
+    const std::vector<uint8_t>& const_pool,
+    const std::vector<uint8_t>& types) {
+  std::vector<uint8_t> fields;
+
+  std::vector<uint8_t> sigs;
+  std::vector<uint32_t> param_types;
+  for (const auto& spec : sig_specs) {
+    uint32_t param_type_start = static_cast<uint32_t>(param_types.size());
+    AppendU32(sigs, spec.ret_type_id);
+    AppendU16(sigs, spec.param_count);
+    AppendU16(sigs, 0);
+    AppendU32(sigs, param_type_start);
+    for (uint32_t type_id : spec.param_types) {
+      param_types.push_back(type_id);
+    }
+  }
+  for (uint32_t type_id : param_types) {
+    AppendU32(sigs, type_id);
+  }
+
+  std::vector<uint8_t> methods;
+  std::vector<uint8_t> functions;
+  std::vector<uint8_t> code;
+  size_t offset = 0;
+  for (size_t i = 0; i < funcs.size(); ++i) {
+    uint16_t locals = 0;
+    if (i < local_counts.size()) locals = local_counts[i];
+    uint32_t sig_id = 0;
+    if (i < method_sig_ids.size()) sig_id = method_sig_ids[i];
+    AppendU32(methods, 0);
+    AppendU32(methods, sig_id);
+    AppendU32(methods, static_cast<uint32_t>(offset));
+    AppendU16(methods, locals);
+    AppendU16(methods, 0);
+
+    AppendU32(functions, static_cast<uint32_t>(i));
+    AppendU32(functions, static_cast<uint32_t>(offset));
+    AppendU32(functions, static_cast<uint32_t>(funcs[i].size()));
+    AppendU32(functions, 12);
+
+    code.insert(code.end(), funcs[i].begin(), funcs[i].end());
+    offset += funcs[i].size();
+  }
+
+  std::vector<uint8_t> globals;
+  std::vector<SectionData> sections;
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
+  sections.push_back({2, fields, static_cast<uint32_t>(fields.size() / 16), 0});
+  sections.push_back({3, methods, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({4, sigs, static_cast<uint32_t>(sig_specs.size()), 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, globals, 0, 0});
+  sections.push_back({7, functions, static_cast<uint32_t>(funcs.size()), 0});
+  sections.push_back({8, code, 0, 0});
+
+  const uint32_t section_count = static_cast<uint32_t>(sections.size());
+  const size_t header_size = 32;
+  const size_t table_size = section_count * 16u;
+  size_t cursor = Simple::Byte::sbc::Align4(header_size + table_size);
+  for (auto& sec : sections) {
+    sec.offset = static_cast<uint32_t>(cursor);
+    cursor = Simple::Byte::sbc::Align4(cursor + sec.bytes.size());
+  }
+
+  std::vector<uint8_t> module(cursor, 0);
+  WriteU32(module, 0x00, 0x30434253u);
+  module[0x04] = 0x01;
+  module[0x05] = 0x00;
+  module[0x06] = 1;
+  module[0x07] = 0;
+  WriteU32(module, 0x08, section_count);
+  WriteU32(module, 0x0C, static_cast<uint32_t>(header_size));
+  WriteU32(module, 0x10, 0);
+  WriteU32(module, 0x14, 0);
+  WriteU32(module, 0x18, 0);
+  WriteU32(module, 0x1C, 0);
+
+  size_t table_off = header_size;
+  for (const auto& sec : sections) {
+    WriteU32(module, table_off + 0, sec.id);
+    WriteU32(module, table_off + 4, sec.offset);
+    WriteU32(module, table_off + 8, static_cast<uint32_t>(sec.bytes.size()));
+    WriteU32(module, table_off + 12, sec.count);
+    table_off += 16;
+  }
+
+  for (const auto& sec : sections) {
+    if (sec.bytes.empty()) continue;
+    std::memcpy(module.data() + sec.offset, sec.bytes.data(), sec.bytes.size());
+  }
+
+  return module;
+}
+
+std::vector<uint8_t> BuildTypesI32RefString() {
+  std::vector<uint8_t> types;
+  auto append_type = [&](Simple::Byte::TypeKind kind, uint32_t size) {
+    AppendU32(types, 0);
+    AppendU8(types, static_cast<uint8_t>(kind));
+    AppendU8(types, 0);
+    AppendU16(types, 0);
+    AppendU32(types, size);
+    AppendU32(types, 0);
+    AppendU32(types, 0);
+  };
+  append_type(Simple::Byte::TypeKind::I32, 4);
+  append_type(Simple::Byte::TypeKind::Ref, 4);
+  append_type(Simple::Byte::TypeKind::String, 4);
+  return types;
 }
 
 std::vector<uint8_t> BuildJitTailCallModule() {
@@ -2215,6 +2343,237 @@ std::vector<uint8_t> BuildJitOpcodeHotParamCalleeModule() {
   std::vector<uint16_t> locals{0, 1};
   std::vector<uint32_t> sig_ids{0, 1};
   return BuildModuleWithFunctionsAndSigs(funcs, locals, sig_ids, {entry_sig, callee_sig});
+}
+
+std::vector<uint8_t> BuildJitCompiledRefOpsModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::RefNe));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
+std::vector<uint8_t> BuildJitCompiledArrayOpsModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(entry, 0);
+  AppendU32(entry, 2);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 11);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ArraySetI32));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 42);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ArraySetI32));
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+    AppendU32(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Dup));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ArrayLen));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ArrayGetI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {1}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{1, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint8_t> types = BuildTypesI32RefString();
+  return BuildModuleWithFunctionsAndSigsWithTables(funcs, locals, sig_ids, {entry_sig, callee_sig}, const_pool, types);
+}
+
+std::vector<uint8_t> BuildJitCompiledListOpsModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewList));
+  AppendU32(entry, 0);
+  AppendU32(entry, 2);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 5);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ListPushI32));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 9);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ListPushI32));
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+    AppendU32(entry, 0);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ListLen));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 7);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ListSetI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ListGetI32));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {1}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{1, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  std::vector<uint8_t> const_pool;
+  uint32_t dummy_str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, ""));
+  uint32_t dummy_const_id = 0;
+  AppendConstString(const_pool, dummy_str_offset, &dummy_const_id);
+  std::vector<uint8_t> types = BuildTypesI32RefString();
+  return BuildModuleWithFunctionsAndSigsWithTables(funcs, locals, sig_ids, {entry_sig, callee_sig}, const_pool, types);
+}
+
+std::vector<uint8_t> BuildJitCompiledStringLenModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  uint32_t const_id = 0;
+  std::vector<uint8_t> const_pool;
+  uint32_t str_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  AppendConstString(const_pool, str_offset, &const_id);
+
+  for (uint32_t i = 0; i + 1 < Simple::VM::kJitTier1Threshold; ++i) {
+    AppendU8(entry, static_cast<uint8_t>(OpCode::ConstString));
+    AppendU32(entry, const_id);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+    AppendU32(entry, 1);
+    AppendU8(entry, 1);
+    AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  }
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(entry, const_id);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(entry, const_id);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::StringLen));
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec entry_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {2}};
+  std::vector<std::vector<uint8_t>> funcs{entry, callee};
+  std::vector<uint16_t> locals{0, 1};
+  std::vector<uint32_t> sig_ids{0, 1};
+  std::vector<uint8_t> types = BuildTypesI32RefString();
+  return BuildModuleWithFunctionsAndSigsWithTables(funcs, locals, sig_ids, {entry_sig, callee_sig}, const_pool, types);
 }
 
 std::vector<uint8_t> BuildJitOpcodeHotI32CompareModule() {
@@ -5792,6 +6151,202 @@ bool RunJitDispatchAfterFallbackTest() {
   return true;
 }
 
+bool RunJitCompiledRefOpsTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledRefOpsModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] < Simple::VM::kJitTier1Threshold) {
+    std::cerr << "expected callee call count >= " << Simple::VM::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for ref-ops callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for ref-ops callee\n";
+    return false;
+  }
+  if (exec.exit_code != 0) {
+    std::cerr << "expected exit code 0, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledArrayOpsTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledArrayOpsModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] < Simple::VM::kJitTier1Threshold) {
+    std::cerr << "expected callee call count >= " << Simple::VM::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for array ops callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for array ops callee\n";
+    return false;
+  }
+  if (exec.exit_code != 42) {
+    std::cerr << "expected exit code 42, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledListOpsTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledListOpsModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] < Simple::VM::kJitTier1Threshold) {
+    std::cerr << "expected callee call count >= " << Simple::VM::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for list ops callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for list ops callee\n";
+    return false;
+  }
+  if (exec.exit_code != 7) {
+    std::cerr << "expected exit code 7, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunJitCompiledStringLenTest() {
+  std::vector<uint8_t> module_bytes = BuildJitCompiledStringLenModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.call_counts.size() < 2) {
+    std::cerr << "expected call counts for functions\n";
+    return false;
+  }
+  if (exec.call_counts[1] < Simple::VM::kJitTier1Threshold) {
+    std::cerr << "expected callee call count >= " << Simple::VM::kJitTier1Threshold
+              << ", got " << exec.call_counts[1] << "\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for string len callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for string len callee\n";
+    return false;
+  }
+  if (exec.exit_code != 2) {
+    std::cerr << "expected exit code 2, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitParamCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitParamCalleeModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -6986,6 +7541,10 @@ static const TestCase kJitTests[] = {
   {"jit_compiled_float_ops", RunJitCompiledFloatOpsTest},
   {"jit_compiled_conversions", RunJitCompiledConversionsTest},
   {"jit_compiled_compare_scalar", RunJitCompiledCompareScalarTest},
+  {"jit_compiled_ref_ops", RunJitCompiledRefOpsTest},
+  {"jit_compiled_array_ops", RunJitCompiledArrayOpsTest},
+  {"jit_compiled_list_ops", RunJitCompiledListOpsTest},
+  {"jit_compiled_string_len", RunJitCompiledStringLenTest},
   {"jit_compiled_i32_locals_arith", RunJitCompiledI32LocalsArithmeticTest},
   {"jit_compiled_i32_compare", RunJitCompiledI32CompareTest},
   {"jit_compiled_compare_bool_indirect", RunJitCompiledCompareBoolIndirectTest},

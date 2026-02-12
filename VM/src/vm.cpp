@@ -70,6 +70,11 @@ inline bool IsJitScalarKind(TypeKind kind) {
   }
 }
 
+inline bool IsJitValueKind(TypeKind kind) {
+  if (IsJitScalarKind(kind)) return true;
+  return kind == TypeKind::Ref || kind == TypeKind::String;
+}
+
 inline bool IsI64LikeImportType(TypeKind kind) {
   return kind == TypeKind::I64 || kind == TypeKind::U64;
 }
@@ -2115,13 +2120,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint32_t type_id = module.param_types[sig.param_type_start + i];
         if (type_id >= module.types.size()) return false;
         TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
-        if (!IsJitScalarKind(kind)) return false;
+        if (!IsJitValueKind(kind)) return false;
       }
     }
     if (sig.ret_type_id != 0xFFFFFFFFu) {
       if (sig.ret_type_id >= module.types.size()) return false;
       TypeKind ret_kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
-      if (!IsJitScalarKind(ret_kind)) return false;
+      if (!IsJitValueKind(ret_kind)) return false;
     }
     size_t locals_count = 0;
     bool saw_enter = false;
@@ -2168,6 +2173,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ConstF64: {
           if (pc + 8 > end_pc) return false;
           pc += 8;
+          break;
+        }
+        case OpCode::ConstNull: {
           break;
         }
         case OpCode::AddI32:
@@ -2299,6 +2307,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::Dup2:
         case OpCode::Swap:
         case OpCode::Rot: {
+          break;
+        }
+        case OpCode::IsNull:
+        case OpCode::RefEq:
+        case OpCode::RefNe: {
+          break;
+        }
+        case OpCode::ArrayLen:
+        case OpCode::ArrayGetI32:
+        case OpCode::ArraySetI32:
+        case OpCode::ListLen:
+        case OpCode::ListGetI32:
+        case OpCode::ListSetI32:
+        case OpCode::StringLen: {
           break;
         }
         case OpCode::JmpTrue:
@@ -2605,6 +2627,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           uint64_t bits = ReadU64(module.code, pc);
           local_stack.push_back(PackF64Bits(bits));
+          break;
+        }
+        case OpCode::ConstNull: {
+          local_stack.push_back(PackRef(kNullRef));
           break;
         }
         case OpCode::AddI32: {
@@ -3354,6 +3380,181 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               break;
           }
           local_stack.push_back(PackI64(static_cast<int64_t>(out)));
+          break;
+        }
+        case OpCode::IsNull: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled IS_NULL underflow", op, inst_pc);
+          }
+          Slot v = local_stack.back();
+          local_stack.back() = PackI32(IsNullRef(v) ? 1 : 0);
+          break;
+        }
+        case OpCode::RefEq:
+        case OpCode::RefNe: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled REF_EQ underflow", op, inst_pc);
+          }
+          Slot b = local_stack.back();
+          local_stack.pop_back();
+          Slot a = local_stack.back();
+          local_stack.pop_back();
+          bool out = (a == b);
+          if (static_cast<OpCode>(op) == OpCode::RefNe) out = !out;
+          local_stack.push_back(PackI32(out ? 1 : 0));
+          break;
+        }
+        case OpCode::ArrayLen: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled ARRAY_LEN underflow", op, inst_pc);
+          }
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled ARRAY_LEN on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::Array) {
+            return jit_fail("JIT compiled ARRAY_LEN on non-array", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          local_stack.push_back(PackI32(static_cast<int32_t>(length)));
+          break;
+        }
+        case OpCode::ArrayGetI32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled ARRAY_GET underflow", op, inst_pc);
+          }
+          Slot idx_val = local_stack.back();
+          local_stack.pop_back();
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled ARRAY_GET on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::Array) {
+            return jit_fail("JIT compiled ARRAY_GET on non-array", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          int32_t index = UnpackI32(idx_val);
+          if (index < 0 || static_cast<uint32_t>(index) >= length) {
+            return jit_fail("JIT compiled ARRAY_GET out of bounds", op, inst_pc);
+          }
+          size_t offset = 4 + static_cast<size_t>(index) * 4;
+          int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+          local_stack.push_back(PackI32(value));
+          break;
+        }
+        case OpCode::ArraySetI32: {
+          if (local_stack.size() < 3) {
+            return jit_fail("JIT compiled ARRAY_SET underflow", op, inst_pc);
+          }
+          Slot value = local_stack.back();
+          local_stack.pop_back();
+          Slot idx_val = local_stack.back();
+          local_stack.pop_back();
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled ARRAY_SET on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::Array) {
+            return jit_fail("JIT compiled ARRAY_SET on non-array", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          int32_t index = UnpackI32(idx_val);
+          if (index < 0 || static_cast<uint32_t>(index) >= length) {
+            return jit_fail("JIT compiled ARRAY_SET out of bounds", op, inst_pc);
+          }
+          size_t offset = 4 + static_cast<size_t>(index) * 4;
+          WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+          break;
+        }
+        case OpCode::ListLen: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled LIST_LEN underflow", op, inst_pc);
+          }
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled LIST_LEN on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::List) {
+            return jit_fail("JIT compiled LIST_LEN on non-list", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          local_stack.push_back(PackI32(static_cast<int32_t>(length)));
+          break;
+        }
+        case OpCode::ListGetI32: {
+          if (local_stack.size() < 2) {
+            return jit_fail("JIT compiled LIST_GET underflow", op, inst_pc);
+          }
+          Slot idx_val = local_stack.back();
+          local_stack.pop_back();
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled LIST_GET on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::List) {
+            return jit_fail("JIT compiled LIST_GET on non-list", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          int32_t index = UnpackI32(idx_val);
+          if (index < 0 || static_cast<uint32_t>(index) >= length) {
+            return jit_fail("JIT compiled LIST_GET out of bounds", op, inst_pc);
+          }
+          size_t offset = 8 + static_cast<size_t>(index) * 4;
+          int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
+          local_stack.push_back(PackI32(value));
+          break;
+        }
+        case OpCode::ListSetI32: {
+          if (local_stack.size() < 3) {
+            return jit_fail("JIT compiled LIST_SET underflow", op, inst_pc);
+          }
+          Slot value = local_stack.back();
+          local_stack.pop_back();
+          Slot idx_val = local_stack.back();
+          local_stack.pop_back();
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled LIST_SET on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::List) {
+            return jit_fail("JIT compiled LIST_SET on non-list", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          int32_t index = UnpackI32(idx_val);
+          if (index < 0 || static_cast<uint32_t>(index) >= length) {
+            return jit_fail("JIT compiled LIST_SET out of bounds", op, inst_pc);
+          }
+          size_t offset = 8 + static_cast<size_t>(index) * 4;
+          WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+          break;
+        }
+        case OpCode::StringLen: {
+          if (local_stack.empty()) {
+            return jit_fail("JIT compiled STRING_LEN underflow", op, inst_pc);
+          }
+          Slot v = local_stack.back();
+          local_stack.pop_back();
+          if (IsNullRef(v)) {
+            return jit_fail("JIT compiled STRING_LEN on non-ref", op, inst_pc);
+          }
+          HeapObject* obj = heap.Get(UnpackRef(v));
+          if (!obj || obj->header.kind != ObjectKind::String) {
+            return jit_fail("JIT compiled STRING_LEN on non-string", op, inst_pc);
+          }
+          uint32_t length = ReadU32Payload(obj->payload, 0);
+          local_stack.push_back(PackI32(static_cast<int32_t>(length)));
           break;
         }
         case OpCode::JmpTrue:
