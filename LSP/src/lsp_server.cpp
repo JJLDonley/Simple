@@ -2280,6 +2280,30 @@ std::string DocumentHighlightJson(const Simple::Lang::Token& tk, uint32_t kind) 
          "}},\"kind\":" + std::to_string(kind) + "}";
 }
 
+std::string SymbolRangeJson(const Simple::Lang::Token& tk) {
+  const uint32_t line = tk.line > 0 ? (tk.line - 1) : 0;
+  const uint32_t col = tk.column > 0 ? (tk.column - 1) : 0;
+  const uint32_t len = static_cast<uint32_t>(tk.text.empty() ? 1 : tk.text.size());
+  return "\"range\":{\"start\":{\"line\":" + std::to_string(line) +
+         ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
+         std::to_string(line) + ",\"character\":" + std::to_string(col + len) +
+         "}}";
+}
+
+std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
+                               const std::string& name,
+                               uint32_t kind,
+                               const std::string& children_json) {
+  std::string out = "{\"name\":\"" + JsonEscape(name) + "\",\"kind\":" + std::to_string(kind) + ",";
+  out += SymbolRangeJson(tk);
+  out += ",\"selectionRange\":{" + SymbolRangeJson(tk).substr(8) + "}";
+  if (!children_json.empty()) {
+    out += ",\"children\":[" + children_json + "]";
+  }
+  out += "}";
+  return out;
+}
+
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
@@ -2535,18 +2559,36 @@ void ReplyDocumentSymbols(std::ostream& out,
     if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
     if (ref.depth != 0) continue;
     if (!IsDeclNameAt(refs, ref.index)) continue;
-    const uint32_t line = ref.token.line > 0 ? (ref.token.line - 1) : 0;
-    const uint32_t col = ref.token.column > 0 ? (ref.token.column - 1) : 0;
-    const uint32_t len = static_cast<uint32_t>(ref.token.text.empty() ? 1 : ref.token.text.size());
     const uint32_t kind = SymbolKindFor(refs, ref.index);
+    std::string children;
+    if (kind == 23 || kind == 10) {
+      using TK = Simple::Lang::TokenKind;
+      bool in_block = false;
+      uint32_t depth = 0;
+      for (size_t i = ref.index + 1; i < refs.size(); ++i) {
+        const auto& tk = refs[i].token;
+        if (!in_block) {
+          if (tk.kind == TK::LBrace) {
+            depth = refs[i].depth + 1;
+            in_block = true;
+          }
+          continue;
+        }
+        if (tk.kind == TK::RBrace && refs[i].depth == depth) {
+          break;
+        }
+        if (refs[i].depth != depth) continue;
+        if (tk.kind != TK::Identifier) continue;
+        if (kind == 23) {
+          if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::Colon) continue;
+        }
+        const uint32_t child_kind = (kind == 23) ? 8u : 22u;
+        if (!children.empty()) children += ",";
+        children += DocumentSymbolJson(tk, tk.text, child_kind, {});
+      }
+    }
     if (!result.empty()) result += ",";
-    result += "{\"name\":\"" + JsonEscape(ref.token.text) + "\",\"kind\":" + std::to_string(kind) +
-              ",\"range\":{\"start\":{\"line\":" + std::to_string(line) +
-              ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
-              std::to_string(line) + ",\"character\":" + std::to_string(col + len) +
-              "}},\"selectionRange\":{\"start\":{\"line\":" + std::to_string(line) +
-              ",\"character\":" + std::to_string(col) + "},\"end\":{\"line\":" +
-              std::to_string(line) + ",\"character\":" + std::to_string(col + len) + "}}}";
+    result += DocumentSymbolJson(ref.token, ref.token.text, kind, children);
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }

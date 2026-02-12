@@ -1586,6 +1586,10 @@
   - identifier tokens are no longer emitted for non-call identifiers (let TextMate keep them white).
 - Updated LSP regression coverage:
   - semantic token tests now only assert function-call tokens or non-empty responses.
+- Improved document symbols:
+  - `documentSymbol` now includes children for artifact fields and enum members.
+- Added LSP regression coverage:
+  - document symbol tests for artifact-field and enum-member children.
 - Reduced TextMate fallback noise:
   - removed member-access highlighting patterns so member names remain neutral when LSP tokens are inactive.
 - Added LSP regression coverage:
