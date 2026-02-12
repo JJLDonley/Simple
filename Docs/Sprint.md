@@ -207,6 +207,7 @@
 - Added `scripts/jit_bench.sh` to run JIT bench loops with threshold overrides.
 - Added runtime smoke profile (`simplevm_tests --smoke`) covering import + trap diagnostics.
 - Documented JIT alpha posture and placeholder runtime paths in `Docs/VM.md`.
+- Ran `scripts/jit_bench.sh --iters 200`: single_type nojit=3ms jit=4ms; mixed_ops nojit=3ms jit=3ms; calls nojit=2ms jit=2ms.
 
 ## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.
