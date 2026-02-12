@@ -1525,3 +1525,8 @@
 - Added LSP regression coverage:
   - semantic token classification test for function + parameter lanes,
   - semantic token fallback test for malformed source (unterminated string) to ensure non-empty token output.
+- Improved semantic token precision for namespaces/types:
+  - import aliases are now classified as `namespace` in semantic tokens,
+  - `module`/`artifact`/`enum` declaration names are now classified as type/namespace tokens.
+- Added LSP regression coverage:
+  - semantic token classification test to ensure import aliases emit namespace tokens.

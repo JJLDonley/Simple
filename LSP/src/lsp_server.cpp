@@ -1765,7 +1765,9 @@ bool IsMemberNameAt(const std::vector<TokenRef>& refs, size_t i) {
          refs[i - 2].token.kind == TK::Identifier;
 }
 
-uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t i) {
+uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
+                                      size_t i,
+                                      const std::unordered_set<std::string>& import_aliases) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
@@ -1774,6 +1776,12 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t 
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
+    if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
+      if (refs[i + 2].token.kind == TK::KwModule) return 7; // namespace
+      if (refs[i + 2].token.kind == TK::KwEnum) return 1; // type
+      if (refs[i + 2].token.kind == TK::KwArtifact) return 1; // type
+    }
+    if (import_aliases.find(token.text) != import_aliases.end()) return 7; // namespace
     if (IsMemberNameAt(refs, i)) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
       return 5; // property
@@ -1781,7 +1789,6 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs, size_t 
     if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
     if (IsFunctionCallNameAt(refs, i)) return 2; // function call
-    if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::Dot) return 7; // namespace/receiver
     if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
     if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
     if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
@@ -1952,6 +1959,23 @@ std::string EncodeSemanticTokenData(const std::vector<SemanticTokenEntry>& entri
   return data;
 }
 
+void CollectImportAliases(const std::string& text, std::unordered_set<std::string>* out) {
+  if (!out) return;
+  size_t start = 0;
+  while (start <= text.size()) {
+    size_t end = text.find('\n', start);
+    if (end == std::string::npos) end = text.size();
+    const std::string line_text = text.substr(start, end - start);
+    std::string import_path;
+    std::string alias;
+    if (ParseImportDeclLine(line_text, &import_path, &alias)) {
+      out->insert(alias);
+    }
+    if (end == text.size()) break;
+    start = end + 1;
+  }
+}
+
 void ReplySemanticTokensFull(std::ostream& out,
                              const std::string& id_raw,
                              const std::string& uri,
@@ -1963,6 +1987,8 @@ void ReplySemanticTokensFull(std::ostream& out,
   }
   const std::string& text = it->second;
   const auto refs = LexTokenRefs(it->second);
+  std::unordered_set<std::string> import_aliases;
+  CollectImportAliases(text, &import_aliases);
   std::vector<SemanticTokenEntry> entries;
   if (!refs.empty()) {
     entries.reserve(refs.size());
@@ -1976,7 +2002,7 @@ void ReplySemanticTokensFull(std::ostream& out,
           token.line > 0 ? (token.line - 1) : 0,
           token.column > 0 ? (token.column - 1) : 0,
           static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
-          SemanticTokenTypeIndexForRef(refs, i),
+          SemanticTokenTypeIndexForRef(refs, i, import_aliases),
           SemanticTokenModifiersForRef(refs, i),
       });
     }
