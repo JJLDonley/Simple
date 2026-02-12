@@ -84,7 +84,7 @@ JIT upgrade plan (interpreter must remain canonical):
 - [x] Phase 3 guardrails: gate by verifier metadata (stack maps) where needed for GC safety.
 - [ ] Phase 4: call support + tier tuning.
 - [x] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.
-- [ ] Phase 4 tuning: revisit tier thresholds and heuristics with bench coverage.
+- [ ] Phase 4 tuning: revisit tier thresholds and heuristics with bench coverage (`scripts/jit_bench.sh`).
 - [x] Phase 4 tuning: add env overrides for tier thresholds (SIMPLE_JIT_TIER0/TIER1/OPCODE).
 - Phase 2: locals + params parity (still no heap/refs)
   - Allow parameters and local access for scalar-only functions.
