@@ -1546,3 +1546,9 @@
   - `Artifact.member` now emits `property` tokens when `Artifact` is a declared artifact type.
 - Added LSP regression coverage:
   - semantic token test for artifact member classification.
+- Improved semantic token classification for enum names:
+  - enum identifiers now emit `type` tokens at usage sites (for example `Color.Red`).
+- Added LSP regression coverage:
+  - semantic token test for enum name type classification.
+- Added local LSP installer helper:
+  - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

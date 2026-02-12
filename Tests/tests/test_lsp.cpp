@@ -69,6 +69,37 @@ bool ExtractSemanticData(const std::string& out, std::vector<int>* data) {
   return !data->empty();
 }
 
+struct SemanticTokenEntry {
+  int line = 0;
+  int col = 0;
+  int len = 0;
+  int type = 0;
+  int modifiers = 0;
+};
+
+bool DecodeSemanticData(const std::string& out, std::vector<SemanticTokenEntry>* entries) {
+  if (!entries) return false;
+  std::vector<int> data;
+  if (!ExtractSemanticData(out, &data)) return false;
+  if (data.size() % 5 != 0) return false;
+  entries->clear();
+  int line = 0;
+  int col = 0;
+  for (size_t i = 0; i + 4 < data.size(); i += 5) {
+    line += data[i];
+    if (data[i] == 0) col += data[i + 1];
+    else col = data[i + 1];
+    SemanticTokenEntry entry;
+    entry.line = line;
+    entry.col = col;
+    entry.len = data[i + 2];
+    entry.type = data[i + 3];
+    entry.modifiers = data[i + 4];
+    entries->push_back(entry);
+  }
+  return !entries->empty();
+}
+
 bool SemanticDataContainsTokenType(const std::vector<int>& data, int token_type) {
   if (data.size() % 5 != 0) return false;
   for (size_t i = 0; i + 4 < data.size(); i += 5) {
@@ -1440,6 +1471,59 @@ bool LspSemanticTokensClassifyArtifactMembers() {
          has_property_tokens;
 }
 
+bool LspSemanticTokensClassifyEnumNameAsType() {
+  const std::string in_path = TempPath("simple_lsp_tokens_enum_name_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_enum_name_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_enum_name_err.txt");
+  const std::string uri = "file:///workspace/tokens_enum_name.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text =
+      "Color :: enum { Red, Green = 2, Blue }\\n"
+      "value : Color = Color.Red;";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"" + open_text + "\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":59,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty()) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const std::string line_text = "value : Color = Color.Red;";
+  const size_t first = line_text.find("Color");
+  if (first == std::string::npos) return false;
+  const size_t second = line_text.find("Color", first + 1);
+  if (second == std::string::npos) return false;
+  const int target_line = 1;
+  const int target_col = static_cast<int>(second);
+  const int target_len = 5;
+  bool found = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found = entry.type == 1;
+      break;
+    }
+  }
+  return out_contents.find("\"id\":59") != std::string::npos &&
+         found;
+}
+
 bool LspDefinitionReturnsLocation() {
   const std::string in_path = TempPath("simple_lsp_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_definition_out.txt");
@@ -2428,6 +2512,7 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_classify_module_access_as_namespace",
    LspSemanticTokensClassifyModuleAccessAsNamespace},
   {"lsp_semantic_tokens_classify_artifact_members", LspSemanticTokensClassifyArtifactMembers},
+  {"lsp_semantic_tokens_classify_enum_name_as_type", LspSemanticTokensClassifyEnumNameAsType},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
   {"lsp_declaration_returns_location", LspDeclarationReturnsLocation},

@@ -1784,6 +1784,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
       return 6; // enumMember
     }
+    if (enum_names.find(token.text) != enum_names.end()) return 1; // type
     if (module_names.find(token.text) != module_names.end()) return 7; // namespace
     if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
     if (IsMemberNameAt(refs, i) && artifact_names.find(refs[i - 2].token.text) != artifact_names.end()) {
