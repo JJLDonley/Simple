@@ -1562,5 +1562,9 @@
   - alternating token types for `expr.member.member` chains to aid visual depth (cycled property/variable).
 - Added LSP regression coverage:
   - semantic token test for member-chain depth cycling.
+- Improved semantic token classification for reserved aliases:
+  - bare `IO`/`DL`/`FS`/`OS` (and lowercase equivalents) now emit `namespace` tokens even without explicit imports.
+- Added LSP regression coverage:
+  - semantic token test for reserved alias namespace classification.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

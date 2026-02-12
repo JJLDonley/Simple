@@ -1780,6 +1780,14 @@ size_t MemberAccessDepthAt(const std::vector<TokenRef>& refs, size_t i) {
   return depth;
 }
 
+bool IsReservedModuleAliasToken(const std::string& name) {
+  static const std::unordered_set<std::string> kReserved = {
+      "IO", "DL", "FS", "OS", "Time", "Math", "Log", "File",
+      "io", "dl", "fs", "os", "time", "math", "log", "file",
+  };
+  return kReserved.find(name) != kReserved.end();
+}
+
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<std::string>& import_aliases,
@@ -1796,6 +1804,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
+    if (IsReservedModuleAliasToken(token.text)) return 7; // namespace
     if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enumMember
     if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
       return 6; // enumMember
