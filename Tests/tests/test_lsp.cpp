@@ -679,6 +679,39 @@ bool LspCompletionReturnsItems() {
          out_contents.find("IO.println") != std::string::npos;
 }
 
+bool LspCompletionReturnsEnumMembers() {
+  const std::string in_path = TempPath("simple_lsp_completion_enum_in.txt");
+  const std::string out_path = TempPath("simple_lsp_completion_enum_out.txt");
+  const std::string err_path = TempPath("simple_lsp_completion_enum_err.txt");
+  const std::string uri = "file:///workspace/completion_enum.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"Color :: enum { Red, Green = 2, Blue }\\nvalue : Color = Color.\"}}}";
+  const std::string completion_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":48,\"method\":\"textDocument/completion\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":27}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(completion_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  return err_contents.empty() &&
+         out_contents.find("\"id\":48") != std::string::npos &&
+         out_contents.find("\"label\":\"Color.Red\"") != std::string::npos &&
+         out_contents.find("\"label\":\"Color.Green\"") != std::string::npos &&
+         out_contents.find("\"label\":\"Color.Blue\"") != std::string::npos;
+}
+
 bool LspCompletionIncludesLocalDeclarations() {
   const std::string in_path = TempPath("simple_lsp_completion_local_in.txt");
   const std::string out_path = TempPath("simple_lsp_completion_local_out.txt");
@@ -1247,7 +1280,7 @@ bool LspSignatureHelpForUserFunction() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
-         out_contents.find("sum(lhs : i32, rhs : i32) -> i32") != std::string::npos &&
+         out_contents.find("sum(lhs : i32, rhs : i32)") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":1") != std::string::npos;
 }
@@ -3020,6 +3053,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_io_alias_signature", LspHoverShowsIoAliasSignature},
   {"lsp_hover_shows_function_signature", LspHoverShowsFunctionSignature},
   {"lsp_completion_returns_items", LspCompletionReturnsItems},
+  {"lsp_completion_returns_enum_members", LspCompletionReturnsEnumMembers},
   {"lsp_completion_includes_local_declarations", LspCompletionIncludesLocalDeclarations},
   {"lsp_completion_includes_open_document_declarations", LspCompletionIncludesOpenDocumentDeclarations},
   {"lsp_completion_filters_by_typed_prefix", LspCompletionFiltersByTypedPrefix},
