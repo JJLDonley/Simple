@@ -1726,6 +1726,54 @@ bool LspSemanticTokensClassifyReservedAliasAsNamespace() {
          found_namespace;
 }
 
+bool LspSemanticTokensMarkReservedAliasDefaultLibrary() {
+  const std::string in_path = TempPath("simple_lsp_tokens_reserved_mod_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_reserved_mod_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_reserved_mod_err.txt");
+  const std::string uri = "file:///workspace/tokens_reserved_mod.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_text = "IO.println(\"hi\");";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"" + open_text + "\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":64,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = "cat " + in_path + " | bin/simple lsp 1> " + out_path + " 2> " + err_path;
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty()) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  const size_t io_pos = open_text.find("IO");
+  if (io_pos == std::string::npos) return false;
+  const int target_line = 0;
+  const int target_col = static_cast<int>(io_pos);
+  const int target_len = 2;
+  bool found_default_lib = false;
+  for (const auto& entry : entries) {
+    if (entry.line == target_line &&
+        entry.col == target_col &&
+        entry.len == target_len) {
+      found_default_lib = (entry.modifiers & (1 << 2)) != 0;
+      break;
+    }
+  }
+  return out_contents.find("\"id\":64") != std::string::npos &&
+         found_default_lib;
+}
+
 bool LspDefinitionReturnsLocation() {
   const std::string in_path = TempPath("simple_lsp_definition_in.txt");
   const std::string out_path = TempPath("simple_lsp_definition_out.txt");
@@ -2722,6 +2770,8 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_cycle_member_access_depth", LspSemanticTokensCycleMemberAccessDepth},
   {"lsp_semantic_tokens_classify_reserved_alias_as_namespace",
    LspSemanticTokensClassifyReservedAliasAsNamespace},
+  {"lsp_semantic_tokens_mark_reserved_alias_default_library",
+   LspSemanticTokensMarkReservedAliasDefaultLibrary},
   {"lsp_definition_returns_location", LspDefinitionReturnsLocation},
   {"lsp_definition_resolves_across_open_documents", LspDefinitionResolvesAcrossOpenDocuments},
   {"lsp_declaration_returns_location", LspDeclarationReturnsLocation},

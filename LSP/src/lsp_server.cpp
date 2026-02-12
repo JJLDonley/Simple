@@ -1846,6 +1846,10 @@ uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
                                       const std::unordered_set<size_t>& artifact_field_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 0;
+  if (refs[i].token.kind == TK::Identifier &&
+      IsReservedModuleAliasToken(refs[i].token.text)) {
+    return 1u << 2; // defaultLibrary
+  }
   if (enum_member_indices.find(i) != enum_member_indices.end()) {
     return 1u << 0; // declaration
   }

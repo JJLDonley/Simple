@@ -1566,5 +1566,9 @@
   - bare `IO`/`DL`/`FS`/`OS` (and lowercase equivalents) now emit `namespace` tokens even without explicit imports.
 - Added LSP regression coverage:
   - semantic token test for reserved alias namespace classification.
+- Improved semantic token modifiers for reserved aliases:
+  - reserved aliases now emit the `defaultLibrary` modifier for clearer builtin styling.
+- Added LSP regression coverage:
+  - semantic token test for reserved alias `defaultLibrary` modifier.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.
