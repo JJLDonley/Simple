@@ -1554,5 +1554,9 @@
   - enum members now emit the `declaration` modifier for consistent highlight semantics.
 - Added LSP regression coverage:
   - semantic token test for enum member declaration modifiers.
+- Improved semantic token classification for artifact fields:
+  - artifact field identifiers now emit `property` tokens with `declaration` modifier.
+- Added LSP regression coverage:
+  - semantic token test for artifact field property classification.
 - Added local LSP installer helper:
   - `scripts/install_lsp.sh` packages the VS Code extension VSIX and installs it via `code --install-extension` when available.

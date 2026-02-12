@@ -1771,7 +1771,8 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       const std::unordered_set<size_t>& enum_member_indices,
                                       const std::unordered_set<std::string>& enum_names,
                                       const std::unordered_set<std::string>& module_names,
-                                      const std::unordered_set<std::string>& artifact_names) {
+                                      const std::unordered_set<std::string>& artifact_names,
+                                      const std::unordered_set<size_t>& artifact_field_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
@@ -1784,6 +1785,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
       return 6; // enumMember
     }
+    if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
     if (enum_names.find(token.text) != enum_names.end()) return 1; // type
     if (module_names.find(token.text) != module_names.end()) return 7; // namespace
     if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
@@ -1814,10 +1816,14 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
 
 uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
-                                      const std::unordered_set<size_t>& enum_member_indices) {
+                                      const std::unordered_set<size_t>& enum_member_indices,
+                                      const std::unordered_set<size_t>& artifact_field_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 0;
   if (enum_member_indices.find(i) != enum_member_indices.end()) {
+    return 1u << 0; // declaration
+  }
+  if (artifact_field_indices.find(i) != artifact_field_indices.end()) {
     return 1u << 0; // declaration
   }
   if (refs[i].token.kind == TK::Identifier &&
@@ -2047,6 +2053,7 @@ void ReplySemanticTokensFull(std::ostream& out,
     std::unordered_set<std::string> enum_names;
     std::unordered_set<std::string> module_names;
     std::unordered_set<std::string> artifact_names;
+    std::unordered_set<size_t> artifact_field_indices;
     {
       using TK = Simple::Lang::TokenKind;
       for (size_t i = 0; i + 2 < refs.size(); ++i) {
@@ -2058,6 +2065,41 @@ void ReplySemanticTokensFull(std::ostream& out,
           module_names.insert(refs[i].token.text);
         } else if (refs[i + 2].token.kind == TK::KwArtifact) {
           artifact_names.insert(refs[i].token.text);
+        }
+      }
+    }
+    {
+      using TK = Simple::Lang::TokenKind;
+      bool pending_artifact = false;
+      bool in_artifact = false;
+      uint32_t artifact_depth = 0;
+      for (size_t i = 0; i < refs.size(); ++i) {
+        const auto& ref = refs[i];
+        if (!in_artifact) {
+          if (ref.token.kind == TK::Identifier &&
+              i + 2 < refs.size() &&
+              refs[i + 1].token.kind == TK::DoubleColon &&
+              refs[i + 2].token.kind == TK::KwArtifact) {
+            pending_artifact = true;
+            continue;
+          }
+          if (pending_artifact && ref.token.kind == TK::LBrace) {
+            artifact_depth = ref.depth + 1;
+            in_artifact = true;
+            pending_artifact = false;
+            continue;
+          }
+        } else {
+          if (ref.token.kind == TK::RBrace && ref.depth == artifact_depth) {
+            in_artifact = false;
+            continue;
+          }
+          if (ref.depth == artifact_depth &&
+              ref.token.kind == TK::Identifier &&
+              i + 1 < refs.size() &&
+              refs[i + 1].token.kind == TK::Colon) {
+            artifact_field_indices.insert(i);
+          }
         }
       }
     }
@@ -2077,8 +2119,9 @@ void ReplySemanticTokensFull(std::ostream& out,
                                        enum_member_indices,
                                        enum_names,
                                        module_names,
-                                       artifact_names),
-          SemanticTokenModifiersForRef(refs, i, enum_member_indices),
+                                       artifact_names,
+                                       artifact_field_indices),
+          SemanticTokenModifiersForRef(refs, i, enum_member_indices, artifact_field_indices),
       });
     }
   }
