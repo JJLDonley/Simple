@@ -85,6 +85,7 @@ JIT upgrade plan (interpreter must remain canonical):
 - [ ] Phase 4: call support + tier tuning.
 - [x] Phase 4 scope: allow compiled intra-module calls when callee is compiled-safe.
 - [ ] Phase 4 tuning: revisit tier thresholds and heuristics with bench coverage.
+- [x] Phase 4 tuning: add env overrides for tier thresholds (SIMPLE_JIT_TIER0/TIER1/OPCODE).
 - Phase 2: locals + params parity (still no heap/refs)
   - Allow parameters and local access for scalar-only functions.
   - Enforce type-safe stack discipline and retain fallback-on-failure.

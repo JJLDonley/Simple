@@ -1500,6 +1500,24 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<std::FILE*> open_files;
   std::string dl_last_error;
   uint64_t compile_tick = 0;
+  auto read_threshold = [&](const char* name, uint32_t fallback) -> uint32_t {
+    std::string owned_value;
+    const char* raw = GetEnvVar(name, &owned_value);
+    if (!raw || raw[0] == '\0') return fallback;
+    char* end = nullptr;
+    unsigned long parsed = std::strtoul(raw, &end, 10);
+    if (end == raw) return fallback;
+    if (parsed == 0) return fallback;
+    if (parsed > std::numeric_limits<uint32_t>::max()) {
+      parsed = std::numeric_limits<uint32_t>::max();
+    }
+    return static_cast<uint32_t>(parsed);
+  };
+  uint32_t jit_tier0_threshold = read_threshold("SIMPLE_JIT_TIER0", kJitTier0Threshold);
+  uint32_t jit_tier1_threshold = read_threshold("SIMPLE_JIT_TIER1", kJitTier1Threshold);
+  uint32_t jit_opcode_threshold = read_threshold("SIMPLE_JIT_OPCODE", kJitOpcodeThreshold);
+  if (jit_tier0_threshold == 0) jit_tier0_threshold = kJitTier0Threshold;
+  if (jit_tier1_threshold < jit_tier0_threshold) jit_tier1_threshold = jit_tier0_threshold;
   auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
                                 bool& out_has_ret, std::string& out_error) -> bool {
     if (module.imports.empty()) {
@@ -2397,7 +2415,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (!enable_jit) return;
     if (func_index >= call_counts.size()) return;
     uint32_t count = ++call_counts[func_index];
-    if (count >= kJitTier1Threshold) {
+    if (count >= jit_tier1_threshold) {
       if (jit_tiers[func_index] != JitTier::Tier1) {
         jit_tiers[func_index] = JitTier::Tier1;
         jit_stubs[func_index].active = true;
@@ -2405,7 +2423,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         compile_counts[func_index] += 1;
         compile_ticks_tier1[func_index] = ++compile_tick;
       }
-    } else if (count >= kJitTier0Threshold) {
+    } else if (count >= jit_tier0_threshold) {
       if (jit_tiers[func_index] == JitTier::None) {
         jit_tiers[func_index] = JitTier::Tier0;
         jit_stubs[func_index].active = true;
@@ -4005,7 +4023,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (current.func_index < func_opcode_counts.size()) {
       uint32_t& count = func_opcode_counts[current.func_index];
       count += 1;
-      if (enable_jit && count >= kJitOpcodeThreshold && jit_tiers[current.func_index] == JitTier::None) {
+      if (enable_jit && count >= jit_opcode_threshold && jit_tiers[current.func_index] == JitTier::None) {
         jit_tiers[current.func_index] = JitTier::Tier0;
         jit_stubs[current.func_index].active = true;
         jit_stubs[current.func_index].compiled =

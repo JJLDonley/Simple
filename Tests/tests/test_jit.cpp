@@ -2617,6 +2617,30 @@ std::vector<uint8_t> BuildJitCompiledCallModule() {
   return BuildModuleWithFunctions({entry, caller, callee}, {0, 0, 0});
 }
 
+std::vector<uint8_t> BuildJitEnvThresholdModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 3);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  return BuildModuleWithFunctions({entry, callee}, {0, 0});
+}
+
 std::vector<uint8_t> BuildJitOpcodeHotI32CompareModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> entry;
@@ -6432,6 +6456,58 @@ bool RunJitCompiledCallTest() {
   return true;
 }
 
+bool RunJitEnvThresholdTest() {
+  struct EnvGuard {
+    std::string name;
+    explicit EnvGuard(std::string name) : name(std::move(name)) {}
+    ~EnvGuard() { UnsetEnvVar(name); }
+  };
+  SetEnvVar("SIMPLE_JIT_TIER0", "1");
+  SetEnvVar("SIMPLE_JIT_TIER1", "1");
+  SetEnvVar("SIMPLE_JIT_OPCODE", "1");
+  EnvGuard guard0("SIMPLE_JIT_TIER0");
+  EnvGuard guard1("SIMPLE_JIT_TIER1");
+  EnvGuard guard2("SIMPLE_JIT_OPCODE");
+
+  std::vector<uint8_t> module_bytes = BuildJitEnvThresholdModule();
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(load.module);
+  if (!vr.ok) {
+    std::cerr << "verify failed: " << vr.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted) {
+    std::cerr << "exec failed\n";
+    return false;
+  }
+  if (exec.jit_tiers.size() < 2) {
+    std::cerr << "expected jit tiers for functions\n";
+    return false;
+  }
+  if (exec.jit_tiers[1] != Simple::VM::JitTier::Tier1) {
+    std::cerr << "expected Tier1 for env threshold callee\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts.size() < 2) {
+    std::cerr << "expected compiled exec counts for functions\n";
+    return false;
+  }
+  if (exec.jit_compiled_exec_counts[1] == 0) {
+    std::cerr << "expected compiled exec count for env threshold callee\n";
+    return false;
+  }
+  if (exec.exit_code != 3) {
+    std::cerr << "expected exit code 3, got " << exec.exit_code << "\n";
+    return false;
+  }
+  return true;
+}
+
 bool RunJitParamCalleeTest() {
   std::vector<uint8_t> module_bytes = BuildJitParamCalleeModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -7631,6 +7707,7 @@ static const TestCase kJitTests[] = {
   {"jit_compiled_list_ops", RunJitCompiledListOpsTest},
   {"jit_compiled_string_len", RunJitCompiledStringLenTest},
   {"jit_compiled_call", RunJitCompiledCallTest},
+  {"jit_env_thresholds", RunJitEnvThresholdTest},
   {"jit_compiled_i32_locals_arith", RunJitCompiledI32LocalsArithmeticTest},
   {"jit_compiled_i32_compare", RunJitCompiledI32CompareTest},
   {"jit_compiled_compare_bool_indirect", RunJitCompiledCompareBoolIndirectTest},

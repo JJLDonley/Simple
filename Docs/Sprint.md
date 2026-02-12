@@ -200,6 +200,10 @@
 - Added opcode-hot compiled bool ops coverage for TAILCALL via helper trampoline.
 
 ## 2026-02-12
+- Added env overrides for JIT tier thresholds (SIMPLE_JIT_TIER0/TIER1/OPCODE) to support tuning and bench work.
+- Added JIT test coverage validating env-driven tier promotion and compiled execution.
+
+## 2026-02-12
 - Reintroduced semantic token member access depth cycling for non-call member chains, with enum-member access overrides.
 - Strengthened LSP semantic token tests to assert member call classification, enum-member access type, and depth-based member cycling.
 - Adjusted workspace symbol filtering to use substring matching and added coverage for the query filter.
