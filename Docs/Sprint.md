@@ -1574,6 +1574,10 @@
   - reserved alias member calls (e.g. `IO.println`) now emit `defaultLibrary` modifier.
 - Added LSP regression coverage:
   - semantic token test for reserved alias member `defaultLibrary` modifier.
+- Adjusted semantic token classification for type declarations:
+  - `artifact`/`enum`/`module` declaration names now emit identifier tokens (variable) with declaration modifier.
+- Added LSP regression coverage:
+  - semantic token test for artifact declaration name classification.
 - Adjusted semantic token classification for declarations:
   - function declarations now emit identifier tokens (variable) instead of function tokens to keep declaration names neutral.
 - Updated LSP regression coverage:

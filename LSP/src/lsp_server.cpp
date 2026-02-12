@@ -1804,6 +1804,11 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
+    if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
+      if (refs[i + 2].token.kind == TK::KwModule) return 3; // declaration name
+      if (refs[i + 2].token.kind == TK::KwEnum) return 3; // declaration name
+      if (refs[i + 2].token.kind == TK::KwArtifact) return 3; // declaration name
+    }
     if (IsReservedModuleAliasToken(token.text)) return 7; // namespace
     if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enumMember
     if (IsMemberNameAt(refs, i) && enum_names.find(refs[i - 2].token.text) != enum_names.end()) {
@@ -1815,11 +1820,6 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (artifact_names.find(token.text) != artifact_names.end()) return 1; // type
     if (IsMemberNameAt(refs, i) && artifact_names.find(refs[i - 2].token.text) != artifact_names.end()) {
       return 5; // property (artifact member)
-    }
-    if (i + 2 < refs.size() && refs[i + 1].token.kind == TK::DoubleColon) {
-      if (refs[i + 2].token.kind == TK::KwModule) return 7; // namespace
-      if (refs[i + 2].token.kind == TK::KwEnum) return 1; // type
-      if (refs[i + 2].token.kind == TK::KwArtifact) return 1; // type
     }
     if (import_aliases.find(token.text) != import_aliases.end()) return 7; // namespace
     if (IsMemberNameAt(refs, i)) {
