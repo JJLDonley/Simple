@@ -168,6 +168,15 @@ for i; 0..10 {
 }
 ```
 
+Explicit header init is allowed; the range start still controls the loop:
+
+```simple
+sum : i32 = 0
+for i : i32 = 5; 0..10 {
+  sum += i
+}
+```
+
 ## Enums (Scoped)
 
 ```simple

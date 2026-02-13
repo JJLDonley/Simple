@@ -206,6 +206,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Added lexer coverage for `..` and parser tests for range loops and default typing.
 - Updated language docs and for-loop fixture to reflect the new syntax.
 - Added runtime fixture and test for range loops (`0..10` inclusive).
+- Added negative fixtures/tests for missing range end and missing loop initializer.
 - Added JIT compiled execution counters and asserted compiled execution in JIT tier test.
 - Added compiled-exec assertions for CALL_INDIRECT and TAILCALL JIT dispatch tests.
 - Added compiled-exec assertions to opcode-hot dispatch tests (call, call_indirect, tailcall).

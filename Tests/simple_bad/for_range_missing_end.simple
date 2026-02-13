@@ -1,0 +1,5 @@
+main : void () {
+  for i; 0.. {
+    skip
+  }
+}

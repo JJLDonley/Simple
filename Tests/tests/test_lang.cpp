@@ -820,6 +820,18 @@ bool LangSimpleBadIndexOutOfBounds() {
       "runtime trap");
 }
 
+bool LangSimpleBadForRangeMissingEnd() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Tests/simple_bad/for_range_missing_end.simple",
+      "expected expression");
+}
+
+bool LangSimpleBadForMissingInit() {
+  return Simple::VM::Tests::RunSimpleFileExpectError(
+      "Tests/simple_bad/for_missing_init.simple",
+      "expected expression");
+}
+
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
@@ -3469,6 +3481,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_index_non_int_expr", LangSimpleBadIndexNonIntExpr},
   {"lang_simple_bad_index_negative", LangSimpleBadIndexNegative},
   {"lang_simple_bad_index_oob", LangSimpleBadIndexOutOfBounds},
+  {"lang_simple_bad_for_range_missing_end", LangSimpleBadForRangeMissingEnd},
+  {"lang_simple_bad_for_missing_init", LangSimpleBadForMissingInit},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
