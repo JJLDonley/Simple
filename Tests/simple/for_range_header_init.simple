@@ -1,0 +1,7 @@
+main : i32 () {
+  sum : i32 = 0
+  for i : i32 = 5; 0..2 {
+    sum = sum + i
+  }
+  return sum
+}

@@ -1084,7 +1084,6 @@ bool Parser::ParseFor(Stmt* out) {
     if (!ParseExpr(&range_end)) return false;
     std::vector<Stmt> body;
     if (!ParseBlockStmts(&body)) return false;
-    Expr loop_init = has_init ? init_expr : first_expr;
     if (out) {
       out->kind = StmtKind::ForLoop;
       out->has_loop_var_decl = true;
@@ -1092,7 +1091,7 @@ bool Parser::ParseFor(Stmt* out) {
       out->loop_var_decl.mutability = mut;
       out->loop_var_decl.type = std::move(type);
       out->loop_var_decl.has_init_expr = false;
-      out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(loop_init));
+      out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(first_expr));
       out->loop_cond = MakeBinary("<=", MakeIdent(name_tok), std::move(range_end));
       Expr step;
       step.kind = ExprKind::Unary;
