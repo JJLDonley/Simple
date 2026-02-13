@@ -3168,6 +3168,12 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       std::string start_label = NewLabel(st, "for_start_");
       std::string step_label = NewLabel(st, "for_step_");
       std::string end_label = NewLabel(st, "for_end_");
+      if (stmt.has_loop_var_decl) {
+        Stmt var_stmt;
+        var_stmt.kind = StmtKind::VarDecl;
+        var_stmt.var_decl = stmt.loop_var_decl;
+        if (!EmitStmt(st, var_stmt, error)) return false;
+      }
       if (!EmitExpr(st, stmt.loop_iter, nullptr, error)) return false;
       (*st.out) << "  pop\n";
       PopStack(st, 1);

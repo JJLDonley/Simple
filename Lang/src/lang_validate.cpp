@@ -2631,10 +2631,27 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::ForLoop: {
       scopes.emplace_back();
+      if (stmt.has_loop_var_decl) {
+        Stmt var_stmt;
+        var_stmt.kind = StmtKind::VarDecl;
+        var_stmt.var_decl = stmt.loop_var_decl;
+        if (!CheckStmt(var_stmt,
+                       ctx,
+                       type_params,
+                       expected_return,
+                       return_is_void,
+                       loop_depth,
+                       scopes,
+                       current_artifact,
+                       error)) {
+          return false;
+        }
+      }
       if (!CheckExpr(stmt.loop_iter, ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
       if (!CheckBoolCondition(stmt.loop_cond, ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(stmt.loop_step, ctx, scopes, current_artifact, error)) return false;
+      scopes.emplace_back();
       for (const auto& child : stmt.loop_body) {
         if (!CheckStmt(child,
                        ctx,
@@ -2648,6 +2665,7 @@ bool CheckStmt(const Stmt& stmt,
           return false;
         }
       }
+      scopes.pop_back();
       scopes.pop_back();
       return true;
     }

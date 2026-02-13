@@ -198,6 +198,13 @@ This log records VM-related changes and is used as a historical reference for be
 - Added JIT compile tick ordering test (Tier0 tick before Tier1 for same callee).
 - Added JIT opcode-hot callee Tier0 compile tick test (no extra calls).
 - Added minimal Tier0 compiled path for simple const/nop/ret functions, with compile eligibility checks and compiled execution for Call/CallIndirect/TailCall.
+
+## 2026-02-13
+- Updated for-loop syntax to declare loop variables in the header and added inclusive range support with `..`.
+- Defaulted range loop variable type to `i32` when omitted and wired header initialization rules.
+- Adjusted for-loop validation scope to allow body shadowing under the header declaration.
+- Added lexer coverage for `..` and parser tests for range loops and default typing.
+- Updated language docs and for-loop fixture to reflect the new syntax.
 - Added JIT compiled execution counters and asserted compiled execution in JIT tier test.
 - Added compiled-exec assertions for CALL_INDIRECT and TAILCALL JIT dispatch tests.
 - Added compiled-exec assertions to opcode-hot dispatch tests (call, call_indirect, tailcall).

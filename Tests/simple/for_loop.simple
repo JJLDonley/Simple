@@ -1,7 +1,6 @@
 main : i32 () {
-  i : i32 = 1
   sum : i32 = 0
-  for i = i; i <= 5; i++ {
+  for i : i32 = 1; 1..5 {
     sum = sum + i
   }
   return sum

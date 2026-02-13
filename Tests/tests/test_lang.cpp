@@ -514,7 +514,7 @@ bool LangStressParseForLoopComplexStep() {
   const char* src =
       "main : i32 () {"
       "  i : i32 = 0;"
-      "  for i = 0; i < 10; i += 2 { skip; }"
+      "  for i : i32 = 0; i < 10; i += 2 { skip; }"
       "  return i;"
       "}";
   Simple::Lang::Program program;
@@ -1277,6 +1277,19 @@ bool LangLexesKeywordsAndOps() {
   return ExpectTokenKinds(toks, kinds);
 }
 
+bool LangLexesRangeOp() {
+  const char* src = "0..10";
+  Simple::Lang::Lexer lex(src);
+  if (!lex.Lex()) return false;
+  const auto& toks = lex.Tokens();
+  std::vector<Simple::Lang::TokenKind> kinds = {
+    Simple::Lang::TokenKind::Integer,
+    Simple::Lang::TokenKind::DotDot,
+    Simple::Lang::TokenKind::Integer,
+  };
+  return ExpectTokenKinds(toks, kinds);
+}
+
 bool LangLexesLiterals() {
   const char* src = "x : i32 = 42; h : i32 = 0x2A; b : i32 = 0b1010; y : f32 = 3.5; s : string = \"hi\\n\"; c : char = '\\n';";
   Simple::Lang::Lexer lex(src);
@@ -1942,7 +1955,7 @@ bool LangValidateForLoopScope() {
   const char* src =
     "main : void () {"
     "  x : i32 = 0;"
-    "  for x = x; x < 1; x = x + 1 { x : i32 = 2; }"
+    "  for x : i32 = x; x < 1; x = x + 1 { x : i32 = 2; }"
     "}";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -3247,7 +3260,7 @@ bool LangParsesBreakSkip() {
 }
 
 bool LangParsesForLoop() {
-  const char* src = "main : void () { for i = 0; i < 10; i = i + 1 { skip; } }";
+  const char* src = "main : void () { for i : i32 = 0; i < 10; i = i + 1 { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
@@ -3257,7 +3270,7 @@ bool LangParsesForLoop() {
 }
 
 bool LangParsesForLoopPostInc() {
-  const char* src = "main : void () { for i = 0; i < 10; i++ { skip; } }";
+  const char* src = "main : void () { for i : i32 = 0; i < 10; i++ { skip; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
@@ -3267,8 +3280,34 @@ bool LangParsesForLoopPostInc() {
   return true;
 }
 
+bool LangParsesForLoopRange() {
+  const char* src = "main : void () { for i : i32 = 0; 0..10 { skip; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::ForLoop) return false;
+  if (!stmt.has_loop_var_decl) return false;
+  if (stmt.loop_cond.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (stmt.loop_cond.op != "<=") return false;
+  if (stmt.loop_step.kind != Simple::Lang::ExprKind::Unary) return false;
+  return true;
+}
+
+bool LangParsesForLoopRangeDefaultType() {
+  const char* src = "main : void () { for i; 0..10 { skip; } }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  const auto& stmt = program.decls[0].func.body[0];
+  if (stmt.kind != Simple::Lang::StmtKind::ForLoop) return false;
+  if (!stmt.has_loop_var_decl) return false;
+  if (stmt.loop_var_decl.type.name != "i32") return false;
+  return true;
+}
 const TestCase kLangTests[] = {
   {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
+  {"lang_lex_range_op", LangLexesRangeOp},
   {"lang_lex_literals", LangLexesLiterals},
   {"lang_lex_reject_invalid_hex", LangLexRejectsInvalidHex},
   {"lang_lex_reject_invalid_binary", LangLexRejectsInvalidBinary},
@@ -3633,6 +3672,8 @@ const TestCase kLangTests[] = {
   {"lang_parse_break_skip", LangParsesBreakSkip},
   {"lang_parse_for_loop", LangParsesForLoop},
   {"lang_parse_for_loop_post_inc", LangParsesForLoopPostInc},
+  {"lang_parse_for_loop_range", LangParsesForLoopRange},
+  {"lang_parse_for_loop_range_default_type", LangParsesForLoopRangeDefaultType},
 };
 
 } // namespace

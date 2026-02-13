@@ -1028,26 +1028,107 @@ bool Parser::ParseFor(Stmt* out) {
     error_ = "expected 'for'";
     return false;
   }
-  Expr iter;
-  if (!ParseAssignmentExpr(&iter)) return false;
-  if (!Match(TokenKind::Semicolon)) {
-    error_ = "expected ';' after for iterator";
+  const Token& name_tok = Peek();
+  if (name_tok.kind != TokenKind::Identifier) {
+    error_ = "expected loop variable name after 'for'";
     return false;
   }
-  Expr cond;
-  if (!ParseExpr(&cond)) return false;
+  Advance();
+  Mutability mut = Mutability::Mutable;
+  TypeRef type;
+  bool has_type = false;
+  if (Match(TokenKind::Colon)) {
+    mut = Mutability::Mutable;
+    has_type = true;
+  } else if (Match(TokenKind::DoubleColon)) {
+    mut = Mutability::Immutable;
+    has_type = true;
+  }
+  if (has_type) {
+    if (!ParseTypeInner(&type)) return false;
+  } else {
+    type.name = "i32";
+  }
+  bool has_init = false;
+  Expr init_expr;
+  if (Match(TokenKind::Assign)) {
+    has_init = true;
+    if (!ParseExpr(&init_expr)) return false;
+  }
+  if (!Match(TokenKind::Semicolon)) {
+    error_ = "expected ';' after for loop initializer";
+    return false;
+  }
+
+  auto MakeIdent = [](const Token& tok) -> Expr {
+    Expr expr;
+    expr.kind = ExprKind::Identifier;
+    expr.text = tok.text;
+    expr.line = tok.line;
+    expr.column = tok.column;
+    return expr;
+  };
+  auto MakeBinary = [](const std::string& op, Expr lhs, Expr rhs) -> Expr {
+    Expr expr;
+    expr.kind = ExprKind::Binary;
+    expr.op = op;
+    expr.children.push_back(std::move(lhs));
+    expr.children.push_back(std::move(rhs));
+    return expr;
+  };
+
+  Expr first_expr;
+  if (!ParseExpr(&first_expr)) return false;
+  if (Match(TokenKind::DotDot)) {
+    Expr range_end;
+    if (!ParseExpr(&range_end)) return false;
+    std::vector<Stmt> body;
+    if (!ParseBlockStmts(&body)) return false;
+    Expr loop_init = has_init ? init_expr : first_expr;
+    if (out) {
+      out->kind = StmtKind::ForLoop;
+      out->has_loop_var_decl = true;
+      out->loop_var_decl.name = name_tok.text;
+      out->loop_var_decl.mutability = mut;
+      out->loop_var_decl.type = std::move(type);
+      out->loop_var_decl.has_init_expr = false;
+      out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(loop_init));
+      out->loop_cond = MakeBinary("<=", MakeIdent(name_tok), std::move(range_end));
+      Expr step;
+      step.kind = ExprKind::Unary;
+      step.op = "post++";
+      step.children.push_back(MakeIdent(name_tok));
+      out->loop_step = std::move(step);
+      out->loop_body = std::move(body);
+    }
+    return true;
+  }
+
+  if (!has_init) {
+    error_ = "expected initializer or range for for-loop";
+    return false;
+  }
+
+  Expr cond = std::move(first_expr);
   if (!Match(TokenKind::Semicolon)) {
     error_ = "expected ';' after for condition";
     return false;
   }
   Expr step;
   if (!ParseAssignmentExpr(&step)) return false;
-  if (!ParseBlockStmts(&out->loop_body)) return false;
+  std::vector<Stmt> body;
+  if (!ParseBlockStmts(&body)) return false;
   if (out) {
     out->kind = StmtKind::ForLoop;
-    out->loop_iter = std::move(iter);
+    out->has_loop_var_decl = true;
+    out->loop_var_decl.name = name_tok.text;
+    out->loop_var_decl.mutability = mut;
+    out->loop_var_decl.type = std::move(type);
+    out->loop_var_decl.has_init_expr = false;
+    out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(init_expr));
     out->loop_cond = std::move(cond);
     out->loop_step = std::move(step);
+    out->loop_body = std::move(body);
   }
   return true;
 }

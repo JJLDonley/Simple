@@ -154,6 +154,8 @@ struct Stmt {
   std::vector<Stmt> loop_body;
   Expr loop_iter;
   Expr loop_step;
+  bool has_loop_var_decl = false;
+  VarDecl loop_var_decl;
 };
 
 struct FuncDecl {

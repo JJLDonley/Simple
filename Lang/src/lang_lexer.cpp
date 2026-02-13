@@ -80,6 +80,7 @@ const char* ToString(TokenKind kind) {
     case TokenKind::RBracket: return "]";
     case TokenKind::Comma: return ",";
     case TokenKind::Dot: return ".";
+    case TokenKind::DotDot: return "..";
     case TokenKind::Semicolon: return ";";
     case TokenKind::Colon: return ":";
     case TokenKind::DoubleColon: return "::";
@@ -147,7 +148,15 @@ bool Lexer::Lex() {
       case '[': AddSimpleToken(TokenKind::LBracket); break;
       case ']': AddSimpleToken(TokenKind::RBracket); break;
       case ',': AddSimpleToken(TokenKind::Comma); break;
-      case '.': AddSimpleToken(TokenKind::Dot); break;
+      case '.':
+        if (Peek(1) == '.') {
+          Advance();
+          Advance();
+          AddToken(TokenKind::DotDot, "..");
+        } else {
+          AddSimpleToken(TokenKind::Dot);
+        }
+        break;
       case ';': AddSimpleToken(TokenKind::Semicolon); break;
       case ':':
         Advance();

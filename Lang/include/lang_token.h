@@ -43,6 +43,7 @@ enum class TokenKind : uint8_t {
   RBracket,
   Comma,
   Dot,
+  DotDot,
   Semicolon,
 
   Colon,

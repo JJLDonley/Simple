@@ -150,6 +150,24 @@ for i : i32 = 0; i < 10; i += 1 {
 }
 ```
 
+Range form (inclusive):
+
+```simple
+sum : i32 = 0
+for i : i32 = 0; 0..10 {
+  sum += i
+}
+```
+
+If the loop variable omits an explicit type, it defaults to `i32` and initializes from the range start:
+
+```simple
+sum : i32 = 0
+for i; 0..10 {
+  sum += @i32(i)
+}
+```
+
 ## Enums (Scoped)
 
 ```simple
