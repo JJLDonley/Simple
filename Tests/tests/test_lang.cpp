@@ -185,6 +185,10 @@ bool LangSimpleFixtureForLoop() {
   return RunSimpleFileExpectExit("Tests/simple/for_loop.simple", 15);
 }
 
+bool LangSimpleFixtureForRangeLoop() {
+  return RunSimpleFileExpectExit("Tests/simple/for_range.simple", 55);
+}
+
 bool LangSimpleFixtureWhileBreak() {
   return RunSimpleFileExpectExit("Tests/simple/while_break.simple", 6);
 }
@@ -3373,6 +3377,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_add_fn", LangSimpleFixtureAddFn},
   {"lang_simple_fixture_if_else", LangSimpleFixtureIfElse},
   {"lang_simple_fixture_for_loop", LangSimpleFixtureForLoop},
+  {"lang_simple_fixture_for_range_loop", LangSimpleFixtureForRangeLoop},
   {"lang_simple_fixture_while_break", LangSimpleFixtureWhileBreak},
   {"lang_simple_fixture_enum_value", LangSimpleFixtureEnumValue},
   {"lang_simple_fixture_enum_explicit", LangSimpleFixtureEnumExplicit},
