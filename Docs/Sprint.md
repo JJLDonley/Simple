@@ -1703,3 +1703,4 @@ This log records VM-related changes and is used as a historical reference for be
   - adjusted validate include order so control-flow helpers stay in the internal namespace.
   - moved expression operator/type helper checks into `lang_expressions`.
   - moved list method call target inference into `lang_lists`.
+  - moved SIR list method emission into `lang_lists`.
