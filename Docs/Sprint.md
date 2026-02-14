@@ -1679,6 +1679,7 @@ This log records VM-related changes and is used as a historical reference for be
   - Syncs the built `simplevm` into `build/bin` and `bin/` so LSP tests use the fresh binary.
 - Fixed LSP import completion:
   - reserved import completion now includes `System.fs`/`system.fs` alongside the existing aliases.
+- Bumped tool version to `v0.02.5` in CLI and build scripts (`build_linux`, `build_macos`, `build_windows`).
 - JIT Phase 2 (locals + params parity, scalar-only):
   - allow scalar param/return types for compiled eligibility and enforce local count guardrails.
   - initialize compiled locals with passed args.

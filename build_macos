@@ -7,7 +7,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-VERSION="v0.02.3"
+VERSION="v0.02.5"
 RUN_TESTS=0
 SKIP_BUILD=0
 SKIP_RELEASE=0
