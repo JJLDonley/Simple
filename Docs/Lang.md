@@ -110,8 +110,8 @@ run : void (cb : callback) {
 
 ## Lists
 - list literals (`[a, b, c]`) allocate a list with capacity equal to the literal length.
-- lists grow automatically (like `std::vector`) on `List.push`/`List.insert`.
-- `List.new<T>(capacity)` creates an empty list with the requested initial capacity (capacity must be an integer literal).
+- list capacity is fixed; `List.push`/`List.insert` trap on overflow.
+- `List.new<T>(capacity)` creates an empty list with the requested capacity (capacity must be an integer literal).
 - list ops: `List.len`, `List.push`, `List.pop`, `List.insert`, `List.remove`, `List.clear`.
 
 ## Control Flow

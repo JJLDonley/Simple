@@ -2179,12 +2179,10 @@ std::vector<uint8_t> BuildListOverflowModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 1);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Dup));
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(code, 2);
   AppendU8(code, static_cast<uint8_t>(OpCode::ListPushI32));
-  AppendU8(code, static_cast<uint8_t>(OpCode::ListLen));
-  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   return BuildModule(code, 0, 0);
 }
 
@@ -22512,8 +22510,8 @@ bool RunBadStringSliceTrapTest() {
   return RunExpectTrap(BuildBadStringSliceModule(), "bad_string_slice");
 }
 
-bool RunListGrowthTest() {
-  return RunExpectExit(BuildListOverflowModule(), 2);
+bool RunListOverflowTrapTest() {
+  return RunExpectTrap(BuildListOverflowModule(), "list_overflow");
 }
 
 bool RunHeapReuseTest() {
@@ -23598,7 +23596,7 @@ static const TestCase kCoreTests[] = {
   {"bad_string_get_char", RunBadStringGetCharTrapTest},
   {"bad_string_slice_null", RunBadStringSliceNullTrapTest},
   {"bad_string_slice", RunBadStringSliceTrapTest},
-  {"list_growth", RunListGrowthTest},
+  {"list_overflow", RunListOverflowTrapTest},
 };
 
 static const TestCase kRuntimeSmokeTests[] = {
