@@ -13,6 +13,7 @@ inline std::string LowerAscii(std::string text) {
 
 inline bool CanonicalizeReservedImportPath(const std::string& path, std::string* out) {
   if (!out) return false;
+  const std::string path_lc = LowerAscii(path);
 
   struct ReservedImportEntry {
     const char* canonical;
@@ -20,7 +21,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     size_t alias_count;
   };
 
-  static constexpr std::array<ReservedImportEntry, 7> kReserved = {{
+  static constexpr std::array<ReservedImportEntry, 8> kReserved = {{
       {"Core.Math", {"Math", "math", "System.math", "system.math"}, 4},
       {"Core.IO", {"IO", "io", "System.io", "system.io"}, 4},
       {"Core.Time", {"Time", "time", "System.time", "system.time"}, 4},
@@ -28,11 +29,12 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Core.OS", {"OS", "os", "System.os", "system.os"}, 4},
       {"Core.FS", {"FS", "fs", "File", "file", "System.file", "system.file", "System.fs", "system.fs"}, 8},
       {"Core.Log", {"Log", "log", "System.log", "system.log"}, 4},
+      {"Core.List", {"List", "list", "System.list", "system.list"}, 4},
   }};
 
   for (const auto& entry : kReserved) {
     for (size_t i = 0; i < entry.alias_count; ++i) {
-      if (path == entry.aliases[i]) {
+      if (path_lc == LowerAscii(entry.aliases[i])) {
         *out = entry.canonical;
         return true;
       }

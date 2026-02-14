@@ -1,0 +1,12 @@
+import List
+
+main : i32 () {
+  items : i32[] = List.new<i32>(4)
+  List.push(items, 10)
+  List.push(items, 20)
+  List.insert(items, 1, 15)
+  a : i32 = List.pop(items)
+  b : i32 = List.remove(items, 0)
+  List.clear(items)
+  return a + b
+}

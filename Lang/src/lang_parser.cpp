@@ -140,7 +140,11 @@ bool Parser::ParseProgram(Program* out) {
     }
     index_ = save_index;
     Stmt stmt;
-    if (!ParseStmt(&stmt)) return false;
+    if (!ParseStmt(&stmt)) {
+      error_ = decl_error;
+      index_ = decl_fail_index;
+      return false;
+    }
     out->top_level_stmts.push_back(std::move(stmt));
   }
   return !had_error_;

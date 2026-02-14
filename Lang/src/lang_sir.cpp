@@ -1028,6 +1028,59 @@ bool InferExprType(const Expr& expr,
               out->proc_return.reset();
               return true;
             }
+            if (reserved_module == "Core.List") {
+              if (member_name == "new") {
+                if (expr.type_args.size() != 1) {
+                  if (error) *error = "List.new requires explicit type argument";
+                  return false;
+                }
+                TypeRef list_type;
+                if (!CloneTypeRef(expr.type_args[0], &list_type)) return false;
+                TypeDim dim;
+                dim.is_list = true;
+                dim.has_size = false;
+                dim.size = 0;
+                list_type.dims.insert(list_type.dims.begin(), dim);
+                return CloneTypeRef(list_type, out);
+              }
+              if (member_name == "len") {
+                out->name = "i32";
+                out->type_args.clear();
+                out->dims.clear();
+                out->is_proc = false;
+                out->proc_is_callback = false;
+                out->proc_params.clear();
+                out->proc_return.reset();
+                return true;
+              }
+              if (member_name == "push" || member_name == "insert" || member_name == "clear") {
+                out->name = "void";
+                out->type_args.clear();
+                out->dims.clear();
+                out->is_proc = false;
+                out->proc_is_callback = false;
+                out->proc_params.clear();
+                out->proc_return.reset();
+                return true;
+              }
+              if (member_name == "pop" || member_name == "remove") {
+                if (expr.args.empty()) {
+                  if (error) *error = "call missing list argument";
+                  return false;
+                }
+                TypeRef list_type;
+                if (!InferExprType(expr.args[0], st, &list_type, error)) return false;
+                if (list_type.dims.empty() || !list_type.dims.front().is_list) {
+                  if (error) *error = "List." + member_name + " expects list argument";
+                  return false;
+                }
+                if (!CloneElementType(list_type, out)) {
+                  if (error) *error = "failed to resolve list element type";
+                  return false;
+                }
+                return true;
+              }
+            }
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
@@ -2033,6 +2086,167 @@ bool EmitExpr(EmitState& st,
                 (*st.out) << "  intrinsic " << id << "\n";
                 PopStack(st, 1);
                 PushStack(st, 1);
+                return true;
+              }
+            }
+            if (reserved_module == "Core.List") {
+              const std::string member_name = callee.text;
+              auto require_list_arg = [&](const Expr& list_expr,
+                                          TypeRef* list_type,
+                                          TypeRef* element_type) -> bool {
+                if (!list_type || !element_type) return false;
+                if (!InferExprType(list_expr, st, list_type, error)) return false;
+                if (list_type->dims.empty() || !list_type->dims.front().is_list) {
+                  if (error) *error = "List." + member_name + " expects list argument";
+                  return false;
+                }
+                if (!CloneElementType(*list_type, element_type)) {
+                  if (error) *error = "failed to resolve list element type";
+                  return false;
+                }
+                return true;
+              };
+              if (member_name == "new") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'List.new'";
+                  return false;
+                }
+                TypeRef element_type;
+                if (!expr.type_args.empty()) {
+                  if (expr.type_args.size() != 1) {
+                    if (error) *error = "List.new expects exactly one type argument";
+                    return false;
+                  }
+                  if (!CloneTypeRef(expr.type_args[0], &element_type)) return false;
+                } else if (expected && !expected->dims.empty() && expected->dims.front().is_list) {
+                  if (!CloneElementType(*expected, &element_type)) return false;
+                } else {
+                  if (error) *error = "List.new requires an explicit type argument";
+                  return false;
+                }
+                if (!IsIntegerLiteralExpr(expr.args[0])) {
+                  if (error) *error = "List.new expects integer literal capacity";
+                  return false;
+                }
+                int64_t capacity = 0;
+                if (!ParseIntegerLiteralText(expr.args[0].text, &capacity) || capacity < 0) {
+                  if (error) *error = "List.new expects integer literal capacity";
+                  return false;
+                }
+                const char* type_name = VmTypeNameForElement(element_type);
+                if (!type_name) {
+                  if (error) *error = "unsupported list element type for List.new";
+                  return false;
+                }
+                (*st.out) << "  newlist " << type_name << " " << static_cast<uint32_t>(capacity) << "\n";
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "len") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'List.len'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                (*st.out) << "  list.len\n";
+                PopStack(st, 1);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "push") {
+                if (expr.args.size() != 2) {
+                  if (error) *error = "call argument count mismatch for 'List.push'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                const char* op_suffix = VmOpSuffixForType(element_type);
+                if (!op_suffix) {
+                  if (error) *error = "unsupported list element type for List.push";
+                  return false;
+                }
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &element_type, error)) return false;
+                (*st.out) << "  list.push." << op_suffix << "\n";
+                PopStack(st, 2);
+                return true;
+              }
+              if (member_name == "pop") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'List.pop'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                const char* op_suffix = VmOpSuffixForType(element_type);
+                if (!op_suffix) {
+                  if (error) *error = "unsupported list element type for List.pop";
+                  return false;
+                }
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                (*st.out) << "  list.pop." << op_suffix << "\n";
+                PopStack(st, 1);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "insert") {
+                if (expr.args.size() != 3) {
+                  if (error) *error = "call argument count mismatch for 'List.insert'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                const char* op_suffix = VmOpSuffixForType(element_type);
+                if (!op_suffix) {
+                  if (error) *error = "unsupported list element type for List.insert";
+                  return false;
+                }
+                TypeRef index_type = MakeTypeRef("i32");
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &index_type, error)) return false;
+                if (!EmitExpr(st, expr.args[2], &element_type, error)) return false;
+                (*st.out) << "  list.insert." << op_suffix << "\n";
+                PopStack(st, 3);
+                return true;
+              }
+              if (member_name == "remove") {
+                if (expr.args.size() != 2) {
+                  if (error) *error = "call argument count mismatch for 'List.remove'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                const char* op_suffix = VmOpSuffixForType(element_type);
+                if (!op_suffix) {
+                  if (error) *error = "unsupported list element type for List.remove";
+                  return false;
+                }
+                TypeRef index_type = MakeTypeRef("i32");
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                if (!EmitExpr(st, expr.args[1], &index_type, error)) return false;
+                (*st.out) << "  list.remove." << op_suffix << "\n";
+                PopStack(st, 2);
+                PushStack(st, 1);
+                return true;
+              }
+              if (member_name == "clear") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'List.clear'";
+                  return false;
+                }
+                TypeRef list_type;
+                TypeRef element_type;
+                if (!require_list_arg(expr.args[0], &list_type, &element_type)) return false;
+                if (!EmitExpr(st, expr.args[0], &list_type, error)) return false;
+                (*st.out) << "  list.clear\n";
+                PopStack(st, 1);
                 return true;
               }
             }
