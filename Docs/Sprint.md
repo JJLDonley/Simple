@@ -27,6 +27,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Implemented list instance methods (`list.len`, `list.push`, `list.pop`, `list.insert`, `list.remove`, `list.clear`).
 - Restored dynamic list growth in the VM for `push`/`insert`.
 - Updated list method fixtures and LSP completions/signature help.
+- Reorganized Lang sources into phase subfolders (`lexer/`, `parser/`, `validate/`, `sir/`) with aggregated compilation units.
 
 
 ## 2026-01-29
