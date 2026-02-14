@@ -373,14 +373,22 @@ bool EmitExpr(EmitState& st,
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error);
 
+bool EmitListIndexSetOp(EmitState& st, const char* op_suffix);
+bool EmitListIndexGetOp(EmitState& st, const char* op_suffix);
+bool EmitListLiteral(EmitState& st,
+                     const Expr& expr,
+                     const TypeRef& element_type,
+                     const char* op_suffix,
+                     const char* type_name,
+                     std::string* error);
+
 bool EmitIndexSetOp(EmitState& st,
                     const TypeRef& container_type,
                     const char* op_suffix) {
   if (container_type.dims.front().is_list) {
-    (*st.out) << "  list.set." << op_suffix << "\n";
-  } else {
-    (*st.out) << "  array.set." << op_suffix << "\n";
+    return EmitListIndexSetOp(st, op_suffix);
   }
+  (*st.out) << "  array.set." << op_suffix << "\n";
   PopStack(st, 3);
   return true;
 }
@@ -389,10 +397,9 @@ bool EmitIndexGetOp(EmitState& st,
                     const TypeRef& container_type,
                     const char* op_suffix) {
   if (container_type.dims.front().is_list) {
-    (*st.out) << "  list.get." << op_suffix << "\n";
-  } else {
-    (*st.out) << "  array.get." << op_suffix << "\n";
+    return EmitListIndexGetOp(st, op_suffix);
   }
+  (*st.out) << "  array.get." << op_suffix << "\n";
   PopStack(st, 2);
   return PushStack(st, 1);
 }
@@ -1830,25 +1837,19 @@ bool EmitExpr(EmitState& st,
       }
       uint32_t length = static_cast<uint32_t>(expr.children.size());
       if (is_list) {
-        (*st.out) << "  newlist " << type_name << " " << length << "\n";
-      } else {
-        (*st.out) << "  newarray " << type_name << " " << length << "\n";
+        return EmitListLiteral(st, expr, element_type, op_suffix, type_name, error);
       }
+      (*st.out) << "  newarray " << type_name << " " << length << "\n";
       PushStack(st, 1);
       for (uint32_t i = 0; i < length; ++i) {
         (*st.out) << "  dup\n";
         PushStack(st, 1);
         if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
-        if (is_list) {
-          (*st.out) << "  list.push." << op_suffix << "\n";
-          PopStack(st, 2);
-        } else {
-          (*st.out) << "  const.i32 " << i << "\n";
-          PushStack(st, 1);
-          (*st.out) << "  swap\n";
-          (*st.out) << "  array.set." << op_suffix << "\n";
-          PopStack(st, 3);
-        }
+        (*st.out) << "  const.i32 " << i << "\n";
+        PushStack(st, 1);
+        (*st.out) << "  swap\n";
+        (*st.out) << "  array.set." << op_suffix << "\n";
+        PopStack(st, 3);
       }
       return true;
     }

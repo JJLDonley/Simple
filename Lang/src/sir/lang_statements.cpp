@@ -1,3 +1,6 @@
+bool EmitListIndexSetOp(EmitState& st, const char* op_suffix);
+bool EmitListIndexGetOp(EmitState& st, const char* op_suffix);
+
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
   switch (stmt.kind) {
     case StmtKind::VarDecl: {
@@ -71,12 +74,12 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         if (stmt.assign_op != "=") {
           if (!EmitDup2(st)) return false;
           if (container_type.dims.front().is_list) {
-            (*st.out) << "  list.get." << op_suffix << "\n";
+            if (!EmitListIndexGetOp(st, op_suffix)) return false;
           } else {
             (*st.out) << "  array.get." << op_suffix << "\n";
+            PopStack(st, 2);
+            PushStack(st, 1);
           }
-          PopStack(st, 2);
-          PushStack(st, 1);
           if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
           PopStack(st, 1);
           const char* bin_op = AssignOpToBinaryOp(stmt.assign_op);
@@ -120,20 +123,20 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
             return false;
           }
           if (container_type.dims.front().is_list) {
-            (*st.out) << "  list.set." << op_suffix << "\n";
+            if (!EmitListIndexSetOp(st, op_suffix)) return false;
           } else {
             (*st.out) << "  array.set." << op_suffix << "\n";
+            PopStack(st, 3);
           }
-          PopStack(st, 3);
           return true;
         }
         if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
         if (container_type.dims.front().is_list) {
-          (*st.out) << "  list.set." << op_suffix << "\n";
+          if (!EmitListIndexSetOp(st, op_suffix)) return false;
         } else {
           (*st.out) << "  array.set." << op_suffix << "\n";
+          PopStack(st, 3);
         }
-        PopStack(st, 3);
         return true;
       }
       if (stmt.target.kind == ExprKind::Member) {
@@ -448,4 +451,3 @@ bool EmitFunction(EmitState& st,
   if (out) *out = func_body;
   return true;
 }
-

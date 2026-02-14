@@ -102,3 +102,34 @@ bool EmitListMethodCall(EmitState& st,
   }
   return false;
 }
+
+bool EmitListIndexSetOp(EmitState& st, const char* op_suffix) {
+  (*st.out) << "  list.set." << op_suffix << "\n";
+  PopStack(st, 3);
+  return true;
+}
+
+bool EmitListIndexGetOp(EmitState& st, const char* op_suffix) {
+  (*st.out) << "  list.get." << op_suffix << "\n";
+  PopStack(st, 2);
+  return PushStack(st, 1);
+}
+
+bool EmitListLiteral(EmitState& st,
+                     const Expr& expr,
+                     const TypeRef& element_type,
+                     const char* op_suffix,
+                     const char* type_name,
+                     std::string* error) {
+  uint32_t length = static_cast<uint32_t>(expr.children.size());
+  (*st.out) << "  newlist " << type_name << " " << length << "\n";
+  PushStack(st, 1);
+  for (uint32_t i = 0; i < length; ++i) {
+    (*st.out) << "  dup\n";
+    PushStack(st, 1);
+    if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
+    (*st.out) << "  list.push." << op_suffix << "\n";
+    PopStack(st, 2);
+  }
+  return true;
+}
