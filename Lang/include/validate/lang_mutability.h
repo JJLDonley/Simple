@@ -1,0 +1,2 @@
+#pragma once
+// Validation: mutability.

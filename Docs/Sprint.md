@@ -1691,3 +1691,4 @@ This log records VM-related changes and is used as a historical reference for be
 - JIT Phase 4 (call support):
   - allow compiled direct calls to compiled-safe callees.
   - add compiled call regression coverage.
+- Began Option-A feature split of Lang phase files: added per-feature stubs and new aggregation order for validate/sir sources.
