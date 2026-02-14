@@ -284,9 +284,6 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   }
   if (resolved == "Core.FS") return {"open", "close", "read", "write"};
   if (resolved == "Core.Log") return {"log"};
-  if (resolved == "Core.List") {
-    return {"new", "len", "push", "pop", "insert", "remove", "clear"};
-  }
   return {};
 }
 
@@ -453,55 +450,6 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "Core.List") {
-    out->type_params = {"T"};
-    if (member == "new") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeListType("T");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "len") {
-      out->params.push_back(MakeListType("T"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "push") {
-      out->params.push_back(MakeListType("T"));
-      out->params.push_back(MakeSimpleType("T"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "pop") {
-      out->params.push_back(MakeListType("T"));
-      out->return_type = MakeSimpleType("T");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "insert") {
-      out->params.push_back(MakeListType("T"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("T"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "remove") {
-      out->params.push_back(MakeListType("T"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("T");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "clear") {
-      out->params.push_back(MakeListType("T"));
-      out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -682,14 +630,6 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
     if (!CloneTypeRef(*src.proc_return, &copy)) return false;
     out->proc_return = std::make_unique<TypeRef>(std::move(copy));
   }
-  return true;
-}
-
-bool CloneElementType(const TypeRef& container, TypeRef* out) {
-  if (!out) return false;
-  if (container.dims.empty()) return false;
-  if (!CloneTypeRef(container, out)) return false;
-  out->dims.erase(out->dims.begin());
   return true;
 }
 
@@ -2062,105 +2002,6 @@ bool CheckCallArgTypes(const Expr& call_expr,
         if (name == "mono_ns" || name == "wall_ns") {
           if (!call_expr.args.empty()) {
             if (error) *error = "Time." + name + " expects no arguments";
-            return false;
-          }
-          return true;
-        }
-      }
-      if (mod == "Core.List") {
-        auto is_list = [&](const TypeRef& t) {
-          return !t.dims.empty() && t.dims.front().is_list;
-        };
-        if (name == "new") {
-          if (call_expr.args.size() != 1) return true;
-          if (call_expr.type_args.size() != 1) {
-            if (error) *error = "List.new requires a single type argument";
-            return false;
-          }
-          TypeRef cap;
-          if (!infer_arg(0, &cap)) return true;
-          if (cap.name != "i32" || !cap.dims.empty()) {
-            if (error) *error = "List.new expects (i32)";
-            return false;
-          }
-          if (!IsIntegerLiteralExpr(call_expr.args[0])) {
-            if (error) *error = "List.new expects integer literal capacity";
-            return false;
-          }
-          return true;
-        }
-        if (name == "len") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef list;
-          if (!infer_arg(0, &list)) return true;
-          if (!is_list(list)) {
-            if (error) *error = "List.len expects (T[])";
-            return false;
-          }
-          return true;
-        }
-        if (name == "push") {
-          if (call_expr.args.size() != 2) return true;
-          TypeRef list;
-          TypeRef value;
-          if (!infer_arg(0, &list) || !infer_arg(1, &value)) return true;
-          if (!is_list(list)) {
-            if (error) *error = "List.push expects (T[], T)";
-            return false;
-          }
-          TypeRef elem;
-          if (!CloneElementType(list, &elem)) return true;
-          if (!TypeEquals(elem, value)) {
-            if (error) *error = "List.push expects value matching list element type";
-            return false;
-          }
-          return true;
-        }
-        if (name == "pop") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef list;
-          if (!infer_arg(0, &list)) return true;
-          if (!is_list(list)) {
-            if (error) *error = "List.pop expects (T[])";
-            return false;
-          }
-          return true;
-        }
-        if (name == "insert") {
-          if (call_expr.args.size() != 3) return true;
-          TypeRef list;
-          TypeRef index;
-          TypeRef value;
-          if (!infer_arg(0, &list) || !infer_arg(1, &index) || !infer_arg(2, &value)) return true;
-          if (!is_list(list) || index.name != "i32" || !index.dims.empty()) {
-            if (error) *error = "List.insert expects (T[], i32, T)";
-            return false;
-          }
-          TypeRef elem;
-          if (!CloneElementType(list, &elem)) return true;
-          if (!TypeEquals(elem, value)) {
-            if (error) *error = "List.insert expects value matching list element type";
-            return false;
-          }
-          return true;
-        }
-        if (name == "remove") {
-          if (call_expr.args.size() != 2) return true;
-          TypeRef list;
-          TypeRef index;
-          if (!infer_arg(0, &list) || !infer_arg(1, &index)) return true;
-          if (!is_list(list) || index.name != "i32" || !index.dims.empty()) {
-            if (error) *error = "List.remove expects (T[], i32)";
-            return false;
-          }
-          return true;
-        }
-        if (name == "clear") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef list;
-          if (!infer_arg(0, &list)) return true;
-          if (!is_list(list)) {
-            if (error) *error = "List.clear expects (T[])";
             return false;
           }
           return true;

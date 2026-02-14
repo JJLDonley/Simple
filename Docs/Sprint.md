@@ -228,18 +228,6 @@ This log records VM-related changes and is used as a historical reference for be
 - Added opcode-hot compiled bool ops coverage for CALL_INDIRECT path.
 - Added opcode-hot compiled bool ops coverage for TAILCALL via helper trampoline.
 
-## 2026-02-14
-- Updated CLI import resolution:
-  - bare filename imports now scan the current working directory instead of a repo root probe.
-  - import diagnostics now reference the working directory for missing/ambiguous matches.
-- Relaxed reserved import casing:
-  - reserved aliases are now case-insensitive (e.g. `System.IO` accepted).
-- Documented and exposed list growth operations:
-  - added `List` reserved module with push/pop/insert/remove/clear/len/new in language validation and SIR emission.
-  - documented list capacity semantics and `List.new<T>(capacity)` in language and stdlib docs.
-- Improved parser diagnostics:
-  - top-level decl vs stmt retry now preserves the original decl error when the statement parse fails.
-
 ## 2026-02-12
 - Added env overrides for JIT tier thresholds (SIMPLE_JIT_TIER0/TIER1/OPCODE) to support tuning and bench work.
 - Added JIT test coverage validating env-driven tier promotion and compiled execution.

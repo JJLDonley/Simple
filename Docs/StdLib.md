@@ -27,7 +27,6 @@ Reserved (compiler-mapped):
 - `OS`
 - `FS`
 - `Log`
-- `List`
 
 Preferred modern aliases:
 - `System.math`
@@ -37,9 +36,6 @@ Preferred modern aliases:
 - `System.dl`
 - `System.os`
 - `System.log`
-- `System.list`
-
-Reserved import keywords are case-insensitive.
 
 ## Import Mapping
 
@@ -52,7 +48,6 @@ Reserved import keywords are case-insensitive.
 | `DL` / `System.dl` | `core.dl` |
 | `OS` / `System.os` | `core.os` |
 | `Log` / `System.log` | `core.log` |
-| `List` / `System.list` | `core.list` |
 
 ## Core Module API Tables
 
@@ -116,19 +111,6 @@ Reserved import keywords are case-insensitive.
 | `close` | `(handle : i64) -> i32` |
 | `last_error` | `() -> string` |
 | `supported` | `bool` constant |
-
-### List
-Lists are fixed-capacity; `push`/`insert` trap on overflow. `List.new<T>` currently requires an integer literal capacity.
-
-| Member | Signature |
-|---|---|
-| `new<T>` | `(capacity : i32) -> T[]` |
-| `len<T>` | `(list : T[]) -> i32` |
-| `push<T>` | `(list : T[], value : T) -> void` |
-| `pop<T>` | `(list : T[]) -> T` |
-| `insert<T>` | `(list : T[], index : i32, value : T) -> void` |
-| `remove<T>` | `(list : T[], index : i32) -> T` |
-| `clear<T>` | `(list : T[]) -> void` |
 
 ## Extern Interop
 `extern` signatures define ABI contracts for dynamic symbol calls.

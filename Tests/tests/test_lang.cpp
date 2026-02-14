@@ -225,10 +225,6 @@ bool LangSimpleFixtureListIndex() {
   return RunSimpleFileExpectExit("Tests/simple/list_index.simple", 6);
 }
 
-bool LangSimpleFixtureListOps() {
-  return RunSimpleFileExpectExit("Tests/simple/list_ops.simple", 30);
-}
-
 bool LangSimpleFixtureStringLen() {
   return RunSimpleFileExpectExit("Tests/simple/string_len.simple", 5);
 }
@@ -831,13 +827,13 @@ bool LangSimpleBadIndexOutOfBounds() {
 bool LangSimpleBadForRangeMissingEnd() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/for_range_missing_end.simple",
-      "expected");
+      "expected expression");
 }
 
 bool LangSimpleBadForMissingInit() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/for_missing_init.simple",
-      "expected");
+      "expected expression");
 }
 
 bool LangCliCheckSimpleErrorFormat() {
@@ -1713,12 +1709,12 @@ bool LangParsesImportDeclUnquotedPath() {
   return true;
 }
 
-bool LangValidateSystemImportAcceptsMixedCase() {
+bool LangValidateSystemImportRejectsMixedCase() {
   const char* src =
       "import sYsTeM.iO as IO\n"
       "main : void () { IO.println(1); }";
   std::string error;
-  return Simple::Lang::ValidateProgramFromString(src, &error);
+  return !Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemImportImplicitLowerAlias() {
@@ -3351,7 +3347,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl", LangParsesImportDecl},
   {"lang_parse_import_decl_alias", LangParsesImportDeclAlias},
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
-  {"lang_validate_system_import_accepts_mixed_case", LangValidateSystemImportAcceptsMixedCase},
+  {"lang_validate_system_import_rejects_mixed_case", LangValidateSystemImportRejectsMixedCase},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
@@ -3407,7 +3403,6 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_fn_literal", LangSimpleFixtureFnLiteral},
   {"lang_simple_fixture_array_assign", LangSimpleFixtureArrayAssign},
   {"lang_simple_fixture_list_index", LangSimpleFixtureListIndex},
-  {"lang_simple_fixture_list_ops", LangSimpleFixtureListOps},
   {"lang_simple_fixture_string_len", LangSimpleFixtureStringLen},
   {"lang_simple_fixture_artifact_method", LangSimpleFixtureArtifactMethod},
   {"lang_simple_fixture_artifact_named_init", LangSimpleFixtureArtifactNamedInit},

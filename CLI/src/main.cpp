@@ -45,9 +45,30 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   return true;
 }
 
-std::filesystem::path ResolveImportProjectRoot() {
+bool LooksLikeProjectRoot(const std::filesystem::path& root) {
+  namespace fs = std::filesystem;
+  return fs::exists(root / "VM" / "include" / "vm.h") &&
+         fs::exists(root / "Lang" / "include" / "lang_parser.h") &&
+         fs::exists(root / "Byte" / "include" / "sbc_loader.h");
+}
+
+std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
   namespace fs = std::filesystem;
   std::error_code ec;
+#ifdef SIMPLEVM_PROJECT_ROOT
+  fs::path configured_root = fs::weakly_canonical(fs::path(SIMPLEVM_PROJECT_ROOT), ec);
+  if (!ec && !configured_root.empty() && LooksLikeProjectRoot(configured_root)) {
+    return configured_root;
+  }
+#endif
+  fs::path cursor = fs::weakly_canonical(entry_path, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(entry_path);
+  if (fs::is_regular_file(cursor)) cursor = cursor.parent_path();
+  while (!cursor.empty()) {
+    if (LooksLikeProjectRoot(cursor)) return cursor;
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
+  }
   fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
   if (!ec && !cwd.empty()) return cwd;
   return fs::current_path();
@@ -89,7 +110,7 @@ bool ResolveProjectRootImportPath(
                                  : import_path + ".simple";
   auto it = index.find(target);
   if (it == index.end() || it->second.empty()) {
-    if (error) *error = "import not found in working directory: " + import_path;
+    if (error) *error = "import not found in project root: " + import_path;
     return false;
   }
   if (it->second.size() > 1) {
@@ -227,10 +248,10 @@ bool LoadSimpleProgramWithImports(const std::string& entry_path,
                                   std::string* error) {
   if (!out) return false;
   out->decls.clear();
-  const std::filesystem::path project_root = ResolveImportProjectRoot();
+  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
   std::unordered_map<std::string, std::vector<std::filesystem::path>> project_index;
   if (!BuildSimpleFileIndex(project_root, &project_index)) {
-    if (error) *error = "failed to enumerate .simple files under working directory: " + project_root.string();
+    if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
     return false;
   }
   std::unordered_set<std::string> visiting;
@@ -610,10 +631,10 @@ std::string DiagnosticHelpFor(const std::string& message) {
     return "remove unsupported characters or escape them if inside literals";
   }
   if (message.find("unsupported import path") != std::string::npos) {
-    return "use a reserved stdlib import, a relative/absolute path, or a unique bare filename under working directory";
+    return "use a reserved stdlib import, a relative/absolute path, or a unique bare filename under project root";
   }
-  if (message.find("import not found in working directory") != std::string::npos) {
-    return "add the target .simple file under working directory or use an explicit relative path";
+  if (message.find("import not found in project root") != std::string::npos) {
+    return "add the target .simple file under project root or use an explicit relative path";
   }
   if (message.find("ambiguous import path") != std::string::npos) {
     return "rename duplicate files or use an explicit relative path to disambiguate";

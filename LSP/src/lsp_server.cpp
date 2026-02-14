@@ -975,11 +975,11 @@ std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
       "System.io", "System.math", "System.time", "System.fs", "System.dl",
-      "System.os", "System.log", "System.file", "System.list",
+      "System.os", "System.log", "System.file",
       "system.io", "system.math", "system.time", "system.fs", "system.dl",
-      "system.os", "system.log", "system.file", "system.list",
-      "IO", "Math", "Time", "FS", "File", "DL", "OS", "Log", "List",
-      "io", "math", "time", "fs", "file", "dl", "os", "log", "list"};
+      "system.os", "system.log", "system.file",
+      "IO", "Math", "Time", "FS", "File", "DL", "OS", "Log",
+      "io", "math", "time", "fs", "file", "dl", "os", "log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1028,7 +1028,6 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Core.FS", {"open", "close", "read", "write"}},
       {"Core.Log", {"log"}},
-      {"Core.List", {"new", "len", "push", "pop", "insert", "remove", "clear"}},
   };
 
   std::unordered_set<std::string> labels;
@@ -1289,44 +1288,6 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (module == "Core.Log") {
     if (member == "log") {
       out->params = {"message", "level"};
-      out->return_type = "void";
-      return true;
-    }
-    return false;
-  }
-  if (module == "Core.List") {
-    if (member == "new") {
-      out->params = {"capacity"};
-      out->return_type = "T[]";
-      return true;
-    }
-    if (member == "len") {
-      out->params = {"list"};
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "push") {
-      out->params = {"list", "value"};
-      out->return_type = "void";
-      return true;
-    }
-    if (member == "pop") {
-      out->params = {"list"};
-      out->return_type = "T";
-      return true;
-    }
-    if (member == "insert") {
-      out->params = {"list", "index", "value"};
-      out->return_type = "void";
-      return true;
-    }
-    if (member == "remove") {
-      out->params = {"list", "index"};
-      out->return_type = "T";
-      return true;
-    }
-    if (member == "clear") {
-      out->params = {"list"};
       out->return_type = "void";
       return true;
     }
@@ -2104,8 +2065,8 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "FS", "OS", "Time", "Math", "Log", "File", "List",
-      "io", "dl", "fs", "os", "time", "math", "log", "file", "list",
+      "IO", "DL", "FS", "OS", "Time", "Math", "Log", "File",
+      "io", "dl", "fs", "os", "time", "math", "log", "file",
   };
   return kReserved.find(name) != kReserved.end();
 }
