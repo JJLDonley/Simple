@@ -1,5 +1,7 @@
 bool EmitListIndexSetOp(EmitState& st, const char* op_suffix);
 bool EmitListIndexGetOp(EmitState& st, const char* op_suffix);
+bool EmitArrayIndexSetOp(EmitState& st, const char* op_suffix);
+bool EmitArrayIndexGetOp(EmitState& st, const char* op_suffix);
 
 bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
   switch (stmt.kind) {
@@ -76,9 +78,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           if (container_type.dims.front().is_list) {
             if (!EmitListIndexGetOp(st, op_suffix)) return false;
           } else {
-            (*st.out) << "  array.get." << op_suffix << "\n";
-            PopStack(st, 2);
-            PushStack(st, 1);
+            if (!EmitArrayIndexGetOp(st, op_suffix)) return false;
           }
           if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
           PopStack(st, 1);
@@ -125,8 +125,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           if (container_type.dims.front().is_list) {
             if (!EmitListIndexSetOp(st, op_suffix)) return false;
           } else {
-            (*st.out) << "  array.set." << op_suffix << "\n";
-            PopStack(st, 3);
+            if (!EmitArrayIndexSetOp(st, op_suffix)) return false;
           }
           return true;
         }
@@ -134,8 +133,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         if (container_type.dims.front().is_list) {
           if (!EmitListIndexSetOp(st, op_suffix)) return false;
         } else {
-          (*st.out) << "  array.set." << op_suffix << "\n";
-          PopStack(st, 3);
+          if (!EmitArrayIndexSetOp(st, op_suffix)) return false;
         }
         return true;
       }

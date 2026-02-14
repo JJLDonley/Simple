@@ -1705,3 +1705,4 @@ This log records VM-related changes and is used as a historical reference for be
   - moved list method call target inference into `lang_lists`.
   - moved SIR list method emission into `lang_lists`.
   - moved SIR list literal and index get/set helpers into `lang_lists`.
+  - moved SIR array literal/index helpers into `lang_arrays`.

@@ -381,6 +381,15 @@ bool EmitListLiteral(EmitState& st,
                      const char* op_suffix,
                      const char* type_name,
                      std::string* error);
+bool EmitArrayIndexSetOp(EmitState& st, const char* op_suffix);
+bool EmitArrayIndexGetOp(EmitState& st, const char* op_suffix);
+bool EmitArrayLiteral(EmitState& st,
+                      const Expr& expr,
+                      const TypeRef& element_type,
+                      const char* op_suffix,
+                      const char* type_name,
+                      std::string* error);
+bool EmitArrayLenOp(EmitState& st);
 
 bool EmitIndexSetOp(EmitState& st,
                     const TypeRef& container_type,
@@ -388,9 +397,7 @@ bool EmitIndexSetOp(EmitState& st,
   if (container_type.dims.front().is_list) {
     return EmitListIndexSetOp(st, op_suffix);
   }
-  (*st.out) << "  array.set." << op_suffix << "\n";
-  PopStack(st, 3);
-  return true;
+  return EmitArrayIndexSetOp(st, op_suffix);
 }
 
 bool EmitIndexGetOp(EmitState& st,
@@ -399,9 +406,7 @@ bool EmitIndexGetOp(EmitState& st,
   if (container_type.dims.front().is_list) {
     return EmitListIndexGetOp(st, op_suffix);
   }
-  (*st.out) << "  array.get." << op_suffix << "\n";
-  PopStack(st, 2);
-  return PushStack(st, 1);
+  return EmitArrayIndexGetOp(st, op_suffix);
 }
 
 const char* AssignOpToBinaryOp(const std::string& op) {
@@ -1603,7 +1608,7 @@ bool EmitExpr(EmitState& st,
           if (arg_type.dims.front().is_list) {
             (*st.out) << "  list.len\n";
           } else {
-            (*st.out) << "  array.len\n";
+            if (!EmitArrayLenOp(st)) return false;
           }
         } else {
           if (error) *error = "len expects array, list, or string argument";
@@ -1835,23 +1840,10 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "unsupported array/list element type for SIR emission";
         return false;
       }
-      uint32_t length = static_cast<uint32_t>(expr.children.size());
       if (is_list) {
         return EmitListLiteral(st, expr, element_type, op_suffix, type_name, error);
       }
-      (*st.out) << "  newarray " << type_name << " " << length << "\n";
-      PushStack(st, 1);
-      for (uint32_t i = 0; i < length; ++i) {
-        (*st.out) << "  dup\n";
-        PushStack(st, 1);
-        if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
-        (*st.out) << "  const.i32 " << i << "\n";
-        PushStack(st, 1);
-        (*st.out) << "  swap\n";
-        (*st.out) << "  array.set." << op_suffix << "\n";
-        PopStack(st, 3);
-      }
-      return true;
+      return EmitArrayLiteral(st, expr, element_type, op_suffix, type_name, error);
     }
     case ExprKind::Index: {
       if (expr.children.size() != 2) {
