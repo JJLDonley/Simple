@@ -1699,3 +1699,5 @@ This log records VM-related changes and is used as a historical reference for be
   - tightened include ordering so validate/sir aggregators open the namespace before feature includes.
   - moved literal parsing/format helpers into `lang_literals` for validate/sir.
   - moved array/list literal validation helpers into `lang_arrays` and `lang_lists`.
+  - moved control-flow helpers (`CheckBoolCondition`, return-path checks) into `lang_control_flow`.
+  - adjusted validate include order so control-flow helpers stay in the internal namespace.
