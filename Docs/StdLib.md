@@ -118,7 +118,7 @@ Reserved import keywords are case-insensitive.
 | `supported` | `bool` constant |
 
 ### List
-Lists are fixed-capacity; `push`/`insert` trap on overflow. `List.new<T>` currently requires an integer literal capacity.
+Lists grow automatically (like `std::vector`) on `push`/`insert`. `List.new<T>` currently requires an integer literal capacity.
 
 | Member | Signature |
 |---|---|

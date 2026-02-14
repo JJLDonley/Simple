@@ -1,7 +1,7 @@
 import List
 
 main : i32 () {
-  items : i32[] = List.new<i32>(4)
+  items : i32[] = List.new<i32>(1)
   List.push(items, 10)
   List.push(items, 20)
   List.insert(items, 1, 15)

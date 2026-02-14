@@ -236,7 +236,8 @@ This log records VM-related changes and is used as a historical reference for be
   - reserved aliases are now case-insensitive (e.g. `System.IO` accepted).
 - Documented and exposed list growth operations:
   - added `List` reserved module with push/pop/insert/remove/clear/len/new in language validation and SIR emission.
-  - documented list capacity semantics and `List.new<T>(capacity)` in language and stdlib docs.
+  - list operations now grow lists dynamically (vector-style) instead of trapping on overflow.
+  - documented list growth semantics and `List.new<T>(capacity)` in language and stdlib docs.
 - Improved parser diagnostics:
   - top-level decl vs stmt retry now preserves the original decl error when the statement parse fails.
 

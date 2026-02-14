@@ -1288,6 +1288,22 @@ void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t valu
   payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
 }
 
+bool EnsureListCapacity(HeapObject* obj, uint32_t required_len, uint32_t elem_size) {
+  if (!obj || obj->header.kind != ObjectKind::List) return false;
+  if (elem_size == 0) return false;
+  uint32_t capacity = ReadU32Payload(obj->payload, 4);
+  if (required_len <= capacity) return true;
+  uint32_t new_capacity = capacity ? capacity : 1u;
+  while (new_capacity < required_len) {
+    new_capacity *= 2u;
+  }
+  const uint32_t size = 8u + new_capacity * elem_size;
+  obj->payload.resize(size, 0);
+  obj->header.size = size;
+  WriteU32Payload(obj->payload, 4, new_capacity);
+  return true;
+}
+
 void WriteU64Payload(std::vector<uint8_t>& payload, size_t offset, uint64_t value) {
   payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
   payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
@@ -4722,8 +4738,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_PUSH resize failed");
         size_t offset = 8 + static_cast<size_t>(length) * 4;
         WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
         WriteU32Payload(obj->payload, 0, length + 1);
@@ -4736,8 +4751,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        if (!EnsureListCapacity(obj, length + 1, 8)) return Trap("LIST_PUSH resize failed");
         size_t offset = 8 + static_cast<size_t>(length) * 8;
         WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
         WriteU32Payload(obj->payload, 0, length + 1);
@@ -4750,8 +4764,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_PUSH resize failed");
         size_t offset = 8 + static_cast<size_t>(length) * 4;
         WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
         WriteU32Payload(obj->payload, 0, length + 1);
@@ -4764,8 +4777,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        if (!EnsureListCapacity(obj, length + 1, 8)) return Trap("LIST_PUSH resize failed");
         size_t offset = 8 + static_cast<size_t>(length) * 8;
         WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
         WriteU32Payload(obj->payload, 0, length + 1);
@@ -4778,8 +4790,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_PUSH on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_PUSH overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_PUSH resize failed");
         size_t offset = 8 + static_cast<size_t>(length) * 4;
         WriteU32Payload(obj->payload, offset, UnpackRef(value));
         WriteU32Payload(obj->payload, 0, length + 1);
@@ -4863,8 +4874,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_INSERT resize failed");
         int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
@@ -4885,8 +4895,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        if (!EnsureListCapacity(obj, length + 1, 8)) return Trap("LIST_INSERT resize failed");
         int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
@@ -4907,8 +4916,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_INSERT resize failed");
         int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
@@ -4929,8 +4937,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        if (!EnsureListCapacity(obj, length + 1, 8)) return Trap("LIST_INSERT resize failed");
         int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
@@ -4951,8 +4958,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = heap.Get(UnpackRef(v));
         if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_INSERT on non-list");
         uint32_t length = ReadU32Payload(obj->payload, 0);
-        uint32_t capacity = ReadU32Payload(obj->payload, 4);
-        if (length >= capacity) return Trap("LIST_INSERT overflow");
+        if (!EnsureListCapacity(obj, length + 1, 4)) return Trap("LIST_INSERT resize failed");
         int32_t index = UnpackI32(idx_val);
         if (index < 0 || static_cast<uint32_t>(index) > length) return Trap("LIST_INSERT out of bounds");
         for (uint32_t i = length; i > static_cast<uint32_t>(index); --i) {
