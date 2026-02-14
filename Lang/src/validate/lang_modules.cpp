@@ -1,3 +1,11 @@
+bool CollectTypeParams(const std::vector<std::string>& generics,
+                        std::unordered_set<std::string>* out,
+                        std::string* error);
+bool CollectTypeParamsMerged(const std::vector<std::string>& a,
+                             const std::vector<std::string>& b,
+                             std::unordered_set<std::string>* out,
+                             std::string* error);
+
 bool ValidateProgram(const Program& program, std::string* error) {
   ValidateContext ctx;
   if (program.decls.empty() && program.top_level_stmts.empty()) {

@@ -1692,3 +1692,8 @@ This log records VM-related changes and is used as a historical reference for be
   - allow compiled direct calls to compiled-safe callees.
   - add compiled call regression coverage.
 - Began Option-A feature split of Lang phase files: added per-feature stubs and new aggregation order for validate/sir sources.
+
+## 2026-02-14
+- Continued Option-A feature split:
+  - moved shared helpers into `lang_errors`, `lang_imports`, and `lang_generics` for validate/sir.
+  - tightened include ordering so validate/sir aggregators open the namespace before feature includes.

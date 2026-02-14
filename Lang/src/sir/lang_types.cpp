@@ -165,35 +165,6 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
-bool CountFormatPlaceholders(const std::string& fmt,
-                             size_t* out_count,
-                             std::vector<std::string>* out_segments,
-                             std::string* error) {
-  if (!out_count) return false;
-  *out_count = 0;
-  if (out_segments) out_segments->clear();
-  size_t segment_start = 0;
-  for (size_t i = 0; i < fmt.size(); ++i) {
-    if (fmt[i] == '{') {
-      if (i + 1 >= fmt.size() || fmt[i + 1] != '}') {
-        if (error) *error = "invalid format string: expected '{}' placeholder";
-        return false;
-      }
-      if (out_segments) out_segments->push_back(fmt.substr(segment_start, i - segment_start));
-      ++(*out_count);
-      ++i;
-      segment_start = i + 1;
-      continue;
-    }
-    if (fmt[i] == '}') {
-      if (error) *error = "invalid format string: unmatched '}'";
-      return false;
-    }
-  }
-  if (out_segments) out_segments->push_back(fmt.substr(segment_start));
-  return true;
-}
-
 TypeRef MakeTypeRef(const char* name) {
   TypeRef out;
   out.name = name;
@@ -211,15 +182,6 @@ std::string NormalizeCoreDlMember(const std::string& name) {
   if (name == "CallF64") return "call_f64";
   if (name == "CallStr0") return "call_str0";
   return name;
-}
-
-std::string ResolveImportModule(const std::string& module) {
-  if (module == "core_os") return "core.os";
-  if (module == "core_io") return "core.io";
-  if (module == "core_fs") return "core.fs";
-  if (module == "core_log") return "core.log";
-  if (module == "core_dl") return "core.dl";
-  return module;
 }
 
 bool GetModuleNameFromExpr(const Expr& base, std::string* out) {

@@ -42,11 +42,6 @@ struct CallTargetInfo {
   bool is_proc = false;
 };
 
-void PrefixErrorLocation(uint32_t line, uint32_t column, std::string* error) {
-  if (!error || error->empty() || line == 0) return;
-  *error = std::to_string(line) + ":" + std::to_string(column) + ": " + *error;
-}
-
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -58,6 +53,12 @@ bool IsIntegerScalarTypeName(const std::string& name);
 bool IsBoolTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
 bool IsScalarType(const TypeRef& type);
+void PrefixErrorLocation(uint32_t line, uint32_t column, std::string* error);
+bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name);
+bool ResolveReservedModuleName(const ValidateContext& ctx,
+                               const std::string& name,
+                               std::string* out);
+bool GetModuleNameFromExpr(const Expr& base, std::string* out);
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -95,11 +96,6 @@ bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
 }
 
 bool IsIoPrintName(const std::string& name);
-bool ResolveReservedModuleName(const ValidateContext& ctx,
-                               const std::string& name,
-                               std::string* out);
-bool GetModuleNameFromExpr(const Expr& base, std::string* out);
-
 bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
   if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
   if (!IsIoPrintName(callee.text)) return false;
@@ -131,49 +127,6 @@ bool CountFormatPlaceholders(const std::string& fmt,
     }
   }
   return true;
-}
-
-bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {
-  if (ctx.reserved_import_aliases.find(name) != ctx.reserved_import_aliases.end()) return true;
-  if (ctx.reserved_imports.find(name) != ctx.reserved_imports.end()) return true;
-  std::string canonical;
-  if (!CanonicalizeReservedImportPath(name, &canonical)) return false;
-  return ctx.reserved_imports.find(canonical) != ctx.reserved_imports.end();
-}
-
-bool ResolveReservedModuleName(const ValidateContext& ctx,
-                               const std::string& name,
-                               std::string* out) {
-  if (!out) return false;
-  std::string canonical;
-  if (CanonicalizeReservedImportPath(name, &canonical) &&
-      ctx.reserved_imports.find(canonical) != ctx.reserved_imports.end()) {
-    *out = canonical;
-    return true;
-  }
-  auto it = ctx.reserved_import_aliases.find(name);
-  if (it != ctx.reserved_import_aliases.end()) {
-    *out = it->second;
-    return true;
-  }
-  return false;
-}
-
-bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
-  if (!out) return false;
-  if (base.kind == ExprKind::Identifier) {
-    *out = base.text;
-    return true;
-  }
-  if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
-    const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier &&
-        (root.text == "Core" || root.text == "System")) {
-      *out = root.text + "." + base.text;
-      return true;
-    }
-  }
-  return false;
 }
 
 std::string NormalizeCoreDlMember(const std::string& name) {
@@ -991,4 +944,3 @@ bool CheckCompoundAssignOp(const std::string& op,
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error);
-

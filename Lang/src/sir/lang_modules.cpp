@@ -1,3 +1,5 @@
+std::string ResolveImportModule(const std::string& module);
+
 bool EmitProgramImpl(const Program& program, std::string* out, std::string* error) {
   EmitState st;
   st.error = error;
