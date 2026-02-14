@@ -303,6 +303,146 @@ bool CheckBoolCondition(const Expr& expr,
 bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
+bool IsIntegerTypeName(const std::string& name) {
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128" ||
+         name == "char";
+}
+
+bool IsFloatTypeName(const std::string& name) {
+  return name == "f32" || name == "f64";
+}
+
+bool IsBoolTypeName(const std::string& name) {
+  return name == "bool";
+}
+
+bool IsStringTypeName(const std::string& name) {
+  return name == "string";
+}
+
+bool IsNumericTypeName(const std::string& name) {
+  return IsIntegerTypeName(name) || IsFloatTypeName(name);
+}
+
+bool IsScalarType(const TypeRef& type) {
+  return type.pointer_depth == 0 &&
+         !type.is_proc &&
+         type.dims.empty() &&
+         type.type_args.empty();
+}
+
+bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
+  if (!IsScalarType(type)) {
+    if (error) *error = "operator '" + op + "' requires scalar operands";
+    return false;
+  }
+  return true;
+}
+
+bool CheckUnaryOpTypes(const Expr& expr,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       std::string* error) {
+  TypeRef operand;
+  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return true;
+  if (!RequireScalar(operand, expr.op, error)) return false;
+
+  const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
+  if (op == "!") {
+    if (!IsBoolTypeName(operand.name)) {
+      if (error) *error = "operator '!' requires bool operand";
+      return false;
+    }
+    return true;
+  }
+  if (op == "++" || op == "--" || op == "-") {
+    if (!IsNumericTypeName(operand.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operand";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+bool CheckBinaryOpTypes(const Expr& expr,
+                        const ValidateContext& ctx,
+                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                        const ArtifactDecl* current_artifact,
+                        std::string* error) {
+  TypeRef lhs;
+  TypeRef rhs;
+  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &lhs)) return true;
+  if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return true;
+
+  if (!RequireScalar(lhs, expr.op, error)) return false;
+  if (!RequireScalar(rhs, expr.op, error)) return false;
+  if (!TypeEquals(lhs, rhs)) {
+    if (!IsLiteralCompatibleWithScalarType(expr.children[0], rhs) &&
+        !IsLiteralCompatibleWithScalarType(expr.children[1], lhs)) {
+      if (error) *error = "operator '" + expr.op + "' requires matching operand types";
+      return false;
+    }
+  }
+
+  const std::string& op = expr.op;
+  if (op == "&&" || op == "||") {
+    if (!IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires bool operands";
+      return false;
+    }
+    return true;
+  }
+
+  if (op == "==" || op == "!=") {
+    if (IsStringTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' does not support string operands";
+      return false;
+    }
+    if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
+      return false;
+    }
+    return true;
+  }
+
+  if (op == "<" || op == "<=" || op == ">" || op == ">=") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+
+  if (op == "+" || op == "-" || op == "*" || op == "/") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+
+  if (op == "%") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '%' requires integer operands";
+      return false;
+    }
+    return true;
+  }
+
+  if (op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires integer operands";
+      return false;
+    }
+    return true;
+  }
+
+  return true;
+}
+
 const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                            const std::string& name) {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {

@@ -1701,3 +1701,4 @@ This log records VM-related changes and is used as a historical reference for be
   - moved array/list literal validation helpers into `lang_arrays` and `lang_lists`.
   - moved control-flow helpers (`CheckBoolCondition`, return-path checks) into `lang_control_flow`.
   - adjusted validate include order so control-flow helpers stay in the internal namespace.
+  - moved expression operator/type helper checks into `lang_expressions`.
