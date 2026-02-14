@@ -67,8 +67,8 @@ Composite/supporting:
 ## Lists
 - list literals (`[a, b, c]`) allocate a list with capacity equal to the literal length.
 - lists grow automatically (like `std::vector`) on `push`/`insert`.
-- list methods: `list.len()`, `list.push(value)`, `list.pop()` (or `list.pop(index)`),
-  `list.insert(index, value)`, `list.remove(index)`, `list.clear()`.
+- list methods: `list.len()`, `list.push(value)`, `list.pop()`, `list.insert(index, value)`,
+  `list.remove(index)`, `list.clear()`.
 
 ## Variable Declarations
 

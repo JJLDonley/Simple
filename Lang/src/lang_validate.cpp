@@ -1957,19 +1957,6 @@ bool CheckCallArgTypes(const Expr& call_expr,
   const Expr& callee = call_expr.children[0];
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
-    if (callee.text == "pop" && call_expr.args.size() == 1) {
-      TypeRef base_type;
-      TypeRef index_type;
-      if (InferExprType(base, ctx, scopes, current_artifact, &base_type) &&
-          !base_type.dims.empty() && base_type.dims.front().is_list &&
-          InferExprType(call_expr.args[0], ctx, scopes, current_artifact, &index_type)) {
-        if (index_type.name != "i32" || !index_type.dims.empty()) {
-          if (error) *error = "list.pop expects (i32)";
-          return false;
-        }
-        return true;
-      }
-    }
     std::string module_name;
     if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
       std::string mod = module_name;

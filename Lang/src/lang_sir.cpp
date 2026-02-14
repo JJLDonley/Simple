@@ -2070,7 +2070,7 @@ bool EmitExpr(EmitState& st,
             return true;
           }
           if (member_name == "pop") {
-            if (expr.args.size() != 0 && expr.args.size() != 1) {
+            if (expr.args.size() != 0) {
               if (error) *error = "call argument count mismatch for 'list.pop'";
               return false;
             }
@@ -2080,15 +2080,8 @@ bool EmitExpr(EmitState& st,
               return false;
             }
             if (!emit_list_value(base, list_type)) return false;
-            if (expr.args.size() == 1) {
-              TypeRef index_type = MakeTypeRef("i32");
-              if (!emit_list_value(expr.args[0], index_type)) return false;
-              (*st.out) << "  list.remove." << op_suffix << "\n";
-              PopStack(st, 2);
-            } else {
-              (*st.out) << "  list.pop." << op_suffix << "\n";
-              PopStack(st, 1);
-            }
+            (*st.out) << "  list.pop." << op_suffix << "\n";
+            PopStack(st, 1);
             PushStack(st, 1);
             return true;
           }
