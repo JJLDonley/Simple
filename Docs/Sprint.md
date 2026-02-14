@@ -1698,3 +1698,4 @@ This log records VM-related changes and is used as a historical reference for be
   - moved shared helpers into `lang_errors`, `lang_imports`, and `lang_generics` for validate/sir.
   - tightened include ordering so validate/sir aggregators open the namespace before feature includes.
   - moved literal parsing/format helpers into `lang_literals` for validate/sir.
+  - moved array/list literal validation helpers into `lang_arrays` and `lang_lists`.
