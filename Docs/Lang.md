@@ -64,6 +64,12 @@ Composite/supporting:
 - pointers: `*T`, `*void`
 - user types: `Artifact`, `Enum`, module namespaces (lowercase `artifact`/`enum`/`module` still accepted)
 
+## Lists
+- list literals (`[a, b, c]`) allocate a list with capacity equal to the literal length.
+- lists grow automatically (like `std::vector`) on `push`/`insert`.
+- list methods: `list.len()`, `list.push(value)`, `list.pop()` (or `list.pop(index)`),
+  `list.insert(index, value)`, `list.remove(index)`, `list.clear()`.
+
 ## Variable Declarations
 
 ```simple

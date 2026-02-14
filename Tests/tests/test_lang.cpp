@@ -165,6 +165,10 @@ bool LangSimpleFixtureListNested() {
   return RunSimpleFileExpectExit("Tests/simple/list_nested.simple", 3);
 }
 
+bool LangSimpleFixtureListMethods() {
+  return RunSimpleFileExpectExit("Tests/simple/list_methods.simple", 31);
+}
+
 bool LangSimpleFixtureArrayEmpty() {
   return RunSimpleFileExpectExit("Tests/simple/array_empty.simple", 0);
 }
@@ -3388,6 +3392,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_point_sum", LangSimpleFixturePointSum},
   {"lang_simple_fixture_list_len", LangSimpleFixtureListLen},
   {"lang_simple_fixture_list_nested", LangSimpleFixtureListNested},
+  {"lang_simple_fixture_list_methods", LangSimpleFixtureListMethods},
   {"lang_simple_fixture_array_empty", LangSimpleFixtureArrayEmpty},
   {"lang_simple_fixture_list_empty", LangSimpleFixtureListEmpty},
   {"lang_simple_fixture_add_fn", LangSimpleFixtureAddFn},

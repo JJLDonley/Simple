@@ -1,0 +1,9 @@
+main : i32 () {
+  items : i32[] = []
+  items.push(10)
+  items.push(20)
+  items.insert(1, 15)
+  a : i32 = items.pop()
+  b : i32 = items.remove(0)
+  return a + b + len(items)
+}

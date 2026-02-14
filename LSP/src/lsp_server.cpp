@@ -1194,6 +1194,49 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   out->return_type.clear();
   std::string module;
   std::string member;
+  const size_t dot = call_name.find('.');
+  if (dot != std::string::npos && dot > 0 && dot + 1 < call_name.size()) {
+    const std::string receiver = call_name.substr(0, dot);
+    const std::string candidate = call_name.substr(dot + 1);
+    if (candidate == "len" || candidate == "push" || candidate == "pop" ||
+        candidate == "insert" || candidate == "remove" || candidate == "clear") {
+      std::string receiver_type;
+      if (ResolveDeclaredTypeForIdent(text, receiver, &receiver_type)) {
+        const std::string receiver_lc = LowerAscii(receiver_type);
+        if (receiver_lc.size() >= 2 &&
+            receiver_lc.rfind("[]") == receiver_lc.size() - 2) {
+          member = candidate;
+          if (member == "len") {
+            out->return_type = "i32";
+            return true;
+          }
+          if (member == "push") {
+            out->params = {"value"};
+            out->return_type = "void";
+            return true;
+          }
+          if (member == "pop") {
+            out->return_type = "T";
+            return true;
+          }
+          if (member == "insert") {
+            out->params = {"index", "value"};
+            out->return_type = "void";
+            return true;
+          }
+          if (member == "remove") {
+            out->params = {"index"};
+            out->return_type = "T";
+            return true;
+          }
+          if (member == "clear") {
+            out->return_type = "void";
+            return true;
+          }
+        }
+      }
+    }
+  }
   if (!ResolveImportedModuleAndMember(call_name, text, &module, &member)) return false;
   if (module == "Core.Math") {
     if (member == "abs") {
@@ -1592,6 +1635,9 @@ void ReplyCompletion(std::ostream& out,
     if (doc_it != open_docs.end()) {
       const auto reserved_labels = CollectReservedModuleMemberLabels(doc_it->second);
       for (const auto& label : reserved_labels) add_label(label, &seen);
+      static const std::vector<std::string> kListMethods = {
+          "list.len", "list.push", "list.pop", "list.insert", "list.remove", "list.clear"};
+      for (const auto& label : kListMethods) add_label(label, &seen);
       const auto enum_labels = CollectEnumMemberLabels(doc_it->second);
       for (const auto& label : enum_labels) add_label(label, &seen);
       const auto artifact_labels = CollectArtifactFieldLabels(doc_it->second);
@@ -1629,7 +1675,13 @@ void ReplyCompletion(std::ostream& out,
       if (dot == std::string::npos) continue;
       const std::string left = LowerAscii(label.substr(0, dot));
       const std::string right = LowerAscii(label.substr(dot + 1));
-      if (left != receiver_lc && (receiver_type_lc.empty() || left != receiver_type_lc)) continue;
+      const bool receiver_is_list = receiver_type_lc.size() >= 2 &&
+          receiver_type_lc.rfind("[]") == receiver_type_lc.size() - 2;
+      if (left != receiver_lc &&
+          (receiver_type_lc.empty() || left != receiver_type_lc) &&
+          !(receiver_is_list && left == "list")) {
+        continue;
+      }
       if (!prefix_lc.empty() && right.rfind(prefix_lc, 0) != 0) continue;
       item_label = label.substr(dot + 1);
     } else if (!prefix_lc.empty()) {

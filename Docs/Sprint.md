@@ -22,6 +22,12 @@ This log records VM-related changes and is used as a historical reference for be
 ## Notes
 - This log must record every VM-related change going forward.
 
+## 2026-02-14
+- Reverted list-as-module changes and reintroduced list operations as built-in list methods.
+- Implemented list instance methods (`list.len`, `list.push`, `list.pop`, `list.insert`, `list.remove`, `list.clear`).
+- Restored dynamic list growth in the VM for `push`/`insert`.
+- Updated list method fixtures and LSP completions/signature help.
+
 
 ## 2026-01-29
 - Created SBC design docs in `SimpleByteCode/` (headers, encoding, sections, metadata, opcodes, rules, debug, runtime).
