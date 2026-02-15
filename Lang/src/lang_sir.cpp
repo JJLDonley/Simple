@@ -918,6 +918,11 @@ bool InferExprType(const Expr& expr,
           out->name = base.text;
           return true;
         }
+        const std::string key = base.text + "." + expr.text;
+        auto gtype_it = st.global_types.find(key);
+        if (gtype_it != st.global_types.end()) {
+          return CloneTypeRef(gtype_it->second, out);
+        }
       }
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
@@ -1455,6 +1460,13 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       return false;
     }
     const Expr& base = target.children[0];
+    if (base.kind == ExprKind::Identifier) {
+      const std::string qualified = base.text + "." + target.text;
+      auto gtype_it = st.global_types.find(qualified);
+      if (gtype_it != st.global_types.end()) {
+        return EmitGlobalAssignment(st, qualified, gtype_it->second, expr.children[1], expr.op, true, error);
+      }
+    }
     TypeRef base_type;
     if (!InferExprType(base, st, &base_type, error)) return false;
     auto layout_it = st.artifact_layouts.find(base_type.name);
@@ -2936,13 +2948,18 @@ bool EmitExpr(EmitState& st,
           (*st.out) << "  const.i32 " << member_it->second << "\n";
           return PushStack(st, 1);
         }
-        const std::string key = base.text + "." + expr.text;
-        if (st.module_func_names.find(key) != st.module_func_names.end()) {
-          if (error) *error = "module function requires call: " + key;
+        const std::string qualified = base.text + "." + expr.text;
+        auto g_it = st.global_indices.find(qualified);
+        if (g_it != st.global_indices.end()) {
+          (*st.out) << "  ldglob " << g_it->second << "\n";
+          return PushStack(st, 1);
+        }
+        if (st.module_func_names.find(qualified) != st.module_func_names.end()) {
+          if (error) *error = "module function requires call: " + qualified;
           return false;
         }
-        if (st.artifact_method_names.find(key) != st.artifact_method_names.end()) {
-          if (error) *error = "artifact method requires call: " + key;
+        if (st.artifact_method_names.find(qualified) != st.artifact_method_names.end()) {
+          if (error) *error = "artifact method requires call: " + qualified;
           return false;
         }
       }
@@ -3173,6 +3190,13 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           return false;
         }
         const Expr& base = stmt.target.children[0];
+        if (base.kind == ExprKind::Identifier) {
+          const std::string qualified = base.text + "." + stmt.target.text;
+          auto gtype_it = st.global_types.find(qualified);
+          if (gtype_it != st.global_types.end()) {
+            return EmitGlobalAssignment(st, qualified, gtype_it->second, stmt.expr, stmt.assign_op, false, error);
+          }
+        }
         TypeRef base_type;
         if (!InferExprType(base, st, &base_type, error)) return false;
         auto layout_it = st.artifact_layouts.find(base_type.name);
@@ -3490,6 +3514,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const EnumDecl*> enums;
   std::vector<const ExternDecl*> externs;
   std::vector<const VarDecl*> globals;
+  std::vector<VarDecl> module_globals;
   FuncDecl global_init_fn;
   FuncDecl script_entry_fn;
   const bool has_top_level_script = !program.top_level_stmts.empty();
@@ -3553,8 +3578,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       st.enum_values.emplace(decl.enm.name, std::move(values));
     } else if (decl.kind == DeclKind::Module) {
       if (!decl.module.variables.empty()) {
-        if (error) *error = "module variables are not supported in SIR emission";
-        return false;
+        for (const auto& var : decl.module.variables) {
+          VarDecl qualified = var;
+          qualified.name = decl.module.name + "." + var.name;
+          module_globals.push_back(std::move(qualified));
+          globals.push_back(&module_globals.back());
+        }
       }
       for (const auto& fn : decl.module.functions) {
         const std::string key = decl.module.name + "." + fn.name;

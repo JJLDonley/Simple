@@ -642,10 +642,8 @@ bool LangSimpleBadBreakOutsideLoop() {
       "break");
 }
 
-bool LangSimpleBadModuleVarAccess() {
-  return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Tests/simple_bad/module_var_access.simple",
-      "module");
+bool LangSimpleModuleVarAccess() {
+  return RunSimpleFileExpectExit("Tests/simple/module_var_access.simple", 5);
 }
 
 bool LangSimpleBadSelfOutsideArtifact() {
@@ -3483,7 +3481,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_enum_unqualified", LangSimpleBadEnumUnqualified},
   {"lang_simple_bad_enum_unknown_member", LangSimpleBadEnumUnknownMember},
   {"lang_simple_bad_break_outside_loop", LangSimpleBadBreakOutsideLoop},
-  {"lang_simple_bad_module_var_access", LangSimpleBadModuleVarAccess},
+  {"lang_simple_module_var_access", LangSimpleModuleVarAccess},
   {"lang_simple_bad_self_outside_artifact", LangSimpleBadSelfOutsideArtifact},
   {"lang_simple_bad_len_invalid_arg", LangSimpleBadLenInvalidArg},
   {"lang_simple_bad_index_non_int", LangSimpleBadIndexNonInt},

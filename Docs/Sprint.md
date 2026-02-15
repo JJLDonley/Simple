@@ -1713,3 +1713,10 @@ This log records VM-related changes and is used as a historical reference for be
   - run the raylib-like fixture via CLI so filename imports resolve.
   - normalize CLI exit codes from `std::system`.
 - Tests: `./build_linux --skip-install --tests`.
+- Enabled module variables in SIR emission:
+  - module vars are lowered to qualified globals (e.g. `Math.x`).
+  - module member assignment and access now emit global ops.
+  - module var initializers are parsed as expressions.
+- Added module variable fixture:
+  - `Tests/simple/module_var_access.simple`.
+- Tests: `./build_linux --skip-install --tests`.

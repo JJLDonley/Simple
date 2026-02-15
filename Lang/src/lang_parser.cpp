@@ -692,8 +692,14 @@ bool Parser::ParseModuleMember(ModuleDecl* out) {
   var.mutability = mut;
   var.type = std::move(type);
   if (Match(TokenKind::Assign)) {
-    if (!ParseInitTokens(&var.init_tokens)) return false;
+    Expr init;
+    if (!ParseExpr(&init)) return false;
+    if (!ConsumeStmtTerminator("module variable declaration")) return false;
+    var.has_init_expr = true;
+    var.init_expr = std::move(init);
   } else if (Match(TokenKind::Semicolon)) {
+    // zero-initialized
+  } else if (IsImplicitStmtTerminator()) {
     // zero-initialized
   } else {
     error_ = "expected '=' or ';' in module variable declaration";
