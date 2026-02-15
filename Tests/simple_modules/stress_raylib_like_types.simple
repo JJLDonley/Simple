@@ -10,11 +10,11 @@ Bullet :: Artifact {
     ttl: f32
 
     Update: void (dt: f32) {
-        if !self.alive { return }
+        if (!self.alive) { return }
         self.position.x += self.velocity.x * dt
         self.position.y += self.velocity.y * dt
         self.ttl -= dt
-        if self.ttl <= 0.0 { self.alive = false }
+        if (self.ttl <= 0.0) { self.alive = false }
     }
 }
 

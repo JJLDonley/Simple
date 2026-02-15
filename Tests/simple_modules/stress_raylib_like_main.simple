@@ -6,10 +6,10 @@ World :: Module {
 
     WrapPosition: Vector2 (p: Vector2) {
         v : Vector2 = p
-        if v.x < 0.0 { v.x = World.Width() }
-        else if v.x > World.Width() { v.x = 0.0 }
-        if v.y < 0.0 { v.y = World.Height() }
-        else if v.y > World.Height() { v.y = 0.0 }
+        if (v.x < 0.0) { v.x = World.Width() }
+        else if (v.x > World.Width()) { v.x = 0.0 }
+        if (v.y < 0.0) { v.y = World.Height() }
+        else if (v.y > World.Height()) { v.y = 0.0 }
         return v
     }
 
@@ -30,7 +30,7 @@ Player :: Artifact {
     fireCooldown: f32
 
     Update: void (dt: f32, fire: bool) {
-        if fire && (self.fireCooldown <= 0.0) {
+        if (fire && (self.fireCooldown <= 0.0)) {
             self.fireCooldown = 0.1
             b : Bullet = {
                 position: self.position,
@@ -42,15 +42,15 @@ Player :: Artifact {
         }
 
         keep : Bullet[] = []
-        for i : i32 = 0; i < self.bullets.len(); i += 1 {
+        for (i : i32 = 0; i < self.bullets.len(); i += 1) {
             self.bullets[i].Update(dt)
-            if self.bullets[i].alive {
+            if (self.bullets[i].alive) {
                 keep.push(self.bullets[i])
             }
         }
         self.bullets = keep
 
-        if self.fireCooldown > 0.0 {
+        if (self.fireCooldown > 0.0) {
             self.fireCooldown -= dt
         }
     }
@@ -69,16 +69,16 @@ main : i32 () {
 
     score : i32 = 0
 
-    for step : i32 = 0; step < 3; step += 1 {
+    for (step : i32 = 0; step < 3; step += 1) {
         fire : bool = step == 0
         player.Update(0.5, fire)
 
-        for bi : i32 = 0; bi < player.bullets.len(); bi += 1 {
-            if player.bullets[bi].alive {
-                for hit : i32 = 0; hit < asteroids.len(); hit += 1 {
-                    if asteroids[hit].alive &&
+        for (bi : i32 = 0; bi < player.bullets.len(); bi += 1) {
+            if (player.bullets[bi].alive) {
+                for (hit : i32 = 0; hit < asteroids.len(); hit += 1) {
+                    if (asteroids[hit].alive &&
                        player.bullets[bi].position.x == asteroids[hit].position.x &&
-                       player.bullets[bi].position.y == asteroids[hit].position.y {
+                       player.bullets[bi].position.y == asteroids[hit].position.y) {
                         player.bullets[bi].alive = false
                         asteroids[hit].alive = false
                         score += 10
@@ -88,15 +88,15 @@ main : i32 () {
         }
 
         nextA : Asteroid[] = []
-        for aj : i32 = 0; aj < asteroids.len(); aj += 1 {
-            |> asteroids[aj].alive {
+        for (aj : i32 = 0; aj < asteroids.len(); aj += 1) {
+            |> (asteroids[aj].alive) {
                 nextA.push(asteroids[aj])
             } 
-            |> asteroids[aj].size > 10.0 {
+            |> (asteroids[aj].size > 10.0) {
                 chunks : Vector2[] = World.SpawnChunks(
                     asteroids[aj].position,
                     { asteroids[aj].size, asteroids[aj].size })
-                for ci : i32 = 0; ci < chunks.len(); ci += 1 {
+                for (ci : i32 = 0; ci < chunks.len(); ci += 1) {
                     nextA.push({ chunks[ci], asteroids[aj].size * 0.5, true })
                 }
             }

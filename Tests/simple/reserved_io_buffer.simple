@@ -3,12 +3,12 @@ import system.io
 main : i32 () {
   src : i32[] = io.buffer_new(4)
   dst : i32[] = io.buffer_new(4)
-  if io.buffer_len(src) != 4 { return 1 }
-  if io.buffer_fill(src, 7, 3) != 3 { return 2 }
-  if io.buffer_copy(dst, src, 4) != 4 { return 3 }
-  if dst[0] != 7 { return 4 }
-  if dst[1] != 7 { return 5 }
-  if dst[2] != 7 { return 6 }
-  if dst[3] != 0 { return 7 }
+  if (io.buffer_len(src) != 4) { return 1 }
+  if (io.buffer_fill(src, 7, 3) != 3) { return 2 }
+  if (io.buffer_copy(dst, src, 4) != 4) { return 3 }
+  if (dst[0] != 7) { return 4 }
+  if (dst[1] != 7) { return 5 }
+  if (dst[2] != 7) { return 6 }
+  if (dst[3] != 0) { return 7 }
   return 0
 }

@@ -2,6 +2,96 @@
 
 This document is the authoritative roadmap for shipping and maintaining Simple.
 
+## Lang Spec Implementation Checklist (Tests In Parallel)
+
+### Phase 0: Spec → Code Mapping
+- Create a spec-to-code checklist for every Lang rule.
+- For each rule, define a matching test case (or test update).
+- No code changes until mapping is complete.
+
+### Phase 1: Lexer + Tokens
+Implementation:
+- Remove `callback` keyword.
+- Add `->` token.
+- Allow unary `&` address-of (parser-level).
+Tests (same phase):
+- Lexer test for `->`.
+- Parser rejects `callback`, accepts `->` member access.
+
+### Phase 2: Types (fn, generics, pointers)
+Implementation:
+- Parse `fn RetType (params...)` and `fn<T> RetType (params...)`.
+- Switch pointer types to `T*` (suffix).
+- Remove callback tracking in AST/types.
+Tests (same phase):
+- `fn` types in vars/params/returns.
+- `T*` parsing and typing.
+- Reject legacy `*T` if required by spec.
+
+### Phase 3: Procedure Value Declarations
+Implementation:
+- Support `name : fn RetType (params...) = (params...) { block }`.
+- RHS params omit types (types come from `fn` signature).
+Tests (same phase):
+- RHS untyped params accepted with `fn` LHS.
+- Higher-order examples pass.
+
+### Phase 4: Control Flow Syntax
+Implementation:
+- Require parentheses for `if`, `while`, `for`.
+- Remove range-for.
+- Enforce C-style `for (init; cond; step)`.
+Tests (same phase):
+- Valid `if/while/for` with parentheses.
+- Invalid old syntax rejected.
+- `for (i; ...)` defaults to `i : i32 = 0`.
+
+### Phase 5: Switch
+Implementation:
+- Parse assigning and expression `switch`.
+- Validate assigning switch returns in all branches.
+Tests (same phase):
+- Assigning switch with missing return fails.
+- Expression switch yields value.
+
+### Phase 6: Literals + Artifacts
+Implementation:
+- Resolve list vs array literals by contextual type.
+- Disallow mixed positional/named artifact fields.
+- Support artifact/module field defaults.
+Tests (same phase):
+- Array length mismatch fails.
+- List literal defaults without context.
+- Artifact missing required field fails.
+- Mixed positional/named fields fail.
+
+### Phase 7: Pointers + Member Access
+Implementation:
+- `&variable` address-of.
+- `T*` pointer type.
+- `->` member access.
+- Enforce immutability through pointers.
+Tests (same phase):
+- Pointer type in fields and params.
+- `node->field` access works.
+- Mutating through immutable pointer fails.
+
+### Phase 8: Top-Level Script + Entry
+Implementation:
+- Top-level statements execute in order.
+- If `main :: i32 ()` exists, it is the entry point and top-level statements are skipped.
+Tests (same phase):
+- Script-only file executes.
+- `main` present overrides top-level execution.
+
+### Phase 9: DL/ABI
+Implementation:
+- Ensure artifact methods are ignored for ABI layout.
+- Reject recursive artifacts in extern ABI.
+Tests (same phase):
+- Artifact by value extern ok.
+- Recursive artifact extern rejected.
+
 ## Supported (Current Baseline)
 - Repository layout: `Byte/`, `CLI/`, `Docs/`, `IR/`, `Lang/`, `Tests/`, `VM/`.
 - Import resolution supports:

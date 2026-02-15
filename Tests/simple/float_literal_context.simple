@@ -7,7 +7,7 @@ main : i32 () {
     y : f32 = TakeF32(51.0)
     z : f32 = x + 2.0
 
-    if y > z {
+    if (y > z) {
         return 1
     }
     return 0

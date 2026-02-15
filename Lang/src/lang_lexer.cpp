@@ -16,8 +16,8 @@ const std::unordered_map<std::string, TokenKind> kKeywords = {
   {"if", TokenKind::KwIf},
   {"else", TokenKind::KwElse},
   {"default", TokenKind::KwDefault},
+  {"switch", TokenKind::KwSwitch},
   {"fn", TokenKind::KwFn},
-  {"callback", TokenKind::KwCallback},
   {"self", TokenKind::KwSelf},
   {"artifact", TokenKind::KwArtifact},
   {"Artifact", TokenKind::KwArtifact},
@@ -61,8 +61,8 @@ const char* ToString(TokenKind kind) {
     case TokenKind::KwIf: return "if";
     case TokenKind::KwElse: return "else";
     case TokenKind::KwDefault: return "default";
+    case TokenKind::KwSwitch: return "switch";
     case TokenKind::KwFn: return "fn";
-    case TokenKind::KwCallback: return "callback";
     case TokenKind::KwSelf: return "self";
     case TokenKind::KwArtifact: return "artifact";
     case TokenKind::KwEnum: return "enum";
@@ -80,6 +80,8 @@ const char* ToString(TokenKind kind) {
     case TokenKind::RBracket: return "]";
     case TokenKind::Comma: return ",";
     case TokenKind::Dot: return ".";
+    case TokenKind::Arrow: return "->";
+    case TokenKind::FatArrow: return "=>";
     case TokenKind::DotDot: return "..";
     case TokenKind::Semicolon: return ";";
     case TokenKind::Colon: return ":";
@@ -170,6 +172,8 @@ bool Lexer::Lex() {
         Advance();
         if (Match('=')) {
           AddToken(TokenKind::EqEq, "==");
+        } else if (Match('>')) {
+          AddToken(TokenKind::FatArrow, "=>");
         } else {
           AddToken(TokenKind::Assign, "=");
         }
@@ -186,7 +190,9 @@ bool Lexer::Lex() {
         break;
       case '-':
         Advance();
-        if (Match('-')) {
+        if (Match('>')) {
+          AddToken(TokenKind::Arrow, "->");
+        } else if (Match('-')) {
           AddToken(TokenKind::MinusMinus, "--");
         } else if (Match('=')) {
           AddToken(TokenKind::MinusEq, "-=");

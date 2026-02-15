@@ -2,7 +2,7 @@ import "./stress_import_mid"
 import system.io
 
 main : i32 () {
-  if mid_value() != 7 {
+  if (mid_value() != 7) {
     return 1
   }
   io.println("stress import chain")

@@ -48,8 +48,8 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwIf:
     case TokenKind::KwElse:
     case TokenKind::KwDefault:
+    case TokenKind::KwSwitch:
     case TokenKind::KwFn:
-    case TokenKind::KwCallback:
     case TokenKind::KwSelf:
     case TokenKind::KwArtifact:
     case TokenKind::KwEnum:
@@ -158,69 +158,53 @@ bool Parser::ParseBlock(std::vector<Stmt>* out) {
 }
 
 bool Parser::ParseTypeInner(TypeRef* out) {
-  uint32_t pointer_depth = 0;
-  while (Match(TokenKind::Star)) {
-    ++pointer_depth;
-  }
-  if (Match(TokenKind::KwCallback)) {
-    TypeRef proc;
-    proc.is_proc = true;
-    proc.proc_is_callback = true;
-    proc.pointer_depth = pointer_depth;
-    proc.proc_params.clear();
-    proc.proc_return.reset();
-    if (out) *out = std::move(proc);
-    return true;
-  }
+  if (!out) return false;
+
   if (Match(TokenKind::KwFn)) {
     TypeRef proc;
     proc.is_proc = true;
-    proc.proc_is_callback = false;
-    if (Match(TokenKind::Colon)) {
-      proc.proc_return_mutability = Mutability::Mutable;
-    } else if (Match(TokenKind::DoubleColon)) {
-      proc.proc_return_mutability = Mutability::Immutable;
-    } else {
-      error_ = "expected ':' or '::' after 'fn' in type";
-      return false;
+    proc.proc_params.clear();
+    proc.proc_return.reset();
+    proc.proc_return_mutability = Mutability::Mutable;
+    proc.type_args.clear();
+    proc.dims.clear();
+    proc.pointer_depth = 0;
+
+    if (Match(TokenKind::Lt)) {
+      if (!ParseTypeArgs(&proc.type_args)) return false;
     }
+
     TypeRef ret;
     if (!ParseTypeInner(&ret)) return false;
     proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
-    if (!ParseTypeDims(&proc)) return false;
-    proc.pointer_depth += pointer_depth;
-    if (out) *out = std::move(proc);
-    return true;
-  }
-  if (Match(TokenKind::LParen)) {
-    TypeRef proc;
-    proc.is_proc = true;
-    proc.proc_is_callback = false;
+
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after fn return type";
+      return false;
+    }
     if (!Match(TokenKind::RParen)) {
       for (;;) {
+        // Allow optional parameter name and mutability; only the type is stored.
+        if (Peek().kind == TokenKind::Identifier &&
+            (Peek(1).kind == TokenKind::Colon || Peek(1).kind == TokenKind::DoubleColon)) {
+          Advance(); // name
+          Advance(); // ':' or '::'
+        }
         TypeRef param;
         if (!ParseTypeInner(&param)) return false;
         proc.proc_params.push_back(std::move(param));
         if (Match(TokenKind::Comma)) continue;
         if (Match(TokenKind::RParen)) break;
-        error_ = "expected ',' or ')' in procedure type";
+        error_ = "expected ',' or ')' in fn type parameter list";
         return false;
       }
     }
-    if (Match(TokenKind::Colon)) {
-      proc.proc_return_mutability = Mutability::Mutable;
-    } else if (Match(TokenKind::DoubleColon)) {
-      proc.proc_return_mutability = Mutability::Immutable;
-    } else {
-      error_ = "expected ':' or '::' before procedure return type";
-      return false;
-    }
-    TypeRef ret;
-    if (!ParseTypeInner(&ret)) return false;
-    proc.proc_return = std::make_unique<TypeRef>(std::move(ret));
+
     if (!ParseTypeDims(&proc)) return false;
-    proc.pointer_depth += pointer_depth;
-    if (out) *out = std::move(proc);
+    while (Match(TokenKind::Star)) {
+      ++proc.pointer_depth;
+    }
+    *out = std::move(proc);
     return true;
   }
 
@@ -232,21 +216,23 @@ bool Parser::ParseTypeInner(TypeRef* out) {
   out->type_args.clear();
   out->dims.clear();
   out->is_proc = false;
-  out->proc_is_callback = false;
   out->proc_params.clear();
   out->proc_return.reset();
   out->proc_return_mutability = Mutability::Mutable;
   out->name = tok.text;
   out->line = tok.line;
   out->column = tok.column;
+  out->pointer_depth = 0;
   Advance();
 
   if (Match(TokenKind::Lt)) {
     if (!ParseTypeArgs(&out->type_args)) return false;
   }
 
-  out->pointer_depth = pointer_depth;
   if (!ParseTypeDims(out)) return false;
+  while (Match(TokenKind::Star)) {
+    ++out->pointer_depth;
+  }
   return true;
 }
 
@@ -464,26 +450,6 @@ bool Parser::ParseDecl(Decl* out) {
   }
 
   TypeRef return_or_type;
-  if (Peek().kind == TokenKind::KwFn && Peek(1).kind == TokenKind::Assign) {
-    Advance(); // consume 'fn'
-    if (!Match(TokenKind::Assign)) {
-      error_ = "expected '=' after 'fn' in variable declaration";
-      return false;
-    }
-    Expr init;
-    TypeRef inferred_proc_type;
-    if (!ParseTypedFnLiteral(&init, &inferred_proc_type)) return false;
-    if (!ConsumeStmtTerminator("variable declaration")) return false;
-    if (out) {
-      out->kind = DeclKind::Variable;
-      out->var.name = name_tok.text;
-      out->var.mutability = mut;
-      out->var.type = std::move(inferred_proc_type);
-      out->var.has_init_expr = true;
-      out->var.init_expr = std::move(init);
-    }
-    return true;
-  }
   if (!ParseTypeInner(&return_or_type)) return false;
 
   if (Match(TokenKind::LParen)) {
@@ -648,8 +614,23 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
   field.name = name_tok.text;
   field.mutability = mut;
   field.type = std::move(type);
-  if (Match(TokenKind::Semicolon)) {
+  if (Match(TokenKind::Assign)) {
+    Expr init;
+    if (!ParseExpr(&init)) return false;
+    if (!ConsumeStmtTerminator("artifact field declaration")) return false;
+    field.has_init_expr = true;
+    field.init_expr = std::move(init);
+  } else if (Match(TokenKind::Semicolon)) {
     // optional
+  } else if (IsImplicitStmtTerminator()) {
+    // optional
+  } else {
+    if (Peek().kind == TokenKind::Comma) {
+      error_ = "unexpected ',' in artifact body; use newline or ';' between members";
+    } else {
+      error_ = "expected '=' or ';' in artifact field declaration";
+    }
+    return false;
   }
   if (out) out->fields.push_back(std::move(field));
   return true;
@@ -932,26 +913,6 @@ bool Parser::ParseStmt(Stmt* out) {
       mut = Mutability::Immutable;
     }
     TypeRef type;
-    if (Peek().kind == TokenKind::KwFn && Peek(1).kind == TokenKind::Assign) {
-      Advance(); // consume 'fn'
-      if (!Match(TokenKind::Assign)) {
-        error_ = "expected '=' after 'fn' in variable declaration";
-        return false;
-      }
-      Expr init;
-      TypeRef inferred_proc_type;
-      if (!ParseTypedFnLiteral(&init, &inferred_proc_type)) return false;
-      if (!ConsumeStmtTerminator("variable declaration")) return false;
-      if (out) {
-        out->kind = StmtKind::VarDecl;
-        out->var_decl.name = name_tok.text;
-        out->var_decl.mutability = mut;
-        out->var_decl.type = std::move(inferred_proc_type);
-        out->var_decl.has_init_expr = true;
-        out->var_decl.init_expr = std::move(init);
-      }
-      return true;
-    }
     if (!ParseTypeInner(&type)) return false;
     bool has_init = false;
     Expr init;
@@ -1034,35 +995,8 @@ bool Parser::ParseFor(Stmt* out) {
     error_ = "expected 'for'";
     return false;
   }
-  const Token& name_tok = Peek();
-  if (name_tok.kind != TokenKind::Identifier) {
-    error_ = "expected loop variable name after 'for'";
-    return false;
-  }
-  Advance();
-  Mutability mut = Mutability::Mutable;
-  TypeRef type;
-  bool has_type = false;
-  if (Match(TokenKind::Colon)) {
-    mut = Mutability::Mutable;
-    has_type = true;
-  } else if (Match(TokenKind::DoubleColon)) {
-    mut = Mutability::Immutable;
-    has_type = true;
-  }
-  if (has_type) {
-    if (!ParseTypeInner(&type)) return false;
-  } else {
-    type.name = "i32";
-  }
-  bool has_init = false;
-  Expr init_expr;
-  if (Match(TokenKind::Assign)) {
-    has_init = true;
-    if (!ParseExpr(&init_expr)) return false;
-  }
-  if (!Match(TokenKind::Semicolon)) {
-    error_ = "expected ';' after for loop initializer";
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after 'for'";
     return false;
   }
 
@@ -1082,55 +1016,85 @@ bool Parser::ParseFor(Stmt* out) {
     expr.children.push_back(std::move(rhs));
     return expr;
   };
+  auto MakeIntLiteral = [](int64_t value) -> Expr {
+    Expr expr;
+    expr.kind = ExprKind::Literal;
+    expr.literal_kind = LiteralKind::Integer;
+    expr.text = std::to_string(value);
+    return expr;
+  };
 
-  Expr first_expr;
-  if (!ParseExpr(&first_expr)) return false;
-  if (Match(TokenKind::DotDot)) {
-    Expr range_end;
-    if (!ParseExpr(&range_end)) return false;
-    std::vector<Stmt> body;
-    if (!ParseBlockStmts(&body)) return false;
-    if (out) {
-      out->kind = StmtKind::ForLoop;
-      out->has_loop_var_decl = true;
-      out->loop_var_decl.name = name_tok.text;
-      out->loop_var_decl.mutability = mut;
-      out->loop_var_decl.type = std::move(type);
-      out->loop_var_decl.has_init_expr = false;
-      out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(first_expr));
-      out->loop_cond = MakeBinary("<=", MakeIdent(name_tok), std::move(range_end));
-      Expr step;
-      step.kind = ExprKind::Unary;
-      step.op = "post++";
-      step.children.push_back(MakeIdent(name_tok));
-      out->loop_step = std::move(step);
-      out->loop_body = std::move(body);
+  Expr init_expr;
+  VarDecl loop_var;
+  bool has_loop_var_decl = false;
+
+  if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::Semicolon) {
+    Token name_tok = Advance();
+    loop_var.name = name_tok.text;
+    loop_var.mutability = Mutability::Mutable;
+    loop_var.type.name = "i32";
+    loop_var.has_init_expr = true;
+    loop_var.init_expr = MakeIntLiteral(0);
+    has_loop_var_decl = true;
+    init_expr = MakeBinary("=", MakeIdent(name_tok), MakeIntLiteral(0));
+    Advance(); // ';'
+  } else if (Peek().kind == TokenKind::Identifier &&
+             (Peek(1).kind == TokenKind::Colon || Peek(1).kind == TokenKind::DoubleColon)) {
+    Token name_tok = Advance();
+    Mutability mut = Mutability::Mutable;
+    if (Match(TokenKind::Colon)) {
+      mut = Mutability::Mutable;
+    } else if (Match(TokenKind::DoubleColon)) {
+      mut = Mutability::Immutable;
     }
-    return true;
+    TypeRef type;
+    if (!ParseTypeInner(&type)) return false;
+    if (!Match(TokenKind::Assign)) {
+      error_ = "expected '=' in for initializer";
+      return false;
+    }
+    Expr rhs;
+    if (!ParseExpr(&rhs)) return false;
+    loop_var.name = name_tok.text;
+    loop_var.mutability = mut;
+    loop_var.type = std::move(type);
+    loop_var.has_init_expr = true;
+    loop_var.init_expr = rhs;
+    has_loop_var_decl = true;
+    init_expr = MakeBinary("=", MakeIdent(name_tok), std::move(rhs));
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after for initializer";
+      return false;
+    }
+  } else {
+    if (!ParseExpr(&init_expr)) return false;
+    if (!Match(TokenKind::Semicolon)) {
+      error_ = "expected ';' after for initializer";
+      return false;
+    }
   }
 
-  if (!has_init) {
-    error_ = "expected initializer or range for for-loop";
-    return false;
-  }
-
-  Expr cond = std::move(first_expr);
+  Expr cond;
+  if (!ParseExpr(&cond)) return false;
   if (!Match(TokenKind::Semicolon)) {
     error_ = "expected ';' after for condition";
     return false;
   }
   Expr step;
   if (!ParseAssignmentExpr(&step)) return false;
+  if (!Match(TokenKind::RParen)) {
+    error_ = "expected ')' after for step";
+    return false;
+  }
   std::vector<Stmt> body;
   if (!ParseBlockStmts(&body)) return false;
   if (out) {
     out->kind = StmtKind::ForLoop;
-    out->has_loop_var_decl = true;
-    out->loop_var_decl.name = name_tok.text;
-    out->loop_var_decl.mutability = mut;
-    out->loop_var_decl.type = std::move(type);
-    out->loop_var_decl.has_init_expr = false;
-    out->loop_iter = MakeBinary("=", MakeIdent(name_tok), std::move(init_expr));
+    out->has_loop_var_decl = has_loop_var_decl;
+    if (has_loop_var_decl) {
+      out->loop_var_decl = std::move(loop_var);
+    }
+    out->loop_iter = std::move(init_expr);
     out->loop_cond = std::move(cond);
     out->loop_step = std::move(step);
     out->loop_body = std::move(body);
@@ -1143,8 +1107,16 @@ bool Parser::ParseIfChain(Stmt* out) {
     error_ = "expected '|>' to start if chain";
     return false;
   }
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after '|>'";
+    return false;
+  }
   Expr first_cond;
   if (!ParseExpr(&first_cond)) return false;
+  if (!Match(TokenKind::RParen)) {
+    error_ = "expected ')' after chain condition";
+    return false;
+  }
   std::vector<Stmt> then_body;
   if (!ParseBlockStmts(&then_body)) return false;
   if (out) {
@@ -1158,8 +1130,16 @@ bool Parser::ParseIfChain(Stmt* out) {
       if (out) out->else_branch = std::move(else_body);
       break;
     }
+    if (!Match(TokenKind::LParen)) {
+      error_ = "expected '(' after '|>'";
+      return false;
+    }
     Expr cond;
     if (!ParseExpr(&cond)) return false;
+    if (!Match(TokenKind::RParen)) {
+      error_ = "expected ')' after chain condition";
+      return false;
+    }
     std::vector<Stmt> body;
     if (!ParseBlockStmts(&body)) return false;
     if (out) out->if_branches.push_back({std::move(cond), std::move(body)});
@@ -1172,8 +1152,16 @@ bool Parser::ParseIfStmt(Stmt* out) {
     error_ = "expected 'if'";
     return false;
   }
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after 'if'";
+    return false;
+  }
   Expr cond;
   if (!ParseExpr(&cond)) return false;
+  if (!Match(TokenKind::RParen)) {
+    error_ = "expected ')' after if condition";
+    return false;
+  }
   std::vector<Stmt> then_body;
   if (!ParseBlockStmts(&then_body)) return false;
   std::vector<Stmt> else_body;
@@ -1200,8 +1188,16 @@ bool Parser::ParseWhile(Stmt* out) {
     error_ = "expected 'while'";
     return false;
   }
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after 'while'";
+    return false;
+  }
   Expr cond;
   if (!ParseExpr(&cond)) return false;
+  if (!Match(TokenKind::RParen)) {
+    error_ = "expected ')' after while condition";
+    return false;
+  }
   std::vector<Stmt> body;
   if (!ParseBlockStmts(&body)) return false;
   if (out) {
@@ -1347,6 +1343,7 @@ bool Parser::ParseUnaryExpr(Expr* out) {
     return true;
   }
   if (tok.kind == TokenKind::Bang || tok.kind == TokenKind::Minus ||
+      tok.kind == TokenKind::Amp ||
       tok.kind == TokenKind::PlusPlus || tok.kind == TokenKind::MinusMinus) {
     Advance();
     Expr operand;
@@ -1403,16 +1400,17 @@ bool Parser::ParsePostfixExpr(Expr* out) {
       expr = std::move(index);
       continue;
     }
-    if (Match(TokenKind::Dot)) {
+    if (Match(TokenKind::Dot) || Match(TokenKind::Arrow)) {
+      const std::string op = tokens_[index_ - 1].text;
       const Token& name = Peek();
       if (name.kind != TokenKind::Identifier) {
-        error_ = "expected member name after '.'";
+        error_ = "expected member name after '" + op + "'";
         return false;
       }
       Advance();
       Expr member;
       member.kind = ExprKind::Member;
-      member.op = ".";
+      member.op = op;
       member.text = name.text;
       member.line = name.line;
       member.column = name.column;
@@ -1462,6 +1460,9 @@ bool Parser::LooksLikeTypeArgsForCall() const {
 
 bool Parser::ParsePrimaryExpr(Expr* out) {
   const Token& tok = Peek();
+  if (tok.kind == TokenKind::KwSwitch) {
+    return ParseSwitchExpr(out);
+  }
   if (tok.kind == TokenKind::Integer || tok.kind == TokenKind::Float ||
       tok.kind == TokenKind::String || tok.kind == TokenKind::Char ||
       tok.kind == TokenKind::KwTrue || tok.kind == TokenKind::KwFalse) {
@@ -1508,11 +1509,7 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     std::vector<Expr> elements;
     if (!ParseBracketExprList(&elements)) return false;
     Expr expr;
-    if (elements.empty()) {
-      expr.kind = ExprKind::ListLiteral;
-    } else {
-      expr.kind = ExprKind::ArrayLiteral;
-    }
+    expr.kind = ExprKind::ListLiteral;
     expr.children = std::move(elements);
     if (out) *out = std::move(expr);
     return true;
@@ -1521,12 +1518,17 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
     Expr expr;
     expr.kind = ExprKind::ArtifactLiteral;
     bool seen_named = false;
+    bool seen_positional = false;
     if (Match(TokenKind::RBrace)) {
       if (out) *out = std::move(expr);
       return true;
     }
     while (!IsAtEnd()) {
       if (Match(TokenKind::Dot)) {
+        if (seen_positional) {
+          error_ = "cannot mix positional and named fields in artifact literal";
+          return false;
+        }
         const Token& field_tok = Peek();
         if (field_tok.kind != TokenKind::Identifier) {
           error_ = "expected field name after '.' in artifact literal";
@@ -1543,6 +1545,10 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
         expr.field_values.push_back(std::move(value));
         seen_named = true;
       } else if (Peek().kind == TokenKind::Identifier && Peek(1).kind == TokenKind::Colon) {
+        if (seen_positional) {
+          error_ = "cannot mix positional and named fields in artifact literal";
+          return false;
+        }
         Token field_tok = Advance();
         Advance(); // ':'
         Expr value;
@@ -1552,12 +1558,13 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
         seen_named = true;
       } else {
         if (seen_named) {
-          error_ = "positional values must come before named fields in artifact literal";
+          error_ = "cannot mix positional and named fields in artifact literal";
           return false;
         }
         Expr value;
         if (!ParseExpr(&value)) return false;
         expr.children.push_back(std::move(value));
+        seen_positional = true;
       }
       if (Match(TokenKind::Comma)) continue;
       if (Match(TokenKind::RBrace)) break;
@@ -1571,14 +1578,80 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
   return false;
 }
 
+bool Parser::ParseSwitchExpr(Expr* out) {
+  if (!Match(TokenKind::KwSwitch)) return false;
+  if (!Match(TokenKind::LParen)) {
+    error_ = "expected '(' after switch";
+    return false;
+  }
+  Expr subject;
+  if (!ParseExpr(&subject)) return false;
+  if (!Match(TokenKind::RParen)) {
+    error_ = "expected ')' after switch expression";
+    return false;
+  }
+  if (!Match(TokenKind::LBrace)) {
+    error_ = "expected '{' to start switch body";
+    return false;
+  }
+  Expr expr;
+  expr.kind = ExprKind::Switch;
+  expr.children.push_back(std::move(subject));
+  while (!IsAtEnd()) {
+    if (Match(TokenKind::RBrace)) break;
+    SwitchBranch branch;
+    if (Match(TokenKind::KwDefault)) {
+      branch.is_default = true;
+    } else {
+      Expr cond;
+      if (!ParseExpr(&cond)) return false;
+      branch.condition = std::move(cond);
+    }
+    if (!Match(TokenKind::FatArrow)) {
+      error_ = "expected '=>' after switch condition";
+      return false;
+    }
+    if (Match(TokenKind::KwReturn)) {
+      Expr value;
+      if (!ParseExpr(&value)) return false;
+      branch.has_inline_value = true;
+      branch.is_explicit_return = true;
+      branch.value = std::move(value);
+    } else if (Peek().kind == TokenKind::LBrace) {
+      branch.is_block = true;
+      if (!ParseBlockStmts(&branch.block)) return false;
+    } else {
+      Expr value;
+      if (!ParseExpr(&value)) return false;
+      branch.has_inline_value = true;
+      branch.is_explicit_return = false;
+      branch.value = std::move(value);
+    }
+    expr.switch_branches.push_back(std::move(branch));
+    if (Match(TokenKind::Semicolon)) continue;
+    if (IsImplicitStmtTerminator()) continue;
+    if (Peek().kind == TokenKind::RBrace) continue;
+    error_ = "expected ';' or '}' after switch branch";
+    return false;
+  }
+  if (out) *out = std::move(expr);
+  return true;
+}
+
 bool Parser::ParseFnLiteral(Expr* out) {
   if (!Match(TokenKind::LParen)) return false;
   size_t start_index = index_ - 1;
   std::vector<ParamDecl> params;
   if (!Match(TokenKind::RParen)) {
     for (;;) {
+      const Token& name_tok = Peek();
+      if (name_tok.kind != TokenKind::Identifier) {
+        error_ = "expected parameter name in function literal";
+        return false;
+      }
+      Advance();
       ParamDecl param;
-      if (!ParseParam(&param)) return false;
+      param.name = name_tok.text;
       params.push_back(std::move(param));
       if (Match(TokenKind::Comma)) continue;
       if (Match(TokenKind::RParen)) break;
@@ -1634,7 +1707,6 @@ bool Parser::ParseTypedFnLiteral(Expr* out, TypeRef* out_proc_type) {
     out_proc_type->type_args.clear();
     out_proc_type->dims.clear();
     out_proc_type->is_proc = true;
-    out_proc_type->proc_is_callback = false;
     out_proc_type->proc_return_mutability = Mutability::Mutable;
     out_proc_type->proc_params.clear();
     out_proc_type->proc_params.reserve(params.size());

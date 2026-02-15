@@ -1,5 +1,5 @@
 main : void () {
-  for i; i < 10; i++ {
+  for (; i < 10; i += 1) {
     skip
   }
 }

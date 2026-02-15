@@ -1,4 +1,4 @@
-Point :: artifact {
+Point :: Artifact {
   x : i32
   get : i32 () { return x }
 }

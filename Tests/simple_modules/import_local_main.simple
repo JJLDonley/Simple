@@ -3,8 +3,8 @@ import "import_local_sub"
 import system.io
 
 main : i32 () {
-  if local_add(40, 2) != 42 { return 1 }
-  if sub_value() != 7 { return 2 }
+  if (local_add(40, 2) != 42) { return 1 }
+  if (sub_value() != 7) { return 2 }
   io.println("imports work!")
   return 0
 }

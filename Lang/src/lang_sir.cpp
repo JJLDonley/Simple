@@ -446,7 +446,6 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   }
   out->dims = src.dims;
   out->is_proc = src.is_proc;
-  out->proc_is_callback = src.proc_is_callback;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
   out->proc_params.reserve(src.proc_params.size());
@@ -808,6 +807,106 @@ bool InferLiteralType(const Expr& expr, TypeRef* out) {
   return false;
 }
 
+bool TypeEquals(const TypeRef& a, const TypeRef& b) {
+  if (a.pointer_depth != b.pointer_depth) return false;
+  if (a.is_proc != b.is_proc) return false;
+  if (a.is_proc) {
+    if (a.proc_params.size() != b.proc_params.size()) return false;
+    for (size_t i = 0; i < a.proc_params.size(); ++i) {
+      if (!TypeEquals(a.proc_params[i], b.proc_params[i])) return false;
+    }
+    if (a.proc_return && b.proc_return) {
+      if (!TypeEquals(*a.proc_return, *b.proc_return)) return false;
+    } else if (a.proc_return || b.proc_return) {
+      return false;
+    }
+    return true;
+  }
+  if (a.name != b.name) return false;
+  if (a.type_args.size() != b.type_args.size()) return false;
+  for (size_t i = 0; i < a.type_args.size(); ++i) {
+    if (!TypeEquals(a.type_args[i], b.type_args[i])) return false;
+  }
+  if (a.dims.size() != b.dims.size()) return false;
+  for (size_t i = 0; i < a.dims.size(); ++i) {
+    if (a.dims[i].is_list != b.dims[i].is_list) return false;
+    if (a.dims[i].has_size != b.dims[i].has_size) return false;
+    if (a.dims[i].has_size && a.dims[i].size != b.dims[i].size) return false;
+  }
+  return true;
+}
+
+bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
+                              const Expr** out_expr,
+                              std::string* error) {
+  if (!out_expr) return false;
+  *out_expr = nullptr;
+  if (branch.is_block) {
+    if (branch.block.size() != 1 ||
+        branch.block[0].kind != StmtKind::Return ||
+        !branch.block[0].has_return_expr) {
+      if (error) *error = "switch branch block must contain a single return with a value";
+      return false;
+    }
+    *out_expr = &branch.block[0].expr;
+    return true;
+  }
+  if (!branch.has_inline_value) {
+    if (error) *error = "switch branch requires a value";
+    return false;
+  }
+  *out_expr = &branch.value;
+  return true;
+}
+
+bool InferSwitchExprType(const Expr& expr,
+                         const EmitState& st,
+                         TypeRef* out,
+                         std::string* error) {
+  if (!out) return false;
+  if (expr.children.empty()) {
+    if (error) *error = "invalid switch expression";
+    return false;
+  }
+  TypeRef subject_type;
+  if (!InferExprType(expr.children[0], st, &subject_type, error)) return false;
+  if (expr.switch_branches.empty()) {
+    if (error) *error = "switch requires at least one branch";
+    return false;
+  }
+  size_t default_count = 0;
+  bool has_type = false;
+  TypeRef common;
+  for (const auto& branch : expr.switch_branches) {
+    if (branch.is_default) {
+      default_count++;
+    } else {
+      TypeRef cond_type;
+      if (!InferExprType(branch.condition, st, &cond_type, error)) return false;
+      if (cond_type.name != "bool") {
+        if (error) *error = "switch condition must be bool";
+        return false;
+      }
+    }
+    const Expr* value_expr = nullptr;
+    if (!GetSwitchBranchValueExpr(branch, &value_expr, error)) return false;
+    TypeRef value_type;
+    if (!InferExprType(*value_expr, st, &value_type, error)) return false;
+    if (!has_type) {
+      if (!CloneTypeRef(value_type, &common)) return false;
+      has_type = true;
+    } else if (!TypeEquals(common, value_type)) {
+      if (error) *error = "switch branch type mismatch";
+      return false;
+    }
+  }
+  if (default_count != 1) {
+    if (error) *error = "switch must have exactly one default branch";
+    return false;
+  }
+  return CloneTypeRef(common, out);
+}
+
 bool InferExprType(const Expr& expr,
                    const EmitState& st,
                    TypeRef* out,
@@ -868,6 +967,8 @@ bool InferExprType(const Expr& expr,
       }
       return CloneTypeRef(matched, out);
     }
+    case ExprKind::Switch:
+      return InferSwitchExprType(expr, st, out, error);
     case ExprKind::Index: {
       if (expr.children.size() < 2) {
         if (error) *error = "index expression missing operands";
@@ -894,6 +995,7 @@ bool InferExprType(const Expr& expr,
         return false;
       }
       const Expr& base = expr.children[0];
+      const bool is_ptr = (expr.op == "->");
       if (base.kind == ExprKind::Identifier) {
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
@@ -926,6 +1028,13 @@ bool InferExprType(const Expr& expr,
       }
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
+      if (is_ptr) {
+        if (base_type.pointer_depth == 0) {
+          if (error) *error = "pointer member access requires a pointer type";
+          return false;
+        }
+        base_type.pointer_depth -= 1;
+      }
       auto layout_it = st.artifact_layouts.find(base_type.name);
       if (layout_it == st.artifact_layouts.end()) {
         if (error) *error = "member access base is not an artifact";
@@ -974,7 +1083,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -986,7 +1094,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -999,7 +1106,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1036,7 +1142,6 @@ bool InferExprType(const Expr& expr,
               out->type_args.clear();
               out->dims.clear();
               out->is_proc = false;
-              out->proc_is_callback = false;
               out->proc_params.clear();
               out->proc_return.reset();
               return true;
@@ -1086,7 +1191,6 @@ bool InferExprType(const Expr& expr,
               out->type_args.clear();
               out->dims.clear();
               out->is_proc = false;
-              out->proc_is_callback = false;
               out->proc_params.clear();
               out->proc_return.reset();
               return true;
@@ -1096,7 +1200,6 @@ bool InferExprType(const Expr& expr,
               out->type_args.clear();
               out->dims.clear();
               out->is_proc = false;
-              out->proc_is_callback = false;
               out->proc_params.clear();
               out->proc_return.reset();
               return true;
@@ -1460,6 +1563,7 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       return false;
     }
     const Expr& base = target.children[0];
+    const bool is_ptr = (target.op == "->");
     if (base.kind == ExprKind::Identifier) {
       const std::string qualified = base.text + "." + target.text;
       auto gtype_it = st.global_types.find(qualified);
@@ -1469,6 +1573,13 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
     }
     TypeRef base_type;
     if (!InferExprType(base, st, &base_type, error)) return false;
+    if (is_ptr) {
+      if (base_type.pointer_depth == 0) {
+        if (error) *error = "pointer member assignment requires a pointer type";
+        return false;
+      }
+      base_type.pointer_depth -= 1;
+    }
     auto layout_it = st.artifact_layouts.find(base_type.name);
     if (layout_it == st.artifact_layouts.end()) {
       if (error) *error = "member assignment base is not an artifact";
@@ -1616,6 +1727,13 @@ bool EmitUnary(EmitState& st,
       const Expr& base = target.children[0];
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
+      if (target.op == "->") {
+        if (base_type.pointer_depth == 0) {
+          if (error) *error = "pointer member access requires a pointer type";
+          return false;
+        }
+        base_type.pointer_depth -= 1;
+      }
       auto layout_it = st.artifact_layouts.find(base_type.name);
       if (layout_it == st.artifact_layouts.end()) {
         if (error) *error = "member access base is not an artifact";
@@ -1698,6 +1816,13 @@ bool EmitUnary(EmitState& st,
       const Expr& base = target.children[0];
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
+      if (target.op == "->") {
+        if (base_type.pointer_depth == 0) {
+          if (error) *error = "pointer member access requires a pointer type";
+          return false;
+        }
+        base_type.pointer_depth -= 1;
+      }
       auto layout_it = st.artifact_layouts.find(base_type.name);
       if (layout_it == st.artifact_layouts.end()) {
         if (error) *error = "member access base is not an artifact";
@@ -1891,6 +2016,57 @@ bool EmitBinary(EmitState& st,
   }
   if (error) *error = "unsupported binary operator '" + expr.op + "'";
   return false;
+}
+
+bool EmitSwitchExpr(EmitState& st,
+                    const Expr& expr,
+                    const TypeRef* expected,
+                    std::string* error) {
+  if (expr.children.empty()) {
+    if (error) *error = "invalid switch expression";
+    return false;
+  }
+  TypeRef switch_type;
+  if (expected) {
+    if (!CloneTypeRef(*expected, &switch_type)) return false;
+  } else {
+    if (!InferExprType(expr, st, &switch_type, error)) return false;
+  }
+  if (!EmitExpr(st, expr.children[0], nullptr, error)) return false;
+  (*st.out) << "  pop\n";
+  PopStack(st, 1);
+  std::string end_label = NewLabel(st, "switch_end_");
+  for (size_t i = 0; i < expr.switch_branches.size(); ++i) {
+    const auto& branch = expr.switch_branches[i];
+    std::string next_label = NewLabel(st, "switch_next_");
+    if (!branch.is_default) {
+      if (!EmitExpr(st, branch.condition, nullptr, error)) return false;
+      (*st.out) << "  jmp.false " << next_label << "\n";
+      PopStack(st, 1);
+    }
+    if (branch.is_block) {
+      if (branch.block.size() != 1 ||
+          branch.block[0].kind != StmtKind::Return ||
+          !branch.block[0].has_return_expr) {
+        if (error) *error = "switch branch block must contain a single return with a value";
+        return false;
+      }
+      if (!EmitExpr(st, branch.block[0].expr, &switch_type, error)) return false;
+      (*st.out) << "  jmp " << end_label << "\n";
+    } else {
+      if (!branch.has_inline_value) {
+        if (error) *error = "switch branch requires a value";
+        return false;
+      }
+      if (!EmitExpr(st, branch.value, &switch_type, error)) return false;
+      (*st.out) << "  jmp " << end_label << "\n";
+    }
+    if (!branch.is_default) {
+      (*st.out) << next_label << ":\n";
+    }
+  }
+  (*st.out) << end_label << ":\n";
+  return true;
 }
 
 bool EmitExpr(EmitState& st,
@@ -2573,25 +2749,12 @@ bool EmitExpr(EmitState& st,
           }
           TypeRef call_type;
           if (!CloneTypeRef(proc_type, &call_type)) return false;
-          if (proc_type.proc_is_callback) {
-            call_type.proc_is_callback = false;
-            call_type.proc_params.clear();
-            for (const auto& arg : expr.args) {
-              TypeRef arg_type;
-              if (!InferExprType(arg, st, &arg_type, error)) return false;
-              if (!EmitExpr(st, arg, &arg_type, error)) return false;
-              call_type.proc_params.push_back(std::move(arg_type));
-            }
-            call_type.proc_return = std::make_unique<TypeRef>();
-            call_type.proc_return->name = "void";
-          } else {
-            if (expr.args.size() != proc_type.proc_params.size()) {
-              if (error) *error = "call argument count mismatch for '" + name + "'";
-              return false;
-            }
-            for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
-              if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
-            }
+          if (expr.args.size() != proc_type.proc_params.size()) {
+            if (error) *error = "call argument count mismatch for '" + name + "'";
+            return false;
+          }
+          for (size_t i = 0; i < proc_type.proc_params.size(); ++i) {
+            if (!EmitExpr(st, expr.args[i], &proc_type.proc_params[i], error)) return false;
           }
           if (!EmitExpr(st, callee, &proc_type, error)) return false;
           std::string sig_name = GetProcSigName(st, call_type, error);
@@ -2671,25 +2834,12 @@ bool EmitExpr(EmitState& st,
       }
       TypeRef call_type;
       if (!CloneTypeRef(callee_type, &call_type)) return false;
-      if (callee_type.proc_is_callback) {
-        call_type.proc_is_callback = false;
-        call_type.proc_params.clear();
-        for (const auto& arg : expr.args) {
-          TypeRef arg_type;
-          if (!InferExprType(arg, st, &arg_type, error)) return false;
-          if (!EmitExpr(st, arg, &arg_type, error)) return false;
-          call_type.proc_params.push_back(std::move(arg_type));
-        }
-        call_type.proc_return = std::make_unique<TypeRef>();
-        call_type.proc_return->name = "void";
-      } else {
-        if (expr.args.size() != callee_type.proc_params.size()) {
-          if (error) *error = "call argument count mismatch for callee";
-          return false;
-        }
-        for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
-          if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
-        }
+      if (expr.args.size() != callee_type.proc_params.size()) {
+        if (error) *error = "call argument count mismatch for callee";
+        return false;
+      }
+      for (size_t i = 0; i < callee_type.proc_params.size(); ++i) {
+        if (!EmitExpr(st, expr.args[i], &callee_type.proc_params[i], error)) return false;
       }
       if (!EmitExpr(st, callee, &callee_type, error)) return false;
       std::string sig_name = GetProcSigName(st, call_type, error);
@@ -2705,6 +2855,8 @@ bool EmitExpr(EmitState& st,
       return EmitUnary(st, expr, expected, error);
     case ExprKind::Binary:
       return EmitBinary(st, expr, expected, error);
+    case ExprKind::Switch:
+      return EmitSwitchExpr(st, expr, expected, error);
     case ExprKind::ArrayLiteral:
     case ExprKind::ListLiteral: {
       if (!expected) {
@@ -2795,6 +2947,11 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "artifact literal expects artifact type";
         return false;
       }
+      const ArtifactDecl* artifact = nullptr;
+      auto art_it = st.artifacts.find(expected->name);
+      if (art_it != st.artifacts.end()) {
+        artifact = art_it->second;
+      }
       const auto& layout = layout_it->second;
       std::vector<const Expr*> field_exprs(layout.fields.size(), nullptr);
       if (!expr.children.empty()) {
@@ -2825,7 +2982,11 @@ bool EmitExpr(EmitState& st,
         if (field_exprs[i]) {
           if (!EmitExpr(st, *field_exprs[i], &field.type, error)) return false;
         } else {
-          if (!EmitDefaultInit(st, field.type, error)) return false;
+          if (artifact && i < artifact->fields.size() && artifact->fields[i].has_init_expr) {
+            if (!EmitExpr(st, artifact->fields[i].init_expr, &field.type, error)) return false;
+          } else {
+            if (!EmitDefaultInit(st, field.type, error)) return false;
+          }
         }
         (*st.out) << "  stfld " << expected->name << "." << field.name << "\n";
         PopStack(st, 2);
@@ -2851,11 +3012,16 @@ bool EmitExpr(EmitState& st,
       }
       lambda.params.clear();
       lambda.params.reserve(expr.fn_params.size());
-      for (const auto& param : expr.fn_params) {
+      for (size_t i = 0; i < expr.fn_params.size(); ++i) {
+        const auto& param = expr.fn_params[i];
         ParamDecl cloned_param;
         cloned_param.name = param.name;
         cloned_param.mutability = param.mutability;
-        if (!CloneTypeRef(param.type, &cloned_param.type)) return false;
+        if (i < expected->proc_params.size()) {
+          if (!CloneTypeRef(expected->proc_params[i], &cloned_param.type)) return false;
+        } else {
+          if (!CloneTypeRef(param.type, &cloned_param.type)) return false;
+        }
         lambda.params.push_back(std::move(cloned_param));
       }
 
@@ -2965,6 +3131,13 @@ bool EmitExpr(EmitState& st,
       }
       TypeRef base_type;
       if (!InferExprType(base, st, &base_type, error)) return false;
+      if (expr.op == "->") {
+        if (base_type.pointer_depth == 0) {
+          if (error) *error = "pointer member access requires a pointer type";
+          return false;
+        }
+        base_type.pointer_depth -= 1;
+      }
       auto layout_it = st.artifact_layouts.find(base_type.name);
       if (layout_it == st.artifact_layouts.end()) {
         if (error) *error = "member access base is not an artifact";
@@ -3190,6 +3363,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           return false;
         }
         const Expr& base = stmt.target.children[0];
+        const bool is_ptr = (stmt.target.op == "->");
         if (base.kind == ExprKind::Identifier) {
           const std::string qualified = base.text + "." + stmt.target.text;
           auto gtype_it = st.global_types.find(qualified);
@@ -3199,6 +3373,13 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         }
         TypeRef base_type;
         if (!InferExprType(base, st, &base_type, error)) return false;
+        if (is_ptr) {
+          if (base_type.pointer_depth == 0) {
+            if (error) *error = "pointer member assignment requires a pointer type";
+            return false;
+          }
+          base_type.pointer_depth -= 1;
+        }
         auto layout_it = st.artifact_layouts.find(base_type.name);
         if (layout_it == st.artifact_layouts.end()) {
           if (error) *error = "member assignment base is not an artifact";
@@ -3519,11 +3700,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   FuncDecl global_init_fn;
   FuncDecl script_entry_fn;
   const bool has_top_level_script = !program.top_level_stmts.empty();
-  if (has_top_level_script) {
-    script_entry_fn.name = "__script_entry";
-    script_entry_fn.return_mutability = Mutability::Mutable;
-    script_entry_fn.return_type.name = "i32";
-  }
+  bool has_main = false;
+  std::string main_emit_name;
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Module) {
       module_var_count += decl.module.variables.size();
@@ -3556,6 +3734,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       continue;
     } else if (decl.kind == DeclKind::Function) {
       functions.push_back({&decl.func, decl.func.name, decl.func.name, false, {}});
+      if (decl.func.name == "main" &&
+          decl.func.return_type.name == "i32" &&
+          decl.func.params.empty()) {
+        has_main = true;
+        main_emit_name = decl.func.name;
+      }
     } else if (decl.kind == DeclKind::Artifact) {
       artifacts.push_back(&decl.artifact);
       st.artifacts.emplace(decl.artifact.name, &decl.artifact);
@@ -3624,7 +3808,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       functions.push_back({&global_init_fn, global_init_fn.name, global_init_fn.name, false, {}});
     }
   }
-  if (has_top_level_script) {
+  if (has_top_level_script && !has_main) {
+    script_entry_fn.name = "__script_entry";
+    script_entry_fn.return_mutability = Mutability::Mutable;
+    script_entry_fn.return_type.name = "i32";
     FuncItem item;
     item.decl = &script_entry_fn;
     item.emit_name = script_entry_fn.name;
@@ -3788,7 +3975,6 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     out.type_args.clear();
     out.dims.clear();
     out.is_proc = false;
-    out.proc_is_callback = false;
     out.proc_params.clear();
     out.proc_return.reset();
     return out;
@@ -4001,7 +4187,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   std::string entry_name;
-  if (has_top_level_script) {
+  if (has_main) {
+    entry_name = main_emit_name;
+  } else if (has_top_level_script) {
     entry_name = script_entry_fn.name;
   } else {
     entry_name = functions[0].emit_name;

@@ -58,13 +58,26 @@ bool IsIntegerScalarTypeName(const std::string& name);
 bool IsBoolTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
 bool IsScalarType(const TypeRef& type);
+bool AnalyzeSwitchExpr(const Expr& expr,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       bool require_explicit_return,
+                       const TypeRef* expected_type,
+                       TypeRef* out_type,
+                       std::string* error);
+bool ValidateVarInitExpr(const VarDecl& var,
+                         const ValidateContext& ctx,
+                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                         const ArtifactDecl* current_artifact,
+                         bool require_switch_returns,
+                         std::string* error);
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                        const ArtifactDecl* current_artifact,
                        CallTargetInfo* out,
                        std::string* error);
-bool IsCallbackType(const TypeRef& type);
 const LocalInfo* FindLocal(
     const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
     const std::string& name);
@@ -251,7 +264,32 @@ bool IsSupportedDlAbiType(const TypeRef& type,
     return true;
   }
   if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) return true;
-  return ctx.artifacts.find(type.name) != ctx.artifacts.end();
+  if (ctx.artifacts.find(type.name) != ctx.artifacts.end()) {
+    std::unordered_set<std::string> visiting;
+    std::function<bool(const std::string&)> is_recursive = [&](const std::string& name) -> bool {
+      if (!visiting.insert(name).second) return true;
+      auto it = ctx.artifacts.find(name);
+      if (it == ctx.artifacts.end()) {
+        visiting.erase(name);
+        return false;
+      }
+      const ArtifactDecl* art = it->second;
+      for (const auto& field : art->fields) {
+        if (field.type.pointer_depth > 0) continue;
+        if (ctx.artifacts.find(field.type.name) != ctx.artifacts.end()) {
+          if (is_recursive(field.type.name)) {
+            visiting.erase(name);
+            return true;
+          }
+        }
+      }
+      visiting.erase(name);
+      return false;
+    };
+    if (is_recursive(type.name)) return false;
+    return true;
+  }
+  return false;
 }
 
 size_t EditDistance(const std::string& a, const std::string& b) {
@@ -353,7 +391,6 @@ TypeRef MakeSimpleType(const std::string& name) {
   out.type_args.clear();
   out.dims.clear();
   out.is_proc = false;
-  out.proc_is_callback = false;
   out.proc_params.clear();
   out.proc_return.reset();
   return out;
@@ -618,7 +655,6 @@ bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
   out->type_args.clear();
   out->dims = src.dims;
   out->is_proc = src.is_proc;
-  out->proc_is_callback = src.proc_is_callback;
   out->proc_return_mutability = src.proc_return_mutability;
   out->proc_params.clear();
   out->proc_return.reset();
@@ -671,7 +707,6 @@ bool TypeEquals(const TypeRef& a, const TypeRef& b) {
   if (a.pointer_depth != b.pointer_depth) return false;
   if (a.is_proc != b.is_proc) return false;
   if (a.is_proc) {
-    if (a.proc_is_callback || b.proc_is_callback) return true;
     if (a.proc_return_mutability != b.proc_return_mutability) return false;
     if (a.proc_params.size() != b.proc_params.size()) return false;
     for (size_t i = 0; i < a.proc_params.size(); ++i) {
@@ -824,7 +859,6 @@ bool UnifyTypeParams(const TypeRef& param,
     if (!UnifyTypeParams(param.type_args[i], arg.type_args[i], type_params, mapping)) return false;
   }
   if (param.is_proc) {
-    if (param.proc_is_callback || arg.proc_is_callback) return true;
     if (param.proc_params.size() != arg.proc_params.size()) return false;
     for (size_t i = 0; i < param.proc_params.size(); ++i) {
       if (!UnifyTypeParams(param.proc_params[i], arg.proc_params[i], type_params, mapping)) return false;
@@ -879,14 +913,6 @@ bool CheckTypeRef(const TypeRef& type,
     return CheckTypeRef(pointee, ctx, type_params, TypeUse::Value, error);
   }
   if (type.is_proc) {
-    if (type.proc_is_callback) {
-      if (!type.proc_params.empty() || type.proc_return) {
-        if (error) *error = "callback type cannot declare parameter or return types";
-        PrefixErrorLocation(type.line, type.column, error);
-        return false;
-      }
-      return true;
-    }
     for (const auto& param : type.proc_params) {
       if (!CheckTypeRef(param, ctx, type_params, TypeUse::Value, error)) return false;
     }
@@ -1001,7 +1027,6 @@ bool InferExprType(const Expr& expr,
   switch (expr.kind) {
     case ExprKind::Literal:
       out->is_proc = false;
-      out->proc_is_callback = false;
       out->type_args.clear();
       out->dims.clear();
       switch (expr.literal_kind) {
@@ -1114,7 +1139,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1124,7 +1148,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1135,7 +1158,6 @@ bool InferExprType(const Expr& expr,
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
-          out->proc_is_callback = false;
           out->proc_params.clear();
           out->proc_return.reset();
           return true;
@@ -1174,7 +1196,6 @@ bool InferExprType(const Expr& expr,
       if (!CloneTypeRef(base_type, &result)) return false;
       result.dims.erase(result.dims.begin());
       result.is_proc = false;
-      result.proc_is_callback = false;
       result.proc_params.clear();
       result.proc_return.reset();
       return CloneTypeRef(result, out);
@@ -1183,8 +1204,13 @@ bool InferExprType(const Expr& expr,
       if (expr.children.empty()) return false;
       TypeRef operand;
       if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return false;
-      if (!IsScalarType(operand)) return false;
       const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
+      if (op == "&") {
+        TypeRef result = operand;
+        result.pointer_depth += 1;
+        return CloneTypeRef(result, out);
+      }
+      if (!IsScalarType(operand)) return false;
       if (op == "!") {
         if (!IsBoolTypeName(operand.name)) return false;
         out->name = "bool";
@@ -1192,7 +1218,6 @@ bool InferExprType(const Expr& expr,
         out->type_args.clear();
         out->dims.clear();
         out->is_proc = false;
-        out->proc_is_callback = false;
         out->proc_params.clear();
         out->proc_return.reset();
         return true;
@@ -1232,7 +1257,6 @@ bool InferExprType(const Expr& expr,
         out->type_args.clear();
         out->dims.clear();
         out->is_proc = false;
-        out->proc_is_callback = false;
         out->proc_params.clear();
         out->proc_return.reset();
         return true;
@@ -1245,6 +1269,13 @@ bool InferExprType(const Expr& expr,
         return CloneTypeRef(common, out);
       }
       return false;
+    }
+    case ExprKind::Switch: {
+      TypeRef result;
+      if (!AnalyzeSwitchExpr(expr, ctx, scopes, current_artifact, false, nullptr, &result, nullptr)) {
+        return false;
+      }
+      return CloneTypeRef(result, out);
     }
     default:
       return false;
@@ -1412,7 +1443,6 @@ bool CheckCallArgs(const FuncDecl* fn, size_t arg_count, std::string* error) {
 
 bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error) {
   if (!type || !type->is_proc) return false;
-  if (type->proc_is_callback) return true;
   if (type->proc_params.size() != arg_count) {
     if (error) {
       *error = "call argument count mismatch: expected " +
@@ -1668,8 +1698,6 @@ bool GetCallTargetInfo(const Expr& callee,
         if (!CloneTypeVector(local->type->proc_params, &out->params)) return false;
         if (local->type->proc_return) {
           if (!CloneTypeRef(*local->type->proc_return, &out->return_type)) return false;
-        } else if (local->type->proc_is_callback) {
-          out->return_type = MakeSimpleType("void");
         }
         out->return_mutability = local->type->proc_return_mutability;
         out->type_params.clear();
@@ -1684,8 +1712,6 @@ bool GetCallTargetInfo(const Expr& callee,
         if (!CloneTypeVector(global_it->second->type.proc_params, &out->params)) return false;
         if (global_it->second->type.proc_return) {
           if (!CloneTypeRef(*global_it->second->type.proc_return, &out->return_type)) return false;
-        } else if (global_it->second->type.proc_is_callback) {
-          out->return_type = MakeSimpleType("void");
         }
         out->return_mutability = global_it->second->type.proc_return_mutability;
         out->type_params.clear();
@@ -1706,7 +1732,6 @@ bool GetCallTargetInfo(const Expr& callee,
         param.type_args.clear();
         param.dims.clear();
         param.is_proc = false;
-        param.proc_is_callback = false;
         param.proc_params.clear();
         param.proc_return.reset();
         out->params.push_back(std::move(param));
@@ -1715,7 +1740,6 @@ bool GetCallTargetInfo(const Expr& callee,
         out->return_type.type_args.clear();
         out->return_type.dims.clear();
         out->return_type.is_proc = false;
-        out->return_type.proc_is_callback = false;
         out->return_type.proc_params.clear();
         out->return_type.proc_return.reset();
         out->return_mutability = Mutability::Mutable;
@@ -1780,8 +1804,6 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(var->type.proc_params, &out->params)) return false;
           if (var->type.proc_return) {
             if (!CloneTypeRef(*var->type.proc_return, &out->return_type)) return false;
-          } else if (var->type.proc_is_callback) {
-            out->return_type = MakeSimpleType("void");
           }
           out->return_mutability = var->type.proc_return_mutability;
           out->type_params.clear();
@@ -1891,8 +1913,6 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
           if (resolved_field.proc_return) {
             if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
-          } else if (resolved_field.proc_is_callback) {
-            out->return_type = MakeSimpleType("void");
           }
           return true;
         }
@@ -1936,8 +1956,6 @@ bool GetCallTargetInfo(const Expr& callee,
           if (!CloneTypeVector(resolved_field.proc_params, &out->params)) return false;
           if (resolved_field.proc_return) {
             if (!CloneTypeRef(*resolved_field.proc_return, &out->return_type)) return false;
-          } else if (resolved_field.proc_is_callback) {
-            out->return_type = MakeSimpleType("void");
           }
           return true;
         }
@@ -2183,7 +2201,9 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       return true;
     }
-    if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
+    if (expr.kind == ExprKind::Member &&
+        (expr.op == "." || expr.op == "->") &&
+        !expr.children.empty()) {
       const Expr& base = expr.children[0];
       if (base.kind == ExprKind::Identifier) {
         if (base.text == "self") {
@@ -2251,7 +2271,9 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     return true;
   }
-  if (target.kind == ExprKind::Member && target.op == "." && !target.children.empty()) {
+  if (target.kind == ExprKind::Member &&
+      (target.op == "." || target.op == "->") &&
+      !target.children.empty()) {
     const Expr& base = target.children[0];
     if (!is_mutable_expr(base)) {
       if (error) *error = "cannot assign through immutable value";
@@ -2397,6 +2419,14 @@ bool ValidateArtifactLiteral(const Expr& expr,
       }
     }
   }
+  for (const auto& field : artifact->fields) {
+    if (seen.find(field.name) == seen.end()) {
+      if (!field.has_init_expr) {
+        if (error) *error = "missing artifact field: " + field.name;
+        return false;
+      }
+    }
+  }
   return true;
 }
 
@@ -2443,7 +2473,19 @@ bool CheckStmt(const Stmt& stmt,
         TypeRef target_type;
         TypeRef value_type;
         bool have_target = InferExprType(stmt.target, ctx, scopes, current_artifact, &target_type);
-        bool have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
+        bool have_value = false;
+        if (stmt.expr.kind == ExprKind::Switch) {
+          have_value = AnalyzeSwitchExpr(stmt.expr,
+                                         ctx,
+                                         scopes,
+                                         current_artifact,
+                                         true,
+                                         have_target ? &target_type : nullptr,
+                                         &value_type,
+                                         error);
+        } else {
+          have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
+        }
         if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
           if (!CheckFnLiteralAgainstType(stmt.expr, target_type, error)) return false;
         }
@@ -2496,10 +2538,6 @@ bool CheckStmt(const Stmt& stmt,
       return true;
     case StmtKind::VarDecl:
       if (!CheckTypeRef(stmt.var_decl.type, ctx, type_params, TypeUse::Value, error)) return false;
-      if (IsCallbackType(stmt.var_decl.type)) {
-        if (error) *error = "callback is only valid as a parameter type";
-        return false;
-      }
       {
         LocalInfo info;
         info.mutability = stmt.var_decl.mutability;
@@ -2507,71 +2545,13 @@ bool CheckStmt(const Stmt& stmt,
         if (!AddLocal(scopes, stmt.var_decl.name, info, error)) return false;
       }
       if (stmt.var_decl.has_init_expr) {
-        if (!CheckExpr(stmt.var_decl.init_expr, ctx, scopes, current_artifact, error)) return false;
-        if (stmt.var_decl.init_expr.kind == ExprKind::FnLiteral) {
-          if (!CheckFnLiteralAgainstType(stmt.var_decl.init_expr, stmt.var_decl.type, error)) {
-            return false;
-          }
-        }
-        if ((stmt.var_decl.init_expr.kind == ExprKind::ArrayLiteral ||
-             stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) &&
-            !stmt.var_decl.type.dims.empty()) {
-          if (!CheckArrayLiteralShape(stmt.var_decl.init_expr, stmt.var_decl.type.dims, 0, error)) {
-            return false;
-          }
-          TypeRef base_type;
-          if (!CloneTypeRef(stmt.var_decl.type, &base_type)) return false;
-          base_type.dims.clear();
-          if (!CheckArrayLiteralElementTypes(stmt.var_decl.init_expr,
-                                             ctx,
-                                             scopes,
-                                             current_artifact,
-                                             stmt.var_decl.type.dims,
-                                             0,
-                                             base_type,
-                                             error)) {
-            return false;
-          }
-          if (!CheckListLiteralElementTypes(stmt.var_decl.init_expr,
-                                            ctx,
-                                            scopes,
-                                            current_artifact,
-                                            stmt.var_decl.type,
-                                            error)) {
-            return false;
-          }
-        } else if (stmt.var_decl.init_expr.kind == ExprKind::ArrayLiteral ||
-                   stmt.var_decl.init_expr.kind == ExprKind::ListLiteral) {
-          if (error) *error = "array/list literal requires array or list type";
+        if (!ValidateVarInitExpr(stmt.var_decl,
+                                 ctx,
+                                 scopes,
+                                 current_artifact,
+                                 true,
+                                 error)) {
           return false;
-        }
-        TypeRef init_type;
-        if (InferExprType(stmt.var_decl.init_expr, ctx, scopes, current_artifact, &init_type)) {
-          if (!TypesCompatibleForExpr(stmt.var_decl.type, init_type, stmt.var_decl.init_expr)) {
-            if (error) *error = "initializer type mismatch";
-            return false;
-          }
-        }
-        if (stmt.var_decl.init_expr.kind == ExprKind::ArtifactLiteral) {
-          auto artifact_it = ctx.artifacts.find(stmt.var_decl.type.name);
-          if (artifact_it != ctx.artifacts.end()) {
-            std::unordered_map<std::string, TypeRef> mapping;
-            if (!BuildArtifactTypeParamMap(stmt.var_decl.type,
-                                           artifact_it->second,
-                                           &mapping,
-                                           error)) {
-              return false;
-            }
-            if (!ValidateArtifactLiteral(stmt.var_decl.init_expr,
-                                         artifact_it->second,
-                                         mapping,
-                                         ctx,
-                                         scopes,
-                                         current_artifact,
-                                         error)) {
-              return false;
-            }
-          }
         }
         std::string manifest_module;
         if (GetDlOpenManifestModule(stmt.var_decl.init_expr, ctx, &manifest_module)) {
@@ -2580,7 +2560,6 @@ bool CheckStmt(const Stmt& stmt,
             local_it->second.dl_module = manifest_module;
           }
         }
-        return true;
       }
       return true;
     case StmtKind::IfChain:
@@ -2774,15 +2753,7 @@ bool CheckArrayLiteralShape(const Expr& expr,
   const TypeDim& dim = dims[dim_index];
   if (!dim.has_size) return true;
 
-  if (expr.kind == ExprKind::ListLiteral) {
-    if (dim.size != 0) {
-      if (error) *error = "array literal size does not match fixed dimensions";
-      return false;
-    }
-    return true;
-  }
-
-  if (expr.kind != ExprKind::ArrayLiteral) {
+  if (expr.kind != ExprKind::ArrayLiteral && expr.kind != ExprKind::ListLiteral) {
     if (error) *error = "array literal size does not match fixed dimensions";
     return false;
   }
@@ -2806,8 +2777,7 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
                                    size_t dim_index,
                                    const TypeRef& element_type,
                                    std::string* error) {
-  if (expr.kind == ExprKind::ListLiteral) return true;
-  if (expr.kind != ExprKind::ArrayLiteral) return true;
+  if (expr.kind != ExprKind::ArrayLiteral && expr.kind != ExprKind::ListLiteral) return true;
   if (dims.empty()) return true;
 
   if (dim_index + 1 >= dims.size()) {
@@ -2846,7 +2816,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
                                   const ArtifactDecl* current_artifact,
                                   const TypeRef& list_type,
                                   std::string* error) {
-  if (expr.kind != ExprKind::ListLiteral) return true;
+  if (expr.kind != ExprKind::ListLiteral && expr.kind != ExprKind::ArrayLiteral) return true;
   if (list_type.dims.empty()) return true;
   if (!list_type.dims.front().is_list) return true;
 
@@ -2857,14 +2827,208 @@ bool CheckListLiteralElementTypes(const Expr& expr,
   }
 
   for (const auto& child : expr.children) {
-    TypeRef child_type;
-    if (!InferExprType(child, ctx, scopes, current_artifact, &child_type)) {
+    VarDecl temp;
+    temp.name = "__list_element";
+    temp.type = element_type;
+    temp.has_init_expr = true;
+    temp.init_expr = child;
+    if (!ValidateVarInitExpr(temp, ctx, scopes, current_artifact, false, error)) {
       if (error && error->empty()) *error = "list literal element type mismatch";
       return false;
     }
-    if (!TypesCompatibleForExpr(element_type, child_type, child)) {
-      if (error) *error = "list literal element type mismatch";
+  }
+  return true;
+}
+
+bool ValidateVarInitExpr(const VarDecl& var,
+                         const ValidateContext& ctx,
+                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                         const ArtifactDecl* current_artifact,
+                         bool require_switch_returns,
+                         std::string* error) {
+  if (!var.has_init_expr) return true;
+  if (!CheckExpr(var.init_expr, ctx, scopes, current_artifact, error)) return false;
+  if (var.init_expr.kind == ExprKind::FnLiteral) {
+    if (!CheckFnLiteralAgainstType(var.init_expr, var.type, error)) {
       return false;
+    }
+  }
+  if ((var.init_expr.kind == ExprKind::ArrayLiteral ||
+       var.init_expr.kind == ExprKind::ListLiteral) &&
+      !var.type.dims.empty()) {
+    if (!CheckArrayLiteralShape(var.init_expr, var.type.dims, 0, error)) {
+      return false;
+    }
+    TypeRef base_type;
+    if (!CloneTypeRef(var.type, &base_type)) return false;
+    base_type.dims.clear();
+    if (!CheckArrayLiteralElementTypes(var.init_expr,
+                                       ctx,
+                                       scopes,
+                                       current_artifact,
+                                       var.type.dims,
+                                       0,
+                                       base_type,
+                                       error)) {
+      return false;
+    }
+    if (!CheckListLiteralElementTypes(var.init_expr,
+                                      ctx,
+                                      scopes,
+                                      current_artifact,
+                                      var.type,
+                                      error)) {
+      return false;
+    }
+  } else if (var.init_expr.kind == ExprKind::ArrayLiteral ||
+             var.init_expr.kind == ExprKind::ListLiteral) {
+    if (error) *error = "array/list literal requires array or list type";
+    return false;
+  }
+  TypeRef init_type;
+  bool have_init_type = false;
+  if (var.init_expr.kind == ExprKind::Switch) {
+    if (AnalyzeSwitchExpr(var.init_expr,
+                          ctx,
+                          scopes,
+                          current_artifact,
+                          require_switch_returns,
+                          &var.type,
+                          &init_type,
+                          error)) {
+      have_init_type = true;
+    } else {
+      return false;
+    }
+  } else if (InferExprType(var.init_expr, ctx, scopes, current_artifact, &init_type)) {
+    have_init_type = true;
+  }
+  if (have_init_type) {
+    if (!TypesCompatibleForExpr(var.type, init_type, var.init_expr)) {
+      if (error) *error = "initializer type mismatch";
+      return false;
+    }
+  }
+  if (var.init_expr.kind == ExprKind::ArtifactLiteral) {
+    auto artifact_it = ctx.artifacts.find(var.type.name);
+    if (artifact_it != ctx.artifacts.end()) {
+      std::unordered_map<std::string, TypeRef> mapping;
+      if (!BuildArtifactTypeParamMap(var.type, artifact_it->second, &mapping, error)) {
+        return false;
+      }
+      if (!ValidateArtifactLiteral(var.init_expr,
+                                   artifact_it->second,
+                                   mapping,
+                                   ctx,
+                                   scopes,
+                                   current_artifact,
+                                   error)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
+                              bool require_explicit_return,
+                              const Expr** out_expr,
+                              std::string* error) {
+  if (!out_expr) return false;
+  *out_expr = nullptr;
+  if (branch.is_block) {
+    if (branch.block.size() != 1 ||
+        branch.block[0].kind != StmtKind::Return ||
+        !branch.block[0].has_return_expr) {
+      if (error) *error = "switch branch block must contain a single return with a value";
+      return false;
+    }
+    *out_expr = &branch.block[0].expr;
+    return true;
+  }
+  if (!branch.has_inline_value) {
+    if (error) *error = "switch branch requires a value";
+    return false;
+  }
+  if (require_explicit_return && !branch.is_explicit_return) {
+    if (error) *error = "assigning switch branches must use 'return'";
+    return false;
+  }
+  *out_expr = &branch.value;
+  return true;
+}
+
+bool AnalyzeSwitchExpr(const Expr& expr,
+                       const ValidateContext& ctx,
+                       const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                       const ArtifactDecl* current_artifact,
+                       bool require_explicit_return,
+                       const TypeRef* expected_type,
+                       TypeRef* out_type,
+                       std::string* error) {
+  if (expr.kind != ExprKind::Switch || expr.children.empty()) {
+    if (error) *error = "invalid switch expression";
+    return false;
+  }
+  if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
+  if (expr.switch_branches.empty()) {
+    if (error) *error = "switch requires at least one branch";
+    return false;
+  }
+  size_t default_count = 0;
+  bool has_type = false;
+  TypeRef common;
+  for (const auto& branch : expr.switch_branches) {
+    if (branch.is_default) {
+      default_count++;
+    } else {
+      if (!CheckExpr(branch.condition, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckBoolCondition(branch.condition, ctx, scopes, current_artifact, error)) return false;
+    }
+    const Expr* value_expr = nullptr;
+    if (!GetSwitchBranchValueExpr(branch, require_explicit_return, &value_expr, error)) return false;
+    if (!value_expr) return false;
+    if (expected_type) {
+      VarDecl temp;
+      temp.name = "__switch_branch";
+      temp.type = *expected_type;
+      temp.has_init_expr = true;
+      temp.init_expr = *value_expr;
+      if (!ValidateVarInitExpr(temp,
+                               ctx,
+                               scopes,
+                               current_artifact,
+                               false,
+                               error)) {
+        return false;
+      }
+    } else {
+      if (!CheckExpr(*value_expr, ctx, scopes, current_artifact, error)) return false;
+      TypeRef value_type;
+      if (!InferExprType(*value_expr, ctx, scopes, current_artifact, &value_type)) {
+        if (error && error->empty()) *error = "switch branch type mismatch";
+        return false;
+      }
+      if (!has_type) {
+        if (!CloneTypeRef(value_type, &common)) return false;
+        has_type = true;
+      } else {
+        if (!TypesCompatibleForExpr(common, value_type, *value_expr)) {
+          if (error) *error = "switch branch type mismatch";
+          return false;
+        }
+      }
+    }
+  }
+  if (default_count != 1) {
+    if (error) *error = "switch must have exactly one default branch";
+    return false;
+  }
+  if (out_type) {
+    if (expected_type) {
+      if (!CloneTypeRef(*expected_type, out_type)) return false;
+    } else {
+      if (!CloneTypeRef(common, out_type)) return false;
     }
   }
   return true;
@@ -2900,9 +3064,12 @@ bool CheckUnaryOpTypes(const Expr& expr,
                        std::string* error) {
   TypeRef operand;
   if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return true;
-  if (!RequireScalar(operand, expr.op, error)) return false;
 
   const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
+  if (op == "&") {
+    return true;
+  }
+  if (!RequireScalar(operand, expr.op, error)) return false;
   if (op == "!") {
     if (!IsBoolTypeName(operand.name)) {
       if (error) *error = "operator '!' requires bool operand";
@@ -3062,7 +3229,6 @@ bool CheckFnLiteralAgainstType(const Expr& fn_expr,
     if (error) *error = "fn literal requires procedure type";
     return false;
   }
-  if (target_type.proc_is_callback) return true;
   if (fn_expr.fn_params.size() != target_type.proc_params.size()) {
     if (error) {
       *error = "fn literal parameter count mismatch: expected " +
@@ -3072,16 +3238,13 @@ bool CheckFnLiteralAgainstType(const Expr& fn_expr,
     return false;
   }
   for (size_t i = 0; i < fn_expr.fn_params.size(); ++i) {
+    if (fn_expr.fn_params[i].type.name.empty()) continue;
     if (!TypeEquals(fn_expr.fn_params[i].type, target_type.proc_params[i])) {
       if (error) *error = "fn literal parameter type mismatch";
       return false;
     }
   }
   return true;
-}
-
-bool IsCallbackType(const TypeRef& type) {
-  return type.is_proc && type.proc_is_callback;
 }
 
 bool CheckExpr(const Expr& expr,
@@ -3367,8 +3530,10 @@ bool CheckExpr(const Expr& expr,
         if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
       }
       return true;
-    case ExprKind::Member:
-      if (expr.op == "." && !expr.children.empty()) {
+    case ExprKind::Member: {
+      const bool is_dot = (expr.op == ".");
+      const bool is_ptr = (expr.op == "->");
+      if (is_dot && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
             IsIoPrintCallExpr(expr, ctx)) {
@@ -3428,7 +3593,7 @@ bool CheckExpr(const Expr& expr,
         }
       }
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
-      if (expr.op == "." && !expr.children.empty()) {
+      if (is_dot && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier) {
           std::string dl_module;
@@ -3505,6 +3670,33 @@ bool CheckExpr(const Expr& expr,
           }
         }
       }
+      if (is_ptr && !expr.children.empty()) {
+        const Expr& base = expr.children[0];
+        TypeRef base_type;
+        if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+          if (base_type.pointer_depth == 0) {
+            if (error) *error = "pointer member access requires a pointer type";
+            PrefixErrorLocation(expr.line, expr.column, error);
+            return false;
+          }
+          TypeRef pointee = base_type;
+          pointee.pointer_depth -= 1;
+          auto artifact_it = ctx.artifacts.find(pointee.name);
+          if (artifact_it != ctx.artifacts.end()) {
+            const ArtifactDecl* artifact = artifact_it->second;
+            if (!FindArtifactField(artifact, expr.text) &&
+                !FindArtifactMethod(artifact, expr.text)) {
+              if (error) *error = "unknown artifact member: " + pointee.name + "." + expr.text;
+              PrefixErrorLocation(expr.line, expr.column, error);
+              return false;
+            }
+          } else {
+            if (error) *error = "pointer member access requires artifact type";
+            PrefixErrorLocation(expr.line, expr.column, error);
+            return false;
+          }
+        }
+      }
       if (expr.op == "::" && !expr.children.empty()) {
         const Expr& base = expr.children[0];
         if (base.kind == ExprKind::Identifier &&
@@ -3515,6 +3707,7 @@ bool CheckExpr(const Expr& expr,
         }
       }
       return true;
+    }
     case ExprKind::Index:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (!CheckExpr(expr.children[1], ctx, scopes, current_artifact, error)) return false;
@@ -3565,6 +3758,8 @@ bool CheckExpr(const Expr& expr,
       return true;
     case ExprKind::FnLiteral:
       return true;
+    case ExprKind::Switch:
+      return AnalyzeSwitchExpr(expr, ctx, scopes, current_artifact, false, nullptr, nullptr, error);
   }
   return true;
 }
@@ -3604,10 +3799,6 @@ bool CheckFunctionBody(const FuncDecl& fn,
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
   const bool is_main = (fn.name == "main" && fn.return_type.name == "i32");
-  if (IsCallbackType(fn.return_type)) {
-    if (error) *error = "callback is only valid as a parameter type";
-    return false;
-  }
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
@@ -3644,6 +3835,8 @@ bool CheckFunctionBody(const FuncDecl& fn,
 
 bool ValidateProgram(const Program& program, std::string* error) {
   ValidateContext ctx;
+  std::vector<std::unordered_map<std::string, LocalInfo>> empty_scopes;
+  empty_scopes.emplace_back();
   if (program.decls.empty() && program.top_level_stmts.empty()) {
     if (error) *error = "program has no declarations or top-level statements";
     return false;
@@ -3756,17 +3949,21 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
-          if (IsCallbackType(decl.ext.return_type)) {
-            if (error) *error = "callback is only valid as a parameter type";
+          if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
+          if (!IsSupportedDlAbiType(decl.ext.return_type, ctx, true)) {
+            if (error) *error = "extern ABI return type is not supported";
             return false;
           }
-          if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
           for (const auto& param : decl.ext.params) {
             if (!param_names.insert(param.name).second) {
               if (error) *error = "duplicate extern parameter name: " + param.name;
               return false;
             }
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
+            if (!IsSupportedDlAbiType(param.type, ctx, false)) {
+              if (error) *error = "extern ABI parameter type is not supported";
+              return false;
+            }
           }
         }
         break;
@@ -3792,11 +3989,17 @@ bool ValidateProgram(const Program& program, std::string* error) {
               if (error) *error = "duplicate artifact member: " + field.name;
               return false;
             }
-            if (IsCallbackType(field.type)) {
-              if (error) *error = "callback is only valid as a parameter type";
-              return false;
-            }
             if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
+            if (field.has_init_expr) {
+              if (!ValidateVarInitExpr(field,
+                                       ctx,
+                                       empty_scopes,
+                                       nullptr,
+                                       true,
+                                       error)) {
+                return false;
+              }
+            }
           }
           for (const auto& method : decl.artifact.methods) {
             if (!names.insert(method.name).second) {
@@ -3830,11 +4033,17 @@ bool ValidateProgram(const Program& program, std::string* error) {
               return false;
             }
             std::unordered_set<std::string> type_params;
-            if (IsCallbackType(var.type)) {
-              if (error) *error = "callback is only valid as a parameter type";
-              return false;
-            }
             if (!CheckTypeRef(var.type, ctx, type_params, TypeUse::Value, error)) return false;
+            if (var.has_init_expr) {
+              if (!ValidateVarInitExpr(var,
+                                       ctx,
+                                       empty_scopes,
+                                       nullptr,
+                                       true,
+                                       error)) {
+                return false;
+              }
+            }
           }
           for (const auto& fn : decl.module.functions) {
             if (!names.insert(fn.name).second) {
@@ -3858,11 +4067,17 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Variable:
         if (decl.kind == DeclKind::Variable) {
           std::unordered_set<std::string> type_params;
-          if (IsCallbackType(decl.var.type)) {
-            if (error) *error = "callback is only valid as a parameter type";
-            return false;
-          }
           if (!CheckTypeRef(decl.var.type, ctx, type_params, TypeUse::Value, error)) return false;
+          if (decl.var.has_init_expr) {
+            if (!ValidateVarInitExpr(decl.var,
+                                     ctx,
+                                     empty_scopes,
+                                     nullptr,
+                                     true,
+                                     error)) {
+              return false;
+            }
+          }
         }
         break;
     }

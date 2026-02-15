@@ -23,8 +23,8 @@ enum class TokenKind : uint8_t {
   KwIf,
   KwElse,
   KwDefault,
+  KwSwitch,
   KwFn,
-  KwCallback,
   KwSelf,
   KwArtifact,
   KwEnum,
@@ -44,6 +44,8 @@ enum class TokenKind : uint8_t {
   Comma,
   Dot,
   DotDot,
+  Arrow,
+  FatArrow,
   Semicolon,
 
   Colon,

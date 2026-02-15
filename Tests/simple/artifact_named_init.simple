@@ -1,4 +1,4 @@
-Point :: artifact { x : i32 y : i32 }
+Point :: Artifact { x : i32; y : i32 }
 
 main : i32 () {
   p : Point = { .y = 3, .x = 4 }

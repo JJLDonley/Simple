@@ -56,6 +56,7 @@ private:
   bool ParsePostfixExpr(Expr* out);
   bool LooksLikeTypeArgsForCall() const;
   bool ParsePrimaryExpr(Expr* out);
+  bool ParseSwitchExpr(Expr* out);
   bool ParseCallArgs(std::vector<Expr>* out);
   bool ParseBracketExprList(std::vector<Expr>* out);
   bool ParseFnLiteral(Expr* out);

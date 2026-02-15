@@ -26,7 +26,6 @@ struct TypeRef {
   std::vector<TypeRef> type_args;
   std::vector<TypeDim> dims;
   bool is_proc = false;
-  bool proc_is_callback = false;
   Mutability proc_return_mutability = Mutability::Mutable;
   std::vector<TypeRef> proc_params;
   std::unique_ptr<TypeRef> proc_return;
@@ -40,7 +39,6 @@ struct TypeRef {
         type_args(other.type_args),
         dims(other.dims),
         is_proc(other.is_proc),
-        proc_is_callback(other.proc_is_callback),
         proc_return_mutability(other.proc_return_mutability),
         proc_params(other.proc_params),
         line(other.line),
@@ -56,7 +54,6 @@ struct TypeRef {
     type_args = other.type_args;
     dims = other.dims;
     is_proc = other.is_proc;
-    proc_is_callback = other.proc_is_callback;
     proc_return_mutability = other.proc_return_mutability;
     proc_params = other.proc_params;
     line = other.line;
@@ -78,6 +75,8 @@ struct ParamDecl {
   TypeRef type;
 };
 
+struct SwitchBranch;
+
 enum class ExprKind : uint8_t {
   Identifier,
   Literal,
@@ -90,6 +89,7 @@ enum class ExprKind : uint8_t {
   ListLiteral,
   ArtifactLiteral,
   FnLiteral,
+  Switch,
 };
 
 enum class LiteralKind : uint8_t {
@@ -112,6 +112,7 @@ struct Expr {
   std::vector<Expr> field_values;
   std::vector<ParamDecl> fn_params;
   std::vector<Token> fn_body_tokens;
+  std::vector<SwitchBranch> switch_branches;
   uint32_t line = 0;
   uint32_t column = 0;
 };
@@ -156,6 +157,16 @@ struct Stmt {
   Expr loop_step;
   bool has_loop_var_decl = false;
   VarDecl loop_var_decl;
+};
+
+struct SwitchBranch {
+  bool is_default = false;
+  bool is_block = false;
+  bool has_inline_value = false;
+  bool is_explicit_return = false;
+  Expr condition;
+  Expr value;
+  std::vector<Stmt> block;
 };
 
 struct FuncDecl {

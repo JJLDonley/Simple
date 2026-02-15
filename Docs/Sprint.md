@@ -27,6 +27,8 @@ This log records VM-related changes and is used as a historical reference for be
 - Allow list instance methods (`len`, `push`, `pop`, `insert`, `remove`, `clear`) to bypass artifact member checks.
 - Added a cross-module stress fixture exercising artifacts, modules, lists, arrays, and control flow.
 - Added a raylib-inspired stress fixture (artifacts, modules, lists, arrays, control flow) without raylib deps.
+- Aligned Lang parser/validator/SIR with updated spec (switch expressions, `fn` types, pointer syntax, control-flow parens, artifact defaults, extern ABI checks, main entry override).
+- Updated language tests/fixtures to match new syntax and behaviors.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.

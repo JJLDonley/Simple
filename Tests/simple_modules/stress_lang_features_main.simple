@@ -6,7 +6,7 @@ X :: Module {
     }
 
     Mix: i32 (a: i32, b: i32, useMul: bool) {
-        if useMul { return a * b }
+        if (useMul) { return a * b }
         return a + b
     }
 }
@@ -35,7 +35,7 @@ Holder :: Artifact {
     }
 
     RemoveFirst: i32 () {
-        if self.items.len() == 0 { return -1 }
+        if (self.items.len() == 0) { return -1 }
         return self.items.remove(0)
     }
 }
@@ -43,7 +43,7 @@ Holder :: Artifact {
 Y :: Module {
     BuildHolder: Holder (seed: i32) {
         h : Holder = { [], 0 }
-        for i : i32 = 0; i < seed; i += 1 {
+        for (i : i32 = 0; i < seed; i += 1) {
             h.Add(X.Add(i, X.Base()))
         }
         return h
@@ -51,7 +51,7 @@ Y :: Module {
 
     SumArray: i32 (arr: i32[4]) {
         s : i32 = 0
-        for i : i32 = 0; i < 4; i += 1 {
+        for (i : i32 = 0; i < 4; i += 1) {
             s += arr[i]
         }
         return s
@@ -78,7 +78,7 @@ Z :: Module {
         d : i32 = listA.pop()
 
         total : i32 = p.Sum() + h.total + removed + Y.SumArray(arr) + a + b + c + d
-        if total > 30 {
+        if (total > 30) {
             total = total - X.Mix(3, 4, false)
         } else {
             total = total + X.Mix(3, 4, true)
