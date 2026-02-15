@@ -3102,16 +3102,16 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
       }
-      if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
-        if (error) *error = "artifact members must be accessed via self: " + expr.text;
-        PrefixErrorLocation(expr.line, expr.column, error);
-        return false;
-      }
       if (expr.text == "len" || expr.text == "str" ||
           IsPrimitiveCastName(expr.text) || GetAtCastTargetName(expr.text, nullptr)) {
         return true;
       }
       if (FindLocal(scopes, expr.text)) return true;
+      if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
+        if (error) *error = "artifact members must be accessed via self: " + expr.text;
+        PrefixErrorLocation(expr.line, expr.column, error);
+        return false;
+      }
       if (ctx.top_level.find(expr.text) != ctx.top_level.end()) {
         if (ctx.modules.find(expr.text) != ctx.modules.end()) {
           if (error) *error = "module is not a value: " + expr.text;

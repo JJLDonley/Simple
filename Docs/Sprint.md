@@ -22,6 +22,9 @@ This log records VM-related changes and is used as a historical reference for be
 ## Notes
 - This log must record every VM-related change going forward.
 
+## 2026-02-15
+- Allow locals to shadow artifact members (artifact member access still requires `self` when no local exists).
+
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.
 - Implemented list instance methods (`list.len`, `list.push`, `list.pop`, `list.insert`, `list.remove`, `list.clear`).
