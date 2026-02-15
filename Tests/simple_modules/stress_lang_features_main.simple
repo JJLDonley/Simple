@@ -65,7 +65,19 @@ Z :: Module {
         h : Holder = Y.BuildHolder(3)
         removed : i32 = h.RemoveFirst()
         arr : i32[4] = [1, 2, 3, 4]
-        total : i32 = p.Sum() + h.total + removed + Y.SumArray(arr)
+        listA : i32[] = []
+        listA.push(1)
+        listA.push(2)
+        listA.insert(1, 5)
+        a : i32 = listA.remove(0)
+        b : i32 = listA.pop()
+        listA.push(a + b)
+        c : i32 = listA.len()
+        listA.clear()
+        listA.push(c)
+        d : i32 = listA.pop()
+
+        total : i32 = p.Sum() + h.total + removed + Y.SumArray(arr) + a + b + c + d
         if total > 30 {
             total = total - X.Mix(3, 4, false)
         } else {

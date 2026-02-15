@@ -318,7 +318,7 @@ bool LangSimpleFixtureCastI8ToI32() {
 }
 
 bool LangSimpleFixtureStressLangFeatures() {
-  return RunSimpleFileExpectExit("Tests/simple_modules/stress_lang_features_main.simple", 34);
+  return RunSimpleFileExpectExit("Tests/simple_modules/stress_lang_features_main.simple", 41);
 }
 
 bool LangStressEnumAsTypeRuntime() {
