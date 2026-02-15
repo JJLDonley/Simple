@@ -1717,6 +1717,8 @@ This log records VM-related changes and is used as a historical reference for be
   - module vars are lowered to qualified globals (e.g. `Math.x`).
   - module member assignment and access now emit global ops.
   - module var initializers are parsed as expressions.
+- Fixed module var lowering crash:
+  - reserved stable storage for module-qualified globals to avoid invalidated pointers.
 - Added module variable fixture:
   - `Tests/simple/module_var_access.simple`.
 - Tests: `./build_linux --skip-install --tests`.

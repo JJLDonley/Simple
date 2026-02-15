@@ -3515,6 +3515,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   std::vector<const ExternDecl*> externs;
   std::vector<const VarDecl*> globals;
   std::vector<VarDecl> module_globals;
+  size_t module_var_count = 0;
   FuncDecl global_init_fn;
   FuncDecl script_entry_fn;
   const bool has_top_level_script = !program.top_level_stmts.empty();
@@ -3522,6 +3523,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     script_entry_fn.name = "__script_entry";
     script_entry_fn.return_mutability = Mutability::Mutable;
     script_entry_fn.return_type.name = "i32";
+  }
+  for (const auto& decl : program.decls) {
+    if (decl.kind == DeclKind::Module) {
+      module_var_count += decl.module.variables.size();
+    }
+  }
+  if (module_var_count > 0) {
+    module_globals.reserve(module_var_count);
   }
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
