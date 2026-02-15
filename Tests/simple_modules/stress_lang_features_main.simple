@@ -1,0 +1,80 @@
+X :: Module {
+    Base: i32 () { return 3 }
+
+    Add: i32 (a: i32, b: i32) {
+        return a + b
+    }
+
+    Mix: i32 (a: i32, b: i32, useMul: bool) {
+        if useMul { return a * b }
+        return a + b
+    }
+}
+
+Pair :: Artifact {
+    a: i32
+    b: i32
+
+    Sum: i32 () {
+        return self.a + self.b
+    }
+
+    Scale: void (k: i32) {
+        self.a *= k
+        self.b *= k
+    }
+}
+
+Holder :: Artifact {
+    items: i32[]
+    total: i32
+
+    Add: void (v: i32) {
+        self.items.push(v)
+        self.total += v
+    }
+
+    RemoveFirst: i32 () {
+        if self.items.len() == 0 { return -1 }
+        return self.items.remove(0)
+    }
+}
+
+Y :: Module {
+    BuildHolder: Holder (seed: i32) {
+        h : Holder = { [], 0 }
+        for i : i32 = 0; i < seed; i += 1 {
+            h.Add(X.Add(i, X.Base()))
+        }
+        return h
+    }
+
+    SumArray: i32 (arr: i32[4]) {
+        s : i32 = 0
+        for i : i32 = 0; i < 4; i += 1 {
+            s += arr[i]
+        }
+        return s
+    }
+}
+
+Z :: Module {
+    Run: i32 (v: i32) {
+        p : Pair = { v, X.Base() }
+        p.Scale(2)
+        h : Holder = Y.BuildHolder(3)
+        removed : i32 = h.RemoveFirst()
+        arr : i32[4] = [1, 2, 3, 4]
+        total : i32 = p.Sum() + h.total + removed + Y.SumArray(arr)
+        if total > 30 {
+            total = total - X.Mix(3, 4, false)
+        } else {
+            total = total + X.Mix(3, 4, true)
+        }
+        return total
+    }
+}
+
+main : i32 () {
+    return Z.Run(5)
+}
