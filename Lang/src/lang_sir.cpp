@@ -575,7 +575,8 @@ const char* DecOpForType(const std::string& name) {
   return nullptr;
 }
 
-const char* VmOpSuffixForType(const TypeRef& type) {
+const char* VmOpSuffixForType(const TypeRef& type, const EmitState& st) {
+  if (type.pointer_depth > 0) return "i64";
   if (type.is_proc) return "ref";
   if (!type.dims.empty()) return "ref";
   if (type.name == "string") return "ref";
@@ -586,11 +587,12 @@ const char* VmOpSuffixForType(const TypeRef& type) {
   if (type.name == "i64" || type.name == "u64") return "i64";
   if (type.name == "f32") return "f32";
   if (type.name == "f64") return "f64";
-  return nullptr;
+  if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
+  return "ref";
 }
 
-const char* VmTypeNameForElement(const TypeRef& type) {
-  const char* suffix = VmOpSuffixForType(type);
+const char* VmTypeNameForElement(const TypeRef& type, const EmitState& st) {
+  const char* suffix = VmOpSuffixForType(type, st);
   if (!suffix) return nullptr;
   if (std::string(suffix) == "i32") return "i32";
   if (std::string(suffix) == "i64") return "i64";
@@ -842,23 +844,29 @@ bool InferExprType(const Expr& expr,
       TypeRef right;
       if (!InferExprType(expr.children[0], st, &left, error)) return false;
       if (!InferExprType(expr.children[1], st, &right, error)) return false;
+      const bool is_bool_op =
+          (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
+           expr.op == ">" || expr.op == ">=" || expr.op == "&&" || expr.op == "||");
+      TypeRef matched;
       if (left.name == right.name) {
-        return CloneTypeRef(left, out);
+        if (!CloneTypeRef(left, &matched)) return false;
+      } else if (IsIntegerLiteralExpr(expr.children[0]) && IsIntegralType(right.name)) {
+        if (!CloneTypeRef(right, &matched)) return false;
+      } else if (IsIntegerLiteralExpr(expr.children[1]) && IsIntegralType(left.name)) {
+        if (!CloneTypeRef(left, &matched)) return false;
+      } else if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right.name)) {
+        if (!CloneTypeRef(right, &matched)) return false;
+      } else if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left.name)) {
+        if (!CloneTypeRef(left, &matched)) return false;
+      } else {
+        if (error) *error = "operand type mismatch for '" + expr.op + "'";
+        return false;
       }
-      if (IsIntegerLiteralExpr(expr.children[0]) && IsIntegralType(right.name)) {
-        return CloneTypeRef(right, out);
+      if (is_bool_op) {
+        out->name = "bool";
+        return true;
       }
-      if (IsIntegerLiteralExpr(expr.children[1]) && IsIntegralType(left.name)) {
-        return CloneTypeRef(left, out);
-      }
-      if (IsFloatLiteralExpr(expr.children[0]) && IsFloatType(right.name)) {
-        return CloneTypeRef(right, out);
-      }
-      if (IsFloatLiteralExpr(expr.children[1]) && IsFloatType(left.name)) {
-        return CloneTypeRef(left, out);
-      }
-      if (error) *error = "operand type mismatch for '" + expr.op + "'";
-      return false;
+      return CloneTypeRef(matched, out);
     }
     case ExprKind::Index: {
       if (expr.children.size() < 2) {
@@ -1378,7 +1386,7 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
       if (error) *error = "failed to resolve index element type";
       return false;
     }
-    const char* op_suffix = VmOpSuffixForType(element_type);
+    const char* op_suffix = VmOpSuffixForType(element_type, st);
     if (!op_suffix) {
       if (error) *error = "unsupported index assignment element type for SIR emission";
       return false;
@@ -1570,7 +1578,7 @@ bool EmitUnary(EmitState& st,
         if (error) *error = "failed to resolve index element type";
         return false;
       }
-      const char* op_suffix = VmOpSuffixForType(element_type);
+      const char* op_suffix = VmOpSuffixForType(element_type, st);
       if (!op_suffix) {
         if (error) *error = "unsupported index element type for SIR emission";
         return false;
@@ -1652,7 +1660,7 @@ bool EmitUnary(EmitState& st,
         if (error) *error = "failed to resolve index element type";
         return false;
       }
-      const char* op_suffix = VmOpSuffixForType(element_type);
+      const char* op_suffix = VmOpSuffixForType(element_type, st);
       if (!op_suffix) {
         if (error) *error = "unsupported index element type for SIR emission";
         return false;
@@ -1721,7 +1729,10 @@ bool EmitBinary(EmitState& st,
   if (!InferExprType(expr.children[0], st, &left_type, error)) return false;
   TypeRef right_type;
   if (!InferExprType(expr.children[1], st, &right_type, error)) return false;
-  if (left_type.name != right_type.name && !expected) {
+  const bool is_cmp =
+      (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
+       expr.op == ">" || expr.op == ">=");
+  if (left_type.name != right_type.name && (!expected || is_cmp)) {
     const bool lhs_lit = IsIntegerLiteralExpr(expr.children[0]);
     const bool rhs_lit = IsIntegerLiteralExpr(expr.children[1]);
     const bool lhs_int = IsIntegralType(left_type.name);
@@ -1789,7 +1800,7 @@ bool EmitBinary(EmitState& st,
     if (error) *error = "failed to clone type";
     return false;
   }
-  if (expected) {
+  if (expected && !is_cmp) {
     if (!CloneTypeRef(*expected, &type)) {
       if (error) *error = "failed to clone expected type";
       return false;
@@ -2058,7 +2069,7 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "call argument count mismatch for 'list.push'";
               return false;
             }
-            const char* op_suffix = VmOpSuffixForType(element_type);
+            const char* op_suffix = VmOpSuffixForType(element_type, st);
             if (!op_suffix) {
               if (error) *error = "unsupported list element type for list.push";
               return false;
@@ -2074,7 +2085,7 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "call argument count mismatch for 'list.pop'";
               return false;
             }
-            const char* op_suffix = VmOpSuffixForType(element_type);
+            const char* op_suffix = VmOpSuffixForType(element_type, st);
             if (!op_suffix) {
               if (error) *error = "unsupported list element type for list.pop";
               return false;
@@ -2090,7 +2101,7 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "call argument count mismatch for 'list.insert'";
               return false;
             }
-            const char* op_suffix = VmOpSuffixForType(element_type);
+            const char* op_suffix = VmOpSuffixForType(element_type, st);
             if (!op_suffix) {
               if (error) *error = "unsupported list element type for list.insert";
               return false;
@@ -2108,7 +2119,7 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "call argument count mismatch for 'list.remove'";
               return false;
             }
-            const char* op_suffix = VmOpSuffixForType(element_type);
+            const char* op_suffix = VmOpSuffixForType(element_type, st);
             if (!op_suffix) {
               if (error) *error = "unsupported list element type for list.remove";
               return false;
@@ -2698,8 +2709,8 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "failed to resolve array/list element type";
         return false;
       }
-      const char* op_suffix = VmOpSuffixForType(element_type);
-      const char* type_name = VmTypeNameForElement(element_type);
+      const char* op_suffix = VmOpSuffixForType(element_type, st);
+      const char* type_name = VmTypeNameForElement(element_type, st);
       if (!op_suffix || !type_name) {
         if (error) *error = "unsupported array/list element type for SIR emission";
         return false;
@@ -2744,7 +2755,7 @@ bool EmitExpr(EmitState& st,
         if (error) *error = "failed to resolve index element type";
         return false;
       }
-      const char* op_suffix = VmOpSuffixForType(element_type);
+      const char* op_suffix = VmOpSuffixForType(element_type, st);
       if (!op_suffix) {
         if (error) *error = "unsupported index element type for SIR emission";
         return false;
@@ -3079,7 +3090,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
           if (error) *error = "failed to resolve index element type";
           return false;
         }
-        const char* op_suffix = VmOpSuffixForType(element_type);
+        const char* op_suffix = VmOpSuffixForType(element_type, st);
         if (!op_suffix) {
           if (error) *error = "unsupported index assignment element type for SIR emission";
           return false;
@@ -3434,8 +3445,9 @@ bool EmitFunction(EmitState& st,
     }
   }
 
-  if (!st.saw_return) {
-    if ((fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
+  const bool return_is_void = (fn.return_type.name == "void");
+  if (return_is_void || !st.saw_return) {
+    if (!st.saw_return && (fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
       (*st.out) << "  const.i32 0\n";
       PushStack(st, 1);
     }

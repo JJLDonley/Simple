@@ -14,6 +14,9 @@
 #include <vector>
 #include <cstdlib>
 #include <iostream>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 
 namespace Simple::VM::Tests {
 namespace {
@@ -21,6 +24,16 @@ namespace {
 bool RunCommand(const std::string& command) {
   const int result = std::system(command.c_str());
   return result == 0;
+}
+
+int SystemExitCode(int result) {
+#ifdef _WIN32
+  return result;
+#else
+  if (WIFEXITED(result)) return WEXITSTATUS(result);
+  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
+  return result;
+#endif
 }
 
 std::string TempPath(const std::string& name);
@@ -47,7 +60,7 @@ std::string RunCommandCaptureStderr(const std::string& command, int* out_exit_co
   const std::string err_path = TempPath("simple_command_stderr_capture.txt");
   const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
   const int result = std::system(wrapped.c_str());
-  if (out_exit_code) *out_exit_code = result;
+  if (out_exit_code) *out_exit_code = SystemExitCode(result);
   return ReadFileText(err_path);
 }
 
@@ -319,6 +332,13 @@ bool LangSimpleFixtureCastI8ToI32() {
 
 bool LangSimpleFixtureStressLangFeatures() {
   return RunSimpleFileExpectExit("Tests/simple_modules/stress_lang_features_main.simple", 41);
+}
+
+bool LangSimpleFixtureStressRaylibLike() {
+  int exit_code = 0;
+  RunCommandCaptureStderr("bin/simple run Tests/simple_modules/stress_raylib_like_main.simple",
+                          &exit_code);
+  return exit_code == 16;
 }
 
 bool LangStressEnumAsTypeRuntime() {
@@ -3422,6 +3442,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_string_escape_hex", LangSimpleFixtureStringEscapeHex},
   {"lang_simple_fixture_cast_i8_to_i32", LangSimpleFixtureCastI8ToI32},
   {"lang_simple_fixture_stress_lang_features", LangSimpleFixtureStressLangFeatures},
+  {"lang_simple_fixture_stress_raylib_like", LangSimpleFixtureStressRaylibLike},
   {"lang_simple_fixture_module_multi", LangSimpleFixtureModuleMulti},
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},

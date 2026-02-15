@@ -1,0 +1,25 @@
+Vector2 :: Artifact {
+    x: f32
+    y: f32
+}
+
+Bullet :: Artifact {
+    position: Vector2
+    velocity: Vector2
+    alive: bool
+    ttl: f32
+
+    Update: void (dt: f32) {
+        if !self.alive { return }
+        self.position.x += self.velocity.x * dt
+        self.position.y += self.velocity.y * dt
+        self.ttl -= dt
+        if self.ttl <= 0.0 { self.alive = false }
+    }
+}
+
+Asteroid :: Artifact {
+    position: Vector2
+    size: f32
+    alive: bool
+}

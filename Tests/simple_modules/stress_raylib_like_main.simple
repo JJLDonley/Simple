@@ -1,0 +1,119 @@
+import "stress_raylib_like_types"
+
+World :: Module {
+    Width: f32 () { return 100.0 }
+    Height: f32 () { return 100.0 }
+
+    WrapPosition: Vector2 (p: Vector2) {
+        v : Vector2 = p
+        if v.x < 0.0 { v.x = World.Width() }
+        else if v.x > World.Width() { v.x = 0.0 }
+        if v.y < 0.0 { v.y = World.Height() }
+        else if v.y > World.Height() { v.y = 0.0 }
+        return v
+    }
+
+    SpawnChunks: Vector2[] (position: Vector2, size: Vector2) {
+        halfSize :: Vector2 = { size.x / 2.0, size.y / 2.0 }
+        return [
+            { position.x - halfSize.x, position.y - halfSize.y },
+            { position.x + halfSize.x, position.y - halfSize.y },
+            { position.x - halfSize.x, position.y + halfSize.y },
+            { position.x + halfSize.x, position.y + halfSize.y }
+        ]
+    }
+}
+
+Player :: Artifact {
+    position: Vector2
+    bullets: Bullet[]
+    fireCooldown: f32
+
+    Update: void (dt: f32, fire: bool) {
+        if fire && (self.fireCooldown <= 0.0) {
+            self.fireCooldown = 0.1
+            b : Bullet = {
+                position: self.position,
+                velocity: { 0.0, 0.0 },
+                alive: true,
+                ttl: 1.0
+            }
+            self.bullets.push(b)
+        }
+
+        keep : Bullet[] = []
+        for i : i32 = 0; i < self.bullets.len(); i += 1 {
+            self.bullets[i].Update(dt)
+            if self.bullets[i].alive {
+                keep.push(self.bullets[i])
+            }
+        }
+        self.bullets = keep
+
+        if self.fireCooldown > 0.0 {
+            self.fireCooldown -= dt
+        }
+    }
+}
+
+main : i32 () {
+    player : Player = {
+        .position = { 0.0, 0.0 },
+        .bullets = [],
+        .fireCooldown = 0.0
+    }
+
+    asteroids : Asteroid[] = []
+    asteroids.push({ { 0.0, 0.0 }, 40.0, true })
+    asteroids.push({ { 10.0, 0.0 }, 8.0, true })
+
+    score : i32 = 0
+
+    for step : i32 = 0; step < 3; step += 1 {
+        fire : bool = step == 0
+        player.Update(0.5, fire)
+
+        for bi : i32 = 0; bi < player.bullets.len(); bi += 1 {
+            if player.bullets[bi].alive {
+                for hit : i32 = 0; hit < asteroids.len(); hit += 1 {
+                    if asteroids[hit].alive &&
+                       player.bullets[bi].position.x == asteroids[hit].position.x &&
+                       player.bullets[bi].position.y == asteroids[hit].position.y {
+                        player.bullets[bi].alive = false
+                        asteroids[hit].alive = false
+                        score += 10
+                    }
+                }
+            }
+        }
+
+        nextA : Asteroid[] = []
+        for aj : i32 = 0; aj < asteroids.len(); aj += 1 {
+            |> asteroids[aj].alive {
+                nextA.push(asteroids[aj])
+            } 
+            |> asteroids[aj].size > 10.0 {
+                chunks : Vector2[] = World.SpawnChunks(
+                    asteroids[aj].position,
+                    { asteroids[aj].size, asteroids[aj].size })
+                for ci : i32 = 0; ci < chunks.len(); ci += 1 {
+                    nextA.push({ chunks[ci], asteroids[aj].size * 0.5, true })
+                }
+            }
+            |> default {}
+        }
+        asteroids = nextA
+    }
+
+    listA : i32[] = []
+    listA.push(score)
+    listA.insert(0, 1)
+    a : i32 = listA.remove(0)
+    b : i32 = listA.pop()
+    listA.clear()
+    listA.push(a + b)
+    c : i32 = listA.len()
+    score += c
+
+    return score + asteroids.len() + player.bullets.len()
+}

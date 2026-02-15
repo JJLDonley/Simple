@@ -26,6 +26,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Allow locals to shadow artifact members (artifact member access still requires `self` when no local exists).
 - Allow list instance methods (`len`, `push`, `pop`, `insert`, `remove`, `clear`) to bypass artifact member checks.
 - Added a cross-module stress fixture exercising artifacts, modules, lists, arrays, and control flow.
+- Added a raylib-inspired stress fixture (artifacts, modules, lists, arrays, control flow) without raylib deps.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.
@@ -1696,3 +1697,19 @@ This log records VM-related changes and is used as a historical reference for be
 - JIT Phase 4 (call support):
   - allow compiled direct calls to compiled-safe callees.
   - add compiled call regression coverage.
+
+## 2026-02-15
+- Fixed SIR type inference for comparisons/logical ops:
+  - comparisons now infer `bool` without breaking numeric literal coercions.
+  - comparison emission ignores typed contexts to keep operand types correct.
+- Fixed SIR fallthrough for `void` functions:
+  - always emit a trailing `ret` for `void` functions even when earlier `return` exists.
+- Improved list emission for ref types:
+  - list ops and literals now resolve artifact/enum element types to `ref`/`i32` via emit state.
+- Expanded raylib-like stress fixture:
+  - `World.SpawnChunks` returns `Vector2[]` (list of artifacts) and uses list literals.
+  - corrected duplicate local names in nested loops.
+- Updated lang tests:
+  - run the raylib-like fixture via CLI so filename imports resolve.
+  - normalize CLI exit codes from `std::system`.
+- Tests: `./build_linux --skip-install --tests`.
