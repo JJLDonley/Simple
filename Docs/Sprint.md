@@ -24,6 +24,7 @@ This log records VM-related changes and is used as a historical reference for be
 
 ## 2026-02-15
 - Allow locals to shadow artifact members (artifact member access still requires `self` when no local exists).
+- Allow list instance methods (`len`, `push`, `pop`, `insert`, `remove`, `clear`) to bypass artifact member checks.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.

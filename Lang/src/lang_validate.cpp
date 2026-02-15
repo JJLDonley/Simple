@@ -2750,6 +2750,11 @@ bool IsStringTypeName(const std::string& name) {
   return name == "string";
 }
 
+bool IsListMethodName(const std::string& name) {
+  return name == "len" || name == "push" || name == "pop" ||
+         name == "insert" || name == "remove" || name == "clear";
+}
+
 bool IsNumericTypeName(const std::string& name) {
   return IsIntegerTypeName(name) || IsFloatTypeName(name);
 }
@@ -3484,6 +3489,10 @@ bool CheckExpr(const Expr& expr,
         }
         TypeRef base_type;
         if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+          if (!base_type.dims.empty() && base_type.dims.front().is_list &&
+              IsListMethodName(expr.text)) {
+            return true;
+          }
           auto artifact_it = ctx.artifacts.find(base_type.name);
           if (artifact_it != ctx.artifacts.end()) {
             const ArtifactDecl* artifact = artifact_it->second;
