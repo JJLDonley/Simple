@@ -1715,6 +1715,12 @@ This log records VM-related changes and is used as a historical reference for be
   - `"{}"` format expressions build strings via `string.concat`.
   - added validation coverage for format expression placeholder mismatches and invalid args.
 - Reserved imports are now case-insensitive (for example `System.IO`, `sYsTeM.iO`).
+- Added ABI flattening for extern/DL calls:
+  - compiler emits `__abi_*` structs for extern params/returns with nested artifacts.
+  - extern call emission packs/unpacks nested artifacts at the ABI boundary.
+  - validation now recursively checks ABI-safe artifact fields.
+- Restored `RenderTexture` to nested `Texture` fields in the raylib sample.
+- Tests: `./scripts/fast_tests.sh`.
 
 ## 2026-02-15
 - Fixed SIR type inference for comparisons/logical ops:

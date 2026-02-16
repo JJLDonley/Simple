@@ -267,8 +267,8 @@ bool IsSupportedDlAbiType(const TypeRef& type,
   if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) return true;
   if (ctx.artifacts.find(type.name) != ctx.artifacts.end()) {
     std::unordered_set<std::string> visiting;
-    std::function<bool(const std::string&)> is_recursive = [&](const std::string& name) -> bool {
-      if (!visiting.insert(name).second) return true;
+    std::function<bool(const std::string&)> check_struct = [&](const std::string& name) -> bool {
+      if (!visiting.insert(name).second) return false;
       auto it = ctx.artifacts.find(name);
       if (it == ctx.artifacts.end()) {
         visiting.erase(name);
@@ -276,19 +276,33 @@ bool IsSupportedDlAbiType(const TypeRef& type,
       }
       const ArtifactDecl* art = it->second;
       for (const auto& field : art->fields) {
-        if (field.type.pointer_depth > 0) continue;
-        if (ctx.artifacts.find(field.type.name) != ctx.artifacts.end()) {
-          if (is_recursive(field.type.name)) {
-            visiting.erase(name);
-            return true;
-          }
+        if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+          visiting.erase(name);
+          return false;
         }
+        if (field.type.pointer_depth > 0) continue;
+        if (field.type.name == "i8" || field.type.name == "i16" || field.type.name == "i32" ||
+            field.type.name == "i64" || field.type.name == "u8" || field.type.name == "u16" ||
+            field.type.name == "u32" || field.type.name == "u64" || field.type.name == "f32" ||
+            field.type.name == "f64" || field.type.name == "bool" || field.type.name == "char" ||
+            field.type.name == "string") {
+          continue;
+        }
+        if (ctx.enum_types.find(field.type.name) != ctx.enum_types.end()) continue;
+        if (ctx.artifacts.find(field.type.name) != ctx.artifacts.end()) {
+          if (!check_struct(field.type.name)) {
+            visiting.erase(name);
+            return false;
+          }
+          continue;
+        }
+        visiting.erase(name);
+        return false;
       }
       visiting.erase(name);
-      return false;
+      return true;
     };
-    if (is_recursive(type.name)) return false;
-    return true;
+    return check_struct(type.name);
   }
   return false;
 }

@@ -1,6 +1,7 @@
 #include "lang_sir.h"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -82,6 +83,19 @@ struct EmitState {
   std::unordered_map<std::string, ArtifactLayout> artifact_layouts;
   std::unordered_map<std::string, std::unordered_map<std::string, int64_t>> enum_values;
 
+  uint32_t temp_counter = 0;
+  struct AbiFieldPath {
+    std::vector<std::string> path;
+    TypeRef type;
+    std::string abi_name;
+  };
+  struct AbiTypeInfo {
+    std::string name;
+    std::vector<AbiFieldPath> fields;
+  };
+  std::unordered_map<std::string, AbiTypeInfo> abi_types;
+  std::unordered_map<std::string, std::string> abi_type_by_artifact;
+
   uint32_t stack_cur = 0;
   uint32_t stack_max = 0;
   bool saw_return = false;
@@ -107,6 +121,7 @@ struct FuncItem {
 bool PushStack(EmitState& st, uint32_t count);
 bool PopStack(EmitState& st, uint32_t count);
 bool AddStringConst(EmitState& st, const std::string& value, std::string* out_name);
+bool CloneTypeRef(const TypeRef& src, TypeRef* out);
 bool EmitExpr(EmitState& st,
               const Expr& expr,
               const TypeRef* expected,
@@ -138,6 +153,123 @@ bool IsPrimitiveCastName(const std::string& name) {
          name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
          name == "f32" || name == "f64" || name == "bool" || name == "char" ||
          name == "string";
+}
+
+bool IsAbiScalarType(const TypeRef& type, const EmitState& st) {
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (type.pointer_depth > 0) return true;
+  if (type.name == "string") return true;
+  if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return true;
+  if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
+  return false;
+}
+
+bool ArtifactHasNestedArtifacts(const std::string& name, const EmitState& st) {
+  auto it = st.artifacts.find(name);
+  if (it == st.artifacts.end()) return false;
+  const ArtifactDecl* art = it->second;
+  for (const auto& field : art->fields) {
+    if (field.type.pointer_depth > 0) continue;
+    if (st.artifacts.find(field.type.name) != st.artifacts.end()) return true;
+  }
+  return false;
+}
+
+bool NeedsAbiFlattenType(const TypeRef& type, const EmitState& st) {
+  if (type.pointer_depth > 0) return false;
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (st.artifacts.find(type.name) == st.artifacts.end()) return false;
+  return ArtifactHasNestedArtifacts(type.name, st);
+}
+
+bool CollectAbiFieldsForArtifact(const std::string& name,
+                                 const EmitState& st,
+                                 std::vector<std::string>& prefix,
+                                 std::vector<EmitState::AbiFieldPath>* out_fields,
+                                 std::unordered_set<std::string>* visiting,
+                                 std::string* error) {
+  auto it = st.artifacts.find(name);
+  if (it == st.artifacts.end()) {
+    if (error) *error = "unknown artifact for ABI flattening: " + name;
+    return false;
+  }
+  if (visiting && !visiting->insert(name).second) {
+    if (error) *error = "recursive artifact ABI flattening is unsupported: " + name;
+    return false;
+  }
+  const ArtifactDecl* art = it->second;
+  for (const auto& field : art->fields) {
+    if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
+      return false;
+    }
+    if (field.type.pointer_depth > 0) {
+      EmitState::AbiFieldPath item;
+      item.path = prefix;
+      item.path.push_back(field.name);
+      if (!CloneTypeRef(field.type, &item.type)) return false;
+      out_fields->push_back(std::move(item));
+      continue;
+    }
+    if (st.artifacts.find(field.type.name) != st.artifacts.end()) {
+      prefix.push_back(field.name);
+      if (!CollectAbiFieldsForArtifact(field.type.name, st, prefix, out_fields, visiting, error)) return false;
+      prefix.pop_back();
+      continue;
+    }
+    if (!IsAbiScalarType(field.type, st)) {
+      if (error) *error = "unsupported ABI field type in artifact: " + field.name;
+      return false;
+    }
+    EmitState::AbiFieldPath item;
+    item.path = prefix;
+    item.path.push_back(field.name);
+    if (!CloneTypeRef(field.type, &item.type)) return false;
+    if (st.enum_values.find(item.type.name) != st.enum_values.end()) {
+      item.type.name = "i32";
+      item.type.type_args.clear();
+      item.type.dims.clear();
+      item.type.pointer_depth = 0;
+      item.type.is_proc = false;
+      item.type.proc_params.clear();
+      item.type.proc_return.reset();
+    }
+    out_fields->push_back(std::move(item));
+  }
+  if (visiting) visiting->erase(name);
+  return true;
+}
+
+bool EnsureAbiTypeForArtifact(EmitState& st,
+                              const std::string& name,
+                              std::string* out_abi_name,
+                              std::string* error) {
+  auto existing = st.abi_type_by_artifact.find(name);
+  if (existing != st.abi_type_by_artifact.end()) {
+    if (out_abi_name) *out_abi_name = existing->second;
+    return true;
+  }
+  if (!ArtifactHasNestedArtifacts(name, st)) {
+    if (out_abi_name) *out_abi_name = name;
+    return true;
+  }
+  EmitState::AbiTypeInfo info;
+  info.name = "__abi_" + name;
+  std::vector<std::string> prefix;
+  std::unordered_set<std::string> visiting;
+  if (!CollectAbiFieldsForArtifact(name, st, prefix, &info.fields, &visiting, error)) return false;
+  for (auto& field : info.fields) {
+    std::string flat;
+    for (size_t i = 0; i < field.path.size(); ++i) {
+      if (i) flat += "__";
+      flat += field.path[i];
+    }
+    field.abi_name = flat;
+  }
+  st.abi_type_by_artifact[name] = info.name;
+  st.abi_types.emplace(info.name, std::move(info));
+  if (out_abi_name) *out_abi_name = st.abi_type_by_artifact[name];
+  return true;
 }
 
 bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
@@ -367,7 +499,46 @@ bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_v
     return true;
   }
   if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
-  return st.artifacts.find(type.name) != st.artifacts.end();
+  if (st.artifacts.find(type.name) != st.artifacts.end()) {
+    std::unordered_set<std::string> visiting;
+    std::function<bool(const std::string&)> check_struct = [&](const std::string& name) -> bool {
+      if (!visiting.insert(name).second) return false;
+      auto it = st.artifacts.find(name);
+      if (it == st.artifacts.end()) {
+        visiting.erase(name);
+        return false;
+      }
+      const ArtifactDecl* art = it->second;
+      for (const auto& field : art->fields) {
+        if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+          visiting.erase(name);
+          return false;
+        }
+        if (field.type.pointer_depth > 0) continue;
+        if (field.type.name == "i8" || field.type.name == "i16" || field.type.name == "i32" ||
+            field.type.name == "i64" || field.type.name == "u8" || field.type.name == "u16" ||
+            field.type.name == "u32" || field.type.name == "u64" || field.type.name == "f32" ||
+            field.type.name == "f64" || field.type.name == "bool" || field.type.name == "char" ||
+            field.type.name == "string") {
+          continue;
+        }
+        if (st.enum_values.find(field.type.name) != st.enum_values.end()) continue;
+        if (st.artifacts.find(field.type.name) != st.artifacts.end()) {
+          if (!check_struct(field.type.name)) {
+            visiting.erase(name);
+            return false;
+          }
+          continue;
+        }
+        visiting.erase(name);
+        return false;
+      }
+      visiting.erase(name);
+      return true;
+    };
+    return check_struct(type.name);
+  }
+  return false;
 }
 
 bool GetPrintAnyTagForType(const TypeRef& type, uint32_t* out, std::string* error) {
@@ -609,6 +780,212 @@ bool CloneElementType(const TypeRef& container, TypeRef* out) {
   return true;
 }
 
+bool AllocateTempLocal(EmitState& st,
+                       const TypeRef& type,
+                       std::string* out_name,
+                       uint16_t* out_index,
+                       std::string* error) {
+  std::string name = "__abi_tmp" + std::to_string(st.temp_counter++);
+  if (st.local_indices.find(name) != st.local_indices.end()) {
+    if (error) *error = "internal error: temp local collision";
+    return false;
+  }
+  uint16_t index = st.next_local++;
+  st.local_indices.emplace(name, index);
+  TypeRef cloned;
+  if (!CloneTypeRef(type, &cloned)) return false;
+  st.local_types.emplace(name, std::move(cloned));
+  if (out_name) *out_name = name;
+  if (out_index) *out_index = index;
+  return true;
+}
+
+const EmitState::AbiTypeInfo* FindAbiTypeForArtifact(const EmitState& st,
+                                                     const std::string& name) {
+  auto it = st.abi_type_by_artifact.find(name);
+  if (it == st.abi_type_by_artifact.end()) return nullptr;
+  auto info_it = st.abi_types.find(it->second);
+  if (info_it == st.abi_types.end()) return nullptr;
+  return &info_it->second;
+}
+
+bool EmitLoadFieldPathFromLocal(EmitState& st,
+                                uint16_t src_index,
+                                const std::string& root_type,
+                                const std::vector<std::string>& path,
+                                TypeRef* out_leaf,
+                                std::string* error) {
+  if (path.empty()) {
+    if (error) *error = "internal error: empty ABI field path";
+    return false;
+  }
+  (*st.out) << "  ldloc " << src_index << "\n";
+  PushStack(st, 1);
+  std::string current = root_type;
+  TypeRef leaf_type;
+  for (size_t i = 0; i < path.size(); ++i) {
+    auto layout_it = st.artifact_layouts.find(current);
+    if (layout_it == st.artifact_layouts.end()) {
+      if (error) *error = "unknown artifact layout for '" + current + "'";
+      return false;
+    }
+    const auto& layout = layout_it->second;
+    auto field_it = layout.field_index.find(path[i]);
+    if (field_it == layout.field_index.end()) {
+      if (error) *error = "unknown field '" + path[i] + "' in '" + current + "'";
+      return false;
+    }
+    const TypeRef& field_type = layout.fields[field_it->second].type;
+    (*st.out) << "  ldfld " << current << "." << path[i] << "\n";
+    if (!CloneTypeRef(field_type, &leaf_type)) return false;
+    if (i + 1 < path.size()) {
+      current = field_type.name;
+    }
+  }
+  if (out_leaf) *out_leaf = std::move(leaf_type);
+  return true;
+}
+
+bool EmitAbiPackArtifactArg(EmitState& st,
+                            const Expr& value,
+                            const TypeRef& orig_type,
+                            const EmitState::AbiTypeInfo& abi,
+                            std::string* error) {
+  if (!EmitExpr(st, value, &orig_type, error)) return false;
+  std::string src_name;
+  uint16_t src_index = 0;
+  if (!AllocateTempLocal(st, orig_type, &src_name, &src_index, error)) return false;
+  (*st.out) << "  stloc " << src_index << "\n";
+  PopStack(st, 1);
+
+  TypeRef abi_type;
+  abi_type.name = abi.name;
+  std::string abi_name;
+  uint16_t abi_index = 0;
+  (*st.out) << "  newobj " << abi.name << "\n";
+  PushStack(st, 1);
+  if (!AllocateTempLocal(st, abi_type, &abi_name, &abi_index, error)) return false;
+  (*st.out) << "  stloc " << abi_index << "\n";
+  PopStack(st, 1);
+
+  for (const auto& field : abi.fields) {
+    (*st.out) << "  ldloc " << abi_index << "\n";
+    PushStack(st, 1);
+    if (!EmitLoadFieldPathFromLocal(st, src_index, orig_type.name, field.path, nullptr, error)) return false;
+    (*st.out) << "  stfld " << abi.name << "." << field.abi_name << "\n";
+    PopStack(st, 2);
+  }
+
+  (*st.out) << "  ldloc " << abi_index << "\n";
+  PushStack(st, 1);
+  return true;
+}
+
+bool EmitAbiInflateReturn(EmitState& st,
+                          const EmitState::AbiTypeInfo& abi,
+                          const std::string& orig_type,
+                          std::string* error) {
+  TypeRef abi_type;
+  abi_type.name = abi.name;
+  std::string abi_name;
+  uint16_t abi_index = 0;
+  if (!AllocateTempLocal(st, abi_type, &abi_name, &abi_index, error)) return false;
+  (*st.out) << "  stloc " << abi_index << "\n";
+  PopStack(st, 1);
+
+  TypeRef root_type;
+  root_type.name = orig_type;
+  std::string root_name;
+  uint16_t root_index = 0;
+  (*st.out) << "  newobj " << orig_type << "\n";
+  PushStack(st, 1);
+  if (!AllocateTempLocal(st, root_type, &root_name, &root_index, error)) return false;
+  (*st.out) << "  stloc " << root_index << "\n";
+  PopStack(st, 1);
+
+  std::unordered_map<std::string, uint16_t> nested_locals;
+  std::unordered_map<std::string, std::string> nested_types;
+
+  for (const auto& field : abi.fields) {
+    std::string current_type = orig_type;
+    std::string prefix_key;
+    for (size_t i = 0; i + 1 < field.path.size(); ++i) {
+      if (!prefix_key.empty()) prefix_key += ".";
+      prefix_key += field.path[i];
+      if (nested_locals.find(prefix_key) != nested_locals.end()) {
+        current_type = nested_types[prefix_key];
+        continue;
+      }
+      auto layout_it = st.artifact_layouts.find(current_type);
+      if (layout_it == st.artifact_layouts.end()) {
+        if (error) *error = "unknown artifact layout for '" + current_type + "'";
+        return false;
+      }
+      auto field_it = layout_it->second.field_index.find(field.path[i]);
+      if (field_it == layout_it->second.field_index.end()) {
+        if (error) *error = "unknown field '" + field.path[i] + "' in '" + current_type + "'";
+        return false;
+      }
+      const TypeRef& field_type = layout_it->second.fields[field_it->second].type;
+      TypeRef nested_type;
+      if (!CloneTypeRef(field_type, &nested_type)) return false;
+      std::string nested_name;
+      uint16_t nested_index = 0;
+      (*st.out) << "  newobj " << field_type.name << "\n";
+      PushStack(st, 1);
+      if (!AllocateTempLocal(st, nested_type, &nested_name, &nested_index, error)) return false;
+      (*st.out) << "  stloc " << nested_index << "\n";
+      PopStack(st, 1);
+
+      uint16_t parent_index = root_index;
+      std::string parent_type = orig_type;
+      if (!prefix_key.empty()) {
+        size_t dot = prefix_key.rfind('.');
+        if (dot != std::string::npos) {
+          std::string parent_key = prefix_key.substr(0, dot);
+          parent_index = nested_locals[parent_key];
+          parent_type = nested_types[parent_key];
+        }
+      }
+      (*st.out) << "  ldloc " << parent_index << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  ldloc " << nested_index << "\n";
+      PushStack(st, 1);
+      (*st.out) << "  stfld " << parent_type << "." << field.path[i] << "\n";
+      PopStack(st, 2);
+
+      nested_locals[prefix_key] = nested_index;
+      nested_types[prefix_key] = field_type.name;
+      current_type = field_type.name;
+    }
+  }
+
+  for (const auto& field : abi.fields) {
+    uint16_t parent_index = root_index;
+    std::string parent_type = orig_type;
+    if (field.path.size() > 1) {
+      std::string prefix_key;
+      for (size_t i = 0; i + 1 < field.path.size(); ++i) {
+        if (!prefix_key.empty()) prefix_key += ".";
+        prefix_key += field.path[i];
+      }
+      parent_index = nested_locals[prefix_key];
+      parent_type = nested_types[prefix_key];
+    }
+    (*st.out) << "  ldloc " << parent_index << "\n";
+    PushStack(st, 1);
+    (*st.out) << "  ldloc " << abi_index << "\n";
+    PushStack(st, 1);
+    (*st.out) << "  ldfld " << abi.name << "." << field.abi_name << "\n";
+    (*st.out) << "  stfld " << parent_type << "." << field.path.back() << "\n";
+    PopStack(st, 2);
+  }
+
+  (*st.out) << "  ldloc " << root_index << "\n";
+  PushStack(st, 1);
+  return true;
+}
+
 uint32_t FieldSizeForType(const TypeRef& type) {
   if (type.is_proc) return 4;
   if (!type.dims.empty()) return 4;
@@ -642,6 +1019,7 @@ std::string FieldSirTypeName(const TypeRef& type, const EmitState& st) {
   if (type.name == "string") return "string";
   if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return "ref";
+  if (st.abi_types.find(type.name) != st.abi_types.end()) return "ref";
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   return "ref";
 }
@@ -654,6 +1032,7 @@ std::string SigTypeNameFromType(const TypeRef& type, const EmitState& st, std::s
   if (type.name == "string") return "string";
   if (IsNumericType(type.name) || type.name == "bool" || type.name == "char") return type.name;
   if (st.artifacts.find(type.name) != st.artifacts.end()) return type.name;
+  if (st.abi_types.find(type.name) != st.abi_types.end()) return type.name;
   if (st.enum_values.find(type.name) != st.enum_values.end()) return "i32";
   if (error) *error = "unsupported type in signature: " + type.name;
   return {};
@@ -2197,6 +2576,14 @@ bool EmitExpr(EmitState& st,
                                   base.text + "." + callee.text + "'";
               return false;
             }
+            const EmitState::AbiTypeInfo* abi_ret = nullptr;
+            if (NeedsAbiFlattenType(ret_it->second, st)) {
+              abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+              if (!abi_ret) {
+                if (error) *error = "missing ABI type for dynamic return '" + callee.text + "'";
+                return false;
+              }
+            }
             auto call_mod_it = st.dl_call_import_ids_by_module.find(dl_module);
             if (call_mod_it == st.dl_call_import_ids_by_module.end()) {
               if (error) *error = "missing dynamic DL call import module: " + dl_module;
@@ -2223,7 +2610,19 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             uint32_t abi_arg_count = 1;
             for (size_t i = 0; i < params.size(); ++i) {
-              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+              const EmitState::AbiTypeInfo* abi_param = nullptr;
+              if (NeedsAbiFlattenType(params[i], st)) {
+                abi_param = FindAbiTypeForArtifact(st, params[i].name);
+                if (!abi_param) {
+                  if (error) *error = "missing ABI type for dynamic param '" + callee.text + "'";
+                  return false;
+                }
+              }
+              if (abi_param) {
+                if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+              } else {
+                if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+              }
               ++abi_arg_count;
             }
             if (abi_arg_count > 255) {
@@ -2233,6 +2632,9 @@ bool EmitExpr(EmitState& st,
             (*st.out) << "  call " << call_id_it->second << " " << abi_arg_count << "\n";
             PopStack(st, abi_arg_count);
             if (ret_it->second.name != "void") PushStack(st, 1);
+            if (abi_ret) {
+              if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
+            }
             return true;
           }
         }
@@ -2622,8 +3024,28 @@ bool EmitExpr(EmitState& st,
                 if (error) *error = "call argument count mismatch for '" + ext_key + "'";
                 return false;
               }
+              const EmitState::AbiTypeInfo* abi_ret = nullptr;
+              if (NeedsAbiFlattenType(ret_it->second, st)) {
+                abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+                if (!abi_ret) {
+                  if (error) *error = "missing ABI type for extern return '" + ext_key + "'";
+                  return false;
+                }
+              }
               for (size_t i = 0; i < params.size(); ++i) {
-                if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+                const EmitState::AbiTypeInfo* abi_param = nullptr;
+                if (NeedsAbiFlattenType(params[i], st)) {
+                  abi_param = FindAbiTypeForArtifact(st, params[i].name);
+                  if (!abi_param) {
+                    if (error) *error = "missing ABI type for extern param '" + ext_key + "'";
+                    return false;
+                  }
+                }
+                if (abi_param) {
+                  if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+                } else {
+                  if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+                }
               }
               (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
               if (st.stack_cur >= params.size()) {
@@ -2633,6 +3055,9 @@ bool EmitExpr(EmitState& st,
               }
               if (ret_it->second.name != "void") {
                 PushStack(st, 1);
+              }
+              if (abi_ret) {
+                if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
               }
               return true;
             }
@@ -2836,9 +3261,29 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "call argument count mismatch for '" + name + "'";
             return false;
           }
+          const EmitState::AbiTypeInfo* abi_ret = nullptr;
+          if (NeedsAbiFlattenType(ret_it->second, st)) {
+            abi_ret = FindAbiTypeForArtifact(st, ret_it->second.name);
+            if (!abi_ret) {
+              if (error) *error = "missing ABI type for extern return '" + name + "'";
+              return false;
+            }
+          }
           uint32_t abi_arg_count = 0;
           for (size_t i = 0; i < params.size(); ++i) {
-            if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            const EmitState::AbiTypeInfo* abi_param = nullptr;
+            if (NeedsAbiFlattenType(params[i], st)) {
+              abi_param = FindAbiTypeForArtifact(st, params[i].name);
+              if (!abi_param) {
+                if (error) *error = "missing ABI type for extern param '" + name + "'";
+                return false;
+              }
+            }
+            if (abi_param) {
+              if (!EmitAbiPackArtifactArg(st, expr.args[i], params[i], *abi_param, error)) return false;
+            } else {
+              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            }
             ++abi_arg_count;
           }
           (*st.out) << "  call " << ext_it->second << " " << abi_arg_count << "\n";
@@ -2849,6 +3294,9 @@ bool EmitExpr(EmitState& st,
           }
           if (ret_it->second.name != "void") {
             PushStack(st, 1);
+          }
+          if (abi_ret) {
+            if (!EmitAbiInflateReturn(st, *abi_ret, ret_it->second.name, error)) return false;
           }
           return true;
         }
@@ -3837,6 +4285,17 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       module_var_count += decl.module.variables.size();
     }
   }
+
+  for (const auto* ext : externs) {
+    if (NeedsAbiFlattenType(ext->return_type, st)) {
+      if (!EnsureAbiTypeForArtifact(st, ext->return_type.name, nullptr, error)) return false;
+    }
+    for (const auto& param : ext->params) {
+      if (NeedsAbiFlattenType(param.type, st)) {
+        if (!EnsureAbiTypeForArtifact(st, param.type.name, nullptr, error)) return false;
+      }
+    }
+  }
   if (module_var_count > 0) {
     module_globals.reserve(module_var_count);
   }
@@ -4023,7 +4482,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         return false;
       }
       TypeRef cloned_param;
-      if (!CloneTypeRef(param.type, &cloned_param)) return false;
+      if (NeedsAbiFlattenType(param.type, st)) {
+        std::string abi_name;
+        if (!EnsureAbiTypeForArtifact(st, param.type.name, &abi_name, error)) return false;
+        cloned_param.name = abi_name;
+        cloned_param.pointer_depth = 0;
+        cloned_param.is_proc = false;
+        cloned_param.type_args.clear();
+        cloned_param.dims.clear();
+        cloned_param.proc_params.clear();
+        cloned_param.proc_return.reset();
+      } else {
+        if (!CloneTypeRef(param.type, &cloned_param)) return false;
+      }
       abi_params.push_back(std::move(cloned_param));
     }
     if (!IsSupportedDlAbiType(ext->return_type, st, true)) {
@@ -4034,7 +4505,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       return false;
     }
     TypeRef abi_ret;
-    if (!CloneTypeRef(ext->return_type, &abi_ret)) return false;
+    if (NeedsAbiFlattenType(ext->return_type, st)) {
+      std::string abi_name;
+      if (!EnsureAbiTypeForArtifact(st, ext->return_type.name, &abi_name, error)) return false;
+      abi_ret.name = abi_name;
+      abi_ret.pointer_depth = 0;
+      abi_ret.is_proc = false;
+      abi_ret.type_args.clear();
+      abi_ret.dims.clear();
+      abi_ret.proc_params.clear();
+      abi_ret.proc_return.reset();
+    } else {
+      if (!CloneTypeRef(ext->return_type, &abi_ret)) return false;
+    }
     item.params = std::move(abi_params);
     item.ret = std::move(abi_ret);
     import_index_by_key.emplace(key, st.imports.size());
@@ -4316,6 +4799,30 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.artifact_layouts.emplace(artifact->name, std::move(layout));
   }
 
+  for (const auto& entry : st.abi_types) {
+    const auto& abi = entry.second;
+    EmitState::ArtifactLayout layout;
+    uint32_t offset = 0;
+    uint32_t max_align = 1;
+    layout.fields.reserve(abi.fields.size());
+    for (const auto& field : abi.fields) {
+      EmitState::FieldLayout field_layout;
+      field_layout.name = field.abi_name;
+      if (!CloneTypeRef(field.type, &field_layout.type)) return false;
+      field_layout.sir_type = FieldSirTypeName(field.type, st);
+      uint32_t align = FieldAlignForType(field.type);
+      uint32_t size = FieldSizeForType(field.type);
+      offset = AlignTo(offset, align);
+      field_layout.offset = offset;
+      offset += size;
+      if (align > max_align) max_align = align;
+      layout.field_index[field_layout.name] = layout.fields.size();
+      layout.fields.push_back(std::move(field_layout));
+    }
+    layout.size = AlignTo(offset, max_align);
+    st.artifact_layouts.emplace(abi.name, std::move(layout));
+  }
+
   std::string entry_name;
   if (has_main) {
     entry_name = main_emit_name;
@@ -4373,6 +4880,16 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (it == st.artifact_layouts.end()) return false;
       const auto& layout = it->second;
       result << "  type " << artifact->name << " size=" << layout.size << " kind=artifact\n";
+      for (const auto& field : layout.fields) {
+        result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
+      }
+    }
+    for (const auto& entry : st.abi_types) {
+      const auto& abi = entry.second;
+      auto it = st.artifact_layouts.find(abi.name);
+      if (it == st.artifact_layouts.end()) return false;
+      const auto& layout = it->second;
+      result << "  type " << abi.name << " size=" << layout.size << " kind=artifact\n";
       for (const auto& field : layout.fields) {
         result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
       }

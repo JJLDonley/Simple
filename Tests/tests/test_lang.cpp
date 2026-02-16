@@ -1087,6 +1087,18 @@ bool LangSirEmitsIoPrintFormat() {
   return RunSirTextExpectExit(sir, 7);
 }
 
+bool LangSirEmitsExternAbiFlatten() {
+  const char* src =
+      "Tex :: Artifact { id : u32; width : i32; }\n"
+      "RT :: Artifact { id : u32; tex : Tex; }\n"
+      "extern ffi.Use : void (t : RT)\n"
+      "main : void () { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return sir.find("type __abi_RT") != std::string::npos;
+}
+
 bool LangSirImplicitMainReturn() {
   const char* src =
       "main : i32 () { IO.print(\"hi\") }";
@@ -3629,6 +3641,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_io_print_i32", LangSirEmitsIoPrintI32},
   {"lang_sir_emit_io_print_newline", LangSirEmitsIoPrintNewline},
   {"lang_sir_emit_io_print_format", LangSirEmitsIoPrintFormat},
+  {"lang_sir_emit_extern_abi_flatten", LangSirEmitsExternAbiFlatten},
   {"lang_sir_implicit_main_return", LangSirImplicitMainReturn},
   {"lang_parse_missing_semicolon_same_line", LangParseMissingSemicolonSameLine},
   {"lang_parse_error_includes_location", LangParseErrorIncludesLocation},
