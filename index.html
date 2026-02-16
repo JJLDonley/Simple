@@ -137,7 +137,7 @@ name = "Next"    # compile error</code></pre>
         <article class="tab-panel" id="tab-script" role="tabpanel" aria-labelledby="btn-script" hidden>
           <h3>Script-style top level</h3>
           <p>Top-level statements execute in source order via implicit <code>__script_entry</code>. Function declarations do not execute implicitly.</p>
-          <pre><code>import System.io
+          <pre><code>import io
 io.println("boot")
 
 sum : i32 (a : i32, b : i32) {
@@ -167,9 +167,9 @@ Config :: Module {
         <article class="tab-panel" id="tab-system" role="tabpanel" aria-labelledby="btn-system" hidden>
           <h3>System modules are reserved</h3>
           <p>Reserved modules use keyword-style paths. Local modules use quoted paths.</p>
-          <pre><code>import System.io
-import System.dl as DL
-import FS
+          <pre><code>import io
+import dl
+import fs
 
 import "raylib"
 import "./raylib.simple"</code></pre>
@@ -179,14 +179,14 @@ import "./raylib.simple"</code></pre>
         <article class="tab-panel" id="tab-interop" role="tabpanel" aria-labelledby="btn-interop" hidden>
           <h3>Interop is first-class</h3>
           <p><code>extern</code> declares native signatures, and <code>DL</code> handles ABI marshaling.</p>
-          <pre><code>import System.dl
-import System.io
+          <pre><code>import dl
+import io
 
 extern raylib.InitWindow : void (w: i32, h: i32, title: string)
 extern raylib.CloseWindow : void ()
 
 lib: i64 = dl.open("raylib.dll", raylib)
-if lib == 0 {
+if (lib == 0) {
   io.println("raylib load failed: {}", dl.last_error())
 }</code></pre>
           <p class="muted">Signatures are strict; unsupported ABI shapes are rejected.</p>
@@ -231,7 +231,7 @@ simplevm run math.sbc</code></pre>
       <article class="tab-panel active" id="tab-simple" role="tabpanel" aria-labelledby="btn-simple">
         <h3>Simple Lang Source</h3>
         <p>High-level typed source with explicit mutability/import boundaries.</p>
-        <pre><code>import "System.io"
+        <pre><code>import io
 
 sum: i32 (a: i32, b: i32) {
   return a + b
@@ -404,14 +404,14 @@ RET_I32     0</code></pre>
     <section class="panel" id="interop">
       <h2>Interop With C/C++</h2>
       <p>Use <code>extern</code> to declare native symbols and call them through <code>DL</code>.</p>
-      <pre><code>import System.dl
-import System.io
+      <pre><code>import dl
+import io
 
 extern raylib.InitWindow : void (w: i32, h: i32, title: string)
 extern raylib.CloseWindow : void ()
 
 lib: i64 = dl.open("raylib.dll", raylib)
-if lib == 0 {
+if (lib == 0) {
   io.println("raylib load failed: {}", dl.last_error())
 }
 
@@ -425,14 +425,14 @@ raylib.CloseWindow()</code></pre>
         <article class="example">
           <h3>Script-style execution</h3>
           <p>Top-level statements execute in order.</p>
-          <pre><code>import "System.io"
+          <pre><code>import io
 io.println("hello")
 io.println(10 + 20)</code></pre>
         </article>
         <article class="example">
           <h3>Structured data + behavior</h3>
           <p>Artifacts give explicit member layout and typed access.</p>
-          <pre><code>Point :: artifact { x: i32 y: i32 }
+          <pre><code>Point :: Artifact { x: i32 y: i32 }
 
 sum: i32 (p: Point) {
   return p.x + p.y
