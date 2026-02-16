@@ -1714,6 +1714,7 @@ This log records VM-related changes and is used as a historical reference for be
   - `@string(expr)` is the numeric/bool to string conversion.
   - `"{}"` format expressions build strings via `string.concat`.
   - added validation coverage for format expression placeholder mismatches and invalid args.
+- Reserved imports are now case-insensitive (for example `System.IO`, `sYsTeM.iO`).
 
 ## 2026-02-15
 - Fixed SIR type inference for comparisons/logical ops:

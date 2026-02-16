@@ -13,6 +13,7 @@ inline std::string LowerAscii(std::string text) {
 
 inline bool CanonicalizeReservedImportPath(const std::string& path, std::string* out) {
   if (!out) return false;
+  const std::string lowered = LowerAscii(path);
 
   struct ReservedImportEntry {
     const char* canonical;
@@ -32,7 +33,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
 
   for (const auto& entry : kReserved) {
     for (size_t i = 0; i < entry.alias_count; ++i) {
-      if (path == entry.aliases[i]) {
+      if (lowered == entry.aliases[i]) {
         *out = entry.canonical;
         return true;
       }
