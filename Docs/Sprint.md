@@ -1719,6 +1719,7 @@ This log records VM-related changes and is used as a historical reference for be
   - compiler emits `__abi_*` structs for extern params/returns with nested artifacts.
   - extern call emission packs/unpacks nested artifacts at the ABI boundary.
   - validation now recursively checks ABI-safe artifact fields.
+- Fixed dynamic DL call imports for ABI-flattened externs.
 - Restored `RenderTexture` to nested `Texture` fields in the raylib sample.
 - Tests: `./scripts/fast_tests.sh`.
 

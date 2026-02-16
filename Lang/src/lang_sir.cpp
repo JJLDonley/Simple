@@ -499,6 +499,7 @@ bool IsSupportedDlAbiType(const TypeRef& type, const EmitState& st, bool allow_v
     return true;
   }
   if (st.enum_values.find(type.name) != st.enum_values.end()) return true;
+  if (st.abi_types.find(type.name) != st.abi_types.end()) return true;
   if (st.artifacts.find(type.name) != st.artifacts.end()) {
     std::unordered_set<std::string> visiting;
     std::function<bool(const std::string&)> check_struct = [&](const std::string& name) -> bool {
