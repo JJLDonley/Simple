@@ -1805,14 +1805,31 @@ bool Parser::ParseTypeArgs(std::vector<TypeRef>* out) {
 
 bool Parser::ParseTypeDims(TypeRef* out) {
   if (!out) return false;
-  while (Match(TokenKind::LBracket)) {
+  for (;;) {
+    if (Match(TokenKind::LBracket)) {
+      if (out->is_proc) {
+        error_ = "procedure types cannot have array/list dimensions";
+        return false;
+      }
+      // [] is list-only in the new syntax.
+      if (Match(TokenKind::RBracket)) {
+        TypeDim dim;
+        dim.is_list = true;
+        dim.has_size = false;
+        out->dims.push_back(dim);
+        continue;
+      }
+      error_ = "static array types use '{N}' or '{}' (lists use '[]')";
+      return false;
+    }
+    if (!Match(TokenKind::LBrace)) break;
     if (out->is_proc) {
       error_ = "procedure types cannot have array/list dimensions";
       return false;
     }
     TypeDim dim;
-    if (Match(TokenKind::RBracket)) {
-      dim.is_list = true;
+    dim.is_list = false;
+    if (Match(TokenKind::RBrace)) {
       dim.has_size = false;
       out->dims.push_back(dim);
       continue;
@@ -1823,14 +1840,13 @@ bool Parser::ParseTypeDims(TypeRef* out) {
       return false;
     }
     dim.has_size = true;
-    dim.is_list = false;
     if (!ParseIntegerLiteral(size_tok.text, &dim.size)) {
       error_ = "invalid array size literal";
       return false;
     }
     Advance();
-    if (!Match(TokenKind::RBracket)) {
-      error_ = "expected ']' after array size";
+    if (!Match(TokenKind::RBrace)) {
+      error_ = "expected '}' after array size";
       return false;
     }
     out->dims.push_back(dim);

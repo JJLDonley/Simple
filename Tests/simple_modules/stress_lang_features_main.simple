@@ -49,7 +49,7 @@ Y :: Module {
         return h
     }
 
-    SumArray: i32 (arr: i32[4]) {
+    SumArray: i32 (arr: i32{4}) {
         s : i32 = 0
         for (i : i32 = 0; i < 4; i += 1) {
             s += arr[i]
@@ -64,7 +64,7 @@ Z :: Module {
         p.Scale(2)
         h : Holder = Y.BuildHolder(3)
         removed : i32 = h.RemoveFirst()
-        arr : i32[4] = [1, 2, 3, 4]
+        arr : i32{4} = {1, 2, 3, 4}
         listA : i32[] = []
         listA.push(1)
         listA.push(2)

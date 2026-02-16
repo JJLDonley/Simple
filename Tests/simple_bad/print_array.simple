@@ -1,5 +1,5 @@
 main : i32 () {
-  values : i32[2] = [1, 2]
+  values : i32{2} = {1, 2}
   IO.print(values)
   return 0
 }

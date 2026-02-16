@@ -3447,6 +3447,10 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       bool is_list = expected->dims.front().is_list;
+      if (expr.kind == ExprKind::ListLiteral && !is_list) {
+        if (error) *error = "list literal requires list type";
+        return false;
+      }
       TypeRef element_type;
       if (!CloneElementType(*expected, &element_type)) {
         if (error) *error = "failed to resolve array/list element type";
@@ -3517,6 +3521,47 @@ bool EmitExpr(EmitState& st,
       return true;
     }
     case ExprKind::ArtifactLiteral: {
+      if (expected &&
+          !expected->dims.empty() &&
+          !expected->dims.front().is_list &&
+          expr.field_names.empty() &&
+          expr.field_values.empty()) {
+        bool is_list = false;
+        TypeRef element_type;
+        if (!CloneElementType(*expected, &element_type)) {
+          if (error) *error = "failed to resolve array/list element type";
+          return false;
+        }
+        const char* op_suffix = VmOpSuffixForType(element_type, st);
+        const char* type_name = VmTypeNameForElement(element_type, st);
+        if (!op_suffix || !type_name) {
+          if (error) *error = "unsupported array/list element type for SIR emission";
+          return false;
+        }
+        uint32_t length = static_cast<uint32_t>(expr.children.size());
+        if (is_list) {
+          (*st.out) << "  newlist " << type_name << " " << length << "\n";
+        } else {
+          (*st.out) << "  newarray " << type_name << " " << length << "\n";
+        }
+        PushStack(st, 1);
+        for (uint32_t i = 0; i < length; ++i) {
+          (*st.out) << "  dup\n";
+          PushStack(st, 1);
+          if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
+          if (is_list) {
+            (*st.out) << "  list.push." << op_suffix << "\n";
+            PopStack(st, 2);
+          } else {
+            (*st.out) << "  const.i32 " << i << "\n";
+            PushStack(st, 1);
+            (*st.out) << "  swap\n";
+            (*st.out) << "  array.set." << op_suffix << "\n";
+            PopStack(st, 3);
+          }
+        }
+        return true;
+      }
       if (!expected) {
         if (error) *error = "artifact literal requires expected type";
         return false;

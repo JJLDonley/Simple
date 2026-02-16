@@ -60,6 +60,8 @@ bool IsIntegerScalarTypeName(const std::string& name);
 bool IsBoolTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
 bool IsScalarType(const TypeRef& type);
+bool IsListLiteralExpr(const Expr& expr);
+bool IsPositionalBraceLiteralExpr(const Expr& expr);
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -773,12 +775,42 @@ bool IsLiteralCompatibleWithScalarType(const Expr& expr, const TypeRef& expected
 
 bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
   if (TypeEquals(expected, actual)) return true;
+  if (expected.pointer_depth == 0 && actual.pointer_depth == 0 &&
+      !expected.is_proc && !actual.is_proc &&
+      expected.name == actual.name &&
+      TypeArgsEqual(expected.type_args, actual.type_args) &&
+      expected.dims.size() == actual.dims.size()) {
+    bool dims_ok = true;
+    for (size_t i = 0; i < expected.dims.size(); ++i) {
+      if (expected.dims[i].is_list != actual.dims[i].is_list) {
+        dims_ok = false;
+        break;
+      }
+      if (expected.dims[i].is_list) continue;
+      if (!expected.dims[i].has_size) continue; // '{}' accepts any static length
+      if (!actual.dims[i].has_size || expected.dims[i].size != actual.dims[i].size) {
+        dims_ok = false;
+        break;
+      }
+    }
+    if (dims_ok) return true;
+  }
   if (actual.pointer_depth == 0 && !actual.is_proc && actual.type_args.empty() &&
       actual.dims.empty() &&
       IsLiteralCompatibleWithScalarType(expr, expected)) {
     return true;
   }
   return false;
+}
+
+bool IsListLiteralExpr(const Expr& expr) {
+  return expr.kind == ExprKind::ListLiteral;
+}
+
+bool IsPositionalBraceLiteralExpr(const Expr& expr) {
+  if (expr.kind == ExprKind::ArrayLiteral) return true;
+  if (expr.kind != ExprKind::ArtifactLiteral) return false;
+  return expr.field_names.empty() && expr.field_values.empty();
 }
 
 bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b) {
@@ -2647,8 +2679,21 @@ bool CheckStmt(const Stmt& stmt,
           if (!CheckCompoundAssignOp(op, target_type, rhs_for_op, error)) return false;
         }
         if (have_target &&
-            (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral) &&
-            !target_type.dims.empty()) {
+            !target_type.dims.empty() &&
+            target_type.dims.front().is_list &&
+            IsListLiteralExpr(stmt.expr)) {
+          if (!CheckListLiteralElementTypes(stmt.expr,
+                                            ctx,
+                                            scopes,
+                                            current_artifact,
+                                            target_type,
+                                            error)) {
+            return false;
+          }
+        } else if (have_target &&
+                   !target_type.dims.empty() &&
+                   !target_type.dims.front().is_list &&
+                   IsPositionalBraceLiteralExpr(stmt.expr)) {
           if (!CheckArrayLiteralShape(stmt.expr, target_type.dims, 0, error)) return false;
           TypeRef base_type;
           if (!CloneTypeRef(target_type, &base_type)) return false;
@@ -2663,16 +2708,15 @@ bool CheckStmt(const Stmt& stmt,
                                              error)) {
             return false;
           }
-          if (!CheckListLiteralElementTypes(stmt.expr,
-                                            ctx,
-                                            scopes,
-                                            current_artifact,
-                                            target_type,
-                                            error)) {
-            return false;
-          }
         } else if (have_target &&
-                   (stmt.expr.kind == ExprKind::ArrayLiteral || stmt.expr.kind == ExprKind::ListLiteral)) {
+                   ((!target_type.dims.empty() &&
+                     target_type.dims.front().is_list &&
+                     IsPositionalBraceLiteralExpr(stmt.expr)) ||
+                    (!target_type.dims.empty() &&
+                     !target_type.dims.front().is_list &&
+                     IsListLiteralExpr(stmt.expr)) ||
+                    (target_type.dims.empty() &&
+                     IsListLiteralExpr(stmt.expr)))) {
           if (error) *error = "array/list literal requires array or list type";
           return false;
         }
@@ -2909,7 +2953,7 @@ bool CheckArrayLiteralShape(const Expr& expr,
   const TypeDim& dim = dims[dim_index];
   if (!dim.has_size) return true;
 
-  if (expr.kind != ExprKind::ArrayLiteral && expr.kind != ExprKind::ListLiteral) {
+  if (!IsPositionalBraceLiteralExpr(expr)) {
     if (error) *error = "array literal size does not match fixed dimensions";
     return false;
   }
@@ -2933,17 +2977,17 @@ bool CheckArrayLiteralElementTypes(const Expr& expr,
                                    size_t dim_index,
                                    const TypeRef& element_type,
                                    std::string* error) {
-  if (expr.kind != ExprKind::ArrayLiteral && expr.kind != ExprKind::ListLiteral) return true;
+  if (!IsPositionalBraceLiteralExpr(expr)) return true;
   if (dims.empty()) return true;
 
   if (dim_index + 1 >= dims.size()) {
     for (const auto& child : expr.children) {
-      TypeRef child_type;
-      if (!InferExprType(child, ctx, scopes, current_artifact, &child_type)) {
-        if (error && error->empty()) *error = "array literal element type mismatch";
-        return false;
-      }
-      if (!TypesCompatibleForExpr(element_type, child_type, child)) {
+      VarDecl temp;
+      temp.name = "__array_element";
+      temp.type = element_type;
+      temp.has_init_expr = true;
+      temp.init_expr = child;
+      if (!ValidateVarInitExpr(temp, ctx, scopes, current_artifact, false, error)) {
         if (error) *error = "array literal element type mismatch";
         return false;
       }
@@ -2972,7 +3016,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
                                   const ArtifactDecl* current_artifact,
                                   const TypeRef& list_type,
                                   std::string* error) {
-  if (expr.kind != ExprKind::ListLiteral && expr.kind != ExprKind::ArrayLiteral) return true;
+  if (!IsListLiteralExpr(expr)) return true;
   if (list_type.dims.empty()) return true;
   if (!list_type.dims.front().is_list) return true;
 
@@ -2989,7 +3033,7 @@ bool CheckListLiteralElementTypes(const Expr& expr,
     temp.has_init_expr = true;
     temp.init_expr = child;
     if (!ValidateVarInitExpr(temp, ctx, scopes, current_artifact, false, error)) {
-      if (error && error->empty()) *error = "list literal element type mismatch";
+      if (error) *error = "list literal element type mismatch";
       return false;
     }
   }
@@ -3009,9 +3053,20 @@ bool ValidateVarInitExpr(const VarDecl& var,
       return false;
     }
   }
-  if ((var.init_expr.kind == ExprKind::ArrayLiteral ||
-       var.init_expr.kind == ExprKind::ListLiteral) &&
-      !var.type.dims.empty()) {
+  if (!var.type.dims.empty() &&
+      var.type.dims.front().is_list &&
+      IsListLiteralExpr(var.init_expr)) {
+    if (!CheckListLiteralElementTypes(var.init_expr,
+                                      ctx,
+                                      scopes,
+                                      current_artifact,
+                                      var.type,
+                                      error)) {
+      return false;
+    }
+  } else if (!var.type.dims.empty() &&
+             !var.type.dims.front().is_list &&
+             IsPositionalBraceLiteralExpr(var.init_expr)) {
     if (!CheckArrayLiteralShape(var.init_expr, var.type.dims, 0, error)) {
       return false;
     }
@@ -3028,16 +3083,13 @@ bool ValidateVarInitExpr(const VarDecl& var,
                                        error)) {
       return false;
     }
-    if (!CheckListLiteralElementTypes(var.init_expr,
-                                      ctx,
-                                      scopes,
-                                      current_artifact,
-                                      var.type,
-                                      error)) {
-      return false;
-    }
-  } else if (var.init_expr.kind == ExprKind::ArrayLiteral ||
-             var.init_expr.kind == ExprKind::ListLiteral) {
+  } else if ((!var.type.dims.empty() &&
+              var.type.dims.front().is_list &&
+              IsPositionalBraceLiteralExpr(var.init_expr)) ||
+             (!var.type.dims.empty() &&
+              !var.type.dims.front().is_list &&
+              IsListLiteralExpr(var.init_expr)) ||
+             (var.type.dims.empty() && IsListLiteralExpr(var.init_expr))) {
     if (error) *error = "array/list literal requires array or list type";
     return false;
   }
@@ -3065,7 +3117,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
       return false;
     }
   }
-  if (var.init_expr.kind == ExprKind::ArtifactLiteral) {
+  if (var.init_expr.kind == ExprKind::ArtifactLiteral && var.type.dims.empty()) {
     auto artifact_it = ctx.artifacts.find(var.type.name);
     if (artifact_it != ctx.artifacts.end()) {
       std::unordered_map<std::string, TypeRef> mapping;
@@ -3082,6 +3134,9 @@ bool ValidateVarInitExpr(const VarDecl& var,
         return false;
       }
     }
+  } else if (var.type.dims.empty() && IsListLiteralExpr(var.init_expr)) {
+    if (error) *error = "array/list literal requires array or list type";
+    return false;
   }
   return true;
 }
@@ -3539,9 +3594,21 @@ bool CheckExpr(const Expr& expr,
           if (!CheckFnLiteralAgainstType(expr.children[1], target_type, error)) return false;
         }
         if (have_target &&
-            (expr.children[1].kind == ExprKind::ArrayLiteral ||
-             expr.children[1].kind == ExprKind::ListLiteral) &&
-            !target_type.dims.empty()) {
+            !target_type.dims.empty() &&
+            target_type.dims.front().is_list &&
+            IsListLiteralExpr(expr.children[1])) {
+          if (!CheckListLiteralElementTypes(expr.children[1],
+                                            ctx,
+                                            scopes,
+                                            current_artifact,
+                                            target_type,
+                                            error)) {
+            return false;
+          }
+        } else if (have_target &&
+                   !target_type.dims.empty() &&
+                   !target_type.dims.front().is_list &&
+                   IsPositionalBraceLiteralExpr(expr.children[1])) {
           if (!CheckArrayLiteralShape(expr.children[1], target_type.dims, 0, error)) {
             return false;
           }
@@ -3558,17 +3625,15 @@ bool CheckExpr(const Expr& expr,
                                              error)) {
             return false;
           }
-          if (!CheckListLiteralElementTypes(expr.children[1],
-                                            ctx,
-                                            scopes,
-                                            current_artifact,
-                                            target_type,
-                                            error)) {
-            return false;
-          }
         } else if (have_target &&
-                   (expr.children[1].kind == ExprKind::ArrayLiteral ||
-                    expr.children[1].kind == ExprKind::ListLiteral)) {
+                   ((!target_type.dims.empty() &&
+                     target_type.dims.front().is_list &&
+                     IsPositionalBraceLiteralExpr(expr.children[1])) ||
+                    (!target_type.dims.empty() &&
+                     !target_type.dims.front().is_list &&
+                     IsListLiteralExpr(expr.children[1])) ||
+                    (target_type.dims.empty() &&
+                     IsListLiteralExpr(expr.children[1])))) {
           if (error) *error = "array/list literal requires array or list type";
           return false;
         }

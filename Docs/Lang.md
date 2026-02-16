@@ -68,8 +68,12 @@ title : string = "ok"
 
 ### Composite Types
 - Pointers: `T*`
-- Arrays (static): `T[N]`
+- Arrays (static): `T{N}` or unsized `T{}`
 - Lists (dynamic): `T[]`
+
+Example parameter types:
+- `bullets : Bullet{}`
+- `active : Bullet[]`
 
 Address-of is an operator, not a type: `&variable`.
 
@@ -256,12 +260,14 @@ Applies to:
 - Numeric literals (`10`, `3.14`) -> target numeric type.
 - String literals (`"text"`) -> `string` or compatible string type.
 - Char literals (`'a'`) -> `char` or compatible char type.
-- List/array literals (`[...]`) -> target `T[]` or `T[N]`.
+- List literals (`[...]`) -> target `T[]`.
+- Array literals (`{...}`) -> target `T{N}` or `T{}`.
 - Artifact literals (`{ ... }`) -> target artifact type.
 
 List/array literal resolution:
 - If there is no contextual type, `[...]` is a list literal.
-- If the contextual type is `T[N]`, `[...]` is a static array literal and must match size `N`.
+- If the contextual type is `T{N}` or `T{}`, `{...}` is an array literal.
+- For `T{N}`, element count must match `N`.
 
 Default numeric literal types (when no context exists):
 - Integer literals default to `i32`.
@@ -285,13 +291,13 @@ returnVecs : Vec3[] () {
 print : void (text : string) { }
 putc : void (ch : char) { }
 take_list : void (vals : i32[]) { }
-take_array : void (vals : i32[3]) { }
+take_array : void (vals : i32{3}) { }
 take_color : void (c : Color) { }
 
 print("Simple")
 putc('A')
 take_list([1, 2, 3])
-take_array([1, 2, 3])
+take_array({1, 2, 3})
 take_color({ 255, 0, 0, 255 })
 ```
 
@@ -327,6 +333,8 @@ Rules:
 - The format string must be a string literal.
 - Placeholder count must match the number of values.
 - Values must be numeric, `bool`, or `string`.
+- Format expressions are valid in variable declarations:
+  - `name (:|::) string = "{}", value...`
 
 Example:
 
@@ -334,6 +342,16 @@ Example:
 name : string = "Sam"
 score : i32 = 100
 line : string = "name={} score={}", name, score
+```
+
+Variable declaration examples:
+
+```simple
+s1 : string = "hp={}", hp
+s2 :: string = "x={} y={}", x, y
+s3 : string = "alive={}", alive
+s4 : string = "name={} score={}", name, score
+s5 :: string = "{}", value
 ```
 
 ## Pointers
@@ -362,7 +380,7 @@ node_ptr : Node* = &head
 Syntax:
 
 ```simple
-T[N] = [N elements]
+T{N} = {N elements}
 ```
 
 Rules:
@@ -372,11 +390,11 @@ Rules:
 Examples:
 
 ```simple
-nums : i32[3] = [1, 2, 3]
-flags : bool[2] = [true, false]
-letters : char[4] = ['a', 'b', 'c', 'd']
-coords : f32[2] = [0.0, 1.0]
-ids : i64[1] = [99]
+nums : i32{3} = {1, 2, 3}
+flags : bool{2} = {true, false}
+letters : char{4} = {'a', 'b', 'c', 'd'}
+coords : f32{2} = {0.0, 1.0}
+ids : i64{1} = {99}
 ```
 
 ### Lists (Dynamic)
@@ -829,6 +847,11 @@ ABI shapes:
 Constraints:
 - Recursive artifact structs are rejected for `extern` ABI.
 - Artifacts in `extern` signatures are marshaled by value using their field layout.
+- If an artifact contains nested artifact fields, ABI marshalling automatically flattens nested fields at the `extern` boundary.
+- Flattening is boundary-only:
+  - user-visible artifact definitions stay unchanged in language semantics.
+  - generated ABI shape is used only for extern call/return marshalling.
+- Flattening is recursive and preserves source field order.
 - Use pointers for recursive or self-referential structures.
 - Artifact methods are ignored for ABI layout; only fields are used.
 
@@ -853,6 +876,22 @@ Color :: Artifact {
   a : u8
 }
 extern ffi.simple_color_sum: i32 (color: Color)
+```
+
+Nested artifact flattening at extern boundary:
+```simple
+Texture :: Artifact {
+  id : u32
+  width : i32
+  height : i32
+}
+
+RenderTexture :: Artifact {
+  id : u32
+  texture : Texture
+}
+
+extern ffi.use_rt: void (rt: RenderTexture)
 ```
 
 Pointer for recursive structures:
@@ -914,8 +953,10 @@ param          = ident (":" | "::") type ;
 
 type           = proc_type | base_type ;
 proc_type      = "fn" [ generics ] type "(" [ params ] ")" ;
-base_type      = ident { "*" } [ array_dims ] ;
-array_dims     = { "[" [ integer ] "]" } ;
+base_type      = ident { "*" } [ type_dims ] ;
+type_dims      = { list_dim | array_dim } ;
+list_dim       = "[" "]" ;
+array_dim      = "{" [ integer ] "}" ;
 
 generics       = "<" ident { "," ident } ">" ;
 
@@ -973,9 +1014,10 @@ primary        = literal
                | artifact_literal ;
 
 list_literal   = "[" [ expr { "," expr } ] "]" ;
-array_literal  = "[" [ expr { "," expr } ] "]" ;
+array_literal  = "{" [ expr { "," expr } ] "}" ;
 /* list_literal is only valid when the contextual type is T[].
-   array_literal is only valid when the contextual type is T[N] and must match size. */
+   array_literal is only valid when the contextual type is T{N} or T{}.
+   for T{N}, element count must match N. */
 artifact_literal = "{" [ artifact_fields ] "}" ;
 artifact_fields  = artifact_named | artifact_positional ;
 artifact_named   = artifact_named_field { "," artifact_named_field } ;

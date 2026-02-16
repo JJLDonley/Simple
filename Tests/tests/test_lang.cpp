@@ -763,7 +763,7 @@ bool LangSimpleBadArrayElemTypeMismatch() {
 bool LangSimpleBadListElemTypeMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/list_elem_type_mismatch.simple",
-      "array literal element type mismatch");
+      "list literal element type mismatch");
 }
 
 bool LangSimpleBadIndexNonContainer() {
@@ -1192,7 +1192,7 @@ bool LangSirEmitsBitwiseShift() {
 bool LangSirEmitsIndexCompoundAssign() {
   const char* src =
       "main : i32 () {"
-      "  values : i32[2] = [1, 2];"
+      "  values : i32{2} = {1, 2};"
       "  values[1] += 5;"
       "  return values[1];"
       "}";
@@ -1219,7 +1219,7 @@ bool LangSirEmitsMemberCompoundAssign() {
 bool LangSirEmitsIndexIncDec() {
   const char* src =
       "main : i32 () {"
-      "  values : i32[1] = [1];"
+      "  values : i32{1} = {1};"
       "  x : i32 = values[0]++;"
       "  y : i32 = ++values[0];"
       "  return x + y + values[0];"
@@ -1246,7 +1246,7 @@ bool LangSirEmitsMemberIncDec() {
 }
 
 bool LangSirEmitsArrayLiteralIndex() {
-  const char* src = "main : i32 () { values : i32[3] = [1, 2, 3]; return values[1]; }";
+  const char* src = "main : i32 () { values : i32{3} = {1, 2, 3}; return values[1]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
@@ -1254,7 +1254,7 @@ bool LangSirEmitsArrayLiteralIndex() {
 }
 
 bool LangSirEmitsArrayAssign() {
-  const char* src = "main : i32 () { values : i32[2] = [1, 2]; values[1] = 7; return values[1]; }";
+  const char* src = "main : i32 () { values : i32{2} = {1, 2}; values[1] = 7; return values[1]; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
@@ -1463,7 +1463,7 @@ bool LangParsesTypeLiterals() {
   if (type.name != "string") return false;
 
   Simple::Lang::TypeRef arr;
-  if (!Simple::Lang::ParseTypeFromString("i32[10][]", &arr, &error)) return false;
+  if (!Simple::Lang::ParseTypeFromString("i32{10}[]", &arr, &error)) return false;
   if (arr.dims.size() != 2) return false;
   if (!arr.dims[0].has_size || arr.dims[0].size != 10) return false;
   if (!arr.dims[1].is_list) return false;
@@ -1480,12 +1480,12 @@ bool LangParsesTypeLiterals() {
   if (!list2_type.dims[1].is_list) return false;
 
   Simple::Lang::TypeRef hex_arr;
-  if (!Simple::Lang::ParseTypeFromString("i32[0x10]", &hex_arr, &error)) return false;
+  if (!Simple::Lang::ParseTypeFromString("i32{0x10}", &hex_arr, &error)) return false;
   if (hex_arr.dims.size() != 1) return false;
   if (!hex_arr.dims[0].has_size || hex_arr.dims[0].size != 16) return false;
 
   Simple::Lang::TypeRef bin_arr;
-  if (!Simple::Lang::ParseTypeFromString("i32[0b1010]", &bin_arr, &error)) return false;
+  if (!Simple::Lang::ParseTypeFromString("i32{0b1010}", &bin_arr, &error)) return false;
   if (bin_arr.dims.size() != 1) return false;
   if (!bin_arr.dims[0].has_size || bin_arr.dims[0].size != 10) return false;
 
@@ -1564,7 +1564,7 @@ bool LangAstTypeCoverage() {
   const char* src =
       "a : i8; b : u8; c : i16; d : u16; e : i32; f : u32; g : i64; h : u64; "
       "i : i128; j : u128; k : f32; l : f64; m : bool; n : char; o : string; "
-      "arr : i32[2]; list : i32[]; grid : i32[][]; "
+      "arr : i32{2}; list : i32[]; grid : i32[][]; "
       "proc : fn i32 (); proc2 :: fn bool (a : i32, b : f64);";
   Simple::Lang::Program program;
   std::string error;
@@ -2837,21 +2837,21 @@ bool LangValidateReturnTypeMatch() {
 }
 
 bool LangValidateIndexTypeOk() {
-  const char* src = "main : void () { arr : i32[2] = [1,2]; x : i32 = arr[0]; }";
+  const char* src = "main : void () { arr : i32{2} = {1,2}; x : i32 = arr[0]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexTypeMismatch() {
-  const char* src = "main : void () { arr : i32[2] = [1,2]; x : f64 = arr[0]; }";
+  const char* src = "main : void () { arr : i32{2} = {1,2}; x : f64 = arr[0]; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIndexNestedArrayTypeOk() {
-  const char* src = "main : void () { arr : i32[2][2] = [[1,2],[3,4]]; row : i32[2] = arr[0]; }";
+  const char* src = "main : void () { arr : i32{2}{2} = {{1,2},{3,4}}; row : i32{2} = arr[0]; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3054,49 +3054,49 @@ bool LangValidateFunctionNotType() {
 }
 
 bool LangValidateArrayLiteralShapeMatch() {
-  const char* src = "main : void () { a : i32[2][2] = [[1,2],[3,4]]; }";
+  const char* src = "main : void () { a : i32{2}{2} = {{1,2},{3,4}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralShapeMismatch() {
-  const char* src = "main : void () { a : i32[2] = [1,2,3]; }";
+  const char* src = "main : void () { a : i32{2} = {1,2,3}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNestedMismatch() {
-  const char* src = "main : void () { a : i32[2][2] = [[1,2,3],[4,5,6]]; }";
+  const char* src = "main : void () { a : i32{2}{2} = {{1,2,3},{4,5,6}}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNonArrayChild() {
-  const char* src = "main : void () { a : i32[2][2] = [1,2]; }";
+  const char* src = "main : void () { a : i32{2}{2} = {1,2}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralEmptyMismatch() {
-  const char* src = "main : void () { a : i32[2] = []; }";
+  const char* src = "main : void () { a : i32{2} = {}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralElementMismatch() {
-  const char* src = "main : void () { a : i32[2] = [1, true]; }";
+  const char* src = "main : void () { a : i32{2} = {1, true}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateArrayLiteralNestedElementMismatch() {
-  const char* src = "main : void () { a : i32[2][2] = [[1,2],[3,4]]; b : i32[2][2] = [[1,2],[3,true]]; }";
+  const char* src = "main : void () { a : i32{2}{2} = {{1,2},{3,4}}; b : i32{2}{2} = {{1,2},{3,true}}; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3132,6 +3132,15 @@ bool LangValidateListLiteralScalarTarget() {
 
 bool LangValidateListLiteralOk() {
   const char* src = "main : void () { a : i32[] = [1,2]; }";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateArtifactArrayLiteralOk() {
+  const char* src =
+      "Bullet :: Artifact { x : i32 } "
+      "main : void () { bullets : Bullet{2} = {{1}, {2}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3215,7 +3224,7 @@ bool LangValidateForConditionTypeMismatch() {
 }
 
 bool LangValidateLenArrayOk() {
-  const char* src = "main : i32 () { a : i32[3] = [1,2,3]; return len(a); }";
+  const char* src = "main : i32 () { a : i32{3} = {1,2,3}; return len(a); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3928,6 +3937,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_array_literal_scalar_target", LangValidateArrayLiteralScalarTarget},
   {"lang_validate_list_literal_scalar_target", LangValidateListLiteralScalarTarget},
   {"lang_validate_list_literal_ok", LangValidateListLiteralOk},
+  {"lang_validate_artifact_array_literal_ok", LangValidateArtifactArrayLiteralOk},
   {"lang_validate_switch_assign_requires_return", LangValidateSwitchAssignRequiresReturn},
   {"lang_switch_assign_runtime", LangSwitchAssignRuntime},
   {"lang_switch_expr_runtime", LangSwitchExprRuntime},
