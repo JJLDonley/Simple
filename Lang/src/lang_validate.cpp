@@ -313,7 +313,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   if (resolved == "Core.IO") {
     return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
   }
-  if (resolved == "Core.Math") return {"abs", "min", "max", "PI"};
+  if (resolved == "Core.Math") return {"abs", "min", "max", "sqrt", "PI"};
   if (resolved == "Core.Time") return {"mono_ns", "wall_ns"};
   if (resolved == "Core.DL") {
     return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
@@ -458,6 +458,13 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
     if (member == "min" || member == "max") {
       out->params.push_back(MakeSimpleType("T"));
+      out->params.push_back(MakeSimpleType("T"));
+      out->return_type = MakeSimpleType("T");
+      out->return_mutability = Mutability::Mutable;
+      out->type_params = {"T"};
+      return true;
+    }
+    if (member == "sqrt") {
       out->params.push_back(MakeSimpleType("T"));
       out->return_type = MakeSimpleType("T");
       out->return_mutability = Mutability::Mutable;
@@ -2100,6 +2107,16 @@ bool CheckCallArgTypes(const Expr& call_expr,
           if (!infer_arg(0, &arg)) return true;
           if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
             if (error) *error = "Math.abs expects i32 or i64 argument";
+            return false;
+          }
+          return true;
+        }
+        if (name == "sqrt") {
+          if (call_expr.args.size() != 1) return true;
+          TypeRef arg;
+          if (!infer_arg(0, &arg)) return true;
+          if ((arg.name != "f32" && arg.name != "f64") || !arg.dims.empty() || arg.is_proc) {
+            if (error) *error = "Math.sqrt expects f32 or f64 argument";
             return false;
           }
           return true;

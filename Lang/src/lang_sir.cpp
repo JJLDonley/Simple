@@ -2361,6 +2361,28 @@ bool EmitExpr(EmitState& st,
                 PushStack(st, 1);
                 return true;
               }
+              if (callee.text == "sqrt") {
+                if (expr.args.size() != 1) {
+                  if (error) *error = "call argument count mismatch for 'Math.sqrt'";
+                  return false;
+                }
+                TypeRef arg_type;
+                if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+                if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+                uint32_t id = 0;
+                if (arg_type.name == "f32") {
+                  id = Simple::VM::kIntrinsicSqrtF32;
+                } else if (arg_type.name == "f64") {
+                  id = Simple::VM::kIntrinsicSqrtF64;
+                } else {
+                  if (error) *error = "Math.sqrt expects f32 or f64";
+                  return false;
+                }
+                (*st.out) << "  intrinsic " << id << "\n";
+                PopStack(st, 1);
+                PushStack(st, 1);
+                return true;
+              }
             }
             const std::string member_name =
                 (reserved_module == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;

@@ -30,6 +30,8 @@ bool IsKnownIntrinsic(uint32_t id) {
     case kIntrinsicMaxF32:
     case kIntrinsicMinF64:
     case kIntrinsicMaxF64:
+    case kIntrinsicSqrtF32:
+    case kIntrinsicSqrtF64:
     case kIntrinsicMonoNs:
     case kIntrinsicWallNs:
     case kIntrinsicRandU32:
@@ -81,6 +83,8 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicMaxF32: *out = {3, 2, {3, 3}}; return true; // max_f32(f32,f32)->f32
     case kIntrinsicMinF64: *out = {4, 2, {4, 4}}; return true; // min_f64(f64,f64)->f64
     case kIntrinsicMaxF64: *out = {4, 2, {4, 4}}; return true; // max_f64(f64,f64)->f64
+    case kIntrinsicSqrtF32: *out = {3, 1, {3, 0}}; return true; // sqrt_f32(f32)->f32
+    case kIntrinsicSqrtF64: *out = {4, 1, {4, 0}}; return true; // sqrt_f64(f64)->f64
     case kIntrinsicMonoNs: *out = {2, 0, {0, 0}}; return true; // mono_ns()->i64
     case kIntrinsicWallNs: *out = {2, 0, {0, 0}}; return true; // wall_ns()->i64
     case kIntrinsicRandU32: *out = {1, 0, {0, 0}}; return true; // rand_u32()->i32

@@ -1,6 +1,7 @@
 #include "vm.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
@@ -5219,6 +5220,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             double b = BitsToF64(UnpackU64Bits(Pop(stack)));
             double a = BitsToF64(UnpackU64Bits(Pop(stack)));
             double out = (id == kIntrinsicMinF64) ? (a < b ? a : b) : (a > b ? a : b);
+            Push(stack, PackF64Bits(F64ToBits(out)));
+            break;
+          }
+          case kIntrinsicSqrtF32: {
+            if (stack.empty()) return Trap("INTRINSIC sqrt f32 stack underflow");
+            float v = BitsToF32(UnpackU32Bits(Pop(stack)));
+            float out = static_cast<float>(std::sqrt(v));
+            Push(stack, PackF32Bits(F32ToBits(out)));
+            break;
+          }
+          case kIntrinsicSqrtF64: {
+            if (stack.empty()) return Trap("INTRINSIC sqrt f64 stack underflow");
+            double v = BitsToF64(UnpackU64Bits(Pop(stack)));
+            double out = std::sqrt(v);
             Push(stack, PackF64Bits(F64ToBits(out)));
             break;
           }

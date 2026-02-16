@@ -4,8 +4,11 @@ main : i32 () {
   a :: i32 = Math.abs(-5)
   b :: i32 = Math.min(3, 7)
   c :: i32 = Math.max(3, 7)
+  d :: f64 = Math.sqrt(9.0)
   if (a != 5) { return 1 }
   if (b != 3) { return 2 }
   if (c != 7) { return 3 }
+  if (d < 2.9) { return 4 }
+  if (d > 3.1) { return 5 }
   return 0
 }

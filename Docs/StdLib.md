@@ -57,6 +57,7 @@ Preferred modern aliases:
 | `abs` | `abs(x)` |
 | `min` | `min(a, b)` |
 | `max` | `max(a, b)` |
+| `sqrt` | `sqrt(x)` |
 | `PI` | constant |
 
 ### IO
