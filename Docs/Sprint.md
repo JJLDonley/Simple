@@ -1704,6 +1704,13 @@ This log records VM-related changes and is used as a historical reference for be
   - allow compiled direct calls to compiled-safe callees.
   - add compiled call regression coverage.
 
+## 2026-02-16
+- Added `str` intrinsic lowering and runtime support:
+  - SIR emits `str` via VM intrinsics for numeric/bool types.
+  - VM implements numeric/bool string conversion intrinsics.
+  - Bytecode verifier recognizes `str_*` intrinsics and signatures.
+- Tests: `./scripts/fast_tests.sh`.
+
 ## 2026-02-15
 - Fixed SIR type inference for comparisons/logical ops:
   - comparisons now infer `bool` without breaking numeric literal coercions.

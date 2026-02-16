@@ -2703,6 +2703,42 @@ bool EmitExpr(EmitState& st,
         PushStack(st, 1);
         return true;
       }
+      if (name == "str") {
+        if (expr.args.size() != 1) {
+          if (error) *error = "call argument count mismatch for 'str'";
+          return false;
+        }
+        TypeRef arg_type;
+        if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+        if (!arg_type.dims.empty()) {
+          if (error) *error = "str expects numeric or bool argument";
+          return false;
+        }
+        if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+        uint32_t id = 0;
+        if (arg_type.name == "i8" || arg_type.name == "i16" || arg_type.name == "i32") {
+          id = Simple::VM::kIntrinsicStrI32;
+        } else if (arg_type.name == "i64") {
+          id = Simple::VM::kIntrinsicStrI64;
+        } else if (arg_type.name == "u8" || arg_type.name == "u16" || arg_type.name == "u32") {
+          id = Simple::VM::kIntrinsicStrU32;
+        } else if (arg_type.name == "u64") {
+          id = Simple::VM::kIntrinsicStrU64;
+        } else if (arg_type.name == "f32") {
+          id = Simple::VM::kIntrinsicStrF32;
+        } else if (arg_type.name == "f64") {
+          id = Simple::VM::kIntrinsicStrF64;
+        } else if (arg_type.name == "bool") {
+          id = Simple::VM::kIntrinsicStrBool;
+        } else {
+          if (error) *error = "str expects numeric or bool argument";
+          return false;
+        }
+        (*st.out) << "  intrinsic " << id << "\n";
+        PopStack(st, 1);
+        PushStack(st, 1);
+        return true;
+      }
       std::string cast_target;
       if (GetAtCastTargetName(name, &cast_target)) {
         if (expr.args.size() != 1) {

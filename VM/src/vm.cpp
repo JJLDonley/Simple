@@ -5330,6 +5330,62 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             std::fflush(stdout);
             break;
           }
+          case kIntrinsicStrI32: {
+            if (stack.empty()) return Trap("INTRINSIC str_i32 stack underflow");
+            int32_t value = UnpackI32(Pop(stack));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_i32 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrI64: {
+            if (stack.empty()) return Trap("INTRINSIC str_i64 stack underflow");
+            int64_t value = UnpackI64(Pop(stack));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_i64 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrU32: {
+            if (stack.empty()) return Trap("INTRINSIC str_u32 stack underflow");
+            uint32_t value = static_cast<uint32_t>(UnpackI32(Pop(stack)));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_u32 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrU64: {
+            if (stack.empty()) return Trap("INTRINSIC str_u64 stack underflow");
+            uint64_t value = static_cast<uint64_t>(UnpackI64(Pop(stack)));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_u64 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrF32: {
+            if (stack.empty()) return Trap("INTRINSIC str_f32 stack underflow");
+            float value = BitsToF32(UnpackU32Bits(Pop(stack)));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f32 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrF64: {
+            if (stack.empty()) return Trap("INTRINSIC str_f64 stack underflow");
+            double value = BitsToF64(UnpackU64Bits(Pop(stack)));
+            uint32_t handle = CreateString(heap, AsciiToU16(std::to_string(value)));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_f64 allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
+          case kIntrinsicStrBool: {
+            if (stack.empty()) return Trap("INTRINSIC str_bool stack underflow");
+            bool value = UnpackI32(Pop(stack)) != 0;
+            uint32_t handle = CreateString(heap, AsciiToU16(value ? "true" : "false"));
+            if (handle == 0xFFFFFFFFu) return Trap("INTRINSIC str_bool allocation failed");
+            Push(stack, PackRef(handle));
+            break;
+          }
           case kIntrinsicDlCallI8: {
             if (stack.size() < 3) return Trap("INTRINSIC dl_call_i8 stack underflow");
             int8_t b = static_cast<int8_t>(UnpackI32(Pop(stack)));

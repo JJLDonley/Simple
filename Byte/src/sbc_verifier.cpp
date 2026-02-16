@@ -39,6 +39,13 @@ bool IsKnownIntrinsic(uint32_t id) {
     case kIntrinsicWriteStdout:
     case kIntrinsicWriteStderr:
     case kIntrinsicPrintAny:
+    case kIntrinsicStrI32:
+    case kIntrinsicStrI64:
+    case kIntrinsicStrU32:
+    case kIntrinsicStrU64:
+    case kIntrinsicStrF32:
+    case kIntrinsicStrF64:
+    case kIntrinsicStrBool:
     case kIntrinsicDlCallI8:
     case kIntrinsicDlCallI16:
     case kIntrinsicDlCallI32:
@@ -92,6 +99,13 @@ bool GetIntrinsicSig(uint32_t id, IntrinsicSig* out) {
     case kIntrinsicWriteStdout: *out = {0, 2, {5, 1}}; return true; // write_stdout(ref,i32)
     case kIntrinsicWriteStderr: *out = {0, 2, {5, 1}}; return true; // write_stderr(ref,i32)
     case kIntrinsicPrintAny: *out = {0, 2, {0, 1}}; return true; // print_any(any,i32_tag)
+    case kIntrinsicStrI32: *out = {16, 1, {1, 0}}; return true; // str_i32(i32)->string
+    case kIntrinsicStrI64: *out = {16, 1, {2, 0}}; return true; // str_i64(i64)->string
+    case kIntrinsicStrU32: *out = {16, 1, {11, 0}}; return true; // str_u32(u32)->string
+    case kIntrinsicStrU64: *out = {16, 1, {12, 0}}; return true; // str_u64(u64)->string
+    case kIntrinsicStrF32: *out = {16, 1, {3, 0}}; return true; // str_f32(f32)->string
+    case kIntrinsicStrF64: *out = {16, 1, {4, 0}}; return true; // str_f64(f64)->string
+    case kIntrinsicStrBool: *out = {16, 1, {14, 0}}; return true; // str_bool(bool)->string
     case kIntrinsicDlCallI8: *out = {7, 3, {2, 7, 7}}; return true; // dl_call_i8(i64,i8,i8)->i8
     case kIntrinsicDlCallI16: *out = {8, 3, {2, 8, 8}}; return true; // dl_call_i16(i64,i16,i16)->i16
     case kIntrinsicDlCallI32: *out = {1, 3, {2, 1, 1}}; return true; // dl_call_i32(i64,i32,i32)->i32
