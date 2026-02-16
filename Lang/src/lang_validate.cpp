@@ -97,7 +97,6 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
 };
 
 bool IsPrimitiveCastName(const std::string& name) {
-  if (name == "string") return false;
   return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
 }
 
@@ -1046,6 +1045,14 @@ bool InferExprType(const Expr& expr,
         case LiteralKind::Bool: out->name = "bool"; break;
       }
       return true;
+    case ExprKind::FormatString:
+      out->name = "string";
+      out->type_args.clear();
+      out->dims.clear();
+      out->is_proc = false;
+      out->proc_params.clear();
+      out->proc_return.reset();
+      return true;
     case ExprKind::Identifier: {
       if (expr.text == "self") return false;
       if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
@@ -1145,15 +1152,6 @@ bool InferExprType(const Expr& expr,
       if (callee.kind == ExprKind::Identifier) {
         if (callee.text == "len") {
           out->name = "i32";
-          out->type_args.clear();
-          out->dims.clear();
-          out->is_proc = false;
-          out->proc_params.clear();
-          out->proc_return.reset();
-          return true;
-        }
-        if (callee.text == "str") {
-          out->name = "string";
           out->type_args.clear();
           out->dims.clear();
           out->is_proc = false;
@@ -3418,7 +3416,7 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
       }
-      if (expr.text == "len" || expr.text == "str" ||
+      if (expr.text == "len" ||
           IsPrimitiveCastName(expr.text) || GetAtCastTargetName(expr.text, nullptr)) {
         return true;
       }
@@ -3464,6 +3462,38 @@ bool CheckExpr(const Expr& expr,
       return false;
     case ExprKind::Literal:
       return true;
+    case ExprKind::FormatString: {
+      size_t placeholder_count = 0;
+      if (!CountFormatPlaceholders(expr.text, &placeholder_count, error)) return false;
+      if (placeholder_count != expr.args.size()) {
+        if (error) {
+          *error = "format placeholder count mismatch: expected " +
+                   std::to_string(placeholder_count) + ", got " +
+                   std::to_string(expr.args.size());
+        }
+        return false;
+      }
+      for (const auto& arg : expr.args) {
+        if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
+        TypeRef arg_type;
+        if (!InferExprType(arg, ctx, scopes, current_artifact, &arg_type)) {
+          if (error && error->empty()) *error = "format expects scalar arguments";
+          return false;
+        }
+        if (arg_type.pointer_depth != 0 ||
+            arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+          if (error) *error = "format expects scalar arguments";
+          return false;
+        }
+        if (!(IsNumericTypeName(arg_type.name) ||
+              IsBoolTypeName(arg_type.name) ||
+              arg_type.name == "string")) {
+          if (error) *error = "format supports numeric, bool, or string";
+          return false;
+        }
+      }
+      return true;
+    }
     case ExprKind::Unary:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
       if (expr.op == "++" || expr.op == "--" || expr.op == "post++" || expr.op == "post--") {
@@ -3622,24 +3652,6 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
       }
-      if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "str") {
-        if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for str: expected 1, got " +
-                              std::to_string(expr.args.size());
-          return false;
-        }
-        TypeRef arg_type;
-        if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
-          if (arg_type.pointer_depth != 0 ||
-              (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name))) {
-            if (error) *error = "str expects numeric or bool argument";
-            return false;
-          }
-        } else {
-          if (error && error->empty()) *error = "str expects numeric or bool argument";
-          return false;
-        }
-      }
       if (expr.children[0].kind == ExprKind::Identifier) {
         std::string cast_target;
         const bool is_at_cast = GetAtCastTargetName(expr.children[0].text, &cast_target);
@@ -3665,7 +3677,12 @@ bool CheckExpr(const Expr& expr,
             if (error) *error = cast_target + " cast expects scalar argument";
             return false;
           }
-          if (IsStringTypeName(arg_type.name) && !(cast_target == "i32" || cast_target == "f64")) {
+          if (cast_target == "string") {
+            if (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name)) {
+              if (error) *error = "string cast expects numeric or bool argument";
+              return false;
+            }
+          } else if (IsStringTypeName(arg_type.name) && !(cast_target == "i32" || cast_target == "f64")) {
             if (error) *error = cast_target + " cast from string is unsupported";
             return false;
           }
@@ -3673,7 +3690,7 @@ bool CheckExpr(const Expr& expr,
       }
       if (!IsIoPrintCallExpr(expr.children[0], ctx) &&
           !(expr.children[0].kind == ExprKind::Identifier &&
-            (expr.children[0].text == "len" || expr.children[0].text == "str" ||
+            (expr.children[0].text == "len" ||
              GetAtCastTargetName(expr.children[0].text, nullptr)))) {
         if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
       }

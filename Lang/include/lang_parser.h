@@ -71,6 +71,7 @@ private:
   size_t index_ = 0;
   std::string error_;
   bool had_error_ = false;
+  bool allow_format_expr_ = true;
 };
 
 bool ParseTypeFromString(const std::string& text, TypeRef* out, std::string* error);

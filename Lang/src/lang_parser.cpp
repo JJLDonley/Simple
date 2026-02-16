@@ -1466,6 +1466,27 @@ bool Parser::ParsePrimaryExpr(Expr* out) {
   if (tok.kind == TokenKind::Integer || tok.kind == TokenKind::Float ||
       tok.kind == TokenKind::String || tok.kind == TokenKind::Char ||
       tok.kind == TokenKind::KwTrue || tok.kind == TokenKind::KwFalse) {
+    if (tok.kind == TokenKind::String && allow_format_expr_ && Peek(1).kind == TokenKind::Comma) {
+      Expr expr;
+      expr.kind = ExprKind::FormatString;
+      expr.text = tok.text;
+      expr.line = tok.line;
+      expr.column = tok.column;
+      Advance();
+      bool saw_arg = false;
+      while (Match(TokenKind::Comma)) {
+        saw_arg = true;
+        Expr value;
+        if (!ParseExpr(&value)) return false;
+        expr.args.push_back(std::move(value));
+      }
+      if (!saw_arg) {
+        error_ = "format expression expects at least one value after string literal";
+        return false;
+      }
+      if (out) *out = std::move(expr);
+      return true;
+    }
     Expr expr;
     expr.kind = ExprKind::Literal;
     expr.text = tok.text;
@@ -1727,7 +1748,11 @@ bool Parser::ParseCallArgs(std::vector<Expr>* out) {
       return false;
     }
     Expr arg;
-    if (!ParseExpr(&arg)) return false;
+    const bool prev_allow_format = allow_format_expr_;
+    allow_format_expr_ = false;
+    const bool parsed = ParseExpr(&arg);
+    allow_format_expr_ = prev_allow_format;
+    if (!parsed) return false;
     if (out) out->push_back(std::move(arg));
     if (Match(TokenKind::Comma)) continue;
     if (Match(TokenKind::RParen)) break;

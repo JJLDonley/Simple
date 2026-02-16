@@ -80,6 +80,7 @@ struct SwitchBranch;
 enum class ExprKind : uint8_t {
   Identifier,
   Literal,
+  FormatString,
   Binary,
   Unary,
   Call,

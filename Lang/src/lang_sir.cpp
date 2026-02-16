@@ -136,7 +136,8 @@ bool IsNumericType(const std::string& name) {
 bool IsPrimitiveCastName(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
-         name == "f32" || name == "f64" || name == "bool" || name == "char";
+         name == "f32" || name == "f64" || name == "bool" || name == "char" ||
+         name == "string";
 }
 
 bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
@@ -927,6 +928,14 @@ bool InferExprType(const Expr& expr,
     }
     case ExprKind::Literal:
       return InferLiteralType(expr, out);
+    case ExprKind::FormatString:
+      out->name = "string";
+      out->type_args.clear();
+      out->dims.clear();
+      out->is_proc = false;
+      out->proc_params.clear();
+      out->proc_return.reset();
+      return true;
     case ExprKind::Unary: {
       if (expr.children.empty()) {
         if (error) *error = "unary missing operand";
@@ -1057,10 +1066,6 @@ bool InferExprType(const Expr& expr,
       if (callee.kind == ExprKind::Identifier) {
         if (callee.text == "len") {
           out->name = "i32";
-          return true;
-        }
-        if (callee.text == "str") {
-          out->name = "string";
           return true;
         }
         std::string cast_target;
@@ -2703,42 +2708,6 @@ bool EmitExpr(EmitState& st,
         PushStack(st, 1);
         return true;
       }
-      if (name == "str") {
-        if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for 'str'";
-          return false;
-        }
-        TypeRef arg_type;
-        if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
-        if (!arg_type.dims.empty()) {
-          if (error) *error = "str expects numeric or bool argument";
-          return false;
-        }
-        if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
-        uint32_t id = 0;
-        if (arg_type.name == "i8" || arg_type.name == "i16" || arg_type.name == "i32") {
-          id = Simple::VM::kIntrinsicStrI32;
-        } else if (arg_type.name == "i64") {
-          id = Simple::VM::kIntrinsicStrI64;
-        } else if (arg_type.name == "u8" || arg_type.name == "u16" || arg_type.name == "u32") {
-          id = Simple::VM::kIntrinsicStrU32;
-        } else if (arg_type.name == "u64") {
-          id = Simple::VM::kIntrinsicStrU64;
-        } else if (arg_type.name == "f32") {
-          id = Simple::VM::kIntrinsicStrF32;
-        } else if (arg_type.name == "f64") {
-          id = Simple::VM::kIntrinsicStrF64;
-        } else if (arg_type.name == "bool") {
-          id = Simple::VM::kIntrinsicStrBool;
-        } else {
-          if (error) *error = "str expects numeric or bool argument";
-          return false;
-        }
-        (*st.out) << "  intrinsic " << id << "\n";
-        PopStack(st, 1);
-        PushStack(st, 1);
-        return true;
-      }
       std::string cast_target;
       if (GetAtCastTargetName(name, &cast_target)) {
         if (expr.args.size() != 1) {
@@ -2748,6 +2717,36 @@ bool EmitExpr(EmitState& st,
         TypeRef arg_type;
         if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
         if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+        if (cast_target == "string") {
+          if (!arg_type.dims.empty() ||
+              (!IsNumericType(arg_type.name) && arg_type.name != "bool")) {
+            if (error) *error = "string cast expects numeric or bool argument";
+            return false;
+          }
+          uint32_t id = 0;
+          if (arg_type.name == "i8" || arg_type.name == "i16" || arg_type.name == "i32") {
+            id = Simple::VM::kIntrinsicStrI32;
+          } else if (arg_type.name == "i64") {
+            id = Simple::VM::kIntrinsicStrI64;
+          } else if (arg_type.name == "u8" || arg_type.name == "u16" || arg_type.name == "u32") {
+            id = Simple::VM::kIntrinsicStrU32;
+          } else if (arg_type.name == "u64") {
+            id = Simple::VM::kIntrinsicStrU64;
+          } else if (arg_type.name == "f32") {
+            id = Simple::VM::kIntrinsicStrF32;
+          } else if (arg_type.name == "f64") {
+            id = Simple::VM::kIntrinsicStrF64;
+          } else if (arg_type.name == "bool") {
+            id = Simple::VM::kIntrinsicStrBool;
+          } else {
+            if (error) *error = "string cast expects numeric or bool argument";
+            return false;
+          }
+          (*st.out) << "  intrinsic " << id << "\n";
+          PopStack(st, 1);
+          PushStack(st, 1);
+          return true;
+        }
         CastVmKind src = GetCastVmKind(arg_type.name);
         CastVmKind dst = GetCastVmKind(cast_target);
         if (src == CastVmKind::Invalid || dst == CastVmKind::Invalid) {
@@ -2906,6 +2905,79 @@ bool EmitExpr(EmitState& st,
       PopStack(st, static_cast<uint32_t>(call_type.proc_params.size() + 1));
       if (call_type.proc_return && call_type.proc_return->name != "void") {
         PushStack(st, 1);
+      }
+      return true;
+    }
+    case ExprKind::FormatString: {
+      size_t placeholder_count = 0;
+      std::vector<std::string> segments;
+      if (!CountFormatPlaceholders(expr.text, &placeholder_count, &segments, error)) return false;
+      if (placeholder_count != expr.args.size()) {
+        if (error) {
+          *error = "format placeholder count mismatch: expected " +
+                   std::to_string(placeholder_count) + ", got " +
+                   std::to_string(expr.args.size());
+        }
+        return false;
+      }
+      TypeRef string_type;
+      string_type.name = "string";
+      auto emit_string_literal = [&](const std::string& text) -> bool {
+        Expr seg_expr;
+        seg_expr.kind = ExprKind::Literal;
+        seg_expr.literal_kind = LiteralKind::String;
+        seg_expr.text = text;
+        return EmitExpr(st, seg_expr, &string_type, error);
+      };
+      auto emit_string_value = [&](const Expr& value) -> bool {
+        TypeRef arg_type;
+        if (!InferExprType(value, st, &arg_type, error)) return false;
+        if (arg_type.dims.empty() && arg_type.name == "string") {
+          return EmitExpr(st, value, &string_type, error);
+        }
+        if (!arg_type.dims.empty() ||
+            (!IsNumericType(arg_type.name) && arg_type.name != "bool")) {
+          if (error) *error = "format supports numeric, bool, or string";
+          return false;
+        }
+        if (!EmitExpr(st, value, &arg_type, error)) return false;
+        uint32_t id = 0;
+        if (arg_type.name == "i8" || arg_type.name == "i16" || arg_type.name == "i32") {
+          id = Simple::VM::kIntrinsicStrI32;
+        } else if (arg_type.name == "i64") {
+          id = Simple::VM::kIntrinsicStrI64;
+        } else if (arg_type.name == "u8" || arg_type.name == "u16" || arg_type.name == "u32") {
+          id = Simple::VM::kIntrinsicStrU32;
+        } else if (arg_type.name == "u64") {
+          id = Simple::VM::kIntrinsicStrU64;
+        } else if (arg_type.name == "f32") {
+          id = Simple::VM::kIntrinsicStrF32;
+        } else if (arg_type.name == "f64") {
+          id = Simple::VM::kIntrinsicStrF64;
+        } else if (arg_type.name == "bool") {
+          id = Simple::VM::kIntrinsicStrBool;
+        } else {
+          if (error) *error = "format supports numeric, bool, or string";
+          return false;
+        }
+        (*st.out) << "  intrinsic " << id << "\n";
+        PopStack(st, 1);
+        PushStack(st, 1);
+        return true;
+      };
+      const std::string first_seg = segments.empty() ? std::string() : segments[0];
+      if (!emit_string_literal(first_seg)) return false;
+      for (size_t i = 0; i < placeholder_count; ++i) {
+        if (!emit_string_value(expr.args[i])) return false;
+        (*st.out) << "  string.concat\n";
+        PopStack(st, 2);
+        PushStack(st, 1);
+        if (i + 1 < segments.size() && !segments[i + 1].empty()) {
+          if (!emit_string_literal(segments[i + 1])) return false;
+          (*st.out) << "  string.concat\n";
+          PopStack(st, 2);
+          PushStack(st, 1);
+        }
       }
       return true;
     }

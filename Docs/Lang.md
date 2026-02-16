@@ -297,6 +297,7 @@ take_color({ 255, 0, 0, 255 })
 
 ## Casting
 Primitive casts use `@T(expr)` where `T` is a primitive type.
+`@string(expr)` is the only supported string conversion and accepts numeric or `bool` values.
 
 Example:
 
@@ -312,6 +313,27 @@ b : i32 = @i32(2.5)
 c : u32 = @u32(42)
 d : f32 = @f32(1)
 e : char = @char(65)
+f : string = @string(123)
+g : string = @string(false)
+```
+
+## Format Expressions
+String format expressions use `{}` placeholders and evaluate to a `string`.
+
+Syntax:
+- `"format {}", a, b, ...`
+
+Rules:
+- The format string must be a string literal.
+- Placeholder count must match the number of values.
+- Values must be numeric, `bool`, or `string`.
+
+Example:
+
+```simple
+name : string = "Sam"
+score : i32 = 100
+line : string = "name={} score={}", name, score
 ```
 
 ## Pointers

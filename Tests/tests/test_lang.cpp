@@ -2635,6 +2635,27 @@ bool LangValidateIoPrintFormatNeedsStringLiteral() {
   return error.find("format call expects string literal") != std::string::npos;
 }
 
+bool LangValidateFormatExprOk() {
+  const char* src = "main : string () { x : i32 = 42; return \"x={}\", x; }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateFormatExprPlaceholderMismatch() {
+  const char* src = "main : string () { return \"x={} y={}\", 1; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("format placeholder count mismatch") != std::string::npos;
+}
+
+bool LangValidateFormatExprRejectsList() {
+  const char* src = "main : string () { a : i32[] = [1,2]; return \"{}\", a; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("format expects scalar") != std::string::npos ||
+         error.find("format supports numeric") != std::string::npos;
+}
+
 bool LangRunsSimpleFixtures() {
   const std::string dir = "Tests/simple";
   return Simple::VM::Tests::RunSimplePerfDir(dir, 1, true) == 0;
@@ -3203,21 +3224,21 @@ bool LangValidateLenStringOk() {
 }
 
 bool LangValidateStrFromI32Ok() {
-  const char* src = "main : string () { x : i32 = 1; return str(x); }";
+  const char* src = "main : string () { x : i32 = 1; return @string(x); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateStrFromBoolOk() {
-  const char* src = "main : string () { return str(true); }";
+  const char* src = "main : string () { return @string(true); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateStrFromStringFail() {
-  const char* src = "main : string () { s : string = \"hi\"; return str(s); }";
+  const char* src = "main : string () { s : string = \"hi\"; return @string(s); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3832,6 +3853,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_io_print_format_ok", LangValidateIoPrintFormatOk},
   {"lang_validate_io_print_format_placeholder_mismatch", LangValidateIoPrintFormatPlaceholderMismatch},
   {"lang_validate_io_print_format_requires_literal", LangValidateIoPrintFormatNeedsStringLiteral},
+  {"lang_validate_format_expr_ok", LangValidateFormatExprOk},
+  {"lang_validate_format_expr_placeholder_mismatch", LangValidateFormatExprPlaceholderMismatch},
+  {"lang_validate_format_expr_rejects_list", LangValidateFormatExprRejectsList},
   {"lang_run_simple_fixtures", LangRunsSimpleFixtures},
   {"lang_validate_call_fn_literal_count", LangValidateCallFnLiteralCount},
   {"lang_validate_call_fn_literal_ok", LangValidateCallFnLiteralOk},

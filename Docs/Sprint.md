@@ -1710,6 +1710,10 @@ This log records VM-related changes and is used as a historical reference for be
   - VM implements numeric/bool string conversion intrinsics.
   - Bytecode verifier recognizes `str_*` intrinsics and signatures.
 - Tests: `./scripts/fast_tests.sh`.
+- Replaced `str(expr)` with `@string(expr)` cast and added format expressions:
+  - `@string(expr)` is the numeric/bool to string conversion.
+  - `"{}"` format expressions build strings via `string.concat`.
+  - added validation coverage for format expression placeholder mismatches and invalid args.
 
 ## 2026-02-15
 - Fixed SIR type inference for comparisons/logical ops:
