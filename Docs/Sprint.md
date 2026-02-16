@@ -31,6 +31,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Updated language tests/fixtures to match new syntax and behaviors.
 - Added pointer member-access validation coverage (`->` access ok/error cases).
 - Added pointer immutability tracking for `&` and validation coverage for address-of and pointer-mutation rules.
+- Expanded Lang test coverage for defaults, switch default rules, and procedure-returning-procedure via fn literals.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.

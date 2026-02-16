@@ -1928,6 +1928,67 @@ bool LangValidateAddressOfRequiresLValue() {
   return error.find("address-of requires assignable expression") != std::string::npos;
 }
 
+bool LangValidateArtifactDefaultFieldOk() {
+  const char* src =
+      "Point :: Artifact { x : i32 = 1; y : i32 }\n"
+      "main : i32 () {"
+      "  p : Point = { .y = 3 };"
+      "  return p.x + p.y;"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 4);
+}
+
+bool LangValidateModuleDefaultFieldOk() {
+  const char* src =
+      "Config :: Module { width : i32 = 10; height : i32 = 20 }\n"
+      "main : i32 () { return Config.width + Config.height; }";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 30);
+}
+
+bool LangValidateSwitchMissingDefaultRejected() {
+  const char* src =
+      "main : i32 () {"
+      "  x : i32 = 1;"
+      "  return switch (x) { x == 1 => 2; };"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("exactly one default branch") != std::string::npos;
+}
+
+bool LangValidateSwitchMultipleDefaultRejected() {
+  const char* src =
+      "main : i32 () {"
+      "  x : i32 = 1;"
+      "  return switch (x) { default => 1; default => 2; };"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("exactly one default branch") != std::string::npos;
+}
+
+bool LangValidateProcReturnProcOk() {
+  const char* src =
+      "make_adder : fn i32 (a : i32, b : i32) () {\n"
+      "  adder : fn i32 (a : i32, b : i32) = (a, b) { return a + b; };\n"
+      "  return adder;\n"
+      "}\n"
+      "main : i32 () {\n"
+      "  adder : fn i32 (a : i32, b : i32) = make_adder();\n"
+      "  return adder(2, 3);\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 5);
+}
+
 bool LangParsesEnumDecl() {
   const char* src =
     "Status :: enum { Pending = 1, Active = 2 }"
@@ -3522,6 +3583,11 @@ const TestCase kLangTests[] = {
   {"lang_validate_pointer_to_immutable_rejects_mutation", LangValidatePointerToImmutableRejectsMutation},
   {"lang_validate_pointer_to_mutable_allows_mutation", LangValidatePointerToMutableAllowsMutation},
   {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},
+  {"lang_validate_artifact_default_field_ok", LangValidateArtifactDefaultFieldOk},
+  {"lang_validate_module_default_field_ok", LangValidateModuleDefaultFieldOk},
+  {"lang_validate_switch_missing_default_rejected", LangValidateSwitchMissingDefaultRejected},
+  {"lang_validate_switch_multiple_default_rejected", LangValidateSwitchMultipleDefaultRejected},
+  {"lang_validate_proc_return_proc_ok", LangValidateProcReturnProcOk},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_enum_decl_capitalized", LangParsesEnumDeclCapitalized},
   {"lang_parse_return_expr", LangParsesReturnExpr},
