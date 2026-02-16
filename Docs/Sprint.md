@@ -30,6 +30,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Aligned Lang parser/validator/SIR with updated spec (switch expressions, `fn` types, pointer syntax, control-flow parens, artifact defaults, extern ABI checks, main entry override).
 - Updated language tests/fixtures to match new syntax and behaviors.
 - Added pointer member-access validation coverage (`->` access ok/error cases).
+- Added pointer immutability tracking for `&` and validation coverage for address-of and pointer-mutation rules.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.

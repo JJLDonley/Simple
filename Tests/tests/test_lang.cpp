@@ -1891,6 +1891,43 @@ bool LangValidatePointerMemberRequiresPointer() {
   return error.find("pointer member access requires a pointer type") != std::string::npos;
 }
 
+bool LangValidatePointerToImmutableRejectsMutation() {
+  const char* src =
+      "Node :: Artifact { value : i32 }\n"
+      "main : void () {"
+      "  n :: Node = { 1 };"
+      "  p : Node* = &n;"
+      "  p->value = 2;"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("cannot assign through immutable value") != std::string::npos;
+}
+
+bool LangValidatePointerToMutableAllowsMutation() {
+  const char* src =
+      "Node :: Artifact { value : i32 }\n"
+      "main : i32 () {"
+      "  n : Node = { 1 };"
+      "  p : Node* = &n;"
+      "  p->value = 2;"
+      "  return n.value;"
+      "}";
+  std::string error;
+  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return true;
+}
+
+bool LangValidateAddressOfRequiresLValue() {
+  const char* src =
+      "main : void () {"
+      "  p : i32* = &(1 + 2);"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("address-of requires assignable expression") != std::string::npos;
+}
+
 bool LangParsesEnumDecl() {
   const char* src =
     "Status :: enum { Pending = 1, Active = 2 }"
@@ -3482,6 +3519,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},
   {"lang_validate_pointer_member_access_ok", LangValidatePointerMemberAccessOk},
   {"lang_validate_pointer_member_requires_pointer", LangValidatePointerMemberRequiresPointer},
+  {"lang_validate_pointer_to_immutable_rejects_mutation", LangValidatePointerToImmutableRejectsMutation},
+  {"lang_validate_pointer_to_mutable_allows_mutation", LangValidatePointerToMutableAllowsMutation},
+  {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},
   {"lang_parse_enum_decl", LangParsesEnumDecl},
   {"lang_parse_enum_decl_capitalized", LangParsesEnumDeclCapitalized},
   {"lang_parse_return_expr", LangParsesReturnExpr},

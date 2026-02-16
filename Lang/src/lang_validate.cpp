@@ -21,6 +21,7 @@ struct ValidateContext {
   std::unordered_map<std::string, size_t> artifact_generics;
   std::unordered_map<std::string, const ModuleDecl*> modules;
   std::unordered_map<std::string, const VarDecl*> globals;
+  std::unordered_map<std::string, bool> global_points_to_immutable;
   std::unordered_map<std::string, const FuncDecl*> functions;
   std::unordered_map<std::string, const ExternDecl*> externs;
   std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
@@ -32,6 +33,7 @@ struct LocalInfo {
   Mutability mutability = Mutability::Mutable;
   const TypeRef* type = nullptr;
   std::string dl_module;
+  bool points_to_immutable = false;
 };
 
 struct CallTargetInfo {
@@ -1385,6 +1387,107 @@ bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
   return true;
 }
 
+bool IsAddressableExpr(const Expr& expr) {
+  if (expr.kind == ExprKind::Identifier) return true;
+  if (expr.kind == ExprKind::Member) return true;
+  if (expr.kind == ExprKind::Index) return true;
+  return false;
+}
+
+bool IsMutableStorageExpr(const Expr& expr,
+                          const ValidateContext& ctx,
+                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                          const ArtifactDecl* current_artifact,
+                          bool* out_known) {
+  if (out_known) *out_known = true;
+  if (expr.kind == ExprKind::Identifier) {
+    if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+      return local->mutability == Mutability::Mutable;
+    }
+    auto global_it = ctx.globals.find(expr.text);
+    if (global_it != ctx.globals.end()) {
+      return global_it->second->mutability == Mutability::Mutable;
+    }
+    if (out_known) *out_known = false;
+    return true;
+  }
+  if (expr.kind == ExprKind::Member &&
+      (expr.op == "." || expr.op == "->") &&
+      !expr.children.empty()) {
+    const Expr& base = expr.children[0];
+    if (base.kind == ExprKind::Identifier) {
+      if (base.text == "self") {
+        const VarDecl* field = FindArtifactField(current_artifact, expr.text);
+        if (field) return field->mutability == Mutability::Mutable;
+        if (out_known) *out_known = false;
+        return true;
+      }
+      auto module_it = ctx.modules.find(base.text);
+      if (module_it != ctx.modules.end()) {
+        const VarDecl* var = FindModuleVar(module_it->second, expr.text);
+        if (var) return var->mutability == Mutability::Mutable;
+        if (out_known) *out_known = false;
+        return true;
+      }
+      if (const LocalInfo* local = FindLocal(scopes, base.text)) {
+        auto artifact_it = ctx.artifacts.find(local->type ? local->type->name : "");
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const VarDecl* field = FindArtifactField(artifact, expr.text);
+        if (field) return field->mutability == Mutability::Mutable;
+        if (out_known) *out_known = false;
+        return true;
+      }
+      auto global_it = ctx.globals.find(base.text);
+      if (global_it != ctx.globals.end()) {
+        auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        const VarDecl* field = FindArtifactField(artifact, expr.text);
+        if (field) return field->mutability == Mutability::Mutable;
+        if (out_known) *out_known = false;
+        return true;
+      }
+    }
+    if (out_known) *out_known = false;
+    return true;
+  }
+  if (expr.kind == ExprKind::Index && !expr.children.empty()) {
+    return IsMutableStorageExpr(expr.children[0], ctx, scopes, current_artifact, out_known);
+  }
+  if (out_known) *out_known = false;
+  return true;
+}
+
+bool GetPointerImmutabilityFromExpr(const Expr& expr,
+                                    const ValidateContext& ctx,
+                                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                                    const ArtifactDecl* current_artifact,
+                                    bool* out_known,
+                                    bool* out_points_to_immutable) {
+  if (out_known) *out_known = false;
+  if (out_points_to_immutable) *out_points_to_immutable = false;
+  if (expr.kind == ExprKind::Unary && expr.op == "&" && !expr.children.empty()) {
+    bool known = false;
+    const bool is_mutable = IsMutableStorageExpr(expr.children[0], ctx, scopes, current_artifact, &known);
+    if (out_known) *out_known = known;
+    if (out_points_to_immutable) *out_points_to_immutable = known && !is_mutable;
+    return true;
+  }
+  if (expr.kind == ExprKind::Identifier) {
+    if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+      if (out_known) *out_known = true;
+      if (out_points_to_immutable) *out_points_to_immutable = local->points_to_immutable;
+      return true;
+    }
+    auto global_it = ctx.global_points_to_immutable.find(expr.text);
+    if (global_it != ctx.global_points_to_immutable.end()) {
+      if (out_known) *out_known = true;
+      if (out_points_to_immutable) *out_points_to_immutable = global_it->second;
+      return true;
+    }
+  }
+  return true;
+}
+
 bool IsAssignOp(const std::string& op) {
   return op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" ||
          op == "%=" || op == "&=" || op == "|=" || op == "^=" || op == "<<=" || op == ">>=";
@@ -2193,10 +2296,20 @@ bool CheckAssignmentTarget(const Expr& target,
   std::function<bool(const Expr&)> is_mutable_expr = [&](const Expr& expr) -> bool {
     if (expr.kind == ExprKind::Identifier) {
       if (const LocalInfo* local = FindLocal(scopes, expr.text)) {
+        if (local->type && local->type->pointer_depth > 0) {
+          return !local->points_to_immutable;
+        }
         return local->mutability == Mutability::Mutable;
       }
       auto global_it = ctx.globals.find(expr.text);
       if (global_it != ctx.globals.end()) {
+        if (global_it->second->type.pointer_depth > 0) {
+          auto imm_it = ctx.global_points_to_immutable.find(expr.text);
+          if (imm_it != ctx.global_points_to_immutable.end()) {
+            return !imm_it->second;
+          }
+          return true;
+        }
         return global_it->second->mutability == Mutability::Mutable;
       }
       return true;
@@ -2552,6 +2665,20 @@ bool CheckStmt(const Stmt& stmt,
                                  true,
                                  error)) {
           return false;
+        }
+        if (stmt.var_decl.type.pointer_depth > 0) {
+          bool known = false;
+          bool points_to_immutable = false;
+          GetPointerImmutabilityFromExpr(stmt.var_decl.init_expr,
+                                         ctx,
+                                         scopes,
+                                         current_artifact,
+                                         &known,
+                                         &points_to_immutable);
+          auto local_it = scopes.back().find(stmt.var_decl.name);
+          if (local_it != scopes.back().end() && known) {
+            local_it->second.points_to_immutable = points_to_immutable;
+          }
         }
         std::string manifest_module;
         if (GetDlOpenManifestModule(stmt.var_decl.init_expr, ctx, &manifest_module)) {
@@ -3067,6 +3194,10 @@ bool CheckUnaryOpTypes(const Expr& expr,
 
   const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
   if (op == "&") {
+    if (!IsAddressableExpr(expr.children[0])) {
+      if (error) *error = "address-of requires assignable expression";
+      return false;
+    }
     return true;
   }
   if (!RequireScalar(operand, expr.op, error)) return false;
@@ -3905,6 +4036,20 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Variable:
         name_ptr = &decl.var.name;
         ctx.globals[decl.var.name] = &decl.var;
+        if (decl.var.has_init_expr && decl.var.type.pointer_depth > 0) {
+          std::vector<std::unordered_map<std::string, LocalInfo>> empty_scopes;
+          bool known = false;
+          bool points_to_immutable = false;
+          GetPointerImmutabilityFromExpr(decl.var.init_expr,
+                                         ctx,
+                                         empty_scopes,
+                                         nullptr,
+                                         &known,
+                                         &points_to_immutable);
+          if (known) {
+            ctx.global_points_to_immutable[decl.var.name] = points_to_immutable;
+          }
+        }
         break;
     }
     if (name_ptr && !ctx.top_level.insert(*name_ptr).second) {
