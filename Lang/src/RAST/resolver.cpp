@@ -184,12 +184,12 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
     return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
   }
   if (canonical_module == "Channel") {
-    return member == "newI32" || member == "sendI32" || member == "recvI32" || member == "tryRecvI32" ||
-           member == "newI64" || member == "sendI64" || member == "recvI64" || member == "tryRecvI64" ||
-           member == "newF32" || member == "sendF32" || member == "recvF32" || member == "tryRecvF32" ||
-           member == "newF64" || member == "sendF64" || member == "recvF64" || member == "tryRecvF64" ||
-           member == "newBool" || member == "sendBool" || member == "recvBool" || member == "tryRecvBool" ||
-           member == "newString" || member == "sendString" || member == "recvString" || member == "tryRecvString" ||
+    return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
+           member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
+           member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" ||
+           member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" ||
+           member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
+           member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";

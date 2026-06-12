@@ -1251,12 +1251,12 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
-      {"Channel", {"newI32", "sendI32", "recvI32", "tryRecvI32",
-                   "newI64", "sendI64", "recvI64", "tryRecvI64",
-                   "newF32", "sendF32", "recvF32", "tryRecvF32",
-                   "newF64", "sendF64", "recvF64", "tryRecvF64",
-                   "newBool", "sendBool", "recvBool", "tryRecvBool",
-                   "newString", "sendString", "recvString", "tryRecvString", "close"}},
+      {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
+                   "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
+                   "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
+                   "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
+                   "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
+                   "newString", "sendString", "trySendString", "recvString", "tryRecvString", "close"}},
       {"File", {"open", "close", "read", "write"}},
       {"Log", {"log"}},
   };
@@ -1575,7 +1575,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
         out->return_type = "i64";
         return true;
       }
-      if (member == "send" + suffix) {
+      if (member == "send" + suffix || member == "trySend" + suffix) {
         out->params = {"handle", "value"};
         out->return_type = "bool";
         return true;

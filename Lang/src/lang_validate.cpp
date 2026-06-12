@@ -350,12 +350,12 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   }
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
   if (resolved == "Channel") {
-    return {"newI32", "sendI32", "recvI32", "tryRecvI32",
-            "newI64", "sendI64", "recvI64", "tryRecvI64",
-            "newF32", "sendF32", "recvF32", "tryRecvF32",
-            "newF64", "sendF64", "recvF64", "tryRecvF64",
-            "newBool", "sendBool", "recvBool", "tryRecvBool",
-            "newString", "sendString", "recvString", "tryRecvString", "close"};
+    return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
+            "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
+            "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
+            "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
+            "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
+            "newString", "sendString", "trySendString", "recvString", "tryRecvString", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
   if (resolved == "Log") return {"log"};
@@ -664,7 +664,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
         out->return_mutability = Mutability::Mutable;
         return true;
       }
-      if (member == "send" + suffix) {
+      if (member == "send" + suffix || member == "trySend" + suffix) {
         out->params.push_back(MakeSimpleType("i64"));
         out->params.push_back(channel_value_type(suffix));
         out->return_type = MakeSimpleType("bool");

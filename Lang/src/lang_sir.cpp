@@ -416,12 +416,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       found = true;
       result = module;
     } else if (module == "Channel" &&
-               (member == "newI32" || member == "sendI32" || member == "recvI32" || member == "tryRecvI32" ||
-                member == "newI64" || member == "sendI64" || member == "recvI64" || member == "tryRecvI64" ||
-                member == "newF32" || member == "sendF32" || member == "recvF32" || member == "tryRecvF32" ||
-                member == "newF64" || member == "sendF64" || member == "recvF64" || member == "tryRecvF64" ||
-                member == "newBool" || member == "sendBool" || member == "recvBool" || member == "tryRecvBool" ||
-                member == "newString" || member == "sendString" || member == "recvString" || member == "tryRecvString" ||
+               (member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
+                member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
+                member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" ||
+                member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" ||
+                member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
+                member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
                 member == "close")) {
       if (found) return false;
       found = true;
@@ -5041,7 +5041,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         std::vector<TypeRef> send_params;
         send_params.push_back(make_type("i64"));
         send_params.push_back(make_type(type_name.c_str()));
+        std::vector<TypeRef> try_send_params = send_params;
         if (!add_reserved_import(alias, "core.channel", "send" + suffix, std::move(send_params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "core.channel", "trySend" + suffix, std::move(try_send_params), make_type("bool"))) return false;
 
         std::vector<TypeRef> recv_params;
         recv_params.push_back(make_type("i64"));

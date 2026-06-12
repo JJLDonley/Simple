@@ -1836,18 +1836,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "newF64") return do_new(g_channel_f64, "newF64");
       if (sym == "newBool") return do_new(g_channel_bool, "newBool");
       if (sym == "newString") return do_new(g_channel_string, "newString");
-      if (sym == "sendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, "sendI32");
-      if (sym == "sendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, "sendI64");
-      if (sym == "sendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, "sendF32");
-      if (sym == "sendF64") return do_send(g_channel_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, "sendF64");
-      if (sym == "sendBool") return do_send(g_channel_bool, [](Slot v) { return UnpackI32(v) != 0; }, "sendBool");
-      if (sym == "sendString") {
+      if (sym == "sendI32" || sym == "trySendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, sym.c_str());
+      if (sym == "sendI64" || sym == "trySendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, sym.c_str());
+      if (sym == "sendF32" || sym == "trySendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, sym.c_str());
+      if (sym == "sendF64" || sym == "trySendF64") return do_send(g_channel_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, sym.c_str());
+      if (sym == "sendBool" || sym == "trySendBool") return do_send(g_channel_bool, [](Slot v) { return UnpackI32(v) != 0; }, sym.c_str());
+      if (sym == "sendString" || sym == "trySendString") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.channel.sendString return type mismatch";
+          out_error = std::string("core.channel.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.channel.sendString arg count mismatch";
+          out_error = std::string("core.channel.") + sym + " arg count mismatch";
           return false;
         }
         auto state = GetChannel(g_channel_string, UnpackI64(args[0]));

@@ -1,0 +1,23 @@
+import Channel
+using Channel
+
+main : i32 () {
+  i32ch : i64 = newI32()
+  strch : i64 = newString()
+  boolch : i64 = newBool()
+
+  ok1 : bool = trySendI32(i32ch, 12)
+  ok2 : bool = trySendString(strch, "abc")
+  ok3 : bool = trySendBool(boolch, true)
+  if (!ok1 || !ok2 || !ok3) { return 0 }
+
+  a : i32 = tryRecvI32(i32ch)
+  s : string = tryRecvString(strch)
+  b : bool = tryRecvBool(boolch)
+  close(i32ch)
+  close(strch)
+  close(boolch)
+
+  if (!b) { return 0 }
+  return a + len(s)
+}
