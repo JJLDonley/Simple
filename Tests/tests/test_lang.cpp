@@ -286,6 +286,43 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
          resolved.by_qualified_name.find("main::body.s1.init.switch0.s0:local") != resolved.by_qualified_name.end();
 }
 
+bool LangRastResolverDisambiguatesMemberRefs() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () { return self.v; }\n"
+      "}\n"
+      "Config :: Module {\n"
+      "  Max :: i32 = 40\n"
+      "}\n"
+      "Mode :: Enum { Off = 0, On = 1 }\n"
+      "main : i32 () {\n"
+      "  x : i32 = Config.Max;\n"
+      "  m : Mode = Mode.On;\n"
+      "  b : Box = { 2 };\n"
+      "  return b.score() + x;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  bool saw_self = false;
+  bool saw_module = false;
+  bool saw_enum = false;
+  for (const auto& ref : resolved.member_refs) {
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::SelfMember &&
+        ref.qualified_name == "Box.v") saw_self = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::StaticMember &&
+        ref.qualified_name == "Config.Max") saw_module = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::StaticMember &&
+        ref.qualified_name == "Mode.On") saw_enum = true;
+  }
+  return saw_self && saw_module && saw_enum;
+}
+
 bool LangTastCheckerAcceptsResolvedProgram() {
   const char* src = "main : i32 () { return 42; }";
   Simple::Lang::CAST::Program cast_program;
@@ -4108,6 +4145,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},
   {"lang_rast_resolver_collects_switch_branch_locals", LangRastResolverCollectsSwitchBranchLocals},
+  {"lang_rast_resolver_disambiguates_member_refs", LangRastResolverDisambiguatesMemberRefs},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},

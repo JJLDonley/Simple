@@ -45,9 +45,24 @@ struct Symbol {
   SymbolId parent = kInvalidSymbolId;
 };
 
+enum class MemberRefKind : uint8_t {
+  Unknown,
+  StaticMember,
+  SelfMember,
+};
+
+struct MemberRef {
+  MemberRefKind kind = MemberRefKind::Unknown;
+  std::string base;
+  std::string member;
+  std::string qualified_name;
+  SymbolId symbol = kInvalidSymbolId;
+};
+
 struct ResolvedProgram {
   const Program* program = nullptr;
   std::vector<Symbol> symbols;
+  std::vector<MemberRef> member_refs;
   std::unordered_map<std::string, SymbolId> by_qualified_name;
 };
 

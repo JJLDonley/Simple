@@ -181,6 +181,114 @@ bool AddCallableSymbols(ResolvedProgram* out,
   return AddStmtBlockSymbols(out, fn.body, owner, parent, "body", error);
 }
 
+void AddResolvedMemberRef(ResolvedProgram* out,
+                          MemberRefKind kind,
+                          const std::string& base,
+                          const std::string& member,
+                          const std::string& qualified_name,
+                          SymbolId symbol) {
+  MemberRef ref;
+  ref.kind = kind;
+  ref.base = base;
+  ref.member = member;
+  ref.qualified_name = qualified_name;
+  ref.symbol = symbol;
+  out->member_refs.push_back(std::move(ref));
+}
+
+void ResolveExprMemberRefs(ResolvedProgram* out,
+                           const Expr& expr,
+                           const std::string& current_artifact);
+
+void ResolveStmtMemberRefs(ResolvedProgram* out,
+                           const Stmt& stmt,
+                           const std::string& current_artifact) {
+  if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) {
+    ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_artifact);
+  } else if (stmt.kind == StmtKind::Assign) {
+    ResolveExprMemberRefs(out, stmt.target, current_artifact);
+    ResolveExprMemberRefs(out, stmt.expr, current_artifact);
+  } else if (stmt.kind == StmtKind::Expr || (stmt.kind == StmtKind::Return && stmt.has_return_expr)) {
+    ResolveExprMemberRefs(out, stmt.expr, current_artifact);
+  } else if (stmt.kind == StmtKind::IfChain) {
+    for (const auto& branch : stmt.if_branches) {
+      ResolveExprMemberRefs(out, branch.first, current_artifact);
+      for (const auto& child : branch.second) ResolveStmtMemberRefs(out, child, current_artifact);
+    }
+    for (const auto& child : stmt.else_branch) ResolveStmtMemberRefs(out, child, current_artifact);
+  } else if (stmt.kind == StmtKind::IfStmt) {
+    ResolveExprMemberRefs(out, stmt.if_cond, current_artifact);
+    for (const auto& child : stmt.if_then) ResolveStmtMemberRefs(out, child, current_artifact);
+    for (const auto& child : stmt.if_else) ResolveStmtMemberRefs(out, child, current_artifact);
+  } else if (stmt.kind == StmtKind::WhileLoop) {
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact);
+    for (const auto& child : stmt.loop_body) ResolveStmtMemberRefs(out, child, current_artifact);
+  } else if (stmt.kind == StmtKind::ForLoop) {
+    ResolveExprMemberRefs(out, stmt.loop_iter, current_artifact);
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact);
+    ResolveExprMemberRefs(out, stmt.loop_step, current_artifact);
+    for (const auto& child : stmt.loop_body) ResolveStmtMemberRefs(out, child, current_artifact);
+  }
+}
+
+void ResolveExprMemberRefs(ResolvedProgram* out,
+                           const Expr& expr,
+                           const std::string& current_artifact) {
+  if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
+    const Expr& base = expr.children[0];
+    std::string qualified;
+    MemberRefKind kind = MemberRefKind::Unknown;
+    if (base.kind == ExprKind::Identifier && base.text == "self" && !current_artifact.empty()) {
+      qualified = current_artifact + "." + expr.text;
+      kind = MemberRefKind::SelfMember;
+    } else if (base.kind == ExprKind::Identifier) {
+      qualified = base.text + "." + expr.text;
+      kind = MemberRefKind::StaticMember;
+    }
+    auto it = out->by_qualified_name.find(qualified);
+    if (it != out->by_qualified_name.end()) {
+      AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
+    }
+  }
+  for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_artifact);
+  for (const auto& arg : expr.args) ResolveExprMemberRefs(out, arg, current_artifact);
+  for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_artifact);
+  if (expr.kind == ExprKind::Switch) {
+    for (const auto& branch : expr.switch_branches) {
+      if (!branch.is_default) ResolveExprMemberRefs(out, branch.condition, current_artifact);
+      if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_artifact);
+      for (const auto& stmt : branch.block) ResolveStmtMemberRefs(out, stmt, current_artifact);
+    }
+  }
+}
+
+void ResolveFunctionMemberRefs(ResolvedProgram* out,
+                               const FuncDecl& fn,
+                               const std::string& current_artifact) {
+  for (const auto& stmt : fn.body) ResolveStmtMemberRefs(out, stmt, current_artifact);
+}
+
+void ResolveProgramMemberRefs(ResolvedProgram* out) {
+  if (!out || !out->program) return;
+  for (const auto& decl : out->program->decls) {
+    if (decl.kind == DeclKind::Function) {
+      ResolveFunctionMemberRefs(out, decl.func, {});
+    } else if (decl.kind == DeclKind::Artifact) {
+      for (const auto& method : decl.artifact.methods) {
+        ResolveFunctionMemberRefs(out, method, decl.artifact.name);
+      }
+    } else if (decl.kind == DeclKind::Module) {
+      for (const auto& fn : decl.module.functions) ResolveFunctionMemberRefs(out, fn, {});
+      for (const auto& var : decl.module.variables) {
+        if (var.has_init_expr) ResolveExprMemberRefs(out, var.init_expr, {});
+      }
+    } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
+      ResolveExprMemberRefs(out, decl.var.init_expr, {});
+    }
+  }
+  for (const auto& stmt : out->program->top_level_stmts) ResolveStmtMemberRefs(out, stmt, {});
+}
+
 } // namespace
 
 bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
@@ -304,6 +412,7 @@ bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
       }
     }
   }
+  ResolveProgramMemberRefs(out);
   return true;
 }
 

@@ -83,6 +83,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] no-fallthrough policy
 - [ ] Add resolved receiver model for artifact methods.
 - [ ] Disambiguate member access during resolution:
+  - [x] Add initial RAST member reference collection for static and `self` member refs.
   - [ ] module member
   - [ ] artifact field
   - [ ] artifact method
