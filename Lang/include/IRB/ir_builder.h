@@ -34,10 +34,23 @@ struct IrFunction {
   std::vector<IrBlock> blocks;
 };
 
+struct IrSignature {
+  std::string name;
+  IrSig signature;
+};
+
 struct IrImport {
+  std::string name;
   std::string module;
   std::string symbol;
+  std::string signature_name;
   IrSig signature;
+};
+
+struct IrGlobal {
+  std::string name;
+  IrType type;
+  std::string init;
 };
 
 struct IrArtifactField {
@@ -68,7 +81,9 @@ struct IrStackInfo {
 };
 
 struct IrModule {
+  std::vector<IrSignature> signatures;
   std::vector<IrImport> imports;
+  std::vector<IrGlobal> globals;
   std::vector<IrFunction> functions;
   std::vector<IrArtifactLayout> artifact_layouts;
   std::vector<IrAbiType> abi_types;

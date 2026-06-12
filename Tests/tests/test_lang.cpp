@@ -656,6 +656,43 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
          module.ir.artifact_layouts.empty();
 }
 
+bool LangIrbCollectsAllocationMetadata() {
+  const char* src =
+      "extern host.puts : i32 (text : string)\n"
+      "g : i32 = 7\n"
+      "main : i32 () { host.puts(\"hi\"); return g; }\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  Simple::Lang::IRB::Module module;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  bool saw_main_sig = false;
+  for (const auto& sig : module.ir.signatures) {
+    if (sig.name == "main" && sig.signature.has_result && sig.signature.result.name == "i32") saw_main_sig = true;
+  }
+  bool saw_global = false;
+  for (const auto& global : module.ir.globals) {
+    if (global.name == "g" && global.type.name == "i32") saw_global = true;
+  }
+  bool saw_import = false;
+  for (const auto& import : module.ir.imports) {
+    if (import.module == "host" && import.symbol == "puts" && import.signature.params.size() == 1 &&
+        import.signature.params[0].name == "string" && import.signature.has_result &&
+        import.signature.result.name == "i32") saw_import = true;
+  }
+  bool saw_function = false;
+  for (const auto& fn : module.ir.functions) {
+    if (fn.name == "main" && fn.signature.has_result && fn.signature.result.name == "i32") saw_function = true;
+  }
+  return saw_main_sig && saw_global && saw_import && saw_function;
+}
+
 bool LangIrbCollectsAbiFlatteningMetadata() {
   const char* src =
       "Inner :: Artifact { x : i32; y : i32 }\n"
@@ -4674,6 +4711,7 @@ const TestCase kLangTests[] = {
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
+  {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},
   {"lang_irb_collects_abi_flattening_metadata", LangIrbCollectsAbiFlatteningMetadata},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
