@@ -415,6 +415,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Channel" &&
+               (member == "newI32" || member == "sendI32" || member == "recvI32" ||
+                member == "tryRecvI32" || member == "close")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "DL" && (NormalizeCoreDlMember(member) == "open" ||
                                   NormalizeCoreDlMember(member) == "sym" ||
                                   NormalizeCoreDlMember(member) == "close" ||
@@ -1558,7 +1564,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread") {
+          if (using_module == "Thread" || using_module == "Channel") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2685,27 +2691,28 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread") {
+          if (using_module == "Thread" || using_module == "Channel") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
+            const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
-              if (error) *error = "missing extern module for 'Thread." + callee.text + "'";
+              if (error) *error = "missing extern module for '" + qualified_name + "'";
               return false;
             }
             auto id_it = ext_mod_it->second.find(callee.text);
             if (id_it == ext_mod_it->second.end()) {
-              if (error) *error = "missing extern id for 'Thread." + callee.text + "'";
+              if (error) *error = "missing extern id for '" + qualified_name + "'";
               return false;
             }
             auto params_it = st.extern_params_by_module[using_module].find(callee.text);
             auto ret_it = st.extern_returns_by_module[using_module].find(callee.text);
             if (params_it == st.extern_params_by_module[using_module].end() ||
                 ret_it == st.extern_returns_by_module[using_module].end()) {
-              if (error) *error = "missing signature for extern 'Thread." + callee.text + "'";
+              if (error) *error = "missing signature for extern '" + qualified_name + "'";
               return false;
             }
             const auto& params = params_it->second;
             if (expr.args.size() != params.size()) {
-              if (error) *error = "call argument count mismatch for 'Thread." + callee.text + "'";
+              if (error) *error = "call argument count mismatch for '" + qualified_name + "'";
               return false;
             }
             for (size_t i = 0; i < params.size(); ++i) {
@@ -5018,6 +5025,27 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Channel") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Channel")) {
+      if (!add_reserved_import(alias, "core.channel", "newI32", {}, make_type("i64"))) return false;
+
+      std::vector<TypeRef> send_params;
+      send_params.push_back(make_type("i64"));
+      send_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.channel", "sendI32", std::move(send_params), make_type("bool"))) return false;
+
+      std::vector<TypeRef> recv_params;
+      recv_params.push_back(make_type("i64"));
+      std::vector<TypeRef> try_recv_params = recv_params;
+      if (!add_reserved_import(alias, "core.channel", "recvI32", std::move(recv_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "core.channel", "tryRecvI32", std::move(try_recv_params), make_type("i32"))) return false;
+
+      std::vector<TypeRef> close_params;
+      close_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.channel", "close", std::move(close_params), make_type("void"))) return false;
     }
   }
 

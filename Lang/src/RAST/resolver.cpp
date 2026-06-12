@@ -183,6 +183,10 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "Thread") {
     return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
   }
+  if (canonical_module == "Channel") {
+    return member == "newI32" || member == "sendI32" || member == "recvI32" ||
+           member == "tryRecvI32" || member == "close";
+  }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
   if (canonical_module == "Log") return member == "log";
   return false;

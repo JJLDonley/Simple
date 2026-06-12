@@ -1959,6 +1959,14 @@ bool LangReservedThreadUsingApisRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_thread_using.simple", 1);
 }
 
+bool LangReservedChannelI32ApisRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_channel_i32.simple", 49);
+}
+
+bool LangReservedChannelI32UsingApisRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_channel_i32_using.simple", 9);
+}
+
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
   const std::string cmd = "bin/simplevm emit -ir Tests/simple/hello.simple --out " + out_path;
@@ -4955,6 +4963,8 @@ const TestCase kLangTests[] = {
   {"lang_simple_bad_for_missing_init", LangSimpleBadForMissingInit},
   {"lang_reserved_thread_apis_run", LangReservedThreadApisRun},
   {"lang_reserved_thread_using_apis_run", LangReservedThreadUsingApisRun},
+  {"lang_reserved_channel_i32_apis_run", LangReservedChannelI32ApisRun},
+  {"lang_reserved_channel_i32_using_apis_run", LangReservedChannelI32UsingApisRun},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

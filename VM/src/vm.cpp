@@ -11,7 +11,11 @@
 #include <ffi.h>
 #endif
 #include <filesystem>
+#include <condition_variable>
 #include <limits>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <sstream>
 #include <thread>
 #include <tuple>
@@ -34,6 +38,23 @@ using Simple::Byte::OpCodeName;
 using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
+
+struct ChannelI32State {
+  std::mutex mutex;
+  std::condition_variable cv;
+  std::queue<int32_t> values;
+  bool closed = false;
+};
+
+std::mutex g_channel_i32_mutex;
+std::unordered_map<int64_t, std::shared_ptr<ChannelI32State>> g_channel_i32;
+int64_t g_next_channel_i32 = 1;
+
+std::shared_ptr<ChannelI32State> GetChannelI32(int64_t handle) {
+  std::lock_guard<std::mutex> lock(g_channel_i32_mutex);
+  auto it = g_channel_i32.find(handle);
+  return it == g_channel_i32.end() ? nullptr : it->second;
+}
 
 inline bool IsI32LikeImportType(TypeKind kind) {
   switch (kind) {
@@ -1692,6 +1713,118 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         int32_t ms = UnpackI32(args[0]);
         if (ms > 0) {
           std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
+        return true;
+      }
+    }
+    if (mod == "core.channel") {
+      if (sym == "newI32") {
+        if (!IsI64LikeImportType(ret_kind)) {
+          out_error = "core.channel.newI32 return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.channel.newI32 arg count mismatch";
+          return false;
+        }
+        auto state = std::make_shared<ChannelI32State>();
+        int64_t handle = 0;
+        {
+          std::lock_guard<std::mutex> lock(g_channel_i32_mutex);
+          handle = g_next_channel_i32++;
+          g_channel_i32[handle] = state;
+        }
+        out_ret = PackI64(handle);
+        return true;
+      }
+      if (sym == "sendI32") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.channel.sendI32 return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.channel.sendI32 arg count mismatch";
+          return false;
+        }
+        auto state = GetChannelI32(UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          if (state->closed) {
+            out_ret = PackI32(0);
+            return true;
+          }
+          state->values.push(UnpackI32(args[1]));
+        }
+        state->cv.notify_one();
+        out_ret = PackI32(1);
+        return true;
+      }
+      if (sym == "recvI32") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.channel.recvI32 return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.channel.recvI32 arg count mismatch";
+          return false;
+        }
+        auto state = GetChannelI32(UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        std::unique_lock<std::mutex> lock(state->mutex);
+        state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
+        if (state->values.empty()) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        const int32_t value = state->values.front();
+        state->values.pop();
+        out_ret = PackI32(value);
+        return true;
+      }
+      if (sym == "tryRecvI32") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.channel.tryRecvI32 return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.channel.tryRecvI32 arg count mismatch";
+          return false;
+        }
+        auto state = GetChannelI32(UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        std::lock_guard<std::mutex> lock(state->mutex);
+        if (state->values.empty()) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        const int32_t value = state->values.front();
+        state->values.pop();
+        out_ret = PackI32(value);
+        return true;
+      }
+      if (sym == "close") {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.channel.close arg count mismatch";
+          return false;
+        }
+        auto state = GetChannelI32(UnpackI64(args[0]));
+        if (state) {
+          {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            state->closed = true;
+          }
+          state->cv.notify_all();
         }
         return true;
       }

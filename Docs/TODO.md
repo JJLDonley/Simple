@@ -17,7 +17,8 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [ ] error propagation from worker jobs
   - [ ] shutdown/cancellation policy
 - [ ] Add `Channel` core module for safe message passing between VM jobs:
-  - [ ] concrete primitive channels first: `ChannelI32`, `ChannelI64`, `ChannelF32`, `ChannelF64`, `ChannelBool`
+  - [x] initial `Channel` native module with `newI32`, `sendI32`, `recvI32`, `tryRecvI32`, `close`
+  - [ ] remaining concrete primitive channels: `ChannelI64`, `ChannelF32`, `ChannelF64`, `ChannelBool`
   - [ ] `ChannelString`
   - [ ] `ChannelBytes`
   - [ ] `send`, `trySend`, `recv`, `tryRecv`, `close`

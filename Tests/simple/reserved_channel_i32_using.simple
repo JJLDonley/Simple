@@ -1,0 +1,12 @@
+import Channel
+using Channel
+
+main : i32 () {
+  ch : i64 = newI32()
+  ok : bool = sendI32(ch, 9)
+  if (!ok) { return 0 }
+  a : i32 = recvI32(ch)
+  b : i32 = tryRecvI32(ch)
+  close(ch)
+  return a + b
+}
