@@ -1,3 +1,12 @@
+#include "Lexer/lexer.h"
+#include "Lexer/token.h"
+#include "CAST/cast.h"
+#include "CAST/parser.h"
+#include "AST/ast.h"
+#include "RAST/rast.h"
+#include "TAST/tast.h"
+#include "IRB/ir_builder.h"
+#include "IRE/sir_emitter.h"
 #include "lang_lexer.h"
 #include "lang_parser.h"
 #include "lang_sir.h"
@@ -118,6 +127,27 @@ bool LangSirEmitsReturnI32() {
   std::string error;
   if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangPhaseHeadersCompileAndPreserveBehavior() {
+  Simple::Lang::Lexer lexer("main : i32 () { return 0; }");
+  if (!lexer.Lex()) return false;
+  if (lexer.Tokens().empty()) return false;
+  if (lexer.Tokens().front().kind != Simple::Lang::TokenKind::Identifier) return false;
+
+  Simple::Lang::CAST::Parser parser(lexer.Tokens());
+  Simple::Lang::CAST::Program cast_program;
+  if (!parser.ParseProgram(&cast_program)) return false;
+
+  Simple::Lang::AST::Program* ast_program = &cast_program;
+  Simple::Lang::RAST::ResolvedProgramView resolved{ast_program};
+  Simple::Lang::TAST::TypedProgramView typed{resolved.program};
+  if (typed.program == nullptr) return false;
+
+  Simple::Lang::IRB::Module module;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSir(*typed.program, &module.sir_text, &error)) return false;
+  return module.sir_text.find("entry main") != std::string::npos;
 }
 
 bool LangSirTopLevelScriptExecutes() {
@@ -3638,6 +3668,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
+  {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_sir_main_overrides_top_level", LangSirMainOverridesTopLevel},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},

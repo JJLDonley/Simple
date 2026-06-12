@@ -1,319 +1,312 @@
-# Simple Implementation Plan (API Roadmap)
-
-This document is the authoritative roadmap for shipping and maintaining Simple.
-
-## Lang Spec Implementation Checklist (Tests In Parallel)
-
-### Phase 0: Spec → Code Mapping
-- Create a spec-to-code checklist for every Lang rule.
-- For each rule, define a matching test case (or test update).
-- No code changes until mapping is complete.
-
-### Phase 1: Lexer + Tokens
-Implementation:
-- Remove `callback` keyword.
-- Add `->` token.
-- Allow unary `&` address-of (parser-level).
-Tests (same phase):
-- Lexer test for `->`.
-- Parser rejects `callback`, accepts `->` member access.
-
-### Phase 2: Types (fn, generics, pointers)
-Implementation:
-- Parse `fn RetType (params...)` and `fn<T> RetType (params...)`.
-- Switch pointer types to `T*` (suffix).
-- Remove callback tracking in AST/types.
-Tests (same phase):
-- `fn` types in vars/params/returns.
-- `T*` parsing and typing.
-- Reject legacy `*T` if required by spec.
-
-### Phase 3: Procedure Value Declarations
-Implementation:
-- Support `name : fn RetType (params...) = (params...) { block }`.
-- RHS params omit types (types come from `fn` signature).
-Tests (same phase):
-- RHS untyped params accepted with `fn` LHS.
-- Higher-order examples pass.
-
-### Phase 4: Control Flow Syntax
-Implementation:
-- Require parentheses for `if`, `while`, `for`.
-- Remove range-for.
-- Enforce C-style `for (init; cond; step)`.
-Tests (same phase):
-- Valid `if/while/for` with parentheses.
-- Invalid old syntax rejected.
-- `for (i; ...)` defaults to `i : i32 = 0`.
-
-### Phase 5: Switch
-Implementation:
-- Parse assigning and expression `switch`.
-- Validate assigning switch returns in all branches.
-Tests (same phase):
-- Assigning switch with missing return fails.
-- Expression switch yields value.
-
-### Phase 6: Literals + Artifacts
-Implementation:
-- Resolve list vs array literals by contextual type.
-- Disallow mixed positional/named artifact fields.
-- Support artifact/module field defaults.
-Tests (same phase):
-- Array length mismatch fails.
-- List literal defaults without context.
-- Artifact missing required field fails.
-- Mixed positional/named fields fail.
-
-### Phase 7: Pointers + Member Access
-Implementation:
-- `&variable` address-of.
-- `T*` pointer type.
-- `->` member access.
-- Enforce immutability through pointers.
-Tests (same phase):
-- Pointer type in fields and params.
-- `node->field` access works.
-- Mutating through immutable pointer fails.
-
-### Phase 8: Top-Level Script + Entry
-Implementation:
-- Top-level statements execute in order.
-- If `main :: i32 ()` exists, it is the entry point and top-level statements are skipped.
-Tests (same phase):
-- Script-only file executes.
-- `main` present overrides top-level execution.
-
-### Phase 9: DL/ABI
-Implementation:
-- Ensure artifact methods are ignored for ABI layout.
-- Reject recursive artifacts in extern ABI.
-Tests (same phase):
-- Artifact by value extern ok.
-- Recursive artifact extern rejected.
-
-## Supported (Current Baseline)
-- Repository layout: `Byte/`, `CLI/`, `Docs/`, `IR/`, `Lang/`, `Tests/`, `VM/`.
-- Import resolution supports:
-  - reserved stdlib imports
-  - relative/absolute imports
-  - project-root bare filename lookup (with ambiguity diagnostics)
-- Language entry behavior supports script-style programs:
-  - top-level statements execute in source order via implicit `__script_entry`
-  - top-level function declarations are declarations only (not auto-called)
-  - explicit `main` is used as entry only when no top-level script statements exist
-- Top-level `return` is rejected at validation time.
-- Cast syntax enforced as `@T(value)` (legacy `T(value)` rejected).
-- `IO.print`/`IO.println` support typed format placeholders via `{}` in string literals.
-- CLI diagnostics are context-rich with source spans and help hints.
-- LSP server is implemented and test-covered (lifecycle, diagnostics, navigation, completion, signature help, semantic tokens, rename, code actions).
-- CI workflow publishes GitHub Release artifacts for installer consumption.
-
-## Not Supported (v0.1 Non-Goals)
-- Package manager ecosystem.
-- Full optimizing compiler pipeline.
-- AOT-native backend.
-- Advanced GC generations/tuning work.
-
-## Planned (Alpha Focus)
-- Freeze SBC compatibility/versioning policy in `Docs/Byte.md`.
-- Freeze supported SIR subset and unsupported forms list in `Docs/IR.md`.
-- Publish explicit supported and deferred language features in `Docs/Lang.md`.
-- Freeze CLI command behavior contract and exit-code consistency in `Docs/CLI.md`.
-- Define CI matrix and alpha smoke profile that covers the full pipeline.
-
-## Module Plans
-
-### 1. `Simple::Byte` (Format/Loader/Verifier)
-Authoritative doc: `Docs/Byte.md`
-
-Status:
-- Loader + verifier implemented and heavily tested.
-
-Remaining alpha work:
-- Freeze compatibility/versioning policy language in `Docs/Byte.md`.
-- Define forward/backward compatibility expectations for SBC artifact consumers.
-- Add compatibility smoke test using archived SBC fixtures.
-
-Gate to close:
-- Compatibility section in docs is explicit and test-backed.
-
-### 2. `Simple::VM` (Runtime/ABI)
-Authoritative doc: `Docs/VM.md`
-
-Status:
-- Interpreter baseline stable.
-- Core imports + dynamic DL/FFI dispatch implemented.
-
-Remaining alpha work:
-- VM behavior, limits, and alpha posture are explicit in docs and reflected in tests.
-
-JIT upgrade posture (interpreter remains canonical):
-- Phase 1: scalar parity (no heap/refs, no params).
-- Phase 2: locals + params parity (still no heap/refs).
-- Phase 3: controlled heap/refs (strings/lists/arrays) with explicit safety checks.
-- Phase 4: call support + tier tuning.
-
-### 3. `Simple::IR` (SIR Contract)
-Authoritative doc: `Docs/IR.md`
-
-Status:
-- SIR parse/validate/lower is stable.
-
-Remaining alpha work:
-- Freeze supported SIR subset and unsupported forms list.
-- Add regression fixtures for each unsupported-but-diagnosed SIR class.
-
-Gate to close:
-- SIR contract is deterministic and release-noted.
-
-### 4. `Simple::Lang` (Front-End)
-Authoritative docs: `Docs/Lang.md`, `Docs/StdLib.md`
-
-Status:
-- Lexer/parser/validator/emitter implemented.
-- Import/extern/global/init flows in place.
-- Script-style top-level execution and diagnostics are implemented and test-covered.
-
-Remaining alpha work:
-- Publish explicit supported syntax/features list for alpha.
-- Publish explicit deferred/unsupported list.
-- Confirm diagnostics for parser/lexer/semantic classes meet format contract.
-
-Gate to close:
-- Language subset is fully documented and predictable for users.
-
-### 5. `Simple::CLI` (UX + Orchestration)
-Authoritative doc: `Docs/CLI.md`
-
-Status:
-- `run/build/compile/check/emit/lsp` command surface exists.
-- Installer/release scripts integrated with release assets.
-
-Remaining alpha work:
-- Freeze command behavior contract.
-- Final pass on exit-code/error-format consistency across commands.
-- Document installer defaults for `latest` and version-pinned flows.
-
-Gate to close:
-- CLI contract is frozen for alpha and release-tested.
-
-### 6. `Simple::LSP` (Editor Protocol + Highlighting)
-Authoritative doc: `Docs/LSP.md`
-
-Status:
-- `simple lsp` implemented with lifecycle, diagnostics, navigation, completion, signature help, semantic tokens, rename, code actions, and cross-document indexing for open files.
-- VS Code extension baseline exists at `Editor/vscode-simple/` with TextMate grammar + language client wiring.
-
-Remaining alpha work:
-- Add protocol and editor smoke tests to CI.
-
-Gate to close:
-- LSP is functionally usable in editor workflows with diagnostics, navigation, completion, and highlighting.
-
-### 7. `Simple::Tests` (Quality Gates)
-Execution references:
-- `Tests/tests/*`
-- `Docs/Sprint.md`
-
-Status:
-- Multi-suite testing exists (`core`, `ir`, `jit`, `lang`, `all`).
-
-Remaining alpha work:
-- Define mandatory CI matrix (OS/target/toolchain).
-- Add alpha smoke profile that runs quickly but covers end-to-end pipeline.
-- Ensure new release pipeline gates on full suite pass.
-
-Gate to close:
-- Required CI/test gates are explicit and enforced.
-
-## Release Engineering Plan
-
-### Branching Model
-- `main`: active development and integration (release trigger branch).
-- `gh-pages`: static project website.
-
-### Artifact Contract
-For Linux x86_64 release jobs, publish:
-- `simple-<version>-linux-x86_64.tar.gz`
-- `simple-<version>-linux-x86_64.tar.gz.sha256`
-- `simple-latest-linux-x86_64.tar.gz`
-- `simple-latest-linux-x86_64.tar.gz.sha256`
-
-### Installer Contract
-`install.sh` supports:
-- local archive: `--from-file`
-- explicit URL: `--url`
-- GitHub auto-resolution by repo/version:
-  - latest
-  - version-pinned tag
-
-## Phase Plan (Execution Order)
-
-### Phase A: Contract Freeze
-- Finalize docs for Byte/VM/IR/Lang/CLI alpha contract sections.
-- Confirm examples run from repository root exactly as documented.
-
-Exit criteria:
-- All module docs are current and internally consistent.
-
-### Phase B: LSP + Editor UX
-- Add protocol and editor smoke tests to CI.
-
-Exit criteria:
-- `simple lsp` is production-usable for core editing workflows.
-
-### Phase C: Runtime + CLI Hardening
-- JIT posture decision and documentation.
-- CLI error/exit-code consistency pass.
-- Smoke scenarios for import resolution and diagnostics.
-
-Exit criteria:
-- No known unstable alpha paths are undocumented.
-
-### Phase D: Test and CI Gate Lock
-- Finalize CI matrix and enforce full suite gate.
-- Define and enforce alpha smoke test profile.
-- Add compatibility fixture checks for SBC/SIR subset.
-
-Exit criteria:
-- CI is the authoritative merge/release gate.
-
-### Phase E: Release Readiness
-- Confirm release workflow output and checksums.
-- Dry-run installer (`latest` and pinned version).
-- Draft and publish release notes with known limitations.
-
-Exit criteria:
-- Clean reproducible release from `main`.
-
-## Alpha Release Checklist
-All must be true:
-1. `./build.sh --suite all` passes.
-2. Release workflow on `main` passes and uploads all artifacts.
-3. Installer works for:
-   - latest asset path
-   - version-pinned asset path
-4. Module docs match actual behavior and constraints.
-5. Sprint log includes all significant behavior, tooling, and release-contract changes.
-6. Release notes explicitly list:
-   - compatibility expectations
-   - known limitations
-   - support posture (especially JIT)
-
-## Verification Commands
-
-### Local Quality
-- `./build.sh --suite core`
-- `./build.sh --suite ir`
-- `./build.sh --suite jit`
-- `./build.sh --suite lang`
-- `./build.sh --suite all`
-
-### Local Release Dry Run
-- `./release.sh --version vX.Y.Z --target linux-x86_64`
-- `./install.sh --from-file ./dist/simple-vX.Y.Z-linux-x86_64.tar.gz --version vX.Y.Z`
-
-### Installer (GitHub)
-- `./install.sh --repo <owner/repo> --version latest`
-- `./install.sh --repo <owner/repo> --version vX.Y.Z`
+# Simple Implementation Status and Roadmap
+
+This document aligns the current compiler, language, bytecode, and VM documentation with the implementation in this repository.
+
+For detailed module contracts, see:
+
+- `Docs/Lang.md`
+- `Docs/IR.md`
+- `Docs/Byte.md`
+- `Docs/VM.md`
+- `Docs/CLI.md`
+- `Docs/StdLib.md`
+- `Docs/LSP.md`
+
+## Current Pipeline
+
+Implemented end-to-end pipeline:
+
+```txt
+.simple source
+  -> Lang lexer/parser
+  -> AST
+  -> Lang validator
+  -> SIR text emission
+  -> IR text parser/lowerer
+  -> SBC binary emission
+  -> Byte loader
+  -> Byte verifier
+  -> VM interpreter
+```
+
+The interpreter is the canonical runtime. JIT-related structures exist but are not the correctness baseline.
+
+## Implemented
+
+### Repository Modules
+
+Implemented module layout:
+
+- `Lang/` - lexer, parser, AST, validator, SIR emitter
+- `IR/` - SIR parser/lowerer, bytecode builder, SBC compiler
+- `Byte/` - SBC format, opcode table, loader, verifier
+- `VM/` - interpreter, heap, runtime imports, dynamic library calls, JIT scaffolding
+- `CLI/` - command-line orchestration and diagnostics
+- `LSP/` - language server
+- `Editor/` - VS Code extension baseline
+- `Tests/` - C++ tests and `.simple` fixtures
+- `Docs/` - current and legacy documentation
+
+### Language Front-End
+
+Implemented:
+
+- tokenization with comments, literals, keywords, operators, and source locations
+- recursive-descent parser
+- AST for declarations, statements, expressions, types, modules, artifacts, enums, externs, and imports
+- strict semantic validation
+- mutability checks
+- function and variable declarations
+- top-level script statements through implicit script entry
+- explicit `main` entry when no top-level script body is present
+- primitive scalar types
+- arrays and lists
+- artifacts with fields/methods
+- modules with variables/functions
+- scoped enums
+- procedure types and function literals for supported paths
+- control flow: `if`, chain `|>`, `while`, C-style `for`, `break`, `skip`, `return`
+- switch-expression parsing/validation for supported value forms
+- casts with `@T(expr)`
+- format strings
+- reserved imports
+- local file imports through CLI orchestration
+- extern declarations and DL ABI validation
+- SIR text emission
+
+### Compiler / IR
+
+Implemented:
+
+- SIR text sections for types, signatures, constants, imports, globals, functions, and entry
+- SIR text parser
+- SIR lowerer
+- label resolution and branch fixups
+- jump-table fixups
+- opcode mnemonic lowering
+- local/global/upvalue name mapping
+- type/signature metadata generation
+- import metadata generation
+- global metadata generation
+- SBC binary packing
+
+### Bytecode
+
+Implemented:
+
+- SBC header and section-table format
+- metadata tables for types, fields, methods, signatures, globals, functions, imports, exports, constants, code, and debug bytes
+- opcode enum and opcode metadata
+- loader structural validation
+- verifier control-flow validation
+- verifier stack/type/call validation
+- intrinsic/syscall validation
+- table and const-pool checks
+
+### VM / Runtime
+
+Implemented:
+
+- 64-bit slot interpreter
+- call frames
+- direct calls
+- indirect calls where verified/emitted
+- tail calls
+- locals/globals/upvalues
+- arithmetic/comparison/boolean/conversion opcodes
+- arrays
+- lists
+- strings
+- artifacts/objects
+- closures for supported bytecode forms
+- heap allocation
+- mark/sweep heap operations
+- core runtime import dispatch
+- intrinsic dispatch
+- dynamic library calls through libffi on supported platforms
+- non-recursive artifact by-value ABI marshalling
+- nested artifact ABI flattening
+- runtime traps with `ExecResult`
+- JIT counters/tier scaffolding with interpreter fallback posture
+
+### CLI
+
+Implemented command surface:
+
+```txt
+simplevm run <module.sbc|file.sir|file.simple> [--no-verify]
+simplevm build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]
+simplevm compile <file.sir|file.simple> [--out <file.sbc>] [--no-verify]
+simplevm emit -ir <file.simple> [--out <file.sir>]
+simplevm emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]
+simplevm check <file.sbc|file.sir|file.simple>
+simplevm lsp
+```
+
+When installed or invoked as `simple`, the CLI narrows user-facing workflows to `.simple` inputs and may build an executable by default depending on output mode.
+
+Implemented CLI support:
+
+- source diagnostics with line/caret context
+- `.simple` import graph loading
+- reserved import preservation
+- relative/absolute import resolution
+- project-root bare-file lookup
+- cycle detection
+- ambiguity diagnostics
+- SIR/SBC emission
+- check/run/build flows
+- LSP server launch
+
+### LSP / Editor
+
+Implemented according to current docs/tests:
+
+- LSP server command through `simple lsp` / `simplevm lsp`
+- diagnostics
+- completion/navigation/highlighting-related protocol support
+- VS Code extension baseline
+
+### Tests
+
+Implemented test coverage includes:
+
+- core bytecode/runtime tests
+- IR tests
+- JIT/scaffolding tests
+- language positive and negative fixtures
+- LSP tests
+- FFI fixtures
+
+Current build entrypoints are platform scripts:
+
+```txt
+./build_linux
+./build_macos
+./build_windows
+```
+
+`./build_linux --suite ...` is not the current script interface.
+
+## In Progress
+
+These areas exist but should be considered under active hardening or not fully frozen as stable contracts.
+
+### Language
+
+- full generic language support and complete monomorphization behavior
+- complete first-class procedure value coverage across all runtime paths
+- complete pointer semantics beyond currently parsed/validated/emitted forms
+- complete switch-expression matrix across all branch/block/value combinations
+- full `i128/u128` runtime arithmetic support
+- broader diagnostics with stable error codes
+- exhaustive documentation for every accepted/rejected syntax edge case
+
+### Compiler / IR
+
+- formal SIR grammar and compatibility policy
+- stable external SIR contract
+- structured SIR builder to reduce string-emission coupling
+- typed metadata builders instead of raw section byte buffers
+- complete debug/export section semantics
+- archived SIR fixtures
+
+### Bytecode
+
+- formal SBC versioning and compatibility policy
+- archived SBC compatibility fixtures
+- complete opcode semantic metadata shared by compiler, verifier, and VM
+- debug-section format freeze
+- export-section format freeze
+- metadata flag registry
+
+### VM
+
+- mature JIT coverage and tier behavior
+- explicit JIT eligibility rules
+- broader closure/upvalue stress coverage
+- stronger GC/root stress coverage
+- formal stack/heap/frame limits
+- cross-platform DL parity
+- stable embedding/runtime ABI beyond current C++ API
+
+### CLI / Tooling
+
+- frozen exit-code contract for all commands
+- stable machine-readable diagnostic format
+- command docs synchronized with installer/release behavior
+- CI matrix and release-gate documentation
+- smoke profile that covers source -> SIR -> SBC -> VM quickly
+
+## Future
+
+Not implemented as stable current contract.
+
+### Language Future
+
+- package manager and package-aware imports
+- traits/interfaces/advanced generic constraints
+- macro system
+- async/concurrency language features
+- borrow/lifetime system
+- richer pattern matching
+- advanced module visibility/package privacy
+
+### Compiler Future
+
+- optimizing middle-end
+- SSA IR
+- incremental compilation
+- native/AOT backend
+- plugin pass API
+- source-map/debug-info format freeze
+
+### Bytecode Future
+
+- version negotiation
+- forward/backward compatibility guarantees across released SBC versions
+- compressed sections
+- signed bytecode artifacts
+- standalone bytecode optimizer
+
+### VM Future
+
+- full optimizing JIT
+- generational/incremental GC
+- sandboxing for untrusted bytecode
+- stable debugger/profiler protocol
+- multithreaded runtime
+- Windows `core.dl` parity
+
+### Tooling Future
+
+- package manager commands
+- formatter
+- richer linter
+- language server workspace indexing beyond current scope
+- release/install command contract freeze
+
+## Alpha Readiness Checklist
+
+Before declaring a stable alpha contract, the following should be true:
+
+1. `Docs/Lang.md`, `Docs/IR.md`, `Docs/Byte.md`, `Docs/VM.md`, and `Docs/CLI.md` match tested behavior.
+2. Build/test commands in docs match actual scripts.
+3. SBC compatibility/versioning policy is explicit.
+4. SIR accepted syntax is explicitly documented.
+5. CLI exit codes and diagnostic formats are documented.
+6. JIT support posture is explicit: interpreter is canonical.
+7. Release artifacts and installer behavior are tested from a clean checkout.
+8. Archived SIR/SBC fixtures exist for compatibility smoke tests.
+
+## Current Recommended Verification Commands
+
+From this repository, use the platform build scripts. Examples:
+
+```sh
+./build_linux
+./build_linux --tests
+./build_linux --no-tests
+```
+
+Then run generated test binaries from the configured CMake build output if needed. The exact binary path depends on the script/options and platform build directory.

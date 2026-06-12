@@ -1,49 +1,70 @@
-# Simple Documentation (API)
+# Simple Documentation Overview
 
-This is the authoritative API overview for the Simple project. Each module doc follows the same contract-first format.
+This directory documents the current Simple compiler, language, bytecode, VM, CLI, LSP, and standard library contracts.
 
-## Supported
-- End-to-end pipeline: `.simple` -> `SIR` -> `SBC` -> VM execution.
-- Strict typing across language, IR, bytecode, and VM.
-- Deterministic validation with explicit diagnostics.
-- Core reserved standard library modules via import mapping.
+## Current Pipeline
+
+```txt
+.simple source
+  -> Lang lexer/parser/validator
+  -> SIR text
+  -> IR lowerer/compiler
+  -> SBC bytecode
+  -> Byte loader/verifier
+  -> VM interpreter
+```
+
+## Implemented
+
+- End-to-end `.simple -> SIR -> SBC -> VM` pipeline.
+- Strict language validation before bytecode generation.
+- Textual SIR compiler layer.
+- SBC binary format with loader and verifier.
+- Deterministic interpreter runtime.
+- Heap objects for strings, arrays, lists, artifacts, and closures.
+- Reserved/core runtime imports.
+- Dynamic library interop through declared extern metadata on supported platforms.
 - CLI workflows for `run`, `check`, `build/compile`, `emit`, and `lsp`.
-- LSP server with diagnostics, navigation, completion, and semantic tokens.
-- C/C++ interop through `DL` with a strict ABI manifest contract.
+- LSP/editor baseline.
+- Positive and negative language/runtime fixtures.
 
-## Not Supported
-- Package manager ecosystem.
-- Optimizing compiler pipeline (beyond the current interpreter + limited JIT scaffolding).
-- AOT native backend.
-- Advanced GC generations/tuning work.
+## In Progress
 
-## Planned
+- Formal SIR contract and compatibility policy.
 - Formal SBC compatibility/versioning policy.
-- Explicit, tested SIR subset contract coverage for unsupported forms.
-- CLI contract freeze with consistent exit code and error format guarantees.
-- Expanded CI matrix and release gating.
-- JIT maturity beyond current experimental tiering.
+- Complete opcode semantic metadata shared across compiler/verifier/VM.
+- JIT maturity beyond instrumentation/scaffolding.
+- Full generic/procedure-value/pointer feature hardening.
+- Stable CLI exit-code and diagnostic-format contract.
+- CI/release gate documentation.
 
-## Pipeline
-1. `Simple::Lang` parses + validates `.simple`.
-2. Emits `SIR` text.
-3. `Simple::IR` lowers `SIR` -> `SBC`.
-4. `Simple::Byte` loads + verifies `SBC`.
-5. `Simple::VM` executes verified modules.
+## Future
+
+- Package manager ecosystem.
+- Optimizing compiler middle-end.
+- AOT native backend.
+- Full optimizing JIT.
+- Advanced GC policy/tuning.
+- Stable plugin/compiler extension APIs.
+- Sandboxed untrusted bytecode execution.
 
 ## Canonical Docs
-- `Docs/Lang.md` - language syntax and semantics
+
+- `Docs/Lang.md` - language syntax/semantics as currently implemented
+- `Docs/LanguagePlan.md` - staged Lang split into Lexer/CAST/AST/RAST/TAST/IRB/IRE
 - `Docs/StdLib.md` - reserved imports and runtime module APIs
-- `Docs/IR.md` - SIR syntax, validation, lowering rules
+- `Docs/IR.md` - SIR/compiler contract
 - `Docs/Byte.md` - SBC format, loader, verifier contract
-- `Docs/VM.md` - runtime model, heap/GC, imports, DL ABI
-- `Docs/CLI.md` - CLI surface and command behavior
-- `Docs/LSP.md` - editor/LSP behavior and feature coverage
+- `Docs/VM.md` - runtime model, heap, imports, DL ABI
+- `Docs/CLI.md` - command-line behavior
+- `Docs/LSP.md` - editor/LSP behavior
 - `Docs/Modules.md` - ownership boundaries across the stack
-- `Docs/Implementation.md` - release plan and execution gates
+- `Docs/Implementation.md` - implementation status and roadmap
 - `Docs/Sprint.md` - change log and execution history
 
 ## Documentation Rules
+
 - If behavior changes in code, update the matching module doc in the same change.
+- Prefer `Implemented`, `In Progress`, and `Future` sections for status clarity.
 - Keep examples runnable and aligned with current syntax/CLI behavior.
 - `Docs/legacy/` is reference-only, not authoritative.
