@@ -1203,7 +1203,7 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random"};
+      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random", "Env"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1252,6 +1252,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
       {"Random", {"seed", "i32", "range", "f64"}},
+      {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
@@ -1557,6 +1558,32 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "sleep_ms") {
       out->params = {"milliseconds"};
       out->return_type = "void";
+      return true;
+    }
+    return false;
+  }
+  if (module == "Env") {
+    if (member == "argsCount") {
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "arg") {
+      out->params = {"index"};
+      out->return_type = "string";
+      return true;
+    }
+    if (member == "get") {
+      out->params = {"name"};
+      out->return_type = "string";
+      return true;
+    }
+    if (member == "set") {
+      out->params = {"name", "value"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "platform" || member == "arch" || member == "exePath") {
+      out->return_type = "string";
       return true;
     }
     return false;
@@ -2422,7 +2449,7 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random",
+      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random", "Env",
   };
   return kReserved.find(name) != kReserved.end();
 }

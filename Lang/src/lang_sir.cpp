@@ -420,6 +420,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Env" &&
+               (member == "argsCount" || member == "arg" || member == "get" || member == "set" ||
+                member == "platform" || member == "arch" || member == "exePath")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "Channel" &&
                (member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
                 member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
@@ -1575,7 +1581,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2702,7 +2708,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5036,6 +5042,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Env") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Env")) {
+      if (!add_reserved_import(alias, "core.env", "argsCount", {}, make_type("i32"))) return false;
+      std::vector<TypeRef> arg_params;
+      arg_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.env", "arg", std::move(arg_params), make_type("string"))) return false;
+      std::vector<TypeRef> get_params;
+      get_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.env", "get", std::move(get_params), make_type("string"))) return false;
+      std::vector<TypeRef> set_params;
+      set_params.push_back(make_type("string"));
+      set_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.env", "set", std::move(set_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "core.env", "platform", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "core.env", "arch", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "core.env", "exePath", {}, make_type("string"))) return false;
     }
   }
 

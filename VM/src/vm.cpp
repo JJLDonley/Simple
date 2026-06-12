@@ -6,9 +6,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <dlfcn.h>
 #include <ffi.h>
+#include <unistd.h>
 #endif
 #include <filesystem>
 #include <atomic>
@@ -66,6 +72,48 @@ ChannelRegistry<std::u16string> g_channel_string;
 ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 std::mutex g_random_mutex;
 std::mt19937_64 g_random_engine{std::random_device{}()};
+
+std::string HostPlatformName() {
+#if defined(_WIN32)
+  return "windows";
+#elif defined(__APPLE__)
+  return "macos";
+#elif defined(__linux__)
+  return "linux";
+#else
+  return "unknown";
+#endif
+}
+
+std::string HostArchName() {
+#if defined(__x86_64__) || defined(_M_X64)
+  return "x64";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  return "arm64";
+#elif defined(__i386__) || defined(_M_IX86)
+  return "x86";
+#else
+  return "unknown";
+#endif
+}
+
+std::string HostExePath() {
+#if defined(_WIN32)
+  char buf[MAX_PATH];
+  DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
+  return n > 0 ? std::string(buf, buf + n) : std::string{};
+#elif defined(__linux__)
+  char buf[4096];
+  ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+  if (n > 0) {
+    buf[n] = '\0';
+    return std::string(buf);
+  }
+  return {};
+#else
+  return {};
+#endif
+}
 
 template <typename T>
 std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
@@ -1742,6 +1790,122 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         }
         return true;
+      }
+    }
+    if (mod == "core.env") {
+      auto return_string = [&](const std::string& value) -> bool {
+        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
+        return true;
+      };
+      if (sym == "argsCount") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.env.argsCount return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.env.argsCount arg count mismatch";
+          return false;
+        }
+        out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
+        return true;
+      }
+      if (sym == "arg") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.env.arg return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.env.arg arg count mismatch";
+          return false;
+        }
+        int32_t index = UnpackI32(args[0]);
+        if (index < 0 || static_cast<size_t>(index) >= options.argv.size()) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        return return_string(options.argv[static_cast<size_t>(index)]);
+      }
+      if (sym == "get") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.env.get return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.env.get arg count mismatch";
+          return false;
+        }
+        uint32_t name_ref = UnpackRef(args[0]);
+        HeapObject* name_obj = name_ref == kNullRef ? nullptr : heap.Get(name_ref);
+        if (!name_obj || name_obj->header.kind != ObjectKind::String) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::string storage;
+        const char* value = GetEnvVar(U16ToAscii(ReadString(name_obj)), &storage);
+        if (!value) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        return return_string(value);
+      }
+      if (sym == "set") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.env.set return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.env.set arg count mismatch";
+          return false;
+        }
+        HeapObject* name_obj = heap.Get(UnpackRef(args[0]));
+        HeapObject* value_obj = heap.Get(UnpackRef(args[1]));
+        if (!name_obj || name_obj->header.kind != ObjectKind::String ||
+            !value_obj || value_obj->header.kind != ObjectKind::String) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        const std::string name = U16ToAscii(ReadString(name_obj));
+        const std::string value = U16ToAscii(ReadString(value_obj));
+#if defined(_WIN32)
+        const int rc = _putenv_s(name.c_str(), value.c_str());
+#else
+        const int rc = setenv(name.c_str(), value.c_str(), 1);
+#endif
+        out_ret = PackI32(rc == 0 ? 1 : 0);
+        return true;
+      }
+      if (sym == "platform") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.env.platform return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.env.platform arg count mismatch";
+          return false;
+        }
+        return return_string(HostPlatformName());
+      }
+      if (sym == "arch") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.env.arch return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.env.arch arg count mismatch";
+          return false;
+        }
+        return return_string(HostArchName());
+      }
+      if (sym == "exePath") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.env.exePath return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.env.exePath arg count mismatch";
+          return false;
+        }
+        return return_string(HostExePath());
       }
     }
     if (mod == "core.random") {

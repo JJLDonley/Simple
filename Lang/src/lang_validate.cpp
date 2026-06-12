@@ -350,6 +350,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   }
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
   if (resolved == "Random") return {"seed", "i32", "range", "f64"};
+  if (resolved == "Env") return {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
   if (resolved == "Channel") {
     return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
             "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
@@ -644,6 +645,37 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
     if (dl_member == "call_str0") {
       out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Env") {
+    if (member == "argsCount") {
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "arg") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "get") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "set") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "platform" || member == "arch" || member == "exePath") {
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;
@@ -3727,7 +3759,8 @@ bool CheckExpr(const Expr& expr,
             IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
             IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread") ||
-            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "Random")) {
+            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "Random") ||
+            IsReservedModuleEnabled(ctx, "Env")) {
           return true;
         }
       }

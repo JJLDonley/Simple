@@ -17,7 +17,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     const char* name;
     const char* canonical;
   };
-  static constexpr std::array<ReservedImportEntry, 13> kReserved = {{
+  static constexpr std::array<ReservedImportEntry, 14> kReserved = {{
       {"Math", "Math"},
       {"IO", "IO"},
       {"Time", "Time"},
@@ -31,6 +31,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Thread", "Thread"},
       {"Channel", "Channel"},
       {"Random", "Random"},
+      {"Env", "Env"},
   }};
   for (const auto& entry : kReserved) {
     if (path == entry.name) {

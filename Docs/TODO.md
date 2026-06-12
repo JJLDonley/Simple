@@ -28,7 +28,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Expand native stdlib modules:
   - [ ] `Path`: join, dirname, basename, ext, normalize, exists, isFile, isDir
   - [ ] `FS`: read/write text, read/write bytes, copy, remove, mkdir, mkdirAll, listDir, cwd, setCwd
-  - [ ] `Env`: args, get, set, platform, arch, exePath
+  - [x] `Env`: args, get, set, platform, arch, exePath
   - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers
   - [x] `Random`: seed, `i32`, integer ranges, `f64`
   - [ ] `Log`: levels, stderr/stdout/file sinks

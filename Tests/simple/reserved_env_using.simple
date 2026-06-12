@@ -1,0 +1,12 @@
+import Env
+using Env
+
+main : i32 () {
+  set("SIMPLE_TEST_ENV_USING", "yes")
+  value : string = get("SIMPLE_TEST_ENV_USING")
+  if (len(value) != 3) { return 0 }
+  if (len(platform()) == 0) { return 0 }
+  if (len(arch()) == 0) { return 0 }
+  if (len(exePath()) == 0) { return 0 }
+  return 1
+}

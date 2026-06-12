@@ -1,0 +1,15 @@
+import Env
+
+main : i32 () {
+  count : i32 = Env.argsCount()
+  platform : string = Env.platform()
+  arch : string = Env.arch()
+  exe : string = Env.exePath()
+  ok : bool = Env.set("SIMPLE_TEST_ENV", "ok")
+  value : string = Env.get("SIMPLE_TEST_ENV")
+  if (!ok) { return 0 }
+  if (len(platform) == 0 || len(arch) == 0 || len(exe) == 0) { return 0 }
+  if (len(value) != 2) { return 0 }
+  if (count < 0) { return 0 }
+  return 1
+}
