@@ -231,6 +231,31 @@ bool LangAstNormalizesFnLiteralDeclarations() {
   return !fn.body_tokens.empty();
 }
 
+bool LangAstNormalizesLoopShorthand() {
+  const char* src =
+      "main : i32 () {\n"
+      "  total : i32 = 0;\n"
+      "  for (i; i < 3; i++) { total += i; }\n"
+      "  while (total < 10) { total += 1; }\n"
+      "  return total;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  if (ast_program.loops.size() != 2) return false;
+  const auto& for_loop = ast_program.loops[0];
+  if (for_loop.kind != Simple::Lang::AST::NormalizedLoopKind::For) return false;
+  if (!for_loop.has_initializer || !for_loop.has_loop_var_decl) return false;
+  if (for_loop.loop_var_decl.name != "i") return false;
+  if (for_loop.loop_var_decl.type.name != "i32") return false;
+  if (!for_loop.loop_var_decl.has_init_expr || for_loop.loop_var_decl.init_expr.text != "0") return false;
+  if (for_loop.condition.kind != Simple::Lang::ExprKind::Binary || for_loop.condition.op != "<") return false;
+  if (for_loop.step.kind != Simple::Lang::ExprKind::Unary || for_loop.step.op != "post++") return false;
+  return ast_program.loops[1].kind == Simple::Lang::AST::NormalizedLoopKind::While;
+}
+
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: Artifact {\n"
@@ -4247,6 +4272,7 @@ const TestCase kLangTests[] = {
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
   {"lang_ast_normalizes_top_level_script_body", LangAstNormalizesTopLevelScriptBody},
   {"lang_ast_normalizes_fn_literal_declarations", LangAstNormalizesFnLiteralDeclarations},
+  {"lang_ast_normalizes_loop_shorthand", LangAstNormalizesLoopShorthand},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},

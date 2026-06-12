@@ -44,10 +44,27 @@ struct NormalizedFnLiteralDecl {
   uint32_t column = 0;
 };
 
+enum class NormalizedLoopKind : uint8_t {
+  While,
+  For,
+};
+
+struct NormalizedLoop {
+  NormalizedLoopKind kind = NormalizedLoopKind::While;
+  bool has_initializer = false;
+  bool has_loop_var_decl = false;
+  VarDecl loop_var_decl;
+  Expr initializer;
+  Expr condition;
+  Expr step;
+  std::vector<Stmt> body;
+};
+
 struct NormalizedProgram {
   std::vector<Decl> decls;
   ScriptBody script_body;
   std::vector<NormalizedFnLiteralDecl> fn_literals;
+  std::vector<NormalizedLoop> loops;
 };
 
 } // namespace Simple::Lang::AST

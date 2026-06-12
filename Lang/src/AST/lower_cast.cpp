@@ -38,9 +38,14 @@ void CollectFnLiteralExpr(const Expr& expr,
 }
 
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out);
+void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out);
 
 void CollectFnLiteralStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedFnLiteralDecl>* out) {
   for (const auto& stmt : stmts) CollectFnLiteralStmt(stmt, out);
+}
+
+void CollectLoopStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedLoop>* out) {
+  for (const auto& stmt : stmts) CollectLoopStmt(stmt, out);
 }
 
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out) {
@@ -89,6 +94,45 @@ void CollectFnLiteralDecls(const std::vector<Decl>& decls, std::vector<Normalize
   }
 }
 
+void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out) {
+  if (!out) return;
+  if (stmt.kind == StmtKind::WhileLoop) {
+    NormalizedLoop loop;
+    loop.kind = NormalizedLoopKind::While;
+    loop.condition = stmt.loop_cond;
+    loop.body = stmt.loop_body;
+    out->push_back(std::move(loop));
+  } else if (stmt.kind == StmtKind::ForLoop) {
+    NormalizedLoop loop;
+    loop.kind = NormalizedLoopKind::For;
+    loop.has_initializer = true;
+    loop.has_loop_var_decl = stmt.has_loop_var_decl;
+    if (stmt.has_loop_var_decl) loop.loop_var_decl = stmt.loop_var_decl;
+    loop.initializer = stmt.loop_iter;
+    loop.condition = stmt.loop_cond;
+    loop.step = stmt.loop_step;
+    loop.body = stmt.loop_body;
+    out->push_back(std::move(loop));
+  }
+  for (const auto& branch : stmt.if_branches) CollectLoopStmts(branch.second, out);
+  CollectLoopStmts(stmt.else_branch, out);
+  CollectLoopStmts(stmt.if_then, out);
+  CollectLoopStmts(stmt.if_else, out);
+  CollectLoopStmts(stmt.loop_body, out);
+}
+
+void CollectLoopDecls(const std::vector<Decl>& decls, std::vector<NormalizedLoop>* out) {
+  for (const auto& decl : decls) {
+    if (decl.kind == DeclKind::Function) {
+      CollectLoopStmts(decl.func.body, out);
+    } else if (decl.kind == DeclKind::Artifact) {
+      for (const auto& method : decl.artifact.methods) CollectLoopStmts(method.body, out);
+    } else if (decl.kind == DeclKind::Module) {
+      for (const auto& fn : decl.module.functions) CollectLoopStmts(fn.body, out);
+    }
+  }
+}
+
 } // namespace
 
 bool LowerCastProgram(const Simple::Lang::CAST::Program& in,
@@ -112,8 +156,11 @@ bool LowerCastProgramNormalized(const Simple::Lang::CAST::Program& in,
   out->decls = in.decls;
   out->script_body.statements = in.top_level_stmts;
   out->fn_literals.clear();
+  out->loops.clear();
   CollectFnLiteralDecls(out->decls, &out->fn_literals);
   CollectFnLiteralStmts(out->script_body.statements, &out->fn_literals);
+  CollectLoopDecls(out->decls, &out->loops);
+  CollectLoopStmts(out->script_body.statements, &out->loops);
   return true;
 }
 
