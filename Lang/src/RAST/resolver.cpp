@@ -25,6 +25,162 @@ bool AddSymbol(ResolvedProgram* out,
   return true;
 }
 
+bool AddCallableSymbols(ResolvedProgram* out,
+                        const FuncDecl& fn,
+                        const std::string& owner,
+                        SymbolId parent,
+                        bool has_self,
+                        std::string* error);
+
+bool AddExprBlockSymbols(ResolvedProgram* out,
+                         const Expr& expr,
+                         const std::string& owner,
+                         SymbolId parent,
+                         const std::string& path,
+                         std::string* error);
+
+bool AddStmtBlockSymbols(ResolvedProgram* out,
+                         const std::vector<Stmt>& stmts,
+                         const std::string& owner,
+                         SymbolId parent,
+                         const std::string& path,
+                         std::string* error);
+
+bool AddStmtSymbols(ResolvedProgram* out,
+                    const Stmt& stmt,
+                    const std::string& owner,
+                    SymbolId parent,
+                    const std::string& path,
+                    std::string* error) {
+  if (stmt.kind == StmtKind::VarDecl) {
+    if (!AddSymbol(out,
+                   SymbolKind::Local,
+                   stmt.var_decl.name,
+                   owner + "::" + path + ":" + stmt.var_decl.name,
+                   parent,
+                   error)) {
+      return false;
+    }
+    if (stmt.var_decl.has_init_expr &&
+        !AddExprBlockSymbols(out, stmt.var_decl.init_expr, owner, parent, path + ".init", error)) {
+      return false;
+    }
+    return true;
+  }
+  if (stmt.kind == StmtKind::Assign) {
+    return AddExprBlockSymbols(out, stmt.expr, owner, parent, path + ".assign", error);
+  }
+  if (stmt.kind == StmtKind::Expr || stmt.kind == StmtKind::Return) {
+    if (stmt.kind == StmtKind::Return && !stmt.has_return_expr) return true;
+    return AddExprBlockSymbols(out, stmt.expr, owner, parent, path + ".expr", error);
+  }
+  if (stmt.kind == StmtKind::IfChain) {
+    for (size_t i = 0; i < stmt.if_branches.size(); ++i) {
+      if (!AddExprBlockSymbols(out, stmt.if_branches[i].first, owner, parent, path + ".ifchain" + std::to_string(i) + ".cond", error)) {
+        return false;
+      }
+      if (!AddStmtBlockSymbols(out, stmt.if_branches[i].second, owner, parent, path + ".ifchain" + std::to_string(i), error)) {
+        return false;
+      }
+    }
+    return AddStmtBlockSymbols(out, stmt.else_branch, owner, parent, path + ".ifchain_else", error);
+  }
+  if (stmt.kind == StmtKind::IfStmt) {
+    if (!AddExprBlockSymbols(out, stmt.if_cond, owner, parent, path + ".if.cond", error)) return false;
+    if (!AddStmtBlockSymbols(out, stmt.if_then, owner, parent, path + ".if_then", error)) return false;
+    return AddStmtBlockSymbols(out, stmt.if_else, owner, parent, path + ".if_else", error);
+  }
+  if (stmt.kind == StmtKind::WhileLoop) {
+    if (!AddExprBlockSymbols(out, stmt.loop_cond, owner, parent, path + ".while.cond", error)) return false;
+    return AddStmtBlockSymbols(out, stmt.loop_body, owner, parent, path + ".while", error);
+  }
+  if (stmt.kind == StmtKind::ForLoop) {
+    if (stmt.has_loop_var_decl) {
+      if (!AddSymbol(out,
+                     SymbolKind::Local,
+                     stmt.loop_var_decl.name,
+                     owner + "::" + path + ".for_init:" + stmt.loop_var_decl.name,
+                     parent,
+                     error)) {
+        return false;
+      }
+    }
+    return AddStmtBlockSymbols(out, stmt.loop_body, owner, parent, path + ".for", error);
+  }
+  return true;
+}
+
+bool AddExprBlockSymbols(ResolvedProgram* out,
+                         const Expr& expr,
+                         const std::string& owner,
+                         SymbolId parent,
+                         const std::string& path,
+                         std::string* error) {
+  for (size_t i = 0; i < expr.children.size(); ++i) {
+    if (!AddExprBlockSymbols(out, expr.children[i], owner, parent, path + ".child" + std::to_string(i), error)) return false;
+  }
+  for (size_t i = 0; i < expr.args.size(); ++i) {
+    if (!AddExprBlockSymbols(out, expr.args[i], owner, parent, path + ".arg" + std::to_string(i), error)) return false;
+  }
+  for (size_t i = 0; i < expr.field_values.size(); ++i) {
+    if (!AddExprBlockSymbols(out, expr.field_values[i], owner, parent, path + ".field" + std::to_string(i), error)) return false;
+  }
+  if (expr.kind == ExprKind::Switch) {
+    for (size_t i = 0; i < expr.switch_branches.size(); ++i) {
+      const auto& branch = expr.switch_branches[i];
+      if (!branch.is_default &&
+          !AddExprBlockSymbols(out, branch.condition, owner, parent, path + ".switch" + std::to_string(i) + ".cond", error)) {
+        return false;
+      }
+      if (branch.is_block &&
+          !AddStmtBlockSymbols(out, branch.block, owner, parent, path + ".switch" + std::to_string(i), error)) {
+        return false;
+      }
+      if (branch.has_inline_value &&
+          !AddExprBlockSymbols(out, branch.value, owner, parent, path + ".switch" + std::to_string(i) + ".value", error)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool AddStmtBlockSymbols(ResolvedProgram* out,
+                         const std::vector<Stmt>& stmts,
+                         const std::string& owner,
+                         SymbolId parent,
+                         const std::string& path,
+                         std::string* error) {
+  for (size_t i = 0; i < stmts.size(); ++i) {
+    if (!AddStmtSymbols(out, stmts[i], owner, parent, path + ".s" + std::to_string(i), error)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool AddCallableSymbols(ResolvedProgram* out,
+                        const FuncDecl& fn,
+                        const std::string& owner,
+                        SymbolId parent,
+                        bool has_self,
+                        std::string* error) {
+  if (has_self && !AddSymbol(out, SymbolKind::Self, "self", owner + "::self", parent, error)) {
+    return false;
+  }
+  for (const auto& param : fn.params) {
+    if (!AddSymbol(out,
+                   SymbolKind::Parameter,
+                   param.name,
+                   owner + "::param:" + param.name,
+                   parent,
+                   error)) {
+      return false;
+    }
+  }
+  return AddStmtBlockSymbols(out, fn.body, owner, parent, "body", error);
+}
+
 } // namespace
 
 bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
@@ -56,11 +212,14 @@ bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
         }
         break;
       }
-      case DeclKind::Function:
+      case DeclKind::Function: {
+        const SymbolId parent = static_cast<SymbolId>(out->symbols.size());
         if (!AddSymbol(out, SymbolKind::Function, decl.func.name, decl.func.name, kInvalidSymbolId, error)) {
           return false;
         }
+        if (!AddCallableSymbols(out, decl.func, decl.func.name, parent, false, error)) return false;
         break;
+      }
       case DeclKind::Variable:
         if (!AddSymbol(out, SymbolKind::Global, decl.var.name, decl.var.name, kInvalidSymbolId, error)) {
           return false;
@@ -82,14 +241,17 @@ bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
           }
         }
         for (const auto& method : decl.artifact.methods) {
+          const SymbolId method_parent = static_cast<SymbolId>(out->symbols.size());
+          const std::string method_qualified = decl.artifact.name + "." + method.name;
           if (!AddSymbol(out,
                          SymbolKind::ArtifactMethod,
                          method.name,
-                         decl.artifact.name + "." + method.name,
+                         method_qualified,
                          parent,
                          error)) {
             return false;
           }
+          if (!AddCallableSymbols(out, method, method_qualified, method_parent, true, error)) return false;
         }
         break;
       }
@@ -109,14 +271,17 @@ bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
           }
         }
         for (const auto& fn : decl.module.functions) {
+          const SymbolId fn_parent = static_cast<SymbolId>(out->symbols.size());
+          const std::string fn_qualified = decl.module.name + "." + fn.name;
           if (!AddSymbol(out,
                          SymbolKind::ModuleFunction,
                          fn.name,
-                         decl.module.name + "." + fn.name,
+                         fn_qualified,
                          parent,
                          error)) {
             return false;
           }
+          if (!AddCallableSymbols(out, fn, fn_qualified, fn_parent, false, error)) return false;
         }
         break;
       }

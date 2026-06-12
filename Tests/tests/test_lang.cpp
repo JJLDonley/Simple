@@ -236,6 +236,56 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
   return error.find("duplicate symbol: Box.v") != std::string::npos;
 }
 
+bool LangRastResolverCollectsCallableScopes() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 (amount : i32) {\n"
+      "    total : i32 = amount + self.v;\n"
+      "    if (total > 0) { branch : i32 = total; return branch; }\n"
+      "    return 0;\n"
+      "  }\n"
+      "}\n"
+      "main : i32 () {\n"
+      "  b : Box = { 1 };\n"
+      "  return b.score(41);\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  return resolved.by_qualified_name.find("Box.score::self") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Box.score::param:amount") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Box.score::body.s0:total") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Box.score::body.s1.if_then.s0:branch") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("main::body.s0:b") != resolved.by_qualified_name.end();
+}
+
+bool LangRastResolverCollectsSwitchBranchLocals() {
+  const char* src =
+      "main : i32 () {\n"
+      "  mode : i32 = 1;\n"
+      "  value : i32 = switch (mode) {\n"
+      "    mode == 1 => { local : i32 = 42; return local }\n"
+      "    default => return 0\n"
+      "  };\n"
+      "  return value;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  return resolved.by_qualified_name.find("main::body.s0:mode") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("main::body.s1:value") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("main::body.s1.init.switch0.s0:local") != resolved.by_qualified_name.end();
+}
+
 bool LangTastCheckerAcceptsResolvedProgram() {
   const char* src = "main : i32 () { return 42; }";
   Simple::Lang::CAST::Program cast_program;
@@ -4056,6 +4106,8 @@ const TestCase kLangTests[] = {
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
+  {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},
+  {"lang_rast_resolver_collects_switch_branch_locals", LangRastResolverCollectsSwitchBranchLocals},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},

@@ -18,6 +18,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] Add initial `CAST -> AST` lowering boundary.
 - [ ] Extract name/import/symbol resolution into `RAST`.
   - [x] Add initial RAST symbol collection boundary.
+  - [x] Add callable parameter/local scope symbol collection.
 - [ ] Extract type checking into `TAST`.
   - [x] Add initial TAST type-checker boundary.
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.

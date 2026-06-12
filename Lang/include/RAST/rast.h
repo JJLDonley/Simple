@@ -32,6 +32,9 @@ enum class SymbolKind : uint8_t {
   ModuleFunction,
   Enum,
   EnumMember,
+  Parameter,
+  Local,
+  Self,
 };
 
 struct Symbol {

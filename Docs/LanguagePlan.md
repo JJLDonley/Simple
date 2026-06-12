@@ -336,11 +336,12 @@ Status: in progress.
 Implemented:
 - Added initial RAST symbol model and `ResolveAstProgram` boundary.
 - Added top-level, artifact member, module member, enum member, import, and extern symbol collection.
+- Added initial callable scope symbol collection for parameters, `self`, locals, and switch branch blocks.
 
 Remaining:
 - Extract symbol/import/member resolution from `lang_validate.cpp`.
 - Make later phases use resolved symbol ids instead of repeated string lookup.
-- Add full scope-aware local/function body resolution.
+- Expand scope-aware resolution from collection to resolved expression/member bindings.
 
 ### Phase 5 — TAST Type Checker
 
