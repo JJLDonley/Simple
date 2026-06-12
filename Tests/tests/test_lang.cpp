@@ -613,6 +613,11 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  if (module.ir.artifact_layouts.size() != 1) return false;
+  if (module.ir.artifact_layouts[0].name != "Box") return false;
+  if (module.ir.artifact_layouts[0].fields.size() != 1) return false;
+  if (module.ir.artifact_layouts[0].fields[0].name != "v") return false;
+  if (module.ir.artifact_layouts[0].fields[0].type.name != "i32") return false;
   if (!Simple::Lang::IRE::EmitSirModule(module, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
@@ -642,7 +647,8 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
          module.ir.functions.size() == 1 &&
          module.ir.functions[0].blocks.size() == 1 &&
          module.ir.functions[0].blocks[0].instructions.size() == 2 &&
-         module.ir.functions[0].signature.result.name == "i32";
+         module.ir.functions[0].signature.result.name == "i32" &&
+         module.ir.artifact_layouts.empty();
 }
 
 bool LangIrbRejectsMissingTypedInput() {

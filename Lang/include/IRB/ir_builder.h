@@ -39,9 +39,21 @@ struct IrImport {
   IrSig signature;
 };
 
+struct IrArtifactField {
+  std::string name;
+  IrType type;
+  uint32_t index = 0;
+};
+
+struct IrArtifactLayout {
+  std::string name;
+  std::vector<IrArtifactField> fields;
+};
+
 struct IrModule {
   std::vector<IrImport> imports;
   std::vector<IrFunction> functions;
+  std::vector<IrArtifactLayout> artifact_layouts;
 };
 
 // Language IR module boundary. During migration this carries serialized SIR
