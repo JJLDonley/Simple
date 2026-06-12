@@ -3138,6 +3138,24 @@ bool LangValidateAssignToArtifactMethodFail() {
   return true;
 }
 
+bool LangValidateProcValueRejectsArtifactMethod() {
+  const char* src =
+    "Point :: artifact { x : i32; get : i32 () { return self.x; } }"
+    "main : void () { p : Point = { 1 }; f : fn i32 () = p.get; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("initializer type mismatch") != std::string::npos;
+}
+
+bool LangValidateProcValueRejectsModuleFunction() {
+  const char* src =
+    "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "main : void () { f : fn i32 (i32, i32) = Math.add; }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("initializer type mismatch") != std::string::npos;
+}
+
 bool LangValidateAssignToSelfMethodFail() {
   const char* src =
     "Point :: artifact { x : i32 get : i32 () { return x; } set : void () { self.get = 1; } }";
@@ -4618,6 +4636,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
+  {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},
+  {"lang_validate_proc_value_rejects_module_function", LangValidateProcValueRejectsModuleFunction},
   {"lang_validate_assign_to_self_method_fail", LangValidateAssignToSelfMethodFail},
   {"lang_validate_incdec_immutable_local", LangValidateIncDecImmutableLocal},
   {"lang_validate_incdec_invalid_target", LangValidateIncDecInvalidTarget},

@@ -98,8 +98,8 @@ This list tracks work needed to improve feature independence, compiler structure
 ## Procedure Values / Generics / Pointers
 
 - [ ] Harden procedure values with tests across:
-  - [ ] artifact methods
-  - [ ] module functions
+  - [x] artifact methods
+  - [x] module functions
   - [ ] switch expressions
   - [ ] nested closures
   - [ ] lists/arrays
