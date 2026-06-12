@@ -100,12 +100,12 @@ This list tracks work needed to improve feature independence, compiler structure
 - [ ] Harden procedure values with tests across:
   - [x] artifact methods
   - [x] module functions
-  - [ ] switch expressions
+  - [x] switch expressions
   - [ ] nested closures
   - [ ] lists/arrays
   - [ ] extern boundaries
   - [ ] generics
-  - [ ] member calls
+  - [x] member calls
 - [ ] Audit closure/upvalue semantics.
 - [ ] Finish or explicitly reject unsupported generic cases:
   - [ ] generic functions

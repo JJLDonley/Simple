@@ -1181,6 +1181,34 @@ bool LangStressProcedureParameterRuntime() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangStressProcedureSwitchExprRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  f : fn i32 () = switch (1) {\n"
+      "    1 == 1 => return () { return 42 }\n"
+      "    default => return () { return 0 }\n"
+      "  }\n"
+      "  return f()\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangStressProcedureMemberCallRuntime() {
+  const char* src =
+      "Box :: artifact { f : fn i32 () }\n"
+      "main : i32 () {\n"
+      "  b : Box = { () { return 42 } }\n"
+      "  return b.f()\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangStressProcedureArgTypeStrict() {
   const char* src =
       "main : i32 () {\n"
@@ -4503,6 +4531,8 @@ const TestCase kLangTests[] = {
   {"lang_stress_artifact_method_type_strict", LangStressArtifactMethodTypeStrict},
   {"lang_stress_procedure_variable_runtime", LangStressProcedureVariableRuntime},
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
+  {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
+  {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
