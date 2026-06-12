@@ -193,6 +193,13 @@ void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out) {
       normalized.is_block = branch.is_block;
       normalized.has_inline_value = branch.has_inline_value;
       normalized.is_explicit_return = branch.is_explicit_return;
+      if (branch.is_block) {
+        normalized.result_kind = NormalizedSwitchBranchResultKind::Block;
+      } else if (branch.has_inline_value && branch.is_explicit_return) {
+        normalized.result_kind = NormalizedSwitchBranchResultKind::SwitchBranchReturn;
+      } else if (branch.has_inline_value) {
+        normalized.result_kind = NormalizedSwitchBranchResultKind::InlineValue;
+      }
       normalized.condition = branch.condition;
       normalized.value = branch.value;
       normalized.block = branch.block;

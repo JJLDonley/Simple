@@ -299,8 +299,11 @@ bool LangAstNormalizesSwitchBranches() {
   if (sw.scrutinee.kind != Simple::Lang::ExprKind::Identifier || sw.scrutinee.text != "x") return false;
   if (sw.branches.size() != 3) return false;
   if (sw.branches[0].is_default || !sw.branches[0].has_inline_value || sw.branches[0].is_block) return false;
+  if (sw.branches[0].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::InlineValue) return false;
   if (!sw.branches[1].is_block || sw.branches[1].block.size() != 2) return false;
-  return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value;
+  if (sw.branches[1].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::Block) return false;
+  return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value &&
+         sw.branches[2].result_kind == Simple::Lang::AST::NormalizedSwitchBranchResultKind::SwitchBranchReturn;
 }
 
 bool LangAstNormalizesCallMemberIndexShapes() {

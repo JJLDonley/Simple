@@ -70,11 +70,19 @@ struct NormalizedIfChain {
   std::vector<Stmt> else_branch;
 };
 
+enum class NormalizedSwitchBranchResultKind : uint8_t {
+  None,
+  InlineValue,
+  SwitchBranchReturn,
+  Block,
+};
+
 struct NormalizedSwitchBranch {
   bool is_default = false;
   bool is_block = false;
   bool has_inline_value = false;
   bool is_explicit_return = false;
+  NormalizedSwitchBranchResultKind result_kind = NormalizedSwitchBranchResultKind::None;
   Expr condition;
   Expr value;
   std::vector<Stmt> block;
