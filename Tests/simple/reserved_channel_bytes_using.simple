@@ -1,0 +1,11 @@
+import Channel
+using Channel
+
+main : i32 () {
+  ch : i64 = newBytes()
+  data : i32[] = [5, 6]
+  if (!trySendBytes(ch, data)) { return 0 }
+  out : i32[] = tryRecvBytes(ch)
+  close(ch)
+  return len(out) + out[0] + out[1]
+}

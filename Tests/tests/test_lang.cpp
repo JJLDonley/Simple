@@ -1987,6 +1987,14 @@ bool LangReservedChannelTrySendRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_channel_try_send.simple", 15);
 }
 
+bool LangReservedChannelBytesRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_channel_bytes.simple", 9);
+}
+
+bool LangReservedChannelBytesUsingRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_channel_bytes_using.simple", 13);
+}
+
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
   const std::string cmd = "bin/simplevm emit -ir Tests/simple/hello.simple --out " + out_path;
@@ -4990,6 +4998,8 @@ const TestCase kLangTests[] = {
   {"lang_reserved_channel_string_run", LangReservedChannelStringRun},
   {"lang_reserved_channel_string_using_run", LangReservedChannelStringUsingRun},
   {"lang_reserved_channel_try_send_run", LangReservedChannelTrySendRun},
+  {"lang_reserved_channel_bytes_run", LangReservedChannelBytesRun},
+  {"lang_reserved_channel_bytes_using_run", LangReservedChannelBytesUsingRun},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

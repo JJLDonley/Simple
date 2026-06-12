@@ -62,6 +62,7 @@ ChannelRegistry<float> g_channel_f32;
 ChannelRegistry<double> g_channel_f64;
 ChannelRegistry<bool> g_channel_bool;
 ChannelRegistry<std::u16string> g_channel_string;
+ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 
 template <typename T>
 std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
@@ -1828,6 +1829,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         close_one(g_channel_f64, handle);
         close_one(g_channel_bool, handle);
         close_one(g_channel_string, handle);
+        close_one(g_channel_bytes, handle);
         return true;
       };
       if (sym == "newI32") return do_new(g_channel_i32, "newI32");
@@ -1836,6 +1838,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "newF64") return do_new(g_channel_f64, "newF64");
       if (sym == "newBool") return do_new(g_channel_bool, "newBool");
       if (sym == "newString") return do_new(g_channel_string, "newString");
+      if (sym == "newBytes") return do_new(g_channel_bytes, "newBytes");
       if (sym == "sendI32" || sym == "trySendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, sym.c_str());
       if (sym == "sendI64" || sym == "trySendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, sym.c_str());
       if (sym == "sendF32" || sym == "trySendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, sym.c_str());
@@ -1874,6 +1877,80 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "recvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "recvF32", true);
       if (sym == "recvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "recvF64", true);
       if (sym == "recvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
+      if (sym == "sendBytes" || sym == "trySendBytes") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          return false;
+        }
+        auto state = GetChannel(g_channel_bytes, UnpackI64(args[0]));
+        const uint32_t ref = UnpackRef(args[1]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!state || !obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        const uint32_t length = ReadU32Payload(obj->payload, 0);
+        const size_t elem_base = (obj->header.kind == ObjectKind::List) ? 8u : 4u;
+        std::vector<int32_t> values;
+        values.reserve(length);
+        for (uint32_t i = 0; i < length; ++i) {
+          values.push_back(static_cast<int32_t>(ReadU32Payload(obj->payload, elem_base + i * 4)));
+        }
+        {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          if (state->closed) {
+            out_ret = PackI32(0);
+            return true;
+          }
+          state->values.push(std::move(values));
+        }
+        state->cv.notify_one();
+        out_ret = PackI32(1);
+        return true;
+      }
+      if (sym == "recvBytes" || sym == "tryRecvBytes") {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          return false;
+        }
+        auto state = GetChannel(g_channel_bytes, UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::unique_lock<std::mutex> lock(state->mutex);
+        if (sym == "recvBytes") state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
+        if (state->values.empty()) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::vector<int32_t> values = std::move(state->values.front());
+        state->values.pop();
+        lock.unlock();
+        const uint32_t length = static_cast<uint32_t>(values.size());
+        const uint32_t size = 8u + length * 4u;
+        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+        HeapObject* out_obj = heap.Get(handle);
+        if (!out_obj) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        WriteU32Payload(out_obj->payload, 0, length);
+        WriteU32Payload(out_obj->payload, 4, length);
+        for (uint32_t i = 0; i < length; ++i) {
+          WriteU32Payload(out_obj->payload, 8u + i * 4, static_cast<uint32_t>(values[i]));
+        }
+        out_ret = PackRef(handle);
+        return true;
+      }
       if (sym == "recvString" || sym == "tryRecvString") {
         if (!IsStringLikeImportType(ret_kind)) {
           out_error = std::string("core.channel.") + sym + " return type mismatch";

@@ -1,0 +1,10 @@
+import Channel
+
+main : i32 () {
+  ch : i64 = Channel.newBytes()
+  data : i32[] = [1, 2, 3, 4]
+  if (!Channel.sendBytes(ch, data)) { return 0 }
+  out : i32[] = Channel.recvBytes(ch)
+  Channel.close(ch)
+  return len(out) + out[0] + out[3]
+}

@@ -355,7 +355,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
             "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
             "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
-            "newString", "sendString", "trySendString", "recvString", "tryRecvString", "close"};
+            "newString", "sendString", "trySendString", "recvString", "tryRecvString",
+            "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
   if (resolved == "Log") return {"log"};
@@ -654,9 +655,10 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       if (suffix == "F64") return MakeSimpleType("f64");
       if (suffix == "Bool") return MakeSimpleType("bool");
       if (suffix == "String") return MakeSimpleType("string");
+      if (suffix == "Bytes") return MakeListType("i32");
       return MakeSimpleType("i32");
     };
-    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String"};
+    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
     for (const char* suffix_c : suffixes) {
       const std::string suffix = suffix_c;
       if (member == "new" + suffix) {

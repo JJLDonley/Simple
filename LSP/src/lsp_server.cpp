@@ -1256,7 +1256,8 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
                    "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
                    "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
-                   "newString", "sendString", "trySendString", "recvString", "tryRecvString", "close"}},
+                   "newString", "sendString", "trySendString", "recvString", "tryRecvString",
+                   "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
       {"Log", {"log"}},
   };
@@ -1566,9 +1567,10 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
       if (suffix == "F64") return "f64";
       if (suffix == "Bool") return "bool";
       if (suffix == "String") return "string";
+      if (suffix == "Bytes") return "i32[]";
       return "i32";
     };
-    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String"};
+    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
     for (const char* suffix_c : suffixes) {
       const std::string suffix = suffix_c;
       if (member == "new" + suffix) {

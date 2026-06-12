@@ -422,6 +422,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
                 member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" ||
                 member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
                 member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
+                member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" ||
                 member == "close")) {
       if (found) return false;
       found = true;
@@ -5058,6 +5059,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_channel("F64", "f64")) return false;
       if (!add_channel("Bool", "bool")) return false;
       if (!add_channel("String", "string")) return false;
+
+      if (!add_reserved_import(alias, "core.channel", "newBytes", {}, make_type("i64"))) return false;
+      std::vector<TypeRef> send_bytes_params;
+      send_bytes_params.push_back(make_type("i64"));
+      send_bytes_params.push_back(make_list_type("i32"));
+      std::vector<TypeRef> try_send_bytes_params = send_bytes_params;
+      if (!add_reserved_import(alias, "core.channel", "sendBytes", std::move(send_bytes_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "core.channel", "trySendBytes", std::move(try_send_bytes_params), make_type("bool"))) return false;
+      std::vector<TypeRef> recv_bytes_params;
+      recv_bytes_params.push_back(make_type("i64"));
+      std::vector<TypeRef> try_recv_bytes_params = recv_bytes_params;
+      if (!add_reserved_import(alias, "core.channel", "recvBytes", std::move(recv_bytes_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "core.channel", "tryRecvBytes", std::move(try_recv_bytes_params), make_list_type("i32"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));

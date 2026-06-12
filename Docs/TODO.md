@@ -20,10 +20,10 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] initial `Channel` native module with `newI32`, `sendI32`, `recvI32`, `tryRecvI32`, `close`
   - [x] remaining concrete primitive channels: `ChannelI64`, `ChannelF32`, `ChannelF64`, `ChannelBool`
   - [x] `ChannelString`
-  - [ ] `ChannelBytes`
+  - [x] `ChannelBytes`
   - [x] `send`, `trySend`, `recv`, `tryRecv`, `close`
   - [ ] non-blocking receive pattern for game loops
-  - [ ] clear rules: channels copy values; no shared mutable Simple heap in first version
+  - [x] clear rules: channels copy values; no shared mutable Simple heap in first version
   - [ ] later generic `Channel<T>` once runtime/type support is ready
 - [ ] Expand native stdlib modules:
   - [ ] `Path`: join, dirname, basename, ext, normalize, exists, isFile, isDir
