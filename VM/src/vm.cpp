@@ -17,6 +17,7 @@
 #include <unistd.h>
 #endif
 #include <filesystem>
+#include <fstream>
 #include <atomic>
 #include <condition_variable>
 #include <limits>
@@ -2321,6 +2322,111 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "core.fs") {
+      auto fs_arg_string = [&](size_t index, std::string* out_value) -> bool {
+        if (index >= args.size() || !out_value) return false;
+        const uint32_t ref = UnpackRef(args[index]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!obj || obj->header.kind != ObjectKind::String) return false;
+        *out_value = U16ToAscii(ReadString(obj));
+        return true;
+      };
+      auto fs_return_string = [&](const std::string& value) -> bool {
+        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
+        return true;
+      };
+      auto fs_return_bytes = [&](const std::vector<int32_t>& values) -> bool {
+        const uint32_t length = static_cast<uint32_t>(values.size());
+        const uint32_t size = 8u + length * 4u;
+        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+        HeapObject* out_obj = heap.Get(handle);
+        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
+        WriteU32Payload(out_obj->payload, 0, length);
+        WriteU32Payload(out_obj->payload, 4, length);
+        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4, static_cast<uint32_t>(values[i]));
+        out_ret = PackRef(handle);
+        return true;
+      };
+      if (sym == "readText") {
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.fs.readText return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.fs.readText arg count mismatch"; return false; }
+        std::string path;
+        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
+        std::ifstream in(path, std::ios::binary);
+        if (!in) { out_ret = PackRef(kNullRef); return true; }
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        return fs_return_string(text);
+      }
+      if (sym == "writeText") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.writeText return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "core.fs.writeText arg count mismatch"; return false; }
+        std::string path, text;
+        if (!fs_arg_string(0, &path) || !fs_arg_string(1, &text)) { out_ret = PackI32(0); return true; }
+        std::ofstream out_file(path, std::ios::binary);
+        if (!out_file) { out_ret = PackI32(0); return true; }
+        out_file.write(text.data(), static_cast<std::streamsize>(text.size()));
+        out_ret = PackI32(out_file.good() ? 1 : 0);
+        return true;
+      }
+      if (sym == "readBytes") {
+        if (ret_kind != TypeKind::Ref) { out_error = "core.fs.readBytes return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.fs.readBytes arg count mismatch"; return false; }
+        std::string path;
+        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
+        std::ifstream in(path, std::ios::binary);
+        if (!in) { out_ret = PackRef(kNullRef); return true; }
+        std::vector<int32_t> values;
+        char c;
+        while (in.get(c)) values.push_back(static_cast<unsigned char>(c));
+        return fs_return_bytes(values);
+      }
+      if (sym == "writeBytes") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.writeBytes return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "core.fs.writeBytes arg count mismatch"; return false; }
+        std::string path;
+        if (!fs_arg_string(0, &path)) { out_ret = PackI32(0); return true; }
+        HeapObject* obj = heap.Get(UnpackRef(args[1]));
+        if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) { out_ret = PackI32(0); return true; }
+        std::ofstream out_file(path, std::ios::binary);
+        if (!out_file) { out_ret = PackI32(0); return true; }
+        const uint32_t length = ReadU32Payload(obj->payload, 0);
+        const size_t elem_base = (obj->header.kind == ObjectKind::List) ? 8u : 4u;
+        for (uint32_t i = 0; i < length; ++i) {
+          const char byte = static_cast<char>(ReadU32Payload(obj->payload, elem_base + i * 4) & 0xffu);
+          out_file.write(&byte, 1);
+        }
+        out_ret = PackI32(out_file.good() ? 1 : 0);
+        return true;
+      }
+      if (sym == "copy") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.copy return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "core.fs.copy arg count mismatch"; return false; }
+        std::string from, to;
+        std::error_code ec;
+        const bool ok = fs_arg_string(0, &from) && fs_arg_string(1, &to) && std::filesystem::copy_file(from, to, std::filesystem::copy_options::overwrite_existing, ec);
+        out_ret = PackI32((ok && !ec) ? 1 : 0);
+        return true;
+      }
+      if (sym == "remove" || sym == "mkdir" || sym == "mkdirAll" || sym == "setCwd") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = std::string("core.fs.") + sym + " return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = std::string("core.fs.") + sym + " arg count mismatch"; return false; }
+        std::string path;
+        std::error_code ec;
+        bool ok = fs_arg_string(0, &path);
+        if (ok && sym == "remove") ok = std::filesystem::remove(path, ec);
+        else if (ok && sym == "mkdir") ok = std::filesystem::create_directory(path, ec) || std::filesystem::is_directory(path, ec);
+        else if (ok && sym == "mkdirAll") ok = std::filesystem::create_directories(path, ec) || std::filesystem::is_directory(path, ec);
+        else if (ok && sym == "setCwd") { std::filesystem::current_path(path, ec); ok = !ec; }
+        out_ret = PackI32((ok && !ec) ? 1 : 0);
+        return true;
+      }
+      if (sym == "cwd") {
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.fs.cwd return type mismatch"; return false; }
+        if (!args.empty()) { out_error = "core.fs.cwd arg count mismatch"; return false; }
+        std::error_code ec;
+        const auto cwd = std::filesystem::current_path(ec);
+        if (ec) { out_ret = PackRef(kNullRef); return true; }
+        return fs_return_string(cwd.generic_string());
+      }
       if (sym == "open") {
         if (!IsI32LikeImportType(ret_kind)) {
           out_error = "core.fs return type mismatch";

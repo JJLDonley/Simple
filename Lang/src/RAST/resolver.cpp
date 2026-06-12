@@ -194,6 +194,11 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
     return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
            member == "normalize" || member == "exists" || member == "isFile" || member == "isDir";
   }
+  if (canonical_module == "FS") {
+    return member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
+           member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
+           member == "cwd" || member == "setCwd";
+  }
   if (canonical_module == "Channel") {
     return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
            member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||

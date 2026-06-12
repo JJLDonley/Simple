@@ -1,0 +1,35 @@
+import FS
+
+main : i32 () {
+  path : string = "/tmp/simple_reserved_fs.txt"
+  copy_path : string = "/tmp/simple_reserved_fs_copy.txt"
+  bytes_path : string = "/tmp/simple_reserved_fs_bytes.bin"
+  dir_path : string = "/tmp/simple_reserved_fs_dir/sub"
+
+  FS.remove(path)
+  FS.remove(copy_path)
+  FS.remove(bytes_path)
+
+  if (!FS.writeText(path, "hello")) { return 0 }
+  text : string = FS.readText(path)
+  if (len(text) != 5) { return 0 }
+  if (!FS.copy(path, copy_path)) { return 0 }
+  copied : string = FS.readText(copy_path)
+  if (len(copied) != 5) { return 0 }
+
+  bytes : i32[] = [65, 66, 67]
+  if (!FS.writeBytes(bytes_path, bytes)) { return 0 }
+  read : i32[] = FS.readBytes(bytes_path)
+  if (len(read) != 3 || read[0] != 65 || read[2] != 67) { return 0 }
+
+  FS.remove("/tmp/simple_reserved_fs_dir")
+  if (!FS.mkdirAll(dir_path)) { return 0 }
+  cwd : string = FS.cwd()
+  if (len(cwd) == 0) { return 0 }
+  if (!FS.setCwd(cwd)) { return 0 }
+
+  FS.remove(path)
+  FS.remove(copy_path)
+  FS.remove(bytes_path)
+  return 1
+}

@@ -432,6 +432,13 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "FS" &&
+               (member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
+                member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
+                member == "cwd" || member == "setCwd")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "Channel" &&
                (member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
                 member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
@@ -1587,7 +1594,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2714,7 +2721,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5048,6 +5055,35 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("FS") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("FS")) {
+      std::vector<TypeRef> read_text_params;
+      read_text_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.fs", "readText", std::move(read_text_params), make_type("string"))) return false;
+      std::vector<TypeRef> write_text_params;
+      write_text_params.push_back(make_type("string"));
+      write_text_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.fs", "writeText", std::move(write_text_params), make_type("bool"))) return false;
+      std::vector<TypeRef> read_bytes_params;
+      read_bytes_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.fs", "readBytes", std::move(read_bytes_params), make_list_type("i32"))) return false;
+      std::vector<TypeRef> write_bytes_params;
+      write_bytes_params.push_back(make_type("string"));
+      write_bytes_params.push_back(make_list_type("i32"));
+      if (!add_reserved_import(alias, "core.fs", "writeBytes", std::move(write_bytes_params), make_type("bool"))) return false;
+      std::vector<TypeRef> copy_params;
+      copy_params.push_back(make_type("string"));
+      copy_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.fs", "copy", std::move(copy_params), make_type("bool"))) return false;
+      for (const std::string member : {"remove", "mkdir", "mkdirAll", "setCwd"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("string"));
+        if (!add_reserved_import(alias, "core.fs", member, std::move(params), make_type("bool"))) return false;
+      }
+      if (!add_reserved_import(alias, "core.fs", "cwd", {}, make_type("string"))) return false;
     }
   }
 

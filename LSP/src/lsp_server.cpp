@@ -1203,7 +1203,7 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random", "Env", "Path"};
+      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random", "Env", "Path", "FS"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1254,6 +1254,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Random", {"seed", "i32", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
       {"Path", {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"}},
+      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "cwd", "setCwd"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
@@ -1559,6 +1560,43 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "sleep_ms") {
       out->params = {"milliseconds"};
       out->return_type = "void";
+      return true;
+    }
+    return false;
+  }
+  if (module == "FS") {
+    if (member == "readText") {
+      out->params = {"path"};
+      out->return_type = "string";
+      return true;
+    }
+    if (member == "writeText") {
+      out->params = {"path", "text"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "readBytes") {
+      out->params = {"path"};
+      out->return_type = "i32[]";
+      return true;
+    }
+    if (member == "writeBytes") {
+      out->params = {"path", "bytes"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "copy") {
+      out->params = {"from", "to"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "remove" || member == "mkdir" || member == "mkdirAll" || member == "setCwd") {
+      out->params = {"path"};
+      out->return_type = "bool";
+      return true;
+    }
+    if (member == "cwd") {
+      out->return_type = "string";
       return true;
     }
     return false;
@@ -2468,7 +2506,7 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random", "Env", "Path",
+      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random", "Env", "Path", "FS",
   };
   return kReserved.find(name) != kReserved.end();
 }
