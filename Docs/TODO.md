@@ -151,7 +151,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] control-flow behavior
   - [x] verifier rule
   - [x] VM dispatch mapping
-- [ ] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.
+- [x] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.
 - [ ] Reduce verifier/VM opcode semantic drift.
 - [ ] Freeze or version opcode metadata used by external SBC producers.
 

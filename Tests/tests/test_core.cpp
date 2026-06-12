@@ -15794,6 +15794,36 @@ bool RunOpcodeVmDispatchMetadataTest() {
   return !Simple::Byte::GetOpVmDispatch(0xFC, &dispatch);
 }
 
+bool RunOpcodeMetadataVerifierVmComparisonTest() {
+  int pops = 0;
+  int pushes = 0;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &pops, &pushes)) return false;
+  if (pops != 2 || pushes != 1) return false;
+  Simple::Byte::OpTypeRule type_rule = Simple::Byte::OpTypeRule::None;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &type_rule) ||
+      type_rule != Simple::Byte::OpTypeRule::I32Arithmetic) return false;
+  Simple::Byte::OpVmDispatch dispatch = Simple::Byte::OpVmDispatch::Misc;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &dispatch) ||
+      dispatch != Simple::Byte::OpVmDispatch::Arithmetic) return false;
+
+  Simple::Byte::LoadResult good_load = Simple::Byte::LoadModuleFromBytes(BuildSimpleAddModule());
+  if (!good_load.ok) return false;
+  Simple::Byte::VerifyResult good_verify = Simple::Byte::VerifyModule(good_load.module);
+  if (!good_verify.ok) return false;
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(good_load.module);
+  if (exec.status != Simple::VM::ExecStatus::Halted || exec.exit_code != 42) return false;
+
+  std::vector<uint8_t> bad_code;
+  AppendU8(bad_code, static_cast<uint8_t>(Simple::Byte::OpCode::Enter));
+  AppendU16(bad_code, 0);
+  AppendU8(bad_code, static_cast<uint8_t>(Simple::Byte::OpCode::AddI32));
+  AppendU8(bad_code, static_cast<uint8_t>(Simple::Byte::OpCode::Ret));
+  Simple::Byte::LoadResult bad_load = Simple::Byte::LoadModuleFromBytes(BuildModule(bad_code, 0, 0));
+  if (!bad_load.ok) return false;
+  Simple::Byte::VerifyResult bad_verify = Simple::Byte::VerifyModule(bad_load.module);
+  return !bad_verify.ok;
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23208,6 +23238,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_control_flow_metadata", RunOpcodeControlFlowMetadataTest},
   {"opcode_verifier_rule_metadata", RunOpcodeVerifierRuleMetadataTest},
   {"opcode_vm_dispatch_metadata", RunOpcodeVmDispatchMetadataTest},
+  {"opcode_metadata_verifier_vm_comparison", RunOpcodeMetadataVerifierVmComparisonTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
