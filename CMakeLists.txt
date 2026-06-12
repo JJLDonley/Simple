@@ -54,6 +54,8 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_LANG_ROOT}/src/AST/lower_cast.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/resolver.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/type_checker.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/IRB/ir_builder.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/IRE/sir_emitter.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_validate.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_sir.cpp
 )

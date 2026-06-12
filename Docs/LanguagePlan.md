@@ -357,11 +357,24 @@ Remaining:
 
 ### Phase 6 — IRB Structured Builder
 
+Status: in progress.
+
+Implemented:
+- Added initial `IRB::BuildModule` bridge from `TAST::TypedProgram` to `IRB::Module`.
+- Current bridge delegates to legacy `EmitSir` while preserving the target phase boundary.
+
+Remaining:
 - Replace direct string emission in `lang_sir.cpp` with structured IR construction.
 - Track labels, locals, globals, imports, signatures, artifact layouts, and stack use in IRB objects.
 
 ### Phase 7 — IRE SIR Emitter
 
+Status: in progress.
+
+Implemented:
+- Added initial `IRE::EmitSirModule` boundary for serializing an `IRB::Module`.
+
+Remaining:
 - Move SIR text serialization into IRE.
 - Keep byte-for-byte stable output where possible.
 - Make `EmitSir` a facade over `TAST -> IRB -> IRE`.

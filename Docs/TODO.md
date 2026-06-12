@@ -21,6 +21,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [ ] Extract type checking into `TAST`.
   - [x] Add initial TAST type-checker boundary.
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.
+  - [x] Add initial `TAST -> IRB -> IRE` bridge.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.
 - [ ] Define deprecation/migration policy for legacy includes:
   - [ ] `lang_ast.h`

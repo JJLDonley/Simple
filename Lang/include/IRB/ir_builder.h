@@ -6,12 +6,14 @@
 
 namespace Simple::Lang::IRB {
 
-// Phase-0 language IR module.
-//
-// Today lang_sir.cpp emits textual SIR directly. The staged split will move
-// semantic lowering into IRB first, then make IRE responsible for serialization.
+// Language IR module boundary. During migration this carries serialized SIR;
+// later phases will replace it with structured functions/blocks/instructions.
 struct Module {
   std::string sir_text;
 };
+
+bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
+                 Module* out,
+                 std::string* error);
 
 } // namespace Simple::Lang::IRB

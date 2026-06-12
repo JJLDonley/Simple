@@ -263,6 +263,37 @@ bool LangTastCheckerRejectsTypeMismatch() {
   return error.find("initializer type mismatch") != std::string::npos;
 }
 
+bool LangIrbIrePipelineEmitsRunnableSir() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () { return self.v + 40; }\n"
+      "}\n"
+      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  Simple::Lang::IRB::Module module;
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirModule(module, &sir, &error)) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangIrbRejectsMissingTypedInput() {
+  Simple::Lang::TAST::TypedProgram typed;
+  Simple::Lang::IRB::Module module;
+  std::string error;
+  if (Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  return error.find("missing typed program input") != std::string::npos;
+}
+
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
   Simple::Lang::Lexer lexer("main : i32 () { return 0; }");
   if (!lexer.Lex()) return false;
@@ -4003,6 +4034,8 @@ const TestCase kLangTests[] = {
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
+  {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
+  {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},
