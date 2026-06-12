@@ -3148,13 +3148,13 @@ bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
   if (!out_expr) return false;
   *out_expr = nullptr;
   if (branch.is_block) {
-    if (branch.block.size() != 1 ||
-        branch.block[0].kind != StmtKind::Return ||
-        !branch.block[0].has_return_expr) {
-      if (error) *error = "switch branch block must contain a single return with a value";
+    if (branch.block.empty() ||
+        branch.block.back().kind != StmtKind::Return ||
+        !branch.block.back().has_return_expr) {
+      if (error) *error = "switch branch block must end with a return value";
       return false;
     }
-    *out_expr = &branch.block[0].expr;
+    *out_expr = &branch.block.back().expr;
     return true;
   }
   if (!branch.has_inline_value) {
@@ -3199,6 +3199,27 @@ bool AnalyzeSwitchExpr(const Expr& expr,
     const Expr* value_expr = nullptr;
     if (!GetSwitchBranchValueExpr(branch, require_explicit_return, &value_expr, error)) return false;
     if (!value_expr) return false;
+
+    auto branch_scopes = scopes;
+    if (branch.is_block) {
+      branch_scopes.emplace_back();
+      std::unordered_set<std::string> no_type_params;
+      for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
+        if (!CheckStmt(branch.block[stmt_index],
+                       ctx,
+                       no_type_params,
+                       nullptr,
+                       false,
+                       0,
+                       branch_scopes,
+                       current_artifact,
+                       error)) {
+          return false;
+        }
+      }
+    }
+    const auto& value_scopes = branch.is_block ? branch_scopes : scopes;
+
     if (expected_type) {
       VarDecl temp;
       temp.name = "__switch_branch";
@@ -3207,16 +3228,16 @@ bool AnalyzeSwitchExpr(const Expr& expr,
       temp.init_expr = *value_expr;
       if (!ValidateVarInitExpr(temp,
                                ctx,
-                               scopes,
+                               value_scopes,
                                current_artifact,
                                false,
                                error)) {
         return false;
       }
     } else {
-      if (!CheckExpr(*value_expr, ctx, scopes, current_artifact, error)) return false;
+      if (!CheckExpr(*value_expr, ctx, value_scopes, current_artifact, error)) return false;
       TypeRef value_type;
-      if (!InferExprType(*value_expr, ctx, scopes, current_artifact, &value_type)) {
+      if (!InferExprType(*value_expr, ctx, value_scopes, current_artifact, &value_type)) {
         if (error && error->empty()) *error = "switch branch type mismatch";
         return false;
       }

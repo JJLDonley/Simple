@@ -1223,13 +1223,13 @@ bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
   if (!out_expr) return false;
   *out_expr = nullptr;
   if (branch.is_block) {
-    if (branch.block.size() != 1 ||
-        branch.block[0].kind != StmtKind::Return ||
-        !branch.block[0].has_return_expr) {
-      if (error) *error = "switch branch block must contain a single return with a value";
+    if (branch.block.empty() ||
+        branch.block.back().kind != StmtKind::Return ||
+        !branch.block.back().has_return_expr) {
+      if (error) *error = "switch branch block must end with a return value";
       return false;
     }
-    *out_expr = &branch.block[0].expr;
+    *out_expr = &branch.block.back().expr;
     return true;
   }
   if (!branch.has_inline_value) {
@@ -2430,13 +2430,16 @@ bool EmitSwitchExpr(EmitState& st,
       PopStack(st, 1);
     }
     if (branch.is_block) {
-      if (branch.block.size() != 1 ||
-          branch.block[0].kind != StmtKind::Return ||
-          !branch.block[0].has_return_expr) {
-        if (error) *error = "switch branch block must contain a single return with a value";
+      if (branch.block.empty() ||
+          branch.block.back().kind != StmtKind::Return ||
+          !branch.block.back().has_return_expr) {
+        if (error) *error = "switch branch block must end with a return value";
         return false;
       }
-      if (!EmitExpr(st, branch.block[0].expr, &switch_type, error)) return false;
+      for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
+        if (!EmitStmt(st, branch.block[stmt_index], error)) return false;
+      }
+      if (!EmitExpr(st, branch.block.back().expr, &switch_type, error)) return false;
       (*st.out) << "  jmp " << end_label << "\n";
     } else {
       if (!branch.has_inline_value) {
