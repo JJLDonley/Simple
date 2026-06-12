@@ -297,7 +297,9 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "  Max :: i32 = 40\n"
       "}\n"
       "Mode :: Enum { Off = 0, On = 1 }\n"
+      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "main : i32 () {\n"
+      "  Ray.InitWindow(1, 2);\n"
       "  x : i32 = Config.Max;\n"
       "  m : Mode = Mode.On;\n"
       "  b : Box = { 2 };\n"
@@ -314,17 +316,20 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_module = false;
   bool saw_enum = false;
   bool saw_artifact_method = false;
+  bool saw_extern = false;
   for (const auto& ref : resolved.member_refs) {
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::SelfMember &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactField &&
         ref.qualified_name == "Box.v") saw_self = true;
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::StaticMember &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ModuleMember &&
         ref.qualified_name == "Config.Max") saw_module = true;
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::StaticMember &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::EnumMember &&
         ref.qualified_name == "Mode.On") saw_enum = true;
-    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactMember &&
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactMethod &&
         ref.qualified_name == "Box.score") saw_artifact_method = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
+        ref.qualified_name == "Ray.InitWindow") saw_extern = true;
   }
-  return saw_self && saw_module && saw_enum && saw_artifact_method;
+  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern;
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {

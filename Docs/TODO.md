@@ -86,12 +86,12 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] Add initial RAST artifact member receiver refs from local variable types.
 - [ ] Disambiguate member access during resolution:
   - [x] Add initial RAST member reference collection for static and `self` member refs.
-  - [ ] module member
-  - [ ] artifact field
-  - [ ] artifact method
-  - [ ] enum member
+  - [x] module member
+  - [x] artifact field
+  - [x] artifact method
+  - [x] enum member
   - [ ] reserved module function
-  - [ ] extern symbol
+  - [x] extern symbol
   - [ ] DL manifest call
 
 ## Procedure Values / Generics / Pointers

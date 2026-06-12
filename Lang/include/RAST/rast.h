@@ -50,6 +50,11 @@ enum class MemberRefKind : uint8_t {
   StaticMember,
   SelfMember,
   ArtifactMember,
+  ModuleMember,
+  ArtifactField,
+  ArtifactMethod,
+  EnumMember,
+  ExternSymbol,
 };
 
 struct MemberRef {

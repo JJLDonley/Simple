@@ -181,6 +181,24 @@ bool AddCallableSymbols(ResolvedProgram* out,
   return AddStmtBlockSymbols(out, fn.body, owner, parent, "body", error);
 }
 
+MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_kind) {
+  switch (symbol_kind) {
+    case SymbolKind::ModuleVariable:
+    case SymbolKind::ModuleFunction:
+      return MemberRefKind::ModuleMember;
+    case SymbolKind::ArtifactField:
+      return MemberRefKind::ArtifactField;
+    case SymbolKind::ArtifactMethod:
+      return MemberRefKind::ArtifactMethod;
+    case SymbolKind::EnumMember:
+      return MemberRefKind::EnumMember;
+    case SymbolKind::Extern:
+      return MemberRefKind::ExternSymbol;
+    default:
+      return fallback;
+  }
+}
+
 void AddResolvedMemberRef(ResolvedProgram* out,
                           MemberRefKind kind,
                           const std::string& base,
@@ -268,6 +286,7 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
     }
     auto it = out->by_qualified_name.find(qualified);
     if (it != out->by_qualified_name.end()) {
+      kind = ClassifyMemberRefKind(kind, out->symbols[it->second].kind);
       AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
     }
   }
