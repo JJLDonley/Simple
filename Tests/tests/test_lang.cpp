@@ -617,6 +617,34 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangIrbStructuredIrSkeletonStoresModuleShape() {
+  Simple::Lang::IRB::Module module;
+  Simple::Lang::IRB::IrImport import;
+  import.module = "env";
+  import.symbol = "puts";
+  import.signature.params.push_back({"string"});
+  import.signature.result = {"i32"};
+  import.signature.has_result = true;
+  module.ir.imports.push_back(import);
+
+  Simple::Lang::IRB::IrFunction fn;
+  fn.name = "main";
+  fn.signature.result = {"i32"};
+  fn.signature.has_result = true;
+  Simple::Lang::IRB::IrBlock block;
+  block.label = "entry";
+  block.instructions.push_back({"const.i32", {"42"}});
+  block.instructions.push_back({"ret", {}});
+  fn.blocks.push_back(block);
+  module.ir.functions.push_back(fn);
+
+  return module.ir.imports.size() == 1 &&
+         module.ir.functions.size() == 1 &&
+         module.ir.functions[0].blocks.size() == 1 &&
+         module.ir.functions[0].blocks[0].instructions.size() == 2 &&
+         module.ir.functions[0].signature.result.name == "i32";
+}
+
 bool LangIrbRejectsMissingTypedInput() {
   Simple::Lang::TAST::TypedProgram typed;
   Simple::Lang::IRB::Module module;
@@ -4608,6 +4636,7 @@ const TestCase kLangTests[] = {
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
+  {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},

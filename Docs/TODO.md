@@ -126,14 +126,14 @@ This list tracks work needed to improve feature independence, compiler structure
 
 ## IR / SIR / Lowering
 
-- [ ] Introduce structured language IR:
-  - [ ] `IrModule`
-  - [ ] `IrFunction`
-  - [ ] `IrBlock`
-  - [ ] `IrInst`
-  - [ ] `IrType`
-  - [ ] `IrSig`
-  - [ ] `IrImport`
+- [x] Introduce structured language IR:
+  - [x] `IrModule`
+  - [x] `IrFunction`
+  - [x] `IrBlock`
+  - [x] `IrInst`
+  - [x] `IrType`
+  - [x] `IrSig`
+  - [x] `IrImport`
 - [ ] Move artifact layout out of SIR emitter.
 - [ ] Move ABI flattening out of SIR emitter.
 - [ ] Move stack tracking into IRB.
