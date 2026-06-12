@@ -284,7 +284,7 @@ bool LangAstNormalizesSwitchBranches() {
       "  x : i32 = 1;\n"
       "  y : i32 = switch (x) {\n"
       "    x == 0 => 0\n"
-      "    x == 1 => { local : i32 = 1; return local }\n"
+      "    x == 1 => { while (true) { break; } while (true) { skip; } local : i32 = 1; return local }\n"
       "    default => return 2\n"
       "  };\n"
       "  return y;\n"
@@ -301,9 +301,13 @@ bool LangAstNormalizesSwitchBranches() {
   if (sw.branches.size() != 3) return false;
   if (sw.branches[0].is_default || !sw.branches[0].has_inline_value || sw.branches[0].is_block) return false;
   if (sw.branches[0].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::InlineValue) return false;
-  if (!sw.branches[1].is_block || sw.branches[1].block.size() != 2) return false;
+  if (!sw.branches[1].is_block || sw.branches[1].block.size() != 4) return false;
   if (sw.branches[1].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::Block) return false;
   if (sw.branches[1].flow.may_fallthrough || !sw.branches[1].flow.always_returns) return false;
+  if (!sw.branches[1].flow.may_break || !sw.branches[1].flow.may_skip) return false;
+  for (const auto& branch : sw.branches) {
+    if (branch.falls_through_to_next) return false;
+  }
   return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value &&
          sw.branches[2].result_kind == Simple::Lang::AST::NormalizedSwitchBranchResultKind::SwitchBranchReturn;
 }

@@ -259,6 +259,7 @@ void CollectSwitchExpr(const Expr& expr,
       normalized.is_block = branch.is_block;
       normalized.has_inline_value = branch.has_inline_value;
       normalized.is_explicit_return = branch.is_explicit_return;
+      normalized.falls_through_to_next = false;
       if (branch.is_block) {
         normalized.result_kind = NormalizedSwitchBranchResultKind::Block;
       } else if (branch.has_inline_value && branch.is_explicit_return) {

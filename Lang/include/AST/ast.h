@@ -89,6 +89,7 @@ struct NormalizedSwitchBranch {
   bool is_block = false;
   bool has_inline_value = false;
   bool is_explicit_return = false;
+  bool falls_through_to_next = false;
   NormalizedSwitchBranchResultKind result_kind = NormalizedSwitchBranchResultKind::None;
   NormalizedBranchFlow flow;
   Expr condition;

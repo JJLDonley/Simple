@@ -80,8 +80,8 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] assigning switch
   - [x] block branch result rules
   - [x] early function return inside branch blocks
-  - [ ] `break`/`skip` behavior when nested in loops
-  - [ ] no-fallthrough policy
+  - [x] `break`/`skip` behavior when nested in loops
+  - [x] no-fallthrough policy
 - [x] Add resolved receiver model for artifact methods.
   - [x] Add initial RAST artifact member receiver refs from local variable types.
   - [x] Persist artifact receiver type and symbol on RAST member refs.
