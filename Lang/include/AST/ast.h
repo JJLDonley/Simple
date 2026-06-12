@@ -35,9 +35,19 @@ struct ScriptBody {
   std::vector<Stmt> statements;
 };
 
+struct NormalizedFnLiteralDecl {
+  std::string binding_name;
+  TypeRef signature;
+  std::vector<ParamDecl> params;
+  std::vector<Token> body_tokens;
+  uint32_t line = 0;
+  uint32_t column = 0;
+};
+
 struct NormalizedProgram {
   std::vector<Decl> decls;
   ScriptBody script_body;
+  std::vector<NormalizedFnLiteralDecl> fn_literals;
 };
 
 } // namespace Simple::Lang::AST
