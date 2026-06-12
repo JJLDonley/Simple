@@ -94,6 +94,110 @@ struct SigSpec {
   std::vector<uint32_t> param_types;
 };
 
+struct TypeSpec {
+  uint32_t name_str = 0;
+  uint8_t kind = static_cast<uint8_t>(Simple::Byte::TypeKind::I32);
+  uint8_t flags = 0;
+  uint32_t size = 4;
+  uint32_t field_start = 0;
+  uint32_t field_count = 0;
+};
+
+struct FieldSpec {
+  uint32_t name_str = 0;
+  uint32_t type_id = 0;
+  uint32_t offset = 0;
+  uint32_t flags = 0;
+};
+
+struct MethodSpec {
+  uint32_t name_str = 0;
+  uint32_t sig_id = 0;
+  uint32_t code_offset = 0;
+  uint16_t local_count = 0;
+  uint16_t flags = 0;
+};
+
+struct GlobalSpec {
+  uint32_t name_str = 0;
+  uint32_t type_id = 0;
+  uint32_t flags = 1;
+  uint32_t init_const_id = 0xFFFFFFFFu;
+};
+
+struct FunctionSpec {
+  uint32_t method_id = 0;
+  uint32_t code_offset = 0;
+  uint32_t code_size = 0;
+  uint32_t stack_max = 8;
+};
+
+inline void AppendTypeRow(std::vector<uint8_t>& out, const TypeSpec& row) {
+  AppendU32(out, row.name_str);
+  AppendU8(out, row.kind);
+  AppendU8(out, row.flags);
+  AppendU16(out, 0);
+  AppendU32(out, row.size);
+  AppendU32(out, row.field_start);
+  AppendU32(out, row.field_count);
+}
+
+inline void AppendFieldRow(std::vector<uint8_t>& out, const FieldSpec& row) {
+  AppendU32(out, row.name_str);
+  AppendU32(out, row.type_id);
+  AppendU32(out, row.offset);
+  AppendU32(out, row.flags);
+}
+
+inline void AppendMethodRow(std::vector<uint8_t>& out, const MethodSpec& row) {
+  AppendU32(out, row.name_str);
+  AppendU32(out, row.sig_id);
+  AppendU32(out, row.code_offset);
+  AppendU16(out, row.local_count);
+  AppendU16(out, row.flags);
+}
+
+inline void AppendSigRow(std::vector<uint8_t>& out, const SigSpec& row,
+                         uint16_t call_conv = 0,
+                         uint32_t param_type_start = 0) {
+  AppendU32(out, row.ret_type_id);
+  AppendU16(out, row.param_count);
+  AppendU16(out, call_conv);
+  AppendU32(out, param_type_start);
+}
+
+inline void AppendGlobalRow(std::vector<uint8_t>& out, const GlobalSpec& row) {
+  AppendU32(out, row.name_str);
+  AppendU32(out, row.type_id);
+  AppendU32(out, row.flags);
+  AppendU32(out, row.init_const_id);
+}
+
+inline void AppendFunctionRow(std::vector<uint8_t>& out, const FunctionSpec& row) {
+  AppendU32(out, row.method_id);
+  AppendU32(out, row.code_offset);
+  AppendU32(out, row.code_size);
+  AppendU32(out, row.stack_max);
+}
+
+inline std::vector<uint8_t> BuildTypeSection(const std::vector<TypeSpec>& rows) {
+  std::vector<uint8_t> out;
+  for (const auto& row : rows) AppendTypeRow(out, row);
+  return out;
+}
+
+inline std::vector<uint8_t> BuildFieldSection(const std::vector<FieldSpec>& rows) {
+  std::vector<uint8_t> out;
+  for (const auto& row : rows) AppendFieldRow(out, row);
+  return out;
+}
+
+inline std::vector<uint8_t> BuildGlobalSection(const std::vector<GlobalSpec>& rows) {
+  std::vector<uint8_t> out;
+  for (const auto& row : rows) AppendGlobalRow(out, row);
+  return out;
+}
+
 inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_t>& code,
                                                         const std::vector<uint8_t>& const_pool,
                                                         const std::vector<uint8_t>& types_bytes,
@@ -109,29 +213,16 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
                                                         const std::vector<uint8_t>& exports_bytes = std::vector<uint8_t>()) {
   std::vector<uint8_t> types = types_bytes;
   if (types.empty()) {
-    AppendU32(types, 0);       // name_str
-    AppendU8(types, static_cast<uint8_t>(Simple::Byte::TypeKind::I32)); // kind
-    AppendU8(types, 0);        // flags
-    AppendU16(types, 0);       // reserved
-    AppendU32(types, 4);       // size
-    AppendU32(types, 0);       // field_start
-    AppendU32(types, 0);       // field_count
+    types = BuildTypeSection({TypeSpec{}});
   }
 
   std::vector<uint8_t> fields = fields_bytes;
 
   std::vector<uint8_t> methods;
-  AppendU32(methods, 0);     // name_str
-  AppendU32(methods, 0);     // sig_id
-  AppendU32(methods, 0);     // code_offset
-  AppendU16(methods, local_count);
-  AppendU16(methods, 0);     // flags
+  AppendMethodRow(methods, MethodSpec{0, 0, 0, local_count, 0});
 
   std::vector<uint8_t> sigs;
-  AppendU32(sigs, ret_type_id);
-  AppendU16(sigs, param_count);
-  AppendU16(sigs, call_conv);
-  AppendU32(sigs, param_type_start);
+  AppendSigRow(sigs, SigSpec{ret_type_id, param_count, {}}, call_conv, param_type_start);
   if (!param_types.empty() || param_type_start > 0) {
     std::vector<uint32_t> packed = param_types;
     if (param_type_start > 0) {
@@ -142,19 +233,11 @@ inline std::vector<uint8_t> BuildModuleWithTablesAndSig(const std::vector<uint8_
     }
   }
 
-  std::vector<uint8_t> globals;
-  for (uint32_t i = 0; i < global_count; ++i) {
-    AppendU32(globals, 0);            // name_str
-    AppendU32(globals, 0);            // type_id
-    AppendU32(globals, 1);            // flags (mutable)
-    AppendU32(globals, 0xFFFFFFFFu);  // init_const_id (zero-init)
-  }
+  std::vector<GlobalSpec> global_rows(global_count);
+  std::vector<uint8_t> globals = BuildGlobalSection(global_rows);
 
   std::vector<uint8_t> functions;
-  AppendU32(functions, 0);   // method_id
-  AppendU32(functions, 0);   // code_offset
-  AppendU32(functions, static_cast<uint32_t>(code.size()));
-  AppendU32(functions, 8);   // stack_max
+  AppendFunctionRow(functions, FunctionSpec{0, 0, static_cast<uint32_t>(code.size()), 8});
 
   std::vector<SectionData> sections;
   sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});

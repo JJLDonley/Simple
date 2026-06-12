@@ -140,7 +140,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [x] Move local/global/import/signature allocation into IRB.
 - [x] Make IRE serialize already-computed IR only.
 - [x] Keep SIR output stable while replacing internals.
-- [ ] Add typed metadata builders instead of raw section byte buffers.
+- [x] Add typed metadata builders instead of raw section byte buffers.
 
 ## Bytecode / Verifier / VM Coupling
 

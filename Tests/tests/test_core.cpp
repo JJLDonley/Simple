@@ -15721,6 +15721,44 @@ std::vector<uint8_t> BuildGcModule() {
   PatchRel32(code, patch_site, null_block);
   return BuildModule(code, 0, 1);
 }
+
+bool RunTypedMetadataBuildersTest() {
+  Simple::Byte::sbc::TypeSpec type;
+  type.name_str = 12;
+  type.kind = static_cast<uint8_t>(Simple::Byte::TypeKind::I64);
+  type.size = 8;
+  type.field_start = 2;
+  type.field_count = 3;
+  std::vector<uint8_t> types = Simple::Byte::sbc::BuildTypeSection({type});
+  if (types.size() != 20) return false;
+  if (ReadU32At(types, 0) != 12) return false;
+  if (types[4] != static_cast<uint8_t>(Simple::Byte::TypeKind::I64)) return false;
+  if (ReadU32At(types, 8) != 8) return false;
+  if (ReadU32At(types, 12) != 2) return false;
+  if (ReadU32At(types, 16) != 3) return false;
+
+  Simple::Byte::sbc::FieldSpec field;
+  field.name_str = 20;
+  field.type_id = 1;
+  field.offset = 4;
+  std::vector<uint8_t> fields = Simple::Byte::sbc::BuildFieldSection({field});
+  if (fields.size() != 16) return false;
+  if (ReadU32At(fields, 0) != 20) return false;
+  if (ReadU32At(fields, 4) != 1) return false;
+  if (ReadU32At(fields, 8) != 4) return false;
+
+  Simple::Byte::sbc::GlobalSpec global;
+  global.name_str = 30;
+  global.type_id = 0;
+  global.flags = 1;
+  global.init_const_id = 0xFFFFFFFFu;
+  std::vector<uint8_t> globals = Simple::Byte::sbc::BuildGlobalSection({global});
+  if (globals.size() != 16) return false;
+  if (ReadU32At(globals, 0) != 30) return false;
+  if (ReadU32At(globals, 8) != 1) return false;
+  return ReadU32At(globals, 12) == 0xFFFFFFFFu;
+}
+
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -23092,6 +23130,7 @@ bool RunJmpTableEmptyTest() {
 }
 
 static const TestCase kCoreTests[] = {
+  {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
   {"dup", RunDupTest},
