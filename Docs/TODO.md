@@ -97,7 +97,7 @@ This list tracks work needed to improve feature independence, compiler structure
 
 ## Procedure Values / Generics / Pointers
 
-- [ ] Harden procedure values with tests across:
+- [x] Harden procedure values with tests across:
   - [x] artifact methods
   - [x] module functions
   - [x] switch expressions
@@ -106,7 +106,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] extern boundaries
   - [x] generics
   - [x] member calls
-- [ ] Audit closure/upvalue semantics.
+- [x] Audit closure/upvalue semantics.
 - [ ] Finish or explicitly reject unsupported generic cases:
   - [ ] generic functions
   - [ ] generic artifacts

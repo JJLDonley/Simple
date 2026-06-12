@@ -1209,6 +1209,19 @@ bool LangStressProcedureMemberCallRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangStressProcedureClosureCaptureRejected() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 41\n"
+      "  f : fn i32 () = () { return x + 1 }\n"
+      "  return f()\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("unknown local 'x'") != std::string::npos;
+}
+
 bool LangStressProcedureNestedClosureRejected() {
   const char* src =
       "main : i32 () {\n"
@@ -4580,6 +4593,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
   {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
+  {"lang_stress_procedure_closure_capture_rejected", LangStressProcedureClosureCaptureRejected},
   {"lang_stress_procedure_nested_closure_rejected", LangStressProcedureNestedClosureRejected},
   {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
