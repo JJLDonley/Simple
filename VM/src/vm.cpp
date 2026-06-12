@@ -4070,6 +4070,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
 
     uint8_t opcode = module.code[pc++];
+    Simple::Byte::OpVmDispatch vm_dispatch = Simple::Byte::OpVmDispatch::Misc;
+    if (!Simple::Byte::GetOpVmDispatch(opcode, &vm_dispatch)) return Trap("unknown opcode");
     trap_ctx.last_opcode = opcode;
     opcode_counts[opcode] += 1;
     if (current.func_index < func_opcode_counts.size()) {
