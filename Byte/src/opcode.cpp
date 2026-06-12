@@ -621,6 +621,37 @@ bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow) {
   return true;
 }
 
+bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  OpControlFlow flow = OpControlFlow::None;
+  GetOpControlFlow(opcode, &flow);
+  OpTypeRule type_rule = OpTypeRule::None;
+  GetOpTypeRule(opcode, &type_rule);
+
+  OpVerifierRule value = OpVerifierRule::None;
+  if (flow != OpControlFlow::None) {
+    value = OpVerifierRule::Control;
+  } else if (type_rule == OpTypeRule::Call) {
+    value = OpVerifierRule::Call;
+  } else if (type_rule == OpTypeRule::Aggregate) {
+    value = OpVerifierRule::Aggregate;
+  } else if (type_rule != OpTypeRule::None) {
+    value = OpVerifierRule::Typed;
+  } else if (info.pops != 0 || info.pushes != 0) {
+    value = OpVerifierRule::StackOnly;
+  } else if (info.operand_bytes != 0 || opcode == static_cast<uint8_t>(OpCode::Nop) ||
+             opcode == static_cast<uint8_t>(OpCode::Breakpoint) ||
+             opcode == static_cast<uint8_t>(OpCode::Line) ||
+             opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
+             opcode == static_cast<uint8_t>(OpCode::ProfileEnd) ||
+             opcode == static_cast<uint8_t>(OpCode::Enter)) {
+    value = OpVerifierRule::Structural;
+  }
+  if (rule) *rule = value;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

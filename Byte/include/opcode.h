@@ -281,12 +281,23 @@ enum class OpControlFlow : uint8_t {
   Terminal,
 };
 
+enum class OpVerifierRule : uint8_t {
+  None,
+  Structural,
+  StackOnly,
+  Typed,
+  Aggregate,
+  Call,
+  Control,
+};
+
 // OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 bool GetOperandWidth(uint8_t opcode, int* operand_bytes);
 bool GetStackEffect(uint8_t opcode, int* pops, int* pushes);
 bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule);
 bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow);
+bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule);
 const char* OpCodeName(uint8_t opcode);
 
 } // namespace Simple::Byte

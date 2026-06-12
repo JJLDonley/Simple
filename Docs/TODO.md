@@ -149,7 +149,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] stack pops/pushes
   - [x] type rules
   - [x] control-flow behavior
-  - [ ] verifier rule
+  - [x] verifier rule
   - [ ] VM dispatch mapping
 - [ ] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.
 - [ ] Reduce verifier/VM opcode semantic drift.

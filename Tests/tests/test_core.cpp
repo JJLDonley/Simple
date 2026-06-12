@@ -15768,6 +15768,17 @@ bool RunOpcodeControlFlowMetadataTest() {
   return !Simple::Byte::GetOpControlFlow(0xFC, &flow);
 }
 
+bool RunOpcodeVerifierRuleMetadataTest() {
+  Simple::Byte::OpVerifierRule rule = Simple::Byte::OpVerifierRule::None;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Nop), &rule) || rule != Simple::Byte::OpVerifierRule::Structural) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Dup), &rule) || rule != Simple::Byte::OpVerifierRule::StackOnly) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &rule) || rule != Simple::Byte::OpVerifierRule::Typed) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayGetI32), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Jmp), &rule) || rule != Simple::Byte::OpVerifierRule::Control) return false;
+  return !Simple::Byte::GetOpVerifierRule(0xFC, &rule);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23180,6 +23191,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
   {"opcode_type_rule_metadata", RunOpcodeTypeRuleMetadataTest},
   {"opcode_control_flow_metadata", RunOpcodeControlFlowMetadataTest},
+  {"opcode_verifier_rule_metadata", RunOpcodeVerifierRuleMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},

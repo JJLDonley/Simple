@@ -455,8 +455,10 @@ VerifyResult VerifyModule(const SbcModule& module) {
       int operand_bytes = 0;
       int base_pops = 0;
       int base_pushes = 0;
+      OpVerifierRule verifier_rule = OpVerifierRule::None;
       GetOperandWidth(opcode, &operand_bytes);
       GetStackEffect(opcode, &base_pops, &base_pushes);
+      GetOpVerifierRule(opcode, &verifier_rule);
       size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (opcode == static_cast<uint8_t>(OpCode::Line) ||
           opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
