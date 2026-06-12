@@ -1,5 +1,7 @@
 #include "IRB/ir_builder.h"
 
+#include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -46,6 +48,35 @@ void CollectAbiFields(const Simple::Lang::AST::Program& program,
   }
 }
 
+uint32_t ParseHeaderValue(const std::string& token, const std::string& prefix) {
+  if (token.rfind(prefix, 0) != 0) return 0;
+  try {
+    return static_cast<uint32_t>(std::stoul(token.substr(prefix.size())));
+  } catch (...) {
+    return 0;
+  }
+}
+
+void PopulateStackInfoFromSir(const std::string& sir, IrModule* out) {
+  if (!out) return;
+  out->stack_infos.clear();
+  std::istringstream in(sir);
+  std::string line;
+  while (std::getline(in, line)) {
+    if (line.rfind("func ", 0) != 0) continue;
+    std::istringstream header(line);
+    std::string tag;
+    IrStackInfo info;
+    header >> tag >> info.function;
+    std::string token;
+    while (header >> token) {
+      if (token.rfind("locals=", 0) == 0) info.locals = ParseHeaderValue(token, "locals=");
+      if (token.rfind("stack=", 0) == 0) info.max_stack = ParseHeaderValue(token, "stack=");
+    }
+    out->stack_infos.push_back(std::move(info));
+  }
+}
+
 void PopulateArtifactLayouts(const Simple::Lang::AST::Program& program, IrModule* out) {
   if (!out) return;
   out->artifact_layouts.clear();
@@ -88,7 +119,9 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   out->ir = {};
   PopulateArtifactLayouts(*typed.resolved->program, &out->ir);
   out->sir_text.clear();
-  return Simple::Lang::EmitSir(*typed.resolved->program, &out->sir_text, error);
+  if (!Simple::Lang::EmitSir(*typed.resolved->program, &out->sir_text, error)) return false;
+  PopulateStackInfoFromSir(out->sir_text, &out->ir);
+  return true;
 }
 
 } // namespace Simple::Lang::IRB

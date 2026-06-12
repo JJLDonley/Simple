@@ -618,6 +618,11 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   if (module.ir.artifact_layouts[0].fields.size() != 1) return false;
   if (module.ir.artifact_layouts[0].fields[0].name != "v") return false;
   if (module.ir.artifact_layouts[0].fields[0].type.name != "i32") return false;
+  bool saw_main_stack = false;
+  for (const auto& stack : module.ir.stack_infos) {
+    if (stack.function == "main" && stack.locals > 0 && stack.max_stack > 0) saw_main_stack = true;
+  }
+  if (!saw_main_stack) return false;
   if (!Simple::Lang::IRE::EmitSirModule(module, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }

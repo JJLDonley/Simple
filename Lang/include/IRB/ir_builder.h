@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -60,11 +61,18 @@ struct IrAbiType {
   std::vector<IrAbiField> fields;
 };
 
+struct IrStackInfo {
+  std::string function;
+  uint32_t locals = 0;
+  uint32_t max_stack = 0;
+};
+
 struct IrModule {
   std::vector<IrImport> imports;
   std::vector<IrFunction> functions;
   std::vector<IrArtifactLayout> artifact_layouts;
   std::vector<IrAbiType> abi_types;
+  std::vector<IrStackInfo> stack_infos;
 };
 
 // Language IR module boundary. During migration this carries serialized SIR
