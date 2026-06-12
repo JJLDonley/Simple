@@ -82,6 +82,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] `break`/`skip` behavior when nested in loops
   - [ ] no-fallthrough policy
 - [ ] Add resolved receiver model for artifact methods.
+  - [x] Add initial RAST artifact member receiver refs from local variable types.
 - [ ] Disambiguate member access during resolution:
   - [x] Add initial RAST member reference collection for static and `self` member refs.
   - [ ] module member

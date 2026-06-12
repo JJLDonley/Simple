@@ -196,44 +196,59 @@ void AddResolvedMemberRef(ResolvedProgram* out,
   out->member_refs.push_back(std::move(ref));
 }
 
+using TypeEnv = std::unordered_map<std::string, std::string>;
+
 void ResolveExprMemberRefs(ResolvedProgram* out,
                            const Expr& expr,
-                           const std::string& current_artifact);
+                           const std::string& current_artifact,
+                           TypeEnv& types);
+
+void ResolveStmtBlockMemberRefs(ResolvedProgram* out,
+                                const std::vector<Stmt>& stmts,
+                                const std::string& current_artifact,
+                                TypeEnv types);
 
 void ResolveStmtMemberRefs(ResolvedProgram* out,
                            const Stmt& stmt,
-                           const std::string& current_artifact) {
-  if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) {
-    ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_artifact);
+                           const std::string& current_artifact,
+                           TypeEnv& types) {
+  if (stmt.kind == StmtKind::VarDecl) {
+    if (stmt.var_decl.has_init_expr) ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_artifact, types);
+    if (!stmt.var_decl.type.name.empty()) types[stmt.var_decl.name] = stmt.var_decl.type.name;
   } else if (stmt.kind == StmtKind::Assign) {
-    ResolveExprMemberRefs(out, stmt.target, current_artifact);
-    ResolveExprMemberRefs(out, stmt.expr, current_artifact);
+    ResolveExprMemberRefs(out, stmt.target, current_artifact, types);
+    ResolveExprMemberRefs(out, stmt.expr, current_artifact, types);
   } else if (stmt.kind == StmtKind::Expr || (stmt.kind == StmtKind::Return && stmt.has_return_expr)) {
-    ResolveExprMemberRefs(out, stmt.expr, current_artifact);
+    ResolveExprMemberRefs(out, stmt.expr, current_artifact, types);
   } else if (stmt.kind == StmtKind::IfChain) {
     for (const auto& branch : stmt.if_branches) {
-      ResolveExprMemberRefs(out, branch.first, current_artifact);
-      for (const auto& child : branch.second) ResolveStmtMemberRefs(out, child, current_artifact);
+      ResolveExprMemberRefs(out, branch.first, current_artifact, types);
+      ResolveStmtBlockMemberRefs(out, branch.second, current_artifact, types);
     }
-    for (const auto& child : stmt.else_branch) ResolveStmtMemberRefs(out, child, current_artifact);
+    ResolveStmtBlockMemberRefs(out, stmt.else_branch, current_artifact, types);
   } else if (stmt.kind == StmtKind::IfStmt) {
-    ResolveExprMemberRefs(out, stmt.if_cond, current_artifact);
-    for (const auto& child : stmt.if_then) ResolveStmtMemberRefs(out, child, current_artifact);
-    for (const auto& child : stmt.if_else) ResolveStmtMemberRefs(out, child, current_artifact);
+    ResolveExprMemberRefs(out, stmt.if_cond, current_artifact, types);
+    ResolveStmtBlockMemberRefs(out, stmt.if_then, current_artifact, types);
+    ResolveStmtBlockMemberRefs(out, stmt.if_else, current_artifact, types);
   } else if (stmt.kind == StmtKind::WhileLoop) {
-    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact);
-    for (const auto& child : stmt.loop_body) ResolveStmtMemberRefs(out, child, current_artifact);
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact, types);
+    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_artifact, types);
   } else if (stmt.kind == StmtKind::ForLoop) {
-    ResolveExprMemberRefs(out, stmt.loop_iter, current_artifact);
-    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact);
-    ResolveExprMemberRefs(out, stmt.loop_step, current_artifact);
-    for (const auto& child : stmt.loop_body) ResolveStmtMemberRefs(out, child, current_artifact);
+    TypeEnv for_types = types;
+    if (stmt.has_loop_var_decl && !stmt.loop_var_decl.type.name.empty()) {
+      for_types[stmt.loop_var_decl.name] = stmt.loop_var_decl.type.name;
+    }
+    ResolveExprMemberRefs(out, stmt.loop_iter, current_artifact, for_types);
+    ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact, for_types);
+    ResolveExprMemberRefs(out, stmt.loop_step, current_artifact, for_types);
+    ResolveStmtBlockMemberRefs(out, stmt.loop_body, current_artifact, for_types);
   }
 }
 
 void ResolveExprMemberRefs(ResolvedProgram* out,
                            const Expr& expr,
-                           const std::string& current_artifact) {
+                           const std::string& current_artifact,
+                           TypeEnv& types) {
   if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
     const Expr& base = expr.children[0];
     std::string qualified;
@@ -242,30 +257,47 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
       qualified = current_artifact + "." + expr.text;
       kind = MemberRefKind::SelfMember;
     } else if (base.kind == ExprKind::Identifier) {
-      qualified = base.text + "." + expr.text;
-      kind = MemberRefKind::StaticMember;
+      auto type_it = types.find(base.text);
+      if (type_it != types.end()) {
+        qualified = type_it->second + "." + expr.text;
+        kind = MemberRefKind::ArtifactMember;
+      } else {
+        qualified = base.text + "." + expr.text;
+        kind = MemberRefKind::StaticMember;
+      }
     }
     auto it = out->by_qualified_name.find(qualified);
     if (it != out->by_qualified_name.end()) {
       AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
     }
   }
-  for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_artifact);
-  for (const auto& arg : expr.args) ResolveExprMemberRefs(out, arg, current_artifact);
-  for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_artifact);
+  for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_artifact, types);
+  for (const auto& arg : expr.args) ResolveExprMemberRefs(out, arg, current_artifact, types);
+  for (const auto& value : expr.field_values) ResolveExprMemberRefs(out, value, current_artifact, types);
   if (expr.kind == ExprKind::Switch) {
     for (const auto& branch : expr.switch_branches) {
-      if (!branch.is_default) ResolveExprMemberRefs(out, branch.condition, current_artifact);
-      if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_artifact);
-      for (const auto& stmt : branch.block) ResolveStmtMemberRefs(out, stmt, current_artifact);
+      if (!branch.is_default) ResolveExprMemberRefs(out, branch.condition, current_artifact, types);
+      if (branch.has_inline_value) ResolveExprMemberRefs(out, branch.value, current_artifact, types);
+      ResolveStmtBlockMemberRefs(out, branch.block, current_artifact, types);
     }
   }
+}
+
+void ResolveStmtBlockMemberRefs(ResolvedProgram* out,
+                                const std::vector<Stmt>& stmts,
+                                const std::string& current_artifact,
+                                TypeEnv types) {
+  for (const auto& stmt : stmts) ResolveStmtMemberRefs(out, stmt, current_artifact, types);
 }
 
 void ResolveFunctionMemberRefs(ResolvedProgram* out,
                                const FuncDecl& fn,
                                const std::string& current_artifact) {
-  for (const auto& stmt : fn.body) ResolveStmtMemberRefs(out, stmt, current_artifact);
+  TypeEnv types;
+  for (const auto& param : fn.params) {
+    if (!param.type.name.empty()) types[param.name] = param.type.name;
+  }
+  ResolveStmtBlockMemberRefs(out, fn.body, current_artifact, std::move(types));
 }
 
 void ResolveProgramMemberRefs(ResolvedProgram* out) {
@@ -280,13 +312,16 @@ void ResolveProgramMemberRefs(ResolvedProgram* out) {
     } else if (decl.kind == DeclKind::Module) {
       for (const auto& fn : decl.module.functions) ResolveFunctionMemberRefs(out, fn, {});
       for (const auto& var : decl.module.variables) {
-        if (var.has_init_expr) ResolveExprMemberRefs(out, var.init_expr, {});
+        TypeEnv types;
+        if (var.has_init_expr) ResolveExprMemberRefs(out, var.init_expr, {}, types);
       }
     } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
-      ResolveExprMemberRefs(out, decl.var.init_expr, {});
+      TypeEnv types;
+      ResolveExprMemberRefs(out, decl.var.init_expr, {}, types);
     }
   }
-  for (const auto& stmt : out->program->top_level_stmts) ResolveStmtMemberRefs(out, stmt, {});
+  TypeEnv script_types;
+  for (const auto& stmt : out->program->top_level_stmts) ResolveStmtMemberRefs(out, stmt, {}, script_types);
 }
 
 } // namespace

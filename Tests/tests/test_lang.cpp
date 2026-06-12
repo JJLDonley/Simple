@@ -312,6 +312,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_self = false;
   bool saw_module = false;
   bool saw_enum = false;
+  bool saw_artifact_method = false;
   for (const auto& ref : resolved.member_refs) {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::SelfMember &&
         ref.qualified_name == "Box.v") saw_self = true;
@@ -319,8 +320,10 @@ bool LangRastResolverDisambiguatesMemberRefs() {
         ref.qualified_name == "Config.Max") saw_module = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::StaticMember &&
         ref.qualified_name == "Mode.On") saw_enum = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactMember &&
+        ref.qualified_name == "Box.score") saw_artifact_method = true;
   }
-  return saw_self && saw_module && saw_enum;
+  return saw_self && saw_module && saw_enum && saw_artifact_method;
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {

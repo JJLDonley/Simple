@@ -49,6 +49,7 @@ enum class MemberRefKind : uint8_t {
   Unknown,
   StaticMember,
   SelfMember,
+  ArtifactMember,
 };
 
 struct MemberRef {

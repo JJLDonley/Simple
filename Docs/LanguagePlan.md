@@ -338,6 +338,7 @@ Implemented:
 - Added top-level, artifact member, module member, enum member, import, and extern symbol collection.
 - Added initial callable scope symbol collection for parameters, `self`, locals, and switch branch blocks.
 - Added initial member reference collection for static module/enum refs and artifact `self` refs.
+- Added initial artifact receiver member refs from local variable types.
 
 Remaining:
 - Extract symbol/import/member resolution from `lang_validate.cpp`.
