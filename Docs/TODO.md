@@ -146,7 +146,7 @@ This list tracks work needed to improve feature independence, compiler structure
 
 - [ ] Centralize opcode semantics:
   - [x] operand width
-  - [ ] stack pops/pushes
+  - [x] stack pops/pushes
   - [ ] type rules
   - [ ] control-flow behavior
   - [ ] verifier rule

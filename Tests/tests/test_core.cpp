@@ -15733,6 +15733,17 @@ bool RunOpcodeOperandWidthMetadataTest() {
   return !Simple::Byte::GetOperandWidth(0xFC, &width);
 }
 
+bool RunOpcodeStackEffectMetadataTest() {
+  int pops = -1;
+  int pushes = -1;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::ConstI32), &pops, &pushes) || pops != 0 || pushes != 1) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &pops, &pushes) || pops != 2 || pushes != 1) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::Pop), &pops, &pushes) || pops != 1 || pushes != 0) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::Dup2), &pops, &pushes) || pops != 2 || pushes != 4) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &pops, &pushes) || pops != 1 || pushes != 0) return false;
+  return !Simple::Byte::GetStackEffect(0xFC, &pops, &pushes);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23142,6 +23153,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
+  {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},

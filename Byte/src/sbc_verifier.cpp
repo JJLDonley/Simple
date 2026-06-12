@@ -353,11 +353,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
     while (pc < end) {
       boundaries.insert(pc);
       uint8_t opcode = code[pc];
-      OpInfo info{};
-      if (!GetOpInfo(opcode, &info)) {
+      int operand_bytes = 0;
+      if (!GetOperandWidth(opcode, &operand_bytes)) {
         return scan_fail("unknown opcode in verifier", pc - func.code_offset, opcode);
       }
-      size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
+      size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (next > end) {
         return scan_fail("opcode operands out of bounds", pc - func.code_offset, opcode);
       }
@@ -452,9 +452,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
       uint8_t opcode = code[pc];
       current_pc = pc;
       current_opcode = opcode;
-      OpInfo info{};
-      GetOpInfo(opcode, &info);
-      size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
+      int operand_bytes = 0;
+      int base_pops = 0;
+      int base_pushes = 0;
+      GetOperandWidth(opcode, &operand_bytes);
+      GetStackEffect(opcode, &base_pops, &base_pushes);
+      size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (opcode == static_cast<uint8_t>(OpCode::Line) ||
           opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
           opcode == static_cast<uint8_t>(OpCode::ProfileEnd)) {
@@ -1926,17 +1929,17 @@ VerifyResult VerifyModule(const SbcModule& module) {
           fall_through = false;
           break;
         default:
-          for (int i = 0; i < info.pops; ++i) pop_type();
-          for (int i = 0; i < info.pushes; ++i) push_type(ValType::Unknown);
+          for (int i = 0; i < base_pops; ++i) pop_type();
+          for (int i = 0; i < base_pushes; ++i) push_type(ValType::Unknown);
           break;
       }
 
-      int pop_count = info.pops + extra_pops;
+      int pop_count = base_pops + extra_pops;
       if (pop_count > 0) {
         if (stack_height - pop_count < 0) return fail_at("stack underflow", pc, opcode);
         stack_height -= pop_count;
       }
-      stack_height += info.pushes + extra_pushes;
+      stack_height += base_pushes + extra_pushes;
       if (static_cast<uint32_t>(stack_height) > func.stack_max) {
         return fail_at("stack exceeds max", pc, opcode);
       }

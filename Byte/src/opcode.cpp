@@ -351,6 +351,14 @@ bool GetOperandWidth(uint8_t opcode, int* operand_bytes) {
   return true;
 }
 
+bool GetStackEffect(uint8_t opcode, int* pops, int* pushes) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  if (pops) *pops = info.pops;
+  if (pushes) *pushes = info.pushes;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

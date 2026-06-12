@@ -258,6 +258,7 @@ struct OpInfo {
 // OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 bool GetOperandWidth(uint8_t opcode, int* operand_bytes);
+bool GetStackEffect(uint8_t opcode, int* pops, int* pushes);
 const char* OpCodeName(uint8_t opcode);
 
 } // namespace Simple::Byte
