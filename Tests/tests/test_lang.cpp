@@ -194,6 +194,22 @@ bool LangAstLowerCastPreservesProgramShape() {
          ast_program.decls[0].func.body[1].kind == Simple::Lang::StmtKind::Return;
 }
 
+bool LangAstNormalizesTopLevelScriptBody() {
+  const char* src =
+      "add : i32 (a : i32, b : i32) { return a + b; }\n"
+      "x = add(40, 2);\n"
+      "x = x + 1;\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  if (ast_program.decls.size() != 1) return false;
+  if (ast_program.script_body.statements.size() != 2) return false;
+  return ast_program.script_body.statements[0].kind == Simple::Lang::StmtKind::Assign &&
+         ast_program.script_body.statements[1].kind == Simple::Lang::StmtKind::Assign;
+}
+
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: Artifact {\n"
@@ -4208,6 +4224,7 @@ const TestCase kLangTests[] = {
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
+  {"lang_ast_normalizes_top_level_script_body", LangAstNormalizesTopLevelScriptBody},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},

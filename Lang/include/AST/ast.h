@@ -31,4 +31,13 @@ using DeclKind = Simple::Lang::DeclKind;
 using Decl = Simple::Lang::Decl;
 using Program = Simple::Lang::Program;
 
+struct ScriptBody {
+  std::vector<Stmt> statements;
+};
+
+struct NormalizedProgram {
+  std::vector<Decl> decls;
+  ScriptBody script_body;
+};
+
 } // namespace Simple::Lang::AST

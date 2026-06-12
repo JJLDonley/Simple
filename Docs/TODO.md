@@ -67,7 +67,7 @@ This list tracks work needed to improve feature independence, compiler structure
 
 ## AST / Feature Independence
 
-- [ ] Normalize top-level script body into an explicit AST node.
+- [x] Normalize top-level script body into an explicit AST node.
 - [ ] Normalize function literal declaration forms.
 - [ ] Normalize loop shorthand.
 - [ ] Normalize `|>` if-chain or define why it remains distinct.
