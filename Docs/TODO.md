@@ -144,13 +144,13 @@ This list tracks work needed to improve feature independence, compiler structure
 
 ## Bytecode / Verifier / VM Coupling
 
-- [ ] Centralize opcode semantics:
+- [x] Centralize opcode semantics:
   - [x] operand width
   - [x] stack pops/pushes
   - [x] type rules
   - [x] control-flow behavior
   - [x] verifier rule
-  - [ ] VM dispatch mapping
+  - [x] VM dispatch mapping
 - [ ] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.
 - [ ] Reduce verifier/VM opcode semantic drift.
 - [ ] Freeze or version opcode metadata used by external SBC producers.

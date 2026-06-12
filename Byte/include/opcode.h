@@ -291,6 +291,20 @@ enum class OpVerifierRule : uint8_t {
   Control,
 };
 
+enum class OpVmDispatch : uint8_t {
+  Misc,
+  Constant,
+  Stack,
+  LocalGlobal,
+  Arithmetic,
+  Compare,
+  Convert,
+  Control,
+  Call,
+  Aggregate,
+  Runtime,
+};
+
 // OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 bool GetOperandWidth(uint8_t opcode, int* operand_bytes);
@@ -298,6 +312,7 @@ bool GetStackEffect(uint8_t opcode, int* pops, int* pushes);
 bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule);
 bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow);
 bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule);
+bool GetOpVmDispatch(uint8_t opcode, OpVmDispatch* dispatch);
 const char* OpCodeName(uint8_t opcode);
 
 } // namespace Simple::Byte

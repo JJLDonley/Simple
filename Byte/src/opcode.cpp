@@ -652,6 +652,100 @@ bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
   return true;
 }
 
+bool GetOpVmDispatch(uint8_t opcode, OpVmDispatch* dispatch) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  OpVmDispatch value = OpVmDispatch::Misc;
+  OpControlFlow flow = OpControlFlow::None;
+  GetOpControlFlow(opcode, &flow);
+  OpTypeRule type_rule = OpTypeRule::None;
+  GetOpTypeRule(opcode, &type_rule);
+  if (opcode == static_cast<uint8_t>(OpCode::Intrinsic) || opcode == static_cast<uint8_t>(OpCode::SysCall)) {
+    value = OpVmDispatch::Runtime;
+  } else if (flow != OpControlFlow::None) {
+    value = OpVmDispatch::Control;
+  } else if (type_rule == OpTypeRule::Const) {
+    value = OpVmDispatch::Constant;
+  } else if (type_rule == OpTypeRule::LocalGlobal) {
+    value = OpVmDispatch::LocalGlobal;
+  } else if (type_rule == OpTypeRule::Call) {
+    value = OpVmDispatch::Call;
+  } else if (type_rule == OpTypeRule::Aggregate || type_rule == OpTypeRule::Ref) {
+    value = OpVmDispatch::Aggregate;
+  } else if (type_rule == OpTypeRule::Bool || type_rule == OpTypeRule::I32Arithmetic ||
+             type_rule == OpTypeRule::I64Arithmetic || type_rule == OpTypeRule::U32Arithmetic ||
+             type_rule == OpTypeRule::U64Arithmetic || type_rule == OpTypeRule::F32Arithmetic ||
+             type_rule == OpTypeRule::F64Arithmetic) {
+    switch (static_cast<OpCode>(opcode)) {
+      case OpCode::CmpEqI32:
+      case OpCode::CmpLtI32:
+      case OpCode::CmpNeI32:
+      case OpCode::CmpLeI32:
+      case OpCode::CmpGtI32:
+      case OpCode::CmpGeI32:
+      case OpCode::CmpEqI64:
+      case OpCode::CmpLtI64:
+      case OpCode::CmpNeI64:
+      case OpCode::CmpLeI64:
+      case OpCode::CmpGtI64:
+      case OpCode::CmpGeI64:
+      case OpCode::CmpEqU32:
+      case OpCode::CmpLtU32:
+      case OpCode::CmpNeU32:
+      case OpCode::CmpLeU32:
+      case OpCode::CmpGtU32:
+      case OpCode::CmpGeU32:
+      case OpCode::CmpEqU64:
+      case OpCode::CmpLtU64:
+      case OpCode::CmpNeU64:
+      case OpCode::CmpLeU64:
+      case OpCode::CmpGtU64:
+      case OpCode::CmpGeU64:
+      case OpCode::CmpEqF32:
+      case OpCode::CmpLtF32:
+      case OpCode::CmpNeF32:
+      case OpCode::CmpLeF32:
+      case OpCode::CmpGtF32:
+      case OpCode::CmpGeF32:
+      case OpCode::CmpEqF64:
+      case OpCode::CmpLtF64:
+      case OpCode::CmpNeF64:
+      case OpCode::CmpLeF64:
+      case OpCode::CmpGtF64:
+      case OpCode::CmpGeF64:
+        value = OpVmDispatch::Compare;
+        break;
+      default:
+        value = OpVmDispatch::Arithmetic;
+        break;
+    }
+  } else {
+    switch (static_cast<OpCode>(opcode)) {
+      case OpCode::Pop:
+      case OpCode::Dup:
+      case OpCode::Dup2:
+      case OpCode::Swap:
+      case OpCode::Rot:
+        value = OpVmDispatch::Stack;
+        break;
+      case OpCode::ConvI32ToI64:
+      case OpCode::ConvI64ToI32:
+      case OpCode::ConvI32ToF32:
+      case OpCode::ConvI32ToF64:
+      case OpCode::ConvF32ToI32:
+      case OpCode::ConvF64ToI32:
+      case OpCode::ConvF32ToF64:
+      case OpCode::ConvF64ToF32:
+        value = OpVmDispatch::Convert;
+        break;
+      default:
+        break;
+    }
+  }
+  if (dispatch) *dispatch = value;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

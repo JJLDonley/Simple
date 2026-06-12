@@ -15779,6 +15779,21 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   return !Simple::Byte::GetOpVerifierRule(0xFC, &rule);
 }
 
+bool RunOpcodeVmDispatchMetadataTest() {
+  Simple::Byte::OpVmDispatch dispatch = Simple::Byte::OpVmDispatch::Misc;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ConstI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Constant) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Dup), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Stack) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::LoadLocal), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::LocalGlobal) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Arithmetic) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::CmpEqI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Compare) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ConvI32ToI64), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Convert) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Jmp), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Control) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayGetI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Intrinsic), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Runtime) return false;
+  return !Simple::Byte::GetOpVmDispatch(0xFC, &dispatch);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23192,6 +23207,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_type_rule_metadata", RunOpcodeTypeRuleMetadataTest},
   {"opcode_control_flow_metadata", RunOpcodeControlFlowMetadataTest},
   {"opcode_verifier_rule_metadata", RunOpcodeVerifierRuleMetadataTest},
+  {"opcode_vm_dispatch_metadata", RunOpcodeVmDispatchMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
