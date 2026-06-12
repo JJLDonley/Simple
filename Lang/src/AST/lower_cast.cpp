@@ -42,6 +42,8 @@ void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out);
 void CollectIfChainStmt(const Stmt& stmt, std::vector<NormalizedIfChain>* out);
 void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out);
 void CollectSwitchStmt(const Stmt& stmt, std::vector<NormalizedSwitch>* out);
+void CollectExprShapeExpr(const Expr& expr, std::vector<NormalizedExprShape>* out);
+void CollectExprShapeStmt(const Stmt& stmt, std::vector<NormalizedExprShape>* out);
 
 void CollectFnLiteralStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedFnLiteralDecl>* out) {
   for (const auto& stmt : stmts) CollectFnLiteralStmt(stmt, out);
@@ -57,6 +59,10 @@ void CollectIfChainStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedI
 
 void CollectSwitchStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedSwitch>* out) {
   for (const auto& stmt : stmts) CollectSwitchStmt(stmt, out);
+}
+
+void CollectExprShapeStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedExprShape>* out) {
+  for (const auto& stmt : stmts) CollectExprShapeStmt(stmt, out);
 }
 
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out) {
@@ -243,6 +249,76 @@ void CollectSwitchDecls(const std::vector<Decl>& decls, std::vector<NormalizedSw
   }
 }
 
+void CollectExprShapeExpr(const Expr& expr, std::vector<NormalizedExprShape>* out) {
+  if (!out) return;
+  if (expr.kind == ExprKind::Call || expr.kind == ExprKind::Member || expr.kind == ExprKind::Index) {
+    NormalizedExprShape shape;
+    if (expr.kind == ExprKind::Call) {
+      shape.kind = NormalizedExprShapeKind::Call;
+      if (!expr.children.empty()) shape.base = expr.children[0];
+      shape.args = expr.args;
+      shape.type_args = expr.type_args;
+    } else if (expr.kind == ExprKind::Member) {
+      shape.kind = NormalizedExprShapeKind::Member;
+      if (!expr.children.empty()) shape.base = expr.children[0];
+      shape.member = expr.text;
+      shape.op = expr.op;
+    } else {
+      shape.kind = NormalizedExprShapeKind::Index;
+      if (!expr.children.empty()) shape.base = expr.children[0];
+      if (expr.children.size() > 1) shape.index = expr.children[1];
+    }
+    out->push_back(std::move(shape));
+  }
+  for (const auto& child : expr.children) CollectExprShapeExpr(child, out);
+  for (const auto& arg : expr.args) CollectExprShapeExpr(arg, out);
+  for (const auto& value : expr.field_values) CollectExprShapeExpr(value, out);
+  for (const auto& branch : expr.switch_branches) {
+    if (!branch.is_default) CollectExprShapeExpr(branch.condition, out);
+    if (branch.has_inline_value) CollectExprShapeExpr(branch.value, out);
+    CollectExprShapeStmts(branch.block, out);
+  }
+}
+
+void CollectExprShapeStmt(const Stmt& stmt, std::vector<NormalizedExprShape>* out) {
+  CollectExprShapeExpr(stmt.expr, out);
+  CollectExprShapeExpr(stmt.target, out);
+  CollectExprShapeExpr(stmt.if_cond, out);
+  CollectExprShapeExpr(stmt.loop_cond, out);
+  CollectExprShapeExpr(stmt.loop_iter, out);
+  CollectExprShapeExpr(stmt.loop_step, out);
+  if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) CollectExprShapeExpr(stmt.var_decl.init_expr, out);
+  if (stmt.has_loop_var_decl && stmt.loop_var_decl.has_init_expr) CollectExprShapeExpr(stmt.loop_var_decl.init_expr, out);
+  for (const auto& branch : stmt.if_branches) {
+    CollectExprShapeExpr(branch.first, out);
+    CollectExprShapeStmts(branch.second, out);
+  }
+  CollectExprShapeStmts(stmt.else_branch, out);
+  CollectExprShapeStmts(stmt.if_then, out);
+  CollectExprShapeStmts(stmt.if_else, out);
+  CollectExprShapeStmts(stmt.loop_body, out);
+}
+
+void CollectExprShapeDecls(const std::vector<Decl>& decls, std::vector<NormalizedExprShape>* out) {
+  for (const auto& decl : decls) {
+    if (decl.kind == DeclKind::Function) {
+      CollectExprShapeStmts(decl.func.body, out);
+    } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
+      CollectExprShapeExpr(decl.var.init_expr, out);
+    } else if (decl.kind == DeclKind::Artifact) {
+      for (const auto& method : decl.artifact.methods) CollectExprShapeStmts(method.body, out);
+      for (const auto& field : decl.artifact.fields) {
+        if (field.has_init_expr) CollectExprShapeExpr(field.init_expr, out);
+      }
+    } else if (decl.kind == DeclKind::Module) {
+      for (const auto& fn : decl.module.functions) CollectExprShapeStmts(fn.body, out);
+      for (const auto& var : decl.module.variables) {
+        if (var.has_init_expr) CollectExprShapeExpr(var.init_expr, out);
+      }
+    }
+  }
+}
+
 } // namespace
 
 bool LowerCastProgram(const Simple::Lang::CAST::Program& in,
@@ -269,6 +345,7 @@ bool LowerCastProgramNormalized(const Simple::Lang::CAST::Program& in,
   out->loops.clear();
   out->if_chains.clear();
   out->switches.clear();
+  out->expr_shapes.clear();
   CollectFnLiteralDecls(out->decls, &out->fn_literals);
   CollectFnLiteralStmts(out->script_body.statements, &out->fn_literals);
   CollectLoopDecls(out->decls, &out->loops);
@@ -277,6 +354,8 @@ bool LowerCastProgramNormalized(const Simple::Lang::CAST::Program& in,
   CollectIfChainStmts(out->script_body.statements, &out->if_chains);
   CollectSwitchDecls(out->decls, &out->switches);
   CollectSwitchStmts(out->script_body.statements, &out->switches);
+  CollectExprShapeDecls(out->decls, &out->expr_shapes);
+  CollectExprShapeStmts(out->script_body.statements, &out->expr_shapes);
   return true;
 }
 

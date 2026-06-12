@@ -303,6 +303,39 @@ bool LangAstNormalizesSwitchBranches() {
   return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value;
 }
 
+bool LangAstNormalizesCallMemberIndexShapes() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = add(1, 2);\n"
+      "  y : i32 = arr[0];\n"
+      "  z : i32 = box.score();\n"
+      "  return x + y + z;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  bool saw_call = false;
+  bool saw_member = false;
+  bool saw_index = false;
+  bool saw_member_call = false;
+  for (const auto& shape : ast_program.expr_shapes) {
+    if (shape.kind == Simple::Lang::AST::NormalizedExprShapeKind::Call &&
+        shape.base.kind == Simple::Lang::ExprKind::Identifier && shape.base.text == "add" &&
+        shape.args.size() == 2) saw_call = true;
+    if (shape.kind == Simple::Lang::AST::NormalizedExprShapeKind::Member &&
+        shape.base.kind == Simple::Lang::ExprKind::Identifier && shape.base.text == "box" &&
+        shape.member == "score" && shape.op == ".") saw_member = true;
+    if (shape.kind == Simple::Lang::AST::NormalizedExprShapeKind::Index &&
+        shape.base.kind == Simple::Lang::ExprKind::Identifier && shape.base.text == "arr" &&
+        shape.index.kind == Simple::Lang::ExprKind::Literal && shape.index.text == "0") saw_index = true;
+    if (shape.kind == Simple::Lang::AST::NormalizedExprShapeKind::Call &&
+        shape.base.kind == Simple::Lang::ExprKind::Member && shape.base.text == "score") saw_member_call = true;
+  }
+  return saw_call && saw_member && saw_index && saw_member_call;
+}
+
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: Artifact {\n"
@@ -4322,6 +4355,7 @@ const TestCase kLangTests[] = {
   {"lang_ast_normalizes_loop_shorthand", LangAstNormalizesLoopShorthand},
   {"lang_ast_normalizes_if_chain", LangAstNormalizesIfChain},
   {"lang_ast_normalizes_switch_branches", LangAstNormalizesSwitchBranches},
+  {"lang_ast_normalizes_call_member_index_shapes", LangAstNormalizesCallMemberIndexShapes},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},

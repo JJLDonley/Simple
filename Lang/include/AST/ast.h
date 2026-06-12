@@ -85,6 +85,22 @@ struct NormalizedSwitch {
   std::vector<NormalizedSwitchBranch> branches;
 };
 
+enum class NormalizedExprShapeKind : uint8_t {
+  Call,
+  Member,
+  Index,
+};
+
+struct NormalizedExprShape {
+  NormalizedExprShapeKind kind = NormalizedExprShapeKind::Call;
+  Expr base;
+  std::string member;
+  std::string op;
+  std::vector<Expr> args;
+  std::vector<TypeRef> type_args;
+  Expr index;
+};
+
 struct NormalizedProgram {
   std::vector<Decl> decls;
   ScriptBody script_body;
@@ -92,6 +108,7 @@ struct NormalizedProgram {
   std::vector<NormalizedLoop> loops;
   std::vector<NormalizedIfChain> if_chains;
   std::vector<NormalizedSwitch> switches;
+  std::vector<NormalizedExprShape> expr_shapes;
 };
 
 } // namespace Simple::Lang::AST
