@@ -591,6 +591,36 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
   return true;
 }
 
+bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  OpControlFlow value = OpControlFlow::None;
+  switch (static_cast<OpCode>(opcode)) {
+    case OpCode::Jmp:
+      value = OpControlFlow::UnconditionalJump;
+      break;
+    case OpCode::JmpTrue:
+    case OpCode::JmpFalse:
+      value = OpControlFlow::ConditionalJump;
+      break;
+    case OpCode::JmpTable:
+      value = OpControlFlow::TableJump;
+      break;
+    case OpCode::Ret:
+    case OpCode::Leave:
+      value = OpControlFlow::Return;
+      break;
+    case OpCode::Halt:
+    case OpCode::Trap:
+      value = OpControlFlow::Terminal;
+      break;
+    default:
+      break;
+  }
+  if (flow) *flow = value;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

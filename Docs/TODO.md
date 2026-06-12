@@ -148,7 +148,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] operand width
   - [x] stack pops/pushes
   - [x] type rules
-  - [ ] control-flow behavior
+  - [x] control-flow behavior
   - [ ] verifier rule
   - [ ] VM dispatch mapping
 - [ ] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.

@@ -272,11 +272,21 @@ enum class OpTypeRule : uint8_t {
   Control,
 };
 
+enum class OpControlFlow : uint8_t {
+  None,
+  UnconditionalJump,
+  ConditionalJump,
+  TableJump,
+  Return,
+  Terminal,
+};
+
 // OpInfo operand widths are ABI-frozen; loader/verifier rely on this table.
 bool GetOpInfo(uint8_t opcode, OpInfo* info);
 bool GetOperandWidth(uint8_t opcode, int* operand_bytes);
 bool GetStackEffect(uint8_t opcode, int* pops, int* pushes);
 bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule);
+bool GetOpControlFlow(uint8_t opcode, OpControlFlow* flow);
 const char* OpCodeName(uint8_t opcode);
 
 } // namespace Simple::Byte

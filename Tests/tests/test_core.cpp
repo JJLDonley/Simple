@@ -15757,6 +15757,17 @@ bool RunOpcodeTypeRuleMetadataTest() {
   return !Simple::Byte::GetOpTypeRule(0xFC, &rule);
 }
 
+bool RunOpcodeControlFlowMetadataTest() {
+  Simple::Byte::OpControlFlow flow = Simple::Byte::OpControlFlow::None;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Nop), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Jmp), &flow) || flow != Simple::Byte::OpControlFlow::UnconditionalJump) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &flow) || flow != Simple::Byte::OpControlFlow::ConditionalJump) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &flow) || flow != Simple::Byte::OpControlFlow::TableJump) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Ret), &flow) || flow != Simple::Byte::OpControlFlow::Return) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Trap), &flow) || flow != Simple::Byte::OpControlFlow::Terminal) return false;
+  return !Simple::Byte::GetOpControlFlow(0xFC, &flow);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23168,6 +23179,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
   {"opcode_type_rule_metadata", RunOpcodeTypeRuleMetadataTest},
+  {"opcode_control_flow_metadata", RunOpcodeControlFlowMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
