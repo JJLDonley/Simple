@@ -359,6 +359,238 @@ bool GetStackEffect(uint8_t opcode, int* pops, int* pushes) {
   return true;
 }
 
+bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  OpTypeRule value = OpTypeRule::None;
+  switch (static_cast<OpCode>(opcode)) {
+    case OpCode::ConstI8:
+    case OpCode::ConstI16:
+    case OpCode::ConstI32:
+    case OpCode::ConstI64:
+    case OpCode::ConstI128:
+    case OpCode::ConstU8:
+    case OpCode::ConstU16:
+    case OpCode::ConstU32:
+    case OpCode::ConstU64:
+    case OpCode::ConstU128:
+    case OpCode::ConstF32:
+    case OpCode::ConstF64:
+    case OpCode::ConstBool:
+    case OpCode::ConstChar:
+    case OpCode::ConstString:
+    case OpCode::ConstNull:
+      value = OpTypeRule::Const;
+      break;
+    case OpCode::LoadLocal:
+    case OpCode::StoreLocal:
+    case OpCode::LoadGlobal:
+    case OpCode::StoreGlobal:
+    case OpCode::LoadUpvalue:
+    case OpCode::StoreUpvalue:
+      value = OpTypeRule::LocalGlobal;
+      break;
+    case OpCode::AddI32:
+    case OpCode::SubI32:
+    case OpCode::MulI32:
+    case OpCode::DivI32:
+    case OpCode::ModI32:
+    case OpCode::NegI32:
+    case OpCode::IncI32:
+    case OpCode::DecI32:
+    case OpCode::CmpEqI32:
+    case OpCode::CmpNeI32:
+    case OpCode::CmpLtI32:
+    case OpCode::CmpLeI32:
+    case OpCode::CmpGtI32:
+    case OpCode::CmpGeI32:
+    case OpCode::AndI32:
+    case OpCode::OrI32:
+    case OpCode::XorI32:
+    case OpCode::ShlI32:
+    case OpCode::ShrI32:
+      value = OpTypeRule::I32Arithmetic;
+      break;
+    case OpCode::AddI64:
+    case OpCode::SubI64:
+    case OpCode::MulI64:
+    case OpCode::DivI64:
+    case OpCode::ModI64:
+    case OpCode::NegI64:
+    case OpCode::IncI64:
+    case OpCode::DecI64:
+    case OpCode::CmpEqI64:
+    case OpCode::CmpNeI64:
+    case OpCode::CmpLtI64:
+    case OpCode::CmpLeI64:
+    case OpCode::CmpGtI64:
+    case OpCode::CmpGeI64:
+    case OpCode::AndI64:
+    case OpCode::OrI64:
+    case OpCode::XorI64:
+    case OpCode::ShlI64:
+    case OpCode::ShrI64:
+      value = OpTypeRule::I64Arithmetic;
+      break;
+    case OpCode::AddU32:
+    case OpCode::SubU32:
+    case OpCode::MulU32:
+    case OpCode::DivU32:
+    case OpCode::ModU32:
+    case OpCode::NegU32:
+    case OpCode::IncU32:
+    case OpCode::DecU32:
+    case OpCode::CmpEqU32:
+    case OpCode::CmpNeU32:
+    case OpCode::CmpLtU32:
+    case OpCode::CmpLeU32:
+    case OpCode::CmpGtU32:
+    case OpCode::CmpGeU32:
+      value = OpTypeRule::U32Arithmetic;
+      break;
+    case OpCode::AddU64:
+    case OpCode::SubU64:
+    case OpCode::MulU64:
+    case OpCode::DivU64:
+    case OpCode::ModU64:
+    case OpCode::NegU64:
+    case OpCode::IncU64:
+    case OpCode::DecU64:
+    case OpCode::CmpEqU64:
+    case OpCode::CmpNeU64:
+    case OpCode::CmpLtU64:
+    case OpCode::CmpLeU64:
+    case OpCode::CmpGtU64:
+    case OpCode::CmpGeU64:
+      value = OpTypeRule::U64Arithmetic;
+      break;
+    case OpCode::AddF32:
+    case OpCode::SubF32:
+    case OpCode::MulF32:
+    case OpCode::DivF32:
+    case OpCode::NegF32:
+    case OpCode::IncF32:
+    case OpCode::DecF32:
+    case OpCode::CmpEqF32:
+    case OpCode::CmpNeF32:
+    case OpCode::CmpLtF32:
+    case OpCode::CmpLeF32:
+    case OpCode::CmpGtF32:
+    case OpCode::CmpGeF32:
+      value = OpTypeRule::F32Arithmetic;
+      break;
+    case OpCode::AddF64:
+    case OpCode::SubF64:
+    case OpCode::MulF64:
+    case OpCode::DivF64:
+    case OpCode::NegF64:
+    case OpCode::IncF64:
+    case OpCode::DecF64:
+    case OpCode::CmpEqF64:
+    case OpCode::CmpNeF64:
+    case OpCode::CmpLtF64:
+    case OpCode::CmpLeF64:
+    case OpCode::CmpGtF64:
+    case OpCode::CmpGeF64:
+      value = OpTypeRule::F64Arithmetic;
+      break;
+    case OpCode::BoolNot:
+    case OpCode::BoolAnd:
+    case OpCode::BoolOr:
+      value = OpTypeRule::Bool;
+      break;
+    case OpCode::IsNull:
+    case OpCode::RefEq:
+    case OpCode::RefNe:
+    case OpCode::TypeOf:
+      value = OpTypeRule::Ref;
+      break;
+    case OpCode::NewObject:
+    case OpCode::NewClosure:
+    case OpCode::LoadField:
+    case OpCode::StoreField:
+    case OpCode::NewArray:
+    case OpCode::NewArrayI64:
+    case OpCode::NewArrayF32:
+    case OpCode::NewArrayF64:
+    case OpCode::NewArrayRef:
+    case OpCode::ArrayLen:
+    case OpCode::ArrayGetI32:
+    case OpCode::ArrayGetI64:
+    case OpCode::ArrayGetF32:
+    case OpCode::ArrayGetF64:
+    case OpCode::ArrayGetRef:
+    case OpCode::ArraySetI32:
+    case OpCode::ArraySetI64:
+    case OpCode::ArraySetF32:
+    case OpCode::ArraySetF64:
+    case OpCode::ArraySetRef:
+    case OpCode::NewList:
+    case OpCode::NewListI64:
+    case OpCode::NewListF32:
+    case OpCode::NewListF64:
+    case OpCode::NewListRef:
+    case OpCode::ListLen:
+    case OpCode::ListGetI32:
+    case OpCode::ListGetI64:
+    case OpCode::ListGetF32:
+    case OpCode::ListGetF64:
+    case OpCode::ListGetRef:
+    case OpCode::ListSetI32:
+    case OpCode::ListSetI64:
+    case OpCode::ListSetF32:
+    case OpCode::ListSetF64:
+    case OpCode::ListSetRef:
+    case OpCode::ListPushI32:
+    case OpCode::ListPushI64:
+    case OpCode::ListPushF32:
+    case OpCode::ListPushF64:
+    case OpCode::ListPushRef:
+    case OpCode::ListPopI32:
+    case OpCode::ListPopI64:
+    case OpCode::ListPopF32:
+    case OpCode::ListPopF64:
+    case OpCode::ListPopRef:
+    case OpCode::ListInsertI32:
+    case OpCode::ListInsertI64:
+    case OpCode::ListInsertF32:
+    case OpCode::ListInsertF64:
+    case OpCode::ListInsertRef:
+    case OpCode::ListRemoveI32:
+    case OpCode::ListRemoveI64:
+    case OpCode::ListRemoveF32:
+    case OpCode::ListRemoveF64:
+    case OpCode::ListRemoveRef:
+    case OpCode::ListClear:
+    case OpCode::StringLen:
+    case OpCode::StringConcat:
+    case OpCode::StringGetChar:
+    case OpCode::StringSlice:
+      value = OpTypeRule::Aggregate;
+      break;
+    case OpCode::Call:
+    case OpCode::CallIndirect:
+    case OpCode::TailCall:
+    case OpCode::CallCheck:
+    case OpCode::Intrinsic:
+    case OpCode::SysCall:
+      value = OpTypeRule::Call;
+      break;
+    case OpCode::Jmp:
+    case OpCode::JmpTrue:
+    case OpCode::JmpFalse:
+    case OpCode::JmpTable:
+    case OpCode::Ret:
+    case OpCode::Leave:
+      value = OpTypeRule::Control;
+      break;
+    default:
+      break;
+  }
+  if (rule) *rule = value;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

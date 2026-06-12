@@ -15744,6 +15744,19 @@ bool RunOpcodeStackEffectMetadataTest() {
   return !Simple::Byte::GetStackEffect(0xFC, &pops, &pushes);
 }
 
+bool RunOpcodeTypeRuleMetadataTest() {
+  Simple::Byte::OpTypeRule rule = Simple::Byte::OpTypeRule::None;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::ConstI32), &rule) || rule != Simple::Byte::OpTypeRule::Const) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::AddI32), &rule) || rule != Simple::Byte::OpTypeRule::I32Arithmetic) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CmpEqF64), &rule) || rule != Simple::Byte::OpTypeRule::F64Arithmetic) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::BoolAnd), &rule) || rule != Simple::Byte::OpTypeRule::Bool) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::RefEq), &rule) || rule != Simple::Byte::OpTypeRule::Ref) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::LoadField), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &rule) || rule != Simple::Byte::OpTypeRule::Control) return false;
+  return !Simple::Byte::GetOpTypeRule(0xFC, &rule);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23154,6 +23167,7 @@ bool RunJmpTableEmptyTest() {
 static const TestCase kCoreTests[] = {
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
+  {"opcode_type_rule_metadata", RunOpcodeTypeRuleMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
