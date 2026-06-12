@@ -1,0 +1,10 @@
+import Log
+
+main : i32 () {
+  Log.setLevel(3)
+  Log.info("hidden")
+  Log.warn("hidden")
+  Log.error("shown")
+  Log.log("also shown", 3)
+  return 1
+}

@@ -18,6 +18,7 @@
 #endif
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <atomic>
 #include <condition_variable>
 #include <limits>
@@ -73,6 +74,7 @@ ChannelRegistry<std::u16string> g_channel_string;
 ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 std::mutex g_random_mutex;
 std::mt19937_64 g_random_engine{std::random_device{}()};
+std::atomic<int32_t> g_log_level{0};
 
 std::string HostPlatformName() {
 #if defined(_WIN32)
@@ -2688,8 +2690,44 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "core.log") {
+      auto read_log_message = [&](Slot value) -> std::string {
+        const uint32_t ref = UnpackRef(value);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!obj || obj->header.kind != ObjectKind::String) return {};
+        return U16ToAscii(ReadString(obj));
+      };
+      auto emit_log = [&](const std::string& message, int32_t level) {
+        if (level < g_log_level.load()) return;
+        const char* label = level >= 3 ? "ERROR" : (level == 2 ? "WARN" : "INFO");
+        std::ostream& stream = level >= 2 ? std::cerr : std::cout;
+        stream << "[" << label << "] " << message << "\n";
+      };
+      if (sym == "setLevel") {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.log.setLevel arg count mismatch";
+          return false;
+        }
+        g_log_level.store(UnpackI32(args[0]));
+        return true;
+      }
       if (sym == "log") {
         out_has_ret = false;
+        if (args.size() != 2) {
+          out_error = "core.log.log arg count mismatch";
+          return false;
+        }
+        emit_log(read_log_message(args[0]), UnpackI32(args[1]));
+        return true;
+      }
+      if (sym == "info" || sym == "warn" || sym == "error") {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = std::string("core.log.") + sym + " arg count mismatch";
+          return false;
+        }
+        int32_t level = (sym == "error") ? 3 : (sym == "warn" ? 2 : 1);
+        emit_log(read_log_message(args[0]), level);
         return true;
       }
     }

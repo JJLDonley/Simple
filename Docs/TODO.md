@@ -35,7 +35,10 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] `Env`: args, get, set, platform, arch, exePath
   - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers
   - [x] `Random`: seed, `i32`, integer ranges, `f64`
-  - [ ] `Log`: levels, stderr/stdout/file sinks
+  - [ ] `Log`:
+    - [x] levels
+    - [x] stdout/stderr sinks
+    - [ ] file sink
   - [ ] `Bytes`/`Buffer`: endian-safe binary reads/writes, slice/copy helpers
   - [ ] `Json`: parse/stringify with handle-based API initially
   - [ ] `Net`: TCP/UDP sockets suitable for servers and games

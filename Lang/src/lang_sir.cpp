@@ -451,6 +451,11 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Log" &&
+               (member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "DL" && (NormalizeCoreDlMember(member) == "open" ||
                                   NormalizeCoreDlMember(member) == "sym" ||
                                   NormalizeCoreDlMember(member) == "close" ||
@@ -1594,7 +1599,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2721,7 +2726,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5258,6 +5263,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       params.push_back(make_type("string"));
       params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.log", "log", std::move(params), make_type("void"))) return false;
+      for (const std::string member : {"info", "warn", "error"}) {
+        std::vector<TypeRef> message_params;
+        message_params.push_back(make_type("string"));
+        if (!add_reserved_import(alias, "core.log", member, std::move(message_params), make_type("void"))) return false;
+      }
+      std::vector<TypeRef> level_params;
+      level_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.log", "setLevel", std::move(level_params), make_type("void"))) return false;
     }
   }
 

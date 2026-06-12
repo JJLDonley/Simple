@@ -1,0 +1,11 @@
+import Log
+using Log
+
+main : i32 () {
+  setLevel(4)
+  info("hidden")
+  warn("hidden")
+  error("hidden")
+  log("hidden", 1)
+  return 1
+}

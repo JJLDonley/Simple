@@ -1263,7 +1263,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newString", "sendString", "trySendString", "recvString", "tryRecvString",
                    "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
-      {"Log", {"log"}},
+      {"Log", {"log", "info", "warn", "error", "setLevel"}},
   };
 
   std::unordered_set<std::string> labels;
@@ -1725,6 +1725,16 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
   if (module == "Log") {
     if (member == "log") {
       out->params = {"message", "level"};
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "info" || member == "warn" || member == "error") {
+      out->params = {"message"};
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "setLevel") {
+      out->params = {"level"};
       out->return_type = "void";
       return true;
     }
