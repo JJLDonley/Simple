@@ -1,0 +1,27 @@
+import Channel
+using Channel
+
+main : i32 () {
+  i64ch : i64 = newI64()
+  f32ch : i64 = newF32()
+  f64ch : i64 = newF64()
+  boolch : i64 = newBool()
+
+  sendI64(i64ch, 5)
+  sendF32(f32ch, 6.5)
+  sendF64(f64ch, 7.5)
+  sendBool(boolch, true)
+
+  a : i64 = tryRecvI64(i64ch)
+  b : f32 = tryRecvF32(f32ch)
+  c : f64 = tryRecvF64(f64ch)
+  d : bool = tryRecvBool(boolch)
+
+  close(i64ch)
+  close(f32ch)
+  close(f64ch)
+  close(boolch)
+
+  if (!d) { return 0 }
+  return @i32(a) + @i32(b) + @i32(c)
+}

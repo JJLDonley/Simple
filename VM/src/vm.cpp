@@ -11,6 +11,7 @@
 #include <ffi.h>
 #endif
 #include <filesystem>
+#include <atomic>
 #include <condition_variable>
 #include <limits>
 #include <memory>
@@ -39,21 +40,42 @@ using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-struct ChannelI32State {
+template <typename T>
+struct ChannelState {
   std::mutex mutex;
   std::condition_variable cv;
-  std::queue<int32_t> values;
+  std::queue<T> values;
   bool closed = false;
 };
 
-std::mutex g_channel_i32_mutex;
-std::unordered_map<int64_t, std::shared_ptr<ChannelI32State>> g_channel_i32;
-int64_t g_next_channel_i32 = 1;
+template <typename T>
+struct ChannelRegistry {
+  std::mutex mutex;
+  std::unordered_map<int64_t, std::shared_ptr<ChannelState<T>>> channels;
+  int64_t next = 1;
+};
 
-std::shared_ptr<ChannelI32State> GetChannelI32(int64_t handle) {
-  std::lock_guard<std::mutex> lock(g_channel_i32_mutex);
-  auto it = g_channel_i32.find(handle);
-  return it == g_channel_i32.end() ? nullptr : it->second;
+std::atomic<int64_t> g_next_channel_handle{1};
+ChannelRegistry<int32_t> g_channel_i32;
+ChannelRegistry<int64_t> g_channel_i64;
+ChannelRegistry<float> g_channel_f32;
+ChannelRegistry<double> g_channel_f64;
+ChannelRegistry<bool> g_channel_bool;
+
+template <typename T>
+std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
+  std::lock_guard<std::mutex> lock(registry.mutex);
+  auto it = registry.channels.find(handle);
+  return it == registry.channels.end() ? nullptr : it->second;
+}
+
+template <typename T>
+int64_t NewChannel(ChannelRegistry<T>& registry) {
+  auto state = std::make_shared<ChannelState<T>>();
+  std::lock_guard<std::mutex> lock(registry.mutex);
+  const int64_t handle = g_next_channel_handle.fetch_add(1);
+  registry.channels[handle] = std::move(state);
+  return handle;
 }
 
 inline bool IsI32LikeImportType(TypeKind kind) {
@@ -1718,35 +1740,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "core.channel") {
-      if (sym == "newI32") {
+      auto do_new = [&](auto& registry, const char* name) -> bool {
         if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "core.channel.newI32 return type mismatch";
+          out_error = std::string("core.channel.") + name + " return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.channel.newI32 arg count mismatch";
+          out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = std::make_shared<ChannelI32State>();
-        int64_t handle = 0;
-        {
-          std::lock_guard<std::mutex> lock(g_channel_i32_mutex);
-          handle = g_next_channel_i32++;
-          g_channel_i32[handle] = state;
-        }
-        out_ret = PackI64(handle);
+        out_ret = PackI64(NewChannel(registry));
         return true;
-      }
-      if (sym == "sendI32") {
+      };
+      auto do_send = [&](auto& registry, auto unpack, const char* name) -> bool {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.channel.sendI32 return type mismatch";
+          out_error = std::string("core.channel.") + name + " return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.channel.sendI32 arg count mismatch";
+          out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = GetChannelI32(UnpackI64(args[0]));
+        auto state = GetChannel(registry, UnpackI64(args[0]));
         if (!state) {
           out_ret = PackI32(0);
           return true;
@@ -1757,68 +1772,40 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             out_ret = PackI32(0);
             return true;
           }
-          state->values.push(UnpackI32(args[1]));
+          state->values.push(unpack(args[1]));
         }
         state->cv.notify_one();
         out_ret = PackI32(1);
         return true;
-      }
-      if (sym == "recvI32") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.channel.recvI32 return type mismatch";
+      };
+      auto do_recv = [&](auto& registry, auto pack, const char* name, bool wait) -> bool {
+        if (!IsI32LikeImportType(ret_kind) && !IsI64LikeImportType(ret_kind) &&
+            ret_kind != TypeKind::F32 && ret_kind != TypeKind::F64) {
+          out_error = std::string("core.channel.") + name + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.channel.recvI32 arg count mismatch";
+          out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = GetChannelI32(UnpackI64(args[0]));
+        auto state = GetChannel(registry, UnpackI64(args[0]));
         if (!state) {
           out_ret = PackI32(0);
           return true;
         }
         std::unique_lock<std::mutex> lock(state->mutex);
-        state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
+        if (wait) state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
         if (state->values.empty()) {
           out_ret = PackI32(0);
           return true;
         }
-        const int32_t value = state->values.front();
+        auto value = state->values.front();
         state->values.pop();
-        out_ret = PackI32(value);
+        out_ret = pack(value);
         return true;
-      }
-      if (sym == "tryRecvI32") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.channel.tryRecvI32 return type mismatch";
-          return false;
-        }
-        if (args.size() != 1) {
-          out_error = "core.channel.tryRecvI32 arg count mismatch";
-          return false;
-        }
-        auto state = GetChannelI32(UnpackI64(args[0]));
-        if (!state) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        std::lock_guard<std::mutex> lock(state->mutex);
-        if (state->values.empty()) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        const int32_t value = state->values.front();
-        state->values.pop();
-        out_ret = PackI32(value);
-        return true;
-      }
-      if (sym == "close") {
-        out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = "core.channel.close arg count mismatch";
-          return false;
-        }
-        auto state = GetChannelI32(UnpackI64(args[0]));
+      };
+      auto close_one = [&](auto& registry, int64_t handle) {
+        auto state = GetChannel(registry, handle);
         if (state) {
           {
             std::lock_guard<std::mutex> lock(state->mutex);
@@ -1826,8 +1813,42 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           state->cv.notify_all();
         }
+      };
+      auto do_close = [&]() -> bool {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.channel.close arg count mismatch";
+          return false;
+        }
+        const int64_t handle = UnpackI64(args[0]);
+        close_one(g_channel_i32, handle);
+        close_one(g_channel_i64, handle);
+        close_one(g_channel_f32, handle);
+        close_one(g_channel_f64, handle);
+        close_one(g_channel_bool, handle);
         return true;
-      }
+      };
+      if (sym == "newI32") return do_new(g_channel_i32, "newI32");
+      if (sym == "newI64") return do_new(g_channel_i64, "newI64");
+      if (sym == "newF32") return do_new(g_channel_f32, "newF32");
+      if (sym == "newF64") return do_new(g_channel_f64, "newF64");
+      if (sym == "newBool") return do_new(g_channel_bool, "newBool");
+      if (sym == "sendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, "sendI32");
+      if (sym == "sendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, "sendI64");
+      if (sym == "sendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, "sendF32");
+      if (sym == "sendF64") return do_send(g_channel_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, "sendF64");
+      if (sym == "sendBool") return do_send(g_channel_bool, [](Slot v) { return UnpackI32(v) != 0; }, "sendBool");
+      if (sym == "recvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "recvI32", true);
+      if (sym == "recvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "recvI64", true);
+      if (sym == "recvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "recvF32", true);
+      if (sym == "recvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "recvF64", true);
+      if (sym == "recvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
+      if (sym == "tryRecvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "tryRecvI32", false);
+      if (sym == "tryRecvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "tryRecvI64", false);
+      if (sym == "tryRecvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "tryRecvF32", false);
+      if (sym == "tryRecvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "tryRecvF64", false);
+      if (sym == "tryRecvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "tryRecvBool", false);
+      if (sym == "close") return do_close();
     }
     if (mod == "core.thread") {
       if (sym == "sleep") {

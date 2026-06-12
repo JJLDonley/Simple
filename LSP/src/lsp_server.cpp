@@ -1251,7 +1251,11 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
-      {"Channel", {"newI32", "sendI32", "recvI32", "tryRecvI32", "close"}},
+      {"Channel", {"newI32", "sendI32", "recvI32", "tryRecvI32",
+                   "newI64", "sendI64", "recvI64", "tryRecvI64",
+                   "newF32", "sendF32", "recvF32", "tryRecvF32",
+                   "newF64", "sendF64", "recvF64", "tryRecvF64",
+                   "newBool", "sendBool", "recvBool", "tryRecvBool", "close"}},
       {"File", {"open", "close", "read", "write"}},
       {"Log", {"log"}},
   };
@@ -1555,19 +1559,30 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     return false;
   }
   if (module == "Channel") {
-    if (member == "newI32") {
-      out->return_type = "i64";
-      return true;
-    }
-    if (member == "sendI32") {
-      out->params = {"handle", "value"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "recvI32" || member == "tryRecvI32") {
-      out->params = {"handle"};
-      out->return_type = "i32";
-      return true;
+    auto channel_type = [](const std::string& suffix) -> std::string {
+      if (suffix == "I64") return "i64";
+      if (suffix == "F32") return "f32";
+      if (suffix == "F64") return "f64";
+      if (suffix == "Bool") return "bool";
+      return "i32";
+    };
+    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool"};
+    for (const char* suffix_c : suffixes) {
+      const std::string suffix = suffix_c;
+      if (member == "new" + suffix) {
+        out->return_type = "i64";
+        return true;
+      }
+      if (member == "send" + suffix) {
+        out->params = {"handle", "value"};
+        out->return_type = "bool";
+        return true;
+      }
+      if (member == "recv" + suffix || member == "tryRecv" + suffix) {
+        out->params = {"handle"};
+        out->return_type = channel_type(suffix);
+        return true;
+      }
     }
     if (member == "close") {
       out->params = {"handle"};

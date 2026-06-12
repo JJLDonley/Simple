@@ -349,7 +349,13 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
   }
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
-  if (resolved == "Channel") return {"newI32", "sendI32", "recvI32", "tryRecvI32", "close"};
+  if (resolved == "Channel") {
+    return {"newI32", "sendI32", "recvI32", "tryRecvI32",
+            "newI64", "sendI64", "recvI64", "tryRecvI64",
+            "newF32", "sendF32", "recvF32", "tryRecvF32",
+            "newF64", "sendF64", "recvF64", "tryRecvF64",
+            "newBool", "sendBool", "recvBool", "tryRecvBool", "close"};
+  }
   if (resolved == "File") return {"open", "close", "read", "write"};
   if (resolved == "Log") return {"log"};
   return {};
@@ -641,23 +647,34 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
   }
   if (resolved == "Channel") {
-    if (member == "newI32") {
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "sendI32") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "recvI32" || member == "tryRecvI32") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
+    auto channel_value_type = [](const std::string& suffix) -> TypeRef {
+      if (suffix == "I64") return MakeSimpleType("i64");
+      if (suffix == "F32") return MakeSimpleType("f32");
+      if (suffix == "F64") return MakeSimpleType("f64");
+      if (suffix == "Bool") return MakeSimpleType("bool");
+      return MakeSimpleType("i32");
+    };
+    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool"};
+    for (const char* suffix_c : suffixes) {
+      const std::string suffix = suffix_c;
+      if (member == "new" + suffix) {
+        out->return_type = MakeSimpleType("i64");
+        out->return_mutability = Mutability::Mutable;
+        return true;
+      }
+      if (member == "send" + suffix) {
+        out->params.push_back(MakeSimpleType("i64"));
+        out->params.push_back(channel_value_type(suffix));
+        out->return_type = MakeSimpleType("bool");
+        out->return_mutability = Mutability::Mutable;
+        return true;
+      }
+      if (member == "recv" + suffix || member == "tryRecv" + suffix) {
+        out->params.push_back(MakeSimpleType("i64"));
+        out->return_type = channel_value_type(suffix);
+        out->return_mutability = Mutability::Mutable;
+        return true;
+      }
     }
     if (member == "close") {
       out->params.push_back(MakeSimpleType("i64"));

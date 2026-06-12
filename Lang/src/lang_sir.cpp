@@ -416,8 +416,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       found = true;
       result = module;
     } else if (module == "Channel" &&
-               (member == "newI32" || member == "sendI32" || member == "recvI32" ||
-                member == "tryRecvI32" || member == "close")) {
+               (member == "newI32" || member == "sendI32" || member == "recvI32" || member == "tryRecvI32" ||
+                member == "newI64" || member == "sendI64" || member == "recvI64" || member == "tryRecvI64" ||
+                member == "newF32" || member == "sendF32" || member == "recvF32" || member == "tryRecvF32" ||
+                member == "newF64" || member == "sendF64" || member == "recvF64" || member == "tryRecvF64" ||
+                member == "newBool" || member == "sendBool" || member == "recvBool" || member == "tryRecvBool" ||
+                member == "close")) {
       if (found) return false;
       found = true;
       result = module;
@@ -5030,18 +5034,26 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
   if (st.reserved_imports.find("Channel") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Channel")) {
-      if (!add_reserved_import(alias, "core.channel", "newI32", {}, make_type("i64"))) return false;
+      auto add_channel = [&](const std::string& suffix, const std::string& type_name) -> bool {
+        if (!add_reserved_import(alias, "core.channel", "new" + suffix, {}, make_type("i64"))) return false;
 
-      std::vector<TypeRef> send_params;
-      send_params.push_back(make_type("i64"));
-      send_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.channel", "sendI32", std::move(send_params), make_type("bool"))) return false;
+        std::vector<TypeRef> send_params;
+        send_params.push_back(make_type("i64"));
+        send_params.push_back(make_type(type_name.c_str()));
+        if (!add_reserved_import(alias, "core.channel", "send" + suffix, std::move(send_params), make_type("bool"))) return false;
 
-      std::vector<TypeRef> recv_params;
-      recv_params.push_back(make_type("i64"));
-      std::vector<TypeRef> try_recv_params = recv_params;
-      if (!add_reserved_import(alias, "core.channel", "recvI32", std::move(recv_params), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "core.channel", "tryRecvI32", std::move(try_recv_params), make_type("i32"))) return false;
+        std::vector<TypeRef> recv_params;
+        recv_params.push_back(make_type("i64"));
+        std::vector<TypeRef> try_recv_params = recv_params;
+        if (!add_reserved_import(alias, "core.channel", "recv" + suffix, std::move(recv_params), make_type(type_name.c_str()))) return false;
+        if (!add_reserved_import(alias, "core.channel", "tryRecv" + suffix, std::move(try_recv_params), make_type(type_name.c_str()))) return false;
+        return true;
+      };
+      if (!add_channel("I32", "i32")) return false;
+      if (!add_channel("I64", "i64")) return false;
+      if (!add_channel("F32", "f32")) return false;
+      if (!add_channel("F64", "f64")) return false;
+      if (!add_channel("Bool", "bool")) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));
