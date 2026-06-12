@@ -77,12 +77,20 @@ enum class NormalizedSwitchBranchResultKind : uint8_t {
   Block,
 };
 
+struct NormalizedBranchFlow {
+  bool may_fallthrough = true;
+  bool always_returns = false;
+  bool may_break = false;
+  bool may_skip = false;
+};
+
 struct NormalizedSwitchBranch {
   bool is_default = false;
   bool is_block = false;
   bool has_inline_value = false;
   bool is_explicit_return = false;
   NormalizedSwitchBranchResultKind result_kind = NormalizedSwitchBranchResultKind::None;
+  NormalizedBranchFlow flow;
   Expr condition;
   Expr value;
   std::vector<Stmt> block;

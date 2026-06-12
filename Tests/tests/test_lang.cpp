@@ -303,6 +303,7 @@ bool LangAstNormalizesSwitchBranches() {
   if (sw.branches[0].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::InlineValue) return false;
   if (!sw.branches[1].is_block || sw.branches[1].block.size() != 2) return false;
   if (sw.branches[1].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::Block) return false;
+  if (sw.branches[1].flow.may_fallthrough || !sw.branches[1].flow.always_returns) return false;
   return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value &&
          sw.branches[2].result_kind == Simple::Lang::AST::NormalizedSwitchBranchResultKind::SwitchBranchReturn;
 }

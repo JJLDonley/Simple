@@ -78,8 +78,8 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] statement switch
   - [x] expression switch
   - [x] assigning switch
-  - [ ] block branch result rules
-  - [ ] early function return inside branch blocks
+  - [x] block branch result rules
+  - [x] early function return inside branch blocks
   - [ ] `break`/`skip` behavior when nested in loops
   - [ ] no-fallthrough policy
 - [x] Add resolved receiver model for artifact methods.

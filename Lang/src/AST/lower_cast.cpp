@@ -184,6 +184,67 @@ void CollectIfChainDecls(const std::vector<Decl>& decls, std::vector<NormalizedI
   }
 }
 
+NormalizedBranchFlow MergeSequentialFlow(NormalizedBranchFlow current, const NormalizedBranchFlow& next) {
+  current.may_break = current.may_break || next.may_break;
+  current.may_skip = current.may_skip || next.may_skip;
+  if (current.may_fallthrough) {
+    current.may_fallthrough = next.may_fallthrough;
+    current.always_returns = next.always_returns;
+  }
+  return current;
+}
+
+NormalizedBranchFlow AnalyzeStmtFlow(const Stmt& stmt);
+
+NormalizedBranchFlow AnalyzeBlockFlow(const std::vector<Stmt>& stmts) {
+  NormalizedBranchFlow flow;
+  for (const auto& stmt : stmts) {
+    flow = MergeSequentialFlow(flow, AnalyzeStmtFlow(stmt));
+  }
+  return flow;
+}
+
+NormalizedBranchFlow AnalyzeStmtFlow(const Stmt& stmt) {
+  NormalizedBranchFlow flow;
+  if (stmt.kind == StmtKind::Return) {
+    flow.may_fallthrough = false;
+    flow.always_returns = true;
+  } else if (stmt.kind == StmtKind::Break) {
+    flow.may_fallthrough = false;
+    flow.may_break = true;
+  } else if (stmt.kind == StmtKind::Skip) {
+    flow.may_fallthrough = false;
+    flow.may_skip = true;
+  } else if (stmt.kind == StmtKind::IfStmt) {
+    const NormalizedBranchFlow then_flow = AnalyzeBlockFlow(stmt.if_then);
+    const NormalizedBranchFlow else_flow = AnalyzeBlockFlow(stmt.if_else);
+    flow.may_fallthrough = then_flow.may_fallthrough || else_flow.may_fallthrough;
+    flow.always_returns = then_flow.always_returns && else_flow.always_returns;
+    flow.may_break = then_flow.may_break || else_flow.may_break;
+    flow.may_skip = then_flow.may_skip || else_flow.may_skip;
+  } else if (stmt.kind == StmtKind::IfChain) {
+    flow.may_fallthrough = stmt.else_branch.empty();
+    flow.always_returns = !stmt.else_branch.empty();
+    for (const auto& branch : stmt.if_branches) {
+      const NormalizedBranchFlow branch_flow = AnalyzeBlockFlow(branch.second);
+      flow.may_fallthrough = flow.may_fallthrough || branch_flow.may_fallthrough;
+      flow.always_returns = flow.always_returns && branch_flow.always_returns;
+      flow.may_break = flow.may_break || branch_flow.may_break;
+      flow.may_skip = flow.may_skip || branch_flow.may_skip;
+    }
+    const NormalizedBranchFlow else_flow = AnalyzeBlockFlow(stmt.else_branch);
+    flow.may_fallthrough = flow.may_fallthrough || else_flow.may_fallthrough;
+    flow.always_returns = flow.always_returns && else_flow.always_returns;
+    flow.may_break = flow.may_break || else_flow.may_break;
+    flow.may_skip = flow.may_skip || else_flow.may_skip;
+  } else if (stmt.kind == StmtKind::WhileLoop || stmt.kind == StmtKind::ForLoop) {
+    const NormalizedBranchFlow body_flow = AnalyzeBlockFlow(stmt.loop_body);
+    flow.may_break = body_flow.may_break;
+    flow.may_skip = body_flow.may_skip;
+  }
+  return flow;
+}
+
 void CollectSwitchExpr(const Expr& expr,
                        std::vector<NormalizedSwitch>* out,
                        NormalizedSwitchUsage usage) {
@@ -205,6 +266,7 @@ void CollectSwitchExpr(const Expr& expr,
       } else if (branch.has_inline_value) {
         normalized.result_kind = NormalizedSwitchBranchResultKind::InlineValue;
       }
+      normalized.flow = branch.is_block ? AnalyzeBlockFlow(branch.block) : NormalizedBranchFlow{};
       normalized.condition = branch.condition;
       normalized.value = branch.value;
       normalized.block = branch.block;
