@@ -421,6 +421,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
                 member == "newF32" || member == "sendF32" || member == "recvF32" || member == "tryRecvF32" ||
                 member == "newF64" || member == "sendF64" || member == "recvF64" || member == "tryRecvF64" ||
                 member == "newBool" || member == "sendBool" || member == "recvBool" || member == "tryRecvBool" ||
+                member == "newString" || member == "sendString" || member == "recvString" || member == "tryRecvString" ||
                 member == "close")) {
       if (found) return false;
       found = true;
@@ -5054,6 +5055,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_channel("F32", "f32")) return false;
       if (!add_channel("F64", "f64")) return false;
       if (!add_channel("Bool", "bool")) return false;
+      if (!add_channel("String", "string")) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));

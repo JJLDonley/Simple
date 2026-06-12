@@ -1,0 +1,10 @@
+import Channel
+using Channel
+
+main : i32 () {
+  ch : i64 = newString()
+  sendString(ch, "world!")
+  s : string = tryRecvString(ch)
+  close(ch)
+  return len(s)
+}

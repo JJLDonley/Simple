@@ -189,6 +189,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "newF32" || member == "sendF32" || member == "recvF32" || member == "tryRecvF32" ||
            member == "newF64" || member == "sendF64" || member == "recvF64" || member == "tryRecvF64" ||
            member == "newBool" || member == "sendBool" || member == "recvBool" || member == "tryRecvBool" ||
+           member == "newString" || member == "sendString" || member == "recvString" || member == "tryRecvString" ||
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";

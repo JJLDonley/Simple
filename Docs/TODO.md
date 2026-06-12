@@ -19,7 +19,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Add `Channel` core module for safe message passing between VM jobs:
   - [x] initial `Channel` native module with `newI32`, `sendI32`, `recvI32`, `tryRecvI32`, `close`
   - [x] remaining concrete primitive channels: `ChannelI64`, `ChannelF32`, `ChannelF64`, `ChannelBool`
-  - [ ] `ChannelString`
+  - [x] `ChannelString`
   - [ ] `ChannelBytes`
   - [ ] `send`, `trySend`, `recv`, `tryRecv`, `close`
   - [ ] non-blocking receive pattern for game loops

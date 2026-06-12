@@ -61,6 +61,7 @@ ChannelRegistry<int64_t> g_channel_i64;
 ChannelRegistry<float> g_channel_f32;
 ChannelRegistry<double> g_channel_f64;
 ChannelRegistry<bool> g_channel_bool;
+ChannelRegistry<std::u16string> g_channel_string;
 
 template <typename T>
 std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
@@ -1826,6 +1827,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         close_one(g_channel_f32, handle);
         close_one(g_channel_f64, handle);
         close_one(g_channel_bool, handle);
+        close_one(g_channel_string, handle);
         return true;
       };
       if (sym == "newI32") return do_new(g_channel_i32, "newI32");
@@ -1833,16 +1835,71 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "newF32") return do_new(g_channel_f32, "newF32");
       if (sym == "newF64") return do_new(g_channel_f64, "newF64");
       if (sym == "newBool") return do_new(g_channel_bool, "newBool");
+      if (sym == "newString") return do_new(g_channel_string, "newString");
       if (sym == "sendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, "sendI32");
       if (sym == "sendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, "sendI64");
       if (sym == "sendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, "sendF32");
       if (sym == "sendF64") return do_send(g_channel_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, "sendF64");
       if (sym == "sendBool") return do_send(g_channel_bool, [](Slot v) { return UnpackI32(v) != 0; }, "sendBool");
+      if (sym == "sendString") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.channel.sendString return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.channel.sendString arg count mismatch";
+          return false;
+        }
+        auto state = GetChannel(g_channel_string, UnpackI64(args[0]));
+        const uint32_t ref = UnpackRef(args[1]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!state || !obj || obj->header.kind != ObjectKind::String) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        {
+          std::lock_guard<std::mutex> lock(state->mutex);
+          if (state->closed) {
+            out_ret = PackI32(0);
+            return true;
+          }
+          state->values.push(ReadString(obj));
+        }
+        state->cv.notify_one();
+        out_ret = PackI32(1);
+        return true;
+      }
       if (sym == "recvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "recvI32", true);
       if (sym == "recvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "recvI64", true);
       if (sym == "recvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "recvF32", true);
       if (sym == "recvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "recvF64", true);
       if (sym == "recvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
+      if (sym == "recvString" || sym == "tryRecvString") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          return false;
+        }
+        auto state = GetChannel(g_channel_string, UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::unique_lock<std::mutex> lock(state->mutex);
+        if (sym == "recvString") state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
+        if (state->values.empty()) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::u16string value = std::move(state->values.front());
+        state->values.pop();
+        lock.unlock();
+        out_ret = PackRef(CreateString(heap, value));
+        return true;
+      }
       if (sym == "tryRecvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "tryRecvI32", false);
       if (sym == "tryRecvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "tryRecvI64", false);
       if (sym == "tryRecvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "tryRecvF32", false);
