@@ -15722,6 +15722,17 @@ std::vector<uint8_t> BuildGcModule() {
   return BuildModule(code, 0, 1);
 }
 
+bool RunOpcodeOperandWidthMetadataTest() {
+  int width = -1;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Nop), &width) || width != 0) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::ConstI32), &width) || width != 4) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::ConstI64), &width) || width != 8) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Enter), &width) || width != 2) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &width) || width != 5) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &width) || width != 8) return false;
+  return !Simple::Byte::GetOperandWidth(0xFC, &width);
+}
+
 bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
@@ -23130,6 +23141,7 @@ bool RunJmpTableEmptyTest() {
 }
 
 static const TestCase kCoreTests[] = {
+  {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},

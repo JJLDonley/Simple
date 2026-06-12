@@ -145,7 +145,7 @@ This list tracks work needed to improve feature independence, compiler structure
 ## Bytecode / Verifier / VM Coupling
 
 - [ ] Centralize opcode semantics:
-  - [ ] operand width
+  - [x] operand width
   - [ ] stack pops/pushes
   - [ ] type rules
   - [ ] control-flow behavior

@@ -344,6 +344,13 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
   return false;
 }
 
+bool GetOperandWidth(uint8_t opcode, int* operand_bytes) {
+  OpInfo info{};
+  if (!GetOpInfo(opcode, &info)) return false;
+  if (operand_bytes) *operand_bytes = info.operand_bytes;
+  return true;
+}
+
 const char* OpCodeName(uint8_t opcode) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::Nop: return "Nop";

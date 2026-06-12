@@ -643,8 +643,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       const size_t end = func.code_offset + func.code_size;
       while (pc < end) {
         uint8_t opcode = module.code[pc];
-        OpInfo info{};
-        if (!GetOpInfo(opcode, &info)) {
+        int operand_bytes = 0;
+        if (!GetOperandWidth(opcode, &operand_bytes)) {
           std::string out = "unknown opcode ";
           out += format_opcode(opcode);
           out += " in ";
@@ -672,7 +672,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           ReadU32At(module.const_pool, payload + 4, &count);
           if (blob_len != 4 + count * 4) return Fail("JMP_TABLE blob size mismatch");
         }
-        size_t next = pc + 1 + static_cast<size_t>(info.operand_bytes);
+        size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
         if (next > end) {
           std::string out = "opcode operands out of bounds for ";
           out += format_opcode(opcode);
