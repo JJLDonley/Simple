@@ -70,12 +70,28 @@ struct NormalizedIfChain {
   std::vector<Stmt> else_branch;
 };
 
+struct NormalizedSwitchBranch {
+  bool is_default = false;
+  bool is_block = false;
+  bool has_inline_value = false;
+  bool is_explicit_return = false;
+  Expr condition;
+  Expr value;
+  std::vector<Stmt> block;
+};
+
+struct NormalizedSwitch {
+  Expr scrutinee;
+  std::vector<NormalizedSwitchBranch> branches;
+};
+
 struct NormalizedProgram {
   std::vector<Decl> decls;
   ScriptBody script_body;
   std::vector<NormalizedFnLiteralDecl> fn_literals;
   std::vector<NormalizedLoop> loops;
   std::vector<NormalizedIfChain> if_chains;
+  std::vector<NormalizedSwitch> switches;
 };
 
 } // namespace Simple::Lang::AST

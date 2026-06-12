@@ -71,7 +71,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [x] Normalize function literal declaration forms.
 - [x] Normalize loop shorthand.
 - [x] Normalize `|>` if-chain or define why it remains distinct.
-- [ ] Normalize switch branch forms.
+- [x] Normalize switch branch forms.
 - [ ] Normalize call/member/index shapes.
 - [ ] Separate switch branch result markers from normal function `return` semantics.
 - [ ] Formalize switch semantics:

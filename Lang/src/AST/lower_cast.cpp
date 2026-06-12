@@ -40,6 +40,8 @@ void CollectFnLiteralExpr(const Expr& expr,
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out);
 void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out);
 void CollectIfChainStmt(const Stmt& stmt, std::vector<NormalizedIfChain>* out);
+void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out);
+void CollectSwitchStmt(const Stmt& stmt, std::vector<NormalizedSwitch>* out);
 
 void CollectFnLiteralStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedFnLiteralDecl>* out) {
   for (const auto& stmt : stmts) CollectFnLiteralStmt(stmt, out);
@@ -51,6 +53,10 @@ void CollectLoopStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedLoop
 
 void CollectIfChainStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedIfChain>* out) {
   for (const auto& stmt : stmts) CollectIfChainStmt(stmt, out);
+}
+
+void CollectSwitchStmts(const std::vector<Stmt>& stmts, std::vector<NormalizedSwitch>* out) {
+  for (const auto& stmt : stmts) CollectSwitchStmt(stmt, out);
 }
 
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out) {
@@ -170,6 +176,73 @@ void CollectIfChainDecls(const std::vector<Decl>& decls, std::vector<NormalizedI
   }
 }
 
+void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out) {
+  if (!out) return;
+  if (expr.kind == ExprKind::Switch) {
+    NormalizedSwitch sw;
+    if (!expr.children.empty()) sw.scrutinee = expr.children[0];
+    for (const auto& branch : expr.switch_branches) {
+      NormalizedSwitchBranch normalized;
+      normalized.is_default = branch.is_default;
+      normalized.is_block = branch.is_block;
+      normalized.has_inline_value = branch.has_inline_value;
+      normalized.is_explicit_return = branch.is_explicit_return;
+      normalized.condition = branch.condition;
+      normalized.value = branch.value;
+      normalized.block = branch.block;
+      sw.branches.push_back(std::move(normalized));
+    }
+    out->push_back(std::move(sw));
+  }
+  for (const auto& child : expr.children) CollectSwitchExpr(child, out);
+  for (const auto& arg : expr.args) CollectSwitchExpr(arg, out);
+  for (const auto& value : expr.field_values) CollectSwitchExpr(value, out);
+  for (const auto& branch : expr.switch_branches) {
+    if (!branch.is_default) CollectSwitchExpr(branch.condition, out);
+    if (branch.has_inline_value) CollectSwitchExpr(branch.value, out);
+    CollectSwitchStmts(branch.block, out);
+  }
+}
+
+void CollectSwitchStmt(const Stmt& stmt, std::vector<NormalizedSwitch>* out) {
+  CollectSwitchExpr(stmt.expr, out);
+  CollectSwitchExpr(stmt.target, out);
+  CollectSwitchExpr(stmt.if_cond, out);
+  CollectSwitchExpr(stmt.loop_cond, out);
+  CollectSwitchExpr(stmt.loop_iter, out);
+  CollectSwitchExpr(stmt.loop_step, out);
+  if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) CollectSwitchExpr(stmt.var_decl.init_expr, out);
+  if (stmt.has_loop_var_decl && stmt.loop_var_decl.has_init_expr) CollectSwitchExpr(stmt.loop_var_decl.init_expr, out);
+  for (const auto& branch : stmt.if_branches) {
+    CollectSwitchExpr(branch.first, out);
+    CollectSwitchStmts(branch.second, out);
+  }
+  CollectSwitchStmts(stmt.else_branch, out);
+  CollectSwitchStmts(stmt.if_then, out);
+  CollectSwitchStmts(stmt.if_else, out);
+  CollectSwitchStmts(stmt.loop_body, out);
+}
+
+void CollectSwitchDecls(const std::vector<Decl>& decls, std::vector<NormalizedSwitch>* out) {
+  for (const auto& decl : decls) {
+    if (decl.kind == DeclKind::Function) {
+      CollectSwitchStmts(decl.func.body, out);
+    } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
+      CollectSwitchExpr(decl.var.init_expr, out);
+    } else if (decl.kind == DeclKind::Artifact) {
+      for (const auto& method : decl.artifact.methods) CollectSwitchStmts(method.body, out);
+      for (const auto& field : decl.artifact.fields) {
+        if (field.has_init_expr) CollectSwitchExpr(field.init_expr, out);
+      }
+    } else if (decl.kind == DeclKind::Module) {
+      for (const auto& fn : decl.module.functions) CollectSwitchStmts(fn.body, out);
+      for (const auto& var : decl.module.variables) {
+        if (var.has_init_expr) CollectSwitchExpr(var.init_expr, out);
+      }
+    }
+  }
+}
+
 } // namespace
 
 bool LowerCastProgram(const Simple::Lang::CAST::Program& in,
@@ -195,12 +268,15 @@ bool LowerCastProgramNormalized(const Simple::Lang::CAST::Program& in,
   out->fn_literals.clear();
   out->loops.clear();
   out->if_chains.clear();
+  out->switches.clear();
   CollectFnLiteralDecls(out->decls, &out->fn_literals);
   CollectFnLiteralStmts(out->script_body.statements, &out->fn_literals);
   CollectLoopDecls(out->decls, &out->loops);
   CollectLoopStmts(out->script_body.statements, &out->loops);
   CollectIfChainDecls(out->decls, &out->if_chains);
   CollectIfChainStmts(out->script_body.statements, &out->if_chains);
+  CollectSwitchDecls(out->decls, &out->switches);
+  CollectSwitchStmts(out->script_body.statements, &out->switches);
   return true;
 }
 

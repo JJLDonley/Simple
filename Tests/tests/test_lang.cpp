@@ -278,6 +278,31 @@ bool LangAstNormalizesIfChain() {
   return chain.branches[0].body.size() == 1 && chain.branches[1].body.size() == 1;
 }
 
+bool LangAstNormalizesSwitchBranches() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 1;\n"
+      "  y : i32 = switch (x) {\n"
+      "    x == 0 => 0\n"
+      "    x == 1 => { local : i32 = 1; return local }\n"
+      "    default => return 2\n"
+      "  };\n"
+      "  return y;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  if (ast_program.switches.size() != 1) return false;
+  const auto& sw = ast_program.switches[0];
+  if (sw.scrutinee.kind != Simple::Lang::ExprKind::Identifier || sw.scrutinee.text != "x") return false;
+  if (sw.branches.size() != 3) return false;
+  if (sw.branches[0].is_default || !sw.branches[0].has_inline_value || sw.branches[0].is_block) return false;
+  if (!sw.branches[1].is_block || sw.branches[1].block.size() != 2) return false;
+  return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value;
+}
+
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: Artifact {\n"
@@ -4296,6 +4321,7 @@ const TestCase kLangTests[] = {
   {"lang_ast_normalizes_fn_literal_declarations", LangAstNormalizesFnLiteralDeclarations},
   {"lang_ast_normalizes_loop_shorthand", LangAstNormalizesLoopShorthand},
   {"lang_ast_normalizes_if_chain", LangAstNormalizesIfChain},
+  {"lang_ast_normalizes_switch_branches", LangAstNormalizesSwitchBranches},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},
