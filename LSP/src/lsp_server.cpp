@@ -1203,7 +1203,7 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log"};
+      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1250,6 +1250,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
         "call_str0", "supported"}},
       {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
+      {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
       {"File", {"open", "close", "read", "write"}},
       {"Log", {"log"}},
   };
@@ -1548,6 +1549,22 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "sleep_ms") {
       out->params = {"milliseconds"};
       out->return_type = "void";
+      return true;
+    }
+    return false;
+  }
+  if (module == "Thread") {
+    if (member == "sleep") {
+      out->params = {"milliseconds"};
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "yield") {
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "hardwareConcurrency") {
+      out->return_type = "i32";
       return true;
     }
     return false;
@@ -2341,7 +2358,7 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket",
+      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread",
   };
   return kReserved.find(name) != kReserved.end();
 }

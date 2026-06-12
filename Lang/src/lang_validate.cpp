@@ -348,6 +348,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
     return {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
             "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
   }
+  if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
   if (resolved == "File") return {"open", "close", "read", "write"};
   if (resolved == "Log") return {"log"};
   return {};
@@ -634,6 +635,24 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (dl_member == "call_str0") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Thread") {
+    if (member == "sleep") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "yield") {
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "hardwareConcurrency") {
+      out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -3633,7 +3652,7 @@ bool CheckExpr(const Expr& expr,
         if (IsReservedModuleEnabled(ctx, "Math") || IsReservedModuleEnabled(ctx, "IO") ||
             IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
-            IsReservedModuleEnabled(ctx, "Log")) {
+            IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread")) {
           return true;
         }
       }

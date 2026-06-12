@@ -1,0 +1,9 @@
+import Thread
+
+main : i32 () {
+  Thread.yield()
+  Thread.sleep(1)
+  n : i32 = Thread.hardwareConcurrency()
+  if (n > 0) { return 1 }
+  return 0
+}

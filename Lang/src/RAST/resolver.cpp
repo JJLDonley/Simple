@@ -180,6 +180,9 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "cwd_get" || member == "time_mono_ns" || member == "time_wall_ns" ||
            member == "sleep_ms";
   }
+  if (canonical_module == "Thread") {
+    return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
+  }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
   if (canonical_module == "Log") return member == "log";
   return false;

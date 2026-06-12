@@ -7,9 +7,9 @@ This list tracks work needed to improve feature independence, compiler structure
 All Simple standard/core library modules should be implemented as native C++ runtime functions integrated into SVM. They should not be implemented as DL libraries.
 
 - [ ] Add `Thread` core module:
-  - [ ] `Thread.sleep(ms)`
-  - [ ] `Thread.yield()`
-  - [ ] `Thread.hardwareConcurrency()`
+  - [x] `Thread.sleep(ms)`
+  - [x] `Thread.yield()`
+  - [x] `Thread.hardwareConcurrency()`
   - [ ] VM thread/job handle type
   - [ ] `Thread.spawn(...)` for isolated VM jobs
   - [ ] `Thread.join(handle)`

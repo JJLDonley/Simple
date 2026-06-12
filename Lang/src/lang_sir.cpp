@@ -410,6 +410,11 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Thread" &&
+               (member == "sleep" || member == "yield" || member == "hardwareConcurrency")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "DL" && (NormalizeCoreDlMember(member) == "open" ||
                                   NormalizeCoreDlMember(member) == "sym" ||
                                   NormalizeCoreDlMember(member) == "close" ||
@@ -1553,6 +1558,13 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
+          if (using_module == "Thread") {
+            auto ret_mod_it = st.extern_returns_by_module.find(using_module);
+            if (ret_mod_it == st.extern_returns_by_module.end()) return false;
+            auto ret_it = ret_mod_it->second.find(callee.text);
+            if (ret_it == ret_mod_it->second.end()) return false;
+            return CloneTypeRef(ret_it->second, out);
+          }
         }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
@@ -2671,6 +2683,38 @@ bool EmitExpr(EmitState& st,
                       << (callee.text == "mono_ns" ? Simple::VM::kIntrinsicMonoNs : Simple::VM::kIntrinsicWallNs)
                       << "\n";
             PushStack(st, 1);
+            return true;
+          }
+          if (using_module == "Thread") {
+            auto ext_mod_it = st.extern_ids_by_module.find(using_module);
+            if (ext_mod_it == st.extern_ids_by_module.end()) {
+              if (error) *error = "missing extern module for 'Thread." + callee.text + "'";
+              return false;
+            }
+            auto id_it = ext_mod_it->second.find(callee.text);
+            if (id_it == ext_mod_it->second.end()) {
+              if (error) *error = "missing extern id for 'Thread." + callee.text + "'";
+              return false;
+            }
+            auto params_it = st.extern_params_by_module[using_module].find(callee.text);
+            auto ret_it = st.extern_returns_by_module[using_module].find(callee.text);
+            if (params_it == st.extern_params_by_module[using_module].end() ||
+                ret_it == st.extern_returns_by_module[using_module].end()) {
+              if (error) *error = "missing signature for extern 'Thread." + callee.text + "'";
+              return false;
+            }
+            const auto& params = params_it->second;
+            if (expr.args.size() != params.size()) {
+              if (error) *error = "call argument count mismatch for 'Thread." + callee.text + "'";
+              return false;
+            }
+            for (size_t i = 0; i < params.size(); ++i) {
+              if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+            }
+            (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+            if (st.stack_cur >= params.size()) st.stack_cur -= static_cast<uint32_t>(params.size());
+            else st.stack_cur = 0;
+            if (ret_it->second.name != "void") PushStack(st, 1);
             return true;
           }
           if (using_module == "Math" && (callee.text == "min" || callee.text == "max")) {
@@ -4974,6 +5018,16 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Thread") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Thread")) {
+      std::vector<TypeRef> sleep_params;
+      sleep_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.thread", "sleep", std::move(sleep_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "core.thread", "yield", {}, make_type("void"))) return false;
+      if (!add_reserved_import(alias, "core.thread", "hardwareConcurrency", {}, make_type("i32"))) return false;
     }
   }
 

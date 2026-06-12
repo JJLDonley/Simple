@@ -1696,6 +1696,42 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
+    if (mod == "core.thread") {
+      if (sym == "sleep") {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.thread.sleep arg count mismatch";
+          return false;
+        }
+        int32_t ms = UnpackI32(args[0]);
+        if (ms > 0) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
+        return true;
+      }
+      if (sym == "yield") {
+        out_has_ret = false;
+        if (!args.empty()) {
+          out_error = "core.thread.yield arg count mismatch";
+          return false;
+        }
+        std::this_thread::yield();
+        return true;
+      }
+      if (sym == "hardwareConcurrency") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.thread.hardwareConcurrency return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.thread.hardwareConcurrency arg count mismatch";
+          return false;
+        }
+        const unsigned int count = std::thread::hardware_concurrency();
+        out_ret = PackI32(static_cast<int32_t>(count == 0 ? 1 : count));
+        return true;
+      }
+    }
     if (mod == "core.fs") {
       if (sym == "open") {
         if (!IsI32LikeImportType(ret_kind)) {
