@@ -19,6 +19,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [ ] Extract name/import/symbol resolution into `RAST`.
   - [x] Add initial RAST symbol collection boundary.
 - [ ] Extract type checking into `TAST`.
+  - [x] Add initial TAST type-checker boundary.
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.
 - [ ] Define deprecation/migration policy for legacy includes:

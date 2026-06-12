@@ -7,6 +7,7 @@
 #include "RAST/rast.h"
 #include "RAST/resolver.h"
 #include "TAST/tast.h"
+#include "TAST/type_checker.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "lang_lexer.h"
@@ -232,6 +233,34 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
   if (Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
   return error.find("duplicate symbol: Box.v") != std::string::npos;
+}
+
+bool LangTastCheckerAcceptsResolvedProgram() {
+  const char* src = "main : i32 () { return 42; }";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  return typed.resolved == &resolved;
+}
+
+bool LangTastCheckerRejectsTypeMismatch() {
+  const char* src = "main : i32 () { x : i32 = true; return x; }";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  return error.find("initializer type mismatch") != std::string::npos;
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
@@ -3972,6 +4001,8 @@ const TestCase kLangTests[] = {
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
+  {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
+  {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},

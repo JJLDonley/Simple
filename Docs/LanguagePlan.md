@@ -344,6 +344,13 @@ Remaining:
 
 ### Phase 5 — TAST Type Checker
 
+Status: in progress.
+
+Implemented:
+- Added initial TAST type-checker boundary at `TAST/type_checker.h` and `Lang/src/TAST/type_checker.cpp`.
+- Current TAST checker delegates to the legacy validator while carrying the resolved program boundary.
+
+Remaining:
 - Extract type checking from `lang_validate.cpp`.
 - Persist expression types and mutability facts on typed nodes.
 - Remove repeated type inference from SIR emission.
