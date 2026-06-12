@@ -294,6 +294,37 @@ bool LangNestedIfSiblingLocalsRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangConditionalReturnMainImplicitFallbackRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  if (false) { return 7; }\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 0);
+}
+
+bool LangIfChainAllBranchesReturnNoFallbackRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 2;\n"
+      "  |> (x == 1) { return 1; }\n"
+      "  |> (x == 2) { return 42; }\n"
+      "  |> default { return 3; }\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangSirTopLevelScriptExecutes() {
   const char* src =
       "add : i32 (a : i32, b : i32) { return a + b; }\n"
@@ -3819,6 +3850,8 @@ const TestCase kLangTests[] = {
   {"lang_nested_switch_branch_preserves_loop_context_runtime", LangNestedSwitchBranchPreservesLoopContextRuntime},
   {"lang_nested_switch_branch_sibling_locals_runtime", LangNestedSwitchBranchSiblingLocalsRuntime},
   {"lang_nested_if_sibling_locals_runtime", LangNestedIfSiblingLocalsRuntime},
+  {"lang_conditional_return_main_implicit_fallback_runtime", LangConditionalReturnMainImplicitFallbackRuntime},
+  {"lang_if_chain_all_branches_return_no_fallback_runtime", LangIfChainAllBranchesReturnNoFallbackRuntime},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_sir_main_overrides_top_level", LangSirMainOverridesTopLevel},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},

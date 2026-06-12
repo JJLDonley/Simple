@@ -3835,6 +3835,34 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
   return EmitConstForType(st, type, expr, error);
 }
 
+bool EmitStmtDefinitelyReturns(const Stmt& stmt);
+
+bool EmitBlockDefinitelyReturns(const std::vector<Stmt>& body) {
+  for (const auto& stmt : body) {
+    if (EmitStmtDefinitelyReturns(stmt)) return true;
+  }
+  return false;
+}
+
+bool EmitStmtDefinitelyReturns(const Stmt& stmt) {
+  switch (stmt.kind) {
+    case StmtKind::Return:
+      return true;
+    case StmtKind::IfChain:
+      if (stmt.if_branches.empty() || stmt.else_branch.empty()) return false;
+      for (const auto& branch : stmt.if_branches) {
+        if (!EmitBlockDefinitelyReturns(branch.second)) return false;
+      }
+      return EmitBlockDefinitelyReturns(stmt.else_branch);
+    case StmtKind::IfStmt:
+      if (stmt.if_then.empty() || stmt.if_else.empty()) return false;
+      return EmitBlockDefinitelyReturns(stmt.if_then) &&
+             EmitBlockDefinitelyReturns(stmt.if_else);
+    default:
+      return false;
+  }
+}
+
 bool EmitBlock(EmitState& st, const std::vector<Stmt>& body, std::string* error) {
   for (const auto& stmt : body) {
     if (!EmitStmt(st, stmt, error)) return false;
@@ -4305,8 +4333,9 @@ bool EmitFunction(EmitState& st,
   }
 
   const bool return_is_void = (fn.return_type.name == "void");
-  if (return_is_void || !st.saw_return) {
-    if (!st.saw_return && (fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
+  const bool body_returns = EmitBlockDefinitelyReturns(stmt_body);
+  if (return_is_void || !body_returns) {
+    if (!body_returns && (fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
       (*st.out) << "  const.i32 0\n";
       PushStack(st, 1);
     }
