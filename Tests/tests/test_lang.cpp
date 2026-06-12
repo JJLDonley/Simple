@@ -256,6 +256,28 @@ bool LangAstNormalizesLoopShorthand() {
   return ast_program.loops[1].kind == Simple::Lang::AST::NormalizedLoopKind::While;
 }
 
+bool LangAstNormalizesIfChain() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 1;\n"
+      "  |> (x == 0) { return 0; }\n"
+      "  |> (x == 1) { return 1; }\n"
+      "  |> default { return 2; }\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  if (ast_program.if_chains.size() != 1) return false;
+  const auto& chain = ast_program.if_chains[0];
+  if (chain.branches.size() != 2) return false;
+  if (chain.else_branch.size() != 1) return false;
+  if (chain.branches[0].condition.kind != Simple::Lang::ExprKind::Binary) return false;
+  if (chain.branches[0].condition.op != "==") return false;
+  return chain.branches[0].body.size() == 1 && chain.branches[1].body.size() == 1;
+}
+
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
       "Box :: Artifact {\n"
@@ -4273,6 +4295,7 @@ const TestCase kLangTests[] = {
   {"lang_ast_normalizes_top_level_script_body", LangAstNormalizesTopLevelScriptBody},
   {"lang_ast_normalizes_fn_literal_declarations", LangAstNormalizesFnLiteralDeclarations},
   {"lang_ast_normalizes_loop_shorthand", LangAstNormalizesLoopShorthand},
+  {"lang_ast_normalizes_if_chain", LangAstNormalizesIfChain},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},

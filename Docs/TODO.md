@@ -70,7 +70,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [x] Normalize top-level script body into an explicit AST node.
 - [x] Normalize function literal declaration forms.
 - [x] Normalize loop shorthand.
-- [ ] Normalize `|>` if-chain or define why it remains distinct.
+- [x] Normalize `|>` if-chain or define why it remains distinct.
 - [ ] Normalize switch branch forms.
 - [ ] Normalize call/member/index shapes.
 - [ ] Separate switch branch result markers from normal function `return` semantics.

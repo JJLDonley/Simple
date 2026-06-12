@@ -60,11 +60,22 @@ struct NormalizedLoop {
   std::vector<Stmt> body;
 };
 
+struct NormalizedIfBranch {
+  Expr condition;
+  std::vector<Stmt> body;
+};
+
+struct NormalizedIfChain {
+  std::vector<NormalizedIfBranch> branches;
+  std::vector<Stmt> else_branch;
+};
+
 struct NormalizedProgram {
   std::vector<Decl> decls;
   ScriptBody script_body;
   std::vector<NormalizedFnLiteralDecl> fn_literals;
   std::vector<NormalizedLoop> loops;
+  std::vector<NormalizedIfChain> if_chains;
 };
 
 } // namespace Simple::Lang::AST
