@@ -255,6 +255,45 @@ bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
   return RunSirTextExpectExit(sir, 9);
 }
 
+bool LangNestedSwitchBranchSiblingLocalsRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  mode : i32 = 2;\n"
+      "  value : i32 = switch (mode) {\n"
+      "    mode == 1 => { local : i32 = 10; return local }\n"
+      "    mode == 2 => { local : i32 = 40; return local + 2 }\n"
+      "    default => return 0\n"
+      "  };\n"
+      "  local : i32 = value;\n"
+      "  return local;\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangNestedIfSiblingLocalsRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  out : i32 = 0;\n"
+      "  if (true) { local : i32 = 42; out = local; }\n"
+      "  else { local : i32 = 1; out = local; }\n"
+      "  local : i32 = out;\n"
+      "  return local;\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangSirTopLevelScriptExecutes() {
   const char* src =
       "add : i32 (a : i32, b : i32) { return a + b; }\n"
@@ -3778,6 +3817,8 @@ const TestCase kLangTests[] = {
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},
   {"lang_nested_switch_branch_block_local_runtime", LangNestedSwitchBranchBlockLocalRuntime},
   {"lang_nested_switch_branch_preserves_loop_context_runtime", LangNestedSwitchBranchPreservesLoopContextRuntime},
+  {"lang_nested_switch_branch_sibling_locals_runtime", LangNestedSwitchBranchSiblingLocalsRuntime},
+  {"lang_nested_if_sibling_locals_runtime", LangNestedIfSiblingLocalsRuntime},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_sir_main_overrides_top_level", LangSirMainOverridesTopLevel},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},

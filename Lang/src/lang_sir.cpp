@@ -2403,6 +2403,22 @@ bool EmitBinary(EmitState& st,
   return false;
 }
 
+struct LocalScopeSnapshot {
+  std::unordered_map<std::string, TypeRef> local_types;
+  std::unordered_map<std::string, std::string> local_dl_modules;
+  std::unordered_map<std::string, uint16_t> local_indices;
+};
+
+LocalScopeSnapshot SaveLocalScope(const EmitState& st) {
+  return {st.local_types, st.local_dl_modules, st.local_indices};
+}
+
+void RestoreLocalScope(EmitState& st, LocalScopeSnapshot snapshot) {
+  st.local_types = std::move(snapshot.local_types);
+  st.local_dl_modules = std::move(snapshot.local_dl_modules);
+  st.local_indices = std::move(snapshot.local_indices);
+}
+
 bool EmitSwitchExpr(EmitState& st,
                     const Expr& expr,
                     const TypeRef* expected,
@@ -2436,10 +2452,12 @@ bool EmitSwitchExpr(EmitState& st,
         if (error) *error = "switch branch block must end with a return value";
         return false;
       }
+      auto branch_scope = SaveLocalScope(st);
       for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
         if (!EmitStmt(st, branch.block[stmt_index], error)) return false;
       }
       if (!EmitExpr(st, branch.block.back().expr, &switch_type, error)) return false;
+      RestoreLocalScope(st, std::move(branch_scope));
       (*st.out) << "  jmp " << end_label << "\n";
     } else {
       if (!branch.has_inline_value) {
@@ -3824,6 +3842,13 @@ bool EmitBlock(EmitState& st, const std::vector<Stmt>& body, std::string* error)
   return true;
 }
 
+bool EmitScopedBlock(EmitState& st, const std::vector<Stmt>& body, std::string* error) {
+  auto scope = SaveLocalScope(st);
+  if (!EmitBlock(st, body, error)) return false;
+  RestoreLocalScope(st, std::move(scope));
+  return true;
+}
+
 bool EmitIfChain(EmitState& st,
                  const std::vector<std::pair<Expr, std::vector<Stmt>>>& branches,
                  const std::vector<Stmt>& else_branch,
@@ -3835,12 +3860,12 @@ bool EmitIfChain(EmitState& st,
     if (!EmitExpr(st, branch.first, nullptr, error)) return false;
     (*st.out) << "  jmp.false " << next_label << "\n";
     PopStack(st, 1);
-    if (!EmitBlock(st, branch.second, error)) return false;
+    if (!EmitScopedBlock(st, branch.second, error)) return false;
     (*st.out) << "  jmp " << end_label << "\n";
     (*st.out) << next_label << ":\n";
   }
   if (!else_branch.empty()) {
-    if (!EmitBlock(st, else_branch, error)) return false;
+    if (!EmitScopedBlock(st, else_branch, error)) return false;
   }
   (*st.out) << end_label << ":\n";
   return true;
@@ -4111,11 +4136,11 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       if (!EmitExpr(st, stmt.if_cond, nullptr, error)) return false;
       (*st.out) << "  jmp.false " << else_label << "\n";
       PopStack(st, 1);
-      if (!EmitBlock(st, stmt.if_then, error)) return false;
+      if (!EmitScopedBlock(st, stmt.if_then, error)) return false;
       (*st.out) << "  jmp " << end_label << "\n";
       (*st.out) << else_label << ":\n";
       if (!stmt.if_else.empty()) {
-        if (!EmitBlock(st, stmt.if_else, error)) return false;
+        if (!EmitScopedBlock(st, stmt.if_else, error)) return false;
       }
       (*st.out) << end_label << ":\n";
       return true;
@@ -4128,13 +4153,14 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       if (!EmitExpr(st, stmt.loop_cond, nullptr, error)) return false;
       (*st.out) << "  jmp.false " << end_label << "\n";
       PopStack(st, 1);
-      if (!EmitBlock(st, stmt.loop_body, error)) return false;
+      if (!EmitScopedBlock(st, stmt.loop_body, error)) return false;
       (*st.out) << "  jmp " << start_label << "\n";
       (*st.out) << end_label << ":\n";
       st.loop_stack.pop_back();
       return true;
     }
     case StmtKind::ForLoop: {
+      auto for_scope = SaveLocalScope(st);
       std::string start_label = NewLabel(st, "for_start_");
       std::string step_label = NewLabel(st, "for_step_");
       std::string end_label = NewLabel(st, "for_end_");
@@ -4152,7 +4178,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       if (!EmitExpr(st, stmt.loop_cond, nullptr, error)) return false;
       (*st.out) << "  jmp.false " << end_label << "\n";
       PopStack(st, 1);
-      if (!EmitBlock(st, stmt.loop_body, error)) return false;
+      if (!EmitScopedBlock(st, stmt.loop_body, error)) return false;
       (*st.out) << step_label << ":\n";
       if (!EmitExpr(st, stmt.loop_step, nullptr, error)) return false;
       (*st.out) << "  pop\n";
@@ -4160,6 +4186,7 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
       (*st.out) << "  jmp " << start_label << "\n";
       (*st.out) << end_label << ":\n";
       st.loop_stack.pop_back();
+      RestoreLocalScope(st, std::move(for_scope));
       return true;
     }
     case StmtKind::Break: {
