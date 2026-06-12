@@ -426,6 +426,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Path" &&
+               (member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
+                member == "normalize" || member == "exists" || member == "isFile" || member == "isDir")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "Channel" &&
                (member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
                 member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
@@ -1581,7 +1587,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2708,7 +2714,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env") {
+          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5042,6 +5048,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Path") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Path")) {
+      std::vector<TypeRef> join_params;
+      join_params.push_back(make_type("string"));
+      join_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.path", "join", std::move(join_params), make_type("string"))) return false;
+      for (const std::string member : {"dirname", "basename", "ext", "normalize"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("string"));
+        if (!add_reserved_import(alias, "core.path", member, std::move(params), make_type("string"))) return false;
+      }
+      for (const std::string member : {"exists", "isFile", "isDir"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("string"));
+        if (!add_reserved_import(alias, "core.path", member, std::move(params), make_type("bool"))) return false;
+      }
     }
   }
 

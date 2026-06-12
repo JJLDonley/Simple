@@ -351,6 +351,9 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
   if (resolved == "Random") return {"seed", "i32", "range", "f64"};
   if (resolved == "Env") return {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
+  if (resolved == "Path") {
+    return {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
+  }
   if (resolved == "Channel") {
     return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
             "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
@@ -646,6 +649,27 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (dl_member == "call_str0") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Path") {
+    if (member == "join") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "dirname" || member == "basename" || member == "ext" || member == "normalize") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "exists" || member == "isFile" || member == "isDir") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -3760,7 +3784,7 @@ bool CheckExpr(const Expr& expr,
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
             IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread") ||
             IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "Random") ||
-            IsReservedModuleEnabled(ctx, "Env")) {
+            IsReservedModuleEnabled(ctx, "Env") || IsReservedModuleEnabled(ctx, "Path")) {
           return true;
         }
       }

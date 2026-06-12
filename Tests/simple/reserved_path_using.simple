@@ -1,0 +1,13 @@
+import Path
+using Path
+
+main : i32 () {
+  p : string = join("Tests/simple", "hello.simple")
+  if (!exists(p)) { return 0 }
+  if (!isFile(p)) { return 0 }
+  if (!isDir(dirname(p))) { return 0 }
+  if (len(basename(p)) != 12) { return 0 }
+  if (len(ext(p)) != 7) { return 0 }
+  if (!exists(normalize("Tests/simple/../simple/hello.simple"))) { return 0 }
+  return 1
+}

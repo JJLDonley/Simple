@@ -26,7 +26,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] clear rules: channels copy values; no shared mutable Simple heap in first version
   - [ ] later generic `Channel<T>` once runtime/type support is ready
 - [ ] Expand native stdlib modules:
-  - [ ] `Path`: join, dirname, basename, ext, normalize, exists, isFile, isDir
+  - [x] `Path`: join, dirname, basename, ext, normalize, exists, isFile, isDir
   - [ ] `FS`: read/write text, read/write bytes, copy, remove, mkdir, mkdirAll, listDir, cwd, setCwd
   - [x] `Env`: args, get, set, platform, arch, exePath
   - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers

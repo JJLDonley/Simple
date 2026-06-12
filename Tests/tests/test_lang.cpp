@@ -2011,6 +2011,14 @@ bool LangReservedEnvUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_env_using.simple", 1);
 }
 
+bool LangReservedPathRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_path.simple", 1);
+}
+
+bool LangReservedPathUsingRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_path_using.simple", 1);
+}
+
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
   const std::string cmd = "bin/simplevm emit -ir Tests/simple/hello.simple --out " + out_path;
@@ -5020,6 +5028,8 @@ const TestCase kLangTests[] = {
   {"lang_reserved_random_using_run", LangReservedRandomUsingRun},
   {"lang_reserved_env_run", LangReservedEnvRun},
   {"lang_reserved_env_using_run", LangReservedEnvUsingRun},
+  {"lang_reserved_path_run", LangReservedPathRun},
+  {"lang_reserved_path_using_run", LangReservedPathUsingRun},
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},

@@ -1792,6 +1792,80 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
+    if (mod == "core.path") {
+      auto read_arg_string = [&](size_t index, std::string* out_value) -> bool {
+        if (index >= args.size() || !out_value) return false;
+        const uint32_t ref = UnpackRef(args[index]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!obj || obj->header.kind != ObjectKind::String) return false;
+        *out_value = U16ToAscii(ReadString(obj));
+        return true;
+      };
+      auto return_string = [&](const std::string& value) -> bool {
+        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
+        return true;
+      };
+      if (sym == "join") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.path.join return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.path.join arg count mismatch";
+          return false;
+        }
+        std::string a;
+        std::string b;
+        if (!read_arg_string(0, &a) || !read_arg_string(1, &b)) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        return return_string((std::filesystem::path(a) / std::filesystem::path(b)).lexically_normal().generic_string());
+      }
+      if (sym == "dirname" || sym == "basename" || sym == "ext" || sym == "normalize") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = std::string("core.path.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = std::string("core.path.") + sym + " arg count mismatch";
+          return false;
+        }
+        std::string value;
+        if (!read_arg_string(0, &value)) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        std::filesystem::path p(value);
+        if (sym == "dirname") return return_string(p.parent_path().generic_string());
+        if (sym == "basename") return return_string(p.filename().generic_string());
+        if (sym == "ext") return return_string(p.extension().generic_string());
+        return return_string(p.lexically_normal().generic_string());
+      }
+      if (sym == "exists" || sym == "isFile" || sym == "isDir") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("core.path.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = std::string("core.path.") + sym + " arg count mismatch";
+          return false;
+        }
+        std::string value;
+        if (!read_arg_string(0, &value)) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        std::error_code ec;
+        const std::filesystem::path p(value);
+        bool result = false;
+        if (sym == "exists") result = std::filesystem::exists(p, ec);
+        else if (sym == "isFile") result = std::filesystem::is_regular_file(p, ec);
+        else result = std::filesystem::is_directory(p, ec);
+        out_ret = PackI32((!ec && result) ? 1 : 0);
+        return true;
+      }
+    }
     if (mod == "core.env") {
       auto return_string = [&](const std::string& value) -> bool {
         out_ret = PackRef(CreateString(heap, AsciiToU16(value)));

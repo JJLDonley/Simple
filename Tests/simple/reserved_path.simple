@@ -1,0 +1,15 @@
+import Path
+
+main : i32 () {
+  p : string = Path.join("Tests", "simple/hello.simple")
+  if (!Path.exists(p)) { return 0 }
+  if (!Path.isFile(p)) { return 0 }
+  if (Path.isDir(p)) { return 0 }
+  if (len(Path.basename(p)) != 12) { return 0 }
+  if (len(Path.ext(p)) != 7) { return 0 }
+  d : string = Path.dirname(p)
+  if (!Path.isDir(d)) { return 0 }
+  n : string = Path.normalize("Tests/simple/../simple/hello.simple")
+  if (!Path.exists(n)) { return 0 }
+  return 1
+}
