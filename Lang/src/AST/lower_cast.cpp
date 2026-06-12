@@ -40,7 +40,9 @@ void CollectFnLiteralExpr(const Expr& expr,
 void CollectFnLiteralStmt(const Stmt& stmt, std::vector<NormalizedFnLiteralDecl>* out);
 void CollectLoopStmt(const Stmt& stmt, std::vector<NormalizedLoop>* out);
 void CollectIfChainStmt(const Stmt& stmt, std::vector<NormalizedIfChain>* out);
-void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out);
+void CollectSwitchExpr(const Expr& expr,
+                       std::vector<NormalizedSwitch>* out,
+                       NormalizedSwitchUsage usage = NormalizedSwitchUsage::Expression);
 void CollectSwitchStmt(const Stmt& stmt, std::vector<NormalizedSwitch>* out);
 void CollectExprShapeExpr(const Expr& expr, std::vector<NormalizedExprShape>* out);
 void CollectExprShapeStmt(const Stmt& stmt, std::vector<NormalizedExprShape>* out);
@@ -182,10 +184,13 @@ void CollectIfChainDecls(const std::vector<Decl>& decls, std::vector<NormalizedI
   }
 }
 
-void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out) {
+void CollectSwitchExpr(const Expr& expr,
+                       std::vector<NormalizedSwitch>* out,
+                       NormalizedSwitchUsage usage) {
   if (!out) return;
   if (expr.kind == ExprKind::Switch) {
     NormalizedSwitch sw;
+    sw.usage = usage;
     if (!expr.children.empty()) sw.scrutinee = expr.children[0];
     for (const auto& branch : expr.switch_branches) {
       NormalizedSwitchBranch normalized;
@@ -218,13 +223,20 @@ void CollectSwitchExpr(const Expr& expr, std::vector<NormalizedSwitch>* out) {
 }
 
 void CollectSwitchStmt(const Stmt& stmt, std::vector<NormalizedSwitch>* out) {
-  CollectSwitchExpr(stmt.expr, out);
+  if (stmt.kind == StmtKind::Expr) {
+    CollectSwitchExpr(stmt.expr, out, NormalizedSwitchUsage::Statement);
+  } else if (stmt.kind == StmtKind::Assign) {
+    CollectSwitchExpr(stmt.expr, out, NormalizedSwitchUsage::Assignment);
+  } else if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) {
+    CollectSwitchExpr(stmt.var_decl.init_expr, out, NormalizedSwitchUsage::Assignment);
+  } else {
+    CollectSwitchExpr(stmt.expr, out);
+  }
   CollectSwitchExpr(stmt.target, out);
   CollectSwitchExpr(stmt.if_cond, out);
   CollectSwitchExpr(stmt.loop_cond, out);
   CollectSwitchExpr(stmt.loop_iter, out);
   CollectSwitchExpr(stmt.loop_step, out);
-  if (stmt.kind == StmtKind::VarDecl && stmt.var_decl.has_init_expr) CollectSwitchExpr(stmt.var_decl.init_expr, out);
   if (stmt.has_loop_var_decl && stmt.loop_var_decl.has_init_expr) CollectSwitchExpr(stmt.loop_var_decl.init_expr, out);
   for (const auto& branch : stmt.if_branches) {
     CollectSwitchExpr(branch.first, out);

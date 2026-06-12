@@ -296,6 +296,7 @@ bool LangAstNormalizesSwitchBranches() {
   if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
   if (ast_program.switches.size() != 1) return false;
   const auto& sw = ast_program.switches[0];
+  if (sw.usage != Simple::Lang::AST::NormalizedSwitchUsage::Assignment) return false;
   if (sw.scrutinee.kind != Simple::Lang::ExprKind::Identifier || sw.scrutinee.text != "x") return false;
   if (sw.branches.size() != 3) return false;
   if (sw.branches[0].is_default || !sw.branches[0].has_inline_value || sw.branches[0].is_block) return false;
@@ -304,6 +305,31 @@ bool LangAstNormalizesSwitchBranches() {
   if (sw.branches[1].result_kind != Simple::Lang::AST::NormalizedSwitchBranchResultKind::Block) return false;
   return sw.branches[2].is_default && sw.branches[2].is_explicit_return && sw.branches[2].has_inline_value &&
          sw.branches[2].result_kind == Simple::Lang::AST::NormalizedSwitchBranchResultKind::SwitchBranchReturn;
+}
+
+bool LangAstClassifiesSwitchUsage() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 1;\n"
+      "  y : i32 = 0;\n"
+      "  switch (x) { default => 0 };\n"
+      "  y = switch (x) { default => 1 };\n"
+      "  return switch (x) { default => 2 };\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::NormalizedProgram ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgramNormalized(cast_program, &ast_program, &error)) return false;
+  bool saw_statement = false;
+  bool saw_assignment = false;
+  bool saw_expression = false;
+  for (const auto& sw : ast_program.switches) {
+    if (sw.usage == Simple::Lang::AST::NormalizedSwitchUsage::Statement) saw_statement = true;
+    if (sw.usage == Simple::Lang::AST::NormalizedSwitchUsage::Assignment) saw_assignment = true;
+    if (sw.usage == Simple::Lang::AST::NormalizedSwitchUsage::Expression) saw_expression = true;
+  }
+  return saw_statement && saw_assignment && saw_expression;
 }
 
 bool LangAstNormalizesCallMemberIndexShapes() {
@@ -4358,6 +4384,7 @@ const TestCase kLangTests[] = {
   {"lang_ast_normalizes_loop_shorthand", LangAstNormalizesLoopShorthand},
   {"lang_ast_normalizes_if_chain", LangAstNormalizesIfChain},
   {"lang_ast_normalizes_switch_branches", LangAstNormalizesSwitchBranches},
+  {"lang_ast_classifies_switch_usage", LangAstClassifiesSwitchUsage},
   {"lang_ast_normalizes_call_member_index_shapes", LangAstNormalizesCallMemberIndexShapes},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},

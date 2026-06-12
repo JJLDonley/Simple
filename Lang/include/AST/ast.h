@@ -88,7 +88,14 @@ struct NormalizedSwitchBranch {
   std::vector<Stmt> block;
 };
 
+enum class NormalizedSwitchUsage : uint8_t {
+  Expression,
+  Statement,
+  Assignment,
+};
+
 struct NormalizedSwitch {
+  NormalizedSwitchUsage usage = NormalizedSwitchUsage::Expression;
   Expr scrutinee;
   std::vector<NormalizedSwitchBranch> branches;
 };

@@ -75,9 +75,9 @@ This list tracks work needed to improve feature independence, compiler structure
 - [x] Normalize call/member/index shapes.
 - [x] Separate switch branch result markers from normal function `return` semantics.
 - [ ] Formalize switch semantics:
-  - [ ] statement switch
-  - [ ] expression switch
-  - [ ] assigning switch
+  - [x] statement switch
+  - [x] expression switch
+  - [x] assigning switch
   - [ ] block branch result rules
   - [ ] early function return inside branch blocks
   - [ ] `break`/`skip` behavior when nested in loops
