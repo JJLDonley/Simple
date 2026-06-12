@@ -719,6 +719,28 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
   return false;
 }
 
+bool LangIrbIreKeepsSirOutputStable() {
+  const char* src =
+      "Box :: Artifact { v : i32; score : i32 () { return self.v + 40; } }\n"
+      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  Simple::Lang::IRB::Module module;
+  std::string direct_sir;
+  std::string pipeline_sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &direct_sir, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirModule(module, &pipeline_sir, &error)) return false;
+  return direct_sir == pipeline_sir && RunSirTextExpectExit(pipeline_sir, 42);
+}
+
 bool LangIreSerializesPrecomputedSirLines() {
   Simple::Lang::IRB::Module module;
   module.sir_text = "bad fallback";
@@ -4733,6 +4755,7 @@ const TestCase kLangTests[] = {
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},
   {"lang_irb_collects_abi_flattening_metadata", LangIrbCollectsAbiFlatteningMetadata},
+  {"lang_irb_ire_keeps_sir_output_stable", LangIrbIreKeepsSirOutputStable},
   {"lang_ire_serializes_precomputed_sir_lines", LangIreSerializesPrecomputedSirLines},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
