@@ -198,7 +198,6 @@ These areas exist but should be considered under active hardening or not fully f
 - complete first-class procedure value coverage across all runtime paths
 - complete pointer semantics beyond currently parsed/validated/emitted forms
 - complete switch-expression matrix across all branch/block/value combinations
-- full `i128/u128` runtime arithmetic support
 - broader diagnostics with stable error codes
 - exhaustive documentation for every accepted/rejected syntax edge case
 

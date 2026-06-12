@@ -81,15 +81,15 @@ Implemented rows include:
 Implemented `TypeKind` values include:
 
 - `Unspecified`
-- `I8`, `I16`, `I32`, `I64`, `I128`
-- `U8`, `U16`, `U32`, `U64`, `U128`
+- `I8`, `I16`, `I32`, `I64`
+- `U8`, `U16`, `U32`, `U64`
 - `F32`, `F64`
 - `Bool`
 - `Char`
 - `String`
 - `Ref`
 
-Runtime opcode coverage is strongest for the scalar lanes implemented by the VM opcode set; `I128/U128` are represented in metadata/constant forms but are not a complete arithmetic runtime lane.
+The metadata enum still contains historical `I128/U128` constants, but they are not language/runtime implementation targets.
 
 ### Opcode Metadata
 

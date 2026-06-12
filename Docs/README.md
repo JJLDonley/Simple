@@ -52,6 +52,7 @@ This directory documents the current Simple compiler, language, bytecode, VM, CL
 
 - `Docs/Lang.md` - language syntax/semantics as currently implemented
 - `Docs/LanguagePlan.md` - staged Lang split into Lexer/CAST/AST/RAST/TAST/IRB/IRE
+- `Docs/TODO.md` - implementation and hardening checklist
 - `Docs/StdLib.md` - reserved imports and runtime module APIs
 - `Docs/IR.md` - SIR/compiler contract
 - `Docs/Byte.md` - SBC format, loader, verifier contract

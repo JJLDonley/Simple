@@ -129,6 +129,25 @@ bool LangSirEmitsReturnI32() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangLexerModuleTokenizesSwitchArrow() {
+  Simple::Lang::Lexer lexer("switch (node->value) { default => return 1 }");
+  if (!lexer.Lex()) return false;
+  return ExpectTokenKinds(lexer.Tokens(), {
+      Simple::Lang::TokenKind::KwSwitch,
+      Simple::Lang::TokenKind::LParen,
+      Simple::Lang::TokenKind::Identifier,
+      Simple::Lang::TokenKind::Arrow,
+      Simple::Lang::TokenKind::Identifier,
+      Simple::Lang::TokenKind::RParen,
+      Simple::Lang::TokenKind::LBrace,
+      Simple::Lang::TokenKind::KwDefault,
+      Simple::Lang::TokenKind::FatArrow,
+      Simple::Lang::TokenKind::KwReturn,
+      Simple::Lang::TokenKind::Integer,
+      Simple::Lang::TokenKind::RBrace,
+  });
+}
+
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
   Simple::Lang::Lexer lexer("main : i32 () { return 0; }");
   if (!lexer.Lex()) return false;
@@ -3862,6 +3881,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_qualified_member", LangParsesQualifiedMember},
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
+  {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},

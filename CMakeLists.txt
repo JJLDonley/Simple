@@ -49,7 +49,7 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_IR_ROOT}/src/ir_builder.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_compiler.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_lang.cpp
-  ${SIMPLEVM_LANG_ROOT}/src/lang_lexer.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/Lexer/lexer.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_parser.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_validate.cpp
   ${SIMPLEVM_LANG_ROOT}/src/lang_sir.cpp

@@ -288,11 +288,17 @@ Status: implemented.
 
 ### Phase 1 — Lexer Ownership
 
-- Move `lang_lexer.cpp` to `Lang/src/Lexer/lexer.cpp`.
-- Move token names and lexer API fully to `Lexer/`.
-- Keep `lang_lexer.h` and `lang_token.h` as compatibility includes.
-- Update CMake source paths.
-- Add focused lexer tests under the new include path.
+Status: in progress.
+
+Implemented:
+- Moved `lang_lexer.cpp` to `Lang/src/Lexer/lexer.cpp`.
+- Updated CMake source paths.
+- Kept `lang_lexer.h` and `lang_token.h` as compatibility includes.
+- Added new include-path coverage through language phase tests.
+
+Remaining:
+- Move token names and lexer API fully to `Lexer/` without legacy dependencies.
+- Add dedicated lexer test file when tests are split by phase.
 
 ### Phase 2 — CAST Parser Split
 

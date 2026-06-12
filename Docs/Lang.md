@@ -84,8 +84,8 @@ Mutability is validated for:
 
 Implemented primitive names include:
 
-- signed integers: `i8 i16 i32 i64 i128`
-- unsigned integers: `u8 u16 u32 u64 u128`
+- signed integers: `i8 i16 i32 i64`
+- unsigned integers: `u8 u16 u32 u64`
 - floats: `f32 f64`
 - `bool`
 - `char`
@@ -94,7 +94,6 @@ Implemented primitive names include:
 
 Runtime/codegen support is strongest for the VM scalar lanes represented by SBC:
 `i8/i16/i32/i64`, `u8/u16/u32/u64`, `f32/f64`, `bool`, `char`, `string`, and references.
-`i128/u128` are recognized at the language/type level but are not a complete arithmetic VM lane.
 
 ### Composite Types
 
@@ -391,7 +390,6 @@ These features exist partially, are parsed but not fully guaranteed across all c
 - full generic language support and broad monomorphization coverage
 - first-class procedure values across every runtime edge case
 - complete pointer semantics beyond syntax/type validation and supported ABI cases
-- complete `i128/u128` runtime arithmetic and ABI behavior
 - switch expression coverage across all combinations of branch/block forms
 - exhaustive documentation/tests for every supported SIR emission pattern
 - exact alpha compatibility guarantees for generated SIR/SBC
