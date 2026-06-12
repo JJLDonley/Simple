@@ -2831,6 +2831,42 @@ bool LangValidateAddressOfRequiresLValue() {
   return error.find("address-of requires assignable expression") != std::string::npos;
 }
 
+bool LangPointerStorageEmissionRejected() {
+  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return 0 }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("unsupported unary operator '&'") != std::string::npos;
+}
+
+bool LangPointerDerefParseRejected() {
+  const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
+  std::string error;
+  Simple::Lang::Program program;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  return error.find("expected expression") != std::string::npos;
+}
+
+bool LangPointerNullInitRejected() {
+  const char* src = "main : i32 () { p : i32* = 0; return 0 }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("initializer type mismatch") != std::string::npos;
+}
+
+bool LangPointerToRefShapesValidate() {
+  const char* src =
+      "Node :: artifact { v : i32 }"
+      "main : i32 () {"
+      "  n : Node = { 1 }; pn : Node* = &n;"
+      "  values : i32[] = []; pv : i32[]* = &values;"
+      "  text : string = \"x\"; ps : string* = &text;"
+      "  return 0;"
+      "}";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateArtifactDefaultFieldOk() {
   const char* src =
       "Point :: Artifact { x : i32 = 1; y : i32 }\n"
@@ -4533,6 +4569,10 @@ const TestCase kLangTests[] = {
   {"lang_validate_pointer_member_requires_pointer", LangValidatePointerMemberRequiresPointer},
   {"lang_validate_pointer_to_immutable_rejects_mutation", LangValidatePointerToImmutableRejectsMutation},
   {"lang_validate_pointer_to_mutable_allows_mutation", LangValidatePointerToMutableAllowsMutation},
+  {"lang_pointer_storage_emission_rejected", LangPointerStorageEmissionRejected},
+  {"lang_pointer_deref_parse_rejected", LangPointerDerefParseRejected},
+  {"lang_pointer_null_init_rejected", LangPointerNullInitRejected},
+  {"lang_pointer_to_ref_shapes_validate", LangPointerToRefShapesValidate},
   {"lang_validate_address_of_requires_lvalue", LangValidateAddressOfRequiresLValue},
   {"lang_validate_artifact_default_field_ok", LangValidateArtifactDefaultFieldOk},
   {"lang_validate_module_default_field_ok", LangValidateModuleDefaultFieldOk},

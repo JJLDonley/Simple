@@ -114,15 +114,15 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] type-argument inference
   - [x] specialization naming/mangling
   - [x] duplicate specialization handling
-- [ ] Finish or explicitly reject unsupported pointer cases:
-  - [ ] pointer storage model
-  - [ ] pointer mutability
-  - [ ] pointer to artifact/list/array/string
-  - [ ] dereference rules
-  - [ ] pointer assignment
-  - [ ] pointer ABI behavior
-  - [ ] null pointer semantics
-  - [ ] pointer safety diagnostics
+- [x] Finish or explicitly reject unsupported pointer cases:
+  - [x] pointer storage model
+  - [x] pointer mutability
+  - [x] pointer to artifact/list/array/string
+  - [x] dereference rules
+  - [x] pointer assignment
+  - [x] pointer ABI behavior
+  - [x] null pointer semantics
+  - [x] pointer safety diagnostics
 
 ## IR / SIR / Lowering
 
