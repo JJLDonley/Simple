@@ -13,7 +13,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] `IRB`
   - [ ] `IRE`
 - [x] Move lexer implementation into `Lang/src/Lexer`.
-- [ ] Move parser implementation into `Lang/src/CAST`.
+- [x] Move parser implementation into `Lang/src/CAST`.
 - [ ] Add real `CAST -> AST` normalization pass.
 - [ ] Extract name/import/symbol resolution into `RAST`.
 - [ ] Extract type checking into `TAST`.

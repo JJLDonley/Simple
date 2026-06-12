@@ -1,6 +1,6 @@
-#include "lang_parser.h"
+#include "CAST/parser.h"
 
-#include "lang_lexer.h"
+#include "Lexer/lexer.h"
 
 #include <limits>
 #include <stdexcept>

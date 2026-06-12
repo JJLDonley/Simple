@@ -148,6 +148,29 @@ bool LangLexerModuleTokenizesSwitchArrow() {
   });
 }
 
+bool LangCastParserModuleParsesArtifactSwitch() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () {\n"
+      "    return switch (self.v) {\n"
+      "      self.v > 0 => { local : i32 = 1; return local }\n"
+      "      default => return 0\n"
+      "    };\n"
+      "  }\n"
+      "}\n";
+  Simple::Lang::CAST::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  if (program.decls[0].kind != Simple::Lang::DeclKind::Artifact) return false;
+  if (program.decls[0].artifact.methods.size() != 1) return false;
+  const auto& body = program.decls[0].artifact.methods[0].body;
+  return body.size() == 1 &&
+         body[0].kind == Simple::Lang::StmtKind::Return &&
+         body[0].expr.kind == Simple::Lang::ExprKind::Switch;
+}
+
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
   Simple::Lang::Lexer lexer("main : i32 () { return 0; }");
   if (!lexer.Lex()) return false;
@@ -3882,6 +3905,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_reject_double_colon_member", LangRejectsDoubleColonMember},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
+  {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},

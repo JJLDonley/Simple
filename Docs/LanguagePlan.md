@@ -302,8 +302,17 @@ Remaining:
 
 ### Phase 2 — CAST Parser Split
 
+Status: in progress.
+
+Implemented:
+- Moved parser implementation to `Lang/src/CAST/parser.cpp`.
+- Updated CMake source paths.
+- Kept `lang_parser.h` as a compatibility include path.
+- Added parser coverage through the `CAST/parser.h` include path.
+
+Remaining:
 - Move parser node ownership to `CAST`.
-- Make parser return `CAST::Program`.
+- Make parser return `CAST::Program` as the canonical type.
 - Keep legacy aliases while tests migrate.
 - Separate parser recovery data from semantic AST nodes.
 
