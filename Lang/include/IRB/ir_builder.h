@@ -94,6 +94,7 @@ struct IrModule {
 // plus the structured IR skeleton introduced for the IRB -> IRE split.
 struct Module {
   IrModule ir;
+  std::vector<std::string> sir_lines;
   std::string sir_text;
 };
 

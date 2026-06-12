@@ -719,6 +719,26 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
   return false;
 }
 
+bool LangIreSerializesPrecomputedSirLines() {
+  Simple::Lang::IRB::Module module;
+  module.sir_text = "bad fallback";
+  module.sir_lines = {
+      "sigs:",
+      "  sig main: () -> i32",
+      "func main locals=0 stack=1 sig=main",
+      "  enter 0",
+      "  const.i32 42",
+      "  ret",
+      "end",
+      "entry main",
+  };
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::IRE::EmitSirModule(module, &sir, &error)) return false;
+  if (sir.find("bad fallback") != std::string::npos) return false;
+  return RunSirTextExpectExit(sir, 42);
+}
+
 bool LangIrbRejectsMissingTypedInput() {
   Simple::Lang::TAST::TypedProgram typed;
   Simple::Lang::IRB::Module module;
@@ -4713,6 +4733,7 @@ const TestCase kLangTests[] = {
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},
   {"lang_irb_collects_abi_flattening_metadata", LangIrbCollectsAbiFlatteningMetadata},
+  {"lang_ire_serializes_precomputed_sir_lines", LangIreSerializesPrecomputedSirLines},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},

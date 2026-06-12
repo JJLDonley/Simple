@@ -93,6 +93,14 @@ uint32_t ParseHeaderValue(const std::string& token, const std::string& prefix) {
   }
 }
 
+void PopulateSirLines(const std::string& sir, std::vector<std::string>* out) {
+  if (!out) return;
+  out->clear();
+  std::istringstream in(sir);
+  std::string line;
+  while (std::getline(in, line)) out->push_back(line);
+}
+
 void PopulateAllocationsFromSir(const std::string& sir, IrModule* out) {
   if (!out) return;
   out->signatures.clear();
@@ -204,6 +212,7 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   out->ir = {};
   out->sir_text.clear();
   if (!Simple::Lang::EmitSir(*typed.resolved->program, &out->sir_text, error)) return false;
+  PopulateSirLines(out->sir_text, &out->sir_lines);
   PopulateAllocationsFromSir(out->sir_text, &out->ir);
   PopulateArtifactLayouts(*typed.resolved->program, &out->ir);
   return true;

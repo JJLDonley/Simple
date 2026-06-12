@@ -138,7 +138,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [x] Move ABI flattening out of SIR emitter.
 - [x] Move stack tracking into IRB.
 - [x] Move local/global/import/signature allocation into IRB.
-- [ ] Make IRE serialize already-computed IR only.
+- [x] Make IRE serialize already-computed IR only.
 - [ ] Keep SIR output stable while replacing internals.
 - [ ] Add typed metadata builders instead of raw section byte buffers.
 
