@@ -82,8 +82,9 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] early function return inside branch blocks
   - [ ] `break`/`skip` behavior when nested in loops
   - [ ] no-fallthrough policy
-- [ ] Add resolved receiver model for artifact methods.
+- [x] Add resolved receiver model for artifact methods.
   - [x] Add initial RAST artifact member receiver refs from local variable types.
+  - [x] Persist artifact receiver type and symbol on RAST member refs.
 - [x] Disambiguate member access during resolution:
   - [x] Add initial RAST member reference collection for static and `self` member refs.
   - [x] module member

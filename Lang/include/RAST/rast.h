@@ -65,6 +65,8 @@ struct MemberRef {
   std::string member;
   std::string qualified_name;
   SymbolId symbol = kInvalidSymbolId;
+  std::string receiver_type;
+  SymbolId receiver_symbol = kInvalidSymbolId;
 };
 
 struct ResolvedProgram {

@@ -328,15 +328,27 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_reserved = false;
   bool saw_dl_manifest = false;
   bool saw_global_dl_manifest = false;
+  bool saw_artifact_receiver = false;
+  bool saw_self_receiver = false;
   for (const auto& ref : resolved.member_refs) {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactField &&
-        ref.qualified_name == "Box.v") saw_self = true;
+        ref.qualified_name == "Box.v") {
+      saw_self = true;
+      saw_self_receiver = ref.receiver_type == "Box" &&
+                          ref.receiver_symbol != Simple::Lang::RAST::kInvalidSymbolId &&
+                          resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Artifact;
+    }
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ModuleMember &&
         ref.qualified_name == "Config.Max") saw_module = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::EnumMember &&
         ref.qualified_name == "Mode.On") saw_enum = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactMethod &&
-        ref.qualified_name == "Box.score") saw_artifact_method = true;
+        ref.qualified_name == "Box.score") {
+      saw_artifact_method = true;
+      saw_artifact_receiver = ref.receiver_type == "Box" &&
+                              ref.receiver_symbol != Simple::Lang::RAST::kInvalidSymbolId &&
+                              resolved.symbols[ref.receiver_symbol].kind == Simple::Lang::RAST::SymbolKind::Artifact;
+    }
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ReservedModuleFunction &&
@@ -347,7 +359,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
         ref.qualified_name == "ffi.simple_add_i32" && ref.base == "glib") saw_global_dl_manifest = true;
   }
   return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern && saw_reserved &&
-         saw_dl_manifest && saw_global_dl_manifest;
+         saw_dl_manifest && saw_global_dl_manifest && saw_artifact_receiver && saw_self_receiver;
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {

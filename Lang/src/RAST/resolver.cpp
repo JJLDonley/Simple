@@ -295,18 +295,30 @@ MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_ki
   }
 }
 
+SymbolId FindArtifactSymbol(const ResolvedProgram* out, const std::string& name) {
+  if (!out || name.empty()) return kInvalidSymbolId;
+  auto it = out->by_qualified_name.find(name);
+  if (it == out->by_qualified_name.end()) return kInvalidSymbolId;
+  if (out->symbols[it->second].kind != SymbolKind::Artifact) return kInvalidSymbolId;
+  return it->second;
+}
+
 void AddResolvedMemberRef(ResolvedProgram* out,
                           MemberRefKind kind,
                           const std::string& base,
                           const std::string& member,
                           const std::string& qualified_name,
-                          SymbolId symbol) {
+                          SymbolId symbol,
+                          const std::string& receiver_type = {},
+                          SymbolId receiver_symbol = kInvalidSymbolId) {
   MemberRef ref;
   ref.kind = kind;
   ref.base = base;
   ref.member = member;
   ref.qualified_name = qualified_name;
   ref.symbol = symbol;
+  ref.receiver_type = receiver_type;
+  ref.receiver_symbol = receiver_symbol;
   out->member_refs.push_back(std::move(ref));
 }
 
@@ -373,9 +385,13 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
   if (expr.kind == ExprKind::Member && expr.op == "." && !expr.children.empty()) {
     const Expr& base = expr.children[0];
     std::string qualified;
+    std::string receiver_type;
+    SymbolId receiver_symbol = kInvalidSymbolId;
     MemberRefKind kind = MemberRefKind::Unknown;
     if (base.kind == ExprKind::Identifier && base.text == "self" && !current_artifact.empty()) {
       qualified = current_artifact + "." + expr.text;
+      receiver_type = current_artifact;
+      receiver_symbol = FindArtifactSymbol(out, receiver_type);
       kind = MemberRefKind::SelfMember;
     } else if (base.kind == ExprKind::Identifier) {
       auto dl_it = types.dl_modules.find(base.text);
@@ -386,6 +402,8 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
         auto type_it = types.types.find(base.text);
         if (type_it != types.types.end()) {
           qualified = type_it->second + "." + expr.text;
+          receiver_type = type_it->second;
+          receiver_symbol = FindArtifactSymbol(out, receiver_type);
           kind = MemberRefKind::ArtifactMember;
         } else {
           qualified = base.text + "." + expr.text;
@@ -398,7 +416,14 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
       if (kind != MemberRefKind::DLManifestCall) {
         kind = ClassifyMemberRefKind(kind, out->symbols[it->second].kind);
       }
-      AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
+      AddResolvedMemberRef(out,
+                           kind,
+                           base.text,
+                           expr.text,
+                           qualified,
+                           it->second,
+                           receiver_type,
+                           receiver_symbol);
     } else if (base.kind == ExprKind::Identifier) {
       std::string reserved_module;
       if (ResolveReservedImportAlias(out->program, base.text, &reserved_module) &&
