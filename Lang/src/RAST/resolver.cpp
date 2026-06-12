@@ -1,5 +1,7 @@
 #include "RAST/resolver.h"
 
+#include "lang_reserved.h"
+
 namespace Simple::Lang::RAST {
 namespace {
 
@@ -159,6 +161,47 @@ bool AddStmtBlockSymbols(ResolvedProgram* out,
   return true;
 }
 
+bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
+  if (canonical_module == "Core.IO") {
+    return member == "print" || member == "println" || member == "buffer_new" ||
+           member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
+  }
+  if (canonical_module == "Core.Math") {
+    return member == "abs" || member == "min" || member == "max" || member == "sqrt";
+  }
+  if (canonical_module == "Core.Time") return member == "mono_ns" || member == "wall_ns";
+  if (canonical_module == "Core.DL") {
+    return member == "open" || member == "sym" || member == "close" ||
+           member == "last_error" || member == "call_i32" || member == "call_i64" ||
+           member == "call_f32" || member == "call_f64" || member == "call_str0";
+  }
+  if (canonical_module == "Core.OS") {
+    return member == "args_count" || member == "args_get" || member == "env_get" ||
+           member == "cwd_get" || member == "time_mono_ns" || member == "time_wall_ns" ||
+           member == "sleep_ms";
+  }
+  if (canonical_module == "Core.FS") return member == "open" || member == "close" || member == "read" || member == "write";
+  if (canonical_module == "Core.Log") return member == "log";
+  return false;
+}
+
+bool ResolveReservedImportAlias(const Program* program, const std::string& alias, std::string* canonical) {
+  if (!program) return false;
+  for (const auto& decl : program->decls) {
+    if (decl.kind != DeclKind::Import) continue;
+    std::string resolved;
+    if (!Simple::Lang::CanonicalizeReservedImportPath(decl.import_decl.path, &resolved)) continue;
+    const std::string import_alias = decl.import_decl.has_alias
+        ? decl.import_decl.alias
+        : Simple::Lang::DefaultImportAlias(resolved);
+    if (import_alias == alias) {
+      if (canonical) *canonical = resolved;
+      return true;
+    }
+  }
+  return false;
+}
+
 bool AddCallableSymbols(ResolvedProgram* out,
                         const FuncDecl& fn,
                         const std::string& owner,
@@ -288,6 +331,17 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
     if (it != out->by_qualified_name.end()) {
       kind = ClassifyMemberRefKind(kind, out->symbols[it->second].kind);
       AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
+    } else if (base.kind == ExprKind::Identifier) {
+      std::string reserved_module;
+      if (ResolveReservedImportAlias(out->program, base.text, &reserved_module) &&
+          IsReservedModuleFunction(reserved_module, expr.text)) {
+        AddResolvedMemberRef(out,
+                             MemberRefKind::ReservedModuleFunction,
+                             base.text,
+                             expr.text,
+                             reserved_module + "." + expr.text,
+                             kInvalidSymbolId);
+      }
     }
   }
   for (const auto& child : expr.children) ResolveExprMemberRefs(out, child, current_artifact, types);

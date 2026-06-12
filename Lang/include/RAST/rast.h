@@ -55,6 +55,7 @@ enum class MemberRefKind : uint8_t {
   ArtifactMethod,
   EnumMember,
   ExternSymbol,
+  ReservedModuleFunction,
 };
 
 struct MemberRef {

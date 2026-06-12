@@ -289,6 +289,7 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
 
 bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
+      "import system.io\n"
       "Box :: Artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
@@ -299,6 +300,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "Mode :: Enum { Off = 0, On = 1 }\n"
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "main : i32 () {\n"
+      "  io.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
       "  x : i32 = Config.Max;\n"
       "  m : Mode = Mode.On;\n"
@@ -317,6 +319,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_enum = false;
   bool saw_artifact_method = false;
   bool saw_extern = false;
+  bool saw_reserved = false;
   for (const auto& ref : resolved.member_refs) {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactField &&
         ref.qualified_name == "Box.v") saw_self = true;
@@ -328,8 +331,10 @@ bool LangRastResolverDisambiguatesMemberRefs() {
         ref.qualified_name == "Box.score") saw_artifact_method = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::ReservedModuleFunction &&
+        ref.qualified_name == "Core.IO.println") saw_reserved = true;
   }
-  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern;
+  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern && saw_reserved;
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {

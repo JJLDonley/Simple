@@ -90,7 +90,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] artifact field
   - [x] artifact method
   - [x] enum member
-  - [ ] reserved module function
+  - [x] reserved module function
   - [x] extern symbol
   - [ ] DL manifest call
 
