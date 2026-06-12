@@ -56,12 +56,12 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] `ExternId`
 - [ ] Move contextual literal typing into TAST.
 - [ ] Persist expression types, mutability facts, and ABI facts on typed nodes.
-- [ ] Create canonical control-flow result:
-  - [ ] `may_fallthrough`
-  - [ ] `always_returns`
-  - [ ] `may_break`
-  - [ ] `may_skip`
-- [ ] Use the canonical control-flow result in both validation and lowering.
+- [x] Create canonical control-flow result:
+  - [x] `may_fallthrough`
+  - [x] `always_returns`
+  - [x] `may_break`
+  - [x] `may_skip`
+- [x] Use the canonical control-flow result in both validation and lowering.
 
 ## AST / Feature Independence
 

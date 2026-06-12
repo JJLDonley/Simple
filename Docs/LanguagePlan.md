@@ -348,6 +348,8 @@ Status: in progress.
 
 Implemented:
 - Added initial TAST type-checker boundary at `TAST/type_checker.h` and `Lang/src/TAST/type_checker.cpp`.
+- Added canonical `TAST::Flow` control-flow analysis.
+- Wired validation and SIR lowering to the shared control-flow result for definite returns.
 - Current TAST checker delegates to the legacy validator while carrying the resolved program boundary.
 
 Remaining:

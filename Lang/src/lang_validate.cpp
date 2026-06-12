@@ -8,6 +8,7 @@
 
 #include "lang_parser.h"
 #include "lang_reserved.h"
+#include "TAST/control_flow.h"
 
 namespace Simple::Lang {
 namespace {
@@ -1421,7 +1422,6 @@ bool CheckBoolCondition(const Expr& expr,
                         const ArtifactDecl* current_artifact,
                         std::string* error);
 
-bool StmtReturns(const Stmt& stmt);
 bool StmtsReturn(const std::vector<Stmt>& stmts);
 
 const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -4064,29 +4064,8 @@ bool CheckExpr(const Expr& expr,
   return true;
 }
 
-bool StmtReturns(const Stmt& stmt) {
-  switch (stmt.kind) {
-    case StmtKind::Return:
-      return true;
-    case StmtKind::IfChain:
-      if (stmt.if_branches.empty() || stmt.else_branch.empty()) return false;
-      for (const auto& branch : stmt.if_branches) {
-        if (!StmtsReturn(branch.second)) return false;
-      }
-      return StmtsReturn(stmt.else_branch);
-    case StmtKind::IfStmt:
-      if (stmt.if_then.empty() || stmt.if_else.empty()) return false;
-      return StmtsReturn(stmt.if_then) && StmtsReturn(stmt.if_else);
-    default:
-      return false;
-  }
-}
-
 bool StmtsReturn(const std::vector<Stmt>& stmts) {
-  for (const auto& stmt : stmts) {
-    if (StmtReturns(stmt)) return true;
-  }
-  return false;
+  return Simple::Lang::TAST::AnalyzeBlockFlow(stmts).always_returns;
 }
 
 bool CheckFunctionBody(const FuncDecl& fn,

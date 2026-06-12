@@ -8,6 +8,7 @@
 #include "RAST/resolver.h"
 #include "TAST/tast.h"
 #include "TAST/type_checker.h"
+#include "TAST/control_flow.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "lang_lexer.h"
@@ -292,6 +293,29 @@ bool LangIrbRejectsMissingTypedInput() {
   std::string error;
   if (Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   return error.find("missing typed program input") != std::string::npos;
+}
+
+bool LangTastControlFlowTracksReturnsAndBreaks() {
+  const char* src =
+      "main : i32 () {\n"
+      "  while (true) {\n"
+      "    if (true) { break; } else { skip; }\n"
+      "  }\n"
+      "  if (true) { return 1; } else { return 2; }\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  const auto& body = ast_program.decls[0].func.body;
+  Simple::Lang::TAST::Flow while_flow = Simple::Lang::TAST::AnalyzeStmtFlow(body[0]);
+  Simple::Lang::TAST::Flow block_flow = Simple::Lang::TAST::AnalyzeBlockFlow(body);
+  return while_flow.may_break &&
+         while_flow.may_skip &&
+         !while_flow.always_returns &&
+         block_flow.always_returns &&
+         !block_flow.may_fallthrough;
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
@@ -4034,6 +4058,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
+  {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
