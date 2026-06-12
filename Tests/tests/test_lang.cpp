@@ -9,6 +9,7 @@
 #include "TAST/tast.h"
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
+#include "TAST/types.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "lang_lexer.h"
@@ -352,6 +353,34 @@ bool LangTastCheckerRejectsTypeMismatch() {
   if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
   if (Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
+}
+
+bool LangTastLiteralTypingUsesExpectedType() {
+  Simple::Lang::AST::Expr expr;
+  expr.kind = Simple::Lang::ExprKind::Literal;
+  expr.literal_kind = Simple::Lang::LiteralKind::Integer;
+  expr.text = "42";
+
+  Simple::Lang::AST::TypeRef expected;
+  expected.name = "u64";
+  Simple::Lang::AST::TypeRef actual;
+  std::string error;
+  if (!Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
+  return actual.name == "u64";
+}
+
+bool LangTastLiteralTypingRejectsInvalidExpectedType() {
+  Simple::Lang::AST::Expr expr;
+  expr.kind = Simple::Lang::ExprKind::Literal;
+  expr.literal_kind = Simple::Lang::LiteralKind::String;
+  expr.text = "nope";
+
+  Simple::Lang::AST::TypeRef expected;
+  expected.name = "i32";
+  Simple::Lang::AST::TypeRef actual;
+  std::string error;
+  if (Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
+  return error.find("literal is not compatible") != std::string::npos;
 }
 
 bool LangIrbIrePipelineEmitsRunnableSir() {
@@ -4152,6 +4181,8 @@ const TestCase kLangTests[] = {
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
+  {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
+  {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},

@@ -56,6 +56,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] `EnumId`
   - [ ] `ExternId`
 - [ ] Move contextual literal typing into TAST.
+  - [x] Add initial TAST literal typing helpers.
 - [ ] Persist expression types, mutability facts, and ABI facts on typed nodes.
 - [x] Create canonical control-flow result:
   - [x] `may_fallthrough`
