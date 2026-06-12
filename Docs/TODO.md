@@ -17,6 +17,7 @@ This list tracks work needed to improve feature independence, compiler structure
 - [ ] Add real `CAST -> AST` normalization pass.
   - [x] Add initial `CAST -> AST` lowering boundary.
 - [ ] Extract name/import/symbol resolution into `RAST`.
+  - [x] Add initial RAST symbol collection boundary.
 - [ ] Extract type checking into `TAST`.
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.

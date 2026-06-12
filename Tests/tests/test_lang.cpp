@@ -5,6 +5,7 @@
 #include "AST/ast.h"
 #include "AST/lower_cast.h"
 #include "RAST/rast.h"
+#include "RAST/resolver.h"
 #include "TAST/tast.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
@@ -188,6 +189,49 @@ bool LangAstLowerCastPreservesProgramShape() {
   if (ast_program.decls[0].func.body.size() != 2) return false;
   return ast_program.decls[0].func.body[0].kind == Simple::Lang::StmtKind::VarDecl &&
          ast_program.decls[0].func.body[1].kind == Simple::Lang::StmtKind::Return;
+}
+
+bool LangRastResolverCollectsQualifiedSymbols() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () { return self.v; }\n"
+      "}\n"
+      "Config :: Module {\n"
+      "  Max :: i32 = 42\n"
+      "}\n"
+      "Mode :: Enum { Off = 0, On = 1 }\n"
+      "main : i32 () { return Config.Max; }\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  return resolved.by_qualified_name.find("Box") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Box.v") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Box.score") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Config") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Config.Max") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("Mode.On") != resolved.by_qualified_name.end() &&
+         resolved.by_qualified_name.find("main") != resolved.by_qualified_name.end();
+}
+
+bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  v : i32\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  return error.find("duplicate symbol: Box.v") != std::string::npos;
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
@@ -3926,6 +3970,8 @@ const TestCase kLangTests[] = {
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
+  {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
+  {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},

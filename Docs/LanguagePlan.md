@@ -331,9 +331,16 @@ Remaining:
 
 ### Phase 4 — RAST Resolver
 
+Status: in progress.
+
+Implemented:
+- Added initial RAST symbol model and `ResolveAstProgram` boundary.
+- Added top-level, artifact member, module member, enum member, import, and extern symbol collection.
+
+Remaining:
 - Extract symbol/import/member resolution from `lang_validate.cpp`.
-- Add explicit symbol table data structures.
 - Make later phases use resolved symbol ids instead of repeated string lookup.
+- Add full scope-aware local/function body resolution.
 
 ### Phase 5 — TAST Type Checker
 

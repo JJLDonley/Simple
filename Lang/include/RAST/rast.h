@@ -1,10 +1,9 @@
 #pragma once
 
-// Phase-0 RAST facade.
-//
-// RAST is the resolved AST target: imports, scopes, symbols, and member
-// bindings. The current validator resolves directly over the legacy AST, so
-// this wrapper records the intended boundary without changing behavior yet.
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "AST/ast.h"
 
@@ -15,6 +14,39 @@ using Decl = Simple::Lang::AST::Decl;
 using Stmt = Simple::Lang::AST::Stmt;
 using Expr = Simple::Lang::AST::Expr;
 using TypeRef = Simple::Lang::AST::TypeRef;
+
+using SymbolId = uint32_t;
+
+constexpr SymbolId kInvalidSymbolId = 0xFFFFFFFFu;
+
+enum class SymbolKind : uint8_t {
+  Import,
+  Extern,
+  Function,
+  Global,
+  Artifact,
+  ArtifactField,
+  ArtifactMethod,
+  Module,
+  ModuleVariable,
+  ModuleFunction,
+  Enum,
+  EnumMember,
+};
+
+struct Symbol {
+  SymbolId id = kInvalidSymbolId;
+  SymbolKind kind = SymbolKind::Global;
+  std::string name;
+  std::string qualified_name;
+  SymbolId parent = kInvalidSymbolId;
+};
+
+struct ResolvedProgram {
+  const Program* program = nullptr;
+  std::vector<Symbol> symbols;
+  std::unordered_map<std::string, SymbolId> by_qualified_name;
+};
 
 struct ResolvedProgramView {
   const Program* program = nullptr;
