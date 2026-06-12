@@ -202,6 +202,59 @@ bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
   return error.find("condition must be bool") != std::string::npos;
 }
 
+bool LangNestedSwitchBranchBlockLocalRuntime() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () {\n"
+      "    return switch (self.v) {\n"
+      "      self.v > 0 => {\n"
+      "        local : i32 = self.v + 40;\n"
+      "        return local\n"
+      "      }\n"
+      "      default => return 1\n"
+      "    };\n"
+      "  }\n"
+      "}\n"
+      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 42);
+}
+
+bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
+  const char* src =
+      "Box :: Artifact {\n"
+      "  v : i32\n"
+      "  score : i32 () {\n"
+      "    while (true) {\n"
+      "      out : i32 = switch (self.v) {\n"
+      "        self.v > 0 => {\n"
+      "          |> (self.v == 2) { break }\n"
+      "          |> default { self.v = 3; }\n"
+      "          return 1\n"
+      "        }\n"
+      "        default => return 0\n"
+      "      };\n"
+      "      return out;\n"
+      "    }\n"
+      "    return 9;\n"
+      "  }\n"
+      "}\n"
+      "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 9);
+}
+
 bool LangSirTopLevelScriptExecutes() {
   const char* src =
       "add : i32 (a : i32, b : i32) { return a + b; }\n"
@@ -3723,6 +3776,8 @@ const TestCase kLangTests[] = {
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},
+  {"lang_nested_switch_branch_block_local_runtime", LangNestedSwitchBranchBlockLocalRuntime},
+  {"lang_nested_switch_branch_preserves_loop_context_runtime", LangNestedSwitchBranchPreservesLoopContextRuntime},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_sir_main_overrides_top_level", LangSirMainOverridesTopLevel},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},

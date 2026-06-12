@@ -69,13 +69,21 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        bool require_explicit_return,
                        const TypeRef* expected_type,
                        TypeRef* out_type,
-                       std::string* error);
+                       std::string* error,
+                       const std::unordered_set<std::string>* type_params = nullptr,
+                       const TypeRef* expected_return = nullptr,
+                       bool return_is_void = false,
+                       int loop_depth = 0);
 bool ValidateVarInitExpr(const VarDecl& var,
                          const ValidateContext& ctx,
                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                          const ArtifactDecl* current_artifact,
                          bool require_switch_returns,
-                         std::string* error);
+                         std::string* error,
+                         const std::unordered_set<std::string>* type_params = nullptr,
+                         const TypeRef* expected_return = nullptr,
+                         bool return_is_void = false,
+                         int loop_depth = 0);
 bool GetCallTargetInfo(const Expr& callee,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -2642,7 +2650,10 @@ bool CheckStmt(const Stmt& stmt,
     case StmtKind::Assign:
       if (!CheckExpr(stmt.target, ctx, scopes, current_artifact, error)) return false;
       if (!CheckAssignmentTarget(stmt.target, ctx, scopes, current_artifact, error)) return false;
-      if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
+      if (stmt.expr.kind != ExprKind::Switch &&
+          !CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) {
+        return false;
+      }
       {
         TypeRef target_type;
         TypeRef value_type;
@@ -2656,7 +2667,11 @@ bool CheckStmt(const Stmt& stmt,
                                          true,
                                          have_target ? &target_type : nullptr,
                                          &value_type,
-                                         error);
+                                         error,
+                                         &type_params,
+                                         expected_return,
+                                         return_is_void,
+                                         loop_depth);
         } else {
           have_value = InferExprType(stmt.expr, ctx, scopes, current_artifact, &value_type);
         }
@@ -2736,7 +2751,11 @@ bool CheckStmt(const Stmt& stmt,
                                  scopes,
                                  current_artifact,
                                  true,
-                                 error)) {
+                                 error,
+                                 &type_params,
+                                 expected_return,
+                                 return_is_void,
+                                 loop_depth)) {
           return false;
         }
         if (stmt.var_decl.type.pointer_depth > 0) {
@@ -3045,9 +3064,16 @@ bool ValidateVarInitExpr(const VarDecl& var,
                          const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                          const ArtifactDecl* current_artifact,
                          bool require_switch_returns,
-                         std::string* error) {
+                         std::string* error,
+                         const std::unordered_set<std::string>* type_params,
+                         const TypeRef* expected_return,
+                         bool return_is_void,
+                         int loop_depth) {
   if (!var.has_init_expr) return true;
-  if (!CheckExpr(var.init_expr, ctx, scopes, current_artifact, error)) return false;
+  if (var.init_expr.kind != ExprKind::Switch &&
+      !CheckExpr(var.init_expr, ctx, scopes, current_artifact, error)) {
+    return false;
+  }
   if (var.init_expr.kind == ExprKind::FnLiteral) {
     if (!CheckFnLiteralAgainstType(var.init_expr, var.type, error)) {
       return false;
@@ -3103,7 +3129,11 @@ bool ValidateVarInitExpr(const VarDecl& var,
                           require_switch_returns,
                           &var.type,
                           &init_type,
-                          error)) {
+                          error,
+                          type_params,
+                          expected_return,
+                          return_is_void,
+                          loop_depth)) {
       have_init_type = true;
     } else {
       return false;
@@ -3176,7 +3206,11 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        bool require_explicit_return,
                        const TypeRef* expected_type,
                        TypeRef* out_type,
-                       std::string* error) {
+                       std::string* error,
+                       const std::unordered_set<std::string>* type_params,
+                       const TypeRef* expected_return,
+                       bool return_is_void,
+                       int loop_depth) {
   if (expr.kind != ExprKind::Switch || expr.children.empty()) {
     if (error) *error = "invalid switch expression";
     return false;
@@ -3186,6 +3220,8 @@ bool AnalyzeSwitchExpr(const Expr& expr,
     if (error) *error = "switch requires at least one branch";
     return false;
   }
+  const std::unordered_set<std::string> empty_type_params;
+  const auto& branch_type_params = type_params ? *type_params : empty_type_params;
   size_t default_count = 0;
   bool has_type = false;
   TypeRef common;
@@ -3203,14 +3239,13 @@ bool AnalyzeSwitchExpr(const Expr& expr,
     auto branch_scopes = scopes;
     if (branch.is_block) {
       branch_scopes.emplace_back();
-      std::unordered_set<std::string> no_type_params;
       for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
         if (!CheckStmt(branch.block[stmt_index],
                        ctx,
-                       no_type_params,
-                       nullptr,
-                       false,
-                       0,
+                       branch_type_params,
+                       expected_return,
+                       return_is_void,
+                       loop_depth,
                        branch_scopes,
                        current_artifact,
                        error)) {
