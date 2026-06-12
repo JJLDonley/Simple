@@ -1203,7 +1203,7 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel"};
+      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1251,6 +1251,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
+      {"Random", {"seed", "i32", "range", "f64"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
@@ -1556,6 +1557,27 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "sleep_ms") {
       out->params = {"milliseconds"};
       out->return_type = "void";
+      return true;
+    }
+    return false;
+  }
+  if (module == "Random") {
+    if (member == "seed") {
+      out->params = {"seed"};
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "i32") {
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "range") {
+      out->params = {"min", "max"};
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "f64") {
+      out->return_type = "f64";
       return true;
     }
     return false;
@@ -2400,7 +2422,7 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel",
+      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random",
   };
   return kReserved.find(name) != kReserved.end();
 }

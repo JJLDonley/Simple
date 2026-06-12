@@ -17,6 +17,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <random>
 #include <sstream>
 #include <thread>
 #include <tuple>
@@ -63,6 +64,8 @@ ChannelRegistry<double> g_channel_f64;
 ChannelRegistry<bool> g_channel_bool;
 ChannelRegistry<std::u16string> g_channel_string;
 ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
+std::mutex g_random_mutex;
+std::mt19937_64 g_random_engine{std::random_device{}()};
 
 template <typename T>
 std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
@@ -1738,6 +1741,65 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (ms > 0) {
           std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         }
+        return true;
+      }
+    }
+    if (mod == "core.random") {
+      if (sym == "seed") {
+        out_has_ret = false;
+        if (args.size() != 1) {
+          out_error = "core.random.seed arg count mismatch";
+          return false;
+        }
+        std::lock_guard<std::mutex> lock(g_random_mutex);
+        g_random_engine.seed(static_cast<uint64_t>(UnpackI64(args[0])));
+        return true;
+      }
+      if (sym == "i32") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.random.i32 return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.random.i32 arg count mismatch";
+          return false;
+        }
+        std::lock_guard<std::mutex> lock(g_random_mutex);
+        out_ret = PackI32(static_cast<int32_t>(g_random_engine() & 0x7fffffffu));
+        return true;
+      }
+      if (sym == "range") {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "core.random.range return type mismatch";
+          return false;
+        }
+        if (args.size() != 2) {
+          out_error = "core.random.range arg count mismatch";
+          return false;
+        }
+        int32_t lo = UnpackI32(args[0]);
+        int32_t hi = UnpackI32(args[1]);
+        if (hi <= lo) {
+          out_ret = PackI32(lo);
+          return true;
+        }
+        std::uniform_int_distribution<int32_t> dist(lo, hi - 1);
+        std::lock_guard<std::mutex> lock(g_random_mutex);
+        out_ret = PackI32(dist(g_random_engine));
+        return true;
+      }
+      if (sym == "f64") {
+        if (ret_kind != TypeKind::F64) {
+          out_error = "core.random.f64 return type mismatch";
+          return false;
+        }
+        if (!args.empty()) {
+          out_error = "core.random.f64 arg count mismatch";
+          return false;
+        }
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        std::lock_guard<std::mutex> lock(g_random_mutex);
+        out_ret = PackF64Bits(F64ToBits(dist(g_random_engine)));
         return true;
       }
     }

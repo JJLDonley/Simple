@@ -349,6 +349,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
   }
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
+  if (resolved == "Random") return {"seed", "i32", "range", "f64"};
   if (resolved == "Channel") {
     return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
             "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
@@ -644,6 +645,31 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (dl_member == "call_str0") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Random") {
+    if (member == "seed") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "i32") {
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "range") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "f64") {
+      out->return_type = MakeSimpleType("f64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -3701,7 +3727,7 @@ bool CheckExpr(const Expr& expr,
             IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
             IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread") ||
-            IsReservedModuleEnabled(ctx, "Channel")) {
+            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "Random")) {
           return true;
         }
       }

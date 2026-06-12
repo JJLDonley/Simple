@@ -1,0 +1,12 @@
+import Random
+
+main : i32 () {
+  Random.seed(123)
+  a : i32 = Random.range(5, 10)
+  b : i32 = Random.i32()
+  x : f64 = Random.f64()
+  if (a < 5 || a >= 10) { return 0 }
+  if (b < 0) { return 0 }
+  if (x < 0.0 || x >= 1.0) { return 0 }
+  return 1
+}

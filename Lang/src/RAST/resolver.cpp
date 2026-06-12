@@ -183,6 +183,9 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "Thread") {
     return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
   }
+  if (canonical_module == "Random") {
+    return member == "seed" || member == "i32" || member == "range" || member == "f64";
+  }
   if (canonical_module == "Channel") {
     return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
            member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||

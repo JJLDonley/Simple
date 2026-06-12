@@ -1,0 +1,11 @@
+import Random
+using Random
+
+main : i32 () {
+  seed(7)
+  a : i32 = range(1, 4)
+  x : f64 = Random.f64()
+  if (a < 1 || a >= 4) { return 0 }
+  if (x < 0.0 || x >= 1.0) { return 0 }
+  return 1
+}

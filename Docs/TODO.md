@@ -30,7 +30,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [ ] `FS`: read/write text, read/write bytes, copy, remove, mkdir, mkdirAll, listDir, cwd, setCwd
   - [ ] `Env`: args, get, set, platform, arch, exePath
   - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers
-  - [ ] `Random`: seed, integer ranges, float ranges
+  - [x] `Random`: seed, `i32`, integer ranges, `f64`
   - [ ] `Log`: levels, stderr/stdout/file sinks
   - [ ] `Bytes`/`Buffer`: endian-safe binary reads/writes, slice/copy helpers
   - [ ] `Json`: parse/stringify with handle-based API initially
