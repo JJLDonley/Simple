@@ -325,6 +325,25 @@ bool LangIfChainAllBranchesReturnNoFallbackRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangSwitchExprStmtBranchLocalRuntime() {
+  const char* src =
+      "main : i32 () {\n"
+      "  mode : i32 = 1;\n"
+      "  switch (mode) {\n"
+      "    mode == 1 => { local : i32 = 42; return local }\n"
+      "    default => return 0\n"
+      "  };\n"
+      "  return 7;\n"
+      "}\n";
+  std::string sir;
+  std::string error;
+  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+    std::cerr << error << "\n";
+    return false;
+  }
+  return RunSirTextExpectExit(sir, 7);
+}
+
 bool LangSirTopLevelScriptExecutes() {
   const char* src =
       "add : i32 (a : i32, b : i32) { return a + b; }\n"
@@ -3852,6 +3871,7 @@ const TestCase kLangTests[] = {
   {"lang_nested_if_sibling_locals_runtime", LangNestedIfSiblingLocalsRuntime},
   {"lang_conditional_return_main_implicit_fallback_runtime", LangConditionalReturnMainImplicitFallbackRuntime},
   {"lang_if_chain_all_branches_return_no_fallback_runtime", LangIfChainAllBranchesReturnNoFallbackRuntime},
+  {"lang_switch_expr_stmt_branch_local_runtime", LangSwitchExprStmtBranchLocalRuntime},
   {"lang_sir_top_level_script_executes", LangSirTopLevelScriptExecutes},
   {"lang_sir_main_overrides_top_level", LangSirMainOverridesTopLevel},
   {"lang_top_level_return_disallowed", LangTopLevelReturnDisallowed},

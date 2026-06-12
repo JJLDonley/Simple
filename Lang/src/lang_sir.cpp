@@ -1271,8 +1271,18 @@ bool InferSwitchExprType(const Expr& expr,
     }
     const Expr* value_expr = nullptr;
     if (!GetSwitchBranchValueExpr(branch, &value_expr, error)) return false;
+    EmitState branch_st = st;
+    if (branch.is_block) {
+      for (size_t stmt_index = 0; stmt_index + 1 < branch.block.size(); ++stmt_index) {
+        const Stmt& prefix = branch.block[stmt_index];
+        if (prefix.kind != StmtKind::VarDecl) continue;
+        TypeRef cloned;
+        if (!CloneTypeRef(prefix.var_decl.type, &cloned)) return false;
+        branch_st.local_types[prefix.var_decl.name] = std::move(cloned);
+      }
+    }
     TypeRef value_type;
-    if (!InferExprType(*value_expr, st, &value_type, error)) return false;
+    if (!InferExprType(*value_expr, branch_st, &value_type, error)) return false;
     if (!has_type) {
       if (!CloneTypeRef(value_type, &common)) return false;
       has_type = true;
