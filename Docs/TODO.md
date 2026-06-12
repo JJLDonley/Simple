@@ -101,7 +101,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] artifact methods
   - [x] module functions
   - [x] switch expressions
-  - [ ] nested closures
+  - [x] nested closures
   - [x] lists/arrays
   - [x] extern boundaries
   - [x] generics

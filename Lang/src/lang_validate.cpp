@@ -3493,6 +3493,46 @@ bool CheckCompoundAssignOp(const std::string& op,
   return true;
 }
 
+bool LooksLikeFnLiteralStart(const std::vector<Token>& tokens, size_t index) {
+  if (index >= tokens.size() || tokens[index].kind != TokenKind::LParen) return false;
+  ++index;
+  if (index < tokens.size() && tokens[index].kind == TokenKind::RParen) {
+    ++index;
+    return index < tokens.size() && tokens[index].kind == TokenKind::LBrace;
+  }
+  bool expect_name = true;
+  while (index < tokens.size()) {
+    if (expect_name) {
+      if (tokens[index].kind != TokenKind::Identifier) return false;
+      expect_name = false;
+      ++index;
+      continue;
+    }
+    if (tokens[index].kind == TokenKind::Comma) {
+      expect_name = true;
+      ++index;
+      continue;
+    }
+    if (tokens[index].kind == TokenKind::RParen) {
+      ++index;
+      return index < tokens.size() && tokens[index].kind == TokenKind::LBrace;
+    }
+    return false;
+  }
+  return false;
+}
+
+bool ContainsNestedFnLiteralTokens(const std::vector<Token>& tokens) {
+  for (size_t i = 0; i + 1 < tokens.size(); ++i) {
+    if ((tokens[i].kind == TokenKind::Assign || tokens[i].kind == TokenKind::KwReturn ||
+         tokens[i].kind == TokenKind::Comma || tokens[i].kind == TokenKind::LBracket) &&
+        LooksLikeFnLiteralStart(tokens, i + 1)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error) {
@@ -3514,6 +3554,10 @@ bool CheckFnLiteralAgainstType(const Expr& fn_expr,
       if (error) *error = "fn literal parameter type mismatch";
       return false;
     }
+  }
+  if (ContainsNestedFnLiteralTokens(fn_expr.fn_body_tokens)) {
+    if (error) *error = "nested fn literals are not supported";
+    return false;
   }
   return true;
 }

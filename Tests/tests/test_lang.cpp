@@ -1209,6 +1209,20 @@ bool LangStressProcedureMemberCallRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangStressProcedureNestedClosureRejected() {
+  const char* src =
+      "main : i32 () {\n"
+      "  outer : fn i32 () = () {\n"
+      "    inner : fn i32 () = () { return 42 }\n"
+      "    return inner()\n"
+      "  }\n"
+      "  return outer()\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("nested fn literals are not supported") != std::string::npos;
+}
+
 bool LangStressProcedureListArrayRejected() {
   const char* src =
       "main : i32 () {\n"
@@ -4566,6 +4580,7 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
   {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
+  {"lang_stress_procedure_nested_closure_rejected", LangStressProcedureNestedClosureRejected},
   {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
   {"lang_stress_procedure_generic_emission_rejected", LangStressProcedureGenericEmissionRejected},
