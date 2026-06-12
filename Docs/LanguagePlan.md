@@ -318,7 +318,14 @@ Remaining:
 
 ### Phase 3 — AST Normalization
 
-- Add `CAST -> AST` lowering pass.
+Status: in progress.
+
+Implemented:
+- Added initial `CAST -> AST` lowering boundary at `AST/lower_cast.h` and `Lang/src/AST/lower_cast.cpp`.
+- Current lowerer preserves behavior with an identity tree copy while the AST node model is separated.
+
+Remaining:
+- Add real normalization logic to `CAST -> AST` lowering.
 - Move desugaring/normalization out of parser and validator.
 - Make validator consume normalized `AST::Program`.
 

@@ -3,6 +3,7 @@
 #include "CAST/cast.h"
 #include "CAST/parser.h"
 #include "AST/ast.h"
+#include "AST/lower_cast.h"
 #include "RAST/rast.h"
 #include "TAST/tast.h"
 #include "IRB/ir_builder.h"
@@ -169,6 +170,24 @@ bool LangCastParserModuleParsesArtifactSwitch() {
   return body.size() == 1 &&
          body[0].kind == Simple::Lang::StmtKind::Return &&
          body[0].expr.kind == Simple::Lang::ExprKind::Switch;
+}
+
+bool LangAstLowerCastPreservesProgramShape() {
+  const char* src =
+      "main : i32 () {\n"
+      "  x : i32 = 40 + 2;\n"
+      "  return x;\n"
+      "}\n";
+  Simple::Lang::CAST::Program cast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  Simple::Lang::AST::Program ast_program;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (ast_program.decls.size() != 1) return false;
+  if (ast_program.decls[0].kind != Simple::Lang::DeclKind::Function) return false;
+  if (ast_program.decls[0].func.body.size() != 2) return false;
+  return ast_program.decls[0].func.body[0].kind == Simple::Lang::StmtKind::VarDecl &&
+         ast_program.decls[0].func.body[1].kind == Simple::Lang::StmtKind::Return;
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
@@ -3906,6 +3925,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
+  {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
   {"lang_nested_artifact_method_switch_if_chain_bad_condition", LangNestedArtifactMethodSwitchIfChainBadCondition},
