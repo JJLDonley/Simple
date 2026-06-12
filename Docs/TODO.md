@@ -107,13 +107,13 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] generics
   - [x] member calls
 - [x] Audit closure/upvalue semantics.
-- [ ] Finish or explicitly reject unsupported generic cases:
-  - [ ] generic functions
-  - [ ] generic artifacts
-  - [ ] generic methods
-  - [ ] type-argument inference
-  - [ ] specialization naming/mangling
-  - [ ] duplicate specialization handling
+- [x] Finish or explicitly reject unsupported generic cases:
+  - [x] generic functions
+  - [x] generic artifacts
+  - [x] generic methods
+  - [x] type-argument inference
+  - [x] specialization naming/mangling
+  - [x] duplicate specialization handling
 - [ ] Finish or explicitly reject unsupported pointer cases:
   - [ ] pointer storage model
   - [ ] pointer mutability

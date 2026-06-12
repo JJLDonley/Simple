@@ -1269,6 +1269,66 @@ bool LangStressProcedureGenericEmissionRejected() {
   return error.find("generic functions not supported") != std::string::npos;
 }
 
+bool LangGenericFunctionEmissionRejected() {
+  const char* src =
+      "id<T> : T (x : T) { return x }\n"
+      "main : i32 () { return id<i32>(42) }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("generic functions not supported") != std::string::npos;
+}
+
+bool LangGenericArtifactEmissionRejected() {
+  const char* src =
+      "Box<T> :: artifact { v : T }\n"
+      "main : i32 () { b : Box<i32> = { 42 }; return b.v }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("unsupported type for local 'b'") != std::string::npos;
+}
+
+bool LangGenericMethodParseRejected() {
+  const char* src =
+      "Box :: artifact { get<T> : T (x : T) { return x } }\n"
+      "main : i32 () { return 0 }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  return error.find("expected ':' or '::' after member name") != std::string::npos;
+}
+
+bool LangGenericTypeArgInferenceEmissionRejected() {
+  const char* src =
+      "id<T> : T (x : T) { return x }\n"
+      "main : i32 () { return id(42) }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("generic functions not supported") != std::string::npos;
+}
+
+bool LangGenericSpecializationNamingRejected() {
+  const char* src =
+      "id<T> : T (x : T) { return x }\n"
+      "main : i32 () { a : i32 = id<i32>(1); b : bool = id<bool>(true); return a }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("generic functions not supported") != std::string::npos;
+}
+
+bool LangGenericDuplicateSpecializationRejected() {
+  const char* src =
+      "id<T> : T (x : T) { return x }\n"
+      "main : i32 () { a : i32 = id<i32>(1); b : i32 = id<i32>(2); return a + b }";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("generic functions not supported") != std::string::npos;
+}
+
 bool LangStressProcedureArgTypeStrict() {
   const char* src =
       "main : i32 () {\n"
@@ -4598,6 +4658,12 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
   {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
   {"lang_stress_procedure_generic_emission_rejected", LangStressProcedureGenericEmissionRejected},
+  {"lang_generic_function_emission_rejected", LangGenericFunctionEmissionRejected},
+  {"lang_generic_artifact_emission_rejected", LangGenericArtifactEmissionRejected},
+  {"lang_generic_method_parse_rejected", LangGenericMethodParseRejected},
+  {"lang_generic_type_arg_inference_emission_rejected", LangGenericTypeArgInferenceEmissionRejected},
+  {"lang_generic_specialization_naming_rejected", LangGenericSpecializationNamingRejected},
+  {"lang_generic_duplicate_specialization_rejected", LangGenericDuplicateSpecializationRejected},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
