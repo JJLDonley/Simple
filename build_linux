@@ -41,20 +41,20 @@ EOT
 }
 
 report_path_status() {
-  if command -v simple >/dev/null 2>&1; then
+  if command -v svm >/dev/null 2>&1; then
     local resolved
-    resolved="$(command -v simple)"
-    echo "PATH check: simple is available at $resolved"
+    resolved="$(command -v svm)"
+    echo "PATH check: svm is available at $resolved"
     local ver
-    if ver="$(simple --version 2>/dev/null)"; then
+    if ver="$(svm --version 2>/dev/null)"; then
       echo "PATH check: $ver"
-    elif ver="$(simple -v 2>/dev/null)"; then
+    elif ver="$(svm -v 2>/dev/null)"; then
       echo "PATH check: $ver"
     else
-      echo "PATH check: unable to read version from PATH simple"
+      echo "PATH check: unable to read version from PATH svm"
     fi
   else
-    echo "PATH check: simple is not on PATH"
+    echo "PATH check: svm is not on PATH"
     echo "PATH hint: add $BIN_DIR to your PATH"
   fi
 }
@@ -177,6 +177,7 @@ build_legacy_unix() {
     "${link_flags[@]}" \
     -o "$COMPAT_BIN_DIR/simplevm"
   cp "$COMPAT_BIN_DIR/simplevm" "$COMPAT_BIN_DIR/simple"
+  cp "$COMPAT_BIN_DIR/simplevm" "$COMPAT_BIN_DIR/svm"
 
   if [[ "$RUN_TESTS" -eq 1 ]]; then
     local test_sources=(
@@ -235,6 +236,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
       if [[ -x "$p" ]]; then
         cp "$p" "$COMPAT_BIN_DIR/simplevm"
         cp "$p" "$COMPAT_BIN_DIR/simple"
+        cp "$p" "$COMPAT_BIN_DIR/svm"
         break
       fi
     done
@@ -269,6 +271,7 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
   [[ -x "$COMPAT_BIN_DIR/simplevm" ]] || { echo "simplevm not found" >&2; exit 1; }
   cp "$COMPAT_BIN_DIR/simplevm" "$STAGE_DIR/bin/simplevm"
   cp "$COMPAT_BIN_DIR/simple" "$STAGE_DIR/bin/simple"
+  cp "$COMPAT_BIN_DIR/svm" "$STAGE_DIR/bin/svm"
 
   for lib in \
     "$COMPAT_BIN_DIR/libsimplevm_runtime.so" \
@@ -297,6 +300,7 @@ if [[ "$SKIP_INSTALL" -eq 0 ]]; then
     mkdir -p "$BIN_DIR"
     ln -sfn "${PREFIX}/current/bin/simple" "${BIN_DIR}/simple"
     ln -sfn "${PREFIX}/current/bin/simplevm" "${BIN_DIR}/simplevm"
+    ln -sfn "${PREFIX}/current/bin/svm" "${BIN_DIR}/svm"
     report_path_status
   fi
 fi

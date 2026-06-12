@@ -2,6 +2,52 @@
 
 This list tracks work needed to improve feature independence, compiler structure, runtime safety, and tooling. It intentionally excludes `i128`/`u128` implementation work.
 
+## High Priority: Native SVM Standard Library
+
+All Simple standard/core library modules should be implemented as native C++ runtime functions integrated into SVM. They should not be implemented as DL libraries.
+
+- [ ] Add `Thread` core module:
+  - [ ] `Thread.sleep(ms)`
+  - [ ] `Thread.yield()`
+  - [ ] `Thread.hardwareConcurrency()`
+  - [ ] VM thread/job handle type
+  - [ ] `Thread.spawn(...)` for isolated VM jobs
+  - [ ] `Thread.join(handle)`
+  - [ ] `Thread.detach(handle)`
+  - [ ] error propagation from worker jobs
+  - [ ] shutdown/cancellation policy
+- [ ] Add `Channel` core module for safe message passing between VM jobs:
+  - [ ] concrete primitive channels first: `ChannelI32`, `ChannelI64`, `ChannelF32`, `ChannelF64`, `ChannelBool`
+  - [ ] `ChannelString`
+  - [ ] `ChannelBytes`
+  - [ ] `send`, `trySend`, `recv`, `tryRecv`, `close`
+  - [ ] non-blocking receive pattern for game loops
+  - [ ] clear rules: channels copy values; no shared mutable Simple heap in first version
+  - [ ] later generic `Channel<T>` once runtime/type support is ready
+- [ ] Expand native stdlib modules:
+  - [ ] `Path`: join, dirname, basename, ext, normalize, exists, isFile, isDir
+  - [ ] `FS`: read/write text, read/write bytes, copy, remove, mkdir, mkdirAll, listDir, cwd, setCwd
+  - [ ] `Env`: args, get, set, platform, arch, exePath
+  - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers
+  - [ ] `Random`: seed, integer ranges, float ranges
+  - [ ] `Log`: levels, stderr/stdout/file sinks
+  - [ ] `Bytes`/`Buffer`: endian-safe binary reads/writes, slice/copy helpers
+  - [ ] `Json`: parse/stringify with handle-based API initially
+  - [ ] `Net`: TCP/UDP sockets suitable for servers and games
+  - [ ] `Http`: simple GET/POST convenience API
+- [ ] Define stdlib native binding architecture:
+  - [ ] registration table for native modules/functions
+  - [ ] type-safe argument/result marshalling from VM values
+  - [ ] shared diagnostics for invalid native calls
+  - [ ] documentation generation from native binding metadata
+  - [ ] tests for each stdlib function on all supported OSes
+
+## Low Priority: Packaging / Distribution
+
+- [ ] Add `svm package` after core runtime/library work stabilizes.
+- [ ] Current-platform package first; multi-target package assembly later.
+- [ ] Package embedded-SBC stubs, assets, and developer-provided dynamic libraries without trying to manage application-specific DL policy.
+
 ## Lang Architecture
 
 - [ ] Replace facade-only Lang split with real implementation modules:
@@ -196,7 +242,7 @@ This list tracks work needed to improve feature independence, compiler structure
 
 - [ ] Freeze CLI exit-code contract.
 - [ ] Freeze stderr diagnostic format.
-- [ ] Define `simple` vs `simplevm` behavior precisely.
+- [ ] Define `svm`, `simple`, and `simplevm` behavior precisely.
 - [ ] Document build output behavior.
 - [ ] Document executable embedding/linking behavior.
 - [ ] Document dynamic/static flags.

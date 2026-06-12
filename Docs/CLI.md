@@ -6,10 +6,11 @@ This document describes the command-line interface implemented in `CLI/src/main.
 
 ### Binaries
 
-The code supports two invocation modes by executable name:
+The code supports three invocation modes by executable name:
 
-- `simple` - primary user-facing name, focused on `.simple` workflows
-- `simplevm` - compatibility/developer tool name, accepts `.simple`, `.sir`, and `.sbc` paths where applicable
+- `svm` - primary compiler/runtime name, accepts `.simple`, `.sir`, and `.sbc` where applicable; `build`/`compile` default to an executable stub unless the output ends in `.sbc`
+- `simple` - compatibility user-facing name, focused on `.simple` workflows
+- `simplevm` - compatibility/developer VM name, accepts `.simple`, `.sir`, and `.sbc` paths where applicable; `build`/`compile` default to `.sbc`
 
 ### Version and Help
 
@@ -54,20 +55,22 @@ simplevm lsp
 simplevm <module.sbc|file.sir|file.simple> [--no-verify]
 ```
 
-### `simple` Usage
+### `svm` / `simple` Usage
 
-Implemented user-facing usage shape:
+Implemented compiler-facing usage shape:
 
 ```txt
-simple run <file.simple> [--no-verify]
-simple build <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]
-simple compile <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]
-simple emit -ir <file.simple> [--out <file.sir>]
-simple emit -sbc <file.simple> [--out <file.sbc>] [--no-verify]
-simple check <file.simple>
-simple lsp
-simple <file.simple> [--no-verify]
+svm run <module.sbc|file.sir|file.simple> [--no-verify]
+svm build <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]
+svm compile <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]
+svm emit -ir <file.simple> [--out <file.sir>]
+svm emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]
+svm check <file.sbc|file.sir|file.simple>
+svm lsp
+svm <module.sbc|file.sir|file.simple> [--no-verify]
 ```
+
+`simple` remains supported as a compatibility alias.
 
 ### Input Modes
 
@@ -107,7 +110,7 @@ Implemented checks:
 Implemented:
 
 - `.simple` or `.sir` to `.sbc`
-- optional executable embedding path for `simple` mode depending on output/mode
+- optional executable embedding path for `svm`/`simple` mode depending on output/mode
 - `--out <path>` output override
 - `-d` / `--dynamic` executable build mode
 - `-s` / `--static` executable build mode

@@ -45,33 +45,78 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   return true;
 }
 
-bool LooksLikeProjectRoot(const std::filesystem::path& root) {
-  namespace fs = std::filesystem;
-  return fs::exists(root / "VM" / "include" / "vm.h") &&
-         fs::exists(root / "Lang" / "include" / "lang_parser.h") &&
-         fs::exists(root / "Byte" / "include" / "sbc_loader.h");
-}
-
 std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
   namespace fs = std::filesystem;
   std::error_code ec;
-#ifdef SIMPLEVM_PROJECT_ROOT
-  fs::path configured_root = fs::weakly_canonical(fs::path(SIMPLEVM_PROJECT_ROOT), ec);
-  if (!ec && !configured_root.empty() && LooksLikeProjectRoot(configured_root)) {
-    return configured_root;
-  }
-#endif
-  fs::path cursor = fs::weakly_canonical(entry_path, ec);
-  if (ec || cursor.empty()) cursor = fs::absolute(entry_path);
-  if (fs::is_regular_file(cursor)) cursor = cursor.parent_path();
-  while (!cursor.empty()) {
-    if (LooksLikeProjectRoot(cursor)) return cursor;
-    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
-    cursor = cursor.parent_path();
-  }
-  fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
-  if (!ec && !cwd.empty()) return cwd;
+  fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
+  fs::path root = fs::weakly_canonical(entry.parent_path(), ec);
+  if (!ec && !root.empty()) return root;
+  ec.clear();
+  root = fs::absolute(entry.parent_path(), ec);
+  if (!ec && !root.empty()) return root;
   return fs::current_path();
+}
+
+bool ExtractModuleHeaderName(const std::string& text, std::string* out) {
+  if (!out) return false;
+  size_t start = 0;
+  while (start <= text.size()) {
+    size_t end = text.find('\n', start);
+    if (end == std::string::npos) end = text.size();
+    std::string line = text.substr(start, end - start);
+    const size_t comment = line.find("//");
+    if (comment != std::string::npos) line = line.substr(0, comment);
+    size_t first = line.find_first_not_of(" \t\r");
+    if (first == std::string::npos) {
+      if (end == text.size()) break;
+      start = end + 1;
+      continue;
+    }
+    if (line.compare(first, 6, "module") != 0 ||
+        (first + 6 < line.size() && !std::isspace(static_cast<unsigned char>(line[first + 6])))) {
+      return false;
+    }
+    size_t pos = first + 6;
+    while (pos < line.size() && std::isspace(static_cast<unsigned char>(line[pos]))) ++pos;
+    size_t name_end = pos;
+    while (name_end < line.size()) {
+      const char c = line[name_end];
+      if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.')) break;
+      ++name_end;
+    }
+    if (name_end == pos) return false;
+    *out = line.substr(pos, name_end - pos);
+    return true;
+  }
+  return false;
+}
+
+bool ParseModuleMapLine(const std::string& line,
+                        std::string* out_name,
+                        std::string* out_path) {
+  if (!out_name || !out_path) return false;
+  std::string body = line;
+  const size_t comment = body.find("//");
+  if (comment != std::string::npos) body = body.substr(0, comment);
+  size_t eq = body.find('=');
+  if (eq == std::string::npos) return false;
+  std::string name = body.substr(0, eq);
+  std::string path = body.substr(eq + 1);
+  auto trim = [](std::string s) {
+    size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos) return std::string{};
+    size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, e - b + 1);
+  };
+  name = trim(name);
+  path = trim(path);
+  if (path.size() >= 2 && path.front() == '"' && path.back() == '"') {
+    path = path.substr(1, path.size() - 2);
+  }
+  if (name.empty() || path.empty()) return false;
+  *out_name = std::move(name);
+  *out_path = std::move(path);
+  return true;
 }
 
 bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
@@ -93,6 +138,84 @@ bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
     if (ec) {
       ec.clear();
       (*out)[path.filename().string()].push_back(fs::absolute(path));
+    }
+  }
+  return true;
+}
+
+bool WriteAutoModuleMapIfMissing(
+    const std::filesystem::path& project_root,
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index) {
+  namespace fs = std::filesystem;
+  const fs::path map_path = project_root / "simple.modules";
+  if (fs::exists(map_path)) return true;
+  std::vector<std::pair<std::string, std::filesystem::path>> entries;
+  for (const auto& [name, paths] : module_index) {
+    std::vector<std::filesystem::path> unique;
+    std::unordered_set<std::string> seen;
+    for (const auto& path : paths) {
+      if (seen.insert(path.string()).second) unique.push_back(path);
+    }
+    if (unique.size() != 1) continue;
+    entries.push_back({name, unique.front()});
+  }
+  if (entries.empty()) return true;
+  std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+    return a.first < b.first;
+  });
+  std::ofstream out(map_path);
+  if (!out) return false;
+  out << "// Auto-generated by simplevm. Maps module names to .simple files.\n";
+  for (const auto& [name, path] : entries) {
+    std::error_code ec;
+    fs::path rel = fs::relative(path, project_root, ec);
+    if (ec || rel.empty()) rel = path;
+    out << name << "=\"" << rel.generic_string() << "\"\n";
+  }
+  return true;
+}
+
+bool BuildModuleIndex(const std::filesystem::path& project_root,
+                      const std::unordered_map<std::string, std::vector<std::filesystem::path>>& file_index,
+                      std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
+  if (!out) return false;
+  out->clear();
+  namespace fs = std::filesystem;
+  for (const auto& [_, paths] : file_index) {
+    for (const auto& path : paths) {
+      std::string text;
+      std::string ignored_error;
+      if (!ReadFileText(path.string(), &text, &ignored_error)) continue;
+      std::string module_name;
+      if (ExtractModuleHeaderName(text, &module_name)) {
+        (*out)[module_name].push_back(path);
+      } else {
+        const std::string stem = path.stem().string();
+        if (!stem.empty()) {
+          (*out)[stem].push_back(path);
+          std::string capitalized = stem;
+          capitalized[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(capitalized[0])));
+          if (capitalized != stem) (*out)[capitalized].push_back(path);
+        }
+      }
+    }
+  }
+  const fs::path map_path = project_root / "simple.modules";
+  std::ifstream map_in(map_path);
+  if (map_in) {
+    std::string line;
+    while (std::getline(map_in, line)) {
+      std::string name;
+      std::string rel;
+      if (!ParseModuleMapLine(line, &name, &rel)) continue;
+      fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (project_root / rel);
+      std::error_code ec;
+      if (!path.has_extension()) path += ".simple";
+      (*out)[name].push_back(fs::weakly_canonical(path, ec));
+      if (ec) {
+        ec.clear();
+        (*out)[name].push_back(fs::absolute(path));
+      }
     }
   }
   return true;
@@ -132,8 +255,65 @@ bool ResolveProjectRootImportPath(
   return true;
 }
 
+bool ResolveModuleMapImportPath(const std::filesystem::path& base_dir,
+                                const std::string& import_path,
+                                std::filesystem::path* out) {
+  if (!out) return false;
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path cursor = fs::weakly_canonical(base_dir, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(base_dir);
+  while (!cursor.empty()) {
+    const fs::path map_path = cursor / "simple.modules";
+    std::ifstream map_in(map_path);
+    if (map_in) {
+      std::string line;
+      while (std::getline(map_in, line)) {
+        std::string name;
+        std::string rel;
+        if (!ParseModuleMapLine(line, &name, &rel)) continue;
+        if (name != import_path) continue;
+        fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (cursor / rel);
+        if (!path.has_extension()) path += ".simple";
+        *out = fs::weakly_canonical(path, ec);
+        if (ec) {
+          ec.clear();
+          *out = fs::absolute(path);
+        }
+        return true;
+      }
+    }
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
+  }
+  return false;
+}
+
+bool ResolveModuleImportPath(
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
+  if (!out) return false;
+  auto it = module_index.find(import_path);
+  if (it == module_index.end() || it->second.empty()) return false;
+  std::vector<std::filesystem::path> unique;
+  std::unordered_set<std::string> seen;
+  for (const auto& path : it->second) {
+    const std::string key = path.string();
+    if (seen.insert(key).second) unique.push_back(path);
+  }
+  if (unique.size() > 1) {
+    if (error) *error = "ambiguous module import: " + import_path;
+    return false;
+  }
+  *out = unique.front();
+  return true;
+}
+
 bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
                             const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+                            const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
                             const std::string& import_path,
                             std::filesystem::path* out,
                             std::string* error) {
@@ -172,6 +352,12 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
     if (error) *error = "import file not found: " + import_path;
     return false;
   } else {
+    if (ResolveModuleImportPath(module_index, import_path, out, error)) {
+      return true;
+    }
+    if (ResolveModuleMapImportPath(base_dir, import_path, out)) {
+      return true;
+    }
     if (ResolveProjectRootImportPath(project_index, import_path, out, error)) {
       return true;
     }
@@ -183,6 +369,7 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
 
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
                                    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
                                    Simple::Lang::Program* out,
                                    std::unordered_set<std::string>* visiting,
                                    std::unordered_set<std::string>* visited,
@@ -215,19 +402,23 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
   const fs::path base_dir = canon.parent_path();
   for (const auto& decl : program.decls) {
     if (decl.kind != Simple::Lang::DeclKind::Import) continue;
+    if (decl.import_decl.is_using) continue;
     if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
     fs::path import_file;
-    if (!ResolveLocalImportPath(base_dir, project_index, decl.import_decl.path, &import_file, error)) {
+    if (!ResolveLocalImportPath(base_dir, project_index, module_index, decl.import_decl.path, &import_file, error)) {
       visiting->erase(key);
       return false;
     }
-    if (!AppendProgramWithLocalImports(import_file, project_index, out, visiting, visited, error)) {
+    if (!AppendProgramWithLocalImports(import_file, project_index, module_index, out, visiting, visited, error)) {
       visiting->erase(key);
       return false;
     }
   }
 
   for (auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::DeclKind::ModuleHeader) {
+      continue;
+    }
     if (decl.kind == Simple::Lang::DeclKind::Import &&
         !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
       continue;
@@ -254,9 +445,18 @@ bool LoadSimpleProgramWithImports(const std::string& entry_path,
     if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
     return false;
   }
+  std::unordered_map<std::string, std::vector<std::filesystem::path>> module_index;
+  if (!BuildModuleIndex(project_root, project_index, &module_index)) {
+    if (error) *error = "failed to build module index under project root: " + project_root.string();
+    return false;
+  }
+  if (!WriteAutoModuleMapIfMissing(project_root, module_index)) {
+    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
+    return false;
+  }
   std::unordered_set<std::string> visiting;
   std::unordered_set<std::string> visited;
-  return AppendProgramWithLocalImports(entry_path, project_index, out, &visiting, &visited, error);
+  return AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
 }
 
 bool ValidateSimpleFile(const std::string& path, std::string* error) {
@@ -330,6 +530,18 @@ std::string ReplaceExt(const std::string& path, const char* ext) {
   std::filesystem::path p(path);
   p.replace_extension(ext);
   return p.string();
+}
+
+std::string ResolveImplicitSimplePath(const std::string& path) {
+  if (path.empty()) return path;
+  namespace fs = std::filesystem;
+  fs::path p(path);
+  if (p.has_extension()) return path;
+  fs::path with_ext = p;
+  with_ext += ".simple";
+  std::error_code ec;
+  if (fs::exists(with_ext, ec)) return with_ext.string();
+  return path;
 }
 
 std::string QuoteArg(const std::string& arg) {
@@ -685,22 +897,24 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
 int main(int argc, char** argv) {
   const std::string tool_name = BaseName(argv[0]);
   const bool simple_only = (tool_name == "simple");
+  const bool svm_mode = (tool_name == "svm" || tool_name == "SVM");
+  const bool compiler_frontend = simple_only || svm_mode;
   auto print_usage = [&]() {
     std::cerr << "usage:\n";
-    if (simple_only) {
+    if (compiler_frontend) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <file.simple> [--no-verify]\n"
+                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
                 << "  " << tool_name
-                << " build <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
+                << " build <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name
-                << " compile <file.simple> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
+                << " compile <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
-                << "  " << tool_name << " emit -sbc <file.simple> [--out <file.sbc>] [--no-verify]\n"
-                << "  " << tool_name << " check <file.simple>\n"
+                << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
+                << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
                 << "  " << tool_name << " lsp\n"
-                << "  " << tool_name << " <file.simple> [--no-verify]\n";
+                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
     } else {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
@@ -735,7 +949,7 @@ int main(int argc, char** argv) {
   const std::string cmd = argv[1];
   const bool build_cmd = (cmd == "build" || cmd == "compile");
   const bool is_command = (cmd == "run" || build_cmd || cmd == "check" || cmd == "emit" || cmd == "lsp");
-  const std::string path = is_command ? (argc > 2 ? argv[2] : "") : cmd;
+  std::string path = ResolveImplicitSimplePath(is_command ? (argc > 2 ? argv[2] : "") : cmd);
   bool verify = true;
   bool build_exe = false;
   bool build_static = false;
@@ -814,7 +1028,7 @@ int main(int argc, char** argv) {
       return 1;
     }
     const std::string mode = argv[2];
-    const std::string emit_path = argv[3];
+    const std::string emit_path = ResolveImplicitSimplePath(argv[3]);
     if (simple_only && !HasExt(emit_path, ".simple")) {
       PrintError("simple expects .simple input");
       return 1;
@@ -909,6 +1123,7 @@ int main(int argc, char** argv) {
       PrintError("missing input file");
       return 1;
     }
+    input_path = ResolveImplicitSimplePath(input_path);
     if (simple_only && !HasExt(input_path, ".simple")) {
       PrintError("simple expects .simple input");
       return 1;
@@ -921,7 +1136,7 @@ int main(int argc, char** argv) {
         ++i;
       }
     }
-    if (!build_mode_explicit && simple_only && (out_path.empty() || !HasExt(out_path, ".sbc"))) {
+    if (!build_mode_explicit && compiler_frontend && (out_path.empty() || !HasExt(out_path, ".sbc"))) {
       build_exe = true;
     }
     if (out_path.empty()) {

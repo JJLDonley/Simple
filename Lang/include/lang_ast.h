@@ -203,10 +203,15 @@ struct EnumDecl {
   std::vector<EnumMember> members;
 };
 
+struct ModuleHeaderDecl {
+  std::string name;
+};
+
 struct ImportDecl {
   std::string path;
   std::string alias;
   bool has_alias = false;
+  bool is_using = false;
 };
 
 struct ExternDecl {
@@ -219,6 +224,7 @@ struct ExternDecl {
 };
 
 enum class DeclKind : uint8_t {
+  ModuleHeader,
   Import,
   Extern,
   Function,
@@ -230,6 +236,7 @@ enum class DeclKind : uint8_t {
 
 struct Decl {
   DeclKind kind = DeclKind::Variable;
+  ModuleHeaderDecl module_header;
   ImportDecl import_decl;
   ExternDecl ext;
   FuncDecl func;

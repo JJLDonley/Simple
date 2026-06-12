@@ -28,10 +28,23 @@ This extension wires VS Code to the `simple lsp` language server and provides Te
 
 ## Install From VSIX
 
-1. Build the package:
-   - `npx --yes @vscode/vsce package --out simple-vscode.vsix`
-2. Install in VS Code:
-   - `code --install-extension simple-vscode.vsix`
+From the repository root, rebuild the LSP executable and package the extension:
+
+```bash
+./scripts/rebuild_vscode_lsp_package.sh
+```
+
+To package and install in one step:
+
+```bash
+./scripts/rebuild_vscode_lsp_package.sh --install
+```
+
+Manual package-only command from this directory:
+
+```bash
+npx --yes @vscode/vsce package --out simple-vscode.vsix
+```
 
 ## CI Packaging
 

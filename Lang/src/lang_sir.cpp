@@ -43,6 +43,7 @@ struct EmitState {
   std::vector<std::string> proc_sig_lines;
   std::unordered_set<std::string> reserved_imports;
   std::unordered_map<std::string, std::string> reserved_import_aliases;
+  std::unordered_set<std::string> using_reserved_modules;
   std::unordered_map<std::string, std::string> extern_ids;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> extern_ids_by_module;
   std::unordered_map<std::string, std::vector<TypeRef>> extern_params;
@@ -391,6 +392,38 @@ bool ResolveReservedModuleName(const EmitState& st,
   return false;
 }
 
+bool ResolveUsingReservedMember(const EmitState& st,
+                                const std::string& member,
+                                std::string* out_module) {
+  bool found = false;
+  std::string result;
+  for (const auto& module : st.using_reserved_modules) {
+    if (module == "Math" && (member == "abs" || member == "sqrt" || member == "min" || member == "max")) {
+      if (found) return false;
+      found = true;
+      result = module;
+    } else if (module == "IO" && IsIoPrintName(member)) {
+      if (found) return false;
+      found = true;
+      result = module;
+    } else if (module == "Time" && (member == "mono_ns" || member == "wall_ns")) {
+      if (found) return false;
+      found = true;
+      result = module;
+    } else if (module == "DL" && (NormalizeCoreDlMember(member) == "open" ||
+                                  NormalizeCoreDlMember(member) == "sym" ||
+                                  NormalizeCoreDlMember(member) == "close" ||
+                                  NormalizeCoreDlMember(member) == "last_error")) {
+      if (found) return false;
+      found = true;
+      result = module;
+    }
+  }
+  if (!found) return false;
+  if (out_module) *out_module = std::move(result);
+  return true;
+}
+
 bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
   if (!IsIoPrintName(callee.text)) return false;
@@ -398,7 +431,7 @@ bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
-  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "Core.IO";
+  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "IO";
 }
 
 bool HostIsLinux() {
@@ -437,7 +470,7 @@ bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
   if (!ResolveReservedModuleName(st, module_name, &resolved)) return false;
-  return resolved == "Core.DL" && NormalizeCoreDlMember(callee.text) == "open";
+  return resolved == "DL" && NormalizeCoreDlMember(callee.text) == "open";
 }
 
 bool GetDlOpenManifestModule(const Expr& expr, const EmitState& st, std::string* out_module) {
@@ -479,7 +512,7 @@ bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   if (!out_id) return false;
   for (const auto& entry : st.extern_ids_by_module) {
     std::string resolved;
-    if (!ResolveReservedModuleName(st, entry.first, &resolved) || resolved != "Core.DL") continue;
+    if (!ResolveReservedModuleName(st, entry.first, &resolved) || resolved != "DL") continue;
     auto it = entry.second.find("sym");
     if (it != entry.second.end()) {
       *out_id = it->second;
@@ -1399,17 +1432,17 @@ bool InferExprType(const Expr& expr,
       if (base.kind == ExprKind::Identifier) {
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.Math" && expr.text == "PI") {
+            resolved == "Math" && expr.text == "PI") {
           out->name = "f64";
           return true;
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.DL" && expr.text == "supported") {
+            resolved == "DL" && expr.text == "supported") {
           out->name = "bool";
           return true;
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.OS" &&
+            resolved == "OS" &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           out->name = "bool";
@@ -1494,6 +1527,33 @@ bool InferExprType(const Expr& expr,
           out->proc_return.reset();
           return true;
         }
+        std::string using_module;
+        if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
+          if (using_module == "IO" && IsIoPrintName(callee.text)) {
+            out->name = "void";
+            out->type_args.clear();
+            out->dims.clear();
+            out->is_proc = false;
+            out->proc_params.clear();
+            out->proc_return.reset();
+            return true;
+          }
+          if (using_module == "Math" &&
+              (callee.text == "abs" || callee.text == "min" || callee.text == "max" || callee.text == "sqrt") &&
+              !expr.args.empty()) {
+            if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
+            return true;
+          }
+          if (using_module == "Time" && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+            out->name = "i64";
+            out->type_args.clear();
+            out->dims.clear();
+            out->is_proc = false;
+            out->proc_params.clear();
+            out->proc_return.reset();
+            return true;
+          }
+        }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
@@ -1525,14 +1585,14 @@ bool InferExprType(const Expr& expr,
               ResolveReservedModuleName(st, module_name, &reserved_module);
           if (has_reserved_module) {
             const std::string member_name =
-                (reserved_module == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (reserved_module == "Core.Math" &&
-                (member_name == "abs" || member_name == "min" || member_name == "max") &&
+                (reserved_module == "DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (reserved_module == "Math" &&
+                (member_name == "abs" || member_name == "min" || member_name == "max" || member_name == "sqrt") &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if (reserved_module == "Core.Time" &&
+            if (reserved_module == "Time" &&
                 (member_name == "mono_ns" || member_name == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -1546,7 +1606,7 @@ bool InferExprType(const Expr& expr,
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
           const bool ext_is_core_dl =
-              (module_name == "Core.DL") || (has_reserved_module && reserved_module == "Core.DL");
+              (module_name == "DL") || (has_reserved_module && reserved_module == "DL");
           if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
             ext_mod_it = st.extern_returns_by_module.find(reserved_module);
             if (ext_mod_it != st.extern_returns_by_module.end()) {
@@ -1565,7 +1625,7 @@ bool InferExprType(const Expr& expr,
           const bool module_is_reserved =
               ResolveReservedModuleName(st, module_name, &resolved_module_name);
           const bool module_is_core_dl =
-              module_name == "Core.DL" || (module_is_reserved && resolved_module_name == "Core.DL");
+              module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
           const std::string member_name =
               module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
@@ -2528,6 +2588,116 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const Expr& callee = expr.children[0];
+      if (callee.kind == ExprKind::Identifier) {
+        std::string using_module;
+        if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
+          if (using_module == "IO" && IsIoPrintName(callee.text)) {
+            if (expr.args.empty()) {
+              if (error) *error = "call argument count mismatch for '" + callee.text + "'";
+              return false;
+            }
+            if (expr.args.size() == 1) {
+              TypeRef arg_type;
+              if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+              if (!EmitPrintAnyValue(st, expr.args[0], arg_type, error)) return false;
+            } else {
+              const Expr& fmt_expr = expr.args[0];
+              if (!(fmt_expr.kind == ExprKind::Literal && fmt_expr.literal_kind == LiteralKind::String)) {
+                if (error) *error = "IO.print format call expects string literal as first argument";
+                return false;
+              }
+              size_t placeholder_count = 0;
+              std::vector<std::string> segments;
+              if (!CountFormatPlaceholders(fmt_expr.text, &placeholder_count, &segments, error)) return false;
+              if (placeholder_count != expr.args.size() - 1) {
+                if (error) *error = "IO.print format placeholder count mismatch";
+                return false;
+              }
+              for (size_t i = 0; i < placeholder_count; ++i) {
+                if (!segments[i].empty()) {
+                  TypeRef seg_type = MakeTypeRef("string");
+                  Expr seg_expr;
+                  seg_expr.kind = ExprKind::Literal;
+                  seg_expr.literal_kind = LiteralKind::String;
+                  seg_expr.text = segments[i];
+                  if (!EmitPrintAnyValue(st, seg_expr, seg_type, error)) return false;
+                }
+                TypeRef arg_type;
+                if (!InferExprType(expr.args[i + 1], st, &arg_type, error)) return false;
+                if (!EmitPrintAnyValue(st, expr.args[i + 1], arg_type, error)) return false;
+              }
+              if (!segments.empty() && !segments.back().empty()) {
+                TypeRef seg_type = MakeTypeRef("string");
+                Expr seg_expr;
+                seg_expr.kind = ExprKind::Literal;
+                seg_expr.literal_kind = LiteralKind::String;
+                seg_expr.text = segments.back();
+                if (!EmitPrintAnyValue(st, seg_expr, seg_type, error)) return false;
+              }
+            }
+            if (callee.text == "println") {
+              if (!EmitPrintNewline(st, error)) return false;
+            }
+            return true;
+          }
+          if (using_module == "Math" && (callee.text == "abs" || callee.text == "sqrt")) {
+            if (expr.args.size() != 1) {
+              if (error) *error = "call argument count mismatch for '" + callee.text + "'";
+              return false;
+            }
+            TypeRef arg_type;
+            if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+            if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+            uint32_t id = 0;
+            if (callee.text == "abs" && arg_type.name == "i32") id = Simple::VM::kIntrinsicAbsI32;
+            else if (callee.text == "abs" && arg_type.name == "i64") id = Simple::VM::kIntrinsicAbsI64;
+            else if (callee.text == "sqrt" && arg_type.name == "f32") id = Simple::VM::kIntrinsicSqrtF32;
+            else if (callee.text == "sqrt" && arg_type.name == "f64") id = Simple::VM::kIntrinsicSqrtF64;
+            else {
+              if (error) *error = "Math." + callee.text + " argument type is unsupported";
+              return false;
+            }
+            (*st.out) << "  intrinsic " << id << "\n";
+            PopStack(st, 1);
+            PushStack(st, 1);
+            return true;
+          }
+          if (using_module == "Time" && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+            if (!expr.args.empty()) {
+              if (error) *error = "call argument count mismatch for '" + callee.text + "'";
+              return false;
+            }
+            (*st.out) << "  intrinsic "
+                      << (callee.text == "mono_ns" ? Simple::VM::kIntrinsicMonoNs : Simple::VM::kIntrinsicWallNs)
+                      << "\n";
+            PushStack(st, 1);
+            return true;
+          }
+          if (using_module == "Math" && (callee.text == "min" || callee.text == "max")) {
+            if (expr.args.size() != 2) {
+              if (error) *error = "call argument count mismatch for '" + callee.text + "'";
+              return false;
+            }
+            TypeRef arg_type;
+            if (!InferExprType(expr.args[0], st, &arg_type, error)) return false;
+            if (!EmitExpr(st, expr.args[0], &arg_type, error)) return false;
+            if (!EmitExpr(st, expr.args[1], &arg_type, error)) return false;
+            uint32_t id = 0;
+            if (arg_type.name == "i32") id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI32 : Simple::VM::kIntrinsicMaxI32;
+            else if (arg_type.name == "i64") id = (callee.text == "min") ? Simple::VM::kIntrinsicMinI64 : Simple::VM::kIntrinsicMaxI64;
+            else if (arg_type.name == "f32") id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF32 : Simple::VM::kIntrinsicMaxF32;
+            else if (arg_type.name == "f64") id = (callee.text == "min") ? Simple::VM::kIntrinsicMinF64 : Simple::VM::kIntrinsicMaxF64;
+            else {
+              if (error) *error = "Math." + callee.text + " argument type is unsupported";
+              return false;
+            }
+            (*st.out) << "  intrinsic " << id << "\n";
+            PopStack(st, 2);
+            PushStack(st, 1);
+            return true;
+          }
+        }
+      }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
         const Expr& base = callee.children[0];
         if (IsIoPrintCallExpr(callee, st)) {
@@ -2629,7 +2799,7 @@ bool EmitExpr(EmitState& st,
             }
             std::string sym_import_id;
             if (!GetCoreDlSymImportId(st, &sym_import_id)) {
-              if (error) *error = "missing Core.DL.sym import for dynamic symbol calls";
+              if (error) *error = "missing DL.sym import for dynamic symbol calls";
               return false;
             }
             TypeRef ptr_type = MakeTypeRef("i64");
@@ -2778,7 +2948,7 @@ bool EmitExpr(EmitState& st,
             // Not a reserved module; fall through to normal call handling.
           } else {
             const std::string reserved_module = resolved;
-            if (reserved_module == "Core.Math") {
+            if (reserved_module == "Math") {
               if (callee.text == "abs") {
                 if (expr.args.size() != 1) {
                   if (error) *error = "call argument count mismatch for 'Math.abs'";
@@ -2825,33 +2995,33 @@ bool EmitExpr(EmitState& st,
               }
             }
             const std::string member_name =
-                (reserved_module == "Core.DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (reserved_module == "Core.DL") {
+                (reserved_module == "DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (reserved_module == "DL") {
               if (member_name == "open") {
                 if (expr.args.size() != 1 && expr.args.size() != 2) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.open'";
+                  if (error) *error = "call argument count mismatch for 'DL.open'";
                   return false;
                 }
                 auto ext_mod_it = st.extern_ids_by_module.find(reserved_module);
                 if (ext_mod_it == st.extern_ids_by_module.end()) {
-                  if (error) *error = "missing extern module for 'Core.DL.open'";
+                  if (error) *error = "missing extern module for 'DL.open'";
                   return false;
                 }
                 auto id_it = ext_mod_it->second.find(member_name);
                 if (id_it == ext_mod_it->second.end()) {
-                  if (error) *error = "missing extern id for 'Core.DL.open'";
+                  if (error) *error = "missing extern id for 'DL.open'";
                   return false;
                 }
                 auto params_it = st.extern_params_by_module[reserved_module].find(member_name);
                 auto ret_it = st.extern_returns_by_module[reserved_module].find(member_name);
                 if (params_it == st.extern_params_by_module[reserved_module].end() ||
                     ret_it == st.extern_returns_by_module[reserved_module].end()) {
-                  if (error) *error = "missing signature for extern 'Core.DL.open'";
+                  if (error) *error = "missing signature for extern 'DL.open'";
                   return false;
                 }
                 const auto& params = params_it->second;
                 if (params.size() != 1) {
-                  if (error) *error = "invalid extern signature for 'Core.DL.open'";
+                  if (error) *error = "invalid extern signature for 'DL.open'";
                   return false;
                 }
                 if (!EmitExpr(st, expr.args[0], &params[0], error)) return false;
@@ -2863,7 +3033,7 @@ bool EmitExpr(EmitState& st,
               }
               if (member_name == "call_i32") {
                 if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.call_i32'";
+                  if (error) *error = "call argument count mismatch for 'DL.call_i32'";
                   return false;
                 }
                 TypeRef ptr_type = MakeTypeRef("i64");
@@ -2878,7 +3048,7 @@ bool EmitExpr(EmitState& st,
               }
               if (member_name == "call_i64") {
                 if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.call_i64'";
+                  if (error) *error = "call argument count mismatch for 'DL.call_i64'";
                   return false;
                 }
                 TypeRef ptr_type = MakeTypeRef("i64");
@@ -2893,7 +3063,7 @@ bool EmitExpr(EmitState& st,
               }
               if (member_name == "call_f32") {
                 if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.call_f32'";
+                  if (error) *error = "call argument count mismatch for 'DL.call_f32'";
                   return false;
                 }
                 TypeRef ptr_type = MakeTypeRef("i64");
@@ -2908,7 +3078,7 @@ bool EmitExpr(EmitState& st,
               }
               if (member_name == "call_f64") {
                 if (expr.args.size() != 3) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.call_f64'";
+                  if (error) *error = "call argument count mismatch for 'DL.call_f64'";
                   return false;
                 }
                 TypeRef ptr_type = MakeTypeRef("i64");
@@ -2923,7 +3093,7 @@ bool EmitExpr(EmitState& st,
               }
               if (member_name == "call_str0") {
                 if (expr.args.size() != 1) {
-                  if (error) *error = "call argument count mismatch for 'Core.DL.call_str0'";
+                  if (error) *error = "call argument count mismatch for 'DL.call_str0'";
                   return false;
                 }
                 TypeRef ptr_type = MakeTypeRef("i64");
@@ -2962,7 +3132,7 @@ bool EmitExpr(EmitState& st,
               return true;
             }
           }
-          if (resolved == "Core.Time") {
+          if (resolved == "Time") {
             if (callee.text == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
@@ -2988,7 +3158,7 @@ bool EmitExpr(EmitState& st,
           const bool module_is_reserved =
               ResolveReservedModuleName(st, module_name, &resolved_module_name);
           const bool module_is_core_dl =
-              module_name == "Core.DL" || (module_is_reserved && resolved_module_name == "Core.DL");
+              module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
           const std::string member_name =
               module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
@@ -3029,9 +3199,9 @@ bool EmitExpr(EmitState& st,
           std::string resolved_module_name_for_ext;
           const bool has_resolved_module_for_ext =
               ResolveReservedModuleName(st, module_name, &resolved_module_name_for_ext);
-          bool ext_is_core_dl = (ext_module_name == "Core.DL") ||
+          bool ext_is_core_dl = (ext_module_name == "DL") ||
                                 (has_resolved_module_for_ext &&
-                                 resolved_module_name_for_ext == "Core.DL");
+                                 resolved_module_name_for_ext == "DL");
           auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
           if (ext_mod_it == st.extern_ids_by_module.end()) {
             if (has_resolved_module_for_ext) {
@@ -3739,17 +3909,17 @@ bool EmitExpr(EmitState& st,
       if (base.kind == ExprKind::Identifier) {
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.Math" && expr.text == "PI") {
+            resolved == "Math" && expr.text == "PI") {
           (*st.out) << "  const.f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.DL" && expr.text == "supported") {
+            resolved == "DL" && expr.text == "supported") {
           (*st.out) << "  const.i32 " << (HostHasDl() ? 1 : 0) << "\n";
           return PushStack(st, 1);
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Core.OS" &&
+            resolved == "OS" &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           bool value = false;
@@ -4390,18 +4560,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   for (const auto& decl : program.decls) {
     if (decl.kind == DeclKind::Import || decl.kind == DeclKind::Extern) {
       if (decl.kind == DeclKind::Import) {
-        std::string canonical_import;
-        if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
-          if (error) *error = "unsupported import path: " + decl.import_decl.path;
-          return false;
-        }
-        st.reserved_imports.insert(canonical_import);
-        if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
-          st.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+        if (decl.import_decl.is_using) {
+          const auto alias_it = st.reserved_import_aliases.find(decl.import_decl.path);
+          if (alias_it == st.reserved_import_aliases.end()) {
+            if (error) *error = "using requires prior import: " + decl.import_decl.path;
+            return false;
+          }
+          st.reserved_imports.insert(alias_it->second);
+          st.using_reserved_modules.insert(alias_it->second);
         } else {
-          const std::string implicit_alias = DefaultImportAlias(decl.import_decl.path);
-          if (!implicit_alias.empty()) {
-            st.reserved_import_aliases[implicit_alias] = canonical_import;
+          std::string canonical_import;
+          if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
+            if (error) *error = "unsupported import path: " + decl.import_decl.path;
+            return false;
+          }
+          st.reserved_imports.insert(canonical_import);
+          if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
+            st.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+          } else {
+            st.reserved_import_aliases[decl.import_decl.path] = canonical_import;
           }
         }
       }
@@ -4736,8 +4913,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return aliases;
   };
 
-  if (st.reserved_imports.find("Core.FS") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.FS")) {
+  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("File")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));
@@ -4759,8 +4936,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.DL") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.DL")) {
+  if (st.reserved_imports.find("DL") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("DL")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "core.dl", "open", std::move(open_params), make_type("i64"))) return false;
@@ -4778,8 +4955,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.OS") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.OS")) {
+  if (st.reserved_imports.find("OS") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("OS")) {
       if (!add_reserved_import(alias, "core.os", "args_count", {}, make_type("i32"))) return false;
 
       std::vector<TypeRef> idx_params;
@@ -4800,8 +4977,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.IO") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.IO")) {
+  if (st.reserved_imports.find("IO") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("IO")) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.io", "buffer_new", std::move(new_params), make_list_type("i32"))) {
@@ -4832,8 +5009,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.FS") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.FS")) {
+  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("File")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));
@@ -4855,8 +5032,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Core.Log") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Core.Log")) {
+  if (st.reserved_imports.find("Log") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Log")) {
       std::vector<TypeRef> params;
       params.push_back(make_type("string"));
       params.push_back(make_type("i32"));

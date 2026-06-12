@@ -1,4 +1,4 @@
-import system.time as Time
+import Time
 
 main : i32 () {
   Time.mono_ns()

@@ -100,27 +100,82 @@ bool FileUriToPath(const std::string& uri, std::string* out_path) {
   return DecodeUriPath(rest.substr(path_pos), out_path);
 }
 
-bool LooksLikeProjectRoot(const std::filesystem::path& root) {
-  namespace fs = std::filesystem;
-  return fs::exists(root / "VM" / "include" / "vm.h") &&
-         fs::exists(root / "Lang" / "include" / "lang_parser.h") &&
-         fs::exists(root / "Byte" / "include" / "sbc_loader.h");
-}
-
 std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
   namespace fs = std::filesystem;
   std::error_code ec;
-  fs::path cursor = fs::weakly_canonical(entry_path, ec);
-  if (ec || cursor.empty()) cursor = fs::absolute(entry_path);
-  if (fs::is_regular_file(cursor)) cursor = cursor.parent_path();
-  while (!cursor.empty()) {
-    if (LooksLikeProjectRoot(cursor)) return cursor;
-    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
-    cursor = cursor.parent_path();
+  fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
+  fs::path parent = entry.parent_path();
+  if (!parent.empty() && (fs::exists(entry, ec) || fs::exists(parent / "simple.modules", ec))) {
+    fs::path root = fs::weakly_canonical(parent, ec);
+    if (!ec && !root.empty()) return root;
+    ec.clear();
+    root = fs::absolute(parent, ec);
+    if (!ec && !root.empty()) return root;
   }
+  ec.clear();
   fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
   if (!ec && !cwd.empty()) return cwd;
   return fs::current_path();
+}
+
+bool ExtractModuleHeaderName(const std::string& text, std::string* out) {
+  if (!out) return false;
+  size_t start = 0;
+  while (start <= text.size()) {
+    size_t end = text.find('\n', start);
+    if (end == std::string::npos) end = text.size();
+    std::string line = text.substr(start, end - start);
+    const size_t comment = line.find("//");
+    if (comment != std::string::npos) line = line.substr(0, comment);
+    size_t first = line.find_first_not_of(" \t\r");
+    if (first == std::string::npos) {
+      if (end == text.size()) break;
+      start = end + 1;
+      continue;
+    }
+    if (line.compare(first, 6, "module") != 0 ||
+        (first + 6 < line.size() && !std::isspace(static_cast<unsigned char>(line[first + 6])))) {
+      return false;
+    }
+    size_t pos = first + 6;
+    while (pos < line.size() && std::isspace(static_cast<unsigned char>(line[pos]))) ++pos;
+    size_t name_end = pos;
+    while (name_end < line.size()) {
+      const char c = line[name_end];
+      if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.')) break;
+      ++name_end;
+    }
+    if (name_end == pos) return false;
+    *out = line.substr(pos, name_end - pos);
+    return true;
+  }
+  return false;
+}
+
+bool ParseModuleMapLine(const std::string& line,
+                        std::string* out_name,
+                        std::string* out_path) {
+  if (!out_name || !out_path) return false;
+  std::string body = line;
+  const size_t comment = body.find("//");
+  if (comment != std::string::npos) body = body.substr(0, comment);
+  const size_t eq = body.find('=');
+  if (eq == std::string::npos) return false;
+  auto trim = [](std::string s) {
+    const size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos) return std::string{};
+    const size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, e - b + 1);
+  };
+  std::string name = trim(body.substr(0, eq));
+  std::string path = trim(body.substr(eq + 1));
+  if (path.size() >= 2 && path.front() == '"' && path.back() == '"') {
+    path = path.substr(1, path.size() - 2);
+  }
+  if (name.empty() || path.empty()) return false;
+  *out_name = std::move(name);
+  *out_path = std::move(path);
+  return true;
 }
 
 bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
@@ -145,6 +200,138 @@ bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
     }
   }
   return true;
+}
+
+bool BuildModuleIndex(const std::filesystem::path& project_root,
+                      const std::unordered_map<std::string, std::vector<std::filesystem::path>>& file_index,
+                      std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
+  if (!out) return false;
+  out->clear();
+  namespace fs = std::filesystem;
+  for (const auto& [_, paths] : file_index) {
+    for (const auto& path : paths) {
+      std::string text;
+      std::string ignored_error;
+      if (!ReadFileText(path.string(), &text, &ignored_error)) continue;
+      std::string module_name;
+      if (ExtractModuleHeaderName(text, &module_name)) {
+        (*out)[module_name].push_back(path);
+      } else {
+        const std::string stem = path.stem().string();
+        if (!stem.empty()) {
+          (*out)[stem].push_back(path);
+          std::string capitalized = stem;
+          capitalized[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(capitalized[0])));
+          if (capitalized != stem) (*out)[capitalized].push_back(path);
+        }
+      }
+    }
+  }
+  const fs::path map_path = project_root / "simple.modules";
+  std::ifstream map_in(map_path);
+  if (map_in) {
+    std::string line;
+    while (std::getline(map_in, line)) {
+      std::string name;
+      std::string rel;
+      if (!ParseModuleMapLine(line, &name, &rel)) continue;
+      fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (project_root / rel);
+      if (!path.has_extension()) path += ".simple";
+      std::error_code ec;
+      (*out)[name].push_back(fs::weakly_canonical(path, ec));
+      if (ec) {
+        ec.clear();
+        (*out)[name].push_back(fs::absolute(path));
+      }
+    }
+  }
+  return true;
+}
+
+bool WriteAutoModuleMapIfMissing(
+    const std::filesystem::path& project_root,
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index) {
+  namespace fs = std::filesystem;
+  const fs::path map_path = project_root / "simple.modules";
+  if (fs::exists(map_path)) return true;
+  std::vector<std::pair<std::string, fs::path>> entries;
+  for (const auto& [name, paths] : module_index) {
+    std::vector<fs::path> unique;
+    std::unordered_set<std::string> seen;
+    for (const auto& path : paths) {
+      if (seen.insert(path.string()).second) unique.push_back(path);
+    }
+    if (unique.size() != 1) continue;
+    entries.push_back({name, unique.front()});
+  }
+  if (entries.empty()) return true;
+  std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+    return a.first < b.first;
+  });
+  std::ofstream out(map_path);
+  if (!out) return false;
+  out << "// Auto-generated by simplevm. Maps module names to .simple files.\n";
+  for (const auto& [name, path] : entries) {
+    std::error_code ec;
+    fs::path rel = fs::relative(path, project_root, ec);
+    if (ec || rel.empty()) rel = path;
+    out << name << "=\"" << rel.generic_string() << "\"\n";
+  }
+  return true;
+}
+
+bool ResolveModuleImportPath(
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
+  if (!out) return false;
+  auto it = module_index.find(import_path);
+  if (it == module_index.end() || it->second.empty()) return false;
+  std::vector<std::filesystem::path> unique;
+  std::unordered_set<std::string> seen;
+  for (const auto& path : it->second) {
+    const std::string key = path.string();
+    if (seen.insert(key).second) unique.push_back(path);
+  }
+  if (unique.size() > 1) {
+    if (error) *error = "ambiguous module import: " + import_path;
+    return false;
+  }
+  *out = unique.front();
+  return true;
+}
+
+bool ResolveModuleMapImportPath(const std::filesystem::path& base_dir,
+                                const std::string& import_path,
+                                std::filesystem::path* out) {
+  if (!out) return false;
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path cursor = fs::weakly_canonical(base_dir, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(base_dir);
+  while (!cursor.empty()) {
+    std::ifstream map_in(cursor / "simple.modules");
+    if (map_in) {
+      std::string line;
+      while (std::getline(map_in, line)) {
+        std::string name;
+        std::string rel;
+        if (!ParseModuleMapLine(line, &name, &rel) || name != import_path) continue;
+        fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (cursor / rel);
+        if (!path.has_extension()) path += ".simple";
+        *out = fs::weakly_canonical(path, ec);
+        if (ec) {
+          ec.clear();
+          *out = fs::absolute(path);
+        }
+        return true;
+      }
+    }
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
+  }
+  return false;
 }
 
 bool ResolveProjectRootImportPath(
@@ -173,6 +360,7 @@ bool ResolveProjectRootImportPath(
 bool ResolveLocalImportPath(
     const std::filesystem::path& base_dir,
     const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
     const std::string& import_path,
     std::filesystem::path* out,
     std::string* error) {
@@ -213,6 +401,12 @@ bool ResolveLocalImportPath(
     if (error) *error = "import file not found: " + import_path;
     return false;
   } else {
+    if (ResolveModuleImportPath(module_index, import_path, out, error)) {
+      return true;
+    }
+    if (ResolveModuleMapImportPath(base_dir, import_path, out)) {
+      return true;
+    }
     if (ResolveProjectRootImportPath(project_index, import_path, out, error)) {
       return true;
     }
@@ -224,6 +418,7 @@ bool ResolveLocalImportPath(
 
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
                                    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
+                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
                                    Simple::Lang::Program* out,
                                    std::unordered_set<std::string>* visiting,
                                    std::unordered_set<std::string>* visited,
@@ -260,19 +455,23 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
   const fs::path base_dir = canon.parent_path();
   for (const auto& decl : program.decls) {
     if (decl.kind != Simple::Lang::DeclKind::Import) continue;
+    if (decl.import_decl.is_using) continue;
     if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
     fs::path import_file;
-    if (!ResolveLocalImportPath(base_dir, project_index, decl.import_decl.path, &import_file, error)) {
+    if (!ResolveLocalImportPath(base_dir, project_index, module_index, decl.import_decl.path, &import_file, error)) {
       visiting->erase(key);
       return false;
     }
-    if (!AppendProgramWithLocalImports(import_file, project_index, out, visiting, visited, error)) {
+    if (!AppendProgramWithLocalImports(import_file, project_index, module_index, out, visiting, visited, error)) {
       visiting->erase(key);
       return false;
     }
   }
 
   for (auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::DeclKind::ModuleHeader) {
+      continue;
+    }
     if (decl.kind == Simple::Lang::DeclKind::Import &&
         !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
       continue;
@@ -316,12 +515,23 @@ bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& so
     return false;
   }
 
+  std::unordered_map<std::string, std::vector<std::filesystem::path>> module_index;
+  if (!BuildModuleIndex(project_root, project_index, &module_index)) {
+    if (error) *error = "failed to build module index under project root: " + project_root.string();
+    return false;
+  }
+  if (!WriteAutoModuleMapIfMissing(project_root, module_index)) {
+    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
+    return false;
+  }
+
   Simple::Lang::Program program;
   program.decls.clear();
   std::unordered_set<std::string> visiting;
   std::unordered_set<std::string> visited;
   if (!AppendProgramWithLocalImports(entry_path,
                                      project_index,
+                                     module_index,
                                      &program,
                                      &visiting,
                                      &visited,
@@ -562,24 +772,43 @@ bool ParseLineAndColumnPrefix(const std::string& message,
   *out_line = 0;
   *out_col = 0;
   *out_message = message;
-  size_t first = message.find(':');
-  if (first == std::string::npos || first == 0) return false;
-  size_t second = message.find(':', first + 1);
-  if (second == std::string::npos || second <= first + 1) return false;
-  for (size_t i = 0; i < first; ++i) {
-    if (!std::isdigit(static_cast<unsigned char>(message[i]))) return false;
+
+  auto try_parse_at = [&](size_t start) -> bool {
+    while (start < message.size() && std::isspace(static_cast<unsigned char>(message[start]))) ++start;
+    const size_t first = message.find(':', start);
+    if (first == std::string::npos || first == start) return false;
+    const size_t second = message.find(':', first + 1);
+    if (second == std::string::npos || second <= first + 1) return false;
+    for (size_t i = start; i < first; ++i) {
+      if (!std::isdigit(static_cast<unsigned char>(message[i]))) return false;
+    }
+    for (size_t i = first + 1; i < second; ++i) {
+      if (!std::isdigit(static_cast<unsigned char>(message[i]))) return false;
+    }
+    try {
+      *out_line = static_cast<uint32_t>(std::stoul(message.substr(start, first - start)));
+      *out_col = static_cast<uint32_t>(std::stoul(message.substr(first + 1, second - first - 1)));
+    } catch (...) {
+      return false;
+    }
+    *out_message = TrimCopy(message.substr(second + 1));
+    return true;
+  };
+
+  if (try_parse_at(0)) return true;
+
+  // Validator errors are often wrapped with context, e.g.
+  // "in function 'main': 12:3: undeclared identifier: x" or
+  // "in top-level script: 1:3: undeclared identifier: DL". Find the inner
+  // line/column prefix so diagnostics point at source, not line 1 column 1.
+  size_t search = 0;
+  while (search < message.size()) {
+    const size_t colon = message.find(':', search);
+    if (colon == std::string::npos) break;
+    if (try_parse_at(colon + 1)) return true;
+    search = colon + 1;
   }
-  for (size_t i = first + 1; i < second; ++i) {
-    if (!std::isdigit(static_cast<unsigned char>(message[i]))) return false;
-  }
-  try {
-    *out_line = static_cast<uint32_t>(std::stoul(message.substr(0, first)));
-    *out_col = static_cast<uint32_t>(std::stoul(message.substr(first + 1, second - first - 1)));
-  } catch (...) {
-    return false;
-  }
-  *out_message = TrimCopy(message.substr(second + 1));
-  return true;
+  return false;
 }
 
 std::string JsonEscape(const std::string& text) {
@@ -974,12 +1203,7 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "System.io", "System.math", "System.time", "System.fs", "System.dl",
-      "System.os", "System.log", "System.file",
-      "system.io", "system.math", "system.time", "system.fs", "system.dl",
-      "system.os", "system.log", "system.file",
-      "IO", "Math", "Time", "FS", "File", "DL", "OS", "Log",
-      "io", "math", "time", "fs", "file", "dl", "os", "log"};
+      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -1017,17 +1241,17 @@ std::string DefaultImportAlias(const std::string& path) {
 
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
   static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
-      {"Core.IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
-      {"Core.Math", {"abs", "min", "max", "pi"}},
-      {"Core.Time", {"mono_ns", "wall_ns"}},
+      {"IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
+      {"Math", {"abs", "min", "max", "pi"}},
+      {"Time", {"mono_ns", "wall_ns"}},
       {"File", {"open", "close", "read", "write"}},
-      {"Core.DL",
+      {"DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
         "call_str0", "supported"}},
-      {"Core.OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+      {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
-      {"Core.FS", {"open", "close", "read", "write"}},
-      {"Core.Log", {"log"}},
+      {"File", {"open", "close", "read", "write"}},
+      {"Log", {"log"}},
   };
 
   std::unordered_set<std::string> labels;
@@ -1238,7 +1462,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
   }
   if (!ResolveImportedModuleAndMember(call_name, text, &module, &member)) return false;
-  if (module == "Core.Math") {
+  if (module == "Math") {
     if (member == "abs") {
       out->params = {"value"};
       out->return_type = "i32|i64";
@@ -1251,7 +1475,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.IO") {
+  if (module == "IO") {
     if (member == "print" || member == "println") {
       out->params = {"value"};
       out->return_type = "void";
@@ -1279,14 +1503,14 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.Time") {
+  if (module == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = "i64";
       return true;
     }
     return false;
   }
-  if (module == "File" || module == "Core.FS") {
+  if (module == "File" || module == "File") {
     if (member == "open") {
       out->params = {"path", "flags"};
       out->return_type = "i32";
@@ -1304,7 +1528,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.OS") {
+  if (module == "OS") {
     if (member == "args_count" || member == "cwd_get" || member == "time_mono_ns" ||
         member == "time_wall_ns") {
       out->return_type =
@@ -1328,7 +1552,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.Log") {
+  if (module == "Log") {
     if (member == "log") {
       out->params = {"message", "level"};
       out->return_type = "void";
@@ -1336,7 +1560,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Core.DL") {
+  if (module == "DL") {
     member = NormalizeCoreDlMember(member);
     if (member == "open") {
       out->params = {"path"};
@@ -1473,7 +1697,7 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   const auto alias_it = aliases.find(alias);
   if (alias_it == aliases.end()) return false;
   std::string module = alias_it->second;
-  if (module == "Core.DL") member = NormalizeCoreDlMember(member);
+  if (module == "DL") member = NormalizeCoreDlMember(member);
   *out_module = std::move(module);
   *out_member = std::move(member);
   return true;
@@ -1733,7 +1957,7 @@ void ReplySignatureHelp(std::ostream& out,
   std::string imported_module;
   std::string imported_member;
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "Core.IO" && (imported_member == "print" || imported_member == "println")) {
+      imported_module == "IO" && (imported_member == "print" || imported_member == "println")) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(
@@ -1750,7 +1974,7 @@ void ReplySignatureHelp(std::ostream& out,
   }
 
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "Core.DL" && imported_member == "open") {
+      imported_module == "DL" && imported_member == "open") {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(
@@ -1999,8 +2223,8 @@ struct SemanticTokenEntry {
 
 bool IsKeywordText(const std::string& text) {
   static const std::unordered_set<std::string> kKeywords = {
-      "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "callback", "self", "artifact", "enum", "module", "import", "extern", "as",
+      "while", "for", "break", "skip", "return", "if", "else", "default", "switch",
+      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Module", "import", "extern", "as",
       "true", "false",
   };
   return kKeywords.find(text) != kKeywords.end();
@@ -2117,8 +2341,7 @@ bool MemberAccessInfoFromText(const std::string& text,
 
 bool IsReservedModuleAliasToken(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "FS", "OS", "Time", "Math", "Log", "File",
-      "io", "dl", "fs", "os", "time", "math", "log", "file",
+      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket",
   };
   return kReserved.find(name) != kReserved.end();
 }
@@ -2134,12 +2357,6 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       const std::vector<uint32_t>& member_depths,
                                       const std::vector<std::string>& member_receivers) {
   using TK = Simple::Lang::TokenKind;
-  (void)import_aliases;
-  (void)enum_member_indices;
-  (void)enum_names;
-  (void)module_names;
-  (void)artifact_names;
-  (void)artifact_field_indices;
   if (i >= refs.size()) return 3;
   const auto& token = refs[i].token;
   if (IsKeywordToken(token.kind)) return 0; // keyword
@@ -2152,18 +2369,24 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
       if (i < member_receivers.size() &&
           !member_receivers[i].empty() &&
           enum_names.find(member_receivers[i]) != enum_names.end()) {
-        return 6;
+        return 6; // enum member
       }
       return MemberAccessTokenTypeForDepth(member_depths[i]);
     }
-    if (IsFunctionDeclNameAt(refs, i)) return 3; // function declaration -> identifier
+    if (IsFunctionDeclNameAt(refs, i)) return 2; // function declaration
     if (IsParameterDeclNameAt(refs, i)) return 4; // parameter declaration
     if (IsFunctionCallNameAt(refs, i)) return 2; // function call
-    if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 3; // import module stem
-    if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 3;
-    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 3; // type position
+    if (import_aliases.find(token.text) != import_aliases.end() ||
+        module_names.find(token.text) != module_names.end()) return 7; // namespace
+    if (enum_names.find(token.text) != enum_names.end() ||
+        artifact_names.find(token.text) != artifact_names.end()) return 1; // type
+    if (enum_member_indices.find(i) != enum_member_indices.end()) return 6; // enum member
+    if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
+    if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
+    if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
+    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
     if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
-    if (IsPrimitiveTypeName(token.text)) return 3;
+    if (IsPrimitiveTypeName(token.text)) return 1;
   }
   return SemanticTokenTypeIndex(token);
 }

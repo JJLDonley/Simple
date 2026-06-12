@@ -55,6 +55,7 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwEnum:
     case TokenKind::KwModule:
     case TokenKind::KwImport:
+    case TokenKind::KwUsing:
     case TokenKind::KwExtern:
     case TokenKind::KwAs:
     case TokenKind::KwTrue:
@@ -237,6 +238,33 @@ bool Parser::ParseTypeInner(TypeRef* out) {
 }
 
 bool Parser::ParseDecl(Decl* out) {
+  if (Match(TokenKind::KwModule)) {
+    std::string module_name;
+    const Token& name_tok = Peek();
+    if (name_tok.kind != TokenKind::Identifier) {
+      error_ = "expected module name after 'module'";
+      return false;
+    }
+    module_name = name_tok.text;
+    Advance();
+    while (Match(TokenKind::Dot)) {
+      const Token& seg_tok = Peek();
+      if (seg_tok.kind != TokenKind::Identifier) {
+        error_ = "expected identifier after '.' in module name";
+        return false;
+      }
+      module_name += ".";
+      module_name += seg_tok.text;
+      Advance();
+    }
+    if (out) {
+      out->kind = DeclKind::ModuleHeader;
+      out->module_header.name = std::move(module_name);
+    }
+    if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) return true;
+    error_ = "expected end of module declaration";
+    return false;
+  }
   if (Match(TokenKind::KwFn)) {
     const Token& name_tok = Peek();
     if (name_tok.kind != TokenKind::Identifier) {
@@ -305,6 +333,7 @@ bool Parser::ParseDecl(Decl* out) {
       out->import_decl.path = import_path;
       out->import_decl.has_alias = false;
       out->import_decl.alias.clear();
+      out->import_decl.is_using = false;
     }
     if (Match(TokenKind::KwAs)) {
       const Token& alias_tok = Peek();
@@ -322,6 +351,36 @@ bool Parser::ParseDecl(Decl* out) {
       return true;
     }
     error_ = "expected end of import declaration";
+    return false;
+  }
+  if (Match(TokenKind::KwUsing)) {
+    std::string using_name;
+    const Token& name_tok = Peek();
+    if (name_tok.kind != TokenKind::Identifier) {
+      error_ = "expected imported module name after 'using'";
+      return false;
+    }
+    using_name = name_tok.text;
+    Advance();
+    while (Match(TokenKind::Dot)) {
+      const Token& seg_tok = Peek();
+      if (seg_tok.kind != TokenKind::Identifier) {
+        error_ = "expected identifier after '.' in using name";
+        return false;
+      }
+      using_name += ".";
+      using_name += seg_tok.text;
+      Advance();
+    }
+    if (out) {
+      out->kind = DeclKind::Import;
+      out->import_decl.path = using_name;
+      out->import_decl.alias.clear();
+      out->import_decl.has_alias = false;
+      out->import_decl.is_using = true;
+    }
+    if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) return true;
+    error_ = "expected end of using declaration";
     return false;
   }
   if (Match(TokenKind::KwExtern)) {

@@ -13,30 +13,26 @@ inline std::string LowerAscii(std::string text) {
 
 inline bool CanonicalizeReservedImportPath(const std::string& path, std::string* out) {
   if (!out) return false;
-  const std::string lowered = LowerAscii(path);
-
   struct ReservedImportEntry {
+    const char* name;
     const char* canonical;
-    std::array<const char*, 8> aliases;
-    size_t alias_count;
   };
-
-  static constexpr std::array<ReservedImportEntry, 7> kReserved = {{
-      {"Core.Math", {"Math", "math", "System.math", "system.math"}, 4},
-      {"Core.IO", {"IO", "io", "System.io", "system.io"}, 4},
-      {"Core.Time", {"Time", "time", "System.time", "system.time"}, 4},
-      {"Core.DL", {"DL", "dl", "System.dl", "system.dl"}, 4},
-      {"Core.OS", {"OS", "os", "System.os", "system.os"}, 4},
-      {"Core.FS", {"FS", "fs", "File", "file", "System.file", "system.file", "System.fs", "system.fs"}, 8},
-      {"Core.Log", {"Log", "log", "System.log", "system.log"}, 4},
+  static constexpr std::array<ReservedImportEntry, 10> kReserved = {{
+      {"Math", "Math"},
+      {"IO", "IO"},
+      {"Time", "Time"},
+      {"DL", "DL"},
+      {"OS", "OS"},
+      {"File", "File"},
+      {"Buffer", "Buffer"},
+      {"Http", "Http"},
+      {"Socket", "Socket"},
+      {"Log", "Log"},
   }};
-
   for (const auto& entry : kReserved) {
-    for (size_t i = 0; i < entry.alias_count; ++i) {
-      if (lowered == entry.aliases[i]) {
-        *out = entry.canonical;
-        return true;
-      }
+    if (path == entry.name) {
+      *out = entry.canonical;
+      return true;
     }
   }
   return false;
@@ -57,10 +53,7 @@ inline std::string DefaultImportAlias(const std::string& import_path) {
   if (end <= start) return {};
   const std::string base = import_path.substr(start, end - start);
   const size_t dot = base.find_last_of('.');
-  const std::string leaf = (dot == std::string::npos || dot + 1 >= base.size())
-                               ? base
-                               : base.substr(dot + 1);
-  return LowerAscii(leaf);
+  return (dot == std::string::npos || dot + 1 >= base.size()) ? base : base.substr(dot + 1);
 }
 
 } // namespace Simple::Lang

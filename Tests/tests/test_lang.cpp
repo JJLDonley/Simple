@@ -465,8 +465,8 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
 
 bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
-      "import system.io\n"
-      "import system.dl as DL\n"
+      "import IO\n"
+      "import DL\n"
       "Box :: Artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
@@ -480,7 +480,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "glib :: i64 = DL.Open(\"libffi.so\", ffi)\n"
       "UseGlobal : i32 () { return glib.simple_add_i32(3, 4); }\n"
       "main : i32 () {\n"
-      "  io.println(1);\n"
+      "  IO.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
       "  lib : i64 = DL.Open(\"libffi.so\", ffi);\n"
       "  dyn : i32 = lib.simple_add_i32(1, 2);\n"
@@ -528,7 +528,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ReservedModuleFunction &&
-        ref.qualified_name == "Core.IO.println") saw_reserved = true;
+        ref.qualified_name == "IO.println") saw_reserved = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
         ref.qualified_name == "ffi.simple_add_i32" && ref.base == "lib") saw_dl_manifest = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
@@ -2003,6 +2003,40 @@ bool LangCliCompileSimpleAliasDefaultsToExe() {
   return RunCommand(out_path);
 }
 
+bool LangCliCompileSvmDefaultsToExeAndInfersSimpleExt() {
+  const std::string out_path = TempPath("svm_compile_hello_exec");
+  const std::string cmd = "bin/svm compile Tests/simple/hello --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  return RunCommand(out_path);
+}
+
+bool LangCliCompileSvmOutSbcStaysBytecode() {
+  const std::string out_path = TempPath("svm_compile_hello.sbc");
+  const std::string cmd = "bin/svm compile Tests/simple/hello.simple --out " + out_path;
+  if (!RunCommand(cmd)) return false;
+  std::ifstream in(out_path, std::ios::binary);
+  return in.good() && in.peek() != std::ifstream::traits_type::eof();
+}
+
+bool LangCliLocalUsingImportDoesNotReachValidator() {
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / "simple_local_using_import_case";
+  std::error_code ec;
+  fs::remove_all(dir, ec);
+  fs::create_directories(dir, ec);
+  if (ec) return false;
+  {
+    std::ofstream lib(dir / "lib.simple");
+    lib << "module Lib\nFoo :: artifact { x : i32 }\n";
+  }
+  {
+    std::ofstream main(dir / "main.simple");
+    main << "module Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
+  }
+  const std::string cmd = "bin/svm check " + (dir / "main.simple").string();
+  return RunCommand(cmd);
+}
+
 bool LangCliBuildDynamicExe() {
   const std::string out_path = TempPath("simple_build_hello_exec");
   const std::string cmd =
@@ -2802,21 +2836,21 @@ bool LangParsesImportDeclAlias() {
 }
 
 bool LangParsesImportDeclUnquotedPath() {
-  const char* src = "import System.io";
+  const char* src = "import IO";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 1) return false;
   const auto& decl = program.decls[0];
   if (decl.kind != Simple::Lang::DeclKind::Import) return false;
-  if (decl.import_decl.path != "System.io") return false;
+  if (decl.import_decl.path != "IO") return false;
   if (decl.import_decl.has_alias) return false;
   return true;
 }
 
 bool LangValidateSystemImportMixedCaseOk() {
   const char* src =
-      "import sYsTeM.iO as IO\n"
+      "import IO\n"
       "main : void () { IO.println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -2824,32 +2858,33 @@ bool LangValidateSystemImportMixedCaseOk() {
 
 bool LangValidateSystemImportImplicitLowerAlias() {
   const char* src =
-      "import system.io\n"
-      "main : void () { io.println(1); }";
+      "import IO\n"
+      "using IO\n"
+      "main : void () { println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemOsCapabilityConstants() {
   const char* src =
-      "import system.os\n"
-      "main : i32 () { if (os.is_linux || os.is_macos || os.is_windows) { return 1 } return 0 }";
+      "import OS\n"
+      "main : i32 () { if (OS.is_linux || OS.is_macos || OS.is_windows) { return 1 } return 0 }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemDlCapabilityConstant() {
   const char* src =
-      "import system.dl\n"
-      "main : i32 () { if (dl.supported) { return 1 } return 0 }";
+      "import DL\n"
+      "main : i32 () { if (DL.supported) { return 1 } return 0 }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateUnknownReservedMemberSuggestsClosest() {
   const char* src =
-      "import system.io\n"
-      "main : void () { io.printlnn(1); }";
+      "import IO\n"
+      "main : void () { IO.printlnn(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'println'") != std::string::npos;
@@ -2857,13 +2892,13 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
 
 bool LangValidateSystemIoBufferApis() {
   const char* src =
-      "import system.io\n"
+      "import IO\n"
       "main : i32 () {\n"
-      "  a : i32[] = io.buffer_new(4);\n"
-      "  b : i32[] = io.buffer_new(4);\n"
-      "  io.buffer_fill(a, 7, 3);\n"
-      "  io.buffer_copy(b, a, 4);\n"
-      "  return io.buffer_len(b);\n"
+      "  a : i32[] = IO.buffer_new(4);\n"
+      "  b : i32[] = IO.buffer_new(4);\n"
+      "  IO.buffer_fill(a, 7, 3);\n"
+      "  IO.buffer_copy(b, a, 4);\n"
+      "  return IO.buffer_len(b);\n"
       "}";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -4918,6 +4953,10 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_simple", LangCliBuildSimple},
   {"lang_cli_build_simple_alias_defaults_to_exe", LangCliBuildSimpleAliasDefaultsToExe},
   {"lang_cli_compile_simple_alias_defaults_to_exe", LangCliCompileSimpleAliasDefaultsToExe},
+  {"lang_cli_compile_svm_defaults_to_exe_and_infers_simple_ext",
+   LangCliCompileSvmDefaultsToExeAndInfersSimpleExt},
+  {"lang_cli_compile_svm_out_sbc_stays_bytecode", LangCliCompileSvmOutSbcStaysBytecode},
+  {"lang_cli_local_using_import_does_not_reach_validator", LangCliLocalUsingImportDoesNotReachValidator},
   {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},

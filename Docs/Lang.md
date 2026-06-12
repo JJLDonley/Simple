@@ -156,24 +156,46 @@ Implemented top-level declarations:
 - modules
 - enums
 
-### Imports
+### Modules, Imports, and Using
 
-Implemented import handling includes:
+Implemented module/import handling includes:
 
-- reserved runtime/std modules through `Lang/include/lang_reserved.h`
+- file module headers with `module Name` or dotted names like `module Game.Player`
+- internal standard modules through `Lang/include/lang_reserved.h`:
+  - `DL`, `Math`, `IO`, `File`, `Buffer`, `Http`, `Socket`, `Time`, `OS`, `Log`
 - local/project `.simple` file imports through the CLI loader
-- relative and absolute file imports
-- bare project-root filename lookup
+- module-name lookup by scanning file headers
+- optional `simple.modules` map entries of the form `Name="path/to/file.simple"`
+- relative and absolute file imports for compatibility with file-based loading
 - ambiguity diagnostics
 - cycle detection
+
+`import Name` loads a module and creates a qualified namespace. `using Name` depends on a prior
+`import`; a bare `using Name` without a prior import is rejected. Internal modules support
+unqualified calls through `using` (for example `sqrt(...)` after `import Math; using Math`).
 
 Examples:
 
 ```simple
-import System.io
-import System.dl as DL
-import "lib"
-import "./relative/file.simple"
+module App.Main
+
+import DL
+import IO
+import Math
+using Math
+
+main : i32 () {
+  IO.println("hello")
+  x : f64 = sqrt(9.0) // from `using Math`
+  return 0
+}
+```
+
+`simple.modules` example:
+
+```text
+Raylib="raylib/raylib.simple"
+Game.Player="src/player.simple"
 ```
 
 ### Extern Declarations and DL Metadata

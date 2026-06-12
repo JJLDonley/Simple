@@ -11,6 +11,7 @@
 - Completion, signature help, rename/prepareRename, code actions.
 - Semantic tokens and TextMate grammar fallback.
 - VS Code extension baseline in `Editor/vscode-simple/`.
+- Zed syntax-highlighting extension baseline in `Editor/zed-simple/`.
 
 ## Not Supported
 - Formatting engine.
@@ -127,6 +128,10 @@ Planned layout:
   - client launcher for `simple lsp`
   - TextMate grammar
   - language configuration (`comments`, `brackets`, `autoClosingPairs`)
+- `Editor/zed-simple/` Zed extension:
+  - Tree-sitter grammar for `.simple`
+  - highlight query
+  - language configuration (`comments`, `brackets`, `autoclose`)
 
 ### VS Code Setup (Implemented Baseline)
 - extension scaffold lives under `Editor/vscode-simple/`
@@ -138,6 +143,14 @@ Planned layout:
 - extension runtime settings:
   - `simple.lspPath`
   - `simple.lspArgs`
+
+### Zed Setup (Implemented Baseline)
+- extension scaffold lives under `Editor/zed-simple/`
+- extension currently provides:
+  - language registration for `.simple`
+  - bundled Tree-sitter grammar
+  - syntax highlight query
+  - comments/brackets/autoclose configuration
 
 ### VS Code Packaging + Release Automation
 - CI workflow: `.github/workflows/vscode-extension.yml`

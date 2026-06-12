@@ -1,4 +1,4 @@
-import system.math as Math
+import Math
 
 main : i32 () {
   a :: i32 = Math.abs(-5)

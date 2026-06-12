@@ -162,26 +162,26 @@ bool AddStmtBlockSymbols(ResolvedProgram* out,
 }
 
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
-  if (canonical_module == "Core.IO") {
+  if (canonical_module == "IO") {
     return member == "print" || member == "println" || member == "buffer_new" ||
            member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
   }
-  if (canonical_module == "Core.Math") {
+  if (canonical_module == "Math") {
     return member == "abs" || member == "min" || member == "max" || member == "sqrt";
   }
-  if (canonical_module == "Core.Time") return member == "mono_ns" || member == "wall_ns";
-  if (canonical_module == "Core.DL") {
+  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns";
+  if (canonical_module == "DL") {
     return member == "open" || member == "sym" || member == "close" ||
            member == "last_error" || member == "call_i32" || member == "call_i64" ||
            member == "call_f32" || member == "call_f64" || member == "call_str0";
   }
-  if (canonical_module == "Core.OS") {
+  if (canonical_module == "OS") {
     return member == "args_count" || member == "args_get" || member == "env_get" ||
            member == "cwd_get" || member == "time_mono_ns" || member == "time_wall_ns" ||
            member == "sleep_ms";
   }
-  if (canonical_module == "Core.FS") return member == "open" || member == "close" || member == "read" || member == "write";
-  if (canonical_module == "Core.Log") return member == "log";
+  if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
+  if (canonical_module == "Log") return member == "log";
   return false;
 }
 
@@ -239,7 +239,7 @@ bool GetDlOpenManifestModule(const ResolvedProgram* out, const Expr& expr, std::
   std::string module_alias;
   if (!GetModuleNameFromExpr(callee.children[0], &module_alias)) return false;
   std::string canonical;
-  if (!ResolveReservedImportAlias(out->program, module_alias, &canonical) || canonical != "Core.DL") return false;
+  if (!ResolveReservedImportAlias(out->program, module_alias, &canonical) || canonical != "DL") return false;
   if (expr.args.size() != 2 || expr.args[1].kind != ExprKind::Identifier) return false;
   const std::string& manifest_module = expr.args[1].text;
   bool has_extern = false;
@@ -526,6 +526,12 @@ bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
 
   for (const auto& decl : program.decls) {
     switch (decl.kind) {
+      case DeclKind::ModuleHeader: {
+        if (!AddSymbol(out, SymbolKind::Module, decl.module_header.name, decl.module_header.name, kInvalidSymbolId, error)) {
+          return false;
+        }
+        break;
+      }
       case DeclKind::Import: {
         const std::string name = decl.import_decl.has_alias ? decl.import_decl.alias
                                                             : decl.import_decl.path;

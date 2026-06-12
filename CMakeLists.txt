@@ -158,6 +158,10 @@ target_include_directories(simplevm PRIVATE
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm PRIVATE SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}")
+add_custom_command(TARGET simplevm POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:simplevm> $<TARGET_FILE_DIR:simplevm>/simple
+  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:simplevm> $<TARGET_FILE_DIR:simplevm>/svm
+)
 
 add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_core.cpp

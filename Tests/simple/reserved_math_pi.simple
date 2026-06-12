@@ -1,4 +1,4 @@
-import system.math as Math
+import Math
 
 main : i32 () {
   if (Math.PI > 3.14159) { return 0 }

@@ -1,4 +1,4 @@
-import system.dl as DL
+import DL
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
