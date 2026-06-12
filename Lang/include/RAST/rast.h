@@ -56,6 +56,7 @@ enum class MemberRefKind : uint8_t {
   EnumMember,
   ExternSymbol,
   ReservedModuleFunction,
+  DLManifestCall,
 };
 
 struct MemberRef {

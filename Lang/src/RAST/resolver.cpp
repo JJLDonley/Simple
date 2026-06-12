@@ -202,6 +202,59 @@ bool ResolveReservedImportAlias(const Program* program, const std::string& alias
   return false;
 }
 
+std::string NormalizeCoreDlMember(const std::string& name) {
+  if (name == "Open") return "open";
+  if (name == "Sym") return "sym";
+  if (name == "Close") return "close";
+  if (name == "LastError") return "last_error";
+  if (name == "CallI32") return "call_i32";
+  if (name == "CallI64") return "call_i64";
+  if (name == "CallF32") return "call_f32";
+  if (name == "CallF64") return "call_f64";
+  if (name == "CallStr0") return "call_str0";
+  return name;
+}
+
+bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
+  if (!out) return false;
+  if (base.kind == ExprKind::Identifier) {
+    *out = base.text;
+    return true;
+  }
+  if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
+    const Expr& root = base.children[0];
+    if (root.kind == ExprKind::Identifier && (root.text == "Core" || root.text == "System")) {
+      *out = root.text + "." + base.text;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GetDlOpenManifestModule(const ResolvedProgram* out, const Expr& expr, std::string* out_module) {
+  if (!out || !out_module || expr.kind != ExprKind::Call || expr.children.empty()) return false;
+  const Expr& callee = expr.children[0];
+  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
+  if (NormalizeCoreDlMember(callee.text) != "open") return false;
+  std::string module_alias;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_alias)) return false;
+  std::string canonical;
+  if (!ResolveReservedImportAlias(out->program, module_alias, &canonical) || canonical != "Core.DL") return false;
+  if (expr.args.size() != 2 || expr.args[1].kind != ExprKind::Identifier) return false;
+  const std::string& manifest_module = expr.args[1].text;
+  bool has_extern = false;
+  const std::string prefix = manifest_module + ".";
+  for (const auto& entry : out->by_qualified_name) {
+    if (entry.first.rfind(prefix, 0) == 0 && out->symbols[entry.second].kind == SymbolKind::Extern) {
+      has_extern = true;
+      break;
+    }
+  }
+  if (!has_extern) return false;
+  *out_module = manifest_module;
+  return true;
+}
+
 bool AddCallableSymbols(ResolvedProgram* out,
                         const FuncDecl& fn,
                         const std::string& owner,
@@ -257,7 +310,10 @@ void AddResolvedMemberRef(ResolvedProgram* out,
   out->member_refs.push_back(std::move(ref));
 }
 
-using TypeEnv = std::unordered_map<std::string, std::string>;
+struct TypeEnv {
+  std::unordered_map<std::string, std::string> types;
+  std::unordered_map<std::string, std::string> dl_modules;
+};
 
 void ResolveExprMemberRefs(ResolvedProgram* out,
                            const Expr& expr,
@@ -275,7 +331,11 @@ void ResolveStmtMemberRefs(ResolvedProgram* out,
                            TypeEnv& types) {
   if (stmt.kind == StmtKind::VarDecl) {
     if (stmt.var_decl.has_init_expr) ResolveExprMemberRefs(out, stmt.var_decl.init_expr, current_artifact, types);
-    if (!stmt.var_decl.type.name.empty()) types[stmt.var_decl.name] = stmt.var_decl.type.name;
+    if (!stmt.var_decl.type.name.empty()) types.types[stmt.var_decl.name] = stmt.var_decl.type.name;
+    std::string manifest_module;
+    if (stmt.var_decl.has_init_expr && GetDlOpenManifestModule(out, stmt.var_decl.init_expr, &manifest_module)) {
+      types.dl_modules[stmt.var_decl.name] = manifest_module;
+    }
   } else if (stmt.kind == StmtKind::Assign) {
     ResolveExprMemberRefs(out, stmt.target, current_artifact, types);
     ResolveExprMemberRefs(out, stmt.expr, current_artifact, types);
@@ -297,7 +357,7 @@ void ResolveStmtMemberRefs(ResolvedProgram* out,
   } else if (stmt.kind == StmtKind::ForLoop) {
     TypeEnv for_types = types;
     if (stmt.has_loop_var_decl && !stmt.loop_var_decl.type.name.empty()) {
-      for_types[stmt.loop_var_decl.name] = stmt.loop_var_decl.type.name;
+      for_types.types[stmt.loop_var_decl.name] = stmt.loop_var_decl.type.name;
     }
     ResolveExprMemberRefs(out, stmt.loop_iter, current_artifact, for_types);
     ResolveExprMemberRefs(out, stmt.loop_cond, current_artifact, for_types);
@@ -318,18 +378,26 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
       qualified = current_artifact + "." + expr.text;
       kind = MemberRefKind::SelfMember;
     } else if (base.kind == ExprKind::Identifier) {
-      auto type_it = types.find(base.text);
-      if (type_it != types.end()) {
-        qualified = type_it->second + "." + expr.text;
-        kind = MemberRefKind::ArtifactMember;
+      auto dl_it = types.dl_modules.find(base.text);
+      if (dl_it != types.dl_modules.end()) {
+        qualified = dl_it->second + "." + expr.text;
+        kind = MemberRefKind::DLManifestCall;
       } else {
-        qualified = base.text + "." + expr.text;
-        kind = MemberRefKind::StaticMember;
+        auto type_it = types.types.find(base.text);
+        if (type_it != types.types.end()) {
+          qualified = type_it->second + "." + expr.text;
+          kind = MemberRefKind::ArtifactMember;
+        } else {
+          qualified = base.text + "." + expr.text;
+          kind = MemberRefKind::StaticMember;
+        }
       }
     }
     auto it = out->by_qualified_name.find(qualified);
     if (it != out->by_qualified_name.end()) {
-      kind = ClassifyMemberRefKind(kind, out->symbols[it->second].kind);
+      if (kind != MemberRefKind::DLManifestCall) {
+        kind = ClassifyMemberRefKind(kind, out->symbols[it->second].kind);
+      }
       AddResolvedMemberRef(out, kind, base.text, expr.text, qualified, it->second);
     } else if (base.kind == ExprKind::Identifier) {
       std::string reserved_module;
@@ -365,35 +433,56 @@ void ResolveStmtBlockMemberRefs(ResolvedProgram* out,
 
 void ResolveFunctionMemberRefs(ResolvedProgram* out,
                                const FuncDecl& fn,
-                               const std::string& current_artifact) {
-  TypeEnv types;
+                               const std::string& current_artifact,
+                               const TypeEnv& globals) {
+  TypeEnv types = globals;
   for (const auto& param : fn.params) {
-    if (!param.type.name.empty()) types[param.name] = param.type.name;
+    if (!param.type.name.empty()) types.types[param.name] = param.type.name;
   }
   ResolveStmtBlockMemberRefs(out, fn.body, current_artifact, std::move(types));
 }
 
-void ResolveProgramMemberRefs(ResolvedProgram* out) {
-  if (!out || !out->program) return;
+TypeEnv CollectGlobalMemberEnv(ResolvedProgram* out) {
+  TypeEnv globals;
+  if (!out || !out->program) return globals;
   for (const auto& decl : out->program->decls) {
-    if (decl.kind == DeclKind::Function) {
-      ResolveFunctionMemberRefs(out, decl.func, {});
-    } else if (decl.kind == DeclKind::Artifact) {
-      for (const auto& method : decl.artifact.methods) {
-        ResolveFunctionMemberRefs(out, method, decl.artifact.name);
+    if (decl.kind == DeclKind::Variable) {
+      if (!decl.var.type.name.empty()) globals.types[decl.var.name] = decl.var.type.name;
+      std::string manifest_module;
+      if (decl.var.has_init_expr && GetDlOpenManifestModule(out, decl.var.init_expr, &manifest_module)) {
+        globals.dl_modules[decl.var.name] = manifest_module;
       }
     } else if (decl.kind == DeclKind::Module) {
-      for (const auto& fn : decl.module.functions) ResolveFunctionMemberRefs(out, fn, {});
       for (const auto& var : decl.module.variables) {
-        TypeEnv types;
+        if (!var.type.name.empty()) globals.types[decl.module.name + "." + var.name] = var.type.name;
+      }
+    }
+  }
+  return globals;
+}
+
+void ResolveProgramMemberRefs(ResolvedProgram* out) {
+  if (!out || !out->program) return;
+  TypeEnv globals = CollectGlobalMemberEnv(out);
+  for (const auto& decl : out->program->decls) {
+    if (decl.kind == DeclKind::Function) {
+      ResolveFunctionMemberRefs(out, decl.func, {}, globals);
+    } else if (decl.kind == DeclKind::Artifact) {
+      for (const auto& method : decl.artifact.methods) {
+        ResolveFunctionMemberRefs(out, method, decl.artifact.name, globals);
+      }
+    } else if (decl.kind == DeclKind::Module) {
+      for (const auto& fn : decl.module.functions) ResolveFunctionMemberRefs(out, fn, {}, globals);
+      for (const auto& var : decl.module.variables) {
+        TypeEnv types = globals;
         if (var.has_init_expr) ResolveExprMemberRefs(out, var.init_expr, {}, types);
       }
     } else if (decl.kind == DeclKind::Variable && decl.var.has_init_expr) {
-      TypeEnv types;
+      TypeEnv types = globals;
       ResolveExprMemberRefs(out, decl.var.init_expr, {}, types);
     }
   }
-  TypeEnv script_types;
+  TypeEnv script_types = globals;
   for (const auto& stmt : out->program->top_level_stmts) ResolveStmtMemberRefs(out, stmt, {}, script_types);
 }
 

@@ -84,7 +84,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [ ] no-fallthrough policy
 - [ ] Add resolved receiver model for artifact methods.
   - [x] Add initial RAST artifact member receiver refs from local variable types.
-- [ ] Disambiguate member access during resolution:
+- [x] Disambiguate member access during resolution:
   - [x] Add initial RAST member reference collection for static and `self` member refs.
   - [x] module member
   - [x] artifact field
@@ -92,7 +92,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] enum member
   - [x] reserved module function
   - [x] extern symbol
-  - [ ] DL manifest call
+  - [x] DL manifest call
 
 ## Procedure Values / Generics / Pointers
 

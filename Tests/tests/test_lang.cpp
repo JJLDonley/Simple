@@ -290,6 +290,7 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
 bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
       "import system.io\n"
+      "import system.dl as DL\n"
       "Box :: Artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
@@ -299,9 +300,14 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "}\n"
       "Mode :: Enum { Off = 0, On = 1 }\n"
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
+      "extern ffi.simple_add_i32 : i32 (a : i32, b : i32)\n"
+      "glib :: i64 = DL.Open(\"libffi.so\", ffi)\n"
+      "UseGlobal : i32 () { return glib.simple_add_i32(3, 4); }\n"
       "main : i32 () {\n"
       "  io.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
+      "  lib : i64 = DL.Open(\"libffi.so\", ffi);\n"
+      "  dyn : i32 = lib.simple_add_i32(1, 2);\n"
       "  x : i32 = Config.Max;\n"
       "  m : Mode = Mode.On;\n"
       "  b : Box = { 2 };\n"
@@ -320,6 +326,8 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   bool saw_artifact_method = false;
   bool saw_extern = false;
   bool saw_reserved = false;
+  bool saw_dl_manifest = false;
+  bool saw_global_dl_manifest = false;
   for (const auto& ref : resolved.member_refs) {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ArtifactField &&
         ref.qualified_name == "Box.v") saw_self = true;
@@ -333,8 +341,13 @@ bool LangRastResolverDisambiguatesMemberRefs() {
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ReservedModuleFunction &&
         ref.qualified_name == "Core.IO.println") saw_reserved = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
+        ref.qualified_name == "ffi.simple_add_i32" && ref.base == "lib") saw_dl_manifest = true;
+    if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
+        ref.qualified_name == "ffi.simple_add_i32" && ref.base == "glib") saw_global_dl_manifest = true;
   }
-  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern && saw_reserved;
+  return saw_self && saw_module && saw_enum && saw_artifact_method && saw_extern && saw_reserved &&
+         saw_dl_manifest && saw_global_dl_manifest;
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {
