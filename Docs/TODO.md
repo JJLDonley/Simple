@@ -135,7 +135,7 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] `IrSig`
   - [x] `IrImport`
 - [x] Move artifact layout out of SIR emitter.
-- [ ] Move ABI flattening out of SIR emitter.
+- [x] Move ABI flattening out of SIR emitter.
 - [ ] Move stack tracking into IRB.
 - [ ] Move local/global/import/signature allocation into IRB.
 - [ ] Make IRE serialize already-computed IR only.

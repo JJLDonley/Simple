@@ -50,10 +50,21 @@ struct IrArtifactLayout {
   std::vector<IrArtifactField> fields;
 };
 
+struct IrAbiField {
+  std::string name;
+  IrType type;
+};
+
+struct IrAbiType {
+  std::string name;
+  std::vector<IrAbiField> fields;
+};
+
 struct IrModule {
   std::vector<IrImport> imports;
   std::vector<IrFunction> functions;
   std::vector<IrArtifactLayout> artifact_layouts;
+  std::vector<IrAbiType> abi_types;
 };
 
 // Language IR module boundary. During migration this carries serialized SIR

@@ -1,6 +1,7 @@
 #include "IRB/ir_builder.h"
 
 #include <utility>
+#include <vector>
 
 #include "lang_sir.h"
 
@@ -17,9 +18,38 @@ IrType ToIrType(const Simple::Lang::AST::TypeRef& type) {
   return out;
 }
 
+const Simple::Lang::AST::ArtifactDecl* FindArtifact(const Simple::Lang::AST::Program& program,
+                                                     const std::string& name) {
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
+      return &decl.artifact;
+    }
+  }
+  return nullptr;
+}
+
+void CollectAbiFields(const Simple::Lang::AST::Program& program,
+                      const Simple::Lang::AST::ArtifactDecl& artifact,
+                      const std::string& prefix,
+                      std::vector<IrAbiField>* out) {
+  if (!out) return;
+  for (const auto& field : artifact.fields) {
+    const auto* nested = FindArtifact(program, field.type.name);
+    if (nested && field.type.pointer_depth == 0 && field.type.dims.empty()) {
+      CollectAbiFields(program, *nested, prefix + field.name + ".", out);
+      continue;
+    }
+    IrAbiField abi_field;
+    abi_field.name = prefix + field.name;
+    abi_field.type = ToIrType(field.type);
+    out->push_back(std::move(abi_field));
+  }
+}
+
 void PopulateArtifactLayouts(const Simple::Lang::AST::Program& program, IrModule* out) {
   if (!out) return;
   out->artifact_layouts.clear();
+  out->abi_types.clear();
   for (const auto& decl : program.decls) {
     if (decl.kind != Simple::Lang::AST::DeclKind::Artifact) continue;
     IrArtifactLayout layout;
@@ -34,6 +64,11 @@ void PopulateArtifactLayouts(const Simple::Lang::AST::Program& program, IrModule
       layout.fields.push_back(std::move(ir_field));
     }
     out->artifact_layouts.push_back(std::move(layout));
+
+    IrAbiType abi;
+    abi.name = decl.artifact.name + "$abi";
+    CollectAbiFields(program, decl.artifact, {}, &abi.fields);
+    out->abi_types.push_back(std::move(abi));
   }
 }
 

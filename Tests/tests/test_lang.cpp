@@ -651,6 +651,32 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
          module.ir.artifact_layouts.empty();
 }
 
+bool LangIrbCollectsAbiFlatteningMetadata() {
+  const char* src =
+      "Inner :: Artifact { x : i32; y : i32 }\n"
+      "Outer :: Artifact { inner : Inner; z : f64 }\n"
+      "main : i32 () { return 0; }\n";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  Simple::Lang::TAST::TypedProgram typed;
+  Simple::Lang::IRB::Module module;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
+  if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  for (const auto& abi : module.ir.abi_types) {
+    if (abi.name != "Outer$abi") continue;
+    if (abi.fields.size() != 3) return false;
+    return abi.fields[0].name == "inner.x" && abi.fields[0].type.name == "i32" &&
+           abi.fields[1].name == "inner.y" && abi.fields[1].type.name == "i32" &&
+           abi.fields[2].name == "z" && abi.fields[2].type.name == "f64";
+  }
+  return false;
+}
+
 bool LangIrbRejectsMissingTypedInput() {
   Simple::Lang::TAST::TypedProgram typed;
   Simple::Lang::IRB::Module module;
@@ -4643,6 +4669,7 @@ const TestCase kLangTests[] = {
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
+  {"lang_irb_collects_abi_flattening_metadata", LangIrbCollectsAbiFlatteningMetadata},
   {"lang_irb_rejects_missing_typed_input", LangIrbRejectsMissingTypedInput},
   {"lang_phase_headers_compile_and_preserve_behavior", LangPhaseHeadersCompileAndPreserveBehavior},
   {"lang_nested_artifact_method_switch_if_chain_runtime", LangNestedArtifactMethodSwitchIfChainRuntime},
