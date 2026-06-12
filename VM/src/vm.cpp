@@ -2397,6 +2397,29 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackI32(out_file.good() ? 1 : 0);
         return true;
       }
+      if (sym == "listDir") {
+        if (ret_kind != TypeKind::Ref) { out_error = "core.fs.listDir return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.fs.listDir arg count mismatch"; return false; }
+        std::string path;
+        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
+        std::vector<uint32_t> refs;
+        std::error_code ec;
+        for (const auto& entry : std::filesystem::directory_iterator(path, ec)) {
+          if (ec) break;
+          refs.push_back(CreateString(heap, AsciiToU16(entry.path().filename().generic_string())));
+        }
+        if (ec) { out_ret = PackRef(kNullRef); return true; }
+        const uint32_t length = static_cast<uint32_t>(refs.size());
+        const uint32_t size = 8u + length * 4u;
+        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+        HeapObject* out_obj = heap.Get(handle);
+        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
+        WriteU32Payload(out_obj->payload, 0, length);
+        WriteU32Payload(out_obj->payload, 4, length);
+        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4, refs[i]);
+        out_ret = PackRef(handle);
+        return true;
+      }
       if (sym == "copy") {
         if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.copy return type mismatch"; return false; }
         if (args.size() != 2) { out_error = "core.fs.copy arg count mismatch"; return false; }

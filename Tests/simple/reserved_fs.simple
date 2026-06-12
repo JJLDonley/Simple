@@ -24,6 +24,8 @@ main : i32 () {
 
   FS.remove("/tmp/simple_reserved_fs_dir")
   if (!FS.mkdirAll(dir_path)) { return 0 }
+  entries : string[] = FS.listDir("/tmp/simple_reserved_fs_dir")
+  if (len(entries) == 0) { return 0 }
   cwd : string = FS.cwd()
   if (len(cwd) == 0) { return 0 }
   if (!FS.setCwd(cwd)) { return 0 }

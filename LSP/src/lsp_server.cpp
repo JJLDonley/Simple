@@ -1254,7 +1254,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Random", {"seed", "i32", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
       {"Path", {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"}},
-      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "cwd", "setCwd"}},
+      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
@@ -1588,6 +1588,11 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "copy") {
       out->params = {"from", "to"};
       out->return_type = "bool";
+      return true;
+    }
+    if (member == "listDir") {
+      out->params = {"path"};
+      out->return_type = "string[]";
       return true;
     }
     if (member == "remove" || member == "mkdir" || member == "mkdirAll" || member == "setCwd") {

@@ -435,7 +435,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
     } else if (module == "FS" &&
                (member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
                 member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
-                member == "cwd" || member == "setCwd")) {
+                member == "listDir" || member == "cwd" || member == "setCwd")) {
       if (found) return false;
       found = true;
       result = module;
@@ -5074,6 +5074,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       write_bytes_params.push_back(make_type("string"));
       write_bytes_params.push_back(make_list_type("i32"));
       if (!add_reserved_import(alias, "core.fs", "writeBytes", std::move(write_bytes_params), make_type("bool"))) return false;
+      std::vector<TypeRef> list_dir_params;
+      list_dir_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.fs", "listDir", std::move(list_dir_params), make_list_type("string"))) return false;
       std::vector<TypeRef> copy_params;
       copy_params.push_back(make_type("string"));
       copy_params.push_back(make_type("string"));

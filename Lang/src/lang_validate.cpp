@@ -356,7 +356,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
   }
   if (resolved == "FS") {
     return {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
-            "mkdir", "mkdirAll", "cwd", "setCwd"};
+            "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
   }
   if (resolved == "Channel") {
     return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
@@ -674,6 +674,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (member == "readBytes") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeListType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "listDir") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeListType("string");
       out->return_mutability = Mutability::Mutable;
       return true;
     }

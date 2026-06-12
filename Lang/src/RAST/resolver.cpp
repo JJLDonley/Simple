@@ -197,7 +197,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "FS") {
     return member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
            member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
-           member == "cwd" || member == "setCwd";
+           member == "listDir" || member == "cwd" || member == "setCwd";
   }
   if (canonical_module == "Channel") {
     return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
