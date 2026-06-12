@@ -1209,6 +1209,39 @@ bool LangStressProcedureMemberCallRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
+bool LangStressProcedureListArrayRejected() {
+  const char* src =
+      "main : i32 () {\n"
+      "  fs : fn i32 ()[] = []\n"
+      "  return 0\n"
+      "}";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("procedure types cannot have array/list dimensions") != std::string::npos;
+}
+
+bool LangStressProcedureExternBoundaryRejected() {
+  const char* src =
+      "extern C.call : void (f : fn i32 ())\n"
+      "main : void () { return }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("extern ABI parameter type is not supported") != std::string::npos;
+}
+
+bool LangStressProcedureGenericEmissionRejected() {
+  const char* src =
+      "id<T> : T (x : T) { return x }\n"
+      "main : i32 () {\n"
+      "  f : fn i32 () = id<fn i32 ()>(() { return 42 })\n"
+      "  return f()\n"
+      "}";
+  std::string sir;
+  std::string error;
+  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  return error.find("generic functions not supported") != std::string::npos;
+}
+
 bool LangStressProcedureArgTypeStrict() {
   const char* src =
       "main : i32 () {\n"
@@ -4533,6 +4566,9 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_parameter_runtime", LangStressProcedureParameterRuntime},
   {"lang_stress_procedure_switch_expr_runtime", LangStressProcedureSwitchExprRuntime},
   {"lang_stress_procedure_member_call_runtime", LangStressProcedureMemberCallRuntime},
+  {"lang_stress_procedure_list_array_rejected", LangStressProcedureListArrayRejected},
+  {"lang_stress_procedure_extern_boundary_rejected", LangStressProcedureExternBoundaryRejected},
+  {"lang_stress_procedure_generic_emission_rejected", LangStressProcedureGenericEmissionRejected},
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},

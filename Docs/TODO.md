@@ -102,9 +102,9 @@ This list tracks work needed to improve feature independence, compiler structure
   - [x] module functions
   - [x] switch expressions
   - [ ] nested closures
-  - [ ] lists/arrays
-  - [ ] extern boundaries
-  - [ ] generics
+  - [x] lists/arrays
+  - [x] extern boundaries
+  - [x] generics
   - [x] member calls
 - [ ] Audit closure/upvalue semantics.
 - [ ] Finish or explicitly reject unsupported generic cases:
