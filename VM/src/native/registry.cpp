@@ -951,6 +951,11 @@ void RegisterSystemRandom(NativeRegistry& registry) {
 
 void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.os", "args_count", {}, TypeKind::I32, EnvArgsCount));
+  registry.Register(MakeSpec("System.os", "args_get", {TypeKind::I32}, TypeKind::String,
+                             EnvArg));
+  registry.Register(MakeSpec("System.os", "env_get", {TypeKind::String}, TypeKind::String,
+                             EnvGet));
   registry.Register(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
   registry.Register(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
   registry.Register(MakeSpec("System.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,

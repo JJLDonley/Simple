@@ -16137,6 +16137,9 @@ bool RunNativeRegistryModuleTest() {
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
   const auto* os_cwd = default_registry.Find("System.os", "cwd_get");
   const auto* os_format = default_registry.Find("System.os", "formatWallNs");
+  const auto* os_args_count = default_registry.Find("System.os", "args_count");
+  const auto* os_args_get = default_registry.Find("System.os", "args_get");
+  const auto* os_env_get = default_registry.Find("System.os", "env_get");
   const auto* path_join = default_registry.Find("System.path", "join");
   const auto* path_basename = default_registry.Find("System.path", "basename");
   const auto* path_normalize = default_registry.Find("System.path", "normalize");
@@ -16188,6 +16191,16 @@ bool RunNativeRegistryModuleTest() {
   const auto* buffer_read = default_registry.Find("System.buffer", "readU16LE");
   const auto* buffer_slice = default_registry.Find("System.buffer", "slice");
   const auto* buffer_copy = default_registry.Find("System.buffer", "copy");
+  const std::vector<std::string> os_metadata_argv = {"simple", "legacy-arg"};
+  Simple::VM::Native::NativeCallContext os_args_count_ctx;
+  os_args_count_ctx.argv = &os_metadata_argv;
+  const auto os_args_count_result = os_args_count ? os_args_count->handler(os_args_count_ctx)
+                                                  : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext os_args_get_ctx;
+  os_args_get_ctx.argv = &os_metadata_argv;
+  os_args_get_ctx.args = {1};
+  const auto os_args_get_result = os_args_get ? os_args_get->handler(os_args_get_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext os_cwd_ctx;
   const auto os_cwd_result = os_cwd ? os_cwd->handler(os_cwd_ctx)
                                     : Simple::VM::Native::NativeCallResult{};
@@ -16240,6 +16253,11 @@ bool RunNativeRegistryModuleTest() {
   env_get_ctx.args = {env_name};
   const auto env_get_result = env_get ? env_get->handler(env_get_ctx)
                                       : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext os_env_get_ctx;
+  os_env_get_ctx.heap = &metadata_heap;
+  os_env_get_ctx.args = {env_name};
+  const auto os_env_get_result = os_env_get ? os_env_get->handler(os_env_get_ctx)
+                                            : Simple::VM::Native::NativeCallResult{};
   const uint32_t log_empty_path = make_metadata_string("");
   const uint32_t log_message = make_metadata_string("metadata log suppressed");
   Simple::VM::Native::NativeCallContext log_level_ctx;
@@ -16431,7 +16449,9 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
-         os_sleep && os_cwd && os_format && path_join && path_basename && path_normalize &&
+         os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&
+         os_args_count_result.value == 2 && os_args_get_result.string_value == "legacy-arg" &&
+         os_env_get_result.string_value == "metadata-env" && path_join && path_basename && path_normalize &&
          path_exists && fs_read_text && fs_write_text && fs_read_bytes && fs_write_bytes &&
          fs_list_dir && fs_cwd && fs_copy && fs_remove && fs_mkdir && fs_set_cwd &&
          !os_cwd_result.string_value.empty() &&
@@ -16468,6 +16488,9 @@ bool RunNativeRegistryModuleTest() {
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          os_cwd->result_type == Simple::Byte::TypeKind::String &&
          os_format->result_type == Simple::Byte::TypeKind::String &&
+         os_args_count->result_type == Simple::Byte::TypeKind::I32 &&
+         os_args_get->result_type == Simple::Byte::TypeKind::String &&
+         os_env_get->result_type == Simple::Byte::TypeKind::String &&
          path_join->result_type == Simple::Byte::TypeKind::String &&
          path_basename->result_type == Simple::Byte::TypeKind::String &&
          path_normalize->result_type == Simple::Byte::TypeKind::String &&

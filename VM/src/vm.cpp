@@ -1481,61 +1481,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "System.os") {
-      if (sym == "args_count") {
-        if (IsI32LikeImportType(ret_kind)) {
-          out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
-          return true;
-        }
-        out_error = "System.os.args_count return type mismatch";
-        return false;
-      }
-      if (sym == "args_get" || sym == "env_get") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.os ref return type mismatch";
+      if (sym == "args_count" || sym == "args_get" || sym == "env_get") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = "System.os." + sym + " return type mismatch";
           return false;
         }
-        if (sym == "args_get") {
-          if (args.size() != 1) {
-            out_error = "System.os.args_get arg count mismatch";
-            return false;
-          }
-          int32_t index = UnpackI32(args[0]);
-          if (index < 0 || static_cast<size_t>(index) >= options.argv.size()) {
-            out_ret = PackRef(kNullRef);
-            return true;
-          }
-          uint32_t handle = CreateString(heap, AsciiToU16(options.argv[static_cast<size_t>(index)]));
-          out_ret = PackRef(handle);
-          return true;
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = "System.os." + sym + " return type mismatch";
+          return false;
         }
-        if (sym == "env_get") {
-          if (args.size() != 1) {
-            out_error = "System.os.env_get arg count mismatch";
-            return false;
-          }
-          uint32_t name_ref = UnpackRef(args[0]);
-          if (name_ref == kNullRef) {
-            out_ret = PackRef(kNullRef);
-            return true;
-          }
-          HeapObject* name_obj = heap.Get(name_ref);
-          std::u16string name_u16 = ReadString(name_obj);
-          std::string name = U16ToAscii(name_u16);
-          if (name.empty()) {
-            out_ret = PackRef(kNullRef);
-            return true;
-          }
-          std::string env_value_storage;
-          const char* value = Simple::VM::Native::Env::Get(name, &env_value_storage);
-          if (!value) {
-            out_ret = PackRef(kNullRef);
-            return true;
-          }
-          uint32_t handle = CreateString(heap, AsciiToU16(value));
-          out_ret = PackRef(handle);
-          return true;
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.os." + sym + " arg count mismatch";
+          return false;
         }
-        out_ret = PackRef(kNullRef);
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        context.argv = &options.argv;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
+        }
         return true;
       }
       if (sym == "cwd_get" || sym == "formatWallNs") {
