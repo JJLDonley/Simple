@@ -2540,27 +2540,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = result.value;
         return true;
       }
-      if (sym == "readU16LE" || sym == "readU32LE") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer read return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "System.buffer read arg count mismatch"; return false; }
-        HeapObject* obj = get_buffer(0);
-        const int32_t offset = UnpackI32(args[1]);
-        const uint32_t width = sym == "readU16LE" ? 2u : 4u;
-        out_ret = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
-            Simple::VM::Native::Buffer::ReadLE(obj, static_cast<uint32_t>(offset), width)));
-        return true;
-      }
-      if (sym == "writeU16LE" || sym == "writeU32LE") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer write return type mismatch"; return false; }
-        if (args.size() != 3) { out_error = "System.buffer write arg count mismatch"; return false; }
-        HeapObject* obj = get_buffer(0);
-        const int32_t offset = UnpackI32(args[1]);
-        const uint32_t value = static_cast<uint32_t>(UnpackI32(args[2]));
-        const uint32_t width = sym == "writeU16LE" ? 2u : 4u;
-        out_ret = PackI32(offset >= 0 && Simple::VM::Native::Buffer::WriteLE(
-                                          obj, static_cast<uint32_t>(offset), width, value)
-                              ? 1
-                              : 0);
+      if (sym == "readU16LE" || sym == "readU32LE" || sym == "writeU16LE" ||
+          sym == "writeU32LE") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "System.buffer " + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.buffer " + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
         return true;
       }
       if (sym == "slice") {

@@ -389,10 +389,57 @@ NativeCallResult LogSetLevel(NativeCallContext& context) {
   return result;
 }
 
+HeapObject* GetHeapObject(NativeCallContext& context, size_t index) {
+  if (!context.heap || index >= context.args.size()) return nullptr;
+  return context.heap->Get(UnpackRef(context.args[index]));
+}
+
 NativeCallResult BufferLen(NativeCallContext& context) {
   NativeCallResult result;
-  HeapObject* obj = context.heap ? context.heap->Get(UnpackRef(context.args[0])) : nullptr;
+  HeapObject* obj = GetHeapObject(context, 0);
   result.value = PackI32(static_cast<int32_t>(Buffer::Len(obj)));
+  return result;
+}
+
+NativeCallResult BufferReadU16LE(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t offset = UnpackI32(context.args[1]);
+  result.value = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
+      Buffer::ReadLE(obj, static_cast<uint32_t>(offset), 2u)));
+  return result;
+}
+
+NativeCallResult BufferReadU32LE(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t offset = UnpackI32(context.args[1]);
+  result.value = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
+      Buffer::ReadLE(obj, static_cast<uint32_t>(offset), 4u)));
+  return result;
+}
+
+NativeCallResult BufferWriteU16LE(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t offset = UnpackI32(context.args[1]);
+  const uint32_t value = static_cast<uint32_t>(UnpackI32(context.args[2]));
+  result.value = PackI32(offset >= 0 && Buffer::WriteLE(obj, static_cast<uint32_t>(offset), 2u,
+                                                        value)
+                             ? 1
+                             : 0);
+  return result;
+}
+
+NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t offset = UnpackI32(context.args[1]);
+  const uint32_t value = static_cast<uint32_t>(UnpackI32(context.args[2]));
+  result.value = PackI32(offset >= 0 && Buffer::WriteLE(obj, static_cast<uint32_t>(offset), 4u,
+                                                        value)
+                             ? 1
+                             : 0);
   return result;
 }
 
@@ -471,6 +518,16 @@ void RegisterSystemLog(NativeRegistry& registry) {
 void RegisterSystemBuffer(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.buffer", "len", {TypeKind::Ref}, TypeKind::I32, BufferLen));
+  registry.Register(MakeSpec("System.buffer", "readU16LE", {TypeKind::Ref, TypeKind::I32},
+                             TypeKind::I32, BufferReadU16LE));
+  registry.Register(MakeSpec("System.buffer", "readU32LE", {TypeKind::Ref, TypeKind::I32},
+                             TypeKind::I32, BufferReadU32LE));
+  registry.Register(MakeSpec("System.buffer", "writeU16LE",
+                             {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
+                             BufferWriteU16LE));
+  registry.Register(MakeSpec("System.buffer", "writeU32LE",
+                             {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
+                             BufferWriteU32LE));
 }
 
 void RegisterSystemChannel(NativeRegistry& registry) {
