@@ -167,7 +167,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `Tests/tests/vm/test_jit.cpp`
 - [ ] Split language tests out of `Tests/tests/test_lang.cpp`:
   - [x] `Tests/tests/lang/test_lexer.cpp`
-  - [ ] `Tests/tests/lang/test_cast.cpp`
+  - [x] `Tests/tests/lang/test_cast.cpp`
   - [ ] `Tests/tests/lang/test_ast.cpp`
   - [ ] `Tests/tests/lang/test_rast.cpp`
   - [x] `Tests/tests/lang/test_tast.cpp`
