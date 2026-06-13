@@ -22988,6 +22988,25 @@ bool RunScratchArenaPoisonTest() {
   return true;
 }
 
+bool RunHeapArrayArtifactRefTraceTest() {
+  Simple::VM::Heap heap;
+  uint32_t text = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
+  uint32_t artifact = heap.Allocate(Simple::VM::ObjectKind::Artifact, 1, 4);
+  uint32_t array = heap.Allocate(Simple::VM::ObjectKind::Array, 1, 8);
+  uint32_t dead = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
+  auto* artifact_obj = heap.Get(artifact);
+  auto* array_obj = heap.Get(array);
+  if (!artifact_obj || !array_obj) return false;
+  WriteU32Payload(artifact_obj->payload, 0, text);
+  WriteU32Payload(array_obj->payload, 0, 1);
+  WriteU32Payload(array_obj->payload, 4, artifact);
+  heap.ResetMarks();
+  heap.Mark(array);
+  heap.Sweep();
+  return heap.Get(array) != nullptr && heap.Get(artifact) != nullptr &&
+         heap.Get(text) != nullptr && heap.Get(dead) == nullptr;
+}
+
 bool RunHeapClosureMarkTest() {
   Simple::VM::Heap heap;
   uint32_t target = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
@@ -23562,6 +23581,7 @@ static const TestCase kCoreTests[] = {
   {"scratch_align", RunScratchArenaAlignmentTest},
   {"scratch_scope_enforced", RunScratchScopeEnforcedTest},
   {"scratch_poison", RunScratchArenaPoisonTest},
+  {"heap_array_artifact_ref_trace", RunHeapArrayArtifactRefTraceTest},
   {"heap_closure_mark", RunHeapClosureMarkTest},
   {"gc_stress", RunGcStressTest},
   {"gc_vm_stress", RunGcVmStressTest},

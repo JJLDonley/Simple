@@ -219,8 +219,8 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] closure
 - [ ] Harden GC root tracing with stress tests for:
   - [x] nested lists of strings
-  - [ ] arrays of artifacts
-  - [ ] closures capturing refs
+  - [x] arrays of artifacts
+  - [x] closures capturing refs
   - [x] artifact fields containing refs
   - [ ] switch/loop local lifetimes with refs
   - [ ] globals holding refs
