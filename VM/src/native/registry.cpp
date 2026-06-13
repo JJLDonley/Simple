@@ -5,6 +5,7 @@
 
 #include "native/buffer.h"
 #include "native/channel.h"
+#include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -393,6 +394,24 @@ NativeCallResult LogSetLevel(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult EnvPlatform(NativeCallContext&) {
+  NativeCallResult result;
+  result.string_value = Env::PlatformName();
+  return result;
+}
+
+NativeCallResult EnvArch(NativeCallContext&) {
+  NativeCallResult result;
+  result.string_value = Env::ArchName();
+  return result;
+}
+
+NativeCallResult EnvExePath(NativeCallContext&) {
+  NativeCallResult result;
+  result.string_value = Env::ExePath();
+  return result;
+}
+
 HeapObject* GetHeapObject(NativeCallContext& context, size_t index) {
   if (!context.heap || index >= context.args.size()) return nullptr;
   return context.heap->Get(UnpackRef(context.args[index]));
@@ -598,6 +617,13 @@ void RegisterSystemLog(NativeRegistry& registry) {
                              LogSetLevel));
 }
 
+void RegisterSystemEnv(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
+  registry.Register(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch));
+  registry.Register(MakeSpec("System.env", "exePath", {}, TypeKind::String, EnvExePath));
+}
+
 void RegisterSystemBuffer(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.buffer", "new", {TypeKind::I32}, TypeKind::Ref, BufferNew));
@@ -697,6 +723,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemJson(registry);
   RegisterSystemLog(registry);
   RegisterSystemBuffer(registry);
+  RegisterSystemEnv(registry);
   return registry;
 }
 

@@ -1734,38 +1734,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackI32(Simple::VM::Native::Env::Set(name, value) ? 1 : 0);
         return true;
       }
-      if (sym == "platform") {
+      if (sym == "platform" || sym == "arch" || sym == "exePath") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.env.platform return type mismatch";
+          out_error = "System.env." + sym + " return type mismatch";
           return false;
         }
-        if (!args.empty()) {
-          out_error = "System.env.platform arg count mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.env." + sym + " arg count mismatch";
           return false;
         }
-        return return_string(Simple::VM::Native::Env::PlatformName());
-      }
-      if (sym == "arch") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.env.arch return type mismatch";
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
           return false;
         }
-        if (!args.empty()) {
-          out_error = "System.env.arch arg count mismatch";
-          return false;
-        }
-        return return_string(Simple::VM::Native::Env::ArchName());
-      }
-      if (sym == "exePath") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.env.exePath return type mismatch";
-          return false;
-        }
-        if (!args.empty()) {
-          out_error = "System.env.exePath arg count mismatch";
-          return false;
-        }
-        return return_string(Simple::VM::Native::Env::ExePath());
+        return return_string(result.string_value);
       }
     }
     if (mod == "System.random") {

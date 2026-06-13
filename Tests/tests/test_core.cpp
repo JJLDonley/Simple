@@ -16156,12 +16156,22 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_close = default_registry.Find("System.channel", "close");
   const auto* json_free = default_registry.Find("System.json", "free");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
+  const auto* env_platform = default_registry.Find("System.env", "platform");
+  const auto* env_arch = default_registry.Find("System.env", "arch");
+  const auto* env_exe = default_registry.Find("System.env", "exePath");
   const auto* buffer_new = default_registry.Find("System.buffer", "new");
   const auto* buffer_len = default_registry.Find("System.buffer", "len");
   const auto* buffer_write = default_registry.Find("System.buffer", "writeU16LE");
   const auto* buffer_read = default_registry.Find("System.buffer", "readU16LE");
   const auto* buffer_slice = default_registry.Find("System.buffer", "slice");
   const auto* buffer_copy = default_registry.Find("System.buffer", "copy");
+  Simple::VM::Native::NativeCallContext env_ctx;
+  const auto env_platform_result = env_platform ? env_platform->handler(env_ctx)
+                                                : Simple::VM::Native::NativeCallResult{};
+  const auto env_arch_result = env_arch ? env_arch->handler(env_ctx)
+                                        : Simple::VM::Native::NativeCallResult{};
+  const auto env_exe_result = env_exe ? env_exe->handler(env_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
   Heap metadata_heap;
   Simple::VM::Native::NativeCallContext buffer_new_ctx;
   buffer_new_ctx.heap = &metadata_heap;
@@ -16211,8 +16221,10 @@ bool RunNativeRegistryModuleTest() {
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && json_free && log_set_level && buffer_new && buffer_len && buffer_write &&
-         buffer_read && buffer_slice && buffer_copy && buffer_new_result.ok && buffer_result.value == 3 &&
+         channel_close && json_free && log_set_level && env_platform && env_arch && env_exe &&
+         buffer_new && buffer_len && buffer_write && buffer_read && buffer_slice && buffer_copy &&
+         !env_platform_result.string_value.empty() && !env_arch_result.string_value.empty() &&
+         !env_exe_result.string_value.empty() && buffer_new_result.ok && buffer_result.value == 3 &&
          buffer_write_result.value == 1 &&
          buffer_read_result.value == 0x1234u && buffer_copy_result.value == 2 &&
          Simple::VM::Native::Buffer::ReadLE(copy_obj, 0, 2) == 0x1234u &&
@@ -16246,7 +16258,10 @@ bool RunNativeRegistryModuleTest() {
          buffer_read->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_slice->result_type == Simple::Byte::TypeKind::Ref &&
          buffer_copy->result_type == Simple::Byte::TypeKind::I32 &&
-         log_set_level->result_type == Simple::Byte::TypeKind::Unspecified;
+         log_set_level->result_type == Simple::Byte::TypeKind::Unspecified &&
+         env_platform->result_type == Simple::Byte::TypeKind::String &&
+         env_arch->result_type == Simple::Byte::TypeKind::String &&
+         env_exe->result_type == Simple::Byte::TypeKind::String;
 }
 
 bool RunNativeThreadModuleTest() {

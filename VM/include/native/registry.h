@@ -22,6 +22,7 @@ struct NativeCallResult {
   bool ok = true;
   bool has_value = true;
   Slot value = 0;
+  std::string string_value;
   std::string error;
 };
 
@@ -62,6 +63,7 @@ void RegisterSystemChannel(NativeRegistry& registry);
 void RegisterSystemJson(NativeRegistry& registry);
 void RegisterSystemLog(NativeRegistry& registry);
 void RegisterSystemBuffer(NativeRegistry& registry);
+void RegisterSystemEnv(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native
