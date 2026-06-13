@@ -75,7 +75,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route `System.random` through native metadata dispatch.
   - [x] Route `System.os` time/sleep helpers through native metadata dispatch.
   - [x] Route `System.thread` through native metadata dispatch.
-  - [x] Route `System.channel` new/send/recv/pending/close scalar helpers through native metadata dispatch.
+  - [x] Route `System.channel` scalar plus string/bytes new/pending helpers through native metadata dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.
 - [ ] Use native metadata for stdlib documentation generation.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.

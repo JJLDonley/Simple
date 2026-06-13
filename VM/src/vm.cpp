@@ -1806,7 +1806,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           sym == "sendF64" || sym == "trySendF64" || sym == "recvF64" ||
           sym == "tryRecvF64" || sym == "pendingF64" || sym == "newBool" ||
           sym == "sendBool" || sym == "trySendBool" || sym == "recvBool" ||
-          sym == "tryRecvBool" || sym == "pendingBool" || sym == "close") {
+          sym == "tryRecvBool" || sym == "pendingBool" || sym == "newString" ||
+          sym == "pendingString" || sym == "newBytes" || sym == "pendingBytes" ||
+          sym == "close") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
         if (spec->result_type == TypeKind::Unspecified) {

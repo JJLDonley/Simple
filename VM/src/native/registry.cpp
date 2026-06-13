@@ -338,6 +338,30 @@ NativeCallResult ChannelPendingF64(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult ChannelNewString(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_string));
+  return result;
+}
+
+NativeCallResult ChannelPendingString(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_string, UnpackI64(context.args[0])));
+  return result;
+}
+
+NativeCallResult ChannelNewBytes(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_bytes));
+  return result;
+}
+
+NativeCallResult ChannelPendingBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_bytes, UnpackI64(context.args[0])));
+  return result;
+}
+
 NativeCallResult ChannelClose(NativeCallContext& context) {
   Channel::CloseAll(UnpackI64(context.args[0]));
   NativeCallResult result;
@@ -463,6 +487,12 @@ void RegisterSystemChannel(NativeRegistry& registry) {
                              ChannelTryRecvBool));
   registry.Register(MakeSpec("System.channel", "pendingBool", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingBool));
+  registry.Register(MakeSpec("System.channel", "newString", {}, TypeKind::I64, ChannelNewString));
+  registry.Register(MakeSpec("System.channel", "pendingString", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingString));
+  registry.Register(MakeSpec("System.channel", "newBytes", {}, TypeKind::I64, ChannelNewBytes));
+  registry.Register(MakeSpec("System.channel", "pendingBytes", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingBytes));
   registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
                              ChannelClose));
 }

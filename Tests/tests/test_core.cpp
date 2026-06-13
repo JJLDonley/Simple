@@ -16149,12 +16149,17 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_pending_f64 = default_registry.Find("System.channel", "pendingF64");
   const auto* channel_bool = default_registry.Find("System.channel", "recvBool");
   const auto* channel_pending_bool = default_registry.Find("System.channel", "pendingBool");
+  const auto* channel_string = default_registry.Find("System.channel", "newString");
+  const auto* channel_pending_string = default_registry.Find("System.channel", "pendingString");
+  const auto* channel_bytes = default_registry.Find("System.channel", "newBytes");
+  const auto* channel_pending_bytes = default_registry.Find("System.channel", "pendingBytes");
   const auto* channel_close = default_registry.Find("System.channel", "close");
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
-         channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool && channel_close &&
-         random_i32->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
+         channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
+         channel_close && random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
@@ -16171,6 +16176,10 @@ bool RunNativeRegistryModuleTest() {
          channel_pending_f64->result_type == Simple::Byte::TypeKind::I32 &&
          channel_bool->result_type == Simple::Byte::TypeKind::Bool &&
          channel_pending_bool->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_string->result_type == Simple::Byte::TypeKind::I64 &&
+         channel_pending_string->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_bytes->result_type == Simple::Byte::TypeKind::I64 &&
+         channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 
