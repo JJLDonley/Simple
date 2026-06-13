@@ -1,5 +1,8 @@
 #pragma once
 
+// Legacy compatibility facade. New semantic-analysis code should include
+// "RAST/resolver.h" and "TAST/type_checker.h".
+
 #include <string>
 
 #include "lang_ast.h"

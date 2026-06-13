@@ -1,5 +1,8 @@
 #pragma once
 
+// Legacy compatibility facade. New code should include "AST/ast.h" or
+// "CAST/cast.h" depending on the compiler phase boundary.
+
 #include <cstdint>
 #include <memory>
 #include <string>

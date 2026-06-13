@@ -1,5 +1,8 @@
 #pragma once
 
+// Legacy compatibility facade. New SIR-emission code should include
+// "IRE/sir_emitter.h".
+
 #include <string>
 
 #include "lang_ast.h"

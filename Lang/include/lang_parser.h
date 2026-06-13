@@ -1,5 +1,8 @@
 #pragma once
 
+// Legacy compatibility facade. New parser-facing code should include
+// "CAST/parser.h".
+
 #include <string>
 #include <vector>
 

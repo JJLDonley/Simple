@@ -78,11 +78,11 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.
   - [x] Add initial `TAST -> IRB -> IRE` bridge.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.
-- [ ] Define deprecation/migration policy for legacy includes:
-  - [ ] `lang_ast.h`
-  - [ ] `lang_parser.h`
-  - [ ] `lang_validate.h`
-  - [ ] `lang_sir.h`
+- [x] Define deprecation/migration policy for legacy includes:
+  - [x] `lang_ast.h`
+  - [x] `lang_parser.h`
+  - [x] `lang_validate.h`
+  - [x] `lang_sir.h`
 
 ## Validator / Semantic Analysis
 

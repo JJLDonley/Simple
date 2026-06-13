@@ -12,6 +12,7 @@
 #include "TAST/types.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
+#include "lang_ast.h"
 #include "lang_lexer.h"
 #include "lang_parser.h"
 #include "lang_sir.h"
@@ -174,6 +175,22 @@ bool LangCastParserModuleParsesArtifactSwitch() {
   return body.size() == 1 &&
          body[0].kind == Simple::Lang::StmtKind::Return &&
          body[0].expr.kind == Simple::Lang::ExprKind::Switch;
+}
+
+bool LangLegacyIncludeFacadesRemainCompatible() {
+  const char* src = "main : i32 () { return 0; }";
+  Simple::Lang::Program legacy_program;
+  std::string error;
+  if (!Simple::Lang::ParseProgramFromString(src, &legacy_program, &error)) return false;
+  if (!Simple::Lang::ValidateProgram(legacy_program, &error)) return false;
+  std::string sir;
+  if (!Simple::Lang::EmitSir(legacy_program, &sir, &error)) return false;
+
+  Simple::Lang::CAST::Program cast_program;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  Simple::Lang::AST::Program ast_program;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  return legacy_program.decls.size() == ast_program.decls.size() && !sir.empty();
 }
 
 bool LangAstLowerCastPreservesProgramShape() {
@@ -4913,6 +4930,7 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
+  {"lang_legacy_include_facades_compatible", LangLegacyIncludeFacadesRemainCompatible},
   {"lang_ast_lower_cast_preserves_program_shape", LangAstLowerCastPreservesProgramShape},
   {"lang_ast_normalizes_top_level_script_body", LangAstNormalizesTopLevelScriptBody},
   {"lang_ast_normalizes_fn_literal_declarations", LangAstNormalizesFnLiteralDeclarations},
