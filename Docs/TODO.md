@@ -112,7 +112,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [x] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
 - [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:
   - [ ] `Lang/src/TAST/type_checker.cpp`
-  - [ ] `Lang/src/TAST/expressions.cpp`
+  - [x] `Lang/src/TAST/expressions.cpp`
   - [ ] `Lang/src/TAST/statements.cpp`
   - [ ] `Lang/src/TAST/calls.cpp`
   - [ ] `Lang/src/TAST/literals.cpp`
@@ -127,7 +127,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `ExprTypeMap`
   - [ ] `MutabilityFacts`
   - [ ] `AbiFacts`
-- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckCallExpression`, `CheckAssignment`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckAssignment`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+  - [x] Add `CheckCallExpression` TAST API.
 - [ ] Avoid generic multi-purpose names like `ValidateThing` or broad `InferExprType` helpers that hide multiple responsibilities.
 
 ### SRP Phase 4: Structured Diagnostics
