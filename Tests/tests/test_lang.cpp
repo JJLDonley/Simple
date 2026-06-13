@@ -5,6 +5,7 @@
 #include "AST/ast.h"
 #include "AST/lower_cast.h"
 #include "RAST/rast.h"
+#include "RAST/import_graph.h"
 #include "RAST/resolver.h"
 #include "TAST/tast.h"
 #include "TAST/type_checker.h"
@@ -3035,6 +3036,21 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRastImportGraphResolvesReservedAliases() {
+  const char* src =
+      "import FS as FileSystem\n"
+      "main : void () {}";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  std::string canonical;
+  return Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "FileSystem", &canonical) &&
+         canonical == "FS" &&
+         !Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "Missing", &canonical);
+}
+
 bool LangValidateSystemOsCapabilityConstants() {
   const char* src =
       "import OS\n"
@@ -4923,6 +4939,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_mixed_case_ok", LangValidateSystemImportMixedCaseOk},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
+  {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},

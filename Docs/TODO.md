@@ -99,7 +99,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 ### SRP Phase 3: Language Validation Split
 
 - [ ] Split `Lang/src/lang_validate.cpp` into RAST modules:
-  - [ ] `Lang/src/RAST/import_graph.cpp`
+  - [x] `Lang/src/RAST/import_graph.cpp`
   - [ ] `Lang/src/RAST/symbol_table.cpp`
   - [ ] `Lang/src/RAST/resolver.cpp`
   - [ ] `Lang/src/RAST/member_resolution.cpp`

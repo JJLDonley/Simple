@@ -2,6 +2,7 @@
 
 #include "lang_reserved.h"
 #include "native/registry.h"
+#include "RAST/import_graph.h"
 
 namespace Simple::Lang::RAST {
 namespace {
@@ -245,23 +246,6 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
   }
   if (canonical_module == "Log") return member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
-  return false;
-}
-
-bool ResolveReservedImportAlias(const Program* program, const std::string& alias, std::string* canonical) {
-  if (!program) return false;
-  for (const auto& decl : program->decls) {
-    if (decl.kind != DeclKind::Import) continue;
-    std::string resolved;
-    if (!Simple::Lang::CanonicalizeReservedImportPath(decl.import_decl.path, &resolved)) continue;
-    const std::string import_alias = decl.import_decl.has_alias
-        ? decl.import_decl.alias
-        : Simple::Lang::DefaultImportAlias(resolved);
-    if (import_alias == alias) {
-      if (canonical) *canonical = resolved;
-      return true;
-    }
-  }
   return false;
 }
 
