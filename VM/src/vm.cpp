@@ -2527,57 +2527,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "System.log") {
-      auto read_log_message = [&](Slot value) -> std::string {
-        const uint32_t ref = UnpackRef(value);
-        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
-        if (!obj || obj->header.kind != ObjectKind::String) return {};
-        return U16ToAscii(ReadString(obj));
-      };
-      if (sym == "setLevel") {
-        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
-        if (!spec) return false;
-        out_has_ret = false;
-        if (args.size() != spec->parameter_types.size()) {
-          out_error = "System.log.setLevel arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::NativeCallContext context;
-        context.args = args;
-        Simple::VM::Native::NativeCallResult result = spec->handler(context);
-        if (!result.ok) {
-          out_error = result.error;
-          return false;
-        }
-        return true;
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::Unspecified) out_has_ret = false;
+      if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+        out_error = std::string("System.log.") + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "setFile") {
-        if (args.size() != 1) {
-          out_error = "System.log.setFile arg count mismatch";
-          return false;
-        }
-        const std::string path = read_log_message(args[0]);
-        out_ret = PackI32(Simple::VM::Native::Log::SetFile(path) ? 1 : 0);
-        return true;
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = std::string("System.log.") + sym + " arg count mismatch";
+        return false;
       }
-      if (sym == "log") {
-        out_has_ret = false;
-        if (args.size() != 2) {
-          out_error = "System.log.log arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::Log::Emit(read_log_message(args[0]), UnpackI32(args[1]));
-        return true;
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      context.heap = &heap;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
       }
-      if (sym == "info" || sym == "warn" || sym == "error") {
-        out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = std::string("System.log.") + sym + " arg count mismatch";
-          return false;
-        }
-        int32_t level = (sym == "error") ? 3 : (sym == "warn" ? 2 : 1);
-        Simple::VM::Native::Log::Emit(read_log_message(args[0]), level);
-        return true;
-      }
+      if (result.has_value) out_ret = result.value;
+      return true;
     }
     if (mod == "System.dl") {
       auto set_dl_error = [&](const std::string& text) {

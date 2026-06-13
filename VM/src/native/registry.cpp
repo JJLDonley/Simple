@@ -42,6 +42,8 @@ Slot PackRef(uint32_t handle) {
   return static_cast<uint64_t>(handle);
 }
 
+bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
+
 uint32_t UnpackU32Bits(Slot value) {
   return static_cast<uint32_t>(value);
 }
@@ -407,6 +409,45 @@ NativeCallResult JsonFree(NativeCallContext& context) {
 NativeCallResult LogSetLevel(NativeCallContext& context) {
   Log::SetLevel(UnpackI32(context.args[0]));
   NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult LogSetFile(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && Log::SetFile(path) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult LogEmit(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string message;
+  if (ReadStringArg(context, 0, &message)) Log::Emit(message, UnpackI32(context.args[1]));
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult LogInfo(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string message;
+  if (ReadStringArg(context, 0, &message)) Log::Emit(message, 1);
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult LogWarn(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string message;
+  if (ReadStringArg(context, 0, &message)) Log::Emit(message, 2);
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult LogError(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string message;
+  if (ReadStringArg(context, 0, &message)) Log::Emit(message, 3);
   result.has_value = false;
   return result;
 }
@@ -896,6 +937,16 @@ void RegisterSystemLog(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
                              LogSetLevel));
+  registry.Register(MakeSpec("System.log", "setFile", {TypeKind::String}, TypeKind::I32,
+                             LogSetFile));
+  registry.Register(MakeSpec("System.log", "log", {TypeKind::String, TypeKind::I32},
+                             TypeKind::Unspecified, LogEmit));
+  registry.Register(MakeSpec("System.log", "info", {TypeKind::String}, TypeKind::Unspecified,
+                             LogInfo));
+  registry.Register(MakeSpec("System.log", "warn", {TypeKind::String}, TypeKind::Unspecified,
+                             LogWarn));
+  registry.Register(MakeSpec("System.log", "error", {TypeKind::String}, TypeKind::Unspecified,
+                             LogError));
 }
 
 void RegisterSystemPath(NativeRegistry& registry) {

@@ -16172,6 +16172,9 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_close = default_registry.Find("System.channel", "close");
   const auto* json_free = default_registry.Find("System.json", "free");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
+  const auto* log_set_file = default_registry.Find("System.log", "setFile");
+  const auto* log_emit = default_registry.Find("System.log", "log");
+  const auto* log_info = default_registry.Find("System.log", "info");
   const auto* env_platform = default_registry.Find("System.env", "platform");
   const auto* env_arch = default_registry.Find("System.env", "arch");
   const auto* env_exe = default_registry.Find("System.env", "exePath");
@@ -16209,6 +16212,28 @@ bool RunNativeRegistryModuleTest() {
     }
     return handle;
   };
+  const uint32_t log_empty_path = make_metadata_string("");
+  const uint32_t log_message = make_metadata_string("metadata log suppressed");
+  Simple::VM::Native::NativeCallContext log_level_ctx;
+  log_level_ctx.args = {99};
+  if (log_set_level) (void)log_set_level->handler(log_level_ctx);
+  Simple::VM::Native::NativeCallContext log_set_file_ctx;
+  log_set_file_ctx.heap = &metadata_heap;
+  log_set_file_ctx.args = {log_empty_path};
+  const auto log_set_file_result = log_set_file ? log_set_file->handler(log_set_file_ctx)
+                                                : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext log_emit_ctx;
+  log_emit_ctx.heap = &metadata_heap;
+  log_emit_ctx.args = {log_message, 1};
+  const auto log_emit_result = log_emit ? log_emit->handler(log_emit_ctx)
+                                        : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext log_info_ctx;
+  log_info_ctx.heap = &metadata_heap;
+  log_info_ctx.args = {log_message};
+  const auto log_info_result = log_info ? log_info->handler(log_info_ctx)
+                                        : Simple::VM::Native::NativeCallResult{};
+  log_level_ctx.args = {0};
+  if (log_set_level) (void)log_set_level->handler(log_level_ctx);
   const uint32_t path_left = make_metadata_string("/tmp");
   const uint32_t path_right = make_metadata_string("a/../b.txt");
   Simple::VM::Native::NativeCallContext path_join_ctx;
@@ -16397,7 +16422,9 @@ bool RunNativeRegistryModuleTest() {
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && json_free && log_set_level && env_platform && env_arch && env_exe &&
+         channel_close && json_free && log_set_level && log_set_file && log_emit && log_info &&
+         log_set_file_result.value == 1 && !log_emit_result.has_value && !log_info_result.has_value &&
+         env_platform && env_arch && env_exe &&
          buffer_new && buffer_len && buffer_write && buffer_read && buffer_slice && buffer_copy &&
          !env_platform_result.string_value.empty() && !env_arch_result.string_value.empty() &&
          !env_exe_result.string_value.empty() && buffer_new_result.ok && buffer_result.value == 3 &&
@@ -16451,6 +16478,9 @@ bool RunNativeRegistryModuleTest() {
          buffer_slice->result_type == Simple::Byte::TypeKind::Ref &&
          buffer_copy->result_type == Simple::Byte::TypeKind::I32 &&
          log_set_level->result_type == Simple::Byte::TypeKind::Unspecified &&
+         log_set_file->result_type == Simple::Byte::TypeKind::I32 &&
+         log_emit->result_type == Simple::Byte::TypeKind::Unspecified &&
+         log_info->result_type == Simple::Byte::TypeKind::Unspecified &&
          env_platform->result_type == Simple::Byte::TypeKind::String &&
          env_arch->result_type == Simple::Byte::TypeKind::String &&
          env_exe->result_type == Simple::Byte::TypeKind::String;
