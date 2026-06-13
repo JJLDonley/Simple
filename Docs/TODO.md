@@ -190,7 +190,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Move import graph construction out of CLI into shared Lang/RAST service.
 - [ ] Make CLI, LSP, and tests use the same import graph implementation.
 - [x] Move CLI diagnostic rendering into `CLI/src/diagnostic_render.cpp`.
-- [ ] Move CLI build/embed/link helpers out of `CLI/src/main.cpp`.
+- [x] Move CLI build/embed/link helpers out of `CLI/src/main.cpp`.
+  - [x] Add `CLI/src/build_contract.cpp` for build layout and embedded runner helpers.
 - [x] Move CLI command parsing/dispatch into dedicated command modules.
   - [x] Add `CLI/src/command_dispatch.cpp`.
 - [ ] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.

@@ -183,6 +183,7 @@ target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVAT
 
 add_executable(simplevm
   ${SIMPLEVM_ROOT}/CLI/src/main.cpp
+  ${SIMPLEVM_ROOT}/CLI/src/build_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_dispatch.cpp
   ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
@@ -230,6 +231,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/sir_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/simple_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/test_utils.cpp
+  ${SIMPLEVM_ROOT}/CLI/src/build_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_dispatch.cpp
   ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
