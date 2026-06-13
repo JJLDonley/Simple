@@ -844,6 +844,10 @@ std::string DiagnosticCodeFor(const std::string& message) {
   if (has("unterminated block") || has("expected expression") || has("expected") || has("parse failed")) {
     return "E2001";
   }
+  if (has("undeclared identifier") || has("unknown module member") || has("unknown artifact member") ||
+      has("unknown enum member") || has("self outside artifact")) {
+    return "E3001";
+  }
   if (has("IR text") || has("lower failed") || has("emit failed") || has("lowering")) return "E5001";
   if (has("load failed") || has("verify failed") || has("bad magic") || has("unsupported version")) return "E6001";
   if (has("runtime trap")) return "E7001";

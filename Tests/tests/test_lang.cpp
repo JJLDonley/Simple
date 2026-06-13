@@ -1917,7 +1917,7 @@ bool LangCliCheckSimpleErrorFormat() {
   std::ifstream in(err_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E4001]:") != std::string::npos &&
+  return contents.find("error[E3001]:") != std::string::npos &&
          contents.find("undeclared identifier") != std::string::npos &&
          contents.find(" --> ") != std::string::npos &&
          contents.find('^') != std::string::npos;
@@ -2211,6 +2211,13 @@ bool LangCliStderrDiagnosticContract() {
 
   stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
   return exit_code == 1 && stderr_text.find("error[E") == 0;
+}
+
+bool LangCliResolverDiagnosticCode() {
+  int exit_code = -1;
+  std::string stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/module_unknown_member.simple", &exit_code);
+  return exit_code == 1 && stderr_text.find("error[E3001]:") == 0 &&
+         stderr_text.find("unknown module member") != std::string::npos;
 }
 
 bool LangCliMissingInputDiagnostics() {
@@ -5131,6 +5138,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_exit_code_contract", LangCliExitCodeContract},
   {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},
   {"lang_cli_missing_input_diagnostics", LangCliMissingInputDiagnostics},
+  {"lang_cli_resolver_diagnostic_code", LangCliResolverDiagnosticCode},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},

@@ -258,7 +258,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [x] Add stable diagnostic code ranges:
   - [x] lexer: `E1xxx`
   - [x] parser: `E2xxx`
-  - [ ] resolver: `E3xxx`
+  - [x] resolver: `E3xxx`
   - [x] type checker: `E4xxx`
   - [x] IR/lowering: `E5xxx`
   - [x] bytecode/verifier: `E6xxx`
