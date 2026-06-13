@@ -806,6 +806,17 @@ bool LangIrbRejectsMissingTypedInput() {
   return error.find("missing typed program input") != std::string::npos;
 }
 
+bool LangTastCheckReturnFlowRejectsFallthrough() {
+  std::vector<Simple::Lang::AST::Stmt> body;
+  Simple::Lang::AST::Stmt return_stmt;
+  return_stmt.kind = Simple::Lang::AST::StmtKind::Return;
+  std::string error;
+  if (Simple::Lang::TAST::CheckReturnFlow(body, true, &error)) return false;
+  if (error.find("not all paths return a value") == std::string::npos) return false;
+  body.push_back(return_stmt);
+  return Simple::Lang::TAST::CheckReturnFlow(body, true, &error);
+}
+
 bool LangTastControlFlowTracksReturnsAndBreaks() {
   const char* src =
       "main : i32 () {\n"
@@ -5151,6 +5162,7 @@ const TestCase kLangTests[] = {
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
+  {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_tast_literal_typing_rejects_non_literal", LangTastLiteralTypingRejectsNonLiteral},

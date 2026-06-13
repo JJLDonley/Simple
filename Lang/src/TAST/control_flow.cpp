@@ -42,6 +42,15 @@ Flow AnalyzeBlockFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts) {
   return flow;
 }
 
+bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
+                     bool requires_return,
+                     std::string* error) {
+  const Flow flow = AnalyzeBlockFlow(stmts);
+  if (!requires_return || flow.always_returns) return true;
+  if (error) *error = "not all paths return a value";
+  return false;
+}
+
 Flow AnalyzeStmtFlow(const Simple::Lang::AST::Stmt& stmt) {
   switch (stmt.kind) {
     case StmtKind::Return:

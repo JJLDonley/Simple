@@ -117,7 +117,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/TAST/calls.cpp`
   - [x] `Lang/src/TAST/literals.cpp`
   - [x] `Lang/src/TAST/mutability.cpp`
-  - [ ] `Lang/src/TAST/control_flow.cpp`
+  - [x] `Lang/src/TAST/control_flow.cpp`
   - [ ] `Lang/src/TAST/generics.cpp`
   - [ ] `Lang/src/TAST/abi.cpp`
 - [ ] TAST owns type facts and produces/persists:
@@ -127,7 +127,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `ExprTypeMap`
   - [ ] `MutabilityFacts`
   - [ ] `AbiFacts`
-- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+  - [x] Add `CheckReturnFlow` TAST API.
   - [x] Add `CheckAssignment` TAST API.
   - [x] Add `CheckCallExpression` TAST API.
 - [ ] Avoid generic multi-purpose names like `ValidateThing` or broad `InferExprType` helpers that hide multiple responsibilities.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "AST/ast.h"
@@ -15,5 +16,8 @@ struct Flow {
 
 Flow AnalyzeStmtFlow(const Simple::Lang::AST::Stmt& stmt);
 Flow AnalyzeBlockFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts);
+bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
+                     bool requires_return,
+                     std::string* error);
 
 } // namespace Simple::Lang::TAST
