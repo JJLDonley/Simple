@@ -480,6 +480,35 @@ NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
   return result;
 }
 
+Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values) {
+  const uint32_t length = static_cast<uint32_t>(values.size());
+  const uint32_t size = 8u + length * 4u;
+  const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return PackRef(HeapLayout::kNullRef);
+  WriteU32(obj->payload, 0, length);
+  WriteU32(obj->payload, 4, length);
+  for (uint32_t i = 0; i < length; ++i) {
+    WriteU32(obj->payload, 8u + i * 4u, values[i] & 0xffu);
+  }
+  return PackRef(handle);
+}
+
+NativeCallResult BufferSlice(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t offset = UnpackI32(context.args[1]);
+  const int32_t count = UnpackI32(context.args[2]);
+  if (!context.heap || !obj || offset < 0 || count < 0 ||
+      static_cast<uint32_t>(offset) > Buffer::Len(obj)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.value = CreateByteList(*context.heap, Buffer::Slice(obj, static_cast<uint32_t>(offset),
+                                                             static_cast<uint32_t>(count)));
+  return result;
+}
+
 NativeCallResult BufferCopy(NativeCallContext& context) {
   NativeCallResult result;
   HeapObject* dst = GetHeapObject(context, 0);
@@ -583,6 +612,9 @@ void RegisterSystemBuffer(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.buffer", "writeU32LE",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                              BufferWriteU32LE));
+  registry.Register(MakeSpec("System.buffer", "slice",
+                             {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::Ref,
+                             BufferSlice));
   registry.Register(MakeSpec("System.buffer", "copy",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::Ref, TypeKind::I32,
                               TypeKind::I32},

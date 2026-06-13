@@ -2492,25 +2492,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "System.buffer") {
-      auto get_buffer = [&](size_t index) -> HeapObject* {
-        if (index >= args.size()) return nullptr;
-        const uint32_t ref = UnpackRef(args[index]);
-        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
-        if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) return nullptr;
-        return obj;
-      };
-      auto return_bytes = [&](const std::vector<uint32_t>& values) -> bool {
-        const uint32_t length = static_cast<uint32_t>(values.size());
-        const uint32_t size = 8u + length * 4u;
-        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-        HeapObject* out_obj = heap.Get(handle);
-        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
-        WriteU32Payload(out_obj->payload, 0, length);
-        WriteU32Payload(out_obj->payload, 4, length);
-        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4u, values[i] & 0xffu);
-        out_ret = PackRef(handle);
-        return true;
-      };
       if (sym == "new") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
@@ -2579,18 +2560,26 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "slice") {
-        if (ret_kind != TypeKind::Ref) { out_error = "System.buffer.slice return type mismatch"; return false; }
-        if (args.size() != 3) { out_error = "System.buffer.slice arg count mismatch"; return false; }
-        HeapObject* obj = get_buffer(0);
-        const int32_t offset = UnpackI32(args[1]);
-        const int32_t count = UnpackI32(args[2]);
-        if (!obj || offset < 0 || count < 0 ||
-            static_cast<uint32_t>(offset) > Simple::VM::Native::Buffer::Len(obj)) {
-          out_ret = PackRef(kNullRef);
-          return true;
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "System.buffer.slice return type mismatch";
+          return false;
         }
-        return return_bytes(Simple::VM::Native::Buffer::Slice(
-            obj, static_cast<uint32_t>(offset), static_cast<uint32_t>(count)));
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.buffer.slice arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
+        return true;
       }
       if (sym == "copy") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
