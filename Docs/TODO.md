@@ -77,6 +77,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route `System.thread` through native metadata dispatch.
   - [x] Route `System.channel` scalar plus string/bytes new/send/recv/pending helpers through native metadata dispatch.
   - [x] Remove obsolete scalar channel forwarding glue after metadata dispatch.
+  - [x] Remove hardcoded channel symbol dispatch list after metadata coverage.
   - [x] Route `System.json` and `System.log` helpers through native metadata dispatch.
   - [x] Route `System.buffer.new`, len, LE read/write, slice, and copy helpers through native metadata dispatch.
   - [x] Route `System.env` args/get/set/platform/arch/exePath helpers through native metadata dispatch.

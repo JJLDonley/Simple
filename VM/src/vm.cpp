@@ -1709,69 +1709,54 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.channel") {
-      if (sym == "newI32" || sym == "sendI32" || sym == "trySendI32" || sym == "recvI32" ||
-          sym == "tryRecvI32" || sym == "pendingI32" || sym == "newI64" ||
-          sym == "sendI64" || sym == "trySendI64" || sym == "recvI64" ||
-          sym == "tryRecvI64" || sym == "pendingI64" || sym == "newF32" ||
-          sym == "sendF32" || sym == "trySendF32" || sym == "recvF32" ||
-          sym == "tryRecvF32" || sym == "pendingF32" || sym == "newF64" ||
-          sym == "sendF64" || sym == "trySendF64" || sym == "recvF64" ||
-          sym == "tryRecvF64" || sym == "pendingF64" || sym == "newBool" ||
-          sym == "sendBool" || sym == "trySendBool" || sym == "recvBool" ||
-          sym == "tryRecvBool" || sym == "pendingBool" || sym == "newString" ||
-          sym == "sendString" || sym == "trySendString" || sym == "recvString" ||
-          sym == "tryRecvString" || sym == "pendingString" || sym == "newBytes" ||
-          sym == "sendBytes" || sym == "trySendBytes" || sym == "recvBytes" ||
-          sym == "tryRecvBytes" || sym == "pendingBytes" || sym == "close") {
-        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
-        if (!spec) return false;
-        if (spec->result_type == TypeKind::Unspecified) {
-          out_has_ret = false;
-        } else if (spec->result_type == TypeKind::I64) {
-          if (!IsI64LikeImportType(ret_kind)) {
-            out_error = "System.channel." + sym + " return type mismatch";
-            return false;
-          }
-        } else if (spec->result_type == TypeKind::F32 || spec->result_type == TypeKind::F64) {
-          if (ret_kind != spec->result_type) {
-            out_error = "System.channel." + sym + " return type mismatch";
-            return false;
-          }
-        } else if (spec->result_type == TypeKind::String) {
-          if (!IsStringLikeImportType(ret_kind)) {
-            out_error = "System.channel." + sym + " return type mismatch";
-            return false;
-          }
-        } else if (spec->result_type == TypeKind::Ref) {
-          if (ret_kind != TypeKind::Ref) {
-            out_error = "System.channel." + sym + " return type mismatch";
-            return false;
-          }
-        } else if (!IsI32LikeImportType(ret_kind)) {
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::Unspecified) {
+        out_has_ret = false;
+      } else if (spec->result_type == TypeKind::I64) {
+        if (!IsI64LikeImportType(ret_kind)) {
           out_error = "System.channel." + sym + " return type mismatch";
           return false;
         }
-        if (args.size() != spec->parameter_types.size()) {
-          out_error = "System.channel." + sym + " arg count mismatch";
+      } else if (spec->result_type == TypeKind::F32 || spec->result_type == TypeKind::F64) {
+        if (ret_kind != spec->result_type) {
+          out_error = "System.channel." + sym + " return type mismatch";
           return false;
         }
-        Simple::VM::Native::NativeCallContext context;
-        context.args = args;
-        context.heap = &heap;
-        Simple::VM::Native::NativeCallResult result = spec->handler(context);
-        if (!result.ok) {
-          out_error = result.error;
+      } else if (spec->result_type == TypeKind::String) {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "System.channel." + sym + " return type mismatch";
           return false;
         }
-        if (spec->result_type == TypeKind::String) {
-          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
-                        ? PackRef(kNullRef)
-                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
-        } else if (result.has_value) {
-          out_ret = result.value;
+      } else if (spec->result_type == TypeKind::Ref) {
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "System.channel." + sym + " return type mismatch";
+          return false;
         }
-        return true;
+      } else if (!IsI32LikeImportType(ret_kind)) {
+        out_error = "System.channel." + sym + " return type mismatch";
+        return false;
       }
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = "System.channel." + sym + " arg count mismatch";
+        return false;
+      }
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      context.heap = &heap;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
+      }
+      if (spec->result_type == TypeKind::String) {
+        out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                      ? PackRef(kNullRef)
+                      : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+      } else if (result.has_value) {
+        out_ret = result.value;
+      }
+      return true;
     }
     if (mod == "System.thread") {
       const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
