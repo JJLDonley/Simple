@@ -26,14 +26,25 @@ bool AddSymbol(ResolvedProgram* out,
   return true;
 }
 
+const Symbol* LookupSymbol(const ResolvedProgram* program, SymbolId symbol_id) {
+  if (!program || symbol_id >= program->symbols.size()) return nullptr;
+  return &program->symbols[symbol_id];
+}
+
+const Symbol* LookupQualifiedSymbol(const ResolvedProgram* program,
+                                    const std::string& qualified_name) {
+  if (!program || qualified_name.empty()) return nullptr;
+  auto it = program->by_qualified_name.find(qualified_name);
+  if (it == program->by_qualified_name.end()) return nullptr;
+  return LookupSymbol(program, it->second);
+}
+
 SymbolId FindQualifiedSymbol(const ResolvedProgram* program,
                              const std::string& qualified_name,
                              SymbolKind expected_kind) {
-  if (!program || qualified_name.empty()) return kInvalidSymbolId;
-  auto it = program->by_qualified_name.find(qualified_name);
-  if (it == program->by_qualified_name.end()) return kInvalidSymbolId;
-  if (program->symbols[it->second].kind != expected_kind) return kInvalidSymbolId;
-  return it->second;
+  const Symbol* symbol = LookupQualifiedSymbol(program, qualified_name);
+  if (!symbol || symbol->kind != expected_kind) return kInvalidSymbolId;
+  return symbol->id;
 }
 
 } // namespace Simple::Lang::RAST

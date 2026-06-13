@@ -3077,13 +3077,17 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
   const auto found = Simple::Lang::RAST::FindQualifiedSymbol(&program,
                                                             "Thing",
                                                             Simple::Lang::RAST::SymbolKind::Artifact);
+  const auto* lookup_by_id = Simple::Lang::RAST::LookupSymbol(&program, found);
+  const auto* lookup_by_name = Simple::Lang::RAST::LookupQualifiedSymbol(&program, "Thing");
   const bool duplicate_rejected = !Simple::Lang::RAST::AddSymbol(&program,
                                                                  Simple::Lang::RAST::SymbolKind::Artifact,
                                                                  "Thing",
                                                                  "Thing",
                                                                  Simple::Lang::RAST::kInvalidSymbolId,
                                                                  &error);
-  return added && found == 0 && duplicate_rejected && error.find("duplicate symbol: Thing") != std::string::npos;
+  return added && found == 0 && lookup_by_id && lookup_by_id->name == "Thing" &&
+         lookup_by_name == lookup_by_id && duplicate_rejected &&
+         error.find("duplicate symbol: Thing") != std::string::npos;
 }
 
 bool LangRastImportGraphResolvesReservedAliases() {

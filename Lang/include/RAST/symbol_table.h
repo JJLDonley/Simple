@@ -13,6 +13,9 @@ bool AddSymbol(ResolvedProgram* out,
                SymbolId parent,
                std::string* error);
 
+const Symbol* LookupSymbol(const ResolvedProgram* program, SymbolId symbol_id);
+const Symbol* LookupQualifiedSymbol(const ResolvedProgram* program,
+                                    const std::string& qualified_name);
 SymbolId FindQualifiedSymbol(const ResolvedProgram* program,
                              const std::string& qualified_name,
                              SymbolKind expected_kind);
