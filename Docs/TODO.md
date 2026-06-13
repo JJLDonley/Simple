@@ -198,16 +198,16 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 7: Documentation / Ownership
 
-- [ ] Add/update architecture ownership docs:
-  - [ ] `Docs/Architecture.md`
-  - [ ] `Docs/LanguagePipeline.md`
-  - [ ] `Docs/NativeBindings.md`
-  - [ ] `Docs/Diagnostics.md`
-- [ ] Each subsystem doc must list:
-  - [ ] owned files
-  - [ ] forbidden dependencies
-  - [ ] public API
-  - [ ] tests
+- [x] Add/update architecture ownership docs:
+  - [x] `Docs/Architecture.md`
+  - [x] `Docs/LanguagePipeline.md`
+  - [x] `Docs/NativeBindings.md`
+  - [x] `Docs/Diagnostics.md`
+- [x] Each subsystem doc must list:
+  - [x] owned files
+  - [x] forbidden dependencies
+  - [x] public API
+  - [x] tests
 - [ ] Keep `Docs/TODO.md` actionable with file-level tasks, not broad statements.
 
 ### SRP Phase 8: No-Shim / No-Facade End State

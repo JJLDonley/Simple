@@ -42,6 +42,7 @@
 #include <vector>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
@@ -3160,6 +3161,25 @@ bool CliDiagnosticRendererClassifiesAndFormats() {
          Simple::CLI::DiagnosticHelpFor("undeclared identifier 'x'").find("declare the symbol") != std::string::npos;
 }
 
+bool DocsOwnershipPagesHaveRequiredSections() {
+  const char* paths[] = {
+      "Docs/Architecture.md",
+      "Docs/LanguagePipeline.md",
+      "Docs/NativeBindings.md",
+      "Docs/Diagnostics.md",
+  };
+  for (const char* path : paths) {
+    std::ifstream in(path);
+    if (!in) return false;
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (text.find("## Owned files") == std::string::npos) return false;
+    if (text.find("## Forbidden dependencies") == std::string::npos) return false;
+    if (text.find("## Public API") == std::string::npos) return false;
+    if (text.find("## Tests") == std::string::npos) return false;
+  }
+  return true;
+}
+
 bool LangDiagnosticsFormatStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
   diagnostic.code = "E1234";
@@ -5176,6 +5196,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"docs_ownership_pages_have_required_sections", DocsOwnershipPagesHaveRequiredSections},
   {"cli_diagnostic_renderer_classifies_and_formats", CliDiagnosticRendererClassifiesAndFormats},
   {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
