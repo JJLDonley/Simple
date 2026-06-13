@@ -52,6 +52,12 @@ void AddResolvedMemberRef(ResolvedProgram* out,
 const MemberRef* LookupResolvedMemberRef(const ResolvedProgram* program,
                                          const std::string& base,
                                          const std::string& member) {
+  return ResolveMemberAccess(program, base, member);
+}
+
+const MemberRef* ResolveMemberAccess(const ResolvedProgram* program,
+                                     const std::string& base,
+                                     const std::string& member) {
   if (!program) return nullptr;
   for (const auto& ref : program->member_refs) {
     if (ref.base == base && ref.member == member) return &ref;

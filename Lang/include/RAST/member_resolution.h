@@ -16,6 +16,9 @@ void AddResolvedMemberRef(ResolvedProgram* program,
 const MemberRef* LookupResolvedMemberRef(const ResolvedProgram* program,
                                          const std::string& base,
                                          const std::string& member);
+const MemberRef* ResolveMemberAccess(const ResolvedProgram* program,
+                                     const std::string& base,
+                                     const std::string& member);
 void ResolveProgramMemberRefs(ResolvedProgram* program);
 
 } // namespace Simple::Lang::RAST

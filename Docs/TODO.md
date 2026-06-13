@@ -127,7 +127,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `ExprTypeMap`
   - [x] `MutabilityFacts`
   - [x] `AbiFacts`
-- [ ] Use phase-specific function names such as `ResolveProgram` and `ResolveMemberAccess`.
+- [x] Use phase-specific function names such as `ResolveProgram` and `ResolveMemberAccess`.
+  - [x] Add `ResolveMemberAccess` RAST API.
   - [x] Add `CheckAbiShape` TAST API.
   - [x] Add `SubstituteGenericTypes` TAST API.
   - [x] Add `CheckReturnFlow` TAST API.

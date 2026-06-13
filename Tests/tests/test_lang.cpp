@@ -3085,8 +3085,9 @@ bool LangRastMemberResolutionRecordsMemberRefs() {
                                            "answer",
                                            "Math.answer",
                                            7);
-  const auto* ref = Simple::Lang::RAST::LookupResolvedMemberRef(&program, "Math", "answer");
+  const auto* ref = Simple::Lang::RAST::ResolveMemberAccess(&program, "Math", "answer");
   return program.member_refs.size() == 1 && ref &&
+         Simple::Lang::RAST::LookupResolvedMemberRef(&program, "Math", "answer") == ref &&
          ref->base == "Math" &&
          ref->member == "answer" &&
          ref->symbol == 7 &&
