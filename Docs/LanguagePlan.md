@@ -334,7 +334,7 @@ Remaining:
 Status: in progress.
 
 Implemented:
-- Added initial RAST symbol model and `ResolveAstProgram` boundary.
+- Added initial RAST symbol model and `ResolveProgram` boundary.
 - Added top-level, artifact member, module member, enum member, import, and extern symbol collection.
 - Added initial callable scope symbol collection for parameters, `self`, locals, and switch branch blocks.
 - Added initial member reference collection for static module/enum refs and artifact `self` refs.

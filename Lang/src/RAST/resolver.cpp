@@ -165,9 +165,9 @@ bool AddCallableSymbols(ResolvedProgram* out,
 
 } // namespace
 
-bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
-                       ResolvedProgram* out,
-                       std::string* error) {
+bool ResolveProgram(const Simple::Lang::AST::Program& program,
+                    ResolvedProgram* out,
+                    std::string* error) {
   if (!out) {
     if (error) *error = "missing RAST output program";
     return false;

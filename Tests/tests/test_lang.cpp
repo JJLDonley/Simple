@@ -408,7 +408,7 @@ bool LangRastResolverCollectsQualifiedSymbols() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   return resolved.by_qualified_name.find("Box") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("Box.v") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("Box.score") != resolved.by_qualified_name.end() &&
@@ -430,7 +430,7 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   return error.find("duplicate symbol: Box.v") != std::string::npos;
 }
 
@@ -454,7 +454,7 @@ bool LangRastResolverCollectsCallableScopes() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   return resolved.by_qualified_name.find("Box.score::self") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("Box.score::param:amount") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("Box.score::body.s0:total") != resolved.by_qualified_name.end() &&
@@ -478,7 +478,7 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   return resolved.by_qualified_name.find("main::body.s0:mode") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("main::body.s1:value") != resolved.by_qualified_name.end() &&
          resolved.by_qualified_name.find("main::body.s1.init.switch0.s0:local") != resolved.by_qualified_name.end();
@@ -516,7 +516,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   bool saw_self = false;
   bool saw_module = false;
   bool saw_enum = false;
@@ -568,7 +568,7 @@ bool LangTastCheckerAcceptsResolvedProgram() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   return typed.resolved == &resolved;
 }
@@ -582,7 +582,7 @@ bool LangTastCheckerRejectsTypeMismatch() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
 }
@@ -631,7 +631,7 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   if (module.ir.artifact_layouts.size() != 1) return false;
@@ -690,7 +690,7 @@ bool LangIrbCollectsAllocationMetadata() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   bool saw_main_sig = false;
@@ -727,7 +727,7 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   for (const auto& abi : module.ir.abi_types) {
@@ -755,7 +755,7 @@ bool LangIrbIreKeepsSirOutputStable() {
   if (!Simple::Lang::EmitSirFromString(src, &direct_sir, &error)) return false;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveAstProgram(ast_program, &resolved, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   if (!Simple::Lang::IRE::EmitSirModule(module, &pipeline_sir, &error)) return false;

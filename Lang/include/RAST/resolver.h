@@ -7,8 +7,8 @@
 
 namespace Simple::Lang::RAST {
 
-bool ResolveAstProgram(const Simple::Lang::AST::Program& program,
-                       ResolvedProgram* out,
-                       std::string* error);
+bool ResolveProgram(const Simple::Lang::AST::Program& program,
+                    ResolvedProgram* out,
+                    std::string* error);
 
 } // namespace Simple::Lang::RAST
