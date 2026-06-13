@@ -138,16 +138,16 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 4: Structured Diagnostics
 
-- [ ] Add `Lang/include/Diagnostics/diagnostic.h`.
-- [ ] Add `Lang/src/Diagnostics/diagnostic.cpp`.
+- [x] Add `Lang/include/Diagnostics/diagnostic.h`.
+- [x] Add `Lang/src/Diagnostics/diagnostic.cpp`.
 - [ ] Add `CLI/src/diagnostic_render.cpp`.
 - [ ] Add `LSP/src/diagnostic_bridge.cpp`.
-- [ ] Define structured diagnostics with:
-  - [ ] diagnostic code
-  - [ ] source span
-  - [ ] phase
-  - [ ] message
-  - [ ] help text
+- [x] Define structured diagnostics with:
+  - [x] diagnostic code
+  - [x] source span
+  - [x] phase
+  - [x] message
+  - [x] help text
 - [ ] Compiler phases should return/report diagnostics instead of only plain strings.
 - [ ] CLI should render diagnostics only; it should not infer diagnostic codes from string matching.
 - [ ] LSP should consume the same structured diagnostics as CLI.

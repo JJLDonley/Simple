@@ -1,3 +1,4 @@
+#include "Diagnostics/diagnostic.h"
 #include "Lexer/lexer.h"
 #include "Lexer/token.h"
 #include "CAST/cast.h"
@@ -3142,6 +3143,19 @@ bool LangTastCheckExpressionShapeValidatesIdentifiers() {
          error.find("identifier expression missing name") != std::string::npos;
 }
 
+bool LangDiagnosticsFormatStructuredDiagnostic() {
+  Simple::Lang::Diagnostics::Diagnostic diagnostic;
+  diagnostic.code = "E1234";
+  diagnostic.phase = Simple::Lang::Diagnostics::DiagnosticPhase::RAST;
+  diagnostic.span.line = 7;
+  diagnostic.span.column = 3;
+  diagnostic.message = "bad member";
+  diagnostic.help = "check the import";
+  const std::string formatted = Simple::Lang::Diagnostics::FormatDiagnostic(diagnostic);
+  return formatted.find("E1234[rast] 7:3: bad member") != std::string::npos &&
+         formatted.find("help: check the import") != std::string::npos;
+}
+
 bool LangTastCheckAbiShapeRejectsGenericTypes() {
   Simple::Lang::AST::TypeRef scalar;
   scalar.name = "i32";
@@ -5145,6 +5159,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
   {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
