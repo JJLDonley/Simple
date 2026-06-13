@@ -58,6 +58,12 @@ Preferred modern aliases:
 | `Json` / `System.json` | `System.json` |
 | `Channel` / `System.channel` | `System.channel` |
 
+## Metadata Source
+Native `System.*` API tables can be generated from `NativeRegistry` metadata with
+`Simple::VM::Native::GenerateStdLibMarkdown(Simple::VM::Native::BuildDefaultRegistry())`.
+This keeps runtime dispatch metadata, compiler reserved signatures, and documentation
+snapshots aligned for native-backed modules.
+
 ## Core Module API Tables
 
 ### Math

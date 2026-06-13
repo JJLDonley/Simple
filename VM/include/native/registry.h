@@ -74,6 +74,7 @@ void RegisterSystemFs(NativeRegistry& registry);
 void RegisterSystemIo(NativeRegistry& registry);
 void RegisterSystemDl(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
+std::string GenerateStdLibMarkdown(const NativeRegistry& registry);
 
 } // namespace Simple::VM::Native
 

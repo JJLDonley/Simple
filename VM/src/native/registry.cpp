@@ -1,6 +1,9 @@
 #include "native/registry.h"
 
+#include <algorithm>
 #include <cstring>
+#include <map>
+#include <sstream>
 #include <utility>
 
 #include "native/buffer.h"
@@ -1215,6 +1218,57 @@ const std::vector<NativeFunctionSpec>& NativeRegistry::Functions() const {
 
 size_t NativeRegistry::Size() const {
   return functions_.size();
+}
+
+std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
+  using Simple::Byte::TypeKind;
+  switch (kind) {
+    case TypeKind::Unspecified:
+      return "void";
+    case TypeKind::Bool:
+      return "bool";
+    case TypeKind::I32:
+      return "i32";
+    case TypeKind::I64:
+      return "i64";
+    case TypeKind::F32:
+      return "f32";
+    case TypeKind::F64:
+      return "f64";
+    case TypeKind::String:
+      return "string";
+    case TypeKind::Ref:
+      return "ref";
+    default:
+      return "unknown";
+  }
+}
+
+std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
+  std::map<std::string, std::vector<const NativeFunctionSpec*>> modules;
+  for (const NativeFunctionSpec& spec : registry.Functions()) {
+    modules[spec.module_name].push_back(&spec);
+  }
+  std::ostringstream out;
+  out << "# Native Standard Library Metadata\n\n";
+  out << "Generated from `NativeRegistry` metadata.\n";
+  for (auto& entry : modules) {
+    std::sort(entry.second.begin(), entry.second.end(), [](const NativeFunctionSpec* lhs,
+                                                           const NativeFunctionSpec* rhs) {
+      return lhs->symbol_name < rhs->symbol_name;
+    });
+    out << "\n## " << entry.first << "\n\n";
+    out << "| Symbol | Signature |\n|---|---|\n";
+    for (const NativeFunctionSpec* spec : entry.second) {
+      out << "| `" << spec->symbol_name << "` | `(";
+      for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
+        if (i > 0) out << ", ";
+        out << TypeKindMarkdown(spec->parameter_types[i]);
+      }
+      out << ") -> " << TypeKindMarkdown(spec->result_type) << "` |\n";
+    }
+  }
+  return out.str();
 }
 
 void RegisterSystemRandom(NativeRegistry& registry) {

@@ -16132,6 +16132,7 @@ bool RunNativeRegistryModuleTest() {
   ctx.args.push_back(123);
   const auto result = found->handler(ctx);
   Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
+  const std::string stdlib_markdown = Simple::VM::Native::GenerateStdLibMarkdown(default_registry);
   const auto* random_i32 = default_registry.Find("System.random", "i32");
   const auto* os_time = default_registry.Find("System.os", "time_mono_ns");
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
@@ -16586,7 +16587,11 @@ bool RunNativeRegistryModuleTest() {
                                                 : Simple::VM::Native::NativeCallResult{};
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
-  return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
+  return registry.Size() == 1 && result.ok && result.value == 123 &&
+         stdlib_markdown.find("## System.fs") != std::string::npos &&
+         stdlib_markdown.find("| `readText` | `(string) -> string` |") != std::string::npos &&
+         stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` |") != std::string::npos &&
+         random_i32 && os_time &&
          os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&
          os_args_count_result.value == 2 && os_args_get_result.string_value == "legacy-arg" &&
          os_env_get_result.string_value == "metadata-env" && path_join && path_basename && path_normalize &&
