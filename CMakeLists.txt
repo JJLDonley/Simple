@@ -79,6 +79,7 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_LANG_ROOT}/src/RAST/resolver.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/type_checker.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/expressions.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/TAST/statements.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/control_flow.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/types.cpp
   ${SIMPLEVM_LANG_ROOT}/src/IRB/ir_builder.cpp

@@ -12,6 +12,7 @@
 #include "RAST/symbol_table.h"
 #include "TAST/tast.h"
 #include "TAST/expressions.h"
+#include "TAST/statements.h"
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
 #include "TAST/types.h"
@@ -3093,6 +3094,19 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
          error.find("duplicate symbol: Thing") != std::string::npos;
 }
 
+bool LangTastCheckAssignmentValidatesShape() {
+  Simple::Lang::AST::Stmt assign;
+  assign.kind = Simple::Lang::AST::StmtKind::Assign;
+  assign.target.kind = Simple::Lang::AST::ExprKind::Identifier;
+  assign.target.text = "x";
+  std::string error;
+  if (!Simple::Lang::TAST::CheckAssignment(assign, &error)) return false;
+  Simple::Lang::AST::Stmt expr_stmt;
+  expr_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  return !Simple::Lang::TAST::CheckAssignment(expr_stmt, &error) &&
+         error.find("expected assignment statement") != std::string::npos;
+}
+
 bool LangTastCheckCallExpressionValidatesShape() {
   Simple::Lang::AST::Expr call;
   call.kind = Simple::Lang::AST::ExprKind::Call;
@@ -5047,6 +5061,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
   {"lang_rast_allows_type_invalid_programs", LangRastAllowsTypeInvalidPrograms},
   {"lang_rast_declaration_resolution_finds_decl_symbols", LangRastDeclarationResolutionFindsDeclSymbols},

@@ -113,7 +113,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:
   - [ ] `Lang/src/TAST/type_checker.cpp`
   - [x] `Lang/src/TAST/expressions.cpp`
-  - [ ] `Lang/src/TAST/statements.cpp`
+  - [x] `Lang/src/TAST/statements.cpp`
   - [ ] `Lang/src/TAST/calls.cpp`
   - [ ] `Lang/src/TAST/literals.cpp`
   - [ ] `Lang/src/TAST/mutability.cpp`
@@ -127,7 +127,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `ExprTypeMap`
   - [ ] `MutabilityFacts`
   - [ ] `AbiFacts`
-- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckAssignment`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+  - [x] Add `CheckAssignment` TAST API.
   - [x] Add `CheckCallExpression` TAST API.
 - [ ] Avoid generic multi-purpose names like `ValidateThing` or broad `InferExprType` helpers that hide multiple responsibilities.
 
