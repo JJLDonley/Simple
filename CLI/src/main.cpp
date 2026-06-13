@@ -25,6 +25,7 @@
 #include "sbc_verifier.h"
 #include "vm.h"
 #include "command_contract.h"
+#include "command_dispatch.h"
 #include "diagnostic_render.h"
 #include "import_contract.h"
 
@@ -867,9 +868,9 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
 
 int main(int argc, char** argv) {
   const std::string tool_name = BaseName(argv[0]);
-  const bool simple_only = (tool_name == "simple");
-  const bool svm_mode = (tool_name == "svm" || tool_name == "SVM");
-  const bool compiler_frontend = simple_only || svm_mode;
+  const Simple::CLI::ToolMode tool_mode = Simple::CLI::DetectToolMode(tool_name);
+  const bool simple_only = tool_mode.simple_only;
+  const bool compiler_frontend = tool_mode.compiler_frontend;
   auto print_usage = [&]() {
     std::cerr << "usage:\n";
     if (compiler_frontend) {
@@ -918,8 +919,8 @@ int main(int argc, char** argv) {
   }
 
   const std::string cmd = argv[1];
-  const bool build_cmd = (cmd == "build" || cmd == "compile");
-  const bool is_command = (cmd == "run" || build_cmd || cmd == "check" || cmd == "emit" || cmd == "lsp");
+  const bool build_cmd = Simple::CLI::IsBuildCommand(cmd);
+  const bool is_command = Simple::CLI::IsKnownCommand(cmd);
   std::string path = ResolveImplicitSimplePath(is_command ? (argc > 2 ? argv[2] : "") : cmd);
   bool verify = true;
   bool build_exe = false;

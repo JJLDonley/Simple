@@ -1,9 +1,20 @@
 #include "test_utils.h"
 
 #include "command_contract.h"
+#include "command_dispatch.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool CliSplitContractDetectsToolModesAndCommands() {
+  const auto simple = Simple::CLI::DetectToolMode("simple");
+  const auto svm = Simple::CLI::DetectToolMode("svm");
+  return simple.simple_only && simple.compiler_frontend &&
+         svm.svm_mode && svm.compiler_frontend &&
+         Simple::CLI::IsBuildCommand("compile") &&
+         Simple::CLI::IsKnownCommand("lsp") &&
+         !Simple::CLI::IsKnownCommand("unknown");
+}
 
 bool CliSplitContractClassifiesInputExtensions() {
   return Simple::CLI::IsSimpleSourcePath("game.simple") &&
@@ -13,6 +24,7 @@ bool CliSplitContractClassifiesInputExtensions() {
 }
 
 const TestCase kCliContractTests[] = {
+  {"cli_split_contract_detects_tool_modes_and_commands", CliSplitContractDetectsToolModesAndCommands},
   {"cli_split_contract_classifies_input_extensions", CliSplitContractClassifiesInputExtensions},
 };
 
