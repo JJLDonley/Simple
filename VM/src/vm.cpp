@@ -37,6 +37,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "native/buffer.h"
+#include "native/channel.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -54,29 +55,6 @@ using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-template <typename T>
-struct ChannelState {
-  std::mutex mutex;
-  std::condition_variable cv;
-  std::queue<T> values;
-  bool closed = false;
-};
-
-template <typename T>
-struct ChannelRegistry {
-  std::mutex mutex;
-  std::unordered_map<int64_t, std::shared_ptr<ChannelState<T>>> channels;
-  int64_t next = 1;
-};
-
-std::atomic<int64_t> g_next_channel_handle{1};
-ChannelRegistry<int32_t> g_channel_i32;
-ChannelRegistry<int64_t> g_channel_i64;
-ChannelRegistry<float> g_channel_f32;
-ChannelRegistry<double> g_channel_f64;
-ChannelRegistry<bool> g_channel_bool;
-ChannelRegistry<std::u16string> g_channel_string;
-ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 std::string HostPlatformName() {
 #if defined(_WIN32)
   return "windows";
@@ -117,22 +95,6 @@ std::string HostExePath() {
 #else
   return {};
 #endif
-}
-
-template <typename T>
-std::shared_ptr<ChannelState<T>> GetChannel(ChannelRegistry<T>& registry, int64_t handle) {
-  std::lock_guard<std::mutex> lock(registry.mutex);
-  auto it = registry.channels.find(handle);
-  return it == registry.channels.end() ? nullptr : it->second;
-}
-
-template <typename T>
-int64_t NewChannel(ChannelRegistry<T>& registry) {
-  auto state = std::make_shared<ChannelState<T>>();
-  std::lock_guard<std::mutex> lock(registry.mutex);
-  const int64_t handle = g_next_channel_handle.fetch_add(1);
-  registry.channels[handle] = std::move(state);
-  return handle;
 }
 
 inline bool IsI32LikeImportType(TypeKind kind) {
@@ -2071,7 +2033,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        out_ret = PackI64(NewChannel(registry));
+        out_ret = PackI64(Simple::VM::Native::Channel::New(registry));
         return true;
       };
       auto do_send = [&](auto& registry, auto unpack, const char* name) -> bool {
@@ -2083,21 +2045,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(registry, UnpackI64(args[0]));
-        if (!state) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        {
-          std::lock_guard<std::mutex> lock(state->mutex);
-          if (state->closed) {
-            out_ret = PackI32(0);
-            return true;
-          }
-          state->values.push(unpack(args[1]));
-        }
-        state->cv.notify_one();
-        out_ret = PackI32(1);
+        out_ret = PackI32(Simple::VM::Native::Channel::Send(registry, UnpackI64(args[0]),
+                                                            unpack(args[1]))
+                              ? 1
+                              : 0);
         return true;
       };
       auto do_recv = [&](auto& registry, auto pack, const char* name, bool wait) -> bool {
@@ -2110,19 +2061,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(registry, UnpackI64(args[0]));
-        if (!state) {
+        std::decay_t<decltype(registry.channels.begin()->second->values.front())> value{};
+        if (!Simple::VM::Native::Channel::Receive(registry, UnpackI64(args[0]), wait, &value)) {
           out_ret = PackI32(0);
           return true;
         }
-        std::unique_lock<std::mutex> lock(state->mutex);
-        if (wait) state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
-        if (state->values.empty()) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        auto value = state->values.front();
-        state->values.pop();
         out_ret = pack(value);
         return true;
       };
@@ -2135,27 +2078,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + name + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(registry, UnpackI64(args[0]));
-        if (!state) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        std::lock_guard<std::mutex> lock(state->mutex);
-        const size_t count = state->values.size();
-        out_ret = PackI32(count > static_cast<size_t>(std::numeric_limits<int32_t>::max())
-                              ? std::numeric_limits<int32_t>::max()
-                              : static_cast<int32_t>(count));
+        out_ret = PackI32(Simple::VM::Native::Channel::Pending(registry, UnpackI64(args[0])));
         return true;
-      };
-      auto close_one = [&](auto& registry, int64_t handle) {
-        auto state = GetChannel(registry, handle);
-        if (state) {
-          {
-            std::lock_guard<std::mutex> lock(state->mutex);
-            state->closed = true;
-          }
-          state->cv.notify_all();
-        }
       };
       auto do_close = [&]() -> bool {
         out_has_ret = false;
@@ -2163,35 +2087,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.channel.close arg count mismatch";
           return false;
         }
-        const int64_t handle = UnpackI64(args[0]);
-        close_one(g_channel_i32, handle);
-        close_one(g_channel_i64, handle);
-        close_one(g_channel_f32, handle);
-        close_one(g_channel_f64, handle);
-        close_one(g_channel_bool, handle);
-        close_one(g_channel_string, handle);
-        close_one(g_channel_bytes, handle);
+        Simple::VM::Native::Channel::CloseAll(UnpackI64(args[0]));
         return true;
       };
-      if (sym == "newI32") return do_new(g_channel_i32, "newI32");
-      if (sym == "newI64") return do_new(g_channel_i64, "newI64");
-      if (sym == "newF32") return do_new(g_channel_f32, "newF32");
-      if (sym == "newF64") return do_new(g_channel_f64, "newF64");
-      if (sym == "newBool") return do_new(g_channel_bool, "newBool");
-      if (sym == "newString") return do_new(g_channel_string, "newString");
-      if (sym == "newBytes") return do_new(g_channel_bytes, "newBytes");
-      if (sym == "pendingI32") return do_pending(g_channel_i32, "pendingI32");
-      if (sym == "pendingI64") return do_pending(g_channel_i64, "pendingI64");
-      if (sym == "pendingF32") return do_pending(g_channel_f32, "pendingF32");
-      if (sym == "pendingF64") return do_pending(g_channel_f64, "pendingF64");
-      if (sym == "pendingBool") return do_pending(g_channel_bool, "pendingBool");
-      if (sym == "pendingString") return do_pending(g_channel_string, "pendingString");
-      if (sym == "pendingBytes") return do_pending(g_channel_bytes, "pendingBytes");
-      if (sym == "sendI32" || sym == "trySendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, sym.c_str());
-      if (sym == "sendI64" || sym == "trySendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, sym.c_str());
-      if (sym == "sendF32" || sym == "trySendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, sym.c_str());
-      if (sym == "sendF64" || sym == "trySendF64") return do_send(g_channel_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, sym.c_str());
-      if (sym == "sendBool" || sym == "trySendBool") return do_send(g_channel_bool, [](Slot v) { return UnpackI32(v) != 0; }, sym.c_str());
+      if (sym == "newI32") return do_new(Simple::VM::Native::Channel::g_i32, "newI32");
+      if (sym == "newI64") return do_new(Simple::VM::Native::Channel::g_i64, "newI64");
+      if (sym == "newF32") return do_new(Simple::VM::Native::Channel::g_f32, "newF32");
+      if (sym == "newF64") return do_new(Simple::VM::Native::Channel::g_f64, "newF64");
+      if (sym == "newBool") return do_new(Simple::VM::Native::Channel::g_bool, "newBool");
+      if (sym == "newString") return do_new(Simple::VM::Native::Channel::g_string, "newString");
+      if (sym == "newBytes") return do_new(Simple::VM::Native::Channel::g_bytes, "newBytes");
+      if (sym == "pendingI32") return do_pending(Simple::VM::Native::Channel::g_i32, "pendingI32");
+      if (sym == "pendingI64") return do_pending(Simple::VM::Native::Channel::g_i64, "pendingI64");
+      if (sym == "pendingF32") return do_pending(Simple::VM::Native::Channel::g_f32, "pendingF32");
+      if (sym == "pendingF64") return do_pending(Simple::VM::Native::Channel::g_f64, "pendingF64");
+      if (sym == "pendingBool") return do_pending(Simple::VM::Native::Channel::g_bool, "pendingBool");
+      if (sym == "pendingString") return do_pending(Simple::VM::Native::Channel::g_string, "pendingString");
+      if (sym == "pendingBytes") return do_pending(Simple::VM::Native::Channel::g_bytes, "pendingBytes");
+      if (sym == "sendI32" || sym == "trySendI32") return do_send(Simple::VM::Native::Channel::g_i32, [](Slot v) { return UnpackI32(v); }, sym.c_str());
+      if (sym == "sendI64" || sym == "trySendI64") return do_send(Simple::VM::Native::Channel::g_i64, [](Slot v) { return UnpackI64(v); }, sym.c_str());
+      if (sym == "sendF32" || sym == "trySendF32") return do_send(Simple::VM::Native::Channel::g_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, sym.c_str());
+      if (sym == "sendF64" || sym == "trySendF64") return do_send(Simple::VM::Native::Channel::g_f64, [](Slot v) { return BitsToF64(UnpackU64Bits(v)); }, sym.c_str());
+      if (sym == "sendBool" || sym == "trySendBool") return do_send(Simple::VM::Native::Channel::g_bool, [](Slot v) { return UnpackI32(v) != 0; }, sym.c_str());
       if (sym == "sendString" || sym == "trySendString") {
         if (!IsI32LikeImportType(ret_kind)) {
           out_error = std::string("core.channel.") + sym + " return type mismatch";
@@ -2201,7 +2118,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + sym + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(g_channel_string, UnpackI64(args[0]));
+        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_string, UnpackI64(args[0]));
         const uint32_t ref = UnpackRef(args[1]);
         HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
         if (!state || !obj || obj->header.kind != ObjectKind::String) {
@@ -2220,11 +2137,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackI32(1);
         return true;
       }
-      if (sym == "recvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "recvI32", true);
-      if (sym == "recvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "recvI64", true);
-      if (sym == "recvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "recvF32", true);
-      if (sym == "recvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "recvF64", true);
-      if (sym == "recvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
+      if (sym == "recvI32") return do_recv(Simple::VM::Native::Channel::g_i32, [](int32_t v) { return PackI32(v); }, "recvI32", true);
+      if (sym == "recvI64") return do_recv(Simple::VM::Native::Channel::g_i64, [](int64_t v) { return PackI64(v); }, "recvI64", true);
+      if (sym == "recvF32") return do_recv(Simple::VM::Native::Channel::g_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "recvF32", true);
+      if (sym == "recvF64") return do_recv(Simple::VM::Native::Channel::g_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "recvF64", true);
+      if (sym == "recvBool") return do_recv(Simple::VM::Native::Channel::g_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
       if (sym == "sendBytes" || sym == "trySendBytes") {
         if (!IsI32LikeImportType(ret_kind)) {
           out_error = std::string("core.channel.") + sym + " return type mismatch";
@@ -2234,7 +2151,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + sym + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(g_channel_bytes, UnpackI64(args[0]));
+        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_bytes, UnpackI64(args[0]));
         const uint32_t ref = UnpackRef(args[1]);
         HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
         if (!state || !obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) {
@@ -2269,7 +2186,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + sym + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(g_channel_bytes, UnpackI64(args[0]));
+        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_bytes, UnpackI64(args[0]));
         if (!state) {
           out_ret = PackRef(kNullRef);
           return true;
@@ -2308,7 +2225,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = std::string("core.channel.") + sym + " arg count mismatch";
           return false;
         }
-        auto state = GetChannel(g_channel_string, UnpackI64(args[0]));
+        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_string, UnpackI64(args[0]));
         if (!state) {
           out_ret = PackRef(kNullRef);
           return true;
@@ -2325,11 +2242,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackRef(CreateString(heap, value));
         return true;
       }
-      if (sym == "tryRecvI32") return do_recv(g_channel_i32, [](int32_t v) { return PackI32(v); }, "tryRecvI32", false);
-      if (sym == "tryRecvI64") return do_recv(g_channel_i64, [](int64_t v) { return PackI64(v); }, "tryRecvI64", false);
-      if (sym == "tryRecvF32") return do_recv(g_channel_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "tryRecvF32", false);
-      if (sym == "tryRecvF64") return do_recv(g_channel_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "tryRecvF64", false);
-      if (sym == "tryRecvBool") return do_recv(g_channel_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "tryRecvBool", false);
+      if (sym == "tryRecvI32") return do_recv(Simple::VM::Native::Channel::g_i32, [](int32_t v) { return PackI32(v); }, "tryRecvI32", false);
+      if (sym == "tryRecvI64") return do_recv(Simple::VM::Native::Channel::g_i64, [](int64_t v) { return PackI64(v); }, "tryRecvI64", false);
+      if (sym == "tryRecvF32") return do_recv(Simple::VM::Native::Channel::g_f32, [](float v) { return PackF32Bits(F32ToBits(v)); }, "tryRecvF32", false);
+      if (sym == "tryRecvF64") return do_recv(Simple::VM::Native::Channel::g_f64, [](double v) { return PackF64Bits(F64ToBits(v)); }, "tryRecvF64", false);
+      if (sym == "tryRecvBool") return do_recv(Simple::VM::Native::Channel::g_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "tryRecvBool", false);
       if (sym == "close") return do_close();
     }
     if (mod == "core.thread") {

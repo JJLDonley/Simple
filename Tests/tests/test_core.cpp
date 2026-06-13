@@ -12,6 +12,7 @@
 #include "intrinsic_ids.h"
 #include "lang_version.h"
 #include "native/buffer.h"
+#include "native/channel.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -15883,6 +15884,25 @@ bool RunNativeBufferModuleTest() {
   return Simple::VM::Native::Buffer::ReadLE(&dst, 0, 2) == 0x1234u;
 }
 
+bool RunNativeChannelModuleTest() {
+  const int64_t handle = Simple::VM::Native::Channel::New(Simple::VM::Native::Channel::g_i32);
+  if (handle == 0) return false;
+  if (!Simple::VM::Native::Channel::Send(Simple::VM::Native::Channel::g_i32, handle, 42)) {
+    return false;
+  }
+  if (Simple::VM::Native::Channel::Pending(Simple::VM::Native::Channel::g_i32, handle) != 1) {
+    return false;
+  }
+  int32_t value = 0;
+  if (!Simple::VM::Native::Channel::Receive(Simple::VM::Native::Channel::g_i32, handle, false,
+                                            &value)) {
+    return false;
+  }
+  if (value != 42) return false;
+  Simple::VM::Native::Channel::CloseAll(handle);
+  return !Simple::VM::Native::Channel::Send(Simple::VM::Native::Channel::g_i32, handle, 7);
+}
+
 bool RunNativeJsonModuleTest() {
   const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
   if (handle == 0) return false;
@@ -23500,6 +23520,7 @@ bool RunJmpTableEmptyTest() {
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
   {"native_buffer_module", RunNativeBufferModuleTest},
+  {"native_channel_module", RunNativeChannelModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
