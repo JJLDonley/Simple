@@ -13,6 +13,9 @@ void AddResolvedMemberRef(ResolvedProgram* program,
                           SymbolId symbol,
                           const std::string& receiver_type = {},
                           SymbolId receiver_symbol = kInvalidSymbolId);
+const MemberRef* LookupResolvedMemberRef(const ResolvedProgram* program,
+                                         const std::string& base,
+                                         const std::string& member);
 void ResolveProgramMemberRefs(ResolvedProgram* program);
 
 } // namespace Simple::Lang::RAST

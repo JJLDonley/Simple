@@ -3047,10 +3047,12 @@ bool LangRastMemberResolutionRecordsMemberRefs() {
                                            "answer",
                                            "Math.answer",
                                            7);
-  return program.member_refs.size() == 1 &&
-         program.member_refs[0].base == "Math" &&
-         program.member_refs[0].member == "answer" &&
-         program.member_refs[0].symbol == 7 &&
+  const auto* ref = Simple::Lang::RAST::LookupResolvedMemberRef(&program, "Math", "answer");
+  return program.member_refs.size() == 1 && ref &&
+         ref->base == "Math" &&
+         ref->member == "answer" &&
+         ref->symbol == 7 &&
+         !Simple::Lang::RAST::LookupResolvedMemberRef(&program, "Math", "missing") &&
          Simple::Lang::RAST::ClassifyMemberRefKind(Simple::Lang::RAST::MemberRefKind::Unknown,
                                                    Simple::Lang::RAST::SymbolKind::EnumMember) ==
              Simple::Lang::RAST::MemberRefKind::EnumMember;

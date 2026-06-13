@@ -107,7 +107,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] RAST owns names and symbols only:
   - [x] symbol lookup
   - [x] import resolution
-  - [ ] member resolution by name
+  - [x] member resolution by name
   - [ ] declaration reference resolution
 - [ ] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
 - [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:

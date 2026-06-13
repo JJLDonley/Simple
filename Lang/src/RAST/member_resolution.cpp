@@ -49,6 +49,16 @@ void AddResolvedMemberRef(ResolvedProgram* out,
   out->member_refs.push_back(std::move(ref));
 }
 
+const MemberRef* LookupResolvedMemberRef(const ResolvedProgram* program,
+                                         const std::string& base,
+                                         const std::string& member) {
+  if (!program) return nullptr;
+  for (const auto& ref : program->member_refs) {
+    if (ref.base == base && ref.member == member) return &ref;
+  }
+  return nullptr;
+}
+
 struct TypeEnv {
   std::unordered_map<std::string, std::string> types;
   std::unordered_map<std::string, std::string> dl_modules;
