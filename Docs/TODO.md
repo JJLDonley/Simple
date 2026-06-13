@@ -103,7 +103,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/RAST/symbol_table.cpp`
   - [ ] `Lang/src/RAST/resolver.cpp`
   - [ ] `Lang/src/RAST/member_resolution.cpp`
-  - [ ] `Lang/src/RAST/reserved_resolution.cpp`
+  - [x] `Lang/src/RAST/reserved_resolution.cpp`
 - [ ] RAST owns names and symbols only:
   - [ ] symbol lookup
   - [ ] import resolution

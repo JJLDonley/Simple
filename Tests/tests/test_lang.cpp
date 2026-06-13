@@ -6,6 +6,7 @@
 #include "AST/lower_cast.h"
 #include "RAST/rast.h"
 #include "RAST/import_graph.h"
+#include "RAST/reserved_resolution.h"
 #include "RAST/resolver.h"
 #include "RAST/symbol_table.h"
 #include "TAST/tast.h"
@@ -3037,6 +3038,15 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRastReservedResolutionUsesNativeMetadata() {
+  std::string native_module;
+  return Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
+         native_module == "System.fs" &&
+         Simple::Lang::RAST::IsReservedModuleFunction("FS", "open") &&
+         Simple::Lang::RAST::IsReservedModuleFunction("Json", "parse") &&
+         Simple::Lang::RAST::NormalizeDlMemberName("Open") == "open";
+}
+
 bool LangRastSymbolTableAddsAndRejectsDuplicates() {
   Simple::Lang::RAST::ResolvedProgram program;
   std::string error;
@@ -4961,6 +4971,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_mixed_case_ok", LangValidateSystemImportMixedCaseOk},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
+  {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
