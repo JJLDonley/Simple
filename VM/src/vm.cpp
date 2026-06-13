@@ -1,33 +1,23 @@
 #include "vm.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
+#if !defined(_WIN32)
 #include <dlfcn.h>
 #include <ffi.h>
-#include <unistd.h>
 #endif
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <atomic>
-#include <condition_variable>
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <sstream>
-#include <thread>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
@@ -38,6 +28,7 @@
 #include "intrinsic_ids.h"
 #include "native/buffer.h"
 #include "native/channel.h"
+#include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -55,48 +46,6 @@ using Simple::Byte::OpCodeName;
 using Simple::Byte::TypeKind;
 using Slot = uint64_t;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
-
-std::string HostPlatformName() {
-#if defined(_WIN32)
-  return "windows";
-#elif defined(__APPLE__)
-  return "macos";
-#elif defined(__linux__)
-  return "linux";
-#else
-  return "unknown";
-#endif
-}
-
-std::string HostArchName() {
-#if defined(__x86_64__) || defined(_M_X64)
-  return "x64";
-#elif defined(__aarch64__) || defined(_M_ARM64)
-  return "arm64";
-#elif defined(__i386__) || defined(_M_IX86)
-  return "x86";
-#else
-  return "unknown";
-#endif
-}
-
-std::string HostExePath() {
-#if defined(_WIN32)
-  char buf[MAX_PATH];
-  DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
-  return n > 0 ? std::string(buf, buf + n) : std::string{};
-#elif defined(__linux__)
-  char buf[4096];
-  ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-  if (n > 0) {
-    buf[n] = '\0';
-    return std::string(buf);
-  }
-  return {};
-#else
-  return {};
-#endif
-}
 
 inline bool IsI32LikeImportType(TypeKind kind) {
   switch (kind) {
@@ -151,23 +100,6 @@ std::u16string AsciiToU16(const std::string& text);
 std::string U16ToAscii(const std::u16string& text);
 uint32_t CreateString(Heap& heap, const std::u16string& text);
 std::u16string ReadString(const HeapObject* obj);
-
-const char* GetEnvVar(const std::string& name, std::string* owned_value) {
-#if defined(_WIN32)
-  if (!owned_value) return nullptr;
-  char* raw_value = nullptr;
-  size_t raw_len = 0;
-  if (_dupenv_s(&raw_value, &raw_len, name.c_str()) != 0 || !raw_value) {
-    return nullptr;
-  }
-  owned_value->assign(raw_value, raw_len > 0 ? raw_len - 1 : 0);
-  std::free(raw_value);
-  return owned_value->c_str();
-#else
-  (void)owned_value;
-  return std::getenv(name.c_str());
-#endif
-}
 
 std::FILE* OpenFileForMode(const std::string& path, const char* mode) {
 #if defined(_WIN32)
@@ -1599,7 +1531,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   uint64_t compile_tick = 0;
   auto read_threshold = [&](const char* name, uint32_t fallback) -> uint32_t {
     std::string owned_value;
-    const char* raw = GetEnvVar(name, &owned_value);
+    const char* raw = Simple::VM::Native::Env::Get(name, &owned_value);
     if (!raw || raw[0] == '\0') return fallback;
     char* end = nullptr;
     unsigned long parsed = std::strtoul(raw, &end, 10);
@@ -1722,7 +1654,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             return true;
           }
           std::string env_value_storage;
-          const char* value = GetEnvVar(name, &env_value_storage);
+          const char* value = Simple::VM::Native::Env::Get(name, &env_value_storage);
           if (!value) {
             out_ret = PackRef(kNullRef);
             return true;
@@ -1780,10 +1712,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.os.sleep_ms arg count mismatch";
           return false;
         }
-        int32_t ms = UnpackI32(args[0]);
-        if (ms > 0) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        }
+        Simple::VM::Native::Thread::SleepMs(UnpackI32(args[0]));
         return true;
       }
     }
@@ -1910,7 +1839,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         std::string storage;
-        const char* value = GetEnvVar(U16ToAscii(ReadString(name_obj)), &storage);
+        const char* value = Simple::VM::Native::Env::Get(U16ToAscii(ReadString(name_obj)), &storage);
         if (!value) {
           out_ret = PackRef(kNullRef);
           return true;
@@ -1935,12 +1864,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         const std::string name = U16ToAscii(ReadString(name_obj));
         const std::string value = U16ToAscii(ReadString(value_obj));
-#if defined(_WIN32)
-        const int rc = _putenv_s(name.c_str(), value.c_str());
-#else
-        const int rc = setenv(name.c_str(), value.c_str(), 1);
-#endif
-        out_ret = PackI32(rc == 0 ? 1 : 0);
+        out_ret = PackI32(Simple::VM::Native::Env::Set(name, value) ? 1 : 0);
         return true;
       }
       if (sym == "platform") {
@@ -1952,7 +1876,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.env.platform arg count mismatch";
           return false;
         }
-        return return_string(HostPlatformName());
+        return return_string(Simple::VM::Native::Env::PlatformName());
       }
       if (sym == "arch") {
         if (!IsStringLikeImportType(ret_kind)) {
@@ -1963,7 +1887,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.env.arch arg count mismatch";
           return false;
         }
-        return return_string(HostArchName());
+        return return_string(Simple::VM::Native::Env::ArchName());
       }
       if (sym == "exePath") {
         if (!IsStringLikeImportType(ret_kind)) {
@@ -1974,7 +1898,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.env.exePath arg count mismatch";
           return false;
         }
-        return return_string(HostExePath());
+        return return_string(Simple::VM::Native::Env::ExePath());
       }
     }
     if (mod == "core.random") {

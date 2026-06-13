@@ -37,7 +37,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `VM/src/native/os.cpp`
   - [ ] `VM/src/native/fs.cpp`
   - [ ] `VM/src/native/path.cpp`
-  - [ ] `VM/src/native/env.cpp`
+  - [x] `VM/src/native/env.cpp`
   - [x] `VM/src/native/time.cpp`
   - [x] `VM/src/native/random.cpp`
   - [x] `VM/src/native/log.cpp`

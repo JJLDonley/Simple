@@ -13,6 +13,7 @@
 #include "lang_version.h"
 #include "native/buffer.h"
 #include "native/channel.h"
+#include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -15904,6 +15905,17 @@ bool RunNativeChannelModuleTest() {
   return !Simple::VM::Native::Channel::Send(Simple::VM::Native::Channel::g_i32, handle, 7);
 }
 
+bool RunNativeEnvModuleTest() {
+  const std::string name = "SIMPLE_NATIVE_ENV_TEST";
+  if (!Simple::VM::Native::Env::Set(name, "ok")) return false;
+  std::string storage;
+  const char* value = Simple::VM::Native::Env::Get(name, &storage);
+  if (!value || std::string(value) != "ok") return false;
+  if (Simple::VM::Native::Env::PlatformName().empty()) return false;
+  if (Simple::VM::Native::Env::ArchName().empty()) return false;
+  return !Simple::VM::Native::Env::ExePath().empty();
+}
+
 bool RunNativeJsonModuleTest() {
   const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
   if (handle == 0) return false;
@@ -23528,6 +23540,7 @@ static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
   {"native_buffer_module", RunNativeBufferModuleTest},
   {"native_channel_module", RunNativeChannelModuleTest},
+  {"native_env_module", RunNativeEnvModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
