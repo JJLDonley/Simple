@@ -31,6 +31,7 @@
 #include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
+#include "native/path.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -1744,7 +1745,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_ret = PackRef(kNullRef);
           return true;
         }
-        return return_string((std::filesystem::path(a) / std::filesystem::path(b)).lexically_normal().generic_string());
+        return return_string(Simple::VM::Native::Path::Join(a, b));
       }
       if (sym == "dirname" || sym == "basename" || sym == "ext" || sym == "normalize") {
         if (!IsStringLikeImportType(ret_kind)) {
@@ -1760,11 +1761,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_ret = PackRef(kNullRef);
           return true;
         }
-        std::filesystem::path p(value);
-        if (sym == "dirname") return return_string(p.parent_path().generic_string());
-        if (sym == "basename") return return_string(p.filename().generic_string());
-        if (sym == "ext") return return_string(p.extension().generic_string());
-        return return_string(p.lexically_normal().generic_string());
+        if (sym == "dirname") return return_string(Simple::VM::Native::Path::Dirname(value));
+        if (sym == "basename") return return_string(Simple::VM::Native::Path::Basename(value));
+        if (sym == "ext") return return_string(Simple::VM::Native::Path::Extension(value));
+        return return_string(Simple::VM::Native::Path::Normalize(value));
       }
       if (sym == "exists" || sym == "isFile" || sym == "isDir") {
         if (!IsI32LikeImportType(ret_kind)) {
@@ -1780,13 +1780,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_ret = PackI32(0);
           return true;
         }
-        std::error_code ec;
-        const std::filesystem::path p(value);
         bool result = false;
-        if (sym == "exists") result = std::filesystem::exists(p, ec);
-        else if (sym == "isFile") result = std::filesystem::is_regular_file(p, ec);
-        else result = std::filesystem::is_directory(p, ec);
-        out_ret = PackI32((!ec && result) ? 1 : 0);
+        if (sym == "exists") result = Simple::VM::Native::Path::Exists(value);
+        else if (sym == "isFile") result = Simple::VM::Native::Path::IsFile(value);
+        else result = Simple::VM::Native::Path::IsDir(value);
+        out_ret = PackI32(result ? 1 : 0);
         return true;
       }
     }

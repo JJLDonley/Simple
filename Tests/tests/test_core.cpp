@@ -16,6 +16,7 @@
 #include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
+#include "native/path.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -15942,6 +15943,15 @@ bool RunNativeLogModuleTest() {
   return text.find("hidden") == std::string::npos && text.find("[ERROR] shown") != std::string::npos;
 }
 
+bool RunNativePathModuleTest() {
+  if (Simple::VM::Native::Path::Join("/tmp", "a/../b") != "/tmp/b") return false;
+  if (Simple::VM::Native::Path::Dirname("/tmp/file.txt") != "/tmp") return false;
+  if (Simple::VM::Native::Path::Basename("/tmp/file.txt") != "file.txt") return false;
+  if (Simple::VM::Native::Path::Extension("/tmp/file.txt") != ".txt") return false;
+  if (Simple::VM::Native::Path::Normalize("/tmp/./x") != "/tmp/x") return false;
+  return Simple::VM::Native::Path::Exists(".") && Simple::VM::Native::Path::IsDir(".");
+}
+
 bool RunNativeRandomModuleTest() {
   Simple::VM::Native::Random::Seed(123);
   const int32_t a = Simple::VM::Native::Random::I32();
@@ -23543,6 +23553,7 @@ static const TestCase kCoreTests[] = {
   {"native_env_module", RunNativeEnvModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
+  {"native_path_module", RunNativePathModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
   {"native_thread_module", RunNativeThreadModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
