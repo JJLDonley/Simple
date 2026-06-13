@@ -43,6 +43,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/gc/root_tracer.cpp
   ${SIMPLEVM_VM_ROOT}/src/heap.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/interpreter.cpp
+  ${SIMPLEVM_VM_ROOT}/src/interpreter/dispatch.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/frames.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/stack.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp

@@ -12,6 +12,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "interpreter/interpreter.h"
+#include "interpreter/dispatch.h"
 #include "interpreter/frames.h"
 #include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
@@ -16017,6 +16018,18 @@ bool RunGcRootTracerModuleTest() {
   return heap.Get(global_ref) && heap.Get(local_ref) && !heap.Get(unrooted_ref);
 }
 
+bool RunInterpreterDispatchModuleTest() {
+  const std::vector<uint8_t> code = {0x7fu, 0x34u, 0x12u, 0x78u, 0x56u, 0x34u, 0x12u,
+                                     0x88u, 0x77u, 0x66u, 0x55u, 0x44u, 0x33u, 0x22u,
+                                     0x11u};
+  size_t pc = 0;
+  if (Simple::VM::Interpreter::ReadU8(code, pc) != 0x7fu) return false;
+  if (Simple::VM::Interpreter::ReadU16(code, pc) != 0x1234u) return false;
+  if (Simple::VM::Interpreter::ReadU32(code, pc) != 0x12345678u) return false;
+  return Simple::VM::Interpreter::ReadU64(code, pc) == 0x1122334455667788ull &&
+         pc == code.size();
+}
+
 bool RunInterpreterStateModuleTest() {
   Simple::VM::Interpreter::InterpreterState state = Simple::VM::Interpreter::MakeInterpreterState(3);
   if (state.globals.size() != 3) return false;
@@ -23722,6 +23735,7 @@ static const TestCase kCoreTests[] = {
   {"gc_root_tracer_module", RunGcRootTracerModuleTest},
   {"jit_scaffold_module", RunJitScaffoldModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
+  {"interpreter_dispatch_module", RunInterpreterDispatchModuleTest},
   {"interpreter_state_module", RunInterpreterStateModuleTest},
   {"interpreter_stack_module", RunInterpreterStackModuleTest},
   {"interpreter_frames_module", RunInterpreterFramesModuleTest},

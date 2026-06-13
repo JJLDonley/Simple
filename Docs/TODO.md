@@ -30,7 +30,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 - [ ] Split `VM/src/vm.cpp` into explicit modules:
   - [x] `VM/src/interpreter/interpreter.cpp`
-  - [ ] `VM/src/interpreter/dispatch.cpp`
+  - [x] `VM/src/interpreter/dispatch.cpp`
   - [x] `VM/src/interpreter/frames.cpp`
   - [x] `VM/src/interpreter/stack.cpp`
   - [x] `VM/src/native/registry.cpp`

@@ -25,6 +25,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "interpreter/interpreter.h"
+#include "interpreter/dispatch.h"
 #include "interpreter/frames.h"
 #include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
@@ -51,6 +52,12 @@ using Simple::Byte::OpCode;
 using Simple::Byte::OpCodeName;
 using Simple::Byte::TypeKind;
 using Slot = uint64_t;
+using Simple::VM::Interpreter::ReadI32;
+using Simple::VM::Interpreter::ReadI64;
+using Simple::VM::Interpreter::ReadU8;
+using Simple::VM::Interpreter::ReadU16;
+using Simple::VM::Interpreter::ReadU32;
+using Simple::VM::Interpreter::ReadU64;
 using Simple::VM::Interpreter::Pop;
 using Simple::VM::Interpreter::Push;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
@@ -1147,61 +1154,6 @@ struct TrapContextGuard {
     g_trap_ctx = prev;
   }
 };
-
-int32_t ReadI32(const std::vector<uint8_t>& code, size_t& pc) {
-  uint32_t v = static_cast<uint32_t>(code[pc]) |
-               (static_cast<uint32_t>(code[pc + 1]) << 8) |
-               (static_cast<uint32_t>(code[pc + 2]) << 16) |
-               (static_cast<uint32_t>(code[pc + 3]) << 24);
-  pc += 4;
-  return static_cast<int32_t>(v);
-}
-
-int64_t ReadI64(const std::vector<uint8_t>& code, size_t& pc) {
-  uint64_t v = static_cast<uint64_t>(code[pc]) |
-               (static_cast<uint64_t>(code[pc + 1]) << 8) |
-               (static_cast<uint64_t>(code[pc + 2]) << 16) |
-               (static_cast<uint64_t>(code[pc + 3]) << 24) |
-               (static_cast<uint64_t>(code[pc + 4]) << 32) |
-               (static_cast<uint64_t>(code[pc + 5]) << 40) |
-               (static_cast<uint64_t>(code[pc + 6]) << 48) |
-               (static_cast<uint64_t>(code[pc + 7]) << 56);
-  pc += 8;
-  return static_cast<int64_t>(v);
-}
-
-uint32_t ReadU32(const std::vector<uint8_t>& code, size_t& pc) {
-  uint32_t v = static_cast<uint32_t>(code[pc]) |
-               (static_cast<uint32_t>(code[pc + 1]) << 8) |
-               (static_cast<uint32_t>(code[pc + 2]) << 16) |
-               (static_cast<uint32_t>(code[pc + 3]) << 24);
-  pc += 4;
-  return v;
-}
-
-uint64_t ReadU64(const std::vector<uint8_t>& code, size_t& pc) {
-  uint64_t v = static_cast<uint64_t>(code[pc]) |
-               (static_cast<uint64_t>(code[pc + 1]) << 8) |
-               (static_cast<uint64_t>(code[pc + 2]) << 16) |
-               (static_cast<uint64_t>(code[pc + 3]) << 24) |
-               (static_cast<uint64_t>(code[pc + 4]) << 32) |
-               (static_cast<uint64_t>(code[pc + 5]) << 40) |
-               (static_cast<uint64_t>(code[pc + 6]) << 48) |
-               (static_cast<uint64_t>(code[pc + 7]) << 56);
-  pc += 8;
-  return v;
-}
-
-uint16_t ReadU16(const std::vector<uint8_t>& code, size_t& pc) {
-  uint16_t v = static_cast<uint16_t>(code[pc]) |
-               (static_cast<uint16_t>(code[pc + 1]) << 8);
-  pc += 2;
-  return v;
-}
-
-uint8_t ReadU8(const std::vector<uint8_t>& code, size_t& pc) {
-  return code[pc++];
-}
 
 uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset) {
   return static_cast<uint32_t>(payload[offset]) |
