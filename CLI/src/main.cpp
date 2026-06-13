@@ -24,6 +24,7 @@
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"
+#include "command_contract.h"
 #include "diagnostic_render.h"
 
 namespace {
@@ -523,8 +524,7 @@ bool WriteFileBytes(const std::string& path,
 }
 
 bool HasExt(const std::string& path, const char* ext) {
-  const std::filesystem::path p(path);
-  return p.extension() == ext;
+  return Simple::CLI::HasExtension(path, ext);
 }
 
 std::string ReplaceExt(const std::string& path, const char* ext) {

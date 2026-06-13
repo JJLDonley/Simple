@@ -57,6 +57,7 @@ const TestSection* GetLangLexerSections(size_t* count);
 const TestSection* GetLangRastSections(size_t* count);
 const TestSection* GetLangTastSections(size_t* count);
 #endif
+const TestSection* GetCliContractSections(size_t* count);
 const TestSection* GetCliDiagnosticsSections(size_t* count);
 #if SIMPLEVM_TEST_INCLUDE_LSP
 const TestSection* GetLspSections(size_t* count);
@@ -246,6 +247,10 @@ int main(int argc, char** argv) {
       Simple::VM::Tests::GetLangTastSections(&lang_tast_count);
   sections.insert(sections.end(), lang_tast_sections, lang_tast_sections + lang_tast_count);
 #endif
+  size_t cli_contract_count = 0;
+  const Simple::VM::Tests::TestSection* cli_contract_sections =
+      Simple::VM::Tests::GetCliContractSections(&cli_contract_count);
+  sections.insert(sections.end(), cli_contract_sections, cli_contract_sections + cli_contract_count);
   size_t cli_diagnostics_count = 0;
   const Simple::VM::Tests::TestSection* cli_diagnostics_sections =
       Simple::VM::Tests::GetCliDiagnosticsSections(&cli_diagnostics_count);
