@@ -160,7 +160,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Split VM tests out of `Tests/tests/test_System.cpp`:
   - [ ] `Tests/tests/vm/test_interpreter.cpp`
   - [x] `Tests/tests/vm/test_heap.cpp`
-  - [ ] `Tests/tests/vm/test_gc.cpp`
+  - [x] `Tests/tests/vm/test_gc.cpp`
   - [x] `Tests/tests/vm/test_runtime_limits.cpp`
   - [ ] `Tests/tests/vm/test_native_fs.cpp`
   - [ ] `Tests/tests/vm/test_native_channel.cpp`
