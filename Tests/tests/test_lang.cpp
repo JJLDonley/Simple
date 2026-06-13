@@ -14,6 +14,7 @@
 #include "TAST/calls.h"
 #include "TAST/expressions.h"
 #include "TAST/literals.h"
+#include "TAST/mutability.h"
 #include "TAST/statements.h"
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
@@ -3118,6 +3119,13 @@ bool LangTastCheckExpressionShapeValidatesIdentifiers() {
          error.find("identifier expression missing name") != std::string::npos;
 }
 
+bool LangTastMutabilityChecksAssignments() {
+  std::string error;
+  if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
+  if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
+  return error.find("cannot assign to immutable value") != std::string::npos;
+}
+
 bool LangTastCheckAssignmentValidatesShape() {
   Simple::Lang::AST::Stmt assign;
   assign.kind = Simple::Lang::AST::StmtKind::Assign;
@@ -5085,6 +5093,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
   {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
