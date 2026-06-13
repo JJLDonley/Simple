@@ -8,6 +8,7 @@
 
 #include "lang_parser.h"
 #include "lang_reserved.h"
+#include "native/registry.h"
 #include "TAST/control_flow.h"
 
 namespace Simple::Lang {
@@ -333,44 +334,111 @@ size_t EditDistance(const std::string& a, const std::string& b) {
   return prev[b.size()];
 }
 
+bool NativeModuleNameForReserved(const std::string& resolved, std::string* out) {
+  if (!out) return false;
+  if (resolved == "IO") *out = "System.io";
+  else if (resolved == "DL") *out = "System.dl";
+  else if (resolved == "OS") *out = "System.os";
+  else if (resolved == "Thread") *out = "System.thread";
+  else if (resolved == "Random") *out = "System.random";
+  else if (resolved == "Env") *out = "System.env";
+  else if (resolved == "Path") *out = "System.path";
+  else if (resolved == "FS") *out = "System.fs";
+  else if (resolved == "Json") *out = "System.json";
+  else if (resolved == "Buffer") *out = "System.buffer";
+  else if (resolved == "Log") *out = "System.log";
+  else return false;
+  return true;
+}
+
+void AddNativeReservedMembers(const std::string& resolved, std::vector<std::string>* out) {
+  if (!out) return;
+  std::string native_module;
+  if (!NativeModuleNameForReserved(resolved, &native_module)) return;
+  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  for (const auto& spec : registry.Functions()) {
+    if (spec.module_name != native_module) continue;
+    if (std::find(out->begin(), out->end(), spec.symbol_name) == out->end()) {
+      out->push_back(spec.symbol_name);
+    }
+  }
+}
+
 std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
+  std::vector<std::string> out;
   if (resolved == "IO") {
-    return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
+    out = {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
   if (resolved == "Math") return {"abs", "min", "max", "sqrt", "PI"};
   if (resolved == "Time") return {"mono_ns", "wall_ns", "formatWallNs"};
   if (resolved == "DL") {
-    return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
-            "call_str0", "supported"};
+    out = {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
+           "call_str0", "supported"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
   if (resolved == "OS") {
-    return {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
-            "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
+    out = {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+           "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
-  if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
-  if (resolved == "Random") return {"seed", "i32", "range", "f64"};
-  if (resolved == "Env") return {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
+  if (resolved == "Thread") {
+    out = {"sleep", "yield", "hardwareConcurrency"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
+  if (resolved == "Random") {
+    out = {"seed", "i32", "range", "f64"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
+  if (resolved == "Env") {
+    out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
   if (resolved == "Path") {
-    return {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
+    out = {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
   if (resolved == "FS") {
-    return {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
-            "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+    out = {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
+           "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
   if (resolved == "Channel") {
-    return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
-            "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
-            "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
-            "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
-            "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
-            "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
-            "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
+    out = {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
+           "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
+           "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
+           "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
+           "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
+           "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
+           "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
-  if (resolved == "Json") return {"parse", "stringify", "free"};
-  if (resolved == "Buffer") return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
-  if (resolved == "Log") return {"log", "info", "warn", "error", "setLevel", "setFile"};
-  return {};
+  if (resolved == "Json") {
+    out = {"parse", "stringify", "free"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
+  if (resolved == "Buffer") {
+    out = {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
+  if (resolved == "Log") {
+    out = {"log", "info", "warn", "error", "setLevel", "setFile"};
+    AddNativeReservedMembers(resolved, &out);
+    return out;
+  }
+  return out;
 }
 
 std::vector<std::string> ModuleMembers(const ModuleDecl* module) {
@@ -510,6 +578,60 @@ bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
   if (!found) return false;
   if (out_module) *out_module = std::move(found_module);
   if (out) *out = std::move(found_info);
+  return true;
+}
+
+bool NativeTypeToLangType(Simple::Byte::TypeKind kind, TypeRef* out) {
+  if (!out) return false;
+  switch (kind) {
+    case Simple::Byte::TypeKind::Bool:
+      *out = MakeSimpleType("bool");
+      return true;
+    case Simple::Byte::TypeKind::I32:
+      *out = MakeSimpleType("i32");
+      return true;
+    case Simple::Byte::TypeKind::I64:
+      *out = MakeSimpleType("i64");
+      return true;
+    case Simple::Byte::TypeKind::F32:
+      *out = MakeSimpleType("f32");
+      return true;
+    case Simple::Byte::TypeKind::F64:
+      *out = MakeSimpleType("f64");
+      return true;
+    case Simple::Byte::TypeKind::String:
+      *out = MakeSimpleType("string");
+      return true;
+    case Simple::Byte::TypeKind::Ref:
+      *out = MakeListType("i32");
+      return true;
+    case Simple::Byte::TypeKind::Unspecified:
+      *out = MakeSimpleType("void");
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
+                                          const std::string& member,
+                                          CallTargetInfo* out) {
+  if (!out) return false;
+  std::string native_module;
+  if (!NativeModuleNameForReserved(resolved, &native_module)) return false;
+  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const Simple::VM::Native::NativeFunctionSpec* spec = registry.Find(native_module, member);
+  if (!spec) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = false;
+  for (Simple::Byte::TypeKind param_kind : spec->parameter_types) {
+    TypeRef param;
+    if (!NativeTypeToLangType(param_kind, &param)) return false;
+    out->params.push_back(std::move(param));
+  }
+  if (!NativeTypeToLangType(spec->result_type, &out->return_type)) return false;
+  out->return_mutability = Mutability::Mutable;
   return true;
 }
 
@@ -1014,7 +1136,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  return false;
+  return TryGetNativeReservedModuleCallTarget(resolved, member, out);
 }
 
 bool IsIoPrintName(const std::string& name) {

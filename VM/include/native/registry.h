@@ -54,6 +54,7 @@ class NativeRegistry {
   bool Register(NativeFunctionSpec spec);
   const NativeFunctionSpec* Find(const std::string& module_name,
                                  const std::string& symbol_name) const;
+  const std::vector<NativeFunctionSpec>& Functions() const;
   size_t Size() const;
 
  private:

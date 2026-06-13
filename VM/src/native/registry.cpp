@@ -1209,6 +1209,10 @@ const NativeFunctionSpec* NativeRegistry::Find(const std::string& module_name,
   return nullptr;
 }
 
+const std::vector<NativeFunctionSpec>& NativeRegistry::Functions() const {
+  return functions_;
+}
+
 size_t NativeRegistry::Size() const {
   return functions_.size();
 }

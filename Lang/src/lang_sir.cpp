@@ -5104,6 +5104,22 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> list_dir_params;
       list_dir_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.fs", "listDir", std::move(list_dir_params), make_list_type("string"))) return false;
+      std::vector<TypeRef> open_params;
+      open_params.push_back(make_type("string"));
+      open_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "System.fs", "open", std::move(open_params), make_type("i32"))) return false;
+      std::vector<TypeRef> close_params;
+      close_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "System.fs", "close", std::move(close_params), make_type("void"))) return false;
+      auto make_rw_params = [&]() {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("i32"));
+        params.push_back(make_list_type("i32"));
+        params.push_back(make_type("i32"));
+        return params;
+      };
+      if (!add_reserved_import(alias, "System.fs", "read", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "write", make_rw_params(), make_type("i32"))) return false;
       std::vector<TypeRef> copy_params;
       copy_params.push_back(make_type("string"));
       copy_params.push_back(make_type("string"));

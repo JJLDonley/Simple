@@ -1,6 +1,7 @@
 #include "RAST/resolver.h"
 
 #include "lang_reserved.h"
+#include "native/registry.h"
 
 namespace Simple::Lang::RAST {
 namespace {
@@ -161,7 +162,34 @@ bool AddStmtBlockSymbols(ResolvedProgram* out,
   return true;
 }
 
+const Simple::VM::Native::NativeRegistry& ReservedNativeRegistry() {
+  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  return registry;
+}
+
+bool NativeModuleNameForReserved(const std::string& canonical_module, std::string* out) {
+  if (!out) return false;
+  if (canonical_module == "IO") *out = "System.io";
+  else if (canonical_module == "DL") *out = "System.dl";
+  else if (canonical_module == "OS") *out = "System.os";
+  else if (canonical_module == "Thread") *out = "System.thread";
+  else if (canonical_module == "Random") *out = "System.random";
+  else if (canonical_module == "Env") *out = "System.env";
+  else if (canonical_module == "Path") *out = "System.path";
+  else if (canonical_module == "FS") *out = "System.fs";
+  else if (canonical_module == "Json") *out = "System.json";
+  else if (canonical_module == "Buffer") *out = "System.buffer";
+  else if (canonical_module == "Log") *out = "System.log";
+  else return false;
+  return true;
+}
+
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
+  std::string native_module;
+  if (NativeModuleNameForReserved(canonical_module, &native_module) &&
+      ReservedNativeRegistry().Find(native_module, member)) {
+    return true;
+  }
   if (canonical_module == "IO") {
     return member == "print" || member == "println" || member == "buffer_new" ||
            member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
