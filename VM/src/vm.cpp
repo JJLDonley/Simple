@@ -1618,37 +1618,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.env") {
-      auto return_string = [&](const std::string& value) -> bool {
-        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
+      if (sym == "argsCount" || sym == "arg") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = "System.env." + sym + " return type mismatch";
+          return false;
+        }
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = "System.env." + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.env." + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.argv = &options.argv;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
+        }
         return true;
-      };
-      if (sym == "argsCount") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.env.argsCount return type mismatch";
-          return false;
-        }
-        if (!args.empty()) {
-          out_error = "System.env.argsCount arg count mismatch";
-          return false;
-        }
-        out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
-        return true;
-      }
-      if (sym == "arg") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.env.arg return type mismatch";
-          return false;
-        }
-        if (args.size() != 1) {
-          out_error = "System.env.arg arg count mismatch";
-          return false;
-        }
-        int32_t index = UnpackI32(args[0]);
-        if (index < 0 || static_cast<size_t>(index) >= options.argv.size()) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        return return_string(options.argv[static_cast<size_t>(index)]);
       }
       if (sym == "get" || sym == "set") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
@@ -1700,7 +1700,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = result.error;
           return false;
         }
-        return return_string(result.string_value);
+        out_ret = PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        return true;
       }
     }
     if (mod == "System.random") {

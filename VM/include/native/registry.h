@@ -16,6 +16,7 @@ using Slot = uint64_t;
 struct NativeCallContext {
   std::vector<Slot> args;
   Heap* heap = nullptr;
+  const std::vector<std::string>* argv = nullptr;
 };
 
 struct NativeCallResult {

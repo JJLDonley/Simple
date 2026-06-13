@@ -452,6 +452,23 @@ NativeCallResult LogError(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult EnvArgsCount(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(context.argv ? static_cast<int32_t>(context.argv->size()) : 0);
+  return result;
+}
+
+NativeCallResult EnvArg(NativeCallContext& context) {
+  NativeCallResult result;
+  const int32_t index = UnpackI32(context.args[0]);
+  if (!context.argv || index < 0 || static_cast<size_t>(index) >= context.argv->size()) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = (*context.argv)[static_cast<size_t>(index)];
+  return result;
+}
+
 NativeCallResult EnvGet(NativeCallContext& context) {
   NativeCallResult result;
   std::string name;
@@ -1020,6 +1037,8 @@ void RegisterSystemFs(NativeRegistry& registry) {
 
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.env", "argsCount", {}, TypeKind::I32, EnvArgsCount));
+  registry.Register(MakeSpec("System.env", "arg", {TypeKind::I32}, TypeKind::String, EnvArg));
   registry.Register(MakeSpec("System.env", "get", {TypeKind::String}, TypeKind::String,
                              EnvGet));
   registry.Register(MakeSpec("System.env", "set", {TypeKind::String, TypeKind::String},
