@@ -2512,11 +2512,26 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       };
       if (sym == "new") {
-        if (ret_kind != TypeKind::Ref) { out_error = "System.buffer.new return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.buffer.new arg count mismatch"; return false; }
-        const int32_t count = UnpackI32(args[0]);
-        if (count < 0) { out_ret = PackRef(kNullRef); return true; }
-        return return_bytes(std::vector<uint32_t>(static_cast<size_t>(count), 0));
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (ret_kind != TypeKind::Ref) {
+          out_error = "System.buffer.new return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.buffer.new arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
+        return true;
       }
       if (sym == "len") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);

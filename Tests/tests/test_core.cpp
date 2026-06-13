@@ -16156,11 +16156,18 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_close = default_registry.Find("System.channel", "close");
   const auto* json_free = default_registry.Find("System.json", "free");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
+  const auto* buffer_new = default_registry.Find("System.buffer", "new");
   const auto* buffer_len = default_registry.Find("System.buffer", "len");
   const auto* buffer_write = default_registry.Find("System.buffer", "writeU16LE");
   const auto* buffer_read = default_registry.Find("System.buffer", "readU16LE");
   const auto* buffer_copy = default_registry.Find("System.buffer", "copy");
   Heap metadata_heap;
+  Simple::VM::Native::NativeCallContext buffer_new_ctx;
+  buffer_new_ctx.heap = &metadata_heap;
+  buffer_new_ctx.args = {2};
+  const auto buffer_new_result = buffer_new ? buffer_new->handler(buffer_new_ctx)
+                                            : Simple::VM::Native::NativeCallResult{};
+  if (!metadata_heap.Get(static_cast<uint32_t>(buffer_new_result.value))) return false;
   const uint32_t buffer_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
   HeapObject* buffer_obj = metadata_heap.Get(buffer_ref);
   if (!buffer_obj) return false;
@@ -16196,8 +16203,9 @@ bool RunNativeRegistryModuleTest() {
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && json_free && log_set_level && buffer_len && buffer_write && buffer_read &&
-         buffer_copy && buffer_result.value == 3 && buffer_write_result.value == 1 &&
+         channel_close && json_free && log_set_level && buffer_new && buffer_len && buffer_write &&
+         buffer_read && buffer_copy && buffer_new_result.ok && buffer_result.value == 3 &&
+         buffer_write_result.value == 1 &&
          buffer_read_result.value == 0x1234u && buffer_copy_result.value == 2 &&
          Simple::VM::Native::Buffer::ReadLE(copy_obj, 0, 2) == 0x1234u &&
          random_i32->result_type == Simple::Byte::TypeKind::I32 &&
@@ -16223,6 +16231,7 @@ bool RunNativeRegistryModuleTest() {
          channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified &&
          json_free->result_type == Simple::Byte::TypeKind::I32 &&
+         buffer_new->result_type == Simple::Byte::TypeKind::Ref &&
          buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_write->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_read->result_type == Simple::Byte::TypeKind::I32 &&

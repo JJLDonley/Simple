@@ -34,6 +34,10 @@ Slot PackI64(int64_t value) {
   return static_cast<uint64_t>(value);
 }
 
+Slot PackRef(uint32_t handle) {
+  return static_cast<uint64_t>(handle);
+}
+
 uint32_t UnpackU32Bits(Slot value) {
   return static_cast<uint32_t>(value);
 }
@@ -394,6 +398,39 @@ HeapObject* GetHeapObject(NativeCallContext& context, size_t index) {
   return context.heap->Get(UnpackRef(context.args[index]));
 }
 
+void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
+  if (offset + 4 > payload.size()) return;
+  payload[offset] = static_cast<uint8_t>(value & 0xffu);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8u) & 0xffu);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16u) & 0xffu);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24u) & 0xffu);
+}
+
+NativeCallResult BufferNew(NativeCallContext& context) {
+  NativeCallResult result;
+  if (!context.heap) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  const int32_t count = UnpackI32(context.args[0]);
+  if (count < 0) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  const uint32_t length = static_cast<uint32_t>(count);
+  const uint32_t size = 8u + length * 4u;
+  const uint32_t handle = context.heap->Allocate(ObjectKind::List, 0, size);
+  HeapObject* obj = context.heap->Get(handle);
+  if (!obj) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  WriteU32(obj->payload, 0, length);
+  WriteU32(obj->payload, 4, length);
+  result.value = PackRef(handle);
+  return result;
+}
+
 NativeCallResult BufferLen(NativeCallContext& context) {
   NativeCallResult result;
   HeapObject* obj = GetHeapObject(context, 0);
@@ -534,6 +571,7 @@ void RegisterSystemLog(NativeRegistry& registry) {
 
 void RegisterSystemBuffer(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.buffer", "new", {TypeKind::I32}, TypeKind::Ref, BufferNew));
   registry.Register(MakeSpec("System.buffer", "len", {TypeKind::Ref}, TypeKind::I32, BufferLen));
   registry.Register(MakeSpec("System.buffer", "readU16LE", {TypeKind::Ref, TypeKind::I32},
                              TypeKind::I32, BufferReadU16LE));
