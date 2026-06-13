@@ -39,6 +39,42 @@ const Symbol* LookupQualifiedSymbol(const ResolvedProgram* program,
   return LookupSymbol(program, it->second);
 }
 
+const Symbol* ResolveDeclarationSymbol(const ResolvedProgram* program,
+                                       const Decl& decl) {
+  std::string qualified_name;
+  switch (decl.kind) {
+    case Simple::Lang::AST::DeclKind::ModuleHeader:
+      qualified_name = decl.module_header.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Import: {
+      const std::string name = decl.import_decl.has_alias ? decl.import_decl.alias
+                                                          : decl.import_decl.path;
+      qualified_name = "import:" + name;
+      break;
+    }
+    case Simple::Lang::AST::DeclKind::Extern:
+      qualified_name = decl.ext.has_module ? decl.ext.module + "." + decl.ext.name
+                                           : decl.ext.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Function:
+      qualified_name = decl.func.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Variable:
+      qualified_name = decl.var.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Artifact:
+      qualified_name = decl.artifact.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Module:
+      qualified_name = decl.module.name;
+      break;
+    case Simple::Lang::AST::DeclKind::Enum:
+      qualified_name = decl.enm.name;
+      break;
+  }
+  return LookupQualifiedSymbol(program, qualified_name);
+}
+
 SymbolId FindQualifiedSymbol(const ResolvedProgram* program,
                              const std::string& qualified_name,
                              SymbolKind expected_kind) {

@@ -16,6 +16,8 @@ bool AddSymbol(ResolvedProgram* out,
 const Symbol* LookupSymbol(const ResolvedProgram* program, SymbolId symbol_id);
 const Symbol* LookupQualifiedSymbol(const ResolvedProgram* program,
                                     const std::string& qualified_name);
+const Symbol* ResolveDeclarationSymbol(const ResolvedProgram* program,
+                                       const Decl& decl);
 SymbolId FindQualifiedSymbol(const ResolvedProgram* program,
                              const std::string& qualified_name,
                              SymbolKind expected_kind);

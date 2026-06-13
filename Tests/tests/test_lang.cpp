@@ -3092,6 +3092,25 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
          error.find("duplicate symbol: Thing") != std::string::npos;
 }
 
+bool LangRastDeclarationResolutionFindsDeclSymbols() {
+  const char* src =
+      "Point :: artifact { x : i32; }\n"
+      "main : i32 () { return 0 }";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
+  const auto* artifact_symbol = Simple::Lang::RAST::ResolveDeclarationSymbol(&resolved, ast_program.decls[0]);
+  const auto* function_symbol = Simple::Lang::RAST::ResolveDeclarationSymbol(&resolved, ast_program.decls[1]);
+  return artifact_symbol && artifact_symbol->kind == Simple::Lang::RAST::SymbolKind::Artifact &&
+         artifact_symbol->qualified_name == "Point" &&
+         function_symbol && function_symbol->kind == Simple::Lang::RAST::SymbolKind::Function &&
+         function_symbol->qualified_name == "main";
+}
+
 bool LangRastImportGraphResolvesReservedAliases() {
   const char* src =
       "import FS as FileSystem\n"
@@ -5001,6 +5020,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_rast_declaration_resolution_finds_decl_symbols", LangRastDeclarationResolutionFindsDeclSymbols},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
