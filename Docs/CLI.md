@@ -161,9 +161,10 @@ Frozen CLI exit-code contract:
 
 Frozen stderr diagnostic behavior:
 
-- CLI/compiler/load/verify/build failures print one primary line prefixed with `error[E0001]: `
-- missing command input prints `error[E0001]: missing input file`
-- missing filesystem input prints `error[E0001]: failed to open file: <path>`
+- CLI/compiler/load/verify/build failures print one primary line prefixed with `error[Exxxx]: `
+- stable diagnostic code ranges are used: lexer `E1xxx`, parser `E2xxx`, type/semantic `E4xxx`, IR/lowering `E5xxx`, bytecode/verifier `E6xxx`, runtime `E7xxx`, CLI/imports `E8xxx`
+- missing command input prints `error[E8001]: missing input file`
+- missing filesystem input prints `error[E8001]: failed to open file: <path>`
 - missing imports print diagnostics containing `import file not found`
 - ambiguous imports print diagnostics containing `ambiguous import path`
 - cyclic imports print diagnostics containing `cyclic import detected`

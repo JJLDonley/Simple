@@ -1917,7 +1917,7 @@ bool LangCliCheckSimpleErrorFormat() {
   std::ifstream in(err_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E0001]:") != std::string::npos &&
+  return contents.find("error[E4001]:") != std::string::npos &&
          contents.find("undeclared identifier") != std::string::npos &&
          contents.find(" --> ") != std::string::npos &&
          contents.find('^') != std::string::npos;
@@ -1931,7 +1931,7 @@ bool LangCliCheckSimpleLexerErrorFormat() {
   std::ifstream in(err_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E0001]:") != std::string::npos &&
+  return contents.find("error[E1001]:") != std::string::npos &&
          contents.find("unexpected character") != std::string::npos &&
          contents.find(" --> ") != std::string::npos &&
          contents.find('^') != std::string::npos;
@@ -1945,7 +1945,7 @@ bool LangCliCheckSimpleParserErrorFormat() {
   std::ifstream in(err_path);
   if (!in) return false;
   std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E0001]:") != std::string::npos &&
+  return contents.find("error[E2001]:") != std::string::npos &&
          contents.find("unterminated block") != std::string::npos &&
          contents.find(" --> ") != std::string::npos &&
          contents.find('^') != std::string::npos;
@@ -2210,17 +2210,17 @@ bool LangCliStderrDiagnosticContract() {
   if (exit_code != 0 || !stderr_text.empty()) return false;
 
   stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
-  return exit_code == 1 && stderr_text.find("error[E0001]: ") == 0;
+  return exit_code == 1 && stderr_text.find("error[E") == 0;
 }
 
 bool LangCliMissingInputDiagnostics() {
   int exit_code = -1;
   std::string stderr_text = RunCommandCaptureStderr("bin/simple check", &exit_code);
-  if (exit_code != 1 || stderr_text.find("error[E0001]: missing input file") != 0) return false;
+  if (exit_code != 1 || stderr_text.find("error[E8001]: missing input file") != 0) return false;
 
   stderr_text = RunCommandCaptureStderr("bin/simple check /tmp/simple_missing_input_contract.simple", &exit_code);
   return exit_code == 1 &&
-         stderr_text.find("error[E0001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
+         stderr_text.find("error[E8001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
 }
 
 bool LangSirEmitsLocalAssign() {

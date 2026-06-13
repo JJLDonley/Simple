@@ -255,15 +255,15 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Document executable embedding/linking behavior.
 - [x] Document dynamic/static flags.
 - [x] Document missing file/import errors.
-- [ ] Add stable diagnostic code ranges:
-  - [ ] lexer: `E1xxx`
-  - [ ] parser: `E2xxx`
+- [x] Add stable diagnostic code ranges:
+  - [x] lexer: `E1xxx`
+  - [x] parser: `E2xxx`
   - [ ] resolver: `E3xxx`
-  - [ ] type checker: `E4xxx`
-  - [ ] IR/lowering: `E5xxx`
-  - [ ] bytecode/verifier: `E6xxx`
-  - [ ] runtime: `E7xxx`
-  - [ ] CLI/imports: `E8xxx`
+  - [x] type checker: `E4xxx`
+  - [x] IR/lowering: `E5xxx`
+  - [x] bytecode/verifier: `E6xxx`
+  - [x] runtime: `E7xxx`
+  - [x] CLI/imports: `E8xxx`
 - [ ] Move import graph construction out of CLI into Lang/RAST or a shared module.
 - [ ] Make CLI, LSP, and tests use the same import graph logic.
 

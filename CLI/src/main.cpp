@@ -834,8 +834,30 @@ std::string GetSourceLine(const std::string& path, uint32_t line) {
   return {};
 }
 
+std::string DiagnosticCodeFor(const std::string& message) {
+  const std::string text = TrimCopy(message);
+  auto has = [&](const char* needle) { return text.find(needle) != std::string::npos; };
+  if (has("unexpected character") || has("invalid hex escape") || has("invalid string escape") ||
+      has("invalid char escape") || has("unterminated string") || has("unterminated char")) {
+    return "E1001";
+  }
+  if (has("unterminated block") || has("expected expression") || has("expected") || has("parse failed")) {
+    return "E2001";
+  }
+  if (has("IR text") || has("lower failed") || has("emit failed") || has("lowering")) return "E5001";
+  if (has("load failed") || has("verify failed") || has("bad magic") || has("unsupported version")) return "E6001";
+  if (has("runtime trap")) return "E7001";
+  if (has("missing input file") || has("failed to open file") || has("simple expects") ||
+      has("import file not found") || has("import not found") || has("ambiguous import path") ||
+      has("cyclic import") || has("unsupported import path")) {
+    return "E8001";
+  }
+  return "E4001";
+}
+
 void PrintError(const std::string& message) {
-  std::cerr << "error[E0001]: " << TrimCopy(message) << "\n";
+  const std::string trimmed = TrimCopy(message);
+  std::cerr << "error[" << DiagnosticCodeFor(trimmed) << "]: " << trimmed << "\n";
 }
 
 std::string DiagnosticHelpFor(const std::string& message) {
@@ -878,7 +900,7 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
     PrintDiagnosticHelp(normalized);
     return;
   }
-  std::cerr << "error[E0001]: " << loc.message << "\n";
+  std::cerr << "error[" << DiagnosticCodeFor(loc.message) << "]: " << loc.message << "\n";
   const std::string source_path = loc.file.empty() ? path : loc.file;
   std::cerr << " --> " << source_path << ":" << loc.line << ":" << loc.column << "\n";
   std::string source = GetSourceLine(source_path, loc.line);
