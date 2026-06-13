@@ -26,6 +26,7 @@
 #include "vm.h"
 #include "command_contract.h"
 #include "diagnostic_render.h"
+#include "import_contract.h"
 
 namespace {
 #ifndef SIMPLEVM_VERSION
@@ -229,10 +230,7 @@ bool ResolveProjectRootImportPath(
     std::filesystem::path* out,
     std::string* error) {
   if (!out) return false;
-  const std::string target = import_path.size() >= 7 &&
-                                     import_path.rfind(".simple") == import_path.size() - 7
-                                 ? import_path
-                                 : import_path + ".simple";
+  const std::string target = Simple::CLI::ImportPathWithSimpleExtension(import_path);
   auto it = index.find(target);
   if (it == index.end() || it->second.empty()) {
     if (error) *error = "import not found in project root: " + import_path;
@@ -322,8 +320,7 @@ bool ResolveLocalImportPath(const std::filesystem::path& base_dir,
   if (!out) return false;
   namespace fs = std::filesystem;
   fs::path raw(import_path);
-  const bool explicit_relative = raw.is_relative() && !import_path.empty() &&
-                                 (import_path[0] == '.' || raw.has_parent_path());
+  const bool explicit_relative = Simple::CLI::IsExplicitRelativeImportPath(import_path);
 
   if (raw.is_absolute()) {
     if (fs::exists(raw)) {

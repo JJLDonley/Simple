@@ -185,6 +185,7 @@ add_executable(simplevm
   ${SIMPLEVM_ROOT}/CLI/src/main.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
+  ${SIMPLEVM_ROOT}/CLI/src/import_contract.cpp
   ${SIMPLEVM_LSP_ROOT}/src/diagnostic_bridge.cpp
   ${SIMPLEVM_LSP_ROOT}/src/lsp_server.cpp
 )
@@ -208,6 +209,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_build.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_contract.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_diagnostics.cpp
+  ${SIMPLEVM_TEST_ROOT}/cli/test_cli_imports.cpp
   ${SIMPLEVM_TEST_ROOT}/lang/test_ast.cpp
   ${SIMPLEVM_TEST_ROOT}/lang/test_cast.cpp
   ${SIMPLEVM_TEST_ROOT}/lang/test_integration.cpp
@@ -222,6 +224,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_utils.cpp
   ${SIMPLEVM_ROOT}/CLI/src/command_contract.cpp
   ${SIMPLEVM_ROOT}/CLI/src/diagnostic_render.cpp
+  ${SIMPLEVM_ROOT}/CLI/src/import_contract.cpp
   ${SIMPLEVM_LSP_ROOT}/src/diagnostic_bridge.cpp
 )
 target_include_directories(simplevm_tests PRIVATE

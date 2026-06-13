@@ -174,15 +174,15 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Tests/tests/lang/test_irb.cpp`
   - [x] `Tests/tests/lang/test_ire.cpp`
   - [x] `Tests/tests/lang/test_integration.cpp`
-- [ ] Split CLI tests out of `Tests/tests/test_lang.cpp`:
+- [x] Split CLI tests out of `Tests/tests/test_lang.cpp`:
   - [x] `Tests/tests/cli/test_cli_contract.cpp`
   - [x] `Tests/tests/cli/test_cli_diagnostics.cpp`
   - [x] `Tests/tests/cli/test_cli_build.cpp`
-  - [ ] `Tests/tests/cli/test_cli_imports.cpp`
+  - [x] `Tests/tests/cli/test_cli_imports.cpp`
 - [ ] Migration order:
   - [ ] heap/gc tests first
   - [x] lexer/parser tests second
-  - [ ] CLI tests third
+  - [x] CLI tests third
   - [x] RAST/TAST tests fourth
 
 ### SRP Phase 6: CLI / Import / Build Service Split
