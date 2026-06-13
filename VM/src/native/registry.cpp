@@ -401,6 +401,21 @@ NativeCallResult ChannelClose(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult JsonParse(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string text;
+  result.value = PackI64(ReadStringArg(context, 0, &text) ? Json::Parse(text) : 0);
+  return result;
+}
+
+NativeCallResult JsonStringify(NativeCallContext& context) {
+  NativeCallResult result;
+  if (!Json::Stringify(UnpackI64(context.args[0]), &result.string_value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+  }
+  return result;
+}
+
 NativeCallResult JsonFree(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Json::Free(UnpackI64(context.args[0])) ? 1 : 0);
@@ -1168,6 +1183,10 @@ void RegisterSystemThread(NativeRegistry& registry) {
 
 void RegisterSystemJson(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.json", "parse", {TypeKind::String}, TypeKind::I64,
+                             JsonParse));
+  registry.Register(MakeSpec("System.json", "stringify", {TypeKind::I64}, TypeKind::String,
+                             JsonStringify));
   registry.Register(MakeSpec("System.json", "free", {TypeKind::I64}, TypeKind::I32, JsonFree));
 }
 

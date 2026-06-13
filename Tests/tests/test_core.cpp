@@ -16177,6 +16177,8 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_bytes = default_registry.Find("System.channel", "newBytes");
   const auto* channel_pending_bytes = default_registry.Find("System.channel", "pendingBytes");
   const auto* channel_close = default_registry.Find("System.channel", "close");
+  const auto* json_parse = default_registry.Find("System.json", "parse");
+  const auto* json_stringify = default_registry.Find("System.json", "stringify");
   const auto* json_free = default_registry.Find("System.json", "free");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
   const auto* log_set_file = default_registry.Find("System.log", "setFile");
@@ -16266,6 +16268,20 @@ bool RunNativeRegistryModuleTest() {
   os_env_get_ctx.args = {env_name};
   const auto os_env_get_result = os_env_get ? os_env_get->handler(os_env_get_ctx)
                                             : Simple::VM::Native::NativeCallResult{};
+  const uint32_t json_text = make_metadata_string("{\"ok\":true}");
+  Simple::VM::Native::NativeCallContext json_parse_ctx;
+  json_parse_ctx.heap = &metadata_heap;
+  json_parse_ctx.args = {json_text};
+  const auto json_parse_result = json_parse ? json_parse->handler(json_parse_ctx)
+                                            : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext json_stringify_ctx;
+  json_stringify_ctx.args = {json_parse_result.value};
+  const auto json_stringify_result = json_stringify ? json_stringify->handler(json_stringify_ctx)
+                                                    : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext json_free_ctx;
+  json_free_ctx.args = {json_parse_result.value};
+  const auto json_free_result = json_free ? json_free->handler(json_free_ctx)
+                                          : Simple::VM::Native::NativeCallResult{};
   const uint32_t log_empty_path = make_metadata_string("");
   const uint32_t log_message = make_metadata_string("metadata log suppressed");
   Simple::VM::Native::NativeCallContext log_level_ctx;
@@ -16568,7 +16584,9 @@ bool RunNativeRegistryModuleTest() {
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && json_free && log_set_level && log_set_file && log_emit && log_info &&
+         channel_close && json_parse && json_stringify && json_free && json_parse_result.value != 0 &&
+         json_stringify_result.string_value == "{\"ok\":true}" && json_free_result.value == 1 &&
+         log_set_level && log_set_file && log_emit && log_info &&
          log_set_file_result.value == 1 && !log_emit_result.has_value && !log_info_result.has_value &&
          env_args_count && env_arg && env_args_count_result.value == 2 &&
          env_arg_result.string_value == "arg-one" && env_get && env_set &&
@@ -16628,6 +16646,8 @@ bool RunNativeRegistryModuleTest() {
          channel_bytes->result_type == Simple::Byte::TypeKind::I64 &&
          channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified &&
+         json_parse->result_type == Simple::Byte::TypeKind::I64 &&
+         json_stringify->result_type == Simple::Byte::TypeKind::String &&
          json_free->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_new->result_type == Simple::Byte::TypeKind::Ref &&
          buffer_len->result_type == Simple::Byte::TypeKind::I32 &&

@@ -2146,52 +2146,40 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.json") {
-      auto read_json_string = [&](size_t index, std::string* out_value) -> bool {
-        if (index >= args.size() || !out_value) return false;
-        const uint32_t ref = UnpackRef(args[index]);
-        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
-        if (!obj || obj->header.kind != ObjectKind::String) return false;
-        *out_value = U16ToAscii(ReadString(obj));
-        return true;
-      };
-      if (sym == "parse") {
-        if (!IsI64LikeImportType(ret_kind)) { out_error = "System.json.parse return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.json.parse arg count mismatch"; return false; }
-        std::string text;
-        out_ret = PackI64(read_json_string(0, &text) ? Simple::VM::Native::Json::Parse(text) : 0);
-        return true;
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::I64 && !IsI64LikeImportType(ret_kind)) {
+        out_error = std::string("System.json.") + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "stringify") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.json.stringify return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.json.stringify arg count mismatch"; return false; }
-        const int64_t handle = UnpackI64(args[0]);
-        std::string text;
-        out_ret = PackRef(Simple::VM::Native::Json::Stringify(handle, &text)
-                              ? CreateString(heap, AsciiToU16(text))
-                              : kNullRef);
-        return true;
+      if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+        out_error = std::string("System.json.") + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "free") {
-        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
-        if (!spec) return false;
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.json.free return type mismatch";
-          return false;
-        }
-        if (args.size() != spec->parameter_types.size()) {
-          out_error = "System.json.free arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::NativeCallContext context;
-        context.args = args;
-        Simple::VM::Native::NativeCallResult result = spec->handler(context);
-        if (!result.ok) {
-          out_error = result.error;
-          return false;
-        }
+      if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+        out_error = std::string("System.json.") + sym + " return type mismatch";
+        return false;
+      }
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = std::string("System.json.") + sym + " arg count mismatch";
+        return false;
+      }
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      context.heap = &heap;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
+      }
+      if (spec->result_type == TypeKind::String) {
+        out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                      ? PackRef(kNullRef)
+                      : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+      } else {
         out_ret = result.value;
-        return true;
       }
+      return true;
     }
     if (mod == "System.buffer") {
       if (sym == "new") {
