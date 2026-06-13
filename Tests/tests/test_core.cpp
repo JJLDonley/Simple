@@ -6,6 +6,7 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "heap.h"
@@ -20,6 +21,7 @@
 #include "native/os.h"
 #include "native/path.h"
 #include "native/random.h"
+#include "native/registry.h"
 #include "native/thread.h"
 #include "native/time.h"
 #include "opcode.h"
@@ -15992,6 +15994,31 @@ bool RunNativeRandomModuleTest() {
   return f >= 0.0 && f < 1.0 && Simple::VM::Native::Random::Range(7, 7) == 7;
 }
 
+bool RunNativeRegistryModuleTest() {
+  Simple::VM::Native::NativeRegistry registry;
+  Simple::VM::Native::NativeFunctionSpec spec;
+  spec.module_name = "core.test";
+  spec.symbol_name = "id";
+  spec.parameter_types = {Simple::Byte::TypeKind::I32};
+  spec.result_type = Simple::Byte::TypeKind::I32;
+  spec.handler = [](Simple::VM::Native::NativeCallContext& ctx) {
+    Simple::VM::Native::NativeCallResult result;
+    result.value = ctx.args.empty() ? 0 : ctx.args[0];
+    return result;
+  };
+  if (!registry.Register(std::move(spec))) return false;
+  if (registry.Register({})) return false;
+  const auto* found = registry.Find("core.test", "id");
+  if (!found || found->parameter_types.size() != 1 ||
+      found->result_type != Simple::Byte::TypeKind::I32) {
+    return false;
+  }
+  Simple::VM::Native::NativeCallContext ctx;
+  ctx.args.push_back(123);
+  const auto result = found->handler(ctx);
+  return registry.Size() == 1 && result.ok && result.value == 123;
+}
+
 bool RunNativeThreadModuleTest() {
   Simple::VM::Native::Thread::SleepMs(0);
   Simple::VM::Native::Thread::Yield();
@@ -23585,6 +23612,7 @@ static const TestCase kCoreTests[] = {
   {"native_os_module", RunNativeOsModuleTest},
   {"native_path_module", RunNativePathModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
+  {"native_registry_module", RunNativeRegistryModuleTest},
   {"native_thread_module", RunNativeThreadModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},

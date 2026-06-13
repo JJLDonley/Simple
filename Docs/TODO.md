@@ -33,7 +33,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `VM/src/interpreter/dispatch.cpp`
   - [ ] `VM/src/interpreter/frames.cpp`
   - [ ] `VM/src/interpreter/stack.cpp`
-  - [ ] `VM/src/native/registry.cpp`
+  - [x] `VM/src/native/registry.cpp`
   - [x] `VM/src/native/os.cpp`
   - [x] `VM/src/native/fs.cpp`
   - [x] `VM/src/native/path.cpp`
@@ -50,10 +50,10 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `VM/src/gc/root_tracer.cpp`
   - [ ] `VM/src/runtime/runtime_limits.cpp`
 - [ ] Define explicit VM boundary types:
-  - [ ] `NativeCallContext`
-  - [ ] `NativeCallResult`
-  - [ ] `NativeModule`
-  - [ ] `NativeFunction`
+  - [x] `NativeCallContext`
+  - [x] `NativeCallResult`
+  - [x] `NativeModule`
+  - [x] `NativeFunction`
   - [ ] `FrameState`
   - [ ] `InterpreterState`
   - [ ] `RootTraceContext`
@@ -63,14 +63,14 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 2: Native Binding Metadata
 
-- [ ] Add `VM/include/native/registry.h`.
-- [ ] Add `VM/src/native/registry.cpp`.
-- [ ] Define `NativeFunctionSpec` metadata:
-  - [ ] module name
-  - [ ] symbol name
-  - [ ] parameter types
-  - [ ] result type
-  - [ ] handler function
+- [x] Add `VM/include/native/registry.h`.
+- [x] Add `VM/src/native/registry.cpp`.
+- [x] Define `NativeFunctionSpec` metadata:
+  - [x] module name
+  - [x] symbol name
+  - [x] parameter types
+  - [x] result type
+  - [x] handler function
 - [ ] Use native metadata for VM runtime dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.
 - [ ] Use native metadata for stdlib documentation generation.
