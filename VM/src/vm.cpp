@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "ffi/dl_runtime.h"
+#include "gc/root_tracer.h"
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "jit/jit_scaffold.h"
@@ -4670,11 +4671,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   size_t end = func_start + module.functions[entry_func_index].code_size;
 
   size_t op_counter = 0;
-  auto ref_bit_set = [&](const std::vector<uint8_t>& bits, size_t index) -> bool {
-    size_t byte = index / 8;
-    if (byte >= bits.size()) return false;
-    return (bits[byte] & static_cast<uint8_t>(1u << (index % 8))) != 0;
-  };
   auto find_stack_map = [&](size_t func_index, size_t pc_value) -> const Simple::Byte::StackMap* {
     if (!have_meta || func_index >= vr.methods.size()) return nullptr;
     const auto& maps = vr.methods[func_index].stack_maps;
@@ -4689,35 +4685,31 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     const Simple::Byte::StackMap* stack_map = find_stack_map(current.func_index, pc);
     if (!stack_map) return;
     heap.ResetMarks();
-    for (size_t i = 0; i < globals.size(); ++i) {
-      if (ref_bit_set(vr.globals_ref_bits, i) && !IsNullRef(globals[i])) {
-        heap.Mark(UnpackRef(globals[i]));
-      }
-    }
-    for (size_t i = 0; i < stack_map->stack_height && i < stack.size(); ++i) {
-      if (ref_bit_set(stack_map->ref_bits, i) && !IsNullRef(stack[i])) {
-        heap.Mark(UnpackRef(stack[i]));
-      }
-    }
+    std::vector<Simple::VM::Gc::RootTraceFrame> root_call_stack;
+    root_call_stack.reserve(call_stack.size());
     for (const auto& f : call_stack) {
       if (f.func_index >= vr.methods.size()) continue;
-      const auto& bits = vr.methods[f.func_index].locals_ref_bits;
-      for (size_t i = 0; i < f.locals_count; ++i) {
-        Slot v = locals_arena[f.locals_base + i];
-        if (ref_bit_set(bits, i) && !IsNullRef(v)) {
-          heap.Mark(UnpackRef(v));
-        }
-      }
+      root_call_stack.push_back({f.locals_base, f.locals_count,
+                                 &vr.methods[f.func_index].locals_ref_bits});
     }
+    Simple::VM::Gc::RootTraceFrame root_current{};
+    const Simple::VM::Gc::RootTraceFrame* current_root = nullptr;
     if (current.func_index < vr.methods.size()) {
-      const auto& bits = vr.methods[current.func_index].locals_ref_bits;
-      for (size_t i = 0; i < current.locals_count; ++i) {
-        Slot v = locals_arena[current.locals_base + i];
-        if (ref_bit_set(bits, i) && !IsNullRef(v)) {
-          heap.Mark(UnpackRef(v));
-        }
-      }
+      root_current = {current.locals_base, current.locals_count,
+                      &vr.methods[current.func_index].locals_ref_bits};
+      current_root = &root_current;
     }
+    Simple::VM::Gc::RootTraceContext root_context;
+    root_context.heap = &heap;
+    root_context.globals = &globals;
+    root_context.global_ref_bits = &vr.globals_ref_bits;
+    root_context.stack = &stack;
+    root_context.stack_ref_bits = &stack_map->ref_bits;
+    root_context.stack_height = stack_map->stack_height;
+    root_context.call_stack = &root_call_stack;
+    root_context.current = current_root;
+    root_context.locals_arena = &locals_arena;
+    Simple::VM::Gc::TraceRoots(root_context);
     heap.Sweep();
   };
 

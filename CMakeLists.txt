@@ -40,6 +40,7 @@ set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_runtime.cpp
+  ${SIMPLEVM_VM_ROOT}/src/gc/root_tracer.cpp
   ${SIMPLEVM_VM_ROOT}/src/heap.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp

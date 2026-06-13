@@ -47,7 +47,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `VM/src/native/thread.cpp`
   - [x] `VM/src/ffi/dl_runtime.cpp`
   - [x] `VM/src/jit/jit_scaffold.cpp`
-  - [ ] `VM/src/gc/root_tracer.cpp`
+  - [x] `VM/src/gc/root_tracer.cpp`
   - [x] `VM/src/runtime/runtime_limits.cpp`
 - [ ] Define explicit VM boundary types:
   - [x] `NativeCallContext`
@@ -56,7 +56,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `NativeFunction`
   - [ ] `FrameState`
   - [ ] `InterpreterState`
-  - [ ] `RootTraceContext`
+  - [x] `RootTraceContext`
 - [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.
 - [ ] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [ ] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.

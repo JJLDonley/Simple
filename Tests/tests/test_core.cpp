@@ -37,6 +37,7 @@
 #include "simple_api.h"
 #include "vm.h"
 #include "ffi/dl_runtime.h"
+#include "gc/root_tracer.h"
 #include "test_utils.h"
 
 namespace Simple::VM::Tests {
@@ -15988,6 +15989,31 @@ bool RunNativeJsonModuleTest() {
   return !Simple::VM::Native::Json::Stringify(handle, &text);
 }
 
+bool RunGcRootTracerModuleTest() {
+  Heap heap;
+  const uint32_t global_ref = heap.Allocate(ObjectKind::List, 0, 8);
+  const uint32_t local_ref = heap.Allocate(ObjectKind::List, 0, 8);
+  const uint32_t unrooted_ref = heap.Allocate(ObjectKind::List, 0, 8);
+  std::vector<uint64_t> globals = {global_ref};
+  std::vector<uint8_t> global_bits = {0x1u};
+  std::vector<uint64_t> stack = {unrooted_ref};
+  std::vector<uint8_t> stack_bits = {0x0u};
+  std::vector<uint64_t> locals = {local_ref};
+  std::vector<Simple::VM::Gc::RootTraceFrame> frames = {{0, 1, &global_bits}};
+  Simple::VM::Gc::RootTraceContext context;
+  context.heap = &heap;
+  context.globals = &globals;
+  context.global_ref_bits = &global_bits;
+  context.stack = &stack;
+  context.stack_ref_bits = &stack_bits;
+  context.stack_height = stack.size();
+  context.call_stack = &frames;
+  context.locals_arena = &locals;
+  Simple::VM::Gc::TraceRoots(context);
+  heap.Sweep();
+  return heap.Get(global_ref) && heap.Get(local_ref) && !heap.Get(unrooted_ref);
+}
+
 bool RunJitScaffoldModuleTest() {
   using Simple::Byte::TypeKind;
   if (!Simple::VM::Jit::IsScalarKind(TypeKind::I32)) return false;
@@ -23665,6 +23691,7 @@ static const TestCase kCoreTests[] = {
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"ffi_dl_runtime_module", RunFfiDlRuntimeModuleTest},
+  {"gc_root_tracer_module", RunGcRootTracerModuleTest},
   {"jit_scaffold_module", RunJitScaffoldModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits_module", RunRuntimeLimitsModuleTest},
