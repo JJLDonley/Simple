@@ -6,6 +6,7 @@
 #include "AST/lower_cast.h"
 #include "RAST/rast.h"
 #include "RAST/import_graph.h"
+#include "RAST/member_resolution.h"
 #include "RAST/reserved_resolution.h"
 #include "RAST/resolver.h"
 #include "RAST/symbol_table.h"
@@ -3038,6 +3039,23 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRastMemberResolutionRecordsMemberRefs() {
+  Simple::Lang::RAST::ResolvedProgram program;
+  Simple::Lang::RAST::AddResolvedMemberRef(&program,
+                                           Simple::Lang::RAST::MemberRefKind::ModuleMember,
+                                           "Math",
+                                           "answer",
+                                           "Math.answer",
+                                           7);
+  return program.member_refs.size() == 1 &&
+         program.member_refs[0].base == "Math" &&
+         program.member_refs[0].member == "answer" &&
+         program.member_refs[0].symbol == 7 &&
+         Simple::Lang::RAST::ClassifyMemberRefKind(Simple::Lang::RAST::MemberRefKind::Unknown,
+                                                   Simple::Lang::RAST::SymbolKind::EnumMember) ==
+             Simple::Lang::RAST::MemberRefKind::EnumMember;
+}
+
 bool LangRastReservedResolutionUsesNativeMetadata() {
   std::string native_module;
   return Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
@@ -4971,6 +4989,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_mixed_case_ok", LangValidateSystemImportMixedCaseOk},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
+  {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
