@@ -13,6 +13,7 @@
 #include "TAST/tast.h"
 #include "TAST/calls.h"
 #include "TAST/expressions.h"
+#include "TAST/generics.h"
 #include "TAST/literals.h"
 #include "TAST/mutability.h"
 #include "TAST/statements.h"
@@ -3130,6 +3131,23 @@ bool LangTastCheckExpressionShapeValidatesIdentifiers() {
          error.find("identifier expression missing name") != std::string::npos;
 }
 
+bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
+  Simple::Lang::AST::TypeRef input;
+  input.name = "Box";
+  Simple::Lang::AST::TypeRef inner;
+  inner.name = "T";
+  input.type_args.push_back(inner);
+
+  Simple::Lang::AST::TypeRef replacement;
+  replacement.name = "i32";
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  substitutions["T"] = replacement;
+
+  Simple::Lang::AST::TypeRef output;
+  if (!Simple::Lang::TAST::SubstituteGenericTypes(input, substitutions, &output)) return false;
+  return output.name == "Box" && output.type_args.size() == 1 && output.type_args[0].name == "i32";
+}
+
 bool LangTastMutabilityChecksAssignments() {
   std::string error;
   if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
@@ -5104,6 +5122,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
   {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
   {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
