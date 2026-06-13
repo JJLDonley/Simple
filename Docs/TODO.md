@@ -190,6 +190,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Move import graph construction out of CLI into shared Lang/RAST service.
   - [x] Add shared RAST import path helpers.
   - [x] Add shared RAST module-map line parser.
+  - [x] Add shared RAST simple-file index builder.
 - [ ] Make CLI, LSP, and tests use the same import graph implementation.
   - [x] Route CLI import path helper through shared RAST import path helpers.
   - [x] Route CLI and LSP module-map parsing through shared RAST parser.

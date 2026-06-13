@@ -1,10 +1,27 @@
 #include "test_utils.h"
 
+#include <filesystem>
+#include <fstream>
+
+#include "RAST/import_index.h"
 #include "RAST/import_paths.h"
 #include "import_contract.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool CliSplitImportsBuildSharedSimpleFileIndex() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_index_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "Thing.simple");
+    out << "main : i32 () { return 0 }";
+  }
+  Simple::Lang::RAST::ImportPathIndex index;
+  const bool ok = Simple::Lang::RAST::BuildSimpleFileIndex(dir, &index);
+  std::filesystem::remove_all(dir);
+  return ok && index.find("Thing.simple") != index.end() && index["Thing.simple"].size() == 1;
+}
 
 bool CliSplitImportsParseSharedModuleMapLines() {
   Simple::Lang::RAST::ModuleMapEntry entry;
@@ -22,6 +39,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 }
 
 const TestCase kCliImportsTests[] = {
+  {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},
   {"cli_split_imports_normalizes_simple_paths", CliSplitImportsNormalizesSimplePaths},
 };
