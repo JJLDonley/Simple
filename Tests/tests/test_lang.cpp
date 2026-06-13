@@ -1218,6 +1218,10 @@ bool LangSimpleFixtureReservedMathPi() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_math_pi.simple", 0);
 }
 
+bool LangGcRefTracingStress() {
+  return RunSimpleFileExpectExit("Tests/simple/gc_ref_tracing_stress.simple", 0);
+}
+
 bool LangSimpleFixtureArtifactNamedInit() {
   return RunSimpleFileExpectExit("Tests/simple/artifact_named_init.simple", 7);
 }
@@ -5032,6 +5036,7 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_reserved_time", LangSimpleFixtureReservedTime},
   {"lang_simple_fixture_reserved_io_buffer", LangSimpleFixtureReservedIoBuffer},
   {"lang_simple_fixture_reserved_file", LangSimpleFixtureReservedFile},
+  {"lang_gc_ref_tracing_stress", LangGcRefTracingStress},
   {"lang_stress_enum_as_type_runtime", LangStressEnumAsTypeRuntime},
   {"lang_stress_enum_as_type_reject_scalar_assignment", LangStressEnumAsTypeRejectScalarAssignment},
   {"lang_stress_artifact_method_mutation_runtime", LangStressArtifactMethodMutationRuntime},

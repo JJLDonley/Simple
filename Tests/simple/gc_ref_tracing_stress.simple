@@ -1,0 +1,16 @@
+Box :: Artifact { text : string }
+
+main : i32 () {
+  value : string = "gamma"
+  box : Box = { value }
+  held : string = "rooted"
+  i : i32 = 0
+  while (i < 2500) {
+    temp : string = "collect"
+    if (len(temp) == 0) { return 1 }
+    i = i + 1
+  }
+  if (len(box.text) != 5) { return 2 }
+  if (len(held) != 6) { return 3 }
+  return 0
+}

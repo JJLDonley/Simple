@@ -70,15 +70,37 @@ void Heap::Mark(uint32_t handle) {
   if (!obj) return;
   if (obj->header.marked) return;
   obj->header.marked = 1;
-  if (obj->header.kind == ObjectKind::Closure) {
-    if (obj->payload.size() < 8) return;
-    uint32_t upvalue_count = ReadU32Payload(obj->payload, 4);
-    std::size_t base = 8;
-    for (uint32_t i = 0; i < upvalue_count; ++i) {
-      std::size_t offset = base + static_cast<std::size_t>(i) * 4;
-      if (offset + 4 > obj->payload.size()) break;
+
+  auto mark_payload_refs = [&](std::size_t begin, std::size_t end) {
+    if (end > obj->payload.size()) end = obj->payload.size();
+    for (std::size_t offset = begin; offset + 4 <= end; offset += 4) {
       uint32_t ref = ReadU32Payload(obj->payload, offset);
-      if (ref != 0xFFFFFFFFu) Mark(ref);
+      if (ref != HeapLayout::kNullRef) Mark(ref);
+    }
+  };
+
+  switch (obj->header.kind) {
+    case ObjectKind::String:
+      return;
+    case ObjectKind::Array:
+      if (obj->header.type_id != 0) mark_payload_refs(HeapLayout::kArrayDataOffset, obj->payload.size());
+      return;
+    case ObjectKind::List:
+      if (obj->header.type_id != 0) mark_payload_refs(HeapLayout::kListDataOffset, obj->payload.size());
+      return;
+    case ObjectKind::Artifact:
+      mark_payload_refs(0, obj->payload.size());
+      return;
+    case ObjectKind::Closure: {
+      if (obj->payload.size() < HeapLayout::kClosureUpvalueDataOffset) return;
+      uint32_t upvalue_count = ReadU32Payload(obj->payload, HeapLayout::kClosureUpvalueCountOffset);
+      for (uint32_t i = 0; i < upvalue_count; ++i) {
+        std::size_t offset = HeapLayout::ClosureUpvalueOffset(i);
+        if (offset + 4 > obj->payload.size()) break;
+        uint32_t ref = ReadU32Payload(obj->payload, offset);
+        if (ref != HeapLayout::kNullRef) Mark(ref);
+      }
+      return;
     }
   }
 }

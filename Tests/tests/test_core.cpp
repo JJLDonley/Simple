@@ -22807,6 +22807,33 @@ bool RunListGrowthTest() {
   return RunExpectExit(BuildListGrowthModule(), 2);
 }
 
+void WriteHeapU32(Simple::VM::HeapObject* obj, size_t offset, uint32_t value) {
+  obj->payload[offset + 0] = static_cast<uint8_t>(value & 0xffu);
+  obj->payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xffu);
+  obj->payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xffu);
+  obj->payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xffu);
+}
+
+bool RunHeapNestedListRefTraceTest() {
+  Simple::VM::Heap heap;
+  uint32_t text = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
+  uint32_t inner = heap.Allocate(Simple::VM::ObjectKind::List, 1, 12);
+  uint32_t outer = heap.Allocate(Simple::VM::ObjectKind::List, 1, 12);
+  Simple::VM::HeapObject* inner_obj = heap.Get(inner);
+  Simple::VM::HeapObject* outer_obj = heap.Get(outer);
+  if (!inner_obj || !outer_obj) return false;
+  WriteHeapU32(inner_obj, 0, 1);
+  WriteHeapU32(inner_obj, 4, 1);
+  WriteHeapU32(inner_obj, 8, text);
+  WriteHeapU32(outer_obj, 0, 1);
+  WriteHeapU32(outer_obj, 4, 1);
+  WriteHeapU32(outer_obj, 8, inner);
+  heap.ResetMarks();
+  heap.Mark(outer);
+  heap.Sweep();
+  return heap.Get(outer) != nullptr && heap.Get(inner) != nullptr && heap.Get(text) != nullptr;
+}
+
 bool RunHeapReuseTest() {
   Simple::VM::Heap heap;
   uint32_t first = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
@@ -23384,6 +23411,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits", RunRuntimeLimitsTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
