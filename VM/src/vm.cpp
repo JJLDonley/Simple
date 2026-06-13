@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #if !defined(_WIN32)
 #include <ffi.h>
@@ -12,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <atomic>
-#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -25,6 +23,7 @@
 #include "ffi/dl_runtime.h"
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "jit/jit_scaffold.h"
 #include "native/buffer.h"
 #include "native/channel.h"
 #include "native/env.h"
@@ -64,31 +63,6 @@ inline bool IsI32LikeImportType(TypeKind kind) {
     default:
       return false;
   }
-}
-
-inline bool IsJitScalarKind(TypeKind kind) {
-  switch (kind) {
-    case TypeKind::I8:
-    case TypeKind::I16:
-    case TypeKind::I32:
-    case TypeKind::I64:
-    case TypeKind::U8:
-    case TypeKind::U16:
-    case TypeKind::U32:
-    case TypeKind::U64:
-    case TypeKind::F32:
-    case TypeKind::F64:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline bool IsJitValueKind(TypeKind kind) {
-  if (IsJitScalarKind(kind)) return true;
-  return kind == TypeKind::Ref || kind == TypeKind::String;
 }
 
 inline bool IsI64LikeImportType(TypeKind kind) {
@@ -1157,12 +1131,6 @@ struct Frame {
   uint16_t locals_count = 0;
 };
 
-struct JitStub {
-  bool active = false;
-  bool compiled = false;
-  bool disabled = false;
-};
-
 struct TrapContext {
   Frame* current = nullptr;
   const std::vector<Frame>* call_stack = nullptr;
@@ -1494,7 +1462,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Slot> jit_locals;
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
-  std::vector<JitStub> jit_stubs(module.functions.size());
+  std::vector<Simple::VM::Jit::Stub> jit_stubs(module.functions.size());
   std::vector<uint64_t> opcode_counts(256, 0);
   std::vector<uint32_t> compile_counts(module.functions.size(), 0);
   std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
@@ -1506,24 +1474,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<std::FILE*> open_files;
   std::string dl_last_error;
   uint64_t compile_tick = 0;
-  auto read_threshold = [&](const char* name, uint32_t fallback) -> uint32_t {
-    std::string owned_value;
-    const char* raw = Simple::VM::Native::Env::Get(name, &owned_value);
-    if (!raw || raw[0] == '\0') return fallback;
-    char* end = nullptr;
-    unsigned long parsed = std::strtoul(raw, &end, 10);
-    if (end == raw) return fallback;
-    if (parsed == 0) return fallback;
-    if (parsed > std::numeric_limits<uint32_t>::max()) {
-      parsed = std::numeric_limits<uint32_t>::max();
-    }
-    return static_cast<uint32_t>(parsed);
-  };
-  uint32_t jit_tier0_threshold = read_threshold("SIMPLE_JIT_TIER0", kJitTier0Threshold);
-  uint32_t jit_tier1_threshold = read_threshold("SIMPLE_JIT_TIER1", kJitTier1Threshold);
-  uint32_t jit_opcode_threshold = read_threshold("SIMPLE_JIT_OPCODE", kJitOpcodeThreshold);
-  if (jit_tier0_threshold == 0) jit_tier0_threshold = kJitTier0Threshold;
-  if (jit_tier1_threshold < jit_tier0_threshold) jit_tier1_threshold = jit_tier0_threshold;
+  const Simple::VM::Jit::Thresholds jit_thresholds = Simple::VM::Jit::ReadThresholdsFromEnv();
+  const uint32_t jit_tier0_threshold = jit_thresholds.tier0;
+  const uint32_t jit_tier1_threshold = jit_thresholds.tier1;
+  const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
   auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
                                 bool& out_has_ret, std::string& out_error) -> bool {
     if (module.imports.empty()) {
@@ -2871,13 +2825,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint32_t type_id = module.param_types[sig.param_type_start + i];
         if (type_id >= module.types.size()) return false;
         TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
-        if (!IsJitValueKind(kind)) return false;
+        if (!Simple::VM::Jit::IsValueKind(kind)) return false;
       }
     }
     if (sig.ret_type_id != 0xFFFFFFFFu) {
       if (sig.ret_type_id >= module.types.size()) return false;
       TypeKind ret_kind = static_cast<TypeKind>(module.types[sig.ret_type_id].kind);
-      if (!IsJitValueKind(ret_kind)) return false;
+      if (!Simple::VM::Jit::IsValueKind(ret_kind)) return false;
     }
     size_t locals_count = 0;
     bool saw_enter = false;

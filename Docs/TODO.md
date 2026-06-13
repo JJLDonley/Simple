@@ -46,7 +46,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `VM/src/native/json.cpp`
   - [x] `VM/src/native/thread.cpp`
   - [x] `VM/src/ffi/dl_runtime.cpp`
-  - [ ] `VM/src/jit/jit_scaffold.cpp`
+  - [x] `VM/src/jit/jit_scaffold.cpp`
   - [ ] `VM/src/gc/root_tracer.cpp`
   - [x] `VM/src/runtime/runtime_limits.cpp`
 - [ ] Define explicit VM boundary types:

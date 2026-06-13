@@ -11,6 +11,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "jit/jit_scaffold.h"
 #include "lang_version.h"
 #include "native/buffer.h"
 #include "native/channel.h"
@@ -15987,6 +15988,18 @@ bool RunNativeJsonModuleTest() {
   return !Simple::VM::Native::Json::Stringify(handle, &text);
 }
 
+bool RunJitScaffoldModuleTest() {
+  using Simple::Byte::TypeKind;
+  if (!Simple::VM::Jit::IsScalarKind(TypeKind::I32)) return false;
+  if (Simple::VM::Jit::IsScalarKind(TypeKind::String)) return false;
+  if (!Simple::VM::Jit::IsValueKind(TypeKind::String)) return false;
+  if (Simple::VM::Jit::ReadThreshold("SIMPLE_MISSING_JIT_THRESHOLD", 42) != 42) return false;
+  Simple::VM::Jit::Stub stub;
+  if (stub.active || stub.compiled || stub.disabled) return false;
+  const Simple::VM::Jit::Thresholds thresholds = Simple::VM::Jit::ReadThresholdsFromEnv();
+  return thresholds.tier0 >= 1 && thresholds.tier1 >= thresholds.tier0 && thresholds.opcode >= 1;
+}
+
 bool RunNativeLogModuleTest() {
   const std::string path = "/tmp/simple_native_log_module.txt";
   std::remove(path.c_str());
@@ -23652,6 +23665,7 @@ static const TestCase kCoreTests[] = {
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"ffi_dl_runtime_module", RunFfiDlRuntimeModuleTest},
+  {"jit_scaffold_module", RunJitScaffoldModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits_module", RunRuntimeLimitsModuleTest},
   {"runtime_limits", RunRuntimeLimitsTest},
