@@ -207,6 +207,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_lang.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lsp.cpp
   ${SIMPLEVM_TEST_ROOT}/vm/test_heap.cpp
+  ${SIMPLEVM_TEST_ROOT}/vm/test_runtime_limits.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_build.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_contract.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_diagnostics.cpp

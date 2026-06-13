@@ -38,6 +38,7 @@ namespace Simple::VM::Tests {
 const TestSection* GetCoreSections(size_t* count);
 const TestSection* GetRuntimeSmokeSections(size_t* count);
 const TestSection* GetVmHeapSections(size_t* count);
+const TestSection* GetVmRuntimeLimitsSections(size_t* count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
 const TestSection* GetIrSections(size_t* count);
@@ -206,6 +207,11 @@ int main(int argc, char** argv) {
   const Simple::VM::Tests::TestSection* vm_heap_sections =
       Simple::VM::Tests::GetVmHeapSections(&vm_heap_count);
   sections.insert(sections.end(), vm_heap_sections, vm_heap_sections + vm_heap_count);
+  size_t vm_runtime_limits_count = 0;
+  const Simple::VM::Tests::TestSection* vm_runtime_limits_sections =
+      Simple::VM::Tests::GetVmRuntimeLimitsSections(&vm_runtime_limits_count);
+  sections.insert(sections.end(), vm_runtime_limits_sections,
+                  vm_runtime_limits_sections + vm_runtime_limits_count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
   size_t ir_count = 0;
