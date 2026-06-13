@@ -169,7 +169,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Tests/tests/lang/test_lexer.cpp`
   - [x] `Tests/tests/lang/test_cast.cpp`
   - [x] `Tests/tests/lang/test_ast.cpp`
-  - [ ] `Tests/tests/lang/test_rast.cpp`
+  - [x] `Tests/tests/lang/test_rast.cpp`
   - [x] `Tests/tests/lang/test_tast.cpp`
   - [ ] `Tests/tests/lang/test_irb.cpp`
   - [ ] `Tests/tests/lang/test_ire.cpp`
@@ -183,7 +183,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] heap/gc tests first
   - [x] lexer/parser tests second
   - [ ] CLI tests third
-  - [ ] RAST/TAST tests fourth
+  - [x] RAST/TAST tests fourth
 
 ### SRP Phase 6: CLI / Import / Build Service Split
 
