@@ -110,8 +110,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] member resolution by name
   - [x] declaration reference resolution
 - [x] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
-- [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:
-  - [ ] `Lang/src/TAST/type_checker.cpp`
+- [x] Split `Lang/src/lang_validate.cpp` into TAST modules:
+  - [x] `Lang/src/TAST/type_checker.cpp`
   - [x] `Lang/src/TAST/expressions.cpp`
   - [x] `Lang/src/TAST/statements.cpp`
   - [x] `Lang/src/TAST/calls.cpp`
@@ -120,13 +120,13 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/TAST/control_flow.cpp`
   - [x] `Lang/src/TAST/generics.cpp`
   - [x] `Lang/src/TAST/abi.cpp`
-- [ ] TAST owns type facts and produces/persists:
-  - [ ] `TypedProgram`
-  - [ ] `TypedExpr`
-  - [ ] `TypedStmt`
-  - [ ] `ExprTypeMap`
-  - [ ] `MutabilityFacts`
-  - [ ] `AbiFacts`
+- [x] TAST owns type facts and produces/persists:
+  - [x] `TypedProgram`
+  - [x] `TypedExpr`
+  - [x] `TypedStmt`
+  - [x] `ExprTypeMap`
+  - [x] `MutabilityFacts`
+  - [x] `AbiFacts`
 - [ ] Use phase-specific function names such as `ResolveProgram` and `ResolveMemberAccess`.
   - [x] Add `CheckAbiShape` TAST API.
   - [x] Add `SubstituteGenericTypes` TAST API.

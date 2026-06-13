@@ -567,7 +567,10 @@ bool LangRastResolverDisambiguatesMemberRefs() {
 }
 
 bool LangTastCheckerAcceptsResolvedProgram() {
-  const char* src = "main : i32 () { return 42; }";
+  const char* src =
+      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
+      "count : i32 = 1\n"
+      "main : i32 () { return 42; }";
   Simple::Lang::CAST::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
@@ -577,7 +580,13 @@ bool LangTastCheckerAcceptsResolvedProgram() {
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
   if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
   if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
-  return typed.resolved == &resolved;
+  return typed.resolved == &resolved &&
+         !typed.typed_exprs.empty() &&
+         !typed.typed_stmts.empty() &&
+         !typed.expr_types.empty() &&
+         typed.mutability_facts["count"] == Simple::Lang::Mutability::Mutable &&
+         typed.abi_facts.extern_param_types.size() == 2 &&
+         typed.abi_facts.extern_return_types.size() == 1;
 }
 
 bool LangTastCheckerRejectsTypeMismatch() {
