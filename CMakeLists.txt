@@ -78,6 +78,7 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_LANG_ROOT}/src/RAST/symbol_table.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/resolver.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/type_checker.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/TAST/abi.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/calls.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/expressions.cpp
   ${SIMPLEVM_LANG_ROOT}/src/TAST/generics.cpp

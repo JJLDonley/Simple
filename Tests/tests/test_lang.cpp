@@ -11,6 +11,7 @@
 #include "RAST/resolver.h"
 #include "RAST/symbol_table.h"
 #include "TAST/tast.h"
+#include "TAST/abi.h"
 #include "TAST/calls.h"
 #include "TAST/expressions.h"
 #include "TAST/generics.h"
@@ -3131,6 +3132,18 @@ bool LangTastCheckExpressionShapeValidatesIdentifiers() {
          error.find("identifier expression missing name") != std::string::npos;
 }
 
+bool LangTastCheckAbiShapeRejectsGenericTypes() {
+  Simple::Lang::AST::TypeRef scalar;
+  scalar.name = "i32";
+  std::string error;
+  if (!Simple::Lang::TAST::CheckAbiShape(scalar, false, &error)) return false;
+  Simple::Lang::AST::TypeRef generic;
+  generic.name = "Box";
+  generic.type_args.push_back(scalar);
+  if (Simple::Lang::TAST::CheckAbiShape(generic, false, &error)) return false;
+  return error.find("extern ABI type shape is not supported") != std::string::npos;
+}
+
 bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
   Simple::Lang::AST::TypeRef input;
   input.name = "Box";
@@ -5122,6 +5135,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
   {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},

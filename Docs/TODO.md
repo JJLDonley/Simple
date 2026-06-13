@@ -119,7 +119,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/TAST/mutability.cpp`
   - [x] `Lang/src/TAST/control_flow.cpp`
   - [x] `Lang/src/TAST/generics.cpp`
-  - [ ] `Lang/src/TAST/abi.cpp`
+  - [x] `Lang/src/TAST/abi.cpp`
 - [ ] TAST owns type facts and produces/persists:
   - [ ] `TypedProgram`
   - [ ] `TypedExpr`
@@ -127,7 +127,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `ExprTypeMap`
   - [ ] `MutabilityFacts`
   - [ ] `AbiFacts`
-- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, and `CheckAbiShape`.
+- [ ] Use phase-specific function names such as `ResolveProgram` and `ResolveMemberAccess`.
+  - [x] Add `CheckAbiShape` TAST API.
   - [x] Add `SubstituteGenericTypes` TAST API.
   - [x] Add `CheckReturnFlow` TAST API.
   - [x] Add `CheckAssignment` TAST API.
