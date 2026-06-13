@@ -2045,10 +2045,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         *out_value = U16ToAscii(ReadString(obj));
         return true;
       };
-      auto fs_return_string = [&](const std::string& value) -> bool {
-        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
-        return true;
-      };
       auto fs_return_bytes = [&](const std::vector<int32_t>& values) -> bool {
         const uint32_t length = static_cast<uint32_t>(values.size());
         const uint32_t size = 8u + length * 4u;
@@ -2061,21 +2057,36 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackRef(handle);
         return true;
       };
-      if (sym == "readText") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.fs.readText return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.fs.readText arg count mismatch"; return false; }
-        std::string path;
-        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
-        std::string text;
-        if (!Simple::VM::Native::Fs::ReadText(path, &text)) { out_ret = PackRef(kNullRef); return true; }
-        return fs_return_string(text);
-      }
-      if (sym == "writeText") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.writeText return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "System.fs.writeText arg count mismatch"; return false; }
-        std::string path, text;
-        if (!fs_arg_string(0, &path) || !fs_arg_string(1, &text)) { out_ret = PackI32(0); return true; }
-        out_ret = PackI32(Simple::VM::Native::Fs::WriteText(path, text) ? 1 : 0);
+      if (sym == "readText" || sym == "writeText") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
+        }
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = std::string("System.fs.") + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
+        }
         return true;
       }
       if (sym == "readBytes") {

@@ -535,6 +535,26 @@ NativeCallResult PathIsDir(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult FsReadText(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  if (!ReadStringArg(context, 0, &path) || !Fs::ReadText(path, &result.string_value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+  }
+  return result;
+}
+
+NativeCallResult FsWriteText(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::string text;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadStringArg(context, 1, &text) &&
+                                 Fs::WriteText(path, text)
+                             ? 1
+                             : 0);
+  return result;
+}
+
 NativeCallResult FsCwd(NativeCallContext&) {
   NativeCallResult result;
   if (!Fs::Cwd(&result.string_value)) {
@@ -807,6 +827,10 @@ void RegisterSystemPath(NativeRegistry& registry) {
 
 void RegisterSystemFs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.fs", "readText", {TypeKind::String}, TypeKind::String,
+                             FsReadText));
+  registry.Register(MakeSpec("System.fs", "writeText", {TypeKind::String, TypeKind::String},
+                             TypeKind::I32, FsWriteText));
   registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
   registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
                              TypeKind::I32, FsCopy));
