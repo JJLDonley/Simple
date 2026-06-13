@@ -211,6 +211,10 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
+  if (canonical_module == "Buffer") {
+    return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
+           member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
+  }
   if (canonical_module == "Log") return member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   return false;
 }

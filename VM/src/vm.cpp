@@ -1,5 +1,6 @@
 #include "vm.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -2722,6 +2723,124 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           uint32_t v = ReadU32Payload(src_obj->payload, src_base + i * 4);
           WriteU32Payload(dst_obj->payload, dst_base + i * 4, v);
         }
+        out_ret = PackI32(static_cast<int32_t>(n));
+        return true;
+      }
+    }
+    if (mod == "core.buffer") {
+      auto get_buffer = [&](size_t index) -> HeapObject* {
+        if (index >= args.size()) return nullptr;
+        const uint32_t ref = UnpackRef(args[index]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) return nullptr;
+        return obj;
+      };
+      auto buffer_len = [&](HeapObject* obj) -> uint32_t {
+        return obj ? ReadU32Payload(obj->payload, 0) : 0u;
+      };
+      auto buffer_base = [&](HeapObject* obj) -> uint32_t {
+        return obj && obj->header.kind == ObjectKind::List ? 8u : 4u;
+      };
+      auto byte_at = [&](HeapObject* obj, uint32_t index) -> uint32_t {
+        return ReadU32Payload(obj->payload, buffer_base(obj) + index * 4u) & 0xffu;
+      };
+      auto set_byte = [&](HeapObject* obj, uint32_t index, uint32_t value) {
+        WriteU32Payload(obj->payload, buffer_base(obj) + index * 4u, value & 0xffu);
+      };
+      auto return_bytes = [&](const std::vector<uint32_t>& values) -> bool {
+        const uint32_t length = static_cast<uint32_t>(values.size());
+        const uint32_t size = 8u + length * 4u;
+        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+        HeapObject* out_obj = heap.Get(handle);
+        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
+        WriteU32Payload(out_obj->payload, 0, length);
+        WriteU32Payload(out_obj->payload, 4, length);
+        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4u, values[i] & 0xffu);
+        out_ret = PackRef(handle);
+        return true;
+      };
+      if (sym == "new") {
+        if (ret_kind != TypeKind::Ref) { out_error = "core.buffer.new return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.buffer.new arg count mismatch"; return false; }
+        const int32_t count = UnpackI32(args[0]);
+        if (count < 0) { out_ret = PackRef(kNullRef); return true; }
+        return return_bytes(std::vector<uint32_t>(static_cast<size_t>(count), 0));
+      }
+      if (sym == "len") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.len return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.buffer.len arg count mismatch"; return false; }
+        HeapObject* obj = get_buffer(0);
+        out_ret = PackI32(obj ? static_cast<int32_t>(buffer_len(obj)) : 0);
+        return true;
+      }
+      if (sym == "readU16LE" || sym == "readU32LE") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer read return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "core.buffer read arg count mismatch"; return false; }
+        HeapObject* obj = get_buffer(0);
+        const int32_t offset = UnpackI32(args[1]);
+        const uint32_t width = sym == "readU16LE" ? 2u : 4u;
+        if (!obj || offset < 0 || static_cast<uint32_t>(offset) > buffer_len(obj) || width > buffer_len(obj) - static_cast<uint32_t>(offset)) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        uint32_t value = 0;
+        for (uint32_t i = 0; i < width; ++i) value |= byte_at(obj, static_cast<uint32_t>(offset) + i) << (8u * i);
+        out_ret = PackI32(static_cast<int32_t>(value));
+        return true;
+      }
+      if (sym == "writeU16LE" || sym == "writeU32LE") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer write return type mismatch"; return false; }
+        if (args.size() != 3) { out_error = "core.buffer write arg count mismatch"; return false; }
+        HeapObject* obj = get_buffer(0);
+        const int32_t offset = UnpackI32(args[1]);
+        const uint32_t value = static_cast<uint32_t>(UnpackI32(args[2]));
+        const uint32_t width = sym == "writeU16LE" ? 2u : 4u;
+        if (!obj || offset < 0 || static_cast<uint32_t>(offset) > buffer_len(obj) || width > buffer_len(obj) - static_cast<uint32_t>(offset)) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        for (uint32_t i = 0; i < width; ++i) set_byte(obj, static_cast<uint32_t>(offset) + i, value >> (8u * i));
+        out_ret = PackI32(1);
+        return true;
+      }
+      if (sym == "slice") {
+        if (ret_kind != TypeKind::Ref) { out_error = "core.buffer.slice return type mismatch"; return false; }
+        if (args.size() != 3) { out_error = "core.buffer.slice arg count mismatch"; return false; }
+        HeapObject* obj = get_buffer(0);
+        const int32_t offset = UnpackI32(args[1]);
+        const int32_t count = UnpackI32(args[2]);
+        if (!obj || offset < 0 || count < 0 || static_cast<uint32_t>(offset) > buffer_len(obj)) {
+          out_ret = PackRef(kNullRef);
+          return true;
+        }
+        uint32_t n = static_cast<uint32_t>(count);
+        const uint32_t available = buffer_len(obj) - static_cast<uint32_t>(offset);
+        if (n > available) n = available;
+        std::vector<uint32_t> values;
+        values.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) values.push_back(byte_at(obj, static_cast<uint32_t>(offset) + i));
+        return return_bytes(values);
+      }
+      if (sym == "copy") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.copy return type mismatch"; return false; }
+        if (args.size() != 5) { out_error = "core.buffer.copy arg count mismatch"; return false; }
+        HeapObject* dst = get_buffer(0);
+        HeapObject* src = get_buffer(2);
+        const int32_t dst_off = UnpackI32(args[1]);
+        const int32_t src_off = UnpackI32(args[3]);
+        const int32_t count = UnpackI32(args[4]);
+        if (!dst || !src || dst_off < 0 || src_off < 0 || count < 0 ||
+            static_cast<uint32_t>(dst_off) > buffer_len(dst) || static_cast<uint32_t>(src_off) > buffer_len(src)) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        uint32_t n = static_cast<uint32_t>(count);
+        n = std::min(n, buffer_len(dst) - static_cast<uint32_t>(dst_off));
+        n = std::min(n, buffer_len(src) - static_cast<uint32_t>(src_off));
+        std::vector<uint32_t> tmp;
+        tmp.reserve(n);
+        for (uint32_t i = 0; i < n; ++i) tmp.push_back(byte_at(src, static_cast<uint32_t>(src_off) + i));
+        for (uint32_t i = 0; i < n; ++i) set_byte(dst, static_cast<uint32_t>(dst_off) + i, tmp[i]);
         out_ret = PackI32(static_cast<int32_t>(n));
         return true;
       }

@@ -1,0 +1,14 @@
+import Buffer
+using Buffer
+
+main : i32 () {
+  b : i32[] = new(4)
+  if (!writeU32LE(b, 0, 16909060)) { return 1 }
+  if (readU16LE(b, 0) != 772) { return 2 }
+  s : i32[] = slice(b, 1, 2)
+  if (len(s) != 2) { return 3 }
+  dst : i32[] = new(2)
+  if (copy(dst, 0, b, 1, 2) != 2) { return 4 }
+  if (readU16LE(dst, 0) != readU16LE(s, 0)) { return 5 }
+  return 0
+}

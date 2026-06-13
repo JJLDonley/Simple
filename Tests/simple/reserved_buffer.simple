@@ -1,0 +1,18 @@
+import Buffer
+
+main : i32 () {
+  b : i32[] = Buffer.new(8)
+  if (Buffer.len(b) != 8) { return 1 }
+  if (!Buffer.writeU16LE(b, 0, 4660)) { return 2 }
+  if (Buffer.readU16LE(b, 0) != 4660) { return 3 }
+  if (!Buffer.writeU32LE(b, 2, 305419896)) { return 4 }
+  if (Buffer.readU32LE(b, 2) != 305419896) { return 5 }
+  s : i32[] = Buffer.slice(b, 2, 4)
+  if (Buffer.len(s) != 4) { return 6 }
+  if (Buffer.readU32LE(s, 0) != 305419896) { return 7 }
+  dst : i32[] = Buffer.new(4)
+  if (Buffer.copy(dst, 0, b, 2, 4) != 4) { return 8 }
+  if (Buffer.readU32LE(dst, 0) != 305419896) { return 9 }
+  if (Buffer.writeU32LE(dst, 2, 1)) { return 10 }
+  return 0
+}

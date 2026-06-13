@@ -27,6 +27,7 @@ Reserved (compiler-mapped):
 - `OS`
 - `FS`
 - `Log`
+- `Buffer`
 
 Preferred modern aliases:
 - `System.math`
@@ -36,6 +37,7 @@ Preferred modern aliases:
 - `System.dl`
 - `System.os`
 - `System.log`
+- `System.buffer`
 
 ## Import Mapping
 
@@ -48,6 +50,7 @@ Preferred modern aliases:
 | `DL` / `System.dl` | `core.dl` |
 | `OS` / `System.os` | `core.os` |
 | `Log` / `System.log` | `core.log` |
+| `Buffer` / `System.buffer` | `core.buffer` |
 
 ## Core Module API Tables
 
@@ -75,6 +78,18 @@ Preferred modern aliases:
 |---|---|
 | `mono_ns` | `() -> i64` |
 | `wall_ns` | `() -> i64` |
+
+### Buffer
+| Member | Signature |
+|---|---|
+| `new` | `(length : i32) -> i32[]` |
+| `len` | `(buffer : i32[]) -> i32` |
+| `readU16LE` | `(buffer : i32[], offset : i32) -> i32` |
+| `readU32LE` | `(buffer : i32[], offset : i32) -> i32` |
+| `writeU16LE` | `(buffer : i32[], offset : i32, value : i32) -> bool` |
+| `writeU32LE` | `(buffer : i32[], offset : i32, value : i32) -> bool` |
+| `slice` | `(buffer : i32[], offset : i32, count : i32) -> i32[]` |
+| `copy` | `(dst : i32[], dstOffset : i32, src : i32[], srcOffset : i32, count : i32) -> i32` |
 
 ### Fs
 | Member | Signature |

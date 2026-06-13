@@ -39,7 +39,7 @@ All Simple standard/core library modules should be implemented as native C++ run
     - [x] levels
     - [x] stdout/stderr sinks
     - [x] file sink
-  - [ ] `Bytes`/`Buffer`: endian-safe binary reads/writes, slice/copy helpers
+  - [x] `Bytes`/`Buffer`: endian-safe binary reads/writes, slice/copy helpers
   - [ ] `Json`: parse/stringify with handle-based API initially
   - [ ] `Net`: TCP/UDP sockets suitable for servers and games
   - [ ] `Http`: simple GET/POST convenience API

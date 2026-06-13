@@ -2027,6 +2027,14 @@ bool LangReservedFsUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_fs_using.simple", 1);
 }
 
+bool LangReservedBufferRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_buffer.simple", 0);
+}
+
+bool LangReservedBufferUsingRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_buffer_using.simple", 0);
+}
+
 bool LangReservedLogRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_log.simple", 1);
 }
@@ -5048,6 +5056,8 @@ const TestCase kLangTests[] = {
   {"lang_reserved_path_using_run", LangReservedPathUsingRun},
   {"lang_reserved_fs_run", LangReservedFsRun},
   {"lang_reserved_fs_using_run", LangReservedFsUsingRun},
+  {"lang_reserved_buffer_run", LangReservedBufferRun},
+  {"lang_reserved_buffer_using_run", LangReservedBufferUsingRun},
   {"lang_reserved_log_run", LangReservedLogRun},
   {"lang_reserved_log_using_run", LangReservedLogUsingRun},
   {"lang_cli_emit_ir", LangCliEmitIr},

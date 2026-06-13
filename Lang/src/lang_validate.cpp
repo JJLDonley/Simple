@@ -368,6 +368,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
+  if (resolved == "Buffer") return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   if (resolved == "Log") return {"log", "info", "warn", "error", "setLevel", "setFile"};
   return {};
 }
@@ -907,6 +908,53 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (member == "read" || member == "write") {
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Buffer") {
+    if (member == "new") {
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeListType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "len") {
+      out->params.push_back(MakeListType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "readU16LE" || member == "readU32LE") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "writeU16LE" || member == "writeU32LE") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "slice") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->return_type = MakeListType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "copy") {
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
+      out->params.push_back(MakeListType("i32"));
+      out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;

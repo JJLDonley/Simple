@@ -451,6 +451,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Buffer" &&
+               (member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
+                member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "Log" &&
                (member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile")) {
       if (found) return false;
@@ -1599,7 +1605,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2726,7 +2732,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5266,6 +5272,42 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       };
       if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
       if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Buffer") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Buffer")) {
+      std::vector<TypeRef> new_params;
+      new_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.buffer", "new", std::move(new_params), make_list_type("i32"))) return false;
+      std::vector<TypeRef> len_params;
+      len_params.push_back(make_list_type("i32"));
+      if (!add_reserved_import(alias, "core.buffer", "len", std::move(len_params), make_type("i32"))) return false;
+      for (const std::string member : {"readU16LE", "readU32LE"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_list_type("i32"));
+        params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "core.buffer", member, std::move(params), make_type("i32"))) return false;
+      }
+      for (const std::string member : {"writeU16LE", "writeU32LE"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_list_type("i32"));
+        params.push_back(make_type("i32"));
+        params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "core.buffer", member, std::move(params), make_type("bool"))) return false;
+      }
+      std::vector<TypeRef> slice_params;
+      slice_params.push_back(make_list_type("i32"));
+      slice_params.push_back(make_type("i32"));
+      slice_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.buffer", "slice", std::move(slice_params), make_list_type("i32"))) return false;
+      std::vector<TypeRef> copy_params;
+      copy_params.push_back(make_list_type("i32"));
+      copy_params.push_back(make_type("i32"));
+      copy_params.push_back(make_list_type("i32"));
+      copy_params.push_back(make_type("i32"));
+      copy_params.push_back(make_type("i32"));
+      if (!add_reserved_import(alias, "core.buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
     }
   }
 
