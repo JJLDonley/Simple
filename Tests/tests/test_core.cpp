@@ -16159,6 +16159,7 @@ bool RunNativeRegistryModuleTest() {
   const auto* buffer_len = default_registry.Find("System.buffer", "len");
   const auto* buffer_write = default_registry.Find("System.buffer", "writeU16LE");
   const auto* buffer_read = default_registry.Find("System.buffer", "readU16LE");
+  const auto* buffer_copy = default_registry.Find("System.buffer", "copy");
   Heap metadata_heap;
   const uint32_t buffer_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
   HeapObject* buffer_obj = metadata_heap.Get(buffer_ref);
@@ -16180,14 +16181,26 @@ bool RunNativeRegistryModuleTest() {
   buffer_read_ctx.args = {buffer_ref, 1};
   const auto buffer_read_result = buffer_read ? buffer_read->handler(buffer_read_ctx)
                                               : Simple::VM::Native::NativeCallResult{};
+  const uint32_t copy_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
+  HeapObject* copy_obj = metadata_heap.Get(copy_ref);
+  if (!copy_obj) return false;
+  WriteU32Payload(copy_obj->payload, 0, 3);
+  WriteU32Payload(copy_obj->payload, 4, 3);
+  Simple::VM::Native::NativeCallContext buffer_copy_ctx;
+  buffer_copy_ctx.heap = &metadata_heap;
+  buffer_copy_ctx.args = {copy_ref, 0, buffer_ref, 1, 2};
+  const auto buffer_copy_result = buffer_copy ? buffer_copy->handler(buffer_copy_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
          channel_close && json_free && log_set_level && buffer_len && buffer_write && buffer_read &&
-         buffer_result.value == 3 && buffer_write_result.value == 1 &&
-         buffer_read_result.value == 0x1234u && random_i32->result_type == Simple::Byte::TypeKind::I32 &&
+         buffer_copy && buffer_result.value == 3 && buffer_write_result.value == 1 &&
+         buffer_read_result.value == 0x1234u && buffer_copy_result.value == 2 &&
+         Simple::VM::Native::Buffer::ReadLE(copy_obj, 0, 2) == 0x1234u &&
+         random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
@@ -16213,6 +16226,7 @@ bool RunNativeRegistryModuleTest() {
          buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_write->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_read->result_type == Simple::Byte::TypeKind::I32 &&
+         buffer_copy->result_type == Simple::Byte::TypeKind::I32 &&
          log_set_level->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 

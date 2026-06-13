@@ -2578,21 +2578,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             obj, static_cast<uint32_t>(offset), static_cast<uint32_t>(count)));
       }
       if (sym == "copy") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer.copy return type mismatch"; return false; }
-        if (args.size() != 5) { out_error = "System.buffer.copy arg count mismatch"; return false; }
-        HeapObject* dst = get_buffer(0);
-        HeapObject* src = get_buffer(2);
-        const int32_t dst_off = UnpackI32(args[1]);
-        const int32_t src_off = UnpackI32(args[3]);
-        const int32_t count = UnpackI32(args[4]);
-        if (dst_off < 0 || src_off < 0 || count < 0) {
-          out_ret = PackI32(0);
-          return true;
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "System.buffer.copy return type mismatch";
+          return false;
         }
-        const uint32_t n = Simple::VM::Native::Buffer::Copy(dst, static_cast<uint32_t>(dst_off), src,
-                                                            static_cast<uint32_t>(src_off),
-                                                            static_cast<uint32_t>(count));
-        out_ret = PackI32(static_cast<int32_t>(n));
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.buffer.copy arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
         return true;
       }
     }

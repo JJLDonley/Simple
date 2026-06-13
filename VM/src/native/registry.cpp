@@ -443,6 +443,23 @@ NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult BufferCopy(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* dst = GetHeapObject(context, 0);
+  const int32_t dst_offset = UnpackI32(context.args[1]);
+  HeapObject* src = GetHeapObject(context, 2);
+  const int32_t src_offset = UnpackI32(context.args[3]);
+  const int32_t count = UnpackI32(context.args[4]);
+  if (dst_offset < 0 || src_offset < 0 || count < 0) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackI32(static_cast<int32_t>(Buffer::Copy(
+      dst, static_cast<uint32_t>(dst_offset), src, static_cast<uint32_t>(src_offset),
+      static_cast<uint32_t>(count))));
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -528,6 +545,10 @@ void RegisterSystemBuffer(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.buffer", "writeU32LE",
                              {TypeKind::Ref, TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                              BufferWriteU32LE));
+  registry.Register(MakeSpec("System.buffer", "copy",
+                             {TypeKind::Ref, TypeKind::I32, TypeKind::Ref, TypeKind::I32,
+                              TypeKind::I32},
+                             TypeKind::I32, BufferCopy));
 }
 
 void RegisterSystemChannel(NativeRegistry& registry) {
