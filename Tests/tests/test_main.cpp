@@ -48,6 +48,7 @@ int RunBenchHotLoop(size_t iterations);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_LANG
 const TestSection* GetLangSections(size_t* count);
+const TestSection* GetLangLexerSections(size_t* count);
 const TestSection* GetLangTastSections(size_t* count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_LSP
@@ -205,6 +206,10 @@ int main(int argc, char** argv) {
   size_t lang_count = 0;
   const Simple::VM::Tests::TestSection* lang_sections = Simple::VM::Tests::GetLangSections(&lang_count);
   sections.insert(sections.end(), lang_sections, lang_sections + lang_count);
+  size_t lang_lexer_count = 0;
+  const Simple::VM::Tests::TestSection* lang_lexer_sections =
+      Simple::VM::Tests::GetLangLexerSections(&lang_lexer_count);
+  sections.insert(sections.end(), lang_lexer_sections, lang_lexer_sections + lang_lexer_count);
   size_t lang_tast_count = 0;
   const Simple::VM::Tests::TestSection* lang_tast_sections =
       Simple::VM::Tests::GetLangTastSections(&lang_tast_count);

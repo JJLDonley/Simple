@@ -166,7 +166,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `Tests/tests/vm/test_native_channel.cpp`
   - [ ] `Tests/tests/vm/test_jit.cpp`
 - [ ] Split language tests out of `Tests/tests/test_lang.cpp`:
-  - [ ] `Tests/tests/lang/test_lexer.cpp`
+  - [x] `Tests/tests/lang/test_lexer.cpp`
   - [ ] `Tests/tests/lang/test_cast.cpp`
   - [ ] `Tests/tests/lang/test_ast.cpp`
   - [ ] `Tests/tests/lang/test_rast.cpp`
@@ -181,7 +181,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `Tests/tests/cli/test_cli_imports.cpp`
 - [ ] Migration order:
   - [ ] heap/gc tests first
-  - [ ] lexer/parser tests second
+  - [x] lexer/parser tests second
   - [ ] CLI tests third
   - [ ] RAST/TAST tests fourth
 
