@@ -2,13 +2,9 @@
 
 namespace Simple::Lang::TAST {
 
-bool CheckCallExpression(const Expr& expr, std::string* error) {
-  if (expr.kind != Simple::Lang::AST::ExprKind::Call) {
-    if (error) *error = "expected call expression";
-    return false;
-  }
-  if (expr.children.empty()) {
-    if (error) *error = "call expression missing callee";
+bool CheckExpressionShape(const Expr& expr, std::string* error) {
+  if (expr.kind == Simple::Lang::AST::ExprKind::Identifier && expr.text.empty()) {
+    if (error) *error = "identifier expression missing name";
     return false;
   }
   return true;

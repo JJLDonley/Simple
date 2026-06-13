@@ -11,6 +11,7 @@
 #include "RAST/resolver.h"
 #include "RAST/symbol_table.h"
 #include "TAST/tast.h"
+#include "TAST/calls.h"
 #include "TAST/expressions.h"
 #include "TAST/statements.h"
 #include "TAST/type_checker.h"
@@ -3094,6 +3095,17 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
          error.find("duplicate symbol: Thing") != std::string::npos;
 }
 
+bool LangTastCheckExpressionShapeValidatesIdentifiers() {
+  Simple::Lang::AST::Expr ident;
+  ident.kind = Simple::Lang::AST::ExprKind::Identifier;
+  ident.text = "x";
+  std::string error;
+  if (!Simple::Lang::TAST::CheckExpressionShape(ident, &error)) return false;
+  ident.text.clear();
+  return !Simple::Lang::TAST::CheckExpressionShape(ident, &error) &&
+         error.find("identifier expression missing name") != std::string::npos;
+}
+
 bool LangTastCheckAssignmentValidatesShape() {
   Simple::Lang::AST::Stmt assign;
   assign.kind = Simple::Lang::AST::StmtKind::Assign;
@@ -5062,6 +5074,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
+  {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
   {"lang_rast_allows_type_invalid_programs", LangRastAllowsTypeInvalidPrograms},
   {"lang_rast_declaration_resolution_finds_decl_symbols", LangRastDeclarationResolutionFindsDeclSymbols},

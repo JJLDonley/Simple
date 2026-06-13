@@ -6,6 +6,6 @@
 
 namespace Simple::Lang::TAST {
 
-bool CheckExpressionShape(const Expr& expr, std::string* error);
+bool CheckCallExpression(const Expr& expr, std::string* error);
 
 } // namespace Simple::Lang::TAST
