@@ -100,7 +100,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 - [ ] Split `Lang/src/lang_validate.cpp` into RAST modules:
   - [x] `Lang/src/RAST/import_graph.cpp`
-  - [ ] `Lang/src/RAST/symbol_table.cpp`
+  - [x] `Lang/src/RAST/symbol_table.cpp`
   - [ ] `Lang/src/RAST/resolver.cpp`
   - [ ] `Lang/src/RAST/member_resolution.cpp`
   - [ ] `Lang/src/RAST/reserved_resolution.cpp`

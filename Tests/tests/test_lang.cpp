@@ -7,6 +7,7 @@
 #include "RAST/rast.h"
 #include "RAST/import_graph.h"
 #include "RAST/resolver.h"
+#include "RAST/symbol_table.h"
 #include "TAST/tast.h"
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
@@ -3036,6 +3037,27 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRastSymbolTableAddsAndRejectsDuplicates() {
+  Simple::Lang::RAST::ResolvedProgram program;
+  std::string error;
+  const bool added = Simple::Lang::RAST::AddSymbol(&program,
+                                                   Simple::Lang::RAST::SymbolKind::Artifact,
+                                                   "Thing",
+                                                   "Thing",
+                                                   Simple::Lang::RAST::kInvalidSymbolId,
+                                                   &error);
+  const auto found = Simple::Lang::RAST::FindQualifiedSymbol(&program,
+                                                            "Thing",
+                                                            Simple::Lang::RAST::SymbolKind::Artifact);
+  const bool duplicate_rejected = !Simple::Lang::RAST::AddSymbol(&program,
+                                                                 Simple::Lang::RAST::SymbolKind::Artifact,
+                                                                 "Thing",
+                                                                 "Thing",
+                                                                 Simple::Lang::RAST::kInvalidSymbolId,
+                                                                 &error);
+  return added && found == 0 && duplicate_rejected && error.find("duplicate symbol: Thing") != std::string::npos;
+}
+
 bool LangRastImportGraphResolvesReservedAliases() {
   const char* src =
       "import FS as FileSystem\n"
@@ -4939,6 +4961,7 @@ const TestCase kLangTests[] = {
   {"lang_parse_import_decl_unquoted_path", LangParsesImportDeclUnquotedPath},
   {"lang_validate_system_import_mixed_case_ok", LangValidateSystemImportMixedCaseOk},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
+  {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},

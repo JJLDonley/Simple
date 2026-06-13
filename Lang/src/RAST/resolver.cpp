@@ -3,31 +3,10 @@
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "RAST/import_graph.h"
+#include "RAST/symbol_table.h"
 
 namespace Simple::Lang::RAST {
 namespace {
-
-bool AddSymbol(ResolvedProgram* out,
-               SymbolKind kind,
-               const std::string& name,
-               const std::string& qualified_name,
-               SymbolId parent,
-               std::string* error) {
-  if (!out) return false;
-  if (out->by_qualified_name.find(qualified_name) != out->by_qualified_name.end()) {
-    if (error) *error = "duplicate symbol: " + qualified_name;
-    return false;
-  }
-  Symbol symbol;
-  symbol.id = static_cast<SymbolId>(out->symbols.size());
-  symbol.kind = kind;
-  symbol.name = name;
-  symbol.qualified_name = qualified_name;
-  symbol.parent = parent;
-  out->by_qualified_name.emplace(qualified_name, symbol.id);
-  out->symbols.push_back(std::move(symbol));
-  return true;
-}
 
 bool AddCallableSymbols(ResolvedProgram* out,
                         const FuncDecl& fn,
@@ -343,11 +322,7 @@ MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_ki
 }
 
 SymbolId FindArtifactSymbol(const ResolvedProgram* out, const std::string& name) {
-  if (!out || name.empty()) return kInvalidSymbolId;
-  auto it = out->by_qualified_name.find(name);
-  if (it == out->by_qualified_name.end()) return kInvalidSymbolId;
-  if (out->symbols[it->second].kind != SymbolKind::Artifact) return kInvalidSymbolId;
-  return it->second;
+  return FindQualifiedSymbol(out, name, SymbolKind::Artifact);
 }
 
 void AddResolvedMemberRef(ResolvedProgram* out,
