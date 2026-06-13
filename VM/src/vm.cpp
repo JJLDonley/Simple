@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -20,6 +21,7 @@
 #endif
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <atomic>
@@ -78,6 +80,9 @@ ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 std::mutex g_random_mutex;
 std::mt19937_64 g_random_engine{std::random_device{}()};
 std::atomic<int32_t> g_log_level{0};
+std::atomic<int64_t> g_next_json_handle{1};
+std::mutex g_json_mutex;
+std::unordered_map<int64_t, std::string> g_json_documents;
 std::mutex g_log_file_mutex;
 std::unique_ptr<std::ofstream> g_log_file;
 
@@ -142,6 +147,99 @@ std::string FormatUnixNsUtc(int64_t ns) {
   oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S") << '.'
       << std::setw(9) << std::setfill('0') << frac << 'Z';
   return oss.str();
+}
+
+bool IsValidJsonText(const std::string& text) {
+  size_t pos = 0;
+  auto skip_ws = [&]() {
+    while (pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos]))) ++pos;
+  };
+  std::function<bool()> parse_value;
+  auto parse_literal = [&](const char* lit) -> bool {
+    const size_t len = std::strlen(lit);
+    if (text.compare(pos, len, lit) != 0) return false;
+    pos += len;
+    return true;
+  };
+  auto parse_string = [&]() -> bool {
+    if (pos >= text.size() || text[pos++] != '"') return false;
+    while (pos < text.size()) {
+      const unsigned char c = static_cast<unsigned char>(text[pos++]);
+      if (c == '"') return true;
+      if (c < 0x20) return false;
+      if (c != '\\') continue;
+      if (pos >= text.size()) return false;
+      const char e = text[pos++];
+      if (e == '"' || e == '\\' || e == '/' || e == 'b' || e == 'f' || e == 'n' || e == 'r' || e == 't') continue;
+      if (e != 'u' || pos + 4 > text.size()) return false;
+      for (int i = 0; i < 4; ++i) {
+        if (!std::isxdigit(static_cast<unsigned char>(text[pos++]))) return false;
+      }
+    }
+    return false;
+  };
+  auto parse_number = [&]() -> bool {
+    const size_t start = pos;
+    if (pos < text.size() && text[pos] == '-') ++pos;
+    if (pos >= text.size()) return false;
+    if (text[pos] == '0') {
+      ++pos;
+    } else if (std::isdigit(static_cast<unsigned char>(text[pos]))) {
+      while (pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos]))) ++pos;
+    } else {
+      return false;
+    }
+    if (pos < text.size() && text[pos] == '.') {
+      ++pos;
+      if (pos >= text.size() || !std::isdigit(static_cast<unsigned char>(text[pos]))) return false;
+      while (pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos]))) ++pos;
+    }
+    if (pos < text.size() && (text[pos] == 'e' || text[pos] == 'E')) {
+      ++pos;
+      if (pos < text.size() && (text[pos] == '+' || text[pos] == '-')) ++pos;
+      if (pos >= text.size() || !std::isdigit(static_cast<unsigned char>(text[pos]))) return false;
+      while (pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos]))) ++pos;
+    }
+    return pos > start;
+  };
+  auto parse_array = [&]() -> bool {
+    if (pos >= text.size() || text[pos++] != '[') return false;
+    skip_ws();
+    if (pos < text.size() && text[pos] == ']') { ++pos; return true; }
+    while (true) {
+      if (!parse_value()) return false;
+      skip_ws();
+      if (pos < text.size() && text[pos] == ']') { ++pos; return true; }
+      if (pos >= text.size() || text[pos++] != ',') return false;
+    }
+  };
+  auto parse_object = [&]() -> bool {
+    if (pos >= text.size() || text[pos++] != '{') return false;
+    skip_ws();
+    if (pos < text.size() && text[pos] == '}') { ++pos; return true; }
+    while (true) {
+      if (!parse_string()) return false;
+      skip_ws();
+      if (pos >= text.size() || text[pos++] != ':') return false;
+      if (!parse_value()) return false;
+      skip_ws();
+      if (pos < text.size() && text[pos] == '}') { ++pos; return true; }
+      if (pos >= text.size() || text[pos++] != ',') return false;
+    }
+  };
+  parse_value = [&]() -> bool {
+    skip_ws();
+    if (pos >= text.size()) return false;
+    const char c = text[pos];
+    if (c == '"') return parse_string();
+    if (c == '{') return parse_object();
+    if (c == '[') return parse_array();
+    if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) return parse_number();
+    return parse_literal("true") || parse_literal("false") || parse_literal("null");
+  };
+  if (!parse_value()) return false;
+  skip_ws();
+  return pos == text.size();
 }
 
 template <typename T>
@@ -2724,6 +2822,47 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           WriteU32Payload(dst_obj->payload, dst_base + i * 4, v);
         }
         out_ret = PackI32(static_cast<int32_t>(n));
+        return true;
+      }
+    }
+    if (mod == "core.json") {
+      auto read_json_string = [&](size_t index, std::string* out_value) -> bool {
+        if (index >= args.size() || !out_value) return false;
+        const uint32_t ref = UnpackRef(args[index]);
+        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
+        if (!obj || obj->header.kind != ObjectKind::String) return false;
+        *out_value = U16ToAscii(ReadString(obj));
+        return true;
+      };
+      if (sym == "parse") {
+        if (!IsI64LikeImportType(ret_kind)) { out_error = "core.json.parse return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.json.parse arg count mismatch"; return false; }
+        std::string text;
+        if (!read_json_string(0, &text) || !IsValidJsonText(text)) {
+          out_ret = PackI64(0);
+          return true;
+        }
+        const int64_t handle = g_next_json_handle.fetch_add(1);
+        std::lock_guard<std::mutex> lock(g_json_mutex);
+        g_json_documents[handle] = std::move(text);
+        out_ret = PackI64(handle);
+        return true;
+      }
+      if (sym == "stringify") {
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.json.stringify return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.json.stringify arg count mismatch"; return false; }
+        const int64_t handle = UnpackI64(args[0]);
+        std::lock_guard<std::mutex> lock(g_json_mutex);
+        auto it = g_json_documents.find(handle);
+        out_ret = PackRef(it == g_json_documents.end() ? kNullRef : CreateString(heap, AsciiToU16(it->second)));
+        return true;
+      }
+      if (sym == "free") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.json.free return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "core.json.free arg count mismatch"; return false; }
+        const int64_t handle = UnpackI64(args[0]);
+        std::lock_guard<std::mutex> lock(g_json_mutex);
+        out_ret = PackI32(g_json_documents.erase(handle) ? 1 : 0);
         return true;
       }
     }

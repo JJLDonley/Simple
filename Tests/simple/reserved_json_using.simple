@@ -1,0 +1,12 @@
+import Json
+using Json
+
+main : i32 () {
+  h : i64 = parse("[true,false,null,{\"x\":1}]")
+  if (h == 0) { return 1 }
+  text : string = stringify(h)
+  if (len(text) == 0) { return 2 }
+  if (!free(h)) { return 3 }
+  if (free(h)) { return 4 }
+  return 0
+}

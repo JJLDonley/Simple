@@ -368,6 +368,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
+  if (resolved == "Json") return {"parse", "stringify", "free"};
   if (resolved == "Buffer") return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   if (resolved == "Log") return {"log", "info", "warn", "error", "setLevel", "setFile"};
   return {};
@@ -910,6 +911,26 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+  }
+  if (resolved == "Json") {
+    if (member == "parse") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "stringify") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "free") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("bool");
       out->return_mutability = Mutability::Mutable;
       return true;
     }

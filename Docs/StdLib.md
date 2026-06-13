@@ -28,6 +28,7 @@ Reserved (compiler-mapped):
 - `FS`
 - `Log`
 - `Buffer`
+- `Json`
 
 Preferred modern aliases:
 - `System.math`
@@ -38,6 +39,7 @@ Preferred modern aliases:
 - `System.os`
 - `System.log`
 - `System.buffer`
+- `System.json`
 
 ## Import Mapping
 
@@ -51,6 +53,7 @@ Preferred modern aliases:
 | `OS` / `System.os` | `core.os` |
 | `Log` / `System.log` | `core.log` |
 | `Buffer` / `System.buffer` | `core.buffer` |
+| `Json` / `System.json` | `core.json` |
 
 ## Core Module API Tables
 
@@ -78,6 +81,13 @@ Preferred modern aliases:
 |---|---|
 | `mono_ns` | `() -> i64` |
 | `wall_ns` | `() -> i64` |
+
+### Json
+| Member | Signature |
+|---|---|
+| `parse` | `(text : string) -> i64` (0 on invalid JSON) |
+| `stringify` | `(handle : i64) -> string` |
+| `free` | `(handle : i64) -> bool` |
 
 ### Buffer
 | Member | Signature |

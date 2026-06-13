@@ -451,6 +451,10 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
+    } else if (module == "Json" && (member == "parse" || member == "stringify" || member == "free")) {
+      if (found) return false;
+      found = true;
+      result = module;
     } else if (module == "Buffer" &&
                (member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
                 member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy")) {
@@ -1605,7 +1609,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2732,7 +2736,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5272,6 +5276,20 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       };
       if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
       if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+    }
+  }
+
+  if (st.reserved_imports.find("Json") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Json")) {
+      std::vector<TypeRef> parse_params;
+      parse_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.json", "parse", std::move(parse_params), make_type("i64"))) return false;
+      std::vector<TypeRef> stringify_params;
+      stringify_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.json", "stringify", std::move(stringify_params), make_type("string"))) return false;
+      std::vector<TypeRef> free_params;
+      free_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.json", "free", std::move(free_params), make_type("bool"))) return false;
     }
   }
 
