@@ -3060,6 +3060,23 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
   return error.find("did you mean 'println'") != std::string::npos;
 }
 
+bool LangValidateNativeMetadataReservedFsFdApis() {
+  const char* src =
+      "import FS\n"
+      "main : void () { fd : i32 = FS.open(\"/tmp/missing\", 0); FS.close(fd); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangValidateNativeMetadataReservedFsSuggestion() {
+  const char* src =
+      "import FS\n"
+      "main : void () { fd : i32 = FS.opne(\"/tmp/missing\", 0); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("did you mean 'open'") != std::string::npos;
+}
+
 bool LangValidateSystemIoBufferApis() {
   const char* src =
       "import IO\n"
@@ -4909,6 +4926,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
+  {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},
+  {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
   {"lang_validate_system_io_buffer_apis", LangValidateSystemIoBufferApis},
   {"lang_parse_extern_decl", LangParsesExternDecl},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},

@@ -85,10 +85,11 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route `System.fs` text/bytes/listDir/fd/cwd/copy/remove/mkdir/setCwd helpers through native metadata dispatch.
   - [x] Route `System.io` buffer helpers through native metadata dispatch.
   - [x] Route non-call `System.dl` helpers through native metadata dispatch.
-- [ ] Use native metadata for Lang reserved module signature generation.
+- [x] Use native metadata for Lang reserved module signature generation.
   - [x] Use native metadata for RAST reserved module member recognition.
   - [x] Use native metadata as validation signature fallback for reserved native members.
   - [x] Use native metadata to emit fallback SIR imports for reserved native modules.
+  - [x] Test metadata-provided reserved signatures and suggestions.
 - [x] Use native metadata for stdlib documentation generation.
   - [x] Add native metadata Markdown generator for stdlib API snapshots.
   - [x] Test generated stdlib docs include every registered native function.
