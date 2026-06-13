@@ -27,6 +27,32 @@ Slot PackI64(int64_t value) {
   return static_cast<uint64_t>(value);
 }
 
+uint32_t UnpackU32Bits(Slot value) {
+  return static_cast<uint32_t>(value);
+}
+
+uint64_t UnpackU64Bits(Slot value) {
+  return static_cast<uint64_t>(value);
+}
+
+float BitsToF32(uint32_t bits) {
+  float value = 0.0f;
+  std::memcpy(&value, &bits, sizeof(value));
+  return value;
+}
+
+double BitsToF64(uint64_t bits) {
+  double value = 0.0;
+  std::memcpy(&value, &bits, sizeof(value));
+  return value;
+}
+
+Slot PackF32(float value) {
+  uint32_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(bits));
+  return bits;
+}
+
 Slot PackF64(double value) {
   uint64_t bits = 0;
   std::memcpy(&bits, &value, sizeof(bits));
@@ -226,6 +252,92 @@ NativeCallResult ChannelPendingBool(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult ChannelNewF32(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_f32));
+  return result;
+}
+
+NativeCallResult ChannelSendF32(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Send(Channel::g_f32, UnpackI64(context.args[0]),
+                                       BitsToF32(UnpackU32Bits(context.args[1])))
+                              ? 1
+                              : 0);
+  return result;
+}
+
+NativeCallResult ChannelRecvF32(NativeCallContext& context) {
+  float value = 0.0f;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_f32, UnpackI64(context.args[0]), true, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackF32(value);
+  return result;
+}
+
+NativeCallResult ChannelTryRecvF32(NativeCallContext& context) {
+  float value = 0.0f;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_f32, UnpackI64(context.args[0]), false, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackF32(value);
+  return result;
+}
+
+NativeCallResult ChannelPendingF32(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_f32, UnpackI64(context.args[0])));
+  return result;
+}
+
+NativeCallResult ChannelNewF64(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_f64));
+  return result;
+}
+
+NativeCallResult ChannelSendF64(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Send(Channel::g_f64, UnpackI64(context.args[0]),
+                                       BitsToF64(UnpackU64Bits(context.args[1])))
+                              ? 1
+                              : 0);
+  return result;
+}
+
+NativeCallResult ChannelRecvF64(NativeCallContext& context) {
+  double value = 0.0;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_f64, UnpackI64(context.args[0]), true, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackF64(value);
+  return result;
+}
+
+NativeCallResult ChannelTryRecvF64(NativeCallContext& context) {
+  double value = 0.0;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_f64, UnpackI64(context.args[0]), false, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackF64(value);
+  return result;
+}
+
+NativeCallResult ChannelPendingF64(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_f64, UnpackI64(context.args[0])));
+  return result;
+}
+
 NativeCallResult ChannelClose(NativeCallContext& context) {
   Channel::CloseAll(UnpackI64(context.args[0]));
   NativeCallResult result;
@@ -318,6 +430,28 @@ void RegisterSystemChannel(NativeRegistry& registry) {
                              ChannelTryRecvI64));
   registry.Register(MakeSpec("System.channel", "pendingI64", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingI64));
+  registry.Register(MakeSpec("System.channel", "newF32", {}, TypeKind::I64, ChannelNewF32));
+  registry.Register(MakeSpec("System.channel", "sendF32", {TypeKind::I64, TypeKind::F32},
+                             TypeKind::I32, ChannelSendF32));
+  registry.Register(MakeSpec("System.channel", "trySendF32", {TypeKind::I64, TypeKind::F32},
+                             TypeKind::I32, ChannelSendF32));
+  registry.Register(MakeSpec("System.channel", "recvF32", {TypeKind::I64}, TypeKind::F32,
+                             ChannelRecvF32));
+  registry.Register(MakeSpec("System.channel", "tryRecvF32", {TypeKind::I64}, TypeKind::F32,
+                             ChannelTryRecvF32));
+  registry.Register(MakeSpec("System.channel", "pendingF32", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingF32));
+  registry.Register(MakeSpec("System.channel", "newF64", {}, TypeKind::I64, ChannelNewF64));
+  registry.Register(MakeSpec("System.channel", "sendF64", {TypeKind::I64, TypeKind::F64},
+                             TypeKind::I32, ChannelSendF64));
+  registry.Register(MakeSpec("System.channel", "trySendF64", {TypeKind::I64, TypeKind::F64},
+                             TypeKind::I32, ChannelSendF64));
+  registry.Register(MakeSpec("System.channel", "recvF64", {TypeKind::I64}, TypeKind::F64,
+                             ChannelRecvF64));
+  registry.Register(MakeSpec("System.channel", "tryRecvF64", {TypeKind::I64}, TypeKind::F64,
+                             ChannelTryRecvF64));
+  registry.Register(MakeSpec("System.channel", "pendingF64", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingF64));
   registry.Register(MakeSpec("System.channel", "newBool", {}, TypeKind::I64, ChannelNewBool));
   registry.Register(MakeSpec("System.channel", "sendBool", {TypeKind::I64, TypeKind::Bool},
                              TypeKind::I32, ChannelSendBool));

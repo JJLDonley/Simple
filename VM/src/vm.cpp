@@ -1800,7 +1800,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "newI32" || sym == "sendI32" || sym == "trySendI32" || sym == "recvI32" ||
           sym == "tryRecvI32" || sym == "pendingI32" || sym == "newI64" ||
           sym == "sendI64" || sym == "trySendI64" || sym == "recvI64" ||
-          sym == "tryRecvI64" || sym == "pendingI64" || sym == "newBool" ||
+          sym == "tryRecvI64" || sym == "pendingI64" || sym == "newF32" ||
+          sym == "sendF32" || sym == "trySendF32" || sym == "recvF32" ||
+          sym == "tryRecvF32" || sym == "pendingF32" || sym == "newF64" ||
+          sym == "sendF64" || sym == "trySendF64" || sym == "recvF64" ||
+          sym == "tryRecvF64" || sym == "pendingF64" || sym == "newBool" ||
           sym == "sendBool" || sym == "trySendBool" || sym == "recvBool" ||
           sym == "tryRecvBool" || sym == "pendingBool" || sym == "close") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
@@ -1809,6 +1813,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_has_ret = false;
         } else if (spec->result_type == TypeKind::I64) {
           if (!IsI64LikeImportType(ret_kind)) {
+            out_error = "System.channel." + sym + " return type mismatch";
+            return false;
+          }
+        } else if (spec->result_type == TypeKind::F32 || spec->result_type == TypeKind::F64) {
+          if (ret_kind != spec->result_type) {
             out_error = "System.channel." + sym + " return type mismatch";
             return false;
           }
