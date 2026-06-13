@@ -205,6 +205,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lang.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lsp.cpp
+  ${SIMPLEVM_TEST_ROOT}/cli/test_cli_build.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_contract.cpp
   ${SIMPLEVM_TEST_ROOT}/cli/test_cli_diagnostics.cpp
   ${SIMPLEVM_TEST_ROOT}/lang/test_ast.cpp

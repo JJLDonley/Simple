@@ -528,9 +528,7 @@ bool HasExt(const std::string& path, const char* ext) {
 }
 
 std::string ReplaceExt(const std::string& path, const char* ext) {
-  std::filesystem::path p(path);
-  p.replace_extension(ext);
-  return p.string();
+  return Simple::CLI::ReplaceExtension(path, ext);
 }
 
 std::string ResolveImplicitSimplePath(const std::string& path) {
@@ -1116,7 +1114,7 @@ int main(int argc, char** argv) {
       build_exe = true;
     }
     if (out_path.empty()) {
-      out_path = build_exe ? ReplaceExt(input_path, "") : ReplaceExt(input_path, ".sbc");
+      out_path = Simple::CLI::DefaultBuildOutputPath(input_path, build_exe);
     }
 
     std::vector<uint8_t> bytes;

@@ -177,7 +177,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Split CLI tests out of `Tests/tests/test_lang.cpp`:
   - [x] `Tests/tests/cli/test_cli_contract.cpp`
   - [x] `Tests/tests/cli/test_cli_diagnostics.cpp`
-  - [ ] `Tests/tests/cli/test_cli_build.cpp`
+  - [x] `Tests/tests/cli/test_cli_build.cpp`
   - [ ] `Tests/tests/cli/test_cli_imports.cpp`
 - [ ] Migration order:
   - [ ] heap/gc tests first
