@@ -39,6 +39,7 @@
 #include "opcode.h"
 #include "scratch_arena.h"
 #include "sbc_verifier.h"
+#include "runtime/runtime_limits.h"
 
 namespace Simple::VM {
 namespace {
@@ -1480,22 +1481,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
   const RuntimeLimits& limits = options.limits;
-  if (limits.max_const_pool_size != 0 && module.const_pool.size() > limits.max_const_pool_size) {
-    return Trap("runtime limit exceeded: const pool size");
-  }
-  if (limits.max_code_size != 0 && module.code.size() > limits.max_code_size) {
-    return Trap("runtime limit exceeded: code size");
-  }
-  for (const auto& func : module.functions) {
-    if (limits.max_stack_slots != 0 && func.stack_max > limits.max_stack_slots) {
-      return Trap("runtime limit exceeded: max stack");
-    }
-  }
-  for (const auto& method : module.methods) {
-    if (limits.max_locals != 0 && method.local_count > limits.max_locals) {
-      return Trap("runtime limit exceeded: max locals");
-    }
-  }
+  const std::string limit_error = Simple::VM::Runtime::CheckModuleLimits(limits, module);
+  if (!limit_error.empty()) return Trap(limit_error);
 
   Heap heap;
   heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
@@ -4737,9 +4724,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Slot> call_args;
 
   auto check_sequence_limit = [&](uint32_t count, const char* what) -> bool {
-    if (limits.max_array_list_size == 0 || count <= limits.max_array_list_size) return true;
     (void)what;
-    return false;
+    return Simple::VM::Runtime::CheckSequenceLimit(limits, count);
   };
   auto alloc_locals = [&](uint16_t count) -> size_t {
     size_t base = locals_arena.size();
@@ -6885,7 +6871,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
         current.return_pc = pc;
         current.stack_base = stack.size();
-        if (limits.max_call_depth != 0 && call_stack.size() + 1 >= limits.max_call_depth) {
+        if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) {
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);
@@ -6976,7 +6962,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
         current.return_pc = pc;
         current.stack_base = stack.size();
-        if (limits.max_call_depth != 0 && call_stack.size() + 1 >= limits.max_call_depth) {
+        if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) {
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);

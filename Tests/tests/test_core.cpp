@@ -32,6 +32,7 @@
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "scratch_arena.h"
+#include "runtime/runtime_limits.h"
 #include "simple_api.h"
 #include "vm.h"
 #include "test_utils.h"
@@ -15818,6 +15819,25 @@ bool RunInterpreterCanonicalForceTest() {
          exec.compile_counts[0] == 0;
 }
 
+bool RunRuntimeLimitsModuleTest() {
+  RuntimeLimits limits;
+  limits.max_code_size = 1;
+  Simple::Byte::SbcModule module;
+  module.code.resize(2);
+  if (Simple::VM::Runtime::CheckModuleLimits(limits, module) !=
+      "runtime limit exceeded: code size") {
+    return false;
+  }
+  limits.max_code_size = 0;
+  limits.max_array_list_size = 2;
+  limits.max_call_depth = 3;
+  return Simple::VM::Runtime::CheckModuleLimits(limits, module).empty() &&
+         Simple::VM::Runtime::CheckSequenceLimit(limits, 2) &&
+         !Simple::VM::Runtime::CheckSequenceLimit(limits, 3) &&
+         Simple::VM::Runtime::CheckCallDepthLimit(limits, 1) &&
+         !Simple::VM::Runtime::CheckCallDepthLimit(limits, 2);
+}
+
 bool RunRuntimeLimitsTest() {
   Simple::Byte::LoadResult add_load = Simple::Byte::LoadModuleFromBytes(BuildSimpleAddModule());
   if (!add_load.ok) return false;
@@ -23617,6 +23637,7 @@ static const TestCase kCoreTests[] = {
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
+  {"runtime_limits_module", RunRuntimeLimitsModuleTest},
   {"runtime_limits", RunRuntimeLimitsTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},

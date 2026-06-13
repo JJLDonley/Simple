@@ -48,7 +48,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `VM/src/ffi/dl_runtime.cpp`
   - [ ] `VM/src/jit/jit_scaffold.cpp`
   - [ ] `VM/src/gc/root_tracer.cpp`
-  - [ ] `VM/src/runtime/runtime_limits.cpp`
+  - [x] `VM/src/runtime/runtime_limits.cpp`
 - [ ] Define explicit VM boundary types:
   - [x] `NativeCallContext`
   - [x] `NativeCallResult`
