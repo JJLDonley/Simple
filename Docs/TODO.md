@@ -211,12 +211,12 @@ All Simple standard/core library modules should be implemented as native C++ run
 
 ## VM / Runtime
 
-- [ ] Add typed heap layout helpers for:
-  - [ ] string
-  - [ ] array
-  - [ ] list
-  - [ ] artifact
-  - [ ] closure
+- [x] Add typed heap layout helpers for:
+  - [x] string
+  - [x] array
+  - [x] list
+  - [x] artifact
+  - [x] closure
 - [ ] Harden GC root tracing with stress tests for:
   - [ ] nested lists of strings
   - [ ] arrays of artifacts

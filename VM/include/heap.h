@@ -1,6 +1,7 @@
 #ifndef SIMPLE_VM_HEAP_H
 #define SIMPLE_VM_HEAP_H
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -26,6 +27,62 @@ struct HeapObject {
   ObjHeader header;
   std::vector<uint8_t> payload;
 };
+
+namespace HeapLayout {
+
+constexpr uint32_t kNullRef = 0xFFFFFFFFu;
+
+constexpr std::size_t kStringLengthOffset = 0;
+constexpr std::size_t kStringDataOffset = 4;
+constexpr std::size_t StringPayloadSize(uint32_t code_units) {
+  return kStringDataOffset + static_cast<std::size_t>(code_units) * 2u;
+}
+constexpr std::size_t StringCodeUnitOffset(uint32_t index) {
+  return kStringDataOffset + static_cast<std::size_t>(index) * 2u;
+}
+
+constexpr std::size_t kArrayLengthOffset = 0;
+constexpr std::size_t kArrayDataOffset = 4;
+constexpr std::size_t ArrayPayloadSize(uint32_t length, uint32_t elem_size) {
+  return kArrayDataOffset + static_cast<std::size_t>(length) * elem_size;
+}
+constexpr std::size_t ArrayElementOffset(uint32_t index, uint32_t elem_size) {
+  return kArrayDataOffset + static_cast<std::size_t>(index) * elem_size;
+}
+
+constexpr std::size_t kListLengthOffset = 0;
+constexpr std::size_t kListCapacityOffset = 4;
+constexpr std::size_t kListDataOffset = 8;
+constexpr std::size_t ListPayloadSize(uint32_t capacity, uint32_t elem_size) {
+  return kListDataOffset + static_cast<std::size_t>(capacity) * elem_size;
+}
+constexpr std::size_t ListElementOffset(uint32_t index, uint32_t elem_size) {
+  return kListDataOffset + static_cast<std::size_t>(index) * elem_size;
+}
+
+constexpr std::size_t ArtifactPayloadSize(uint32_t byte_size) {
+  return byte_size;
+}
+constexpr std::size_t ArtifactFieldOffset(uint32_t byte_offset) {
+  return byte_offset;
+}
+
+constexpr std::size_t kClosureMethodIdOffset = 0;
+constexpr std::size_t kClosureUpvalueCountOffset = 4;
+constexpr std::size_t kClosureUpvalueDataOffset = 8;
+constexpr std::size_t ClosurePayloadSize(uint32_t upvalue_count) {
+  return kClosureUpvalueDataOffset + static_cast<std::size_t>(upvalue_count) * 4u;
+}
+constexpr std::size_t ClosureUpvalueOffset(uint32_t index) {
+  return kClosureUpvalueDataOffset + static_cast<std::size_t>(index) * 4u;
+}
+
+constexpr bool IsRefKind(ObjectKind kind) {
+  return kind == ObjectKind::String || kind == ObjectKind::Array || kind == ObjectKind::List ||
+         kind == ObjectKind::Artifact || kind == ObjectKind::Closure;
+}
+
+} // namespace HeapLayout
 
 class Heap {
  public:

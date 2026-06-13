@@ -15724,6 +15724,25 @@ std::vector<uint8_t> BuildGcModule() {
   return BuildModule(code, 0, 1);
 }
 
+bool RunHeapLayoutHelpersTest() {
+  static_assert(Simple::VM::HeapLayout::StringPayloadSize(3) == 10);
+  static_assert(Simple::VM::HeapLayout::StringCodeUnitOffset(2) == 8);
+  static_assert(Simple::VM::HeapLayout::ArrayPayloadSize(4, 4) == 20);
+  static_assert(Simple::VM::HeapLayout::ArrayElementOffset(3, 4) == 16);
+  static_assert(Simple::VM::HeapLayout::ListPayloadSize(4, 4) == 24);
+  static_assert(Simple::VM::HeapLayout::ListElementOffset(3, 4) == 20);
+  static_assert(Simple::VM::HeapLayout::ArtifactPayloadSize(12) == 12);
+  static_assert(Simple::VM::HeapLayout::ArtifactFieldOffset(8) == 8);
+  static_assert(Simple::VM::HeapLayout::ClosurePayloadSize(2) == 16);
+  static_assert(Simple::VM::HeapLayout::ClosureUpvalueOffset(1) == 12);
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::String)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Array)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::List)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Artifact)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Closure)) return false;
+  return Simple::VM::HeapLayout::kNullRef == 0xFFFFFFFFu;
+}
+
 bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 1);
   static_assert(Simple::Lang::kSirVersionMajor == 1);
@@ -23247,6 +23266,7 @@ bool RunJmpTableEmptyTest() {
 }
 
 static const TestCase kCoreTests[] = {
+  {"heap_layout_helpers", RunHeapLayoutHelpersTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
