@@ -6,7 +6,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
-#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #if defined(_WIN32)
@@ -22,7 +21,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iomanip>
 #include <iostream>
 #include <atomic>
 #include <condition_variable>
@@ -41,6 +39,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "native/native_time.h"
 #include "opcode.h"
 #include "scratch_arena.h"
 #include "sbc_verifier.h"
@@ -126,27 +125,6 @@ std::string HostExePath() {
 #else
   return {};
 #endif
-}
-
-std::string FormatUnixNsUtc(int64_t ns) {
-  const int64_t kNsPerSecond = 1000000000LL;
-  int64_t sec = ns / kNsPerSecond;
-  int64_t frac = ns % kNsPerSecond;
-  if (frac < 0) {
-    frac += kNsPerSecond;
-    --sec;
-  }
-  std::time_t tt = static_cast<std::time_t>(sec);
-  std::tm tm{};
-#if defined(_WIN32)
-  gmtime_s(&tm, &tt);
-#else
-  gmtime_r(&tt, &tm);
-#endif
-  std::ostringstream oss;
-  oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S") << '.'
-      << std::setw(9) << std::setfill('0') << frac << 'Z';
-  return oss.str();
 }
 
 bool IsValidJsonText(const std::string& text) {
@@ -1918,7 +1896,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.os.formatWallNs arg count mismatch";
           return false;
         }
-        out_ret = PackRef(CreateString(heap, AsciiToU16(FormatUnixNsUtc(UnpackI64(args[0])))));
+        out_ret = PackRef(CreateString(
+            heap, AsciiToU16(Simple::VM::Native::Time::FormatWallNsUtc(UnpackI64(args[0])))));
         return true;
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
@@ -1927,14 +1906,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
         }
         if (sym == "time_mono_ns") {
-          auto now = std::chrono::steady_clock::now().time_since_epoch();
-          auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
-          out_ret = PackI64(static_cast<int64_t>(ns));
+          out_ret = PackI64(Simple::VM::Native::Time::MonotonicNs());
           return true;
         }
-        auto now = std::chrono::system_clock::now().time_since_epoch();
-        auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now).count();
-        out_ret = PackI64(static_cast<int64_t>(ns));
+        out_ret = PackI64(Simple::VM::Native::Time::WallNs());
         return true;
       }
       if (sym == "sleep_ms") {
@@ -6412,14 +6387,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
           case kIntrinsicMonoNs:
           case kIntrinsicWallNs: {
-            int64_t ns = 0;
-            if (id == kIntrinsicMonoNs) {
-              auto now = std::chrono::steady_clock::now().time_since_epoch();
-              ns = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
-            } else {
-              auto now = std::chrono::system_clock::now().time_since_epoch();
-              ns = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
-            }
+            const int64_t ns = (id == kIntrinsicMonoNs)
+                                   ? Simple::VM::Native::Time::MonotonicNs()
+                                   : Simple::VM::Native::Time::WallNs();
             Push(stack, PackI64(ns));
             break;
           }

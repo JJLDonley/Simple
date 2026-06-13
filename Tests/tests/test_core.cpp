@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "lang_version.h"
+#include "native/native_time.h"
 #include "opcode.h"
 #include "ir_lang.h"
 #include "ir_builder.h"
@@ -15860,6 +15861,14 @@ bool RunRuntimeLimitsTest() {
   return ok_result.status == Simple::VM::ExecStatus::Halted;
 }
 
+bool RunNativeTimeModuleTest() {
+  const int64_t mono_a = Simple::VM::Native::Time::MonotonicNs();
+  const int64_t mono_b = Simple::VM::Native::Time::MonotonicNs();
+  if (mono_b < mono_a) return false;
+  if (Simple::VM::Native::Time::WallNs() <= 0) return false;
+  return Simple::VM::Native::Time::FormatWallNsUtc(0) == "1970-01-01T00:00:00.000000000Z";
+}
+
 bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 1);
   static_assert(Simple::Lang::kSirVersionMajor == 1);
@@ -23430,6 +23439,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits", RunRuntimeLimitsTest},

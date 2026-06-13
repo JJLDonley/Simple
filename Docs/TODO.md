@@ -2,6 +2,205 @@
 
 This list tracks work needed to improve feature independence, compiler structure, runtime safety, and tooling. It intentionally excludes `i128`/`u128` implementation work.
 
+## Highest Priority: SRP / Module Boundary Refactors
+
+These refactors must happen before large new feature work. The current risk is that the project is feature-rich, but several central files absorb too much behavior. `standards.md` is the mandatory coding standard for this work.
+
+Primary monoliths/offenders:
+
+1. `VM/src/vm.cpp` — split first.
+2. `Lang/src/lang_validate.cpp` — split second.
+3. `Tests/tests/test_lang.cpp` — split after phase boundaries stabilize.
+4. `Tests/tests/test_core.cpp` — split by VM subsystem.
+5. `CLI/src/main.cpp` — split diagnostics/import/build helpers after shared import graph extraction.
+
+Recommended priority order:
+
+1. Split VM native/runtime boundaries.
+2. Split language validation boundaries.
+3. Split tests by subsystem/phase.
+4. Split CLI/import/diagnostic services.
+5. Then add large features like Thread jobs, Net, and Http.
+
+Reason: Thread/Net/Http will be painful and high-risk if added into the current monoliths.
+
+End-state rule: this refactor must not leave permanent shims, compatibility facades, facade-only modules, or forwarding wrappers. Temporary facades are allowed only inside an active migration step and must be removed before the refactor is considered complete.
+
+### SRP Phase 1: VM Native/Runtime Extraction
+
+- [ ] Split `VM/src/vm.cpp` into explicit modules:
+  - [ ] `VM/src/interpreter/interpreter.cpp`
+  - [ ] `VM/src/interpreter/dispatch.cpp`
+  - [ ] `VM/src/interpreter/frames.cpp`
+  - [ ] `VM/src/interpreter/stack.cpp`
+  - [ ] `VM/src/native/native_registry.cpp`
+  - [ ] `VM/src/native/native_os.cpp`
+  - [ ] `VM/src/native/native_fs.cpp`
+  - [ ] `VM/src/native/native_path.cpp`
+  - [ ] `VM/src/native/native_env.cpp`
+  - [x] `VM/src/native/native_time.cpp`
+  - [ ] `VM/src/native/native_random.cpp`
+  - [ ] `VM/src/native/native_log.cpp`
+  - [ ] `VM/src/native/native_channel.cpp`
+  - [ ] `VM/src/native/native_buffer.cpp`
+  - [ ] `VM/src/native/native_json.cpp`
+  - [ ] `VM/src/native/native_thread.cpp`
+  - [ ] `VM/src/ffi/dl_runtime.cpp`
+  - [ ] `VM/src/jit/jit_scaffold.cpp`
+  - [ ] `VM/src/gc/root_tracer.cpp`
+  - [ ] `VM/src/runtime/runtime_limits.cpp`
+- [ ] Define explicit VM boundary types:
+  - [ ] `NativeCallContext`
+  - [ ] `NativeCallResult`
+  - [ ] `NativeModule`
+  - [ ] `NativeFunction`
+  - [ ] `FrameState`
+  - [ ] `InterpreterState`
+  - [ ] `RootTraceContext`
+- [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.
+- [ ] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
+- [ ] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
+
+### SRP Phase 2: Native Binding Metadata
+
+- [ ] Add `VM/include/native/native_registry.h`.
+- [ ] Add `VM/src/native/native_registry.cpp`.
+- [ ] Define `NativeFunctionSpec` metadata:
+  - [ ] module name
+  - [ ] symbol name
+  - [ ] parameter types
+  - [ ] result type
+  - [ ] handler function
+- [ ] Use native metadata for VM runtime dispatch.
+- [ ] Use native metadata for Lang reserved module signature generation.
+- [ ] Use native metadata for stdlib documentation generation.
+- [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.
+- [ ] Native functions must use named handlers such as `FsReadText`, `ChannelPendingI32`, and `JsonParse`.
+
+### SRP Phase 3: Language Validation Split
+
+- [ ] Split `Lang/src/lang_validate.cpp` into RAST modules:
+  - [ ] `Lang/src/RAST/import_graph.cpp`
+  - [ ] `Lang/src/RAST/symbol_table.cpp`
+  - [ ] `Lang/src/RAST/resolver.cpp`
+  - [ ] `Lang/src/RAST/member_resolution.cpp`
+  - [ ] `Lang/src/RAST/reserved_resolution.cpp`
+- [ ] RAST owns names and symbols only:
+  - [ ] symbol lookup
+  - [ ] import resolution
+  - [ ] member resolution by name
+  - [ ] declaration reference resolution
+- [ ] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
+- [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:
+  - [ ] `Lang/src/TAST/type_checker.cpp`
+  - [ ] `Lang/src/TAST/expressions.cpp`
+  - [ ] `Lang/src/TAST/statements.cpp`
+  - [ ] `Lang/src/TAST/calls.cpp`
+  - [ ] `Lang/src/TAST/literals.cpp`
+  - [ ] `Lang/src/TAST/mutability.cpp`
+  - [ ] `Lang/src/TAST/control_flow.cpp`
+  - [ ] `Lang/src/TAST/generics.cpp`
+  - [ ] `Lang/src/TAST/abi.cpp`
+- [ ] TAST owns type facts and produces/persists:
+  - [ ] `TypedProgram`
+  - [ ] `TypedExpr`
+  - [ ] `TypedStmt`
+  - [ ] `ExprTypeMap`
+  - [ ] `MutabilityFacts`
+  - [ ] `AbiFacts`
+- [ ] Use phase-specific function names such as `ResolveProgram`, `ResolveMemberAccess`, `CheckCallExpression`, `CheckAssignment`, `CheckReturnFlow`, `CheckAbiShape`, and `SubstituteGenericTypes`.
+- [ ] Avoid generic multi-purpose names like `ValidateThing` or broad `InferExprType` helpers that hide multiple responsibilities.
+
+### SRP Phase 4: Structured Diagnostics
+
+- [ ] Add `Lang/include/Diagnostics/diagnostic.h`.
+- [ ] Add `Lang/src/Diagnostics/diagnostic.cpp`.
+- [ ] Add `CLI/src/diagnostic_render.cpp`.
+- [ ] Add `LSP/src/diagnostic_bridge.cpp`.
+- [ ] Define structured diagnostics with:
+  - [ ] diagnostic code
+  - [ ] source span
+  - [ ] phase
+  - [ ] message
+  - [ ] help text
+- [ ] Compiler phases should return/report diagnostics instead of only plain strings.
+- [ ] CLI should render diagnostics only; it should not infer diagnostic codes from string matching.
+- [ ] LSP should consume the same structured diagnostics as CLI.
+
+### SRP Phase 5: Test Split
+
+- [ ] Split VM tests out of `Tests/tests/test_core.cpp`:
+  - [ ] `Tests/tests/vm/test_interpreter.cpp`
+  - [ ] `Tests/tests/vm/test_heap.cpp`
+  - [ ] `Tests/tests/vm/test_gc.cpp`
+  - [ ] `Tests/tests/vm/test_runtime_limits.cpp`
+  - [ ] `Tests/tests/vm/test_native_fs.cpp`
+  - [ ] `Tests/tests/vm/test_native_channel.cpp`
+  - [ ] `Tests/tests/vm/test_jit.cpp`
+- [ ] Split language tests out of `Tests/tests/test_lang.cpp`:
+  - [ ] `Tests/tests/lang/test_lexer.cpp`
+  - [ ] `Tests/tests/lang/test_cast.cpp`
+  - [ ] `Tests/tests/lang/test_ast.cpp`
+  - [ ] `Tests/tests/lang/test_rast.cpp`
+  - [ ] `Tests/tests/lang/test_tast.cpp`
+  - [ ] `Tests/tests/lang/test_irb.cpp`
+  - [ ] `Tests/tests/lang/test_ire.cpp`
+  - [ ] `Tests/tests/lang/test_integration.cpp`
+- [ ] Split CLI tests out of `Tests/tests/test_lang.cpp`:
+  - [ ] `Tests/tests/cli/test_cli_contract.cpp`
+  - [ ] `Tests/tests/cli/test_cli_diagnostics.cpp`
+  - [ ] `Tests/tests/cli/test_cli_build.cpp`
+  - [ ] `Tests/tests/cli/test_cli_imports.cpp`
+- [ ] Migration order:
+  - [ ] heap/gc tests first
+  - [ ] lexer/parser tests second
+  - [ ] CLI tests third
+  - [ ] RAST/TAST tests fourth
+
+### SRP Phase 6: CLI / Import / Build Service Split
+
+- [ ] Move import graph construction out of CLI into shared Lang/RAST service.
+- [ ] Make CLI, LSP, and tests use the same import graph implementation.
+- [ ] Move CLI diagnostic rendering into `CLI/src/diagnostic_render.cpp`.
+- [ ] Move CLI build/embed/link helpers out of `CLI/src/main.cpp`.
+- [ ] Move CLI command parsing/dispatch into dedicated command modules.
+- [ ] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.
+
+### SRP Phase 7: Documentation / Ownership
+
+- [ ] Add/update architecture ownership docs:
+  - [ ] `Docs/Architecture.md`
+  - [ ] `Docs/LanguagePipeline.md`
+  - [ ] `Docs/NativeBindings.md`
+  - [ ] `Docs/Diagnostics.md`
+- [ ] Each subsystem doc must list:
+  - [ ] owned files
+  - [ ] forbidden dependencies
+  - [ ] public API
+  - [ ] tests
+- [ ] Keep `Docs/TODO.md` actionable with file-level tasks, not broad statements.
+
+### SRP Phase 8: No-Shim / No-Facade End State
+
+- [ ] Remove legacy `lang_*.h` compatibility facades after callers move to phase headers:
+  - [ ] remove `lang_ast.h`
+  - [ ] remove `lang_parser.h`
+  - [ ] remove `lang_validate.h`
+  - [ ] remove `lang_sir.h`
+- [ ] Remove facade-only Lang phase modules; each phase must own real implementation.
+- [ ] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
+- [ ] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
+- [ ] Add tests/checks that fail if removed legacy headers/facades are reintroduced.
+
+### SRP Code Review Checks
+
+- [ ] VM review gate: adding code to `VM/src/vm.cpp` requires written justification.
+- [ ] Language review gate: adding code to `Lang/src/lang_validate.cpp` requires written justification.
+- [ ] Native runtime review gate: native code must have metadata/signature tests.
+- [ ] GC review gate: GC code must use layout/ref maps rather than guesses.
+- [ ] Language phase review gate: new semantic logic must identify whether it belongs to RAST or TAST.
+- [ ] Test review gate: new tests must live in the correct subsystem after test split.
+
 ## High Priority: Native SVM Standard Library
 
 All Simple standard/core library modules should be implemented as native C++ runtime functions integrated into SVM. They should not be implemented as DL libraries.
@@ -78,11 +277,13 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Replace direct SIR string emission with `IRB -> IRE`.
   - [x] Add initial `TAST -> IRB -> IRE` bridge.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.
-- [x] Define deprecation/migration policy for legacy includes:
-  - [x] `lang_ast.h`
-  - [x] `lang_parser.h`
-  - [x] `lang_validate.h`
-  - [x] `lang_sir.h`
+- [ ] Remove legacy include facades after migration:
+  - [ ] remove `lang_ast.h`
+  - [ ] remove `lang_parser.h`
+  - [ ] remove `lang_validate.h`
+  - [ ] remove `lang_sir.h`
+  - [ ] update all project includes to phase headers
+  - [ ] delete compatibility tests that only exist to preserve legacy facades
 
 ## Validator / Semantic Analysis
 
