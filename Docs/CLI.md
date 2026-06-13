@@ -149,14 +149,22 @@ Implemented CLI import loading:
 - ambiguous bare-name imports are rejected
 - cyclic imports are rejected
 
+### Exit Codes
+
+Frozen CLI exit-code contract:
+
+- `0`: command succeeded (`help`, `version`, `check`, successful build/emit, or a run whose program returns 0)
+- `1`: CLI/compiler/load/verify/build failure
+- `N`: `run` returns the VM program exit code when execution halts normally
+
 ### Diagnostics
 
-Implemented diagnostics behavior:
+Frozen stderr diagnostic behavior:
 
-- failures return non-zero exit status
-- many `.simple` diagnostics are printed as `error[E0001]: ...`
+- CLI/compiler/load/verify/build failures print one primary line prefixed with `error[E0001]: `
 - source location and caret context are printed when line/column and source are available
 - simple help hints are printed for selected common diagnostic classes
+- successful `check`, `build`, and `emit` commands do not write stderr
 
 ### Build Scripts
 
@@ -185,7 +193,6 @@ The current scripts do not implement `--suite`.
 
 ## In Progress
 
-- fully frozen exit-code contract for every command/failure class
 - stable machine-readable diagnostic output
 - complete documentation for executable embedding/linking behavior
 - complete installer/release behavior documentation

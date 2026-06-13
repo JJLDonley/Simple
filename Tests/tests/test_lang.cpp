@@ -2189,6 +2189,30 @@ bool LangCliSimpleRejectSir() {
   return RunCommandExpectFail("bin/simple check Tests/sir/fib_iter.sir");
 }
 
+bool LangCliExitCodeContract() {
+  int exit_code = -1;
+  RunCommandCaptureStderr("bin/simple --version", &exit_code);
+  if (exit_code != 0) return false;
+
+  RunCommandCaptureStderr("bin/simple check Tests/simple/hello.simple", &exit_code);
+  if (exit_code != 0) return false;
+
+  RunCommandCaptureStderr("bin/simple run Tests/simple/add_fn.simple", &exit_code);
+  if (exit_code != 42) return false;
+
+  RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  return exit_code == 1;
+}
+
+bool LangCliStderrDiagnosticContract() {
+  int exit_code = -1;
+  std::string stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple/hello.simple", &exit_code);
+  if (exit_code != 0 || !stderr_text.empty()) return false;
+
+  stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  return exit_code == 1 && stderr_text.find("error[E0001]: ") == 0;
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -5094,6 +5118,8 @@ const TestCase kLangTests[] = {
   {"lang_cli_run_simple_local_import", LangCliRunSimpleLocalImport},
   {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
+  {"lang_cli_exit_code_contract", LangCliExitCodeContract},
+  {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},
