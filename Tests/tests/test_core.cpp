@@ -16154,12 +16154,15 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_bytes = default_registry.Find("System.channel", "newBytes");
   const auto* channel_pending_bytes = default_registry.Find("System.channel", "pendingBytes");
   const auto* channel_close = default_registry.Find("System.channel", "close");
+  const auto* json_free = default_registry.Find("System.json", "free");
+  const auto* log_set_level = default_registry.Find("System.log", "setLevel");
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && random_i32->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_close && json_free && log_set_level &&
+         random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
@@ -16180,7 +16183,9 @@ bool RunNativeRegistryModuleTest() {
          channel_pending_string->result_type == Simple::Byte::TypeKind::I32 &&
          channel_bytes->result_type == Simple::Byte::TypeKind::I64 &&
          channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
-         channel_close->result_type == Simple::Byte::TypeKind::Unspecified;
+         channel_close->result_type == Simple::Byte::TypeKind::Unspecified &&
+         json_free->result_type == Simple::Byte::TypeKind::I32 &&
+         log_set_level->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 
 bool RunNativeThreadModuleTest() {

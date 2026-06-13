@@ -4,6 +4,8 @@
 #include <utility>
 
 #include "native/channel.h"
+#include "native/json.h"
+#include "native/log.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -369,6 +371,19 @@ NativeCallResult ChannelClose(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult JsonFree(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Json::Free(UnpackI64(context.args[0])) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult LogSetLevel(NativeCallContext& context) {
+  Log::SetLevel(UnpackI32(context.args[0]));
+  NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -428,6 +443,17 @@ void RegisterSystemThread(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.thread", "yield", {}, TypeKind::Unspecified, ThreadYield));
   registry.Register(MakeSpec("System.thread", "hardwareConcurrency", {}, TypeKind::I32,
                              ThreadHardwareConcurrency));
+}
+
+void RegisterSystemJson(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.json", "free", {TypeKind::I64}, TypeKind::I32, JsonFree));
+}
+
+void RegisterSystemLog(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
+                             LogSetLevel));
 }
 
 void RegisterSystemChannel(NativeRegistry& registry) {
@@ -503,6 +529,8 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemOs(registry);
   RegisterSystemThread(registry);
   RegisterSystemChannel(registry);
+  RegisterSystemJson(registry);
+  RegisterSystemLog(registry);
   return registry;
 }
 

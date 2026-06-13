@@ -57,6 +57,8 @@ void RegisterSystemRandom(NativeRegistry& registry);
 void RegisterSystemOs(NativeRegistry& registry);
 void RegisterSystemThread(NativeRegistry& registry);
 void RegisterSystemChannel(NativeRegistry& registry);
+void RegisterSystemJson(NativeRegistry& registry);
+void RegisterSystemLog(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native

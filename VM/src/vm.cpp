@@ -2470,10 +2470,24 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "free") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.json.free return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.json.free arg count mismatch"; return false; }
-        const int64_t handle = UnpackI64(args[0]);
-        out_ret = PackI32(Simple::VM::Native::Json::Free(handle) ? 1 : 0);
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "System.json.free return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.json.free arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
         return true;
       }
     }
@@ -2575,12 +2589,20 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return U16ToAscii(ReadString(obj));
       };
       if (sym == "setLevel") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
         out_has_ret = false;
-        if (args.size() != 1) {
+        if (args.size() != spec->parameter_types.size()) {
           out_error = "System.log.setLevel arg count mismatch";
           return false;
         }
-        Simple::VM::Native::Log::SetLevel(UnpackI32(args[0]));
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
         return true;
       }
       if (sym == "setFile") {
