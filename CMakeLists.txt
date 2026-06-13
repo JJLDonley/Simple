@@ -204,6 +204,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_jit.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lang.cpp
   ${SIMPLEVM_TEST_ROOT}/test_lsp.cpp
+  ${SIMPLEVM_TEST_ROOT}/lang/test_tast.cpp
   ${SIMPLEVM_TEST_ROOT}/test_main.cpp
   ${SIMPLEVM_TEST_ROOT}/sir_runner.cpp
   ${SIMPLEVM_TEST_ROOT}/simple_runner.cpp
@@ -212,6 +213,7 @@ add_executable(simplevm_tests
   ${SIMPLEVM_LSP_ROOT}/src/diagnostic_bridge.cpp
 )
 target_include_directories(simplevm_tests PRIVATE
+  ${SIMPLEVM_TEST_ROOT}
   ${SIMPLEVM_ROOT}/CLI/include
   ${SIMPLEVM_LSP_ROOT}/include
 )

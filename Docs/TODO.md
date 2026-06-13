@@ -170,7 +170,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `Tests/tests/lang/test_cast.cpp`
   - [ ] `Tests/tests/lang/test_ast.cpp`
   - [ ] `Tests/tests/lang/test_rast.cpp`
-  - [ ] `Tests/tests/lang/test_tast.cpp`
+  - [x] `Tests/tests/lang/test_tast.cpp`
   - [ ] `Tests/tests/lang/test_irb.cpp`
   - [ ] `Tests/tests/lang/test_ire.cpp`
   - [ ] `Tests/tests/lang/test_integration.cpp`
