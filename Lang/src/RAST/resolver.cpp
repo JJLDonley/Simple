@@ -211,7 +211,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
-  if (canonical_module == "Log") return member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel";
+  if (canonical_module == "Log") return member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   return false;
 }
 

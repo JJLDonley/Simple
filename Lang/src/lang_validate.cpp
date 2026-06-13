@@ -368,7 +368,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
-  if (resolved == "Log") return {"log", "info", "warn", "error", "setLevel"};
+  if (resolved == "Log") return {"log", "info", "warn", "error", "setLevel", "setFile"};
   return {};
 }
 
@@ -930,6 +930,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     if (member == "setLevel") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("void");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "setFile") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
       out->return_mutability = Mutability::Mutable;
       return true;
     }

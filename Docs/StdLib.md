@@ -103,6 +103,11 @@ Preferred modern aliases:
 | Member | Signature |
 |---|---|
 | `log` | `(message : string, level : i32) -> void` |
+| `info` | `(message : string) -> void` |
+| `warn` | `(message : string) -> void` |
+| `error` | `(message : string) -> void` |
+| `setLevel` | `(level : i32) -> void` |
+| `setFile` | `(path : string) -> bool` (empty path restores stdout/stderr) |
 
 ### DL
 | Member | Signature |

@@ -452,7 +452,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       found = true;
       result = module;
     } else if (module == "Log" &&
-               (member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel")) {
+               (member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile")) {
       if (found) return false;
       found = true;
       result = module;
@@ -5283,6 +5283,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> level_params;
       level_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "core.log", "setLevel", std::move(level_params), make_type("void"))) return false;
+      std::vector<TypeRef> file_params;
+      file_params.push_back(make_type("string"));
+      if (!add_reserved_import(alias, "core.log", "setFile", std::move(file_params), make_type("bool"))) return false;
     }
   }
 

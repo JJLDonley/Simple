@@ -1,10 +1,21 @@
 import Log
+import FS
 
 main : i32 () {
+  path : string = "/tmp/simple_reserved_log_sink.txt"
+  FS.remove(path)
   Log.setLevel(3)
   Log.info("hidden")
   Log.warn("hidden")
   Log.error("shown")
   Log.log("also shown", 3)
+  if (!Log.setFile(path)) { return 0 }
+  Log.error("file shown")
+  Log.log("file also shown", 3)
+  text : string = FS.readText(path)
+  Log.setFile("")
+  Log.setLevel(0)
+  FS.remove(path)
+  if (len(text) == 0) { return 0 }
   return 1
 }

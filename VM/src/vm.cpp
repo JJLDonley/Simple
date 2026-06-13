@@ -77,6 +77,8 @@ ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
 std::mutex g_random_mutex;
 std::mt19937_64 g_random_engine{std::random_device{}()};
 std::atomic<int32_t> g_log_level{0};
+std::mutex g_log_file_mutex;
+std::unique_ptr<std::ofstream> g_log_file;
 
 std::string HostPlatformName() {
 #if defined(_WIN32)
@@ -2734,6 +2736,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       auto emit_log = [&](const std::string& message, int32_t level) {
         if (level < g_log_level.load()) return;
         const char* label = level >= 3 ? "ERROR" : (level == 2 ? "WARN" : "INFO");
+        std::lock_guard<std::mutex> lock(g_log_file_mutex);
+        if (g_log_file && g_log_file->is_open()) {
+          (*g_log_file) << "[" << label << "] " << message << "\n";
+          g_log_file->flush();
+          return;
+        }
         std::ostream& stream = level >= 2 ? std::cerr : std::cout;
         stream << "[" << label << "] " << message << "\n";
       };
@@ -2744,6 +2752,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
         }
         g_log_level.store(UnpackI32(args[0]));
+        return true;
+      }
+      if (sym == "setFile") {
+        if (args.size() != 1) {
+          out_error = "core.log.setFile arg count mismatch";
+          return false;
+        }
+        const std::string path = read_log_message(args[0]);
+        std::lock_guard<std::mutex> lock(g_log_file_mutex);
+        g_log_file.reset();
+        if (path.empty()) {
+          out_ret = PackI32(1);
+          return true;
+        }
+        auto file = std::make_unique<std::ofstream>(path, std::ios::out | std::ios::trunc);
+        if (!file->is_open()) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        g_log_file = std::move(file);
+        out_ret = PackI32(1);
         return true;
       }
       if (sym == "log") {
