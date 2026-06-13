@@ -28,7 +28,6 @@
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <random>
 #include <sstream>
 #include <thread>
 #include <tuple>
@@ -39,6 +38,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "native/native_random.h"
 #include "native/native_time.h"
 #include "opcode.h"
 #include "scratch_arena.h"
@@ -76,8 +76,6 @@ ChannelRegistry<double> g_channel_f64;
 ChannelRegistry<bool> g_channel_bool;
 ChannelRegistry<std::u16string> g_channel_string;
 ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
-std::mutex g_random_mutex;
-std::mt19937_64 g_random_engine{std::random_device{}()};
 std::atomic<int32_t> g_log_level{0};
 std::atomic<int64_t> g_next_json_handle{1};
 std::mutex g_json_mutex;
@@ -2122,8 +2120,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.random.seed arg count mismatch";
           return false;
         }
-        std::lock_guard<std::mutex> lock(g_random_mutex);
-        g_random_engine.seed(static_cast<uint64_t>(UnpackI64(args[0])));
+        Simple::VM::Native::Random::Seed(static_cast<uint64_t>(UnpackI64(args[0])));
         return true;
       }
       if (sym == "i32") {
@@ -2135,8 +2132,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.random.i32 arg count mismatch";
           return false;
         }
-        std::lock_guard<std::mutex> lock(g_random_mutex);
-        out_ret = PackI32(static_cast<int32_t>(g_random_engine() & 0x7fffffffu));
+        out_ret = PackI32(Simple::VM::Native::Random::I32());
         return true;
       }
       if (sym == "range") {
@@ -2148,15 +2144,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.random.range arg count mismatch";
           return false;
         }
-        int32_t lo = UnpackI32(args[0]);
-        int32_t hi = UnpackI32(args[1]);
-        if (hi <= lo) {
-          out_ret = PackI32(lo);
-          return true;
-        }
-        std::uniform_int_distribution<int32_t> dist(lo, hi - 1);
-        std::lock_guard<std::mutex> lock(g_random_mutex);
-        out_ret = PackI32(dist(g_random_engine));
+        out_ret = PackI32(Simple::VM::Native::Random::Range(UnpackI32(args[0]), UnpackI32(args[1])));
         return true;
       }
       if (sym == "f64") {
@@ -2168,9 +2156,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.random.f64 arg count mismatch";
           return false;
         }
-        std::uniform_real_distribution<double> dist(0.0, 1.0);
-        std::lock_guard<std::mutex> lock(g_random_mutex);
-        out_ret = PackF64Bits(F64ToBits(dist(g_random_engine)));
+        out_ret = PackF64Bits(F64ToBits(Simple::VM::Native::Random::F64()));
         return true;
       }
     }

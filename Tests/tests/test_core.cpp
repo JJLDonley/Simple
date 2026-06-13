@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "lang_version.h"
+#include "native/native_random.h"
 #include "native/native_time.h"
 #include "opcode.h"
 #include "ir_lang.h"
@@ -15861,6 +15862,18 @@ bool RunRuntimeLimitsTest() {
   return ok_result.status == Simple::VM::ExecStatus::Halted;
 }
 
+bool RunNativeRandomModuleTest() {
+  Simple::VM::Native::Random::Seed(123);
+  const int32_t a = Simple::VM::Native::Random::I32();
+  Simple::VM::Native::Random::Seed(123);
+  const int32_t b = Simple::VM::Native::Random::I32();
+  if (a != b) return false;
+  const int32_t r = Simple::VM::Native::Random::Range(5, 10);
+  if (r < 5 || r >= 10) return false;
+  const double f = Simple::VM::Native::Random::F64();
+  return f >= 0.0 && f < 1.0 && Simple::VM::Native::Random::Range(7, 7) == 7;
+}
+
 bool RunNativeTimeModuleTest() {
   const int64_t mono_a = Simple::VM::Native::Time::MonotonicNs();
   const int64_t mono_b = Simple::VM::Native::Time::MonotonicNs();
@@ -23439,6 +23452,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"native_random_module", RunNativeRandomModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
