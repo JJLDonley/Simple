@@ -406,7 +406,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "Time" && (member == "mono_ns" || member == "wall_ns")) {
+    } else if (module == "Time" && (member == "mono_ns" || member == "wall_ns" || member == "formatWallNs")) {
       if (found) return false;
       found = true;
       result = module;
@@ -1599,7 +1599,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2726,7 +2726,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5041,6 +5041,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
+  if (st.reserved_imports.find("Time") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("Time")) {
+      std::vector<TypeRef> format_params;
+      format_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
+    }
+  }
+
   if (st.reserved_imports.find("OS") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("OS")) {
       if (!add_reserved_import(alias, "core.os", "args_count", {}, make_type("i32"))) return false;
@@ -5056,6 +5064,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_reserved_import(alias, "core.os", "cwd_get", {}, make_type("string"))) return false;
       if (!add_reserved_import(alias, "core.os", "time_mono_ns", {}, make_type("i64"))) return false;
       if (!add_reserved_import(alias, "core.os", "time_wall_ns", {}, make_type("i64"))) return false;
+
+      std::vector<TypeRef> format_params;
+      format_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
 
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));

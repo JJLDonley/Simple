@@ -339,14 +339,14 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
     return {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
   }
   if (resolved == "Math") return {"abs", "min", "max", "sqrt", "PI"};
-  if (resolved == "Time") return {"mono_ns", "wall_ns"};
+  if (resolved == "Time") return {"mono_ns", "wall_ns", "formatWallNs"};
   if (resolved == "DL") {
     return {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
             "call_str0", "supported"};
   }
   if (resolved == "OS") {
     return {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
-            "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
+            "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
   }
   if (resolved == "Thread") return {"sleep", "yield", "hardwareConcurrency"};
   if (resolved == "Random") return {"seed", "i32", "range", "f64"};
@@ -549,6 +549,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   if (resolved == "Time") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "formatWallNs") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -868,6 +874,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
     if (member == "time_mono_ns" || member == "time_wall_ns") {
       out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "formatWallNs") {
+      out->params.push_back(MakeSimpleType("i64"));
+      out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
@@ -2508,6 +2520,19 @@ bool CheckCallArgTypes(const Expr& call_expr,
         if (name == "mono_ns" || name == "wall_ns") {
           if (!call_expr.args.empty()) {
             if (error) *error = "Time." + name + " expects no arguments";
+            return false;
+          }
+          return true;
+        }
+        if (name == "formatWallNs") {
+          if (call_expr.args.size() != 1) {
+            if (error) *error = "Time.formatWallNs expects (i64)";
+            return false;
+          }
+          TypeRef ns;
+          if (!infer_arg(0, &ns)) return true;
+          if (ns.name != "i64" || !ns.dims.empty()) {
+            if (error) *error = "Time.formatWallNs expects (i64)";
             return false;
           }
           return true;

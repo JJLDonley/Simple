@@ -1,7 +1,12 @@
 import Time
+using Time
 
 main : i32 () {
   Time.mono_ns()
-  Time.wall_ns()
+  wall : i64 = Time.wall_ns()
+  text : string = Time.formatWallNs(wall)
+  if (len(text) != 30) { return 1 }
+  using_text : string = formatWallNs(wall)
+  if (len(using_text) != 30) { return 2 }
   return 0
 }

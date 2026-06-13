@@ -169,7 +169,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "Math") {
     return member == "abs" || member == "min" || member == "max" || member == "sqrt";
   }
-  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns";
+  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
   if (canonical_module == "DL") {
     return member == "open" || member == "sym" || member == "close" ||
            member == "last_error" || member == "call_i32" || member == "call_i64" ||
@@ -178,6 +178,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "OS") {
     return member == "args_count" || member == "args_get" || member == "env_get" ||
            member == "cwd_get" || member == "time_mono_ns" || member == "time_wall_ns" ||
+           member == "formatWallNs" ||
            member == "sleep_ms";
   }
   if (canonical_module == "Thread") {

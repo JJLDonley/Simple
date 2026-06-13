@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
+#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #if defined(_WIN32)
@@ -18,6 +19,7 @@
 #endif
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <atomic>
 #include <condition_variable>
@@ -116,6 +118,27 @@ std::string HostExePath() {
 #else
   return {};
 #endif
+}
+
+std::string FormatUnixNsUtc(int64_t ns) {
+  const int64_t kNsPerSecond = 1000000000LL;
+  int64_t sec = ns / kNsPerSecond;
+  int64_t frac = ns % kNsPerSecond;
+  if (frac < 0) {
+    frac += kNsPerSecond;
+    --sec;
+  }
+  std::time_t tt = static_cast<std::time_t>(sec);
+  std::tm tm{};
+#if defined(_WIN32)
+  gmtime_s(&tm, &tt);
+#else
+  gmtime_r(&tt, &tm);
+#endif
+  std::ostringstream oss;
+  oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S") << '.'
+      << std::setw(9) << std::setfill('0') << frac << 'Z';
+  return oss.str();
 }
 
 template <typename T>
@@ -1765,6 +1788,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_ret = PackRef(kNullRef);
           return true;
         }
+      }
+      if (sym == "formatWallNs") {
+        if (!IsStringLikeImportType(ret_kind)) {
+          out_error = "core.os.formatWallNs return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = "core.os.formatWallNs arg count mismatch";
+          return false;
+        }
+        out_ret = PackRef(CreateString(heap, AsciiToU16(FormatUnixNsUtc(UnpackI64(args[0])))));
+        return true;
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns") {
         if (!IsI64LikeImportType(ret_kind)) {

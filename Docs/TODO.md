@@ -33,7 +33,7 @@ All Simple standard/core library modules should be implemented as native C++ run
     - [x] copy, remove, mkdir, mkdirAll, cwd, setCwd
     - [x] listDir
   - [x] `Env`: args, get, set, platform, arch, exePath
-  - [ ] `Time`: monotonic clocks, wall clocks, formatting helpers
+  - [x] `Time`: monotonic clocks, wall clocks, formatting helpers
   - [x] `Random`: seed, `i32`, integer ranges, `f64`
   - [ ] `Log`:
     - [x] levels
