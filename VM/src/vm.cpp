@@ -1719,9 +1719,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           sym == "tryRecvF64" || sym == "pendingF64" || sym == "newBool" ||
           sym == "sendBool" || sym == "trySendBool" || sym == "recvBool" ||
           sym == "tryRecvBool" || sym == "pendingBool" || sym == "newString" ||
-          sym == "sendString" || sym == "trySendString" || sym == "pendingString" ||
-          sym == "newBytes" || sym == "sendBytes" || sym == "trySendBytes" ||
-          sym == "pendingBytes" || sym == "close") {
+          sym == "sendString" || sym == "trySendString" || sym == "recvString" ||
+          sym == "tryRecvString" || sym == "pendingString" || sym == "newBytes" ||
+          sym == "sendBytes" || sym == "trySendBytes" || sym == "recvBytes" ||
+          sym == "tryRecvBytes" || sym == "pendingBytes" || sym == "close") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
         if (spec->result_type == TypeKind::Unspecified) {
@@ -1733,6 +1734,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           }
         } else if (spec->result_type == TypeKind::F32 || spec->result_type == TypeKind::F64) {
           if (ret_kind != spec->result_type) {
+            out_error = "System.channel." + sym + " return type mismatch";
+            return false;
+          }
+        } else if (spec->result_type == TypeKind::String) {
+          if (!IsStringLikeImportType(ret_kind)) {
+            out_error = "System.channel." + sym + " return type mismatch";
+            return false;
+          }
+        } else if (spec->result_type == TypeKind::Ref) {
+          if (ret_kind != TypeKind::Ref) {
             out_error = "System.channel." + sym + " return type mismatch";
             return false;
           }
@@ -1752,72 +1763,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = result.error;
           return false;
         }
-        if (result.has_value) out_ret = result.value;
-        return true;
-      }
-      if (sym == "recvBytes" || sym == "tryRecvBytes") {
-        if (ret_kind != TypeKind::Ref) {
-          out_error = std::string("System.channel.") + sym + " return type mismatch";
-          return false;
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else if (result.has_value) {
+          out_ret = result.value;
         }
-        if (args.size() != 1) {
-          out_error = std::string("System.channel.") + sym + " arg count mismatch";
-          return false;
-        }
-        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_bytes, UnpackI64(args[0]));
-        if (!state) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        std::unique_lock<std::mutex> lock(state->mutex);
-        if (sym == "recvBytes") state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
-        if (state->values.empty()) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        std::vector<int32_t> values = std::move(state->values.front());
-        state->values.pop();
-        lock.unlock();
-        const uint32_t length = static_cast<uint32_t>(values.size());
-        const uint32_t size = 8u + length * 4u;
-        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-        HeapObject* out_obj = heap.Get(handle);
-        if (!out_obj) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        WriteU32Payload(out_obj->payload, 0, length);
-        WriteU32Payload(out_obj->payload, 4, length);
-        for (uint32_t i = 0; i < length; ++i) {
-          WriteU32Payload(out_obj->payload, 8u + i * 4, static_cast<uint32_t>(values[i]));
-        }
-        out_ret = PackRef(handle);
-        return true;
-      }
-      if (sym == "recvString" || sym == "tryRecvString") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = std::string("System.channel.") + sym + " return type mismatch";
-          return false;
-        }
-        if (args.size() != 1) {
-          out_error = std::string("System.channel.") + sym + " arg count mismatch";
-          return false;
-        }
-        auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_string, UnpackI64(args[0]));
-        if (!state) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        std::unique_lock<std::mutex> lock(state->mutex);
-        if (sym == "recvString") state->cv.wait(lock, [&] { return state->closed || !state->values.empty(); });
-        if (state->values.empty()) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        std::u16string value = std::move(state->values.front());
-        state->values.pop();
-        lock.unlock();
-        out_ret = PackRef(CreateString(heap, value));
         return true;
       }
     }

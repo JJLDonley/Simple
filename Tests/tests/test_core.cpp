@@ -16175,9 +16175,11 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_pending_bool = default_registry.Find("System.channel", "pendingBool");
   const auto* channel_string = default_registry.Find("System.channel", "newString");
   const auto* channel_send_string = default_registry.Find("System.channel", "sendString");
+  const auto* channel_recv_string = default_registry.Find("System.channel", "recvString");
   const auto* channel_pending_string = default_registry.Find("System.channel", "pendingString");
   const auto* channel_bytes = default_registry.Find("System.channel", "newBytes");
   const auto* channel_send_bytes = default_registry.Find("System.channel", "sendBytes");
+  const auto* channel_recv_bytes = default_registry.Find("System.channel", "recvBytes");
   const auto* channel_pending_bytes = default_registry.Find("System.channel", "pendingBytes");
   const auto* channel_close = default_registry.Find("System.channel", "close");
   const auto* json_parse = default_registry.Find("System.json", "parse");
@@ -16245,6 +16247,12 @@ bool RunNativeRegistryModuleTest() {
       obj->payload[offset + 1] = 0;
     }
     return handle;
+  };
+  const auto read_test_u32 = [](const std::vector<uint8_t>& payload, size_t offset) -> uint32_t {
+    if (offset + 4 > payload.size()) return 0;
+    return payload[offset] | (static_cast<uint32_t>(payload[offset + 1]) << 8u) |
+           (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
+           (static_cast<uint32_t>(payload[offset + 3]) << 24u);
   };
   const std::vector<std::string> metadata_argv = {"simple", "arg-one"};
   Simple::VM::Native::NativeCallContext env_args_count_ctx;
@@ -16325,6 +16333,10 @@ bool RunNativeRegistryModuleTest() {
   channel_pending_string_ctx.args = {channel_new_string_result.value};
   const auto channel_pending_string_result = channel_pending_string ? channel_pending_string->handler(channel_pending_string_ctx)
                                                                     : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext channel_recv_string_ctx;
+  channel_recv_string_ctx.args = {channel_new_string_result.value};
+  const auto channel_recv_string_result = channel_recv_string ? channel_recv_string->handler(channel_recv_string_ctx)
+                                                              : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext channel_new_bytes_ctx;
   const auto channel_new_bytes_result = channel_bytes ? channel_bytes->handler(channel_new_bytes_ctx)
                                                       : Simple::VM::Native::NativeCallResult{};
@@ -16344,6 +16356,15 @@ bool RunNativeRegistryModuleTest() {
   channel_pending_bytes_ctx.args = {channel_new_bytes_result.value};
   const auto channel_pending_bytes_result = channel_pending_bytes ? channel_pending_bytes->handler(channel_pending_bytes_ctx)
                                                                   : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext channel_recv_bytes_ctx;
+  channel_recv_bytes_ctx.heap = &metadata_heap;
+  channel_recv_bytes_ctx.args = {channel_new_bytes_result.value};
+  const auto channel_recv_bytes_result = channel_recv_bytes ? channel_recv_bytes->handler(channel_recv_bytes_ctx)
+                                                            : Simple::VM::Native::NativeCallResult{};
+  HeapObject* channel_recv_bytes_obj = metadata_heap.Get(static_cast<uint32_t>(channel_recv_bytes_result.value));
+  if (!channel_recv_bytes_obj) return false;
+  const uint32_t channel_recv_bytes_len = read_test_u32(channel_recv_bytes_obj->payload, 0);
+  const uint32_t channel_recv_bytes_first = read_test_u32(channel_recv_bytes_obj->payload, 8);
   const uint32_t log_empty_path = make_metadata_string("");
   const uint32_t log_message = make_metadata_string("metadata log suppressed");
   Simple::VM::Native::NativeCallContext log_level_ctx;
@@ -16451,12 +16472,6 @@ bool RunNativeRegistryModuleTest() {
                                                   : Simple::VM::Native::NativeCallResult{};
   HeapObject* fs_read_bytes_obj = metadata_heap.Get(static_cast<uint32_t>(fs_read_bytes_result.value));
   if (!fs_read_bytes_obj) return false;
-  const auto read_test_u32 = [](const std::vector<uint8_t>& payload, size_t offset) -> uint32_t {
-    if (offset + 4 > payload.size()) return 0;
-    return payload[offset] | (static_cast<uint32_t>(payload[offset + 1]) << 8u) |
-           (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
-           (static_cast<uint32_t>(payload[offset + 3]) << 24u);
-  };
   const uint32_t fs_read_bytes_len = read_test_u32(fs_read_bytes_obj->payload, 0);
   const uint32_t fs_read_bytes_first = read_test_u32(fs_read_bytes_obj->payload, 8);
   Simple::VM::Native::NativeCallContext io_new_ctx;
@@ -16649,10 +16664,13 @@ bool RunNativeRegistryModuleTest() {
          thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
-         channel_string && channel_send_string && channel_pending_string && channel_bytes &&
-         channel_send_bytes && channel_pending_bytes && channel_send_string_result.value == 1 &&
-         channel_pending_string_result.value == 1 && channel_send_bytes_result.value == 1 &&
-         channel_pending_bytes_result.value == 1 && channel_close && json_parse && json_stringify && json_free && json_parse_result.value != 0 &&
+         channel_string && channel_send_string && channel_recv_string && channel_pending_string &&
+         channel_bytes && channel_send_bytes && channel_recv_bytes && channel_pending_bytes &&
+         channel_send_string_result.value == 1 && channel_pending_string_result.value == 1 &&
+         channel_recv_string_result.string_value == "metadata-channel" &&
+         channel_send_bytes_result.value == 1 && channel_pending_bytes_result.value == 1 &&
+         channel_recv_bytes_len == 2 && channel_recv_bytes_first == 65 &&
+         channel_close && json_parse && json_stringify && json_free && json_parse_result.value != 0 &&
          json_stringify_result.string_value == "{\"ok\":true}" && json_free_result.value == 1 &&
          dl_open && dl_sym && dl_close && dl_last_error && dl_open_result.value == 0 &&
          dl_sym_result.value == 0 && !dl_last_error_result.string_value.empty() &&
@@ -16713,9 +16731,11 @@ bool RunNativeRegistryModuleTest() {
          channel_pending_bool->result_type == Simple::Byte::TypeKind::I32 &&
          channel_string->result_type == Simple::Byte::TypeKind::I64 &&
          channel_send_string->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_recv_string->result_type == Simple::Byte::TypeKind::String &&
          channel_pending_string->result_type == Simple::Byte::TypeKind::I32 &&
          channel_bytes->result_type == Simple::Byte::TypeKind::I64 &&
          channel_send_bytes->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_recv_bytes->result_type == Simple::Byte::TypeKind::Ref &&
          channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified &&
          json_parse->result_type == Simple::Byte::TypeKind::I64 &&
