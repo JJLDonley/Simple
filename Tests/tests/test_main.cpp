@@ -39,6 +39,7 @@ const TestSection* GetCoreSections(size_t* count);
 const TestSection* GetRuntimeSmokeSections(size_t* count);
 const TestSection* GetVmGcSections(size_t* count);
 const TestSection* GetVmHeapSections(size_t* count);
+const TestSection* GetVmInterpreterSections(size_t* count);
 const TestSection* GetVmJitSections(size_t* count);
 const TestSection* GetVmNativeChannelSections(size_t* count);
 const TestSection* GetVmNativeFsSections(size_t* count);
@@ -215,6 +216,11 @@ int main(int argc, char** argv) {
   const Simple::VM::Tests::TestSection* vm_heap_sections =
       Simple::VM::Tests::GetVmHeapSections(&vm_heap_count);
   sections.insert(sections.end(), vm_heap_sections, vm_heap_sections + vm_heap_count);
+  size_t vm_interpreter_count = 0;
+  const Simple::VM::Tests::TestSection* vm_interpreter_sections =
+      Simple::VM::Tests::GetVmInterpreterSections(&vm_interpreter_count);
+  sections.insert(sections.end(), vm_interpreter_sections,
+                  vm_interpreter_sections + vm_interpreter_count);
   size_t vm_jit_count = 0;
   const Simple::VM::Tests::TestSection* vm_jit_sections =
       Simple::VM::Tests::GetVmJitSections(&vm_jit_count);
