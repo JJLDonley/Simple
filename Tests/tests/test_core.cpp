@@ -11,6 +11,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "lang_version.h"
+#include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
 #include "native/time.h"
@@ -15865,6 +15866,17 @@ bool RunRuntimeLimitsTest() {
   return ok_result.status == Simple::VM::ExecStatus::Halted;
 }
 
+bool RunNativeJsonModuleTest() {
+  const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
+  if (handle == 0) return false;
+  std::string text;
+  if (!Simple::VM::Native::Json::Stringify(handle, &text)) return false;
+  if (text != "{\"ok\":[true, null, 3]}") return false;
+  if (Simple::VM::Native::Json::Parse("{bad") != 0) return false;
+  if (!Simple::VM::Native::Json::Free(handle)) return false;
+  return !Simple::VM::Native::Json::Stringify(handle, &text);
+}
+
 bool RunNativeLogModuleTest() {
   const std::string path = "/tmp/simple_native_log_module.txt";
   std::remove(path.c_str());
@@ -23470,6 +23482,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},

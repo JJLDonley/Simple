@@ -43,7 +43,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `VM/src/native/log.cpp`
   - [ ] `VM/src/native/channel.cpp`
   - [ ] `VM/src/native/buffer.cpp`
-  - [ ] `VM/src/native/json.cpp`
+  - [x] `VM/src/native/json.cpp`
   - [ ] `VM/src/native/thread.cpp`
   - [ ] `VM/src/ffi/dl_runtime.cpp`
   - [ ] `VM/src/jit/jit_scaffold.cpp`
