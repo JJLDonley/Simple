@@ -31,7 +31,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Split `VM/src/vm.cpp` into explicit modules:
   - [ ] `VM/src/interpreter/interpreter.cpp`
   - [ ] `VM/src/interpreter/dispatch.cpp`
-  - [ ] `VM/src/interpreter/frames.cpp`
+  - [x] `VM/src/interpreter/frames.cpp`
   - [ ] `VM/src/interpreter/stack.cpp`
   - [x] `VM/src/native/registry.cpp`
   - [x] `VM/src/native/os.cpp`
@@ -54,7 +54,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `NativeCallResult`
   - [x] `NativeModule`
   - [x] `NativeFunction`
-  - [ ] `FrameState`
+  - [x] `FrameState`
   - [ ] `InterpreterState`
   - [x] `RootTraceContext`
 - [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.

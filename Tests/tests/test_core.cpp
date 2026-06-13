@@ -11,6 +11,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "interpreter/frames.h"
 #include "jit/jit_scaffold.h"
 #include "lang_version.h"
 #include "native/buffer.h"
@@ -16014,6 +16015,12 @@ bool RunGcRootTracerModuleTest() {
   return heap.Get(global_ref) && heap.Get(local_ref) && !heap.Get(unrooted_ref);
 }
 
+bool RunInterpreterFramesModuleTest() {
+  const auto frame = Simple::VM::Interpreter::MakeFrame(3, 10, 2, 99);
+  return frame.func_index == 3 && frame.return_pc == 10 && frame.stack_base == 2 &&
+         frame.closure_ref == 99 && frame.locals_base == 0 && frame.locals_count == 0;
+}
+
 bool RunJitScaffoldModuleTest() {
   using Simple::Byte::TypeKind;
   if (!Simple::VM::Jit::IsScalarKind(TypeKind::I32)) return false;
@@ -23694,6 +23701,7 @@ static const TestCase kCoreTests[] = {
   {"gc_root_tracer_module", RunGcRootTracerModuleTest},
   {"jit_scaffold_module", RunJitScaffoldModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
+  {"interpreter_frames_module", RunInterpreterFramesModuleTest},
   {"runtime_limits_module", RunRuntimeLimitsModuleTest},
   {"runtime_limits", RunRuntimeLimitsTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},

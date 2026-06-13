@@ -24,6 +24,7 @@
 #include "gc/root_tracer.h"
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "interpreter/frames.h"
 #include "jit/jit_scaffold.h"
 #include "native/buffer.h"
 #include "native/channel.h"
@@ -1121,20 +1122,9 @@ std::string U16ToAscii(const std::u16string& text) {
   return out;
 }
 
-struct Frame {
-  size_t func_index = 0;
-  size_t return_pc = 0;
-  size_t stack_base = 0;
-  uint32_t closure_ref = kNullRef;
-  uint32_t line = 0;
-  uint32_t column = 0;
-  size_t locals_base = 0;
-  uint16_t locals_count = 0;
-};
-
 struct TrapContext {
-  Frame* current = nullptr;
-  const std::vector<Frame>* call_stack = nullptr;
+  Simple::VM::Interpreter::FrameState* current = nullptr;
+  const std::vector<Simple::VM::Interpreter::FrameState>* call_stack = nullptr;
   const SbcModule* module = nullptr;
   size_t pc = 0;
   size_t func_start = 0;
@@ -1333,7 +1323,7 @@ ExecResult Trap(const std::string& message) {
   };
   std::ostringstream out;
   out << message;
-  const Frame* current = g_trap_ctx->current;
+  const Simple::VM::Interpreter::FrameState* current = g_trap_ctx->current;
   out << " (func " << current->func_index;
   if (g_trap_ctx->pc >= g_trap_ctx->func_start) {
     out << " pc " << (g_trap_ctx->pc - g_trap_ctx->func_start);
@@ -4624,7 +4614,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   if (!found) return Trap("entry method not found in functions table");
 
   std::vector<Slot> stack;
-  std::vector<Frame> call_stack;
+  std::vector<Simple::VM::Interpreter::FrameState> call_stack;
   std::vector<Slot> call_args;
 
   auto check_sequence_limit = [&](uint32_t count, const char* what) -> bool {
@@ -4637,15 +4627,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     std::fill(locals_arena.begin() + base, locals_arena.end(), 0);
     return base;
   };
-  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base, uint32_t closure_ref) -> Frame {
+  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base,
+                         uint32_t closure_ref) -> Simple::VM::Interpreter::FrameState {
     update_tier(func_index);
-    Frame frame;
-    frame.func_index = func_index;
-    frame.return_pc = return_pc;
-    frame.stack_base = stack_base;
-    frame.closure_ref = closure_ref;
-    frame.line = 0;
-    frame.column = 0;
+    Simple::VM::Interpreter::FrameState frame = Simple::VM::Interpreter::MakeFrame(
+        func_index, return_pc, stack_base, closure_ref);
     uint32_t method_id = module.functions[func_index].method_id;
     if (method_id >= module.methods.size()) {
       frame.locals_base = 0;
@@ -4659,7 +4645,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   };
 
   size_t func_start = module.functions[entry_func_index].code_offset;
-  Frame current = setup_frame(entry_func_index, 0, 0, kNullRef);
+  Simple::VM::Interpreter::FrameState current = setup_frame(entry_func_index, 0, 0, kNullRef);
   TrapContext trap_ctx;
   trap_ctx.current = &current;
   trap_ctx.call_stack = &call_stack;
@@ -6904,7 +6890,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (has_ret) result.exit_code = UnpackI32(ret);
             return finish(result);
           }
-          Frame caller = call_stack.back();
+          Simple::VM::Interpreter::FrameState caller = call_stack.back();
           call_stack.pop_back();
           stack.resize(caller.stack_base);
           locals_arena.resize(caller.locals_base + caller.locals_count);
@@ -6933,7 +6919,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (has_ret) result.exit_code = UnpackI32(ret);
               return finish(result);
             }
-            Frame caller = call_stack.back();
+            Simple::VM::Interpreter::FrameState caller = call_stack.back();
             call_stack.pop_back();
             stack.resize(caller.stack_base);
             locals_arena.resize(caller.locals_base + caller.locals_count);
@@ -7021,7 +7007,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           if (has_ret) result.exit_code = UnpackI32(ret);
           return finish(result);
         }
-        Frame caller = call_stack.back();
+        Simple::VM::Interpreter::FrameState caller = call_stack.back();
         call_stack.pop_back();
         stack.resize(caller.stack_base);
         locals_arena.resize(caller.locals_base + caller.locals_count);
