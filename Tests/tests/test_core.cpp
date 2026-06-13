@@ -16143,6 +16143,9 @@ bool RunNativeRegistryModuleTest() {
   const auto* path_exists = default_registry.Find("System.path", "exists");
   const auto* fs_read_text = default_registry.Find("System.fs", "readText");
   const auto* fs_write_text = default_registry.Find("System.fs", "writeText");
+  const auto* fs_read_bytes = default_registry.Find("System.fs", "readBytes");
+  const auto* fs_write_bytes = default_registry.Find("System.fs", "writeBytes");
+  const auto* fs_list_dir = default_registry.Find("System.fs", "listDir");
   const auto* fs_cwd = default_registry.Find("System.fs", "cwd");
   const auto* fs_copy = default_registry.Find("System.fs", "copy");
   const auto* fs_remove = default_registry.Find("System.fs", "remove");
@@ -16237,6 +16240,7 @@ bool RunNativeRegistryModuleTest() {
   const std::string fs_src = fs_base + "_src.txt";
   const std::string fs_dst = fs_base + "_dst.txt";
   const std::string fs_text = fs_base + "_text.txt";
+  const std::string fs_bytes = fs_base + "_bytes.bin";
   {
     std::ofstream out(fs_src, std::ios::binary);
     out << "metadata";
@@ -16245,7 +16249,16 @@ bool RunNativeRegistryModuleTest() {
   const uint32_t fs_src_ref = make_metadata_string(fs_src);
   const uint32_t fs_dst_ref = make_metadata_string(fs_dst);
   const uint32_t fs_text_ref = make_metadata_string(fs_text);
+  const uint32_t fs_bytes_ref = make_metadata_string(fs_bytes);
   const uint32_t fs_text_value_ref = make_metadata_string("hello metadata");
+  const uint32_t fs_bytes_value_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
+  HeapObject* fs_bytes_value = metadata_heap.Get(fs_bytes_value_ref);
+  if (!fs_bytes_value) return false;
+  WriteU32Payload(fs_bytes_value->payload, 0, 3);
+  WriteU32Payload(fs_bytes_value->payload, 4, 3);
+  WriteU32Payload(fs_bytes_value->payload, 8, 65);
+  WriteU32Payload(fs_bytes_value->payload, 12, 66);
+  WriteU32Payload(fs_bytes_value->payload, 16, 67);
   Simple::VM::Native::NativeCallContext fs_write_text_ctx;
   fs_write_text_ctx.heap = &metadata_heap;
   fs_write_text_ctx.args = {fs_text_ref, fs_text_value_ref};
@@ -16256,6 +16269,31 @@ bool RunNativeRegistryModuleTest() {
   fs_read_text_ctx.args = {fs_text_ref};
   const auto fs_read_text_result = fs_read_text ? fs_read_text->handler(fs_read_text_ctx)
                                                 : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_write_bytes_ctx;
+  fs_write_bytes_ctx.heap = &metadata_heap;
+  fs_write_bytes_ctx.args = {fs_bytes_ref, fs_bytes_value_ref};
+  const auto fs_write_bytes_result = fs_write_bytes ? fs_write_bytes->handler(fs_write_bytes_ctx)
+                                                    : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_read_bytes_ctx;
+  fs_read_bytes_ctx.heap = &metadata_heap;
+  fs_read_bytes_ctx.args = {fs_bytes_ref};
+  const auto fs_read_bytes_result = fs_read_bytes ? fs_read_bytes->handler(fs_read_bytes_ctx)
+                                                  : Simple::VM::Native::NativeCallResult{};
+  HeapObject* fs_read_bytes_obj = metadata_heap.Get(static_cast<uint32_t>(fs_read_bytes_result.value));
+  if (!fs_read_bytes_obj) return false;
+  const auto read_test_u32 = [](const std::vector<uint8_t>& payload, size_t offset) -> uint32_t {
+    if (offset + 4 > payload.size()) return 0;
+    return payload[offset] | (static_cast<uint32_t>(payload[offset + 1]) << 8u) |
+           (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
+           (static_cast<uint32_t>(payload[offset + 3]) << 24u);
+  };
+  Simple::VM::Native::NativeCallContext fs_list_dir_ctx;
+  fs_list_dir_ctx.heap = &metadata_heap;
+  fs_list_dir_ctx.args = {dot_path};
+  const auto fs_list_dir_result = fs_list_dir ? fs_list_dir->handler(fs_list_dir_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
+  HeapObject* fs_list_dir_obj = metadata_heap.Get(static_cast<uint32_t>(fs_list_dir_result.value));
+  if (!fs_list_dir_obj) return false;
   Simple::VM::Native::NativeCallContext fs_cwd_ctx;
   const auto fs_cwd_result = fs_cwd ? fs_cwd->handler(fs_cwd_ctx)
                                     : Simple::VM::Native::NativeCallResult{};
@@ -16288,6 +16326,10 @@ bool RunNativeRegistryModuleTest() {
   fs_remove_text_ctx.heap = &metadata_heap;
   fs_remove_text_ctx.args = {fs_text_ref};
   if (fs_remove) (void)fs_remove->handler(fs_remove_text_ctx);
+  Simple::VM::Native::NativeCallContext fs_remove_bytes_ctx;
+  fs_remove_bytes_ctx.heap = &metadata_heap;
+  fs_remove_bytes_ctx.args = {fs_bytes_ref};
+  if (fs_remove) (void)fs_remove->handler(fs_remove_bytes_ctx);
   Simple::VM::Native::NativeCallContext fs_remove_dir_ctx;
   fs_remove_dir_ctx.heap = &metadata_heap;
   fs_remove_dir_ctx.args = {fs_dir_ref};
@@ -16337,14 +16379,18 @@ bool RunNativeRegistryModuleTest() {
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && os_cwd && os_format && path_join && path_basename && path_normalize &&
-         path_exists && fs_read_text && fs_write_text && fs_cwd && fs_copy && fs_remove &&
-         fs_mkdir && fs_set_cwd && !os_cwd_result.string_value.empty() &&
+         path_exists && fs_read_text && fs_write_text && fs_read_bytes && fs_write_bytes &&
+         fs_list_dir && fs_cwd && fs_copy && fs_remove && fs_mkdir && fs_set_cwd &&
+         !os_cwd_result.string_value.empty() &&
          !os_format_result.string_value.empty() &&
          path_join_result.string_value == "/tmp/b.txt" &&
          path_basename_result.string_value == "b.txt" &&
          path_normalize_result.string_value == "b.txt" && path_exists_result.value == 1 &&
          fs_write_text_result.value == 1 && fs_read_text_result.string_value == "hello metadata" &&
-         !fs_cwd_result.string_value.empty() && fs_mkdir_result.value == 1 &&
+         fs_write_bytes_result.value == 1 && read_test_u32(fs_read_bytes_obj->payload, 0) == 3 &&
+         read_test_u32(fs_read_bytes_obj->payload, 8) == 65 &&
+         read_test_u32(fs_list_dir_obj->payload, 0) > 0 && !fs_cwd_result.string_value.empty() &&
+         fs_mkdir_result.value == 1 &&
          fs_set_cwd_result.value == 1 && fs_copy_result.value == 1 &&
          fs_remove_dst_result.value == 1 && thread_yield &&
          thread_hw && channel_new && channel_send && channel_recv &&
@@ -16370,6 +16416,9 @@ bool RunNativeRegistryModuleTest() {
          path_exists->result_type == Simple::Byte::TypeKind::I32 &&
          fs_read_text->result_type == Simple::Byte::TypeKind::String &&
          fs_write_text->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_read_bytes->result_type == Simple::Byte::TypeKind::Ref &&
+         fs_write_bytes->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_list_dir->result_type == Simple::Byte::TypeKind::Ref &&
          fs_cwd->result_type == Simple::Byte::TypeKind::String &&
          fs_copy->result_type == Simple::Byte::TypeKind::I32 &&
          fs_remove->result_type == Simple::Byte::TypeKind::I32 &&

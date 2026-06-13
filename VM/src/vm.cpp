@@ -2037,26 +2037,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.fs") {
-      auto fs_arg_string = [&](size_t index, std::string* out_value) -> bool {
-        if (index >= args.size() || !out_value) return false;
-        const uint32_t ref = UnpackRef(args[index]);
-        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
-        if (!obj || obj->header.kind != ObjectKind::String) return false;
-        *out_value = U16ToAscii(ReadString(obj));
-        return true;
-      };
-      auto fs_return_bytes = [&](const std::vector<int32_t>& values) -> bool {
-        const uint32_t length = static_cast<uint32_t>(values.size());
-        const uint32_t size = 8u + length * 4u;
-        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-        HeapObject* out_obj = heap.Get(handle);
-        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
-        WriteU32Payload(out_obj->payload, 0, length);
-        WriteU32Payload(out_obj->payload, 4, length);
-        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4, static_cast<uint32_t>(values[i]));
-        out_ret = PackRef(handle);
-        return true;
-      };
       if (sym == "readText" || sym == "writeText") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
@@ -2089,51 +2069,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         return true;
       }
-      if (sym == "readBytes") {
-        if (ret_kind != TypeKind::Ref) { out_error = "System.fs.readBytes return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.fs.readBytes arg count mismatch"; return false; }
-        std::string path;
-        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
-        std::vector<int32_t> values;
-        if (!Simple::VM::Native::Fs::ReadBytes(path, &values)) { out_ret = PackRef(kNullRef); return true; }
-        return fs_return_bytes(values);
-      }
-      if (sym == "writeBytes") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.writeBytes return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "System.fs.writeBytes arg count mismatch"; return false; }
-        std::string path;
-        if (!fs_arg_string(0, &path)) { out_ret = PackI32(0); return true; }
-        HeapObject* obj = heap.Get(UnpackRef(args[1]));
-        if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) { out_ret = PackI32(0); return true; }
-        const uint32_t length = ReadU32Payload(obj->payload, 0);
-        const size_t elem_base = (obj->header.kind == ObjectKind::List) ? 8u : 4u;
-        std::vector<int32_t> values;
-        values.reserve(length);
-        for (uint32_t i = 0; i < length; ++i) {
-          values.push_back(static_cast<int32_t>(ReadU32Payload(obj->payload, elem_base + i * 4)));
+      if (sym == "readBytes" || sym == "writeBytes" || sym == "listDir") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::Ref && ret_kind != TypeKind::Ref) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
         }
-        out_ret = PackI32(Simple::VM::Native::Fs::WriteBytes(path, values) ? 1 : 0);
-        return true;
-      }
-      if (sym == "listDir") {
-        if (ret_kind != TypeKind::Ref) { out_error = "System.fs.listDir return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.fs.listDir arg count mismatch"; return false; }
-        std::string path;
-        if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
-        std::vector<std::string> names;
-        if (!Simple::VM::Native::Fs::ListDir(path, &names)) { out_ret = PackRef(kNullRef); return true; }
-        std::vector<uint32_t> refs;
-        refs.reserve(names.size());
-        for (const std::string& name : names) refs.push_back(CreateString(heap, AsciiToU16(name)));
-        const uint32_t length = static_cast<uint32_t>(refs.size());
-        const uint32_t size = 8u + length * 4u;
-        const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-        HeapObject* out_obj = heap.Get(handle);
-        if (!out_obj) { out_ret = PackRef(kNullRef); return true; }
-        WriteU32Payload(out_obj->payload, 0, length);
-        WriteU32Payload(out_obj->payload, 4, length);
-        for (uint32_t i = 0; i < length; ++i) WriteU32Payload(out_obj->payload, 8u + i * 4, refs[i]);
-        out_ret = PackRef(handle);
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = std::string("System.fs.") + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
         return true;
       }
       if (sym == "copy" || sym == "remove" || sym == "mkdir" || sym == "mkdirAll" ||

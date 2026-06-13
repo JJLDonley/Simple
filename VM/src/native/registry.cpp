@@ -610,6 +610,113 @@ void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   payload[offset + 3] = static_cast<uint8_t>((value >> 24u) & 0xffu);
 }
 
+Slot CreateStringAscii(Heap& heap, const std::string& value) {
+  const uint32_t length = static_cast<uint32_t>(value.size());
+  const uint32_t handle = heap.Allocate(ObjectKind::String, 0, 4u + length * 2u);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return PackRef(HeapLayout::kNullRef);
+  WriteU32(obj->payload, 0, length);
+  for (uint32_t i = 0; i < length; ++i) {
+    const size_t offset = 4u + i * 2u;
+    obj->payload[offset] = static_cast<uint8_t>(value[i]);
+    obj->payload[offset + 1] = 0;
+  }
+  return PackRef(handle);
+}
+
+Slot CreateRefList(Heap& heap, const std::vector<uint32_t>& refs) {
+  const uint32_t length = static_cast<uint32_t>(refs.size());
+  const uint32_t handle = heap.Allocate(ObjectKind::List, 0, 8u + length * 4u);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return PackRef(HeapLayout::kNullRef);
+  WriteU32(obj->payload, 0, length);
+  WriteU32(obj->payload, 4, length);
+  for (uint32_t i = 0; i < length; ++i) WriteU32(obj->payload, 8u + i * 4u, refs[i]);
+  return PackRef(handle);
+}
+
+bool ReadByteList(NativeCallContext& context, size_t index, std::vector<int32_t>* out) {
+  if (!out) return false;
+  HeapObject* obj = GetHeapObject(context, index);
+  if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array) ||
+      obj->payload.size() < 4) {
+    return false;
+  }
+  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
+                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
+                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
+  const size_t elem_base = obj->header.kind == ObjectKind::List ? 8u : 4u;
+  if (elem_base + static_cast<size_t>(length) * 4u > obj->payload.size()) return false;
+  out->clear();
+  out->reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    const size_t offset = elem_base + i * 4u;
+    const uint32_t value = obj->payload[offset] |
+                           (static_cast<uint32_t>(obj->payload[offset + 1]) << 8u) |
+                           (static_cast<uint32_t>(obj->payload[offset + 2]) << 16u) |
+                           (static_cast<uint32_t>(obj->payload[offset + 3]) << 24u);
+    out->push_back(static_cast<int32_t>(value));
+  }
+  return true;
+}
+
+Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values) {
+  const uint32_t length = static_cast<uint32_t>(values.size());
+  const uint32_t size = 8u + length * 4u;
+  const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return PackRef(HeapLayout::kNullRef);
+  WriteU32(obj->payload, 0, length);
+  WriteU32(obj->payload, 4, length);
+  for (uint32_t i = 0; i < length; ++i) {
+    WriteU32(obj->payload, 8u + i * 4u, values[i] & 0xffu);
+  }
+  return PackRef(handle);
+}
+
+NativeCallResult FsReadBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::vector<int32_t> values;
+  if (!context.heap || !ReadStringArg(context, 0, &path) || !Fs::ReadBytes(path, &values)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  std::vector<uint32_t> bytes;
+  bytes.reserve(values.size());
+  for (int32_t value : values) bytes.push_back(static_cast<uint32_t>(value));
+  result.value = CreateByteList(*context.heap, bytes);
+  return result;
+}
+
+NativeCallResult FsWriteBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::vector<int32_t> values;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadByteList(context, 1, &values) &&
+                                 Fs::WriteBytes(path, values)
+                             ? 1
+                             : 0);
+  return result;
+}
+
+NativeCallResult FsListDir(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  std::vector<std::string> names;
+  if (!context.heap || !ReadStringArg(context, 0, &path) || !Fs::ListDir(path, &names)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  std::vector<uint32_t> refs;
+  refs.reserve(names.size());
+  for (const std::string& name : names) {
+    refs.push_back(static_cast<uint32_t>(CreateStringAscii(*context.heap, name)));
+  }
+  result.value = CreateRefList(*context.heap, refs);
+  return result;
+}
+
 NativeCallResult BufferNew(NativeCallContext& context) {
   NativeCallResult result;
   if (!context.heap) {
@@ -682,20 +789,6 @@ NativeCallResult BufferWriteU32LE(NativeCallContext& context) {
                              ? 1
                              : 0);
   return result;
-}
-
-Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values) {
-  const uint32_t length = static_cast<uint32_t>(values.size());
-  const uint32_t size = 8u + length * 4u;
-  const uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
-  HeapObject* obj = heap.Get(handle);
-  if (!obj) return PackRef(HeapLayout::kNullRef);
-  WriteU32(obj->payload, 0, length);
-  WriteU32(obj->payload, 4, length);
-  for (uint32_t i = 0; i < length; ++i) {
-    WriteU32(obj->payload, 8u + i * 4u, values[i] & 0xffu);
-  }
-  return PackRef(handle);
 }
 
 NativeCallResult BufferSlice(NativeCallContext& context) {
@@ -831,6 +924,12 @@ void RegisterSystemFs(NativeRegistry& registry) {
                              FsReadText));
   registry.Register(MakeSpec("System.fs", "writeText", {TypeKind::String, TypeKind::String},
                              TypeKind::I32, FsWriteText));
+  registry.Register(MakeSpec("System.fs", "readBytes", {TypeKind::String}, TypeKind::Ref,
+                             FsReadBytes));
+  registry.Register(MakeSpec("System.fs", "writeBytes", {TypeKind::String, TypeKind::Ref},
+                             TypeKind::I32, FsWriteBytes));
+  registry.Register(MakeSpec("System.fs", "listDir", {TypeKind::String}, TypeKind::Ref,
+                             FsListDir));
   registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
   registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
                              TypeKind::I32, FsCopy));
