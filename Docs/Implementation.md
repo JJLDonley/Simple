@@ -275,7 +275,7 @@ Not implemented as stable current contract.
 - sandboxing for untrusted bytecode
 - stable debugger/profiler protocol
 - multithreaded runtime
-- Windows `core.dl` parity
+- Windows `System.dl` parity
 
 ### Tooling Future
 

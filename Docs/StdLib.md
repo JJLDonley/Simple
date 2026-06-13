@@ -47,16 +47,16 @@ Preferred modern aliases:
 
 | Import | Runtime Namespace |
 |---|---|
-| `Math` / `System.math` | `core.math` |
-| `IO` / `System.io` | `core.io` |
-| `Time` / `System.time` | `core.time` |
-| `File` / `FS` / `System.fs` | `core.fs` |
-| `DL` / `System.dl` | `core.dl` |
-| `OS` / `System.os` | `core.os` |
-| `Log` / `System.log` | `core.log` |
-| `Buffer` / `System.buffer` | `core.buffer` |
-| `Json` / `System.json` | `core.json` |
-| `Channel` / `System.channel` | `core.channel` |
+| `Math` / `System.math` | `System.math` |
+| `IO` / `System.io` | `System.io` |
+| `Time` / `System.time` | `System.time` |
+| `File` / `FS` / `System.fs` | `System.fs` |
+| `DL` / `System.dl` | `System.dl` |
+| `OS` / `System.os` | `System.os` |
+| `Log` / `System.log` | `System.log` |
+| `Buffer` / `System.buffer` | `System.buffer` |
+| `Json` / `System.json` | `System.json` |
+| `Channel` / `System.channel` | `System.channel` |
 
 ## Core Module API Tables
 

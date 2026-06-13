@@ -193,8 +193,7 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
     const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier &&
-        (root.text == "Core" || root.text == "System")) {
+    if (root.kind == ExprKind::Identifier && root.text == "System") {
       *out = root.text + "." + base.text;
       return true;
     }
@@ -1464,7 +1463,7 @@ bool InferExprType(const Expr& expr,
     case ExprKind::Member: {
       if (expr.op != "." || expr.children.empty()) return false;
       const Expr& base = expr.children[0];
-      if (base.kind == ExprKind::Identifier && base.text == "Core") {
+      if (base.kind == ExprKind::Identifier && base.text == "System") {
         return true;
       }
       if (base.kind == ExprKind::Identifier) {
@@ -2093,11 +2092,11 @@ bool CheckCallTarget(const Expr& callee,
           CallTargetInfo info;
           if (GetReservedModuleCallTarget(ctx, module_name, callee.text, &info)) {
             std::string resolved_module;
-            const bool is_core_dl_open =
+            const bool is_System_dl_open =
                 ResolveReservedModuleName(ctx, module_name, &resolved_module) &&
                 resolved_module == "DL" &&
                 NormalizeCoreDlMember(callee.text) == "open";
-            if (!is_core_dl_open && info.params.size() != arg_count) {
+            if (!is_System_dl_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
                          ": expected " + std::to_string(info.params.size()) +
@@ -2105,7 +2104,7 @@ bool CheckCallTarget(const Expr& callee,
               }
               return false;
             }
-            if (is_core_dl_open && arg_count != 1 && arg_count != 2) {
+            if (is_System_dl_open && arg_count != 1 && arg_count != 2) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
                          ": expected 1 or 2, got " + std::to_string(arg_count);
@@ -3952,7 +3951,7 @@ bool CheckExpr(const Expr& expr,
         }
         return true;
       }
-      if (expr.text == "Core") {
+      if (expr.text == "System") {
         if (IsReservedModuleEnabled(ctx, "Math") || IsReservedModuleEnabled(ctx, "IO") ||
             IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||

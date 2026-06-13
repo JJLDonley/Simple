@@ -1,0 +1,5 @@
+extern System_os.args_count : i32 ()
+
+main : i32 () {
+  return System_os.args_count()
+}

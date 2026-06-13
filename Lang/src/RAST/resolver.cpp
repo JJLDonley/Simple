@@ -258,7 +258,7 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
     const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier && (root.text == "Core" || root.text == "System")) {
+    if (root.kind == ExprKind::Identifier && root.text == "System") {
       *out = root.text + "." + base.text;
       return true;
     }

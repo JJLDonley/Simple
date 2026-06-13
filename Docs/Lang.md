@@ -206,7 +206,7 @@ Implemented extern syntax:
 extern module.symbol: ReturnType (params...)
 ```
 
-Extern declarations feed metadata used by `System.dl`/`core.dl` dynamic calls.
+Extern declarations feed metadata used by `System.dl`/`System.dl` dynamic calls.
 
 Implemented ABI validation accepts:
 

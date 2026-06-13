@@ -1,5 +1,0 @@
-extern core_os.args_count : i32 ()
-
-main : i32 () {
-  return core_os.args_count()
-}

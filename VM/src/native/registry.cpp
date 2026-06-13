@@ -76,6 +76,26 @@ NativeCallResult OsSleepMs(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult ThreadSleep(NativeCallContext& context) {
+  Thread::SleepMs(UnpackI32(context.args[0]));
+  NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult ThreadYield(NativeCallContext&) {
+  Thread::Yield();
+  NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult ThreadHardwareConcurrency(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI32(Thread::HardwareConcurrency());
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -112,26 +132,36 @@ size_t NativeRegistry::Size() const {
 
 void RegisterCoreRandom(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("core.random", "seed", {TypeKind::I64}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.random", "seed", {TypeKind::I64}, TypeKind::Unspecified,
                              RandomSeed));
-  registry.Register(MakeSpec("core.random", "i32", {}, TypeKind::I32, RandomI32));
-  registry.Register(MakeSpec("core.random", "range", {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
+  registry.Register(MakeSpec("System.random", "i32", {}, TypeKind::I32, RandomI32));
+  registry.Register(MakeSpec("System.random", "range", {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
                              RandomRange));
-  registry.Register(MakeSpec("core.random", "f64", {}, TypeKind::F64, RandomF64));
+  registry.Register(MakeSpec("System.random", "f64", {}, TypeKind::F64, RandomF64));
 }
 
 void RegisterCoreOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("core.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
-  registry.Register(MakeSpec("core.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
-  registry.Register(MakeSpec("core.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,
+  registry.Register(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
+  registry.Register(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
+  registry.Register(MakeSpec("System.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,
                              OsSleepMs));
+}
+
+void RegisterCoreThread(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.thread", "sleep", {TypeKind::I32}, TypeKind::Unspecified,
+                             ThreadSleep));
+  registry.Register(MakeSpec("System.thread", "yield", {}, TypeKind::Unspecified, ThreadYield));
+  registry.Register(MakeSpec("System.thread", "hardwareConcurrency", {}, TypeKind::I32,
+                             ThreadHardwareConcurrency));
 }
 
 NativeRegistry BuildDefaultRegistry() {
   NativeRegistry registry;
   RegisterCoreRandom(registry);
   RegisterCoreOs(registry);
+  RegisterCoreThread(registry);
   return registry;
 }
 

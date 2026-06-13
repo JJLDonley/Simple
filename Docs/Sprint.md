@@ -8,7 +8,7 @@ This log records VM-related changes and is used as a historical reference for be
 - JIT tiering scaffolding with interpreter fallback.
 
 ## Not Supported (Current Summary)
-- Windows `core.dl` support.
+- Windows `System.dl` support.
 - Recursive artifact ABI for `extern`/`DL`.
 - Full JIT native codegen coverage for the opcode surface.
 
@@ -32,7 +32,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Added pointer member-access validation coverage (`->` access ok/error cases).
 - Added pointer immutability tracking for `&` and validation coverage for address-of and pointer-mutation rules.
 - Expanded Lang test coverage for defaults, switch default rules, and procedure-returning-procedure via fn literals.
-- Promoted `Math.sqrt` to Core.Math with new VM intrinsic and verifier support; updated raylib sample to use it.
+- Promoted `Math.sqrt` to System.Math with new VM intrinsic and verifier support; updated raylib sample to use it.
 
 ## 2026-02-14
 - Reverted list-as-module changes and reintroduced list operations as built-in list methods.
@@ -377,7 +377,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Added pre-freeze ABI checklist and core library/OS roadmap to implementation plan.
 - Outlined intrinsic libraries and FFI ABI surface in the implementation plan.
 - Added concrete intrinsic ID table and FFI ABI table layouts/flags to the implementation plan.
-- Removed array/list intrinsics from the table since they are opcode-backed; replaced with core.math intrinsics.
+- Removed array/list intrinsics from the table since they are opcode-backed; replaced with System.math intrinsics.
 - Removed string intrinsics from the table since strings are opcode-backed.
 - Expanded intrinsic table with debug logging, math min/max for floats, time, rand, and basic IO intrinsics.
 - Added a dedicated pre-freeze plan section (primitives/ABI/FFI/core library + freeze gates) to the implementation plan.
@@ -386,7 +386,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Added a draft C ABI host API surface for ref/string/blob/array/list access.
 - Expanded host API draft with type discovery + struct read/write and tiered recommendations.
 - Added `SimpleByteCode/SBC_ABI.md` with intrinsic IDs, FFI tables, and host API details; implementation plan now references it.
-- Added OS-specific core library contracts (core.os/core.fs/core.log) as FFI-backed entries in SBC_ABI.md.
+- Added OS-specific core library contracts (System.os/System.fs/System.log) as FFI-backed entries in SBC_ABI.md.
 - Updated implementation plan to reference SBC_ABI.md as the source of truth for intrinsics/FFI/OS contracts.
 - Added missing suggestions to pre-freeze plan (struct layout rules, frozen opcode semantics section, FFI error convention, pinning policy, and explicit freeze-gate tests).
 - Moved and merged pre-freeze plan + detailed plan to the top of Implementation.md.
@@ -452,46 +452,46 @@ This log records VM-related changes and is used as a historical reference for be
 - Implemented core intrinsic handlers (math/time/rand/io/log) with a runtime test.
 - Ran full test suite for freeze gate (all tests passed).
 - Added v0.1 freeze summary to Implementation.md and vm/README.md.
-- Implemented core library import handling for core.os/core.fs/core.log and updated import call tests to succeed.
-- Implemented core.os time/cwd/env/sleep handlers with ASCII string conversion and added import_time_mono/import_cwd_get tests.
+- Implemented core library import handling for System.os/System.fs/System.log and updated import call tests to succeed.
+- Implemented System.os time/cwd/env/sleep handlers with ASCII string conversion and added import_time_mono/import_cwd_get tests.
 - Added TAILCALL support for imports with a passing import_tailcall test.
-- Added ExecOptions argv injection for core.os args_count/args_get and a passing import_args_count test.
-- Added import_args_get_char test to validate core.os args_get string content via StringGetChar.
+- Added ExecOptions argv injection for System.os args_count/args_get and a passing import_args_count test.
+- Added import_args_get_char test to validate System.os args_get string content via StringGetChar.
 - Added env_get tests for hit/miss cases using host env variables.
 - Added args_get bounds tests for negative and out-of-range indices.
-- Added core.fs stub tests for open/read/write/close return behavior.
-- Added core.fs round-trip test (open/write/read/close) using Array<i32> byte buffers.
-- Implemented core.fs open/read/write/close with Array<i32> byte-buffer semantics (u8 stored in each element).
-- Documented core.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
+- Added System.fs stub tests for open/read/write/close return behavior.
+- Added System.fs round-trip test (open/write/read/close) using Array<i32> byte buffers.
+- Implemented System.fs open/read/write/close with Array<i32> byte-buffer semantics (u8 stored in each element).
+- Documented System.fs buffer layout in SBC_ABI.md and marked it done in Implementation.md.
 - Set import method local_count from signature param_count to satisfy verifier rules.
-- Fixed core.fs round-trip test call targets/signature param list and added close+reopen for read path.
-- Added core.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
-- Redirected core.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
-- Added core.fs negative tests for bad fd reads and null-buffer writes.
-- Added core.fs negative tests for non-array read buffers and bad-fd write/close paths.
-- Added core.fs write clamp (len > buffer size) and close-twice tests.
-- Added core.fs open-null-path and read-zero-len tests.
-- Added core.fs read-after-close test.
-- Added core.fs write-after-close test.
-- Added core.fs reopen and write-zero-len tests.
-- Added core.fs read-zero-buffer test (len > 0 with zero-length buffer).
-- Added core.fs write-zero-buffer test (len > 0 with zero-length buffer).
-- Added core.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
-- Added core.fs write-after-readonly-open test (open flags=0 then write returns -1).
-- Added core.fs open/close loop test to exercise repeated fd usage.
-- Added core.fs open/close stress loop test (50 iterations).
-- Added core.fs write clamp count test (len > buffer size returns clamped count and correct data).
-- Added core.fs read-zero-len preserve test (len=0 leaves buffer unchanged).
-- Added core.fs read/write reopen cycle test (AB then CD).
-- Added core.fs read-zero-len with non-empty buffer test (len=0 preserves data).
-- Added core.fs persist write/read test (write, close, reopen, read).
+- Fixed System.fs round-trip test call targets/signature param list and added close+reopen for read path.
+- Added System.fs read clamp test (len > buffer size) using Array<i32> byte buffers.
+- Redirected System.fs test files to `SimpleByteCode/vm/bin` to keep artifacts out of repo root.
+- Added System.fs negative tests for bad fd reads and null-buffer writes.
+- Added System.fs negative tests for non-array read buffers and bad-fd write/close paths.
+- Added System.fs write clamp (len > buffer size) and close-twice tests.
+- Added System.fs open-null-path and read-zero-len tests.
+- Added System.fs read-after-close test.
+- Added System.fs write-after-close test.
+- Added System.fs reopen and write-zero-len tests.
+- Added System.fs read-zero-buffer test (len > 0 with zero-length buffer).
+- Added System.fs write-zero-buffer test (len > 0 with zero-length buffer).
+- Added System.fs read clamp no-overwrite test (reads 1 byte, preserves sentinel data).
+- Added System.fs write-after-readonly-open test (open flags=0 then write returns -1).
+- Added System.fs open/close loop test to exercise repeated fd usage.
+- Added System.fs open/close stress loop test (50 iterations).
+- Added System.fs write clamp count test (len > buffer size returns clamped count and correct data).
+- Added System.fs read-zero-len preserve test (len=0 leaves buffer unchanged).
+- Added System.fs read/write reopen cycle test (AB then CD).
+- Added System.fs read-zero-len with non-empty buffer test (len=0 preserves data).
+- Added System.fs persist write/read test (write, close, reopen, read).
 
 ## 2026-01-31
-- Fixed core.fs read-zero-len non-empty buffer test to create an empty file before read and validate preservation.
-- Added core.log import test to validate log(ref, i32) call path.
+- Fixed System.fs read-zero-len non-empty buffer test to create an empty file before read and validate preservation.
+- Added System.log import test to validate log(ref, i32) call path.
 - Added loader negative tests for imports/exports requiring a const pool.
 - Marked section-id/misaligned-section loader tests as Phase 9 complete in implementation plan.
-- Marked intrinsic ID coverage and core.log import smoke test as Phase 9 complete.
+- Marked intrinsic ID coverage and System.log import smoke test as Phase 9 complete.
 - Full VM test suite pass (569 tests).
 - Documented VM type IDs in SBC metadata docs and FFI struct layout rules in SBC ABI docs.
 - Verifier now maps types to VM primitives using TypeKind (with legacy size fallback).
@@ -504,7 +504,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Marked cross-version compatibility skeleton tests as done in `SimpleByteCode/Implementation.md`.
 - Reviewed SBC docs vs VM behavior for freeze alignment; marked Phase 9 freeze gate tests as done.
 - Full VM test suite pass (571 tests).
-- Added ScratchArena/ScratchScope utility and switched core.fs temp buffers to use arena allocations.
+- Added ScratchArena/ScratchScope utility and switched System.fs temp buffers to use arena allocations.
 - Added scratch_arena unit test.
 - Added frozen opcode ID table to `SimpleByteCode/SBC_OpCodes.md`.
 - Documented opcode ID table source-of-truth link to `SimpleByteCode/vm/include/opcode.h`.
@@ -709,8 +709,8 @@ This log records VM-related changes and is used as a historical reference for be
 - Added Simple::Lang duplicate parameter validation with tests.
 - Enforced `.` as the only member access and rejected `::` in expressions, with tests.
 - Allowed integer literals to type-match any integer target in assignments, returns, calls, and literals checks.
-- Added reserved import alias support in Simple::Lang validation and SIR emission (e.g., `import "Core.DL" as DL`).
-- Fixed core_dl_open.simple to use integer zero literal with i64 and alias import path.
+- Added reserved import alias support in Simple::Lang validation and SIR emission (e.g., `import "System.DL" as DL`).
+- Fixed System_dl_open.simple to use integer zero literal with i64 and alias import path.
 - Added SIR emission support for module functions via name-mangled top-level functions and module member calls.
 - Added SIR emission error for module variables (not supported yet).
 - Updated module_access.simple fixture to call a module function instead of reading a module variable.
@@ -850,7 +850,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Consolidated language spec into Lang.md and moved language implementation plan into Implementation.md.
 - Removed module-specific plan sections from VM/Byte/IR/CLI docs to keep plans centralized.
 - Added reserved core import validation for Simple::Lang (Math/IO/Time/File) and a negative fixture for unknown imports.
-- Added FFI import emission + resolver in the Simple front-end, plus SIR import syntax support and core_os extern fixture.
+- Added FFI import emission + resolver in the Simple front-end, plus SIR import syntax support and System_os extern fixture.
 - Added reserved stdlib modules (Math/Time/File) with intrinsics/import bindings, fixtures, and a StdLib.md layout doc.
 - Added Math.PI stdlib fixture and test coverage.
 - Added CLI diagnostic range highlights with source/caret context and updated error-format tests.
@@ -859,14 +859,14 @@ This log records VM-related changes and is used as a historical reference for be
 - Added `simple` CLI front-end behavior (simple-only inputs + usage).
 - Added CLI tests for `simple check` and `.sir` rejection.
 - Wired Time intrinsics to real clocks and added intrinsic_time test coverage.
-- Added core.dl import handling (open/sym/close/last_error) for Linux dynamic loading.
-- Added core.dl import alias (core_dl) and documentation updates.
-- Added a tiny test shared library and a core_dl .simple fixture to validate dlopen/dlsym/close.
-- Added reserved Core.* namespaces (Core.DL/Core.Os/Core.Fs/Core.Log) with validation and SIR emission support.
-- Fixed core_dl_open.simple fixture (removed unsupported := assignment).
-- Fixed Core.* member validation to allow Core namespace usage in member chains.
-- Fixed Core identifier validation when Core.* reserved imports are enabled.
-- Fixed core_dl_open.simple to compare i64 handles without literal type mismatch.
+- Added System.dl import handling (open/sym/close/last_error) for Linux dynamic loading.
+- Added System.dl import alias (System_dl) and documentation updates.
+- Added a tiny test shared library and a System_dl .simple fixture to validate dlopen/dlsym/close.
+- Added reserved System.* namespaces (System.DL/System.Os/System.Fs/System.Log) with validation and SIR emission support.
+- Fixed System_dl_open.simple fixture (removed unsupported := assignment).
+- Fixed System.* member validation to allow System namespace usage in member chains.
+- Fixed System identifier validation when System.* reserved imports are enabled.
+- Fixed System_dl_open.simple to compare i64 handles without literal type mismatch.
 
 ## 2026-02-05
 - Expanded VM type kinds to include full primitive set (i8/i16/i128/u8/u16/u32/u64/u128/bool/char/string).
@@ -875,14 +875,14 @@ This log records VM-related changes and is used as a historical reference for be
 - Made VM import return-type checks accept new i32/i64/ref-like kinds.
 - Fixed SIR emission for reserved module alias resolution in call inference.
 - Added expected-failure note for CLI `.sir` rejection in lang tests.
-- Added Core.DL PascalCase member support (Open/Sym/Close/LastError) in validation and SIR emission.
-- Normalized Core.DL member names to lowercase for call resolution.
-- Updated core_dl_open.simple to use Core.DL PascalCase calls.
-- Adjusted core_dl_open.simple handle comparisons to use integer literal 0.
-- Added explicit semicolons in core_dl_open.simple to avoid implicit-terminator parsing issues.
-- Restored core_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
-- Added Core.DL call intrinsics (call_i32/call_i64/call_f32/call_f64/call_str0) in VM and language lowering.
-- Extended core_dl_open.simple to call simple_add_i32 and simple_hello via Core.DL call helpers.
+- Added System.DL PascalCase member support (Open/Sym/Close/LastError) in validation and SIR emission.
+- Normalized System.DL member names to lowercase for call resolution.
+- Updated System_dl_open.simple to use System.DL PascalCase calls.
+- Adjusted System_dl_open.simple handle comparisons to use integer literal 0.
+- Added explicit semicolons in System_dl_open.simple to avoid implicit-terminator parsing issues.
+- Restored System_dl_open.simple to use direct symbol declaration after open check (no assignment stmt).
+- Added System.DL call intrinsics (call_i32/call_i64/call_f32/call_f64/call_str0) in VM and language lowering.
+- Extended System_dl_open.simple to call simple_add_i32 and simple_hello via System.DL call helpers.
 
 ## 2026-02-07
 - Refactored `Simple/CMakeLists.txt` to produce reusable `simplevm_core` and `simplevm_runtime` libraries in both static and shared forms.
@@ -894,11 +894,11 @@ This log records VM-related changes and is used as a historical reference for be
 - Extended lang CLI tests to validate link mode behavior on Linux via `ldd` (`-d` must depend on `libsimplevm_runtime.so`; `-s` must not).
 - Updated CMake test working directory to the workspace root so fixture paths and CLI-path tests resolve consistently.
 - Added `@T(value)` cast syntax support in the parser and routed it through existing conversion validation/emission.
-- Added typed Core.DL manifest support via `DL.Open(path, extern_module)` and dynamic symbol calls through `lib.symbol(...)`.
+- Added typed System.DL manifest support via `DL.Open(path, extern_module)` and dynamic symbol calls through `lib.symbol(...)`.
 - Enforced strict dynamic-call signature checks for currently supported VM intrinsics:
   `(i32,i32)->i32`, `(i64,i64)->i64`, `(f32,f32)->f32`, `(f64,f64)->f64`, `()->string`.
-- Updated `core_dl_open.simple` fixture to use manifest-based direct symbol calls.
-- Updated language docs (`Lang.md`) with `@` cast examples and Core.DL manifest usage.
+- Updated `System_dl_open.simple` fixture to use manifest-based direct symbol calls.
+- Updated language docs (`Lang.md`) with `@` cast examples and System.DL manifest usage.
 - Fixed `build.sh` runtime object directory collision (`obj_core` vs suite `core`) by moving runtime objects to `build/obj_runtime`, preventing non-PIC object reuse when linking `libsimplevm_runtime.so`.
 - Restored strict verifier boundary checks by removing generic `check_type` family compatibility (call/call_indirect/tailcall arg mismatches fail correctly again).
 - Added opcode-local numeric compatibility for 32-bit integer paths where the instruction contract is family-based:
@@ -917,13 +917,13 @@ This log records VM-related changes and is used as a historical reference for be
 - Re-ran full project test matrix after additions:
   `./Simple/build.sh --suite all` => `1173/1173`.
 - Removed dynamic DL call import arity caps in SIR generation (no `<=4`/`<=8` synthesis limit).
-- Switched VM dynamic `core.dl.call` dispatch to `libffi` (`ffi_prep_cif`/`ffi_call`) so runtime arity is not hardcoded by manual call stubs.
+- Switched VM dynamic `System.dl.call` dispatch to `libffi` (`ffi_prep_cif`/`ffi_call`) so runtime arity is not hardcoded by manual call stubs.
 - Linked `libffi` in build/link paths (`build.sh`) and CLI embedded build path (`CLI/src/main.cpp`).
 - Added top-level global support path completion for SIR with global init function wiring and dynamic DL-handle global calls (`lib.Symbol(...)`).
 - Fixed IR text emission order/bootstrapping for globals and default global init constants to keep verifier/global initialization valid.
 - Fixed verifier field-type propagation for `LOAD_FIELD`/`STORE_FIELD` (uses actual field type instead of forced `i32`), unblocking exact small-type field ABI calls (e.g., `u8` color channels).
 - Kept verifier `bad_global_uninit_verify` semantics intact while preserving lang/global-DL behavior.
-- Marked `core_dl_open_raylib.simple` as an opt-in interactive sample by excluding it from bulk fixture sweeps in headless test runs.
+- Marked `System_dl_open_raylib.simple` as an opt-in interactive sample by excluding it from bulk fixture sweeps in headless test runs.
 - Re-ran full matrix after these changes:
   `./Simple/build.sh --suite all` => `1174/1174`.
 - Added language-level pointer types: `*T` / `*void` parsing in `lang_parser`.
@@ -946,7 +946,7 @@ This log records VM-related changes and is used as a historical reference for be
 - Upgraded FFI fixture coverage for struct ABI:
   - `simple_color_sum(Color)` by-value argument
   - `simple_color_make(...) -> Color` by-value return
-  - language fixture `core_dl_open.simple` now validates artifact arg+return interop directly.
+  - language fixture `System_dl_open.simple` now validates artifact arg+return interop directly.
 - Re-ran full project matrix after these changes:
   `./Simple/build.sh --suite all` => `1175/1175`.
 - Fixed language global initialization emission to allow non-void global types (including artifact globals) to receive fallback init constants, unblocking declarations like:
@@ -1031,16 +1031,16 @@ This log records VM-related changes and is used as a historical reference for be
 - Unified CLI surface around `simple`: added `lsp` command stub (`error[E0001]` not-implemented path), kept `emit`, and made `simple build <file.simple>` default to embedded executable output unless `--out` targets `.sbc`.
 - Added lang-suite CLI coverage for new UX contracts: `simple build` default executable behavior and `simple lsp` error contract.
 - Added extern ABI artifact lowering for call boundaries: artifact arguments are flattened by field order into scalar ABI parameters.
-- Extended dynamic `core.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
-- Added `core_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).
-- Replaced dynamic DL intrinsic-only lowering with typed `core.dl` call-import lowering keyed from extern manifest signatures.
+- Extended dynamic `System.dl` typed call dispatch from max 2 to max 4 ABI parameters to support artifact-shaped interop signatures (for example RGBA color structs), with current 3-4 arg support on i32-lane scalar ABI kinds.
+- Added `System_dl_open.simple` + FFI C coverage for artifact argument interop (`Color{u8,u8,u8,u8}` lowered to `simple_color_sum(u8,u8,u8,u8)`).
+- Replaced dynamic DL intrinsic-only lowering with typed `System.dl` call-import lowering keyed from extern manifest signatures.
 - Added VM runtime typed dispatch for dynamic DL calls using exact signature metadata (mixed scalar/string params, void/scalar/string returns, up to 2 params).
 - Expanded FFI/lang coverage for dynamic calls with mixed signatures (`0/1/2` args, string in/out, and void return).
 - Enforced declaration-only extern grammar in docs (`extern module.symbol : type (params)`), explicitly disallowing `=` forms and block bodies.
-- Updated language docs to define `char` as byte (`u8`) and documented typed Core.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
-- Expanded Core.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).
+- Updated language docs to define `char` as byte (`u8`) and documented typed System.DL manifest signatures as `(T, T) -> T` for primitive scalar `T`, plus `() -> string`.
+- Expanded System.DL dynamic call intrinsics from grouped buckets to exact primitive signatures (`i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool/char`).
 - Updated SIR/validator dynamic DL signature selection to lower from exact extern signatures instead of the older limited set.
-- Tightened VM import return-type checks for core modules (`core.os`, `core.fs`, `core.dl`) to exact declared ABI return kinds.
+- Tightened VM import return-type checks for core modules (`System.os`, `System.fs`, `System.dl`) to exact declared ABI return kinds.
 - Updated VM `char` print handling to byte semantics (`u8`) and expanded FFI/lang tests for typed dynamic DL calls.
 - Expanded `@T(value)` cast handling in validator/SIR so primitive cast targets are recognized consistently instead of only narrow builtin names.
 - Refactored SBC verifier value typing to preserve exact primitive kinds (`i8/i16/i32/i64/u8/u16/u32/u64/bool/char/f32/f64/ref`) instead of collapsing to broad i32/i64 buckets.
@@ -1290,9 +1290,9 @@ This log records VM-related changes and is used as a historical reference for be
 - Added regression assertion in `lsp_initialize_handshake` to lock signature-help trigger-character payload (`( , @`) and prevent capability drift.
 - Added import-path aware LSP completion:
   - `textDocument/completion` now detects cursor context inside `import "..."` strings and switches from keyword/symbol completion to module suggestions.
-  - import suggestions include reserved modules (`IO`, `Math`, `Time`, `File`, `Core.DL`, `Core.Os`, `Core.Fs`, `Core.Log`) plus stems from open `.simple` documents.
+  - import suggestions include reserved modules (`IO`, `Math`, `Time`, `File`, `System.DL`, `System.Os`, `System.Fs`, `System.Log`) plus stems from open `.simple` documents.
 - Added LSP regression coverage for import completion:
-  - new test validates `import "Co` completion suggests `Core.*` modules and excludes keyword noise.
+  - new test validates `import "Co` completion suggests `System.*` modules and excludes keyword noise.
 - Updated implementation/LSP docs to document import-path completion behavior and current module-suggestion sources.
 - Added LSP declaration navigation support:
   - server now advertises `declarationProvider` during `initialize` capability handshake.
@@ -1306,20 +1306,20 @@ This log records VM-related changes and is used as a historical reference for be
   - new test validates `textDocument/codeAction` emits edit range start at line 1 for `import "IO"` + undeclared assignment fixtures.
 - Updated LSP/implementation docs to reflect import-aware quick-fix insertion behavior.
 - Extended LSP completion with import-alias aware reserved-module members:
-  - completion now parses active-document `import "..." [as Alias]` lines and contributes member labels for reserved modules (IO/Math/Time/File/Core.*).
-  - example: `import "Core.DL" as DL` enables `DL.call_i32`, `DL.call_i64`, `DL.call_str0`, etc. in member completion flows.
+  - completion now parses active-document `import "..." [as Alias]` lines and contributes member labels for reserved modules (IO/Math/Time/File/System.*).
+  - example: `import "System.DL" as DL` enables `DL.call_i32`, `DL.call_i64`, `DL.call_str0`, etc. in member completion flows.
 - Added regression coverage for alias member completion:
-  - new test validates `DL.ca` completion returns Core.DL call members and preserves prefix filtering (for example excludes `DL.open`).
+  - new test validates `DL.ca` completion returns System.DL call members and preserves prefix filtering (for example excludes `DL.open`).
 - Updated LSP and implementation docs to record reserved-module alias-member completion behavior.
 - Extended LSP signature help for reserved-module imports and aliases:
   - `textDocument/signatureHelp` now resolves known reserved-module member calls from active import aliases (for example `OS.args_get(index)`, `DL.open(path)`, `FS.read(fd, buffer, count)`).
-  - Core.DL member normalization supports canonical + legacy-cased spellings in signature lookup (`Open`/`open`, `CallI32`/`call_i32`, etc.).
+  - System.DL member normalization supports canonical + legacy-cased spellings in signature lookup (`Open`/`open`, `CallI32`/`call_i32`, etc.).
 - Added regression coverage for reserved alias signature help:
-  - new test validates `import "Core.Os" as OS` + `OS.args_get(...)` signature payload/parameter labels and active parameter behavior.
+  - new test validates `import "System.Os" as OS` + `OS.args_get(...)` signature payload/parameter labels and active parameter behavior.
 - Updated LSP and implementation docs to include reserved-module alias signature-help behavior.
 - Extended LSP hover behavior for reserved module aliases:
   - hover now resolves alias-qualified reserved member calls to signature text when local declaration typing is unavailable.
-  - example hover payload: `OS.args_get(index) -> string` for `import "Core.Os" as OS`.
+  - example hover payload: `OS.args_get(index) -> string` for `import "System.Os" as OS`.
 - Added regression coverage for reserved alias hover signatures:
   - new test validates `textDocument/hover` on `OS.args_get` returns signature + return type markdown content.
 - Updated LSP and implementation docs to reflect reserved alias hover enrichment behavior.
@@ -1329,10 +1329,10 @@ This log records VM-related changes and is used as a historical reference for be
 - Added regression coverage for IO alias signature-help behavior:
   - new test validates format-call signature label and active argument indexing for alias-qualified IO print calls.
 - Updated LSP and implementation docs to reflect IO alias overload support.
-- Extended LSP reserved-module signature help with overload-aware Core.DL.open support:
+- Extended LSP reserved-module signature help with overload-aware System.DL.open support:
   - alias-qualified `DL.open(...)` now exposes both supported call forms in signature help: `(path)` and `(path, manifest)`.
   - active signature/parameter selection now correctly moves to the second overload when cursor is in argument 2.
-- Added regression coverage for Core.DL.open overload signatures:
+- Added regression coverage for System.DL.open overload signatures:
   - new test validates both `DL.open(path)` and `DL.open(path, manifest)` labels are present and that active signature/parameter are set to overload index 1 / parameter 1 for second-argument positions.
 - Updated LSP and implementation docs to reflect overload-aware reserved alias signature behavior.
 - Improved LSP undeclared-identifier quick-fix typing:
@@ -1378,9 +1378,9 @@ This log records VM-related changes and is used as a historical reference for be
 - Added reserved-import canonicalization for compiler + tooling:
   - introduced shared mapping utility (`lang_reserved.h`) so parser/validator/SIR/CLI/LSP resolve the same reserved modules.
   - `System.*` aliases now map case-insensitively to runtime reserved modules (`System.io`, `System.dl`, `System.math`, `System.file`, `System.stream`, `System.os`, plus `System.fs`/`System.log`).
-  - legacy import names (`IO`, `Core.DL`, `Core.Os`, etc.) remain supported for backward compatibility.
+  - legacy import names (`IO`, `System.DL`, `System.Os`, etc.) remain supported for backward compatibility.
 - Expanded import parsing to support unquoted dotted module paths:
-  - import declarations now accept both `import "Core.DL"` and `import System.dl`.
+  - import declarations now accept both `import "System.DL"` and `import System.dl`.
 - Updated validator/SIR reserved-module binding flow:
   - import declarations are canonicalized before alias/module registration, avoiding path-form drift across parser forms and casing.
 - Updated CLI local-import loader to use shared reserved-module detection:
@@ -1419,12 +1419,12 @@ This log records VM-related changes and is used as a historical reference for be
   - removed `node_modules` exclusion from `Editor/vscode-simple/.vscodeignore` so VSIX includes `vscode-languageclient` runtime dependency.
   - documented recovery for `Cannot find module 'vscode-languageclient/node'` activation errors in extension README.
 - Unified reserved stdlib naming internals for fs/file overlap:
-  - canonicalized `File`, `System.file`, and `System.fs` to a single reserved module target (`Core.Fs`) while preserving compatibility aliases.
+  - canonicalized `File`, `System.file`, and `System.fs` to a single reserved module target (`System.Fs`) while preserving compatibility aliases.
 - Improved module/member diagnostics:
   - unknown module-member errors now suggest the closest valid member name (for reserved modules and user-defined modules).
 - Added platform capability constants for reserved modules:
-  - `System.os`/`Core.Os`: `is_linux`, `is_macos`, `is_windows`, `has_dl` (bool constants),
-  - `System.dl`/`Core.DL`: `supported` (bool constant).
+  - `System.os`/`System.Os`: `is_linux`, `is_macos`, `is_windows`, `has_dl` (bool constants),
+  - `System.dl`/`System.DL`: `supported` (bool constant).
 - Extended SIR + validator support for capability constants and added language regression tests for:
   - `system.os` capability members,
   - `system.dl.supported`,
@@ -1441,20 +1441,20 @@ This log records VM-related changes and is used as a historical reference for be
   - stream printing remains in `IO.print/IO.println`.
 - Wired `System.io` buffer APIs end-to-end:
   - validator reserved members/signatures + argument diagnostics,
-  - SIR reserved import lowering to `core.io`,
-  - VM import dispatch for `core.io` functions.
+  - SIR reserved import lowering to `System.io`,
+  - VM import dispatch for `System.io` functions.
 - Added coverage:
   - language validation test for `system.io` buffer APIs,
   - language fixture test `Tests/simple/reserved_io_buffer.simple`,
   - LSP completion regression now verifies `io.buffer_*` members.
 - Updated docs for runtime/module contracts:
-  - `StdLib.md` now documents IO buffer helpers and `core_io` alias normalization,
-  - `VM.md` import-dispatch module list now includes `core.io`.
-- Unified reserved-module canonical IDs to `Core.*` for internal consistency:
-  - `IO`/`System.io`/`core.io` now canonicalize to `Core.IO`,
-  - `Math`/`System.math`/`core.math` now canonicalize to `Core.Math`,
-  - `Time`/`System.time`/`core.time` now canonicalize to `Core.Time`.
-- Updated validator, SIR, and LSP reserved-module handling to use `Core.IO/Core.Math/Core.Time` uniformly while preserving legacy import spellings.
+  - `StdLib.md` now documents IO buffer helpers and `System_io` alias normalization,
+  - `VM.md` import-dispatch module list now includes `System.io`.
+- Unified reserved-module canonical IDs to `System.*` for internal consistency:
+  - `IO`/`System.io`/`System.io` now canonicalize to `System.IO`,
+  - `Math`/`System.math`/`System.math` now canonicalize to `System.Math`,
+  - `Time`/`System.time`/`System.time` now canonicalize to `System.Time`.
+- Updated validator, SIR, and LSP reserved-module handling to use `System.IO/System.Math/System.Time` uniformly while preserving legacy import spellings.
 - Fixed SIR module-resolution edge cases introduced by canonicalization so user-defined `Math` modules still resolve correctly and reserved extern dispatch remains stable.
 - Verified regression coverage after canonicalization updates:
   - `./build.sh --suite lang` -> `332/332`,
@@ -1469,14 +1469,14 @@ This log records VM-related changes and is used as a historical reference for be
   - removed stale `Simple/...` path prefixes from active module docs (`README`, `Modules`, `Byte`, `IR`, `VM`, `CLI`),
   - normalized verification/build commands to root form (for example `./build.sh --suite ...`),
   - updated CLI docs to reflect that `simple lsp` is implemented (not placeholder),
-  - updated language reserved-alias mapping text to canonical internal IDs (`Core.IO`, `Core.Math`, `Core.Time`),
+  - updated language reserved-alias mapping text to canonical internal IDs (`System.IO`, `System.Math`, `System.Time`),
   - added `StdLib.md` note documenting canonical internal reserved module IDs,
   - marked implementation-plan stale-path cleanup item complete for active module docs.
 
 ## 2026-02-08
 - Fixed cross-platform CI build regressions:
   - guarded POSIX dynamic loader include/usage in `VM/src/vm.cpp` so Windows builds compile cleanly.
-  - `core.dl` calls now return clear unsupported errors on Windows instead of compile-time failure.
+  - `System.dl` calls now return clear unsupported errors on Windows instead of compile-time failure.
 - Fixed macOS shell compatibility bug in `build.sh`:
   - avoided unbound empty-array expansion for `TEST_DEFINES` when running `--suite all` under strict Bash settings.
 - Hardened Windows build scripts:
@@ -1486,15 +1486,15 @@ This log records VM-related changes and is used as a historical reference for be
 - Local verification:
   - `./build.sh --suite core` passed (`507/507`).
   - `./build.sh --suite all --no-tests` completed successfully.
-- Fixed dynamic Core.DL global-handle regression for member calls:
+- Fixed dynamic System.DL global-handle regression for member calls:
   - restored dynamic symbol resolution when the DL handle comes from a global initialized with `DL.Open(..., manifest)` (not only locals).
   - updated validator dynamic-member resolution paths to derive DL manifest modules from both locals and globals.
   - updated SIR emitter/inference dynamic-member resolution paths to derive DL manifest modules from both locals and globals.
 - Added regression coverage:
-  - new fixture `Tests/simple/core_dl_open_global.simple` validates `lib :: i64 = DL.Open(..., ffi)` followed by `lib.symbol(...)` calls from functions.
-  - registered `lang_simple_fixture_core_dl_open_global` in language test suite.
+  - new fixture `Tests/simple/System_dl_open_global.simple` validates `lib :: i64 = DL.Open(..., ffi)` followed by `lib.symbol(...)` calls from functions.
+  - registered `lang_simple_fixture_System_dl_open_global` in language test suite.
 - Verification:
-  - `./bin/simple check ./Tests/simple/core_dl_open_raylib.simple` now succeeds (no `member access base is not an artifact` error).
+  - `./bin/simple check ./Tests/simple/System_dl_open_raylib.simple` now succeeds (no `member access base is not an artifact` error).
   - `./build.sh --suite lang` passed (`333/333`).
 - Improved non-reserved import diagnostics to reduce misleading `unsupported import path` errors:
   - CLI and LSP local import resolution now report `import file not found: <path>` for missing absolute/relative imports.
@@ -1512,7 +1512,7 @@ This log records VM-related changes and is used as a historical reference for be
     - updated fn/callback docs in `Docs/Lang.md`, including explicit note that direct inline fn-literal invocation remains unsupported.
   - SIR/validation behavior improvements:
     - improved proc/callback type cloning and call-target inference paths.
-    - improved dynamic `Core.DL` module resolution for identifiers by checking both local and global DL handles.
+    - improved dynamic `System.DL` module resolution for identifiers by checking both local and global DL handles.
     - added float-literal type alignment in binary/inference paths where one side is a typed float lane.
   - VS Code extension/LSP usability updates:
     - added `Simple: Restart Language Server` command, editor-title button, status item, and config-triggered restart.
@@ -1522,7 +1522,7 @@ This log records VM-related changes and is used as a historical reference for be
   - Runtime/IR/Byte fixes and diagnostics:
     - fixed IR text lowering so primitive types with zero fields use `field_start=0` reliably.
     - improved SBC loader error detail when primitive/ref/string kinds incorrectly carry fields.
-    - hardened VM `core.dl.call*` null-pointer behavior to return explicit runtime errors instead of silently fabricating return values.
+    - hardened VM `System.dl.call*` null-pointer behavior to return explicit runtime errors instead of silently fabricating return values.
   - Test/fixture expansion:
     - expanded language stress fixtures for import-chain/deep imports/cycles/ambiguity/relative imports under `Tests/simple_modules/*`.
     - added callback/fn-proc regression tests and additional local-import fixtures.
@@ -1556,8 +1556,8 @@ This log records VM-related changes and is used as a historical reference for be
   - authoritative install/build commands (`build_linux`, `build_macos`, `build_windows`),
   - default install locations,
   - common script flags and system-wide install examples.
-- Moved generated SBC core.fs test artifacts out of repo-root `bin/` into `Tests/bin/`:
-  - updated `Tests/tests/test_core.cpp` fixture paths from `bin/sbc_fs_*.bin` to `Tests/bin/sbc_fs_*.bin`,
+- Moved generated SBC System.fs test artifacts out of repo-root `bin/` into `Tests/bin/`:
+  - updated `Tests/tests/test_System.cpp` fixture paths from `bin/sbc_fs_*.bin` to `Tests/bin/sbc_fs_*.bin`,
   - added `Tests/bin/.gitignore` to keep generated test binaries out of source control,
   - kept `bin/` for runtime/compiler binaries and compatibility libs only.
 - Updated authoritative OS build scripts default package/install version from `dev` to `v0.02.3`:
@@ -1580,9 +1580,9 @@ This log records VM-related changes and is used as a historical reference for be
 
 ## 2026-02-09
 - Fixed Lang SIR emission regression for reserved `system.dl` alias calls after reserved-import canonicalization/list refactor.
-  - `DL.Close(...)` / `DL.LastError()` and other alias-based Core.DL members now normalize correctly during both type inference and call emission.
+  - `DL.Close(...)` / `DL.LastError()` and other alias-based System.DL members now normalize correctly during both type inference and call emission.
   - normalized member resolution now uses resolved reserved module identity (not raw alias text) in fallback extern lookup paths.
-- Kept reserved import semantics aligned with current policy (`system.*`/short aliases user-facing; internal canonical lowering remains `Core.*`).
+- Kept reserved import semantics aligned with current policy (`system.*`/short aliases user-facing; internal canonical lowering remains `System.*`).
 
 ## 2026-02-12
 - Hardened LSP semantic token stability for broken/in-progress edits:

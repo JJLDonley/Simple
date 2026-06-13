@@ -349,11 +349,11 @@ std::string NormalizeCoreDlMember(const std::string& name) {
 }
 
 std::string ResolveImportModule(const std::string& module) {
-  if (module == "core_os") return "core.os";
-  if (module == "core_io") return "core.io";
-  if (module == "core_fs") return "core.fs";
-  if (module == "core_log") return "core.log";
-  if (module == "core_dl") return "core.dl";
+  if (module == "System_os") return "System.os";
+  if (module == "System_io") return "System.io";
+  if (module == "System_fs") return "System.fs";
+  if (module == "System_log") return "System.log";
+  if (module == "System_dl") return "System.dl";
   return module;
 }
 
@@ -365,8 +365,7 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   }
   if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
     const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier &&
-        (root.text == "Core" || root.text == "System")) {
+    if (root.kind == ExprKind::Identifier && root.text == "System") {
       *out = root.text + "." + base.text;
       return true;
     }
@@ -1669,7 +1668,7 @@ bool InferExprType(const Expr& expr,
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
-          const bool ext_is_core_dl =
+          const bool ext_is_System_dl =
               (module_name == "DL") || (has_reserved_module && reserved_module == "DL");
           if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
             ext_mod_it = st.extern_returns_by_module.find(reserved_module);
@@ -1679,7 +1678,7 @@ bool InferExprType(const Expr& expr,
           }
           if (ext_mod_it != st.extern_returns_by_module.end()) {
             const std::string member_name =
-                ext_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
             auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
@@ -1688,10 +1687,10 @@ bool InferExprType(const Expr& expr,
           std::string resolved_module_name;
           const bool module_is_reserved =
               ResolveReservedModuleName(st, module_name, &resolved_module_name);
-          const bool module_is_core_dl =
+          const bool module_is_System_dl =
               module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
           const std::string member_name =
-              module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -3254,10 +3253,10 @@ bool EmitExpr(EmitState& st,
           std::string resolved_module_name;
           const bool module_is_reserved =
               ResolveReservedModuleName(st, module_name, &resolved_module_name);
-          const bool module_is_core_dl =
+          const bool module_is_System_dl =
               module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
           const std::string member_name =
-              module_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -3296,7 +3295,7 @@ bool EmitExpr(EmitState& st,
           std::string resolved_module_name_for_ext;
           const bool has_resolved_module_for_ext =
               ResolveReservedModuleName(st, module_name, &resolved_module_name_for_ext);
-          bool ext_is_core_dl = (ext_module_name == "DL") ||
+          bool ext_is_System_dl = (ext_module_name == "DL") ||
                                 (has_resolved_module_for_ext &&
                                  resolved_module_name_for_ext == "DL");
           auto ext_mod_it = st.extern_ids_by_module.find(ext_module_name);
@@ -3308,7 +3307,7 @@ bool EmitExpr(EmitState& st,
           }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
             const std::string extern_member_name =
-                ext_is_core_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
             const std::string ext_key = ext_module_name + "." + extern_member_name;
             auto id_it = ext_mod_it->second.find(extern_member_name);
             if (id_it != ext_mod_it->second.end()) {
@@ -4905,7 +4904,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
 
     if (ext->has_module &&
-        ResolveImportModule(ext->module) != "core.dl" &&
+        ResolveImportModule(ext->module) != "System.dl" &&
         IsSupportedDlAbiType(st.imports.back().ret, st, true)) {
       bool all_params_scalar = true;
       for (const auto& p : st.imports.back().params) {
@@ -4917,7 +4916,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (all_params_scalar) {
         EmitState::ImportItem dyn_item;
         dyn_item.name = "import_" + std::to_string(st.imports.size());
-        dyn_item.module = "core.dl";
+        dyn_item.module = "System.dl";
         dyn_item.symbol = "call$" + std::to_string(dynamic_dl_call_index++);
         dyn_item.sig_name = "sig_import_" + std::to_string(st.imports.size());
         dyn_item.flags = 0;
@@ -5015,11 +5014,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "open", std::move(open_params), make_type("i32"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "close", std::move(close_params), make_type("void"))) return false;
 
       auto make_rw_params = [&]() {
         std::vector<TypeRef> params;
@@ -5028,8 +5027,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         params.push_back(make_type("i32"));
         return params;
       };
-      if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "read", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "write", make_rw_params(), make_type("i32"))) return false;
     }
   }
 
@@ -5037,18 +5036,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("DL")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.dl", "open", std::move(open_params), make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.dl", "open", std::move(open_params), make_type("i64"))) return false;
 
       std::vector<TypeRef> sym_params;
       sym_params.push_back(make_type("i64"));
       sym_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.dl", "sym", std::move(sym_params), make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.dl", "sym", std::move(sym_params), make_type("i64"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.dl", "close", std::move(close_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.dl", "close", std::move(close_params), make_type("i32"))) return false;
 
-      if (!add_reserved_import(alias, "core.dl", "last_error", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.dl", "last_error", {}, make_type("string"))) return false;
     }
   }
 
@@ -5056,33 +5055,33 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("Time")) {
       std::vector<TypeRef> format_params;
       format_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
     }
   }
 
   if (st.reserved_imports.find("OS") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("OS")) {
-      if (!add_reserved_import(alias, "core.os", "args_count", {}, make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.os", "args_count", {}, make_type("i32"))) return false;
 
       std::vector<TypeRef> idx_params;
       idx_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.os", "args_get", std::move(idx_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "args_get", std::move(idx_params), make_type("string"))) return false;
 
       std::vector<TypeRef> env_params;
       env_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.os", "env_get", std::move(env_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "env_get", std::move(env_params), make_type("string"))) return false;
 
-      if (!add_reserved_import(alias, "core.os", "cwd_get", {}, make_type("string"))) return false;
-      if (!add_reserved_import(alias, "core.os", "time_mono_ns", {}, make_type("i64"))) return false;
-      if (!add_reserved_import(alias, "core.os", "time_wall_ns", {}, make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.os", "cwd_get", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "time_mono_ns", {}, make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.os", "time_wall_ns", {}, make_type("i64"))) return false;
 
       std::vector<TypeRef> format_params;
       format_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
 
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
     }
   }
 
@@ -5090,31 +5089,31 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("FS")) {
       std::vector<TypeRef> read_text_params;
       read_text_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.fs", "readText", std::move(read_text_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "readText", std::move(read_text_params), make_type("string"))) return false;
       std::vector<TypeRef> write_text_params;
       write_text_params.push_back(make_type("string"));
       write_text_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.fs", "writeText", std::move(write_text_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "writeText", std::move(write_text_params), make_type("bool"))) return false;
       std::vector<TypeRef> read_bytes_params;
       read_bytes_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.fs", "readBytes", std::move(read_bytes_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "readBytes", std::move(read_bytes_params), make_list_type("i32"))) return false;
       std::vector<TypeRef> write_bytes_params;
       write_bytes_params.push_back(make_type("string"));
       write_bytes_params.push_back(make_list_type("i32"));
-      if (!add_reserved_import(alias, "core.fs", "writeBytes", std::move(write_bytes_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "writeBytes", std::move(write_bytes_params), make_type("bool"))) return false;
       std::vector<TypeRef> list_dir_params;
       list_dir_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.fs", "listDir", std::move(list_dir_params), make_list_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "listDir", std::move(list_dir_params), make_list_type("string"))) return false;
       std::vector<TypeRef> copy_params;
       copy_params.push_back(make_type("string"));
       copy_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.fs", "copy", std::move(copy_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "copy", std::move(copy_params), make_type("bool"))) return false;
       for (const std::string member : {"remove", "mkdir", "mkdirAll", "setCwd"}) {
         std::vector<TypeRef> params;
         params.push_back(make_type("string"));
-        if (!add_reserved_import(alias, "core.fs", member, std::move(params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "System.fs", member, std::move(params), make_type("bool"))) return false;
       }
-      if (!add_reserved_import(alias, "core.fs", "cwd", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "cwd", {}, make_type("string"))) return false;
     }
   }
 
@@ -5123,36 +5122,36 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> join_params;
       join_params.push_back(make_type("string"));
       join_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.path", "join", std::move(join_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.path", "join", std::move(join_params), make_type("string"))) return false;
       for (const std::string member : {"dirname", "basename", "ext", "normalize"}) {
         std::vector<TypeRef> params;
         params.push_back(make_type("string"));
-        if (!add_reserved_import(alias, "core.path", member, std::move(params), make_type("string"))) return false;
+        if (!add_reserved_import(alias, "System.path", member, std::move(params), make_type("string"))) return false;
       }
       for (const std::string member : {"exists", "isFile", "isDir"}) {
         std::vector<TypeRef> params;
         params.push_back(make_type("string"));
-        if (!add_reserved_import(alias, "core.path", member, std::move(params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "System.path", member, std::move(params), make_type("bool"))) return false;
       }
     }
   }
 
   if (st.reserved_imports.find("Env") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Env")) {
-      if (!add_reserved_import(alias, "core.env", "argsCount", {}, make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.env", "argsCount", {}, make_type("i32"))) return false;
       std::vector<TypeRef> arg_params;
       arg_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.env", "arg", std::move(arg_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.env", "arg", std::move(arg_params), make_type("string"))) return false;
       std::vector<TypeRef> get_params;
       get_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.env", "get", std::move(get_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.env", "get", std::move(get_params), make_type("string"))) return false;
       std::vector<TypeRef> set_params;
       set_params.push_back(make_type("string"));
       set_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.env", "set", std::move(set_params), make_type("bool"))) return false;
-      if (!add_reserved_import(alias, "core.env", "platform", {}, make_type("string"))) return false;
-      if (!add_reserved_import(alias, "core.env", "arch", {}, make_type("string"))) return false;
-      if (!add_reserved_import(alias, "core.env", "exePath", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.env", "set", std::move(set_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.env", "platform", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.env", "arch", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.env", "exePath", {}, make_type("string"))) return false;
     }
   }
 
@@ -5160,36 +5159,36 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("Random")) {
       std::vector<TypeRef> seed_params;
       seed_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.random", "seed", std::move(seed_params), make_type("void"))) return false;
-      if (!add_reserved_import(alias, "core.random", "i32", {}, make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.random", "seed", std::move(seed_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.random", "i32", {}, make_type("i32"))) return false;
       std::vector<TypeRef> range_params;
       range_params.push_back(make_type("i32"));
       range_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.random", "range", std::move(range_params), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "core.random", "f64", {}, make_type("f64"))) return false;
+      if (!add_reserved_import(alias, "System.random", "range", std::move(range_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.random", "f64", {}, make_type("f64"))) return false;
     }
   }
 
   if (st.reserved_imports.find("Channel") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Channel")) {
       auto add_channel = [&](const std::string& suffix, const std::string& type_name) -> bool {
-        if (!add_reserved_import(alias, "core.channel", "new" + suffix, {}, make_type("i64"))) return false;
+        if (!add_reserved_import(alias, "System.channel", "new" + suffix, {}, make_type("i64"))) return false;
 
         std::vector<TypeRef> send_params;
         send_params.push_back(make_type("i64"));
         send_params.push_back(make_type(type_name.c_str()));
         std::vector<TypeRef> try_send_params = send_params;
-        if (!add_reserved_import(alias, "core.channel", "send" + suffix, std::move(send_params), make_type("bool"))) return false;
-        if (!add_reserved_import(alias, "core.channel", "trySend" + suffix, std::move(try_send_params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "System.channel", "send" + suffix, std::move(send_params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "System.channel", "trySend" + suffix, std::move(try_send_params), make_type("bool"))) return false;
 
         std::vector<TypeRef> recv_params;
         recv_params.push_back(make_type("i64"));
         std::vector<TypeRef> try_recv_params = recv_params;
-        if (!add_reserved_import(alias, "core.channel", "recv" + suffix, std::move(recv_params), make_type(type_name.c_str()))) return false;
-        if (!add_reserved_import(alias, "core.channel", "tryRecv" + suffix, std::move(try_recv_params), make_type(type_name.c_str()))) return false;
+        if (!add_reserved_import(alias, "System.channel", "recv" + suffix, std::move(recv_params), make_type(type_name.c_str()))) return false;
+        if (!add_reserved_import(alias, "System.channel", "tryRecv" + suffix, std::move(try_recv_params), make_type(type_name.c_str()))) return false;
         std::vector<TypeRef> pending_params;
         pending_params.push_back(make_type("i64"));
-        if (!add_reserved_import(alias, "core.channel", "pending" + suffix, std::move(pending_params), make_type("i32"))) return false;
+        if (!add_reserved_import(alias, "System.channel", "pending" + suffix, std::move(pending_params), make_type("i32"))) return false;
         return true;
       };
       if (!add_channel("I32", "i32")) return false;
@@ -5199,25 +5198,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_channel("Bool", "bool")) return false;
       if (!add_channel("String", "string")) return false;
 
-      if (!add_reserved_import(alias, "core.channel", "newBytes", {}, make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "newBytes", {}, make_type("i64"))) return false;
       std::vector<TypeRef> send_bytes_params;
       send_bytes_params.push_back(make_type("i64"));
       send_bytes_params.push_back(make_list_type("i32"));
       std::vector<TypeRef> try_send_bytes_params = send_bytes_params;
-      if (!add_reserved_import(alias, "core.channel", "sendBytes", std::move(send_bytes_params), make_type("bool"))) return false;
-      if (!add_reserved_import(alias, "core.channel", "trySendBytes", std::move(try_send_bytes_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "sendBytes", std::move(send_bytes_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "trySendBytes", std::move(try_send_bytes_params), make_type("bool"))) return false;
       std::vector<TypeRef> recv_bytes_params;
       recv_bytes_params.push_back(make_type("i64"));
       std::vector<TypeRef> try_recv_bytes_params = recv_bytes_params;
-      if (!add_reserved_import(alias, "core.channel", "recvBytes", std::move(recv_bytes_params), make_list_type("i32"))) return false;
-      if (!add_reserved_import(alias, "core.channel", "tryRecvBytes", std::move(try_recv_bytes_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "recvBytes", std::move(recv_bytes_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "tryRecvBytes", std::move(try_recv_bytes_params), make_list_type("i32"))) return false;
       std::vector<TypeRef> pending_bytes_params;
       pending_bytes_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.channel", "pendingBytes", std::move(pending_bytes_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "pendingBytes", std::move(pending_bytes_params), make_type("i32"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.channel", "close", std::move(close_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.channel", "close", std::move(close_params), make_type("void"))) return false;
     }
   }
 
@@ -5225,9 +5224,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("Thread")) {
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.thread", "sleep", std::move(sleep_params), make_type("void"))) return false;
-      if (!add_reserved_import(alias, "core.thread", "yield", {}, make_type("void"))) return false;
-      if (!add_reserved_import(alias, "core.thread", "hardwareConcurrency", {}, make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.thread", "sleep", std::move(sleep_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.thread", "yield", {}, make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.thread", "hardwareConcurrency", {}, make_type("i32"))) return false;
     }
   }
 
@@ -5235,13 +5234,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("IO")) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.io", "buffer_new", std::move(new_params), make_list_type("i32"))) {
+      if (!add_reserved_import(alias, "System.io", "buffer_new", std::move(new_params), make_list_type("i32"))) {
         return false;
       }
 
       std::vector<TypeRef> len_params;
       len_params.push_back(make_list_type("i32"));
-      if (!add_reserved_import(alias, "core.io", "buffer_len", std::move(len_params), make_type("i32"))) {
+      if (!add_reserved_import(alias, "System.io", "buffer_len", std::move(len_params), make_type("i32"))) {
         return false;
       }
 
@@ -5249,7 +5248,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       fill_params.push_back(make_list_type("i32"));
       fill_params.push_back(make_type("i32"));
       fill_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.io", "buffer_fill", std::move(fill_params), make_type("i32"))) {
+      if (!add_reserved_import(alias, "System.io", "buffer_fill", std::move(fill_params), make_type("i32"))) {
         return false;
       }
 
@@ -5257,7 +5256,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       copy_params.push_back(make_list_type("i32"));
       copy_params.push_back(make_list_type("i32"));
       copy_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.io", "buffer_copy", std::move(copy_params), make_type("i32"))) {
+      if (!add_reserved_import(alias, "System.io", "buffer_copy", std::move(copy_params), make_type("i32"))) {
         return false;
       }
     }
@@ -5268,11 +5267,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       open_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.fs", "open", std::move(open_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "open", std::move(open_params), make_type("i32"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.fs", "close", std::move(close_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "close", std::move(close_params), make_type("void"))) return false;
 
       auto make_rw_params = [&]() {
         std::vector<TypeRef> params;
@@ -5281,8 +5280,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         params.push_back(make_type("i32"));
         return params;
       };
-      if (!add_reserved_import(alias, "core.fs", "read", make_rw_params(), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "core.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "read", make_rw_params(), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.fs", "write", make_rw_params(), make_type("i32"))) return false;
     }
   }
 
@@ -5290,13 +5289,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("Json")) {
       std::vector<TypeRef> parse_params;
       parse_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.json", "parse", std::move(parse_params), make_type("i64"))) return false;
+      if (!add_reserved_import(alias, "System.json", "parse", std::move(parse_params), make_type("i64"))) return false;
       std::vector<TypeRef> stringify_params;
       stringify_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.json", "stringify", std::move(stringify_params), make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.json", "stringify", std::move(stringify_params), make_type("string"))) return false;
       std::vector<TypeRef> free_params;
       free_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "core.json", "free", std::move(free_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.json", "free", std::move(free_params), make_type("bool"))) return false;
     }
   }
 
@@ -5304,35 +5303,35 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     for (const auto& alias : reserved_aliases_for("Buffer")) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.buffer", "new", std::move(new_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.buffer", "new", std::move(new_params), make_list_type("i32"))) return false;
       std::vector<TypeRef> len_params;
       len_params.push_back(make_list_type("i32"));
-      if (!add_reserved_import(alias, "core.buffer", "len", std::move(len_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.buffer", "len", std::move(len_params), make_type("i32"))) return false;
       for (const std::string member : {"readU16LE", "readU32LE"}) {
         std::vector<TypeRef> params;
         params.push_back(make_list_type("i32"));
         params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "core.buffer", member, std::move(params), make_type("i32"))) return false;
+        if (!add_reserved_import(alias, "System.buffer", member, std::move(params), make_type("i32"))) return false;
       }
       for (const std::string member : {"writeU16LE", "writeU32LE"}) {
         std::vector<TypeRef> params;
         params.push_back(make_list_type("i32"));
         params.push_back(make_type("i32"));
         params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "core.buffer", member, std::move(params), make_type("bool"))) return false;
+        if (!add_reserved_import(alias, "System.buffer", member, std::move(params), make_type("bool"))) return false;
       }
       std::vector<TypeRef> slice_params;
       slice_params.push_back(make_list_type("i32"));
       slice_params.push_back(make_type("i32"));
       slice_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.buffer", "slice", std::move(slice_params), make_list_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.buffer", "slice", std::move(slice_params), make_list_type("i32"))) return false;
       std::vector<TypeRef> copy_params;
       copy_params.push_back(make_list_type("i32"));
       copy_params.push_back(make_type("i32"));
       copy_params.push_back(make_list_type("i32"));
       copy_params.push_back(make_type("i32"));
       copy_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
     }
   }
 
@@ -5341,18 +5340,18 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> params;
       params.push_back(make_type("string"));
       params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.log", "log", std::move(params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.log", "log", std::move(params), make_type("void"))) return false;
       for (const std::string member : {"info", "warn", "error"}) {
         std::vector<TypeRef> message_params;
         message_params.push_back(make_type("string"));
-        if (!add_reserved_import(alias, "core.log", member, std::move(message_params), make_type("void"))) return false;
+        if (!add_reserved_import(alias, "System.log", member, std::move(message_params), make_type("void"))) return false;
       }
       std::vector<TypeRef> level_params;
       level_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "core.log", "setLevel", std::move(level_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.log", "setLevel", std::move(level_params), make_type("void"))) return false;
       std::vector<TypeRef> file_params;
       file_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "core.log", "setFile", std::move(file_params), make_type("bool"))) return false;
+      if (!add_reserved_import(alias, "System.log", "setFile", std::move(file_params), make_type("bool"))) return false;
     }
   }
 

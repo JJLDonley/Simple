@@ -11,7 +11,7 @@ Primary monoliths/offenders:
 1. `VM/src/vm.cpp` — split first.
 2. `Lang/src/lang_validate.cpp` — split second.
 3. `Tests/tests/test_lang.cpp` — split after phase boundaries stabilize.
-4. `Tests/tests/test_core.cpp` — split by VM subsystem.
+4. `Tests/tests/test_System.cpp` — split by VM subsystem.
 5. `CLI/src/main.cpp` — split diagnostics/import/build helpers after shared import graph extraction.
 
 Recommended priority order:
@@ -72,8 +72,9 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] result type
   - [x] handler function
 - [ ] Use native metadata for VM runtime dispatch.
-  - [x] Route `core.random` through native metadata dispatch.
-  - [x] Route `core.os` time/sleep helpers through native metadata dispatch.
+  - [x] Route `System.random` through native metadata dispatch.
+  - [x] Route `System.os` time/sleep helpers through native metadata dispatch.
+  - [x] Route `System.thread` through native metadata dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.
 - [ ] Use native metadata for stdlib documentation generation.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.
@@ -131,7 +132,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 5: Test Split
 
-- [ ] Split VM tests out of `Tests/tests/test_core.cpp`:
+- [ ] Split VM tests out of `Tests/tests/test_System.cpp`:
   - [ ] `Tests/tests/vm/test_interpreter.cpp`
   - [ ] `Tests/tests/vm/test_heap.cpp`
   - [ ] `Tests/tests/vm/test_gc.cpp`

@@ -21,7 +21,7 @@ namespace {
 bool ShouldSkipSimpleFixture(const std::filesystem::path& path) {
   const std::string name = path.filename().string();
   // Optional desktop-interactive sample; excludes headless CI/test environments.
-  return name == "core_dl_open_raylib.simple";
+  return name == "System_dl_open_raylib.simple";
 }
 
 bool ReadFileText(const std::string& path, std::string* out, std::string* error) {

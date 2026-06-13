@@ -232,14 +232,14 @@ bool ConvertDlArg(Slot slot,
     }
     HeapObject* obj = heap.Get(ref);
     if (!obj || obj->header.kind != ObjectKind::String) {
-      if (out_error) *out_error = "core.dl.call string argument is not a string";
+      if (out_error) *out_error = "System.dl.call string argument is not a string";
       return false;
     }
     owned_strings.push_back(U16ToAscii(ReadString(obj)));
     *out = owned_strings.back().c_str();
     return true;
   }
-  if (out_error) *out_error = "core.dl.call unsupported argument type conversion";
+  if (out_error) *out_error = "System.dl.call unsupported argument type conversion";
   return false;
 }
 
@@ -288,7 +288,7 @@ bool PackDlReturn(T value, Heap& heap, Slot* out_ret, std::string* out_error) {
     *out_ret = PackRef(handle);
     return true;
   }
-  if (out_error) *out_error = "core.dl.call unsupported return type conversion";
+  if (out_error) *out_error = "System.dl.call unsupported return type conversion";
   return false;
 }
 
@@ -309,7 +309,7 @@ bool InvokeDlFunctionTyped(int64_t ptr_bits,
     using ArgT = std::decay_t<decltype(dst)>;
     if (arg_base + index >= args.size()) {
       ok = false;
-      if (out_error) *out_error = "core.dl.call arg index out of range";
+      if (out_error) *out_error = "System.dl.call arg index out of range";
       return;
     }
     if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
@@ -342,7 +342,7 @@ bool InvokeDlFunctionVoidTyped(int64_t ptr_bits,
     using ArgT = std::decay_t<decltype(dst)>;
     if (arg_base + index >= args.size()) {
       ok = false;
-      if (out_error) *out_error = "core.dl.call arg index out of range";
+      if (out_error) *out_error = "System.dl.call arg index out of range";
       return;
     }
     if (!ConvertDlArg<ArgT>(args[arg_base + index], heap, owned_strings, &dst, out_error)) {
@@ -389,7 +389,7 @@ bool DispatchDlCall1(TypeKind arg0_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0)
 #undef SIMPLE_DL_CASE_ARG0
     default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.dl.call unsupported parameter type";
       return false;
   }
 }
@@ -408,7 +408,7 @@ bool DispatchDlCall2Arg1Void(TypeKind arg1_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1_VOID)
 #undef SIMPLE_DL_CASE_ARG1_VOID
     default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.dl.call unsupported parameter type";
       return false;
   }
 }
@@ -428,7 +428,7 @@ bool DispatchDlCall2Arg1(TypeKind arg1_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG1)
 #undef SIMPLE_DL_CASE_ARG1
     default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.dl.call unsupported parameter type";
       return false;
   }
 }
@@ -449,7 +449,7 @@ bool DispatchDlCall2(TypeKind arg0_kind,
     SIMPLE_DL_FOREACH_TYPE(SIMPLE_DL_CASE_ARG0_2)
 #undef SIMPLE_DL_CASE_ARG0_2
     default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.dl.call unsupported parameter type";
       return false;
   }
 }
@@ -517,7 +517,7 @@ ffi_type* BuildDlFfiType(const SbcModule& module,
   auto cached = cache.ffi_by_type.find(type_id);
   if (cached != cache.ffi_by_type.end()) return cached->second;
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "core.dl.call type id out of range";
+    if (out_error) *out_error = "System.dl.call type id out of range";
     return nullptr;
   }
   const auto& row = module.types[type_id];
@@ -525,18 +525,18 @@ ffi_type* BuildDlFfiType(const SbcModule& module,
   if (kind != TypeKind::Unspecified || row.field_count == 0) {
     ffi_type* primitive = PrimitiveFfiType(kind);
     if (!primitive) {
-      if (out_error) *out_error = "core.dl.call unsupported ABI type";
+      if (out_error) *out_error = "System.dl.call unsupported ABI type";
       return nullptr;
     }
     cache.ffi_by_type[type_id] = primitive;
     return primitive;
   }
   if (!visiting || !visiting->insert(type_id).second) {
-    if (out_error) *out_error = "core.dl.call recursive struct ABI is unsupported";
+    if (out_error) *out_error = "System.dl.call recursive struct ABI is unsupported";
     return nullptr;
   }
   if (row.field_start + row.field_count > module.fields.size()) {
-    if (out_error) *out_error = "core.dl.call struct field range out of bounds";
+    if (out_error) *out_error = "System.dl.call struct field range out of bounds";
     visiting->erase(type_id);
     return nullptr;
   }
@@ -596,7 +596,7 @@ bool PrepareStructOffsets(const SbcModule& module,
     }
     ffi_type* field_ffi = meta.ffi->elements[i];
     if (!field_ffi || field_ffi->size == 0 || field_ffi->alignment == 0) {
-      if (out_error) *out_error = "core.dl.call struct field ABI is incomplete";
+      if (out_error) *out_error = "System.dl.call struct field ABI is incomplete";
       return false;
     }
     size_t align = static_cast<size_t>(field_ffi->alignment);
@@ -607,7 +607,7 @@ bool PrepareStructOffsets(const SbcModule& module,
   }
   size_t computed = AlignSize(offset, max_align);
   if (meta.ffi->size != 0 && computed != meta.ffi->size) {
-    if (out_error) *out_error = "core.dl.call struct ABI size mismatch";
+    if (out_error) *out_error = "System.dl.call struct ABI size mismatch";
     return false;
   }
   meta.offsets_ready = true;
@@ -623,7 +623,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
                          std::string* out_error) {
   auto require = [&](size_t n) -> bool {
     if (offset + n > payload.size()) {
-      if (out_error) *out_error = "core.dl.call struct payload out of bounds";
+      if (out_error) *out_error = "System.dl.call struct payload out of bounds";
       return false;
     }
     return true;
@@ -707,7 +707,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       }
       HeapObject* obj = heap.Get(ref);
       if (!obj || obj->header.kind != ObjectKind::String) {
-        if (out_error) *out_error = "core.dl.call struct string field is not a string";
+        if (out_error) *out_error = "System.dl.call struct string field is not a string";
         return false;
       }
       owned_strings.push_back(U16ToAscii(ReadString(obj)));
@@ -715,7 +715,7 @@ bool ReadVmPayloadScalar(const std::vector<uint8_t>& payload,
       return true;
     }
     default:
-      if (out_error) *out_error = "core.dl.call unsupported struct field type";
+      if (out_error) *out_error = "System.dl.call unsupported struct field type";
       return false;
   }
 }
@@ -729,7 +729,7 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
   if (!payload) return false;
   auto require = [&](size_t n) -> bool {
     if (offset + n > payload->size()) {
-      if (out_error) *out_error = "core.dl.call struct payload out of bounds";
+      if (out_error) *out_error = "System.dl.call struct payload out of bounds";
       return false;
     }
     return true;
@@ -796,7 +796,7 @@ bool WriteVmPayloadScalar(std::vector<uint8_t>* payload,
       return true;
     }
     default:
-      if (out_error) *out_error = "core.dl.call unsupported struct field type";
+      if (out_error) *out_error = "System.dl.call unsupported struct field type";
       return false;
   }
 }
@@ -827,21 +827,21 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
                             void* out_value,
                             std::string* out_error) {
   if (!IsStructTypeId(module, type_id)) {
-    if (out_error) *out_error = "core.dl.call expected struct type";
+    if (out_error) *out_error = "System.dl.call expected struct type";
     return false;
   }
   if (handle == kNullRef) {
-    if (out_error) *out_error = "core.dl.call null struct argument";
+    if (out_error) *out_error = "System.dl.call null struct argument";
     return false;
   }
   HeapObject* obj = heap.Get(handle);
   if (!obj || obj->header.kind != ObjectKind::Artifact || obj->header.type_id != type_id) {
-    if (out_error) *out_error = "core.dl.call struct argument type mismatch";
+    if (out_error) *out_error = "System.dl.call struct argument type mismatch";
     return false;
   }
   auto meta_it = cache.struct_meta.find(type_id);
   if (meta_it == cache.struct_meta.end()) {
-    if (out_error) *out_error = "core.dl.call struct metadata missing";
+    if (out_error) *out_error = "System.dl.call struct metadata missing";
     return false;
   }
   DlStructMeta& meta = meta_it->second;
@@ -853,7 +853,7 @@ bool MarshalVmArtifactToFfi(const SbcModule& module,
     uint8_t* dst = static_cast<uint8_t*>(out_value) + meta.ffi_offsets[i];
     if (IsStructTypeId(module, field_type_id)) {
       if (vm_offset + 4 > obj->payload.size()) {
-        if (out_error) *out_error = "core.dl.call nested struct field out of bounds";
+        if (out_error) *out_error = "System.dl.call nested struct field out of bounds";
         return false;
       }
       uint32_t nested = 0;
@@ -880,12 +880,12 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
                             std::string* out_error) {
   if (!out_handle) return false;
   if (!IsStructTypeId(module, type_id)) {
-    if (out_error) *out_error = "core.dl.call expected struct return type";
+    if (out_error) *out_error = "System.dl.call expected struct return type";
     return false;
   }
   auto meta_it = cache.struct_meta.find(type_id);
   if (meta_it == cache.struct_meta.end()) {
-    if (out_error) *out_error = "core.dl.call struct metadata missing";
+    if (out_error) *out_error = "System.dl.call struct metadata missing";
     return false;
   }
   DlStructMeta& meta = meta_it->second;
@@ -893,7 +893,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
   uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, module.types[type_id].size);
   HeapObject* obj = heap.Get(handle);
   if (!obj) {
-    if (out_error) *out_error = "core.dl.call artifact allocation failed";
+    if (out_error) *out_error = "System.dl.call artifact allocation failed";
     return false;
   }
   const auto& row = module.types[type_id];
@@ -905,7 +905,7 @@ bool MarshalFfiToVmArtifact(const SbcModule& module,
       uint32_t nested = kNullRef;
       if (!MarshalFfiToVmArtifact(module, field_type_id, src, cache, heap, &nested, out_error)) return false;
       if (vm_offset + 4 > obj->payload.size()) {
-        if (out_error) *out_error = "core.dl.call nested struct field out of bounds";
+        if (out_error) *out_error = "System.dl.call nested struct field out of bounds";
         return false;
       }
       std::memcpy(obj->payload.data() + vm_offset, &nested, sizeof(nested));
@@ -926,7 +926,7 @@ bool FillScalarArgStorage(const SbcModule& module,
                           void* out_value,
                           std::string* out_error) {
   if (type_id >= module.types.size()) {
-    if (out_error) *out_error = "core.dl.call type id out of range";
+    if (out_error) *out_error = "System.dl.call type id out of range";
     return false;
   }
   TypeKind kind = static_cast<TypeKind>(module.types[type_id].kind);
@@ -953,7 +953,7 @@ bool FillScalarArgStorage(const SbcModule& module,
     case TypeKind::String:
       return ConvertDlArg<const char*>(slot, heap, owned_strings, static_cast<const char**>(out_value), out_error);
     default:
-      if (out_error) *out_error = "core.dl.call unsupported parameter type";
+      if (out_error) *out_error = "System.dl.call unsupported parameter type";
       return false;
   }
 }
@@ -988,7 +988,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                    static_cast<unsigned int>(arg_type_ids.size()),
                    ffi_ret_type,
                    ffi_arg_types.data()) != FFI_OK) {
-    if (out_error) *out_error = "core.dl.call ffi_prep_cif failed";
+    if (out_error) *out_error = "System.dl.call ffi_prep_cif failed";
     return false;
   }
   for (uint32_t type_id : arg_type_ids) {
@@ -1004,7 +1004,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   std::vector<void*> ffi_arg_values(arg_type_ids.size(), nullptr);
   for (size_t i = 0; i < arg_type_ids.size(); ++i) {
     if (arg_base + i >= args.size()) {
-      if (out_error) *out_error = "core.dl.call arg index out of range";
+      if (out_error) *out_error = "System.dl.call arg index out of range";
       return false;
     }
     ffi_type* field_ffi = ffi_arg_types[i];
@@ -1050,7 +1050,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
 
   if (!has_ret) return true;
   if (!out_ret) {
-    if (out_error) *out_error = "core.dl.call missing return slot";
+    if (out_error) *out_error = "System.dl.call missing return slot";
     return false;
   }
   if (IsStructTypeId(module, ret_type_id)) {
@@ -1079,7 +1079,7 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
     case TypeKind::Char: return PackDlReturn<uint8_t>(*reinterpret_cast<uint8_t*>(ret_storage.data()), heap, out_ret, out_error);
     case TypeKind::String: return PackDlReturn<const char*>(*reinterpret_cast<const char**>(ret_storage.data()), heap, out_ret, out_error);
     default:
-      if (out_error) *out_error = "core.dl.call unsupported return type";
+      if (out_error) *out_error = "System.dl.call unsupported return type";
       return false;
   }
 }
@@ -1094,7 +1094,7 @@ bool DispatchDynamicDlCall(int64_t /*ptr_bits*/,
                            Heap& /*heap*/,
                            Slot* /*out_ret*/,
                            std::string* out_error) {
-  if (out_error) *out_error = "core.dl.call is unsupported on windows";
+  if (out_error) *out_error = "System.dl.call is unsupported on windows";
   return false;
 }
 #endif
@@ -1480,23 +1480,23 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return false;
       }
     }
-    if (mod == "core.os") {
+    if (mod == "System.os") {
       if (sym == "args_count") {
         if (IsI32LikeImportType(ret_kind)) {
           out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
           return true;
         }
-        out_error = "core.os.args_count return type mismatch";
+        out_error = "System.os.args_count return type mismatch";
         return false;
       }
       if (sym == "args_get" || sym == "env_get") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.os ref return type mismatch";
+          out_error = "System.os ref return type mismatch";
           return false;
         }
         if (sym == "args_get") {
           if (args.size() != 1) {
-            out_error = "core.os.args_get arg count mismatch";
+            out_error = "System.os.args_get arg count mismatch";
             return false;
           }
           int32_t index = UnpackI32(args[0]);
@@ -1510,7 +1510,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         if (sym == "env_get") {
           if (args.size() != 1) {
-            out_error = "core.os.env_get arg count mismatch";
+            out_error = "System.os.env_get arg count mismatch";
             return false;
           }
           uint32_t name_ref = UnpackRef(args[0]);
@@ -1540,7 +1540,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "cwd_get") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.os.cwd_get return type mismatch";
+          out_error = "System.os.cwd_get return type mismatch";
           return false;
         }
         std::string cwd;
@@ -1551,11 +1551,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "formatWallNs") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.os.formatWallNs return type mismatch";
+          out_error = "System.os.formatWallNs return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.os.formatWallNs arg count mismatch";
+          out_error = "System.os.formatWallNs arg count mismatch";
           return false;
         }
         out_ret = PackRef(CreateString(
@@ -1568,11 +1568,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (spec->result_type == TypeKind::Unspecified) {
           out_has_ret = false;
         } else if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "core.os " + sym + " return type mismatch";
+          out_error = "System.os " + sym + " return type mismatch";
           return false;
         }
         if (args.size() != spec->parameter_types.size()) {
-          out_error = "core.os." + sym + " arg count mismatch";
+          out_error = "System.os." + sym + " arg count mismatch";
           return false;
         }
         Simple::VM::Native::NativeCallContext context;
@@ -1586,7 +1586,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.path") {
+    if (mod == "System.path") {
       auto read_arg_string = [&](size_t index, std::string* out_value) -> bool {
         if (index >= args.size() || !out_value) return false;
         const uint32_t ref = UnpackRef(args[index]);
@@ -1601,11 +1601,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       };
       if (sym == "join") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.path.join return type mismatch";
+          out_error = "System.path.join return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.path.join arg count mismatch";
+          out_error = "System.path.join arg count mismatch";
           return false;
         }
         std::string a;
@@ -1618,11 +1618,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "dirname" || sym == "basename" || sym == "ext" || sym == "normalize") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = std::string("core.path.") + sym + " return type mismatch";
+          out_error = std::string("System.path.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.path.") + sym + " arg count mismatch";
+          out_error = std::string("System.path.") + sym + " arg count mismatch";
           return false;
         }
         std::string value;
@@ -1637,11 +1637,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "exists" || sym == "isFile" || sym == "isDir") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("core.path.") + sym + " return type mismatch";
+          out_error = std::string("System.path.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.path.") + sym + " arg count mismatch";
+          out_error = std::string("System.path.") + sym + " arg count mismatch";
           return false;
         }
         std::string value;
@@ -1657,18 +1657,18 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.env") {
+    if (mod == "System.env") {
       auto return_string = [&](const std::string& value) -> bool {
         out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
         return true;
       };
       if (sym == "argsCount") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.env.argsCount return type mismatch";
+          out_error = "System.env.argsCount return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.env.argsCount arg count mismatch";
+          out_error = "System.env.argsCount arg count mismatch";
           return false;
         }
         out_ret = PackI32(static_cast<int32_t>(options.argv.size()));
@@ -1676,11 +1676,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "arg") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.env.arg return type mismatch";
+          out_error = "System.env.arg return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.env.arg arg count mismatch";
+          out_error = "System.env.arg arg count mismatch";
           return false;
         }
         int32_t index = UnpackI32(args[0]);
@@ -1692,11 +1692,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "get") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.env.get return type mismatch";
+          out_error = "System.env.get return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.env.get arg count mismatch";
+          out_error = "System.env.get arg count mismatch";
           return false;
         }
         uint32_t name_ref = UnpackRef(args[0]);
@@ -1715,11 +1715,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "set") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.env.set return type mismatch";
+          out_error = "System.env.set return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.env.set arg count mismatch";
+          out_error = "System.env.set arg count mismatch";
           return false;
         }
         HeapObject* name_obj = heap.Get(UnpackRef(args[0]));
@@ -1736,54 +1736,54 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "platform") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.env.platform return type mismatch";
+          out_error = "System.env.platform return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.env.platform arg count mismatch";
+          out_error = "System.env.platform arg count mismatch";
           return false;
         }
         return return_string(Simple::VM::Native::Env::PlatformName());
       }
       if (sym == "arch") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.env.arch return type mismatch";
+          out_error = "System.env.arch return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.env.arch arg count mismatch";
+          out_error = "System.env.arch arg count mismatch";
           return false;
         }
         return return_string(Simple::VM::Native::Env::ArchName());
       }
       if (sym == "exePath") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.env.exePath return type mismatch";
+          out_error = "System.env.exePath return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.env.exePath arg count mismatch";
+          out_error = "System.env.exePath arg count mismatch";
           return false;
         }
         return return_string(Simple::VM::Native::Env::ExePath());
       }
     }
-    if (mod == "core.random") {
+    if (mod == "System.random") {
       const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
       if (!spec) return false;
       if (spec->result_type == TypeKind::Unspecified) {
         out_has_ret = false;
       } else if (spec->result_type == TypeKind::I32) {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.random." + sym + " return type mismatch";
+          out_error = "System.random." + sym + " return type mismatch";
           return false;
         }
       } else if (ret_kind != spec->result_type) {
-        out_error = "core.random." + sym + " return type mismatch";
+        out_error = "System.random." + sym + " return type mismatch";
         return false;
       }
       if (args.size() != spec->parameter_types.size()) {
-        out_error = "core.random." + sym + " arg count mismatch";
+        out_error = "System.random." + sym + " arg count mismatch";
         return false;
       }
       Simple::VM::Native::NativeCallContext context;
@@ -1796,14 +1796,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (result.has_value) out_ret = result.value;
       return true;
     }
-    if (mod == "core.channel") {
+    if (mod == "System.channel") {
       auto do_new = [&](auto& registry, const char* name) -> bool {
         if (!IsI64LikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + name + " return type mismatch";
+          out_error = std::string("System.channel.") + name + " return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = std::string("core.channel.") + name + " arg count mismatch";
+          out_error = std::string("System.channel.") + name + " arg count mismatch";
           return false;
         }
         out_ret = PackI64(Simple::VM::Native::Channel::New(registry));
@@ -1811,11 +1811,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       };
       auto do_send = [&](auto& registry, auto unpack, const char* name) -> bool {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + name + " return type mismatch";
+          out_error = std::string("System.channel.") + name + " return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = std::string("core.channel.") + name + " arg count mismatch";
+          out_error = std::string("System.channel.") + name + " arg count mismatch";
           return false;
         }
         out_ret = PackI32(Simple::VM::Native::Channel::Send(registry, UnpackI64(args[0]),
@@ -1827,11 +1827,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       auto do_recv = [&](auto& registry, auto pack, const char* name, bool wait) -> bool {
         if (!IsI32LikeImportType(ret_kind) && !IsI64LikeImportType(ret_kind) &&
             ret_kind != TypeKind::F32 && ret_kind != TypeKind::F64) {
-          out_error = std::string("core.channel.") + name + " return type mismatch";
+          out_error = std::string("System.channel.") + name + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.channel.") + name + " arg count mismatch";
+          out_error = std::string("System.channel.") + name + " arg count mismatch";
           return false;
         }
         std::decay_t<decltype(registry.channels.begin()->second->values.front())> value{};
@@ -1844,11 +1844,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       };
       auto do_pending = [&](auto& registry, const char* name) -> bool {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + name + " return type mismatch";
+          out_error = std::string("System.channel.") + name + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.channel.") + name + " arg count mismatch";
+          out_error = std::string("System.channel.") + name + " arg count mismatch";
           return false;
         }
         out_ret = PackI32(Simple::VM::Native::Channel::Pending(registry, UnpackI64(args[0])));
@@ -1857,7 +1857,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       auto do_close = [&]() -> bool {
         out_has_ret = false;
         if (args.size() != 1) {
-          out_error = "core.channel.close arg count mismatch";
+          out_error = "System.channel.close arg count mismatch";
           return false;
         }
         Simple::VM::Native::Channel::CloseAll(UnpackI64(args[0]));
@@ -1884,11 +1884,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "sendBool" || sym == "trySendBool") return do_send(Simple::VM::Native::Channel::g_bool, [](Slot v) { return UnpackI32(v) != 0; }, sym.c_str());
       if (sym == "sendString" || sym == "trySendString") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          out_error = std::string("System.channel.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          out_error = std::string("System.channel.") + sym + " arg count mismatch";
           return false;
         }
         auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_string, UnpackI64(args[0]));
@@ -1917,11 +1917,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "recvBool") return do_recv(Simple::VM::Native::Channel::g_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "recvBool", true);
       if (sym == "sendBytes" || sym == "trySendBytes") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          out_error = std::string("System.channel.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          out_error = std::string("System.channel.") + sym + " arg count mismatch";
           return false;
         }
         auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_bytes, UnpackI64(args[0]));
@@ -1952,11 +1952,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "recvBytes" || sym == "tryRecvBytes") {
         if (ret_kind != TypeKind::Ref) {
-          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          out_error = std::string("System.channel.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          out_error = std::string("System.channel.") + sym + " arg count mismatch";
           return false;
         }
         auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_bytes, UnpackI64(args[0]));
@@ -1991,11 +1991,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "recvString" || sym == "tryRecvString") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = std::string("core.channel.") + sym + " return type mismatch";
+          out_error = std::string("System.channel.") + sym + " return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = std::string("core.channel.") + sym + " arg count mismatch";
+          out_error = std::string("System.channel.") + sym + " arg count mismatch";
           return false;
         }
         auto state = Simple::VM::Native::Channel::Get(Simple::VM::Native::Channel::g_string, UnpackI64(args[0]));
@@ -2022,39 +2022,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "tryRecvBool") return do_recv(Simple::VM::Native::Channel::g_bool, [](bool v) { return PackI32(v ? 1 : 0); }, "tryRecvBool", false);
       if (sym == "close") return do_close();
     }
-    if (mod == "core.thread") {
-      if (sym == "sleep") {
+    if (mod == "System.thread") {
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::Unspecified) {
         out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = "core.thread.sleep arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::Thread::SleepMs(UnpackI32(args[0]));
-        return true;
+      } else if (!IsI32LikeImportType(ret_kind)) {
+        out_error = "System.thread." + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "yield") {
-        out_has_ret = false;
-        if (!args.empty()) {
-          out_error = "core.thread.yield arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::Thread::Yield();
-        return true;
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = "System.thread." + sym + " arg count mismatch";
+        return false;
       }
-      if (sym == "hardwareConcurrency") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.thread.hardwareConcurrency return type mismatch";
-          return false;
-        }
-        if (!args.empty()) {
-          out_error = "core.thread.hardwareConcurrency arg count mismatch";
-          return false;
-        }
-        out_ret = PackI32(Simple::VM::Native::Thread::HardwareConcurrency());
-        return true;
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
       }
+      if (result.has_value) out_ret = result.value;
+      return true;
     }
-    if (mod == "core.fs") {
+    if (mod == "System.fs") {
       auto fs_arg_string = [&](size_t index, std::string* out_value) -> bool {
         if (index >= args.size() || !out_value) return false;
         const uint32_t ref = UnpackRef(args[index]);
@@ -2080,8 +2071,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       };
       if (sym == "readText") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.fs.readText return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.fs.readText arg count mismatch"; return false; }
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.fs.readText return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.fs.readText arg count mismatch"; return false; }
         std::string path;
         if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
         std::string text;
@@ -2089,16 +2080,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return fs_return_string(text);
       }
       if (sym == "writeText") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.writeText return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "core.fs.writeText arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.writeText return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "System.fs.writeText arg count mismatch"; return false; }
         std::string path, text;
         if (!fs_arg_string(0, &path) || !fs_arg_string(1, &text)) { out_ret = PackI32(0); return true; }
         out_ret = PackI32(Simple::VM::Native::Fs::WriteText(path, text) ? 1 : 0);
         return true;
       }
       if (sym == "readBytes") {
-        if (ret_kind != TypeKind::Ref) { out_error = "core.fs.readBytes return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.fs.readBytes arg count mismatch"; return false; }
+        if (ret_kind != TypeKind::Ref) { out_error = "System.fs.readBytes return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.fs.readBytes arg count mismatch"; return false; }
         std::string path;
         if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
         std::vector<int32_t> values;
@@ -2106,8 +2097,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return fs_return_bytes(values);
       }
       if (sym == "writeBytes") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.writeBytes return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "core.fs.writeBytes arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.writeBytes return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "System.fs.writeBytes arg count mismatch"; return false; }
         std::string path;
         if (!fs_arg_string(0, &path)) { out_ret = PackI32(0); return true; }
         HeapObject* obj = heap.Get(UnpackRef(args[1]));
@@ -2123,8 +2114,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "listDir") {
-        if (ret_kind != TypeKind::Ref) { out_error = "core.fs.listDir return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.fs.listDir arg count mismatch"; return false; }
+        if (ret_kind != TypeKind::Ref) { out_error = "System.fs.listDir return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.fs.listDir arg count mismatch"; return false; }
         std::string path;
         if (!fs_arg_string(0, &path)) { out_ret = PackRef(kNullRef); return true; }
         std::vector<std::string> names;
@@ -2144,8 +2135,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "copy") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.fs.copy return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "core.fs.copy arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.copy return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "System.fs.copy arg count mismatch"; return false; }
         std::string from, to;
         const bool ok = fs_arg_string(0, &from) && fs_arg_string(1, &to) &&
                         Simple::VM::Native::Fs::CopyFile(from, to);
@@ -2153,8 +2144,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "remove" || sym == "mkdir" || sym == "mkdirAll" || sym == "setCwd") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = std::string("core.fs.") + sym + " return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = std::string("core.fs.") + sym + " arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = std::string("System.fs.") + sym + " return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = std::string("System.fs.") + sym + " arg count mismatch"; return false; }
         std::string path;
         bool ok = fs_arg_string(0, &path);
         if (ok && sym == "remove") ok = Simple::VM::Native::Fs::Remove(path);
@@ -2165,19 +2156,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "cwd") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.fs.cwd return type mismatch"; return false; }
-        if (!args.empty()) { out_error = "core.fs.cwd arg count mismatch"; return false; }
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.fs.cwd return type mismatch"; return false; }
+        if (!args.empty()) { out_error = "System.fs.cwd arg count mismatch"; return false; }
         std::string cwd;
         if (!Simple::VM::Native::Fs::Cwd(&cwd)) { out_ret = PackRef(kNullRef); return true; }
         return fs_return_string(cwd);
       }
       if (sym == "open") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.fs return type mismatch";
+          out_error = "System.fs return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.fs.open arg count mismatch";
+          out_error = "System.fs.open arg count mismatch";
           return false;
         }
         uint32_t path_ref = UnpackRef(args[0]);
@@ -2211,11 +2202,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "read" || sym == "write") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.fs return type mismatch";
+          out_error = "System.fs return type mismatch";
           return false;
         }
         if (args.size() != 3) {
-          out_error = "core.fs io arg count mismatch";
+          out_error = "System.fs io arg count mismatch";
           return false;
         }
         int32_t fd = UnpackI32(args[0]);
@@ -2269,7 +2260,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "close") {
         out_has_ret = false;
         if (args.size() != 1) {
-          out_error = "core.fs.close arg count mismatch";
+          out_error = "System.fs.close arg count mismatch";
           return false;
         }
         int32_t fd = UnpackI32(args[0]);
@@ -2284,14 +2275,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.io") {
+    if (mod == "System.io") {
       if (sym == "buffer_new") {
         if (ret_kind != TypeKind::Ref) {
-          out_error = "core.io.buffer_new return type mismatch";
+          out_error = "System.io.buffer_new return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.io.buffer_new arg count mismatch";
+          out_error = "System.io.buffer_new arg count mismatch";
           return false;
         }
         int32_t requested = UnpackI32(args[0]);
@@ -2314,11 +2305,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "buffer_len") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.io.buffer_len return type mismatch";
+          out_error = "System.io.buffer_len return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.io.buffer_len arg count mismatch";
+          out_error = "System.io.buffer_len arg count mismatch";
           return false;
         }
         uint32_t buf_ref = UnpackRef(args[0]);
@@ -2338,11 +2329,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "buffer_fill") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.io.buffer_fill return type mismatch";
+          out_error = "System.io.buffer_fill return type mismatch";
           return false;
         }
         if (args.size() != 3) {
-          out_error = "core.io.buffer_fill arg count mismatch";
+          out_error = "System.io.buffer_fill arg count mismatch";
           return false;
         }
         uint32_t buf_ref = UnpackRef(args[0]);
@@ -2370,11 +2361,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "buffer_copy") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.io.buffer_copy return type mismatch";
+          out_error = "System.io.buffer_copy return type mismatch";
           return false;
         }
         if (args.size() != 3) {
-          out_error = "core.io.buffer_copy arg count mismatch";
+          out_error = "System.io.buffer_copy arg count mismatch";
           return false;
         }
         uint32_t dst_ref = UnpackRef(args[0]);
@@ -2408,7 +2399,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.json") {
+    if (mod == "System.json") {
       auto read_json_string = [&](size_t index, std::string* out_value) -> bool {
         if (index >= args.size() || !out_value) return false;
         const uint32_t ref = UnpackRef(args[index]);
@@ -2418,15 +2409,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       };
       if (sym == "parse") {
-        if (!IsI64LikeImportType(ret_kind)) { out_error = "core.json.parse return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.json.parse arg count mismatch"; return false; }
+        if (!IsI64LikeImportType(ret_kind)) { out_error = "System.json.parse return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.json.parse arg count mismatch"; return false; }
         std::string text;
         out_ret = PackI64(read_json_string(0, &text) ? Simple::VM::Native::Json::Parse(text) : 0);
         return true;
       }
       if (sym == "stringify") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "core.json.stringify return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.json.stringify arg count mismatch"; return false; }
+        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.json.stringify return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.json.stringify arg count mismatch"; return false; }
         const int64_t handle = UnpackI64(args[0]);
         std::string text;
         out_ret = PackRef(Simple::VM::Native::Json::Stringify(handle, &text)
@@ -2435,14 +2426,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "free") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.json.free return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.json.free arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.json.free return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.json.free arg count mismatch"; return false; }
         const int64_t handle = UnpackI64(args[0]);
         out_ret = PackI32(Simple::VM::Native::Json::Free(handle) ? 1 : 0);
         return true;
       }
     }
-    if (mod == "core.buffer") {
+    if (mod == "System.buffer") {
       auto get_buffer = [&](size_t index) -> HeapObject* {
         if (index >= args.size()) return nullptr;
         const uint32_t ref = UnpackRef(args[index]);
@@ -2463,22 +2454,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       };
       if (sym == "new") {
-        if (ret_kind != TypeKind::Ref) { out_error = "core.buffer.new return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.buffer.new arg count mismatch"; return false; }
+        if (ret_kind != TypeKind::Ref) { out_error = "System.buffer.new return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.buffer.new arg count mismatch"; return false; }
         const int32_t count = UnpackI32(args[0]);
         if (count < 0) { out_ret = PackRef(kNullRef); return true; }
         return return_bytes(std::vector<uint32_t>(static_cast<size_t>(count), 0));
       }
       if (sym == "len") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.len return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "core.buffer.len arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer.len return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.buffer.len arg count mismatch"; return false; }
         HeapObject* obj = get_buffer(0);
         out_ret = PackI32(static_cast<int32_t>(Simple::VM::Native::Buffer::Len(obj)));
         return true;
       }
       if (sym == "readU16LE" || sym == "readU32LE") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer read return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "core.buffer read arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer read return type mismatch"; return false; }
+        if (args.size() != 2) { out_error = "System.buffer read arg count mismatch"; return false; }
         HeapObject* obj = get_buffer(0);
         const int32_t offset = UnpackI32(args[1]);
         const uint32_t width = sym == "readU16LE" ? 2u : 4u;
@@ -2487,8 +2478,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "writeU16LE" || sym == "writeU32LE") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer write return type mismatch"; return false; }
-        if (args.size() != 3) { out_error = "core.buffer write arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer write return type mismatch"; return false; }
+        if (args.size() != 3) { out_error = "System.buffer write arg count mismatch"; return false; }
         HeapObject* obj = get_buffer(0);
         const int32_t offset = UnpackI32(args[1]);
         const uint32_t value = static_cast<uint32_t>(UnpackI32(args[2]));
@@ -2500,8 +2491,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "slice") {
-        if (ret_kind != TypeKind::Ref) { out_error = "core.buffer.slice return type mismatch"; return false; }
-        if (args.size() != 3) { out_error = "core.buffer.slice arg count mismatch"; return false; }
+        if (ret_kind != TypeKind::Ref) { out_error = "System.buffer.slice return type mismatch"; return false; }
+        if (args.size() != 3) { out_error = "System.buffer.slice arg count mismatch"; return false; }
         HeapObject* obj = get_buffer(0);
         const int32_t offset = UnpackI32(args[1]);
         const int32_t count = UnpackI32(args[2]);
@@ -2514,8 +2505,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             obj, static_cast<uint32_t>(offset), static_cast<uint32_t>(count)));
       }
       if (sym == "copy") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.copy return type mismatch"; return false; }
-        if (args.size() != 5) { out_error = "core.buffer.copy arg count mismatch"; return false; }
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer.copy return type mismatch"; return false; }
+        if (args.size() != 5) { out_error = "System.buffer.copy arg count mismatch"; return false; }
         HeapObject* dst = get_buffer(0);
         HeapObject* src = get_buffer(2);
         const int32_t dst_off = UnpackI32(args[1]);
@@ -2532,7 +2523,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.log") {
+    if (mod == "System.log") {
       auto read_log_message = [&](Slot value) -> std::string {
         const uint32_t ref = UnpackRef(value);
         HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
@@ -2542,7 +2533,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "setLevel") {
         out_has_ret = false;
         if (args.size() != 1) {
-          out_error = "core.log.setLevel arg count mismatch";
+          out_error = "System.log.setLevel arg count mismatch";
           return false;
         }
         Simple::VM::Native::Log::SetLevel(UnpackI32(args[0]));
@@ -2550,7 +2541,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "setFile") {
         if (args.size() != 1) {
-          out_error = "core.log.setFile arg count mismatch";
+          out_error = "System.log.setFile arg count mismatch";
           return false;
         }
         const std::string path = read_log_message(args[0]);
@@ -2560,7 +2551,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "log") {
         out_has_ret = false;
         if (args.size() != 2) {
-          out_error = "core.log.log arg count mismatch";
+          out_error = "System.log.log arg count mismatch";
           return false;
         }
         Simple::VM::Native::Log::Emit(read_log_message(args[0]), UnpackI32(args[1]));
@@ -2569,7 +2560,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "info" || sym == "warn" || sym == "error") {
         out_has_ret = false;
         if (args.size() != 1) {
-          out_error = std::string("core.log.") + sym + " arg count mismatch";
+          out_error = std::string("System.log.") + sym + " arg count mismatch";
           return false;
         }
         int32_t level = (sym == "error") ? 3 : (sym == "warn" ? 2 : 1);
@@ -2577,28 +2568,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
     }
-    if (mod == "core.dl") {
+    if (mod == "System.dl") {
       auto set_dl_error = [&](const std::string& text) {
         dl_last_error = text;
       };
       if (sym == "open") {
         if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "core.dl.open return type mismatch";
+          out_error = "System.dl.open return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.dl.open arg count mismatch";
+          out_error = "System.dl.open arg count mismatch";
           return false;
         }
         uint32_t path_ref = UnpackRef(args[0]);
         if (path_ref == kNullRef) {
-          set_dl_error("core.dl.open null path");
+          set_dl_error("System.dl.open null path");
           out_ret = PackI64(0);
           return true;
         }
         HeapObject* path_obj = heap.Get(path_ref);
         if (!path_obj || path_obj->header.kind != ObjectKind::String) {
-          set_dl_error("core.dl.open path not string");
+          set_dl_error("System.dl.open path not string");
           out_ret = PackI64(0);
           return true;
         }
@@ -2608,28 +2599,28 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "sym") {
         if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "core.dl.sym return type mismatch";
+          out_error = "System.dl.sym return type mismatch";
           return false;
         }
         if (args.size() != 2) {
-          out_error = "core.dl.sym arg count mismatch";
+          out_error = "System.dl.sym arg count mismatch";
           return false;
         }
         int64_t handle_bits = UnpackI64(args[0]);
         if (handle_bits == 0) {
-          set_dl_error("core.dl.sym null handle");
+          set_dl_error("System.dl.sym null handle");
           out_ret = PackI64(0);
           return true;
         }
         uint32_t name_ref = UnpackRef(args[1]);
         if (name_ref == kNullRef) {
-          set_dl_error("core.dl.sym null name");
+          set_dl_error("System.dl.sym null name");
           out_ret = PackI64(0);
           return true;
         }
         HeapObject* name_obj = heap.Get(name_ref);
         if (!name_obj || name_obj->header.kind != ObjectKind::String) {
-          set_dl_error("core.dl.sym name not string");
+          set_dl_error("System.dl.sym name not string");
           out_ret = PackI64(0);
           return true;
         }
@@ -2639,11 +2630,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "close") {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.dl.close return type mismatch";
+          out_error = "System.dl.close return type mismatch";
           return false;
         }
         if (args.size() != 1) {
-          out_error = "core.dl.close arg count mismatch";
+          out_error = "System.dl.close arg count mismatch";
           return false;
         }
         int64_t handle_bits = UnpackI64(args[0]);
@@ -2652,11 +2643,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym == "last_error") {
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "core.dl.last_error return type mismatch";
+          out_error = "System.dl.last_error return type mismatch";
           return false;
         }
         if (!args.empty()) {
-          out_error = "core.dl.last_error arg count mismatch";
+          out_error = "System.dl.last_error arg count mismatch";
           return false;
         }
         if (dl_last_error.empty()) {
@@ -2669,30 +2660,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       if (sym.rfind("call$", 0) == 0) {
         if (sig.param_count == 0) {
-          out_error = "core.dl.call signature missing function pointer";
+          out_error = "System.dl.call signature missing function pointer";
           return false;
         }
         if (args.size() != sig.param_count) {
-          out_error = "core.dl.call arg count mismatch";
+          out_error = "System.dl.call arg count mismatch";
           return false;
         }
         uint32_t ptr_type_id = module.param_types[sig.param_type_start];
         if (ptr_type_id >= module.types.size()) {
-          out_error = "core.dl.call pointer type out of range";
+          out_error = "System.dl.call pointer type out of range";
           return false;
         }
         TypeKind ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
         if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
-          out_error = "core.dl.call first parameter must be i64/u64";
+          out_error = "System.dl.call first parameter must be i64/u64";
           return false;
         }
         int64_t ptr_bits = UnpackI64(args[0]);
         if (ptr_bits == 0) {
           if (dl_last_error.empty()) {
-            set_dl_error("core.dl.call null ptr");
-            out_error = "core.dl.call null ptr";
+            set_dl_error("System.dl.call null ptr");
+            out_error = "System.dl.call null ptr";
           } else {
-            out_error = "core.dl.call null ptr: " + dl_last_error;
+            out_error = "System.dl.call null ptr: " + dl_last_error;
           }
           return false;
         }
@@ -2701,7 +2692,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         for (uint16_t i = 1; i < sig.param_count; ++i) {
           uint32_t type_id = module.param_types[sig.param_type_start + i];
           if (type_id >= module.types.size()) {
-            out_error = "core.dl.call parameter type out of range";
+            out_error = "System.dl.call parameter type out of range";
             return false;
           }
           arg_type_ids.push_back(type_id);
@@ -5971,7 +5962,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int8_t b = static_cast<int8_t>(UnpackI32(Pop(stack)));
             int8_t a = static_cast<int8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_i8 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_i8 null ptr");
             using Fn = int8_t (*)(int8_t, int8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -5982,7 +5973,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int16_t b = static_cast<int16_t>(UnpackI32(Pop(stack)));
             int16_t a = static_cast<int16_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_i16 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_i16 null ptr");
             using Fn = int16_t (*)(int16_t, int16_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -5993,7 +5984,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int32_t b = UnpackI32(Pop(stack));
             int32_t a = UnpackI32(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_i32 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_i32 null ptr");
             using Fn = int32_t (*)(int32_t, int32_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(fn(a, b)));
@@ -6004,7 +5995,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             int64_t b = UnpackI64(Pop(stack));
             int64_t a = UnpackI64(Pop(stack));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_i64 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_i64 null ptr");
             using Fn = int64_t (*)(int64_t, int64_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI64(fn(a, b)));
@@ -6015,7 +6006,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_u8 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_u8 null ptr");
             using Fn = uint8_t (*)(uint8_t, uint8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -6026,7 +6017,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint16_t b = static_cast<uint16_t>(UnpackI32(Pop(stack)));
             uint16_t a = static_cast<uint16_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_u16 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_u16 null ptr");
             using Fn = uint16_t (*)(uint16_t, uint16_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -6037,7 +6028,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint32_t b = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             uint32_t a = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_u32 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_u32 null ptr");
             using Fn = uint32_t (*)(uint32_t, uint32_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -6048,7 +6039,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint64_t b = static_cast<uint64_t>(UnpackI64(Pop(stack)));
             uint64_t a = static_cast<uint64_t>(UnpackI64(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_u64 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_u64 null ptr");
             using Fn = uint64_t (*)(uint64_t, uint64_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI64(static_cast<int64_t>(fn(a, b))));
@@ -6059,7 +6050,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             float b = BitsToF32(UnpackU32Bits(Pop(stack)));
             float a = BitsToF32(UnpackU32Bits(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_f32 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_f32 null ptr");
             using Fn = float (*)(float, float);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             float out = fn(a, b);
@@ -6071,7 +6062,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             double b = BitsToF64(UnpackU64Bits(Pop(stack)));
             double a = BitsToF64(UnpackU64Bits(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_f64 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_f64 null ptr");
             using Fn = double (*)(double, double);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             double out = fn(a, b);
@@ -6083,7 +6074,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             bool b = (UnpackI32(Pop(stack)) != 0);
             bool a = (UnpackI32(Pop(stack)) != 0);
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_bool null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_bool null ptr");
             using Fn = bool (*)(bool, bool);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(fn(a, b) ? 1 : 0));
@@ -6094,7 +6085,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             uint8_t b = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             uint8_t a = static_cast<uint8_t>(UnpackI32(Pop(stack)));
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_char null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_char null ptr");
             using Fn = uint8_t (*)(uint8_t, uint8_t);
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             Push(stack, PackI32(static_cast<int32_t>(fn(a, b))));
@@ -6103,7 +6094,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           case kIntrinsicDlCallStr0: {
             if (stack.empty()) return Trap("INTRINSIC dl_call_str0 stack underflow");
             int64_t ptr_bits = UnpackI64(Pop(stack));
-            if (ptr_bits == 0) return Trap("core.dl.call_str0 null ptr");
+            if (ptr_bits == 0) return Trap("System.dl.call_str0 null ptr");
             using Fn = const char* (*)();
             Fn fn = reinterpret_cast<Fn>(ptr_bits);
             const char* out = fn();

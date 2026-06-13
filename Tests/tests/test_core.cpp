@@ -4319,7 +4319,7 @@ std::vector<uint8_t> BuildBadIntrinsicParamVerifyModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::ConstF32));
   AppendU32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
-  AppendU32(code, 0x0020); // core.math.abs_i32
+  AppendU32(code, 0x0020); // System.math.abs_i32
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
@@ -4330,7 +4330,7 @@ std::vector<uint8_t> BuildIntrinsicReturnVerifyModule() {
   AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
-  AppendU32(code, 0x0030); // core.time.mono_ns -> i64
+  AppendU32(code, 0x0030); // System.time.mono_ns -> i64
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> types;
   AppendU32(types, 0);
@@ -6032,7 +6032,7 @@ std::vector<uint8_t> BuildBadImportsTableSizeLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0);
   return BuildModuleWithTablesAndSig(code, const_pool, {}, {}, 0, 0, 0, 0, 0, 0, {},
@@ -6092,7 +6092,7 @@ std::vector<uint8_t> BuildBadImportNameOffsetLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0xFFFF); // module_name_str invalid
   AppendU32(imports, 0);      // symbol_name_str
@@ -6109,7 +6109,7 @@ std::vector<uint8_t> BuildBadImportSigIdLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   AppendStringToPool(const_pool, "args_count");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0);
@@ -6127,7 +6127,7 @@ std::vector<uint8_t> BuildBadImportFlagsLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   AppendStringToPool(const_pool, "args_count");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0);
@@ -6213,7 +6213,7 @@ std::vector<uint8_t> BuildBadImportDuplicateLoadModule() {
   AppendU16(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   AppendStringToPool(const_pool, "args_count");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0);
@@ -6259,7 +6259,7 @@ std::vector<uint8_t> BuildImportCallModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6353,7 +6353,7 @@ std::vector<uint8_t> BuildImportCallIndirectModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6432,7 +6432,7 @@ std::vector<uint8_t> BuildImportDlOpenNullModule() {
   AppendU32(sigs, 2);
 
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.dl"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.dl"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t last_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "last_error"));
 
@@ -6491,7 +6491,7 @@ std::vector<uint8_t> BuildImportTimeMonoModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "time_mono_ns"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6529,7 +6529,7 @@ std::vector<uint8_t> BuildImportCwdGetModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "cwd_get"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6551,7 +6551,7 @@ std::vector<uint8_t> BuildImportTailCallModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6573,7 +6573,7 @@ std::vector<uint8_t> BuildImportArgsCountModule() {
   AppendU8(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
   std::vector<uint8_t> const_pool;
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_count"));
   std::vector<uint8_t> imports;
   AppendU32(imports, mod_off);
@@ -6605,7 +6605,7 @@ std::vector<uint8_t> BuildImportArgsGetCharEqModule() {
 
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_get"));
 
   std::vector<uint8_t> types;
@@ -6719,7 +6719,7 @@ std::vector<uint8_t> BuildImportEnvGetCharEqModule() {
   uint32_t env_const = 0;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "env_get"));
   uint32_t env_name_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "SIMPLEVM_ENV_TEST"));
   AppendConstString(const_pool, env_name_off, &env_const);
@@ -6846,7 +6846,7 @@ std::vector<uint8_t> BuildImportEnvGetMissingModule() {
   uint32_t env_const = 0;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "env_get"));
   uint32_t env_name_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "SIMPLEVM_ENV_MISSING"));
   AppendConstString(const_pool, env_name_off, &env_const);
@@ -6974,7 +6974,7 @@ std::vector<uint8_t> BuildImportArgsGetIsNullModule(int32_t index_value) {
 
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.os"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.os"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "args_get"));
 
   std::vector<uint8_t> types;
@@ -7085,7 +7085,7 @@ std::vector<uint8_t> BuildImportFsModule(const std::string& symbol,
                                          const std::vector<uint8_t>& code) {
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, symbol));
 
   std::vector<uint8_t> types;
@@ -7261,7 +7261,7 @@ std::vector<uint8_t> BuildImportFsRoundTripModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -7519,7 +7519,7 @@ std::vector<uint8_t> BuildImportFsReadClampModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -7786,7 +7786,7 @@ std::vector<uint8_t> BuildImportFsWriteNullBufModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -7974,7 +7974,7 @@ std::vector<uint8_t> BuildImportFsReadNonArrayBufModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -8198,7 +8198,7 @@ std::vector<uint8_t> BuildImportFsWriteClampModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -8409,7 +8409,7 @@ std::vector<uint8_t> BuildImportFsCloseTwiceModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
@@ -8589,7 +8589,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -8857,7 +8857,7 @@ std::vector<uint8_t> BuildImportFsReadAfterCloseModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -9053,7 +9053,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterCloseModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -9256,7 +9256,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseReopenModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
@@ -9442,7 +9442,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroLenModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -9715,7 +9715,7 @@ std::vector<uint8_t> BuildImportFsReadZeroBufModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -9935,7 +9935,7 @@ std::vector<uint8_t> BuildImportFsWriteZeroBufModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -10131,7 +10131,7 @@ std::vector<uint8_t> BuildImportFsReadClampNoOverwriteModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -10427,7 +10427,7 @@ std::vector<uint8_t> BuildImportFsWriteAfterReadOnlyOpenModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -10667,7 +10667,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseLoopModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
@@ -10853,7 +10853,7 @@ std::vector<uint8_t> BuildImportFsOpenCloseStressModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
   uint32_t path_off =
@@ -11039,7 +11039,7 @@ std::vector<uint8_t> BuildImportFsWriteClampCountModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -11324,7 +11324,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenPreserveModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -11592,7 +11592,7 @@ std::vector<uint8_t> BuildImportFsWriteReadPersistModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -11871,7 +11871,7 @@ std::vector<uint8_t> BuildImportFsReadWriteReopenCycleModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t write_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "write"));
@@ -12259,7 +12259,7 @@ std::vector<uint8_t> BuildImportFsReadZeroLenNonEmptyBufModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.fs"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.fs"));
   uint32_t open_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "open"));
   uint32_t read_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "read"));
   uint32_t close_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "close"));
@@ -12500,7 +12500,7 @@ std::vector<uint8_t> BuildImportCoreLogModule() {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> const_pool;
   uint32_t main_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "main"));
-  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "core.log"));
+  uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "System.log"));
   uint32_t log_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "log"));
 
   std::vector<uint8_t> code;
@@ -12658,7 +12658,7 @@ std::vector<uint8_t> BuildBadImportCallParamVerifyModule() {
   AppendU32(types, 0);
   AppendU32(types, 0);
   std::vector<uint8_t> const_pool;
-  AppendStringToPool(const_pool, "core.os");
+  AppendStringToPool(const_pool, "System.os");
   AppendStringToPool(const_pool, "args_count");
   std::vector<uint8_t> imports;
   AppendU32(imports, 0);
@@ -15956,10 +15956,10 @@ bool RunFfiDlRuntimeModuleTest() {
   if (error.empty()) return false;
   error.clear();
   if (Simple::VM::Ffi::DlRuntime::Symbol(0, "missing", &error) != 0) return false;
-  if (error != "core.dl.sym null handle") return false;
+  if (error != "System.dl.sym null handle") return false;
   error.clear();
   if (Simple::VM::Ffi::DlRuntime::Close(0, &error)) return false;
-  return error == "core.dl.close null handle";
+  return error == "System.dl.close null handle";
 }
 
 bool RunNativeFsModuleTest() {
@@ -16112,7 +16112,7 @@ bool RunNativeRandomModuleTest() {
 bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeRegistry registry;
   Simple::VM::Native::NativeFunctionSpec spec;
-  spec.module_name = "core.test";
+  spec.module_name = "System.test";
   spec.symbol_name = "id";
   spec.parameter_types = {Simple::Byte::TypeKind::I32};
   spec.result_type = Simple::Byte::TypeKind::I32;
@@ -16123,7 +16123,7 @@ bool RunNativeRegistryModuleTest() {
   };
   if (!registry.Register(std::move(spec))) return false;
   if (registry.Register({})) return false;
-  const auto* found = registry.Find("core.test", "id");
+  const auto* found = registry.Find("System.test", "id");
   if (!found || found->parameter_types.size() != 1 ||
       found->result_type != Simple::Byte::TypeKind::I32) {
     return false;
@@ -16132,13 +16132,18 @@ bool RunNativeRegistryModuleTest() {
   ctx.args.push_back(123);
   const auto result = found->handler(ctx);
   Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
-  const auto* random_i32 = default_registry.Find("core.random", "i32");
-  const auto* os_time = default_registry.Find("core.os", "time_mono_ns");
-  const auto* os_sleep = default_registry.Find("core.os", "sleep_ms");
+  const auto* random_i32 = default_registry.Find("System.random", "i32");
+  const auto* os_time = default_registry.Find("System.os", "time_mono_ns");
+  const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
+  const auto* thread_yield = default_registry.Find("System.thread", "yield");
+  const auto* thread_hw = default_registry.Find("System.thread", "hardwareConcurrency");
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
-         os_sleep && random_i32->result_type == Simple::Byte::TypeKind::I32 &&
+         os_sleep && thread_yield && thread_hw &&
+         random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
-         os_sleep->result_type == Simple::Byte::TypeKind::Unspecified;
+         os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
+         thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
+         thread_hw->result_type == Simple::Byte::TypeKind::I32;
 }
 
 bool RunNativeThreadModuleTest() {
@@ -24063,7 +24068,7 @@ static const TestCase kCoreTests[] = {
   {"import_fs_read_zero_preserve", RunImportFsReadZeroLenPreserveTest},
   {"import_fs_read_write_cycle", RunImportFsReadWriteCycleTest},
   {"import_fs_read_zero_nonempty", RunImportFsReadZeroLenNonEmptyBufTest},
-  {"import_core_log", RunImportCoreLogTest},
+  {"import_System_log", RunImportCoreLogTest},
   {"import_fs_read_clamp", RunImportFsReadClampTest},
   {"import_fs_read_stub", RunImportFsReadStubTest},
   {"import_fs_read_non_array", RunImportFsReadNonArrayBufTest},

@@ -91,9 +91,9 @@
 - keywords and builtins
 - in-scope identifiers
 - member completion (`Module.member`, `Artifact.member`, `IO.println`, etc.)
-- reserved module member completion for imported modules/aliases (for example `import "Core.DL" as DL` enables `DL.call_i32`, `DL.open`, ...)
+- reserved module member completion for imported modules/aliases (for example `import "System.DL" as DL` enables `DL.call_i32`, `DL.open`, ...)
 - import path completion inside import declarations (quoted or unquoted):
-  - reserved module names (`System.*`, `IO`, `Math`, `Time`, `File`, `Core.*`)
+  - reserved module names (`System.*`, `IO`, `Math`, `Time`, `File`, `System.*`)
   - open-document `.simple` module stems
 
 ### Signature Help (Current)

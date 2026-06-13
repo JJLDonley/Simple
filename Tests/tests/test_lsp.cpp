@@ -1278,10 +1278,10 @@ bool LspSignatureHelpForIoAliasFormatCall() {
 }
 
 bool LspSignatureHelpForCoreDlOpenOverloads() {
-  const std::string in_path = TempPath("simple_lsp_signature_core_dl_open_in.txt");
-  const std::string out_path = TempPath("simple_lsp_signature_core_dl_open_out.txt");
-  const std::string err_path = TempPath("simple_lsp_signature_core_dl_open_err.txt");
-  const std::string uri = "file:///workspace/signature_core_dl_open.simple";
+  const std::string in_path = TempPath("simple_lsp_signature_System_dl_open_in.txt");
+  const std::string out_path = TempPath("simple_lsp_signature_System_dl_open_out.txt");
+  const std::string err_path = TempPath("simple_lsp_signature_System_dl_open_err.txt");
+  const std::string uri = "file:///workspace/signature_System_dl_open.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
@@ -3133,7 +3133,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_local_function_declaration", LspSignatureHelpForLocalFunctionDeclaration},
   {"lsp_signature_help_for_reserved_alias_member", LspSignatureHelpForReservedAliasMember},
   {"lsp_signature_help_for_io_alias_format_call", LspSignatureHelpForIoAliasFormatCall},
-  {"lsp_signature_help_for_core_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
+  {"lsp_signature_help_for_System_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},

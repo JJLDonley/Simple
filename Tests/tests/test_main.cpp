@@ -186,9 +186,9 @@ int main(int argc, char** argv) {
 
   std::vector<Simple::VM::Tests::TestSection> sections;
 #if SIMPLEVM_TEST_INCLUDE_CORE
-  size_t core_count = 0;
-  const Simple::VM::Tests::TestSection* core_sections = Simple::VM::Tests::GetCoreSections(&core_count);
-  sections.insert(sections.end(), core_sections, core_sections + core_count);
+  size_t System_count = 0;
+  const Simple::VM::Tests::TestSection* System_sections = Simple::VM::Tests::GetCoreSections(&System_count);
+  sections.insert(sections.end(), System_sections, System_sections + System_count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
   size_t ir_count = 0;

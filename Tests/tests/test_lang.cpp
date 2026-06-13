@@ -1183,15 +1183,15 @@ bool LangSimpleFixtureExternDecl() {
 }
 
 bool LangSimpleFixtureExternCoreOsArgsCount() {
-  return RunSimpleFileExpectExit("Tests/simple/extern_core_os_args_count.simple", 0);
+  return RunSimpleFileExpectExit("Tests/simple/extern_System_os_args_count.simple", 0);
 }
 
 bool LangSimpleFixtureCoreDlOpen() {
-  return RunSimpleFileExpectExit("Tests/simple/core_dl_open.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/System_dl_open.simple", 1);
 }
 
 bool LangSimpleFixtureCoreDlOpenGlobal() {
-  return RunSimpleFileExpectExit("Tests/simple/core_dl_open_global.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/System_dl_open_global.simple", 1);
 }
 
 bool LangSimpleFixtureFloatLiteralContext() {
@@ -5027,9 +5027,9 @@ const TestCase kLangTests[] = {
   {"lang_simple_fixture_module_func_params", LangSimpleFixtureModuleFuncParams},
   {"lang_simple_fixture_import_basic", LangSimpleFixtureImportBasic},
   {"lang_simple_fixture_extern_decl", LangSimpleFixtureExternDecl},
-  {"lang_simple_fixture_extern_core_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
-  {"lang_simple_fixture_core_dl_open", LangSimpleFixtureCoreDlOpen},
-  {"lang_simple_fixture_core_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
+  {"lang_simple_fixture_extern_System_os_args_count", LangSimpleFixtureExternCoreOsArgsCount},
+  {"lang_simple_fixture_System_dl_open", LangSimpleFixtureCoreDlOpen},
+  {"lang_simple_fixture_System_dl_open_global", LangSimpleFixtureCoreDlOpenGlobal},
   {"lang_simple_fixture_float_literal_context", LangSimpleFixtureFloatLiteralContext},
   {"lang_simple_fixture_reserved_math", LangSimpleFixtureReservedMath},
   {"lang_simple_fixture_reserved_math_pi", LangSimpleFixtureReservedMathPi},

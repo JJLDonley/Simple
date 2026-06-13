@@ -188,11 +188,11 @@ Artifact layout is determined by front-end/SIR metadata and SBC field/type table
 
 Implemented import/runtime module surface includes:
 
-- `core.io`
-- `core.fs`
-- `core.os`
-- `core.log`
-- `core.dl`
+- `System.io`
+- `System.fs`
+- `System.os`
+- `System.log`
+- `System.dl`
 
 The language-facing reserved modules are mapped to runtime imports by the compiler. See `Docs/StdLib.md` for the user-facing API names.
 
@@ -293,7 +293,7 @@ Not implemented as stable VM contract:
 - AOT native backend
 - generational or incremental GC
 - user-configurable GC policy/tuning
-- Windows `core.dl` parity
+- Windows `System.dl` parity
 - sandboxing/security isolation for untrusted bytecode
 - stable VM embedding ABI beyond the current C++ API
 - stable profiler/debugger protocol

@@ -24,29 +24,29 @@ This document defines the stable ABI for SBC modules, intrinsics, and host FFI.
 ### Intrinsic ID Table (v0.1)
 | ID | Name | Params | Return | Notes |
 |----|------|--------|--------|-------|
-| 0x0000 | core.debug.trap | i32 | void | Trap with code (message optional via DEBUG table). |
-| 0x0001 | core.debug.breakpoint | void | void | No-op in release, debugger hook in dev. |
-| 0x0010 | core.debug.log_i32 | i32 | void | Debug log; optional in release. |
-| 0x0011 | core.debug.log_i64 | i64 | void | Debug log; optional in release. |
-| 0x0012 | core.debug.log_f32 | f32 | void | Debug log; optional in release. |
-| 0x0013 | core.debug.log_f64 | f64 | void | Debug log; optional in release. |
-| 0x0014 | core.debug.log_ref | ref | void | Debug log; prints ref id. |
-| 0x0020 | core.math.abs_i32 | i32 | i32 | Pure. |
-| 0x0021 | core.math.abs_i64 | i64 | i64 | Pure. |
-| 0x0022 | core.math.min_i32 | i32, i32 | i32 | Pure. |
-| 0x0023 | core.math.max_i32 | i32, i32 | i32 | Pure. |
-| 0x0024 | core.math.min_i64 | i64, i64 | i64 | Pure. |
-| 0x0025 | core.math.max_i64 | i64, i64 | i64 | Pure. |
-| 0x0026 | core.math.min_f32 | f32, f32 | f32 | Pure. |
-| 0x0027 | core.math.max_f32 | f32, f32 | f32 | Pure. |
-| 0x0028 | core.math.min_f64 | f64, f64 | f64 | Pure. |
-| 0x0029 | core.math.max_f64 | f64, f64 | f64 | Pure. |
-| 0x0030 | core.time.mono_ns | void | i64 | Monotonic time in ns. |
-| 0x0031 | core.time.wall_ns | void | i64 | Wall clock time in ns. |
-| 0x0040 | core.rand.u32 | void | i32 | PRNG/OS entropy; impl-defined. |
-| 0x0041 | core.rand.u64 | void | i64 | PRNG/OS entropy; impl-defined. |
-| 0x0050 | core.io.write_stdout | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
-| 0x0051 | core.io.write_stderr | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
+| 0x0000 | System.debug.trap | i32 | void | Trap with code (message optional via DEBUG table). |
+| 0x0001 | System.debug.breakpoint | void | void | No-op in release, debugger hook in dev. |
+| 0x0010 | System.debug.log_i32 | i32 | void | Debug log; optional in release. |
+| 0x0011 | System.debug.log_i64 | i64 | void | Debug log; optional in release. |
+| 0x0012 | System.debug.log_f32 | f32 | void | Debug log; optional in release. |
+| 0x0013 | System.debug.log_f64 | f64 | void | Debug log; optional in release. |
+| 0x0014 | System.debug.log_ref | ref | void | Debug log; prints ref id. |
+| 0x0020 | System.math.abs_i32 | i32 | i32 | Pure. |
+| 0x0021 | System.math.abs_i64 | i64 | i64 | Pure. |
+| 0x0022 | System.math.min_i32 | i32, i32 | i32 | Pure. |
+| 0x0023 | System.math.max_i32 | i32, i32 | i32 | Pure. |
+| 0x0024 | System.math.min_i64 | i64, i64 | i64 | Pure. |
+| 0x0025 | System.math.max_i64 | i64, i64 | i64 | Pure. |
+| 0x0026 | System.math.min_f32 | f32, f32 | f32 | Pure. |
+| 0x0027 | System.math.max_f32 | f32, f32 | f32 | Pure. |
+| 0x0028 | System.math.min_f64 | f64, f64 | f64 | Pure. |
+| 0x0029 | System.math.max_f64 | f64, f64 | f64 | Pure. |
+| 0x0030 | System.time.mono_ns | void | i64 | Monotonic time in ns. |
+| 0x0031 | System.time.wall_ns | void | i64 | Wall clock time in ns. |
+| 0x0040 | System.rand.u32 | void | i32 | PRNG/OS entropy; impl-defined. |
+| 0x0041 | System.rand.u64 | void | i64 | PRNG/OS entropy; impl-defined. |
+| 0x0050 | System.io.write_stdout | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
+| 0x0051 | System.io.write_stderr | ref, i32 | void | Writes bytes from blob/string handle; length in i32. |
 
 ---
 
@@ -61,7 +61,7 @@ SysCalls are **reserved** in v0.1 and must not appear in verified modules.
 These are *core library* contracts that are expected to be implemented by OS/host FFI.
 They are not VM opcodes, and not VM intrinsics. They live in the import table.
 
-### Module: `core.os`
+### Module: `System.os`
 | Symbol | Params | Return | Notes |
 |--------|--------|--------|-------|
 | args_count | void | i32 | Returns argc. |
@@ -72,7 +72,7 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 | time_wall_ns | void | i64 | Wall clock time in ns. |
 | sleep_ms | i32 | void | Best-effort sleep. |
 
-### Module: `core.fs`
+### Module: `System.fs`
 | Symbol | Params | Return | Notes |
 |--------|--------|--------|-------|
 | open | ref, i32 | i32 | Path, flags -> fd (or -1). |
@@ -82,7 +82,7 @@ They are not VM opcodes, and not VM intrinsics. They live in the import table.
 
 **Buffer layout (v0.1)**: `buffer ref` is a VM `Array` with element size 4 (I32). Each element stores one byte in the low 8 bits. The `len` argument is the number of bytes to read/write; the VM clamps to the array length.
 
-### Module: `core.log`
+### Module: `System.log`
 | Symbol | Params | Return | Notes |
 |--------|--------|--------|-------|
 | log | ref, i32 | void | Writes bytes from buffer ref with length. |
@@ -108,28 +108,28 @@ Rules:
 ## 1.3 Core Library Namespaces (v0.1)
 
 ### Opcode-Backed (NOT imports)
-- `core.array.*` (all Array* opcodes)
-- `core.list.*` (all List* opcodes)
-- `core.string.*` (StringLen/StringConcat/StringGetChar/StringSlice)
-- `core.ref.*` (IsNull/RefEq/RefNe/TypeOf)
-- `core.object.*` (NewObject/LoadField/StoreField/NewClosure/LoadUpvalue/StoreUpvalue)
-- `core.num.*` (all numeric ops and conversions)
-- `core.ctrl.*` (Jmp/JmpTrue/JmpFalse/JmpTable/Call/TailCall/Ret/Enter/Leave)
+- `System.array.*` (all Array* opcodes)
+- `System.list.*` (all List* opcodes)
+- `System.string.*` (StringLen/StringConcat/StringGetChar/StringSlice)
+- `System.ref.*` (IsNull/RefEq/RefNe/TypeOf)
+- `System.object.*` (NewObject/LoadField/StoreField/NewClosure/LoadUpvalue/StoreUpvalue)
+- `System.num.*` (all numeric ops and conversions)
+- `System.ctrl.*` (Jmp/JmpTrue/JmpFalse/JmpTable/Call/TailCall/Ret/Enter/Leave)
 
 ### Intrinsic-Backed
-- `core.debug.*` (trap/breakpoint/log_*)
-- `core.math.*` (abs/min/max)
-- `core.time.*` (mono_ns/wall_ns)
-- `core.rand.*` (u32/u64)
-- `core.io.*` (write_stdout/write_stderr)
+- `System.debug.*` (trap/breakpoint/log_*)
+- `System.math.*` (abs/min/max)
+- `System.time.*` (mono_ns/wall_ns)
+- `System.rand.*` (u32/u64)
+- `System.io.*` (write_stdout/write_stderr)
 
 ### FFI Import-Backed
-- `core.os.*`
-- `core.fs.*`
-- `core.log.*`
+- `System.os.*`
+- `System.fs.*`
+- `System.log.*`
 
 Notes:
-- Core library functions in `core.*` must not overlap in name between opcode, intrinsic, and import spaces.
+- Core library functions in `System.*` must not overlap in name between opcode, intrinsic, and import spaces.
 - If a capability is opcode-backed, it must NOT appear as a core import in v0.1.
 
 ---
