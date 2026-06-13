@@ -3100,7 +3100,10 @@ bool LangRastImportGraphResolvesReservedAliases() {
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
   std::string canonical;
-  return Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "FileSystem", &canonical) &&
+  const auto imports = Simple::Lang::RAST::ResolveReservedImports(&ast_program);
+  return imports.size() == 1 && imports[0].alias == "FileSystem" &&
+         imports[0].canonical_module == "FS" &&
+         Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "FileSystem", &canonical) &&
          canonical == "FS" &&
          !Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "Missing", &canonical);
 }

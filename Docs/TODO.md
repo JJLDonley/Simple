@@ -106,7 +106,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/RAST/reserved_resolution.cpp`
 - [ ] RAST owns names and symbols only:
   - [x] symbol lookup
-  - [ ] import resolution
+  - [x] import resolution
   - [ ] member resolution by name
   - [ ] declaration reference resolution
 - [ ] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
