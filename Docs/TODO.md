@@ -29,7 +29,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 ### SRP Phase 1: VM Native/Runtime Extraction
 
 - [ ] Split `VM/src/vm.cpp` into explicit modules:
-  - [ ] `VM/src/interpreter/interpreter.cpp`
+  - [x] `VM/src/interpreter/interpreter.cpp`
   - [ ] `VM/src/interpreter/dispatch.cpp`
   - [x] `VM/src/interpreter/frames.cpp`
   - [x] `VM/src/interpreter/stack.cpp`
@@ -55,7 +55,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `NativeModule`
   - [x] `NativeFunction`
   - [x] `FrameState`
-  - [ ] `InterpreterState`
+  - [x] `InterpreterState`
   - [x] `RootTraceContext`
 - [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.
 - [ ] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.

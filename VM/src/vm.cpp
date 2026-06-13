@@ -24,6 +24,7 @@
 #include "gc/root_tracer.h"
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "interpreter/interpreter.h"
 #include "interpreter/frames.h"
 #include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
@@ -1440,8 +1441,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
   ScratchArena scratch_arena;
   scratch_arena.SetRequireScope(true);
-  std::vector<Slot> globals(module.globals.size());
-  std::vector<Slot> locals_arena;
+  Simple::VM::Interpreter::InterpreterState interpreter_state =
+      Simple::VM::Interpreter::MakeInterpreterState(module.globals.size());
+  std::vector<Slot>& globals = interpreter_state.globals;
+  std::vector<Slot>& locals_arena = interpreter_state.locals_arena;
   std::vector<Slot> jit_stack;
   std::vector<Slot> jit_locals;
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
@@ -4606,9 +4609,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   }
   if (!found) return Trap("entry method not found in functions table");
 
-  std::vector<Slot> stack;
-  std::vector<Simple::VM::Interpreter::FrameState> call_stack;
-  std::vector<Slot> call_args;
+  std::vector<Slot>& stack = interpreter_state.stack;
+  std::vector<Simple::VM::Interpreter::FrameState>& call_stack = interpreter_state.call_stack;
+  std::vector<Slot>& call_args = interpreter_state.call_args;
 
   auto check_sequence_limit = [&](uint32_t count, const char* what) -> bool {
     (void)what;

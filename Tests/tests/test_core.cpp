@@ -11,6 +11,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "interpreter/interpreter.h"
 #include "interpreter/frames.h"
 #include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
@@ -16016,6 +16017,16 @@ bool RunGcRootTracerModuleTest() {
   return heap.Get(global_ref) && heap.Get(local_ref) && !heap.Get(unrooted_ref);
 }
 
+bool RunInterpreterStateModuleTest() {
+  Simple::VM::Interpreter::InterpreterState state = Simple::VM::Interpreter::MakeInterpreterState(3);
+  if (state.globals.size() != 3) return false;
+  Simple::VM::Interpreter::Push(state.stack, 7);
+  state.call_args.push_back(9);
+  state.call_stack.push_back(Simple::VM::Interpreter::MakeFrame(1, 2, 3, 4));
+  return Simple::VM::Interpreter::Pop(state.stack) == 7 && state.call_args[0] == 9 &&
+         state.call_stack[0].func_index == 1;
+}
+
 bool RunInterpreterStackModuleTest() {
   std::vector<Simple::VM::Interpreter::Slot> stack;
   Simple::VM::Interpreter::Push(stack, 10);
@@ -23711,6 +23722,7 @@ static const TestCase kCoreTests[] = {
   {"gc_root_tracer_module", RunGcRootTracerModuleTest},
   {"jit_scaffold_module", RunJitScaffoldModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
+  {"interpreter_state_module", RunInterpreterStateModuleTest},
   {"interpreter_stack_module", RunInterpreterStackModuleTest},
   {"interpreter_frames_module", RunInterpreterFramesModuleTest},
   {"runtime_limits_module", RunRuntimeLimitsModuleTest},
