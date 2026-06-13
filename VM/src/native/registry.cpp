@@ -452,6 +452,30 @@ NativeCallResult LogError(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult EnvGet(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string name;
+  std::string storage;
+  const char* value = ReadStringArg(context, 0, &name) ? Env::Get(name, &storage) : nullptr;
+  if (!value) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = value;
+  return result;
+}
+
+NativeCallResult EnvSet(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string name;
+  std::string value;
+  result.value = PackI32(ReadStringArg(context, 0, &name) && ReadStringArg(context, 1, &value) &&
+                                 Env::Set(name, value)
+                             ? 1
+                             : 0);
+  return result;
+}
+
 NativeCallResult EnvPlatform(NativeCallContext&) {
   NativeCallResult result;
   result.string_value = Env::PlatformName();
@@ -996,6 +1020,10 @@ void RegisterSystemFs(NativeRegistry& registry) {
 
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.env", "get", {TypeKind::String}, TypeKind::String,
+                             EnvGet));
+  registry.Register(MakeSpec("System.env", "set", {TypeKind::String, TypeKind::String},
+                             TypeKind::I32, EnvSet));
   registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
   registry.Register(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch));
   registry.Register(MakeSpec("System.env", "exePath", {}, TypeKind::String, EnvExePath));

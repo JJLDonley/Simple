@@ -78,7 +78,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route `System.channel` scalar plus string/bytes new/pending helpers through native metadata dispatch.
   - [x] Route `System.json.free` and `System.log` helpers through native metadata dispatch.
   - [x] Route `System.buffer.new`, len, LE read/write, slice, and copy helpers through native metadata dispatch.
-  - [x] Route `System.env` platform/arch/exePath helpers through native metadata dispatch.
+  - [x] Route `System.env` get/set/platform/arch/exePath helpers through native metadata dispatch.
   - [x] Route `System.path` helpers through native metadata dispatch.
   - [x] Route `System.fs` text/bytes/listDir/cwd/copy/remove/mkdir/setCwd helpers through native metadata dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.

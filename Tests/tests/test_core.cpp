@@ -16175,6 +16175,8 @@ bool RunNativeRegistryModuleTest() {
   const auto* log_set_file = default_registry.Find("System.log", "setFile");
   const auto* log_emit = default_registry.Find("System.log", "log");
   const auto* log_info = default_registry.Find("System.log", "info");
+  const auto* env_get = default_registry.Find("System.env", "get");
+  const auto* env_set = default_registry.Find("System.env", "set");
   const auto* env_platform = default_registry.Find("System.env", "platform");
   const auto* env_arch = default_registry.Find("System.env", "arch");
   const auto* env_exe = default_registry.Find("System.env", "exePath");
@@ -16212,6 +16214,20 @@ bool RunNativeRegistryModuleTest() {
     }
     return handle;
   };
+  const uint32_t env_name = make_metadata_string(
+      "SIMPLE_NATIVE_REGISTRY_ENV_" +
+      std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+  const uint32_t env_value = make_metadata_string("metadata-env");
+  Simple::VM::Native::NativeCallContext env_set_ctx;
+  env_set_ctx.heap = &metadata_heap;
+  env_set_ctx.args = {env_name, env_value};
+  const auto env_set_result = env_set ? env_set->handler(env_set_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext env_get_ctx;
+  env_get_ctx.heap = &metadata_heap;
+  env_get_ctx.args = {env_name};
+  const auto env_get_result = env_get ? env_get->handler(env_get_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
   const uint32_t log_empty_path = make_metadata_string("");
   const uint32_t log_message = make_metadata_string("metadata log suppressed");
   Simple::VM::Native::NativeCallContext log_level_ctx;
@@ -16424,7 +16440,8 @@ bool RunNativeRegistryModuleTest() {
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
          channel_close && json_free && log_set_level && log_set_file && log_emit && log_info &&
          log_set_file_result.value == 1 && !log_emit_result.has_value && !log_info_result.has_value &&
-         env_platform && env_arch && env_exe &&
+         env_get && env_set && env_set_result.value == 1 &&
+         env_get_result.string_value == "metadata-env" && env_platform && env_arch && env_exe &&
          buffer_new && buffer_len && buffer_write && buffer_read && buffer_slice && buffer_copy &&
          !env_platform_result.string_value.empty() && !env_arch_result.string_value.empty() &&
          !env_exe_result.string_value.empty() && buffer_new_result.ok && buffer_result.value == 3 &&
@@ -16481,6 +16498,8 @@ bool RunNativeRegistryModuleTest() {
          log_set_file->result_type == Simple::Byte::TypeKind::I32 &&
          log_emit->result_type == Simple::Byte::TypeKind::Unspecified &&
          log_info->result_type == Simple::Byte::TypeKind::Unspecified &&
+         env_get->result_type == Simple::Byte::TypeKind::String &&
+         env_set->result_type == Simple::Byte::TypeKind::I32 &&
          env_platform->result_type == Simple::Byte::TypeKind::String &&
          env_arch->result_type == Simple::Byte::TypeKind::String &&
          env_exe->result_type == Simple::Byte::TypeKind::String;

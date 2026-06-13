@@ -1650,48 +1650,36 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         return return_string(options.argv[static_cast<size_t>(index)]);
       }
-      if (sym == "get") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.env.get return type mismatch";
+      if (sym == "get" || sym == "set") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = "System.env." + sym + " return type mismatch";
           return false;
         }
-        if (args.size() != 1) {
-          out_error = "System.env.get arg count mismatch";
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = "System.env." + sym + " return type mismatch";
           return false;
         }
-        uint32_t name_ref = UnpackRef(args[0]);
-        HeapObject* name_obj = name_ref == kNullRef ? nullptr : heap.Get(name_ref);
-        if (!name_obj || name_obj->header.kind != ObjectKind::String) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        std::string storage;
-        const char* value = Simple::VM::Native::Env::Get(U16ToAscii(ReadString(name_obj)), &storage);
-        if (!value) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        return return_string(value);
-      }
-      if (sym == "set") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.env.set return type mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.env." + sym + " arg count mismatch";
           return false;
         }
-        if (args.size() != 2) {
-          out_error = "System.env.set arg count mismatch";
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
           return false;
         }
-        HeapObject* name_obj = heap.Get(UnpackRef(args[0]));
-        HeapObject* value_obj = heap.Get(UnpackRef(args[1]));
-        if (!name_obj || name_obj->header.kind != ObjectKind::String ||
-            !value_obj || value_obj->header.kind != ObjectKind::String) {
-          out_ret = PackI32(0);
-          return true;
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
         }
-        const std::string name = U16ToAscii(ReadString(name_obj));
-        const std::string value = U16ToAscii(ReadString(value_obj));
-        out_ret = PackI32(Simple::VM::Native::Env::Set(name, value) ? 1 : 0);
         return true;
       }
       if (sym == "platform" || sym == "arch" || sym == "exePath") {
