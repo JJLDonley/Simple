@@ -41,6 +41,7 @@
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
+#include "native/thread.h"
 #include "native/time.h"
 #include "opcode.h"
 #include "scratch_arena.h"
@@ -2256,10 +2257,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.thread.sleep arg count mismatch";
           return false;
         }
-        int32_t ms = UnpackI32(args[0]);
-        if (ms > 0) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-        }
+        Simple::VM::Native::Thread::SleepMs(UnpackI32(args[0]));
         return true;
       }
       if (sym == "yield") {
@@ -2268,7 +2266,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.thread.yield arg count mismatch";
           return false;
         }
-        std::this_thread::yield();
+        Simple::VM::Native::Thread::Yield();
         return true;
       }
       if (sym == "hardwareConcurrency") {
@@ -2280,8 +2278,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.thread.hardwareConcurrency arg count mismatch";
           return false;
         }
-        const unsigned int count = std::thread::hardware_concurrency();
-        out_ret = PackI32(static_cast<int32_t>(count == 0 ? 1 : count));
+        out_ret = PackI32(Simple::VM::Native::Thread::HardwareConcurrency());
         return true;
       }
     }

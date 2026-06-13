@@ -46,6 +46,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/json.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/log.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/random.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/thread.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/time.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/opcode.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_loader.cpp

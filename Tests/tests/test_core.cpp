@@ -16,6 +16,7 @@
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
+#include "native/thread.h"
 #include "native/time.h"
 #include "opcode.h"
 #include "ir_lang.h"
@@ -15941,6 +15942,12 @@ bool RunNativeRandomModuleTest() {
   return f >= 0.0 && f < 1.0 && Simple::VM::Native::Random::Range(7, 7) == 7;
 }
 
+bool RunNativeThreadModuleTest() {
+  Simple::VM::Native::Thread::SleepMs(0);
+  Simple::VM::Native::Thread::Yield();
+  return Simple::VM::Native::Thread::HardwareConcurrency() >= 1;
+}
+
 bool RunNativeTimeModuleTest() {
   const int64_t mono_a = Simple::VM::Native::Time::MonotonicNs();
   const int64_t mono_b = Simple::VM::Native::Time::MonotonicNs();
@@ -23524,6 +23531,7 @@ static const TestCase kCoreTests[] = {
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
+  {"native_thread_module", RunNativeThreadModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
