@@ -14,6 +14,7 @@
 #include "native/buffer.h"
 #include "native/channel.h"
 #include "native/env.h"
+#include "native/fs.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/os.h"
@@ -15918,6 +15919,26 @@ bool RunNativeEnvModuleTest() {
   return !Simple::VM::Native::Env::ExePath().empty();
 }
 
+bool RunNativeFsModuleTest() {
+  const std::string dir = "/tmp/simple_native_fs_module";
+  const std::string file = dir + "/data.txt";
+  const std::string copy = dir + "/copy.txt";
+  Simple::VM::Native::Fs::Remove(file);
+  Simple::VM::Native::Fs::Remove(copy);
+  if (!Simple::VM::Native::Fs::MkdirAll(dir)) return false;
+  if (!Simple::VM::Native::Fs::WriteText(file, "abc")) return false;
+  std::string text;
+  if (!Simple::VM::Native::Fs::ReadText(file, &text) || text != "abc") return false;
+  std::vector<int32_t> bytes;
+  if (!Simple::VM::Native::Fs::ReadBytes(file, &bytes) || bytes.size() != 3) return false;
+  if (!Simple::VM::Native::Fs::WriteBytes(copy, bytes)) return false;
+  if (!Simple::VM::Native::Fs::CopyFile(copy, file)) return false;
+  std::vector<std::string> names;
+  if (!Simple::VM::Native::Fs::ListDir(dir, &names) || names.empty()) return false;
+  std::string cwd;
+  return Simple::VM::Native::Fs::Cwd(&cwd) && !cwd.empty();
+}
+
 bool RunNativeJsonModuleTest() {
   const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
   if (handle == 0) return false;
@@ -23558,6 +23579,7 @@ static const TestCase kCoreTests[] = {
   {"native_buffer_module", RunNativeBufferModuleTest},
   {"native_channel_module", RunNativeChannelModuleTest},
   {"native_env_module", RunNativeEnvModuleTest},
+  {"native_fs_module", RunNativeFsModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_os_module", RunNativeOsModuleTest},
