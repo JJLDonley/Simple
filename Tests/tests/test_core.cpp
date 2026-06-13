@@ -16135,6 +16135,8 @@ bool RunNativeRegistryModuleTest() {
   const auto* random_i32 = default_registry.Find("System.random", "i32");
   const auto* os_time = default_registry.Find("System.os", "time_mono_ns");
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
+  const auto* os_cwd = default_registry.Find("System.os", "cwd_get");
+  const auto* os_format = default_registry.Find("System.os", "formatWallNs");
   const auto* thread_yield = default_registry.Find("System.thread", "yield");
   const auto* thread_hw = default_registry.Find("System.thread", "hardwareConcurrency");
   const auto* channel_new = default_registry.Find("System.channel", "newI32");
@@ -16165,6 +16167,13 @@ bool RunNativeRegistryModuleTest() {
   const auto* buffer_read = default_registry.Find("System.buffer", "readU16LE");
   const auto* buffer_slice = default_registry.Find("System.buffer", "slice");
   const auto* buffer_copy = default_registry.Find("System.buffer", "copy");
+  Simple::VM::Native::NativeCallContext os_cwd_ctx;
+  const auto os_cwd_result = os_cwd ? os_cwd->handler(os_cwd_ctx)
+                                    : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext os_format_ctx;
+  os_format_ctx.args = {0};
+  const auto os_format_result = os_format ? os_format->handler(os_format_ctx)
+                                          : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext env_ctx;
   const auto env_platform_result = env_platform ? env_platform->handler(env_ctx)
                                                 : Simple::VM::Native::NativeCallResult{};
@@ -16217,7 +16226,9 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
-         os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
+         os_sleep && os_cwd && os_format && !os_cwd_result.string_value.empty() &&
+         !os_format_result.string_value.empty() && thread_yield && thread_hw && channel_new &&
+         channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
@@ -16232,6 +16243,8 @@ bool RunNativeRegistryModuleTest() {
          random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
+         os_cwd->result_type == Simple::Byte::TypeKind::String &&
+         os_format->result_type == Simple::Byte::TypeKind::String &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_hw->result_type == Simple::Byte::TypeKind::I32 &&
          channel_new->result_type == Simple::Byte::TypeKind::I64 &&

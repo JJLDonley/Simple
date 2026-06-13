@@ -1538,28 +1538,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackRef(kNullRef);
         return true;
       }
-      if (sym == "cwd_get") {
+      if (sym == "cwd_get" || sym == "formatWallNs") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
         if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.os.cwd_get return type mismatch";
+          out_error = "System.os." + sym + " return type mismatch";
           return false;
         }
-        std::string cwd;
-        out_ret = PackRef(Simple::VM::Native::Os::CurrentWorkingDirectory(&cwd)
-                              ? CreateString(heap, AsciiToU16(cwd))
-                              : kNullRef);
-        return true;
-      }
-      if (sym == "formatWallNs") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.os.formatWallNs return type mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.os." + sym + " arg count mismatch";
           return false;
         }
-        if (args.size() != 1) {
-          out_error = "System.os.formatWallNs arg count mismatch";
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
           return false;
         }
-        out_ret = PackRef(CreateString(
-            heap, AsciiToU16(Simple::VM::Native::Time::FormatWallNsUtc(UnpackI64(args[0])))));
+        out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                      ? PackRef(kNullRef)
+                      : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
         return true;
       }
       if (sym == "time_mono_ns" || sym == "time_wall_ns" || sym == "sleep_ms") {

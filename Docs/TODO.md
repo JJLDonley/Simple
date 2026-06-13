@@ -73,7 +73,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] handler function
 - [ ] Use native metadata for VM runtime dispatch.
   - [x] Route `System.random` through native metadata dispatch.
-  - [x] Route `System.os` time/sleep helpers through native metadata dispatch.
+  - [x] Route `System.os` time/sleep plus cwd/format helpers through native metadata dispatch.
   - [x] Route `System.thread` through native metadata dispatch.
   - [x] Route `System.channel` scalar plus string/bytes new/pending helpers through native metadata dispatch.
   - [x] Route `System.json.free` and `System.log.setLevel` through native metadata dispatch.

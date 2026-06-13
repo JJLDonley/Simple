@@ -8,6 +8,7 @@
 #include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
+#include "native/os.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -112,6 +113,20 @@ NativeCallResult OsSleepMs(NativeCallContext& context) {
   Thread::SleepMs(UnpackI32(context.args[0]));
   NativeCallResult result;
   result.has_value = false;
+  return result;
+}
+
+NativeCallResult OsCwdGet(NativeCallContext&) {
+  NativeCallResult result;
+  if (!Os::CurrentWorkingDirectory(&result.string_value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+  }
+  return result;
+}
+
+NativeCallResult OsFormatWallNs(NativeCallContext& context) {
+  NativeCallResult result;
+  result.string_value = Time::FormatWallNsUtc(UnpackI64(context.args[0]));
   return result;
 }
 
@@ -595,6 +610,9 @@ void RegisterSystemOs(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
   registry.Register(MakeSpec("System.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,
                              OsSleepMs));
+  registry.Register(MakeSpec("System.os", "cwd_get", {}, TypeKind::String, OsCwdGet));
+  registry.Register(MakeSpec("System.os", "formatWallNs", {TypeKind::I64}, TypeKind::String,
+                             OsFormatWallNs));
 }
 
 void RegisterSystemThread(NativeRegistry& registry) {
