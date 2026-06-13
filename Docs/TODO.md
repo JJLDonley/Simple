@@ -165,7 +165,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `Tests/tests/vm/test_native_fs.cpp`
   - [ ] `Tests/tests/vm/test_native_channel.cpp`
   - [ ] `Tests/tests/vm/test_jit.cpp`
-- [ ] Split language tests out of `Tests/tests/test_lang.cpp`:
+- [x] Split language tests out of `Tests/tests/test_lang.cpp`:
   - [x] `Tests/tests/lang/test_lexer.cpp`
   - [x] `Tests/tests/lang/test_cast.cpp`
   - [x] `Tests/tests/lang/test_ast.cpp`
@@ -173,7 +173,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Tests/tests/lang/test_tast.cpp`
   - [x] `Tests/tests/lang/test_irb.cpp`
   - [x] `Tests/tests/lang/test_ire.cpp`
-  - [ ] `Tests/tests/lang/test_integration.cpp`
+  - [x] `Tests/tests/lang/test_integration.cpp`
 - [ ] Split CLI tests out of `Tests/tests/test_lang.cpp`:
   - [ ] `Tests/tests/cli/test_cli_contract.cpp`
   - [ ] `Tests/tests/cli/test_cli_diagnostics.cpp`

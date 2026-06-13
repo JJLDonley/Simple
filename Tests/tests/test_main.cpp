@@ -50,6 +50,7 @@ int RunBenchHotLoop(size_t iterations);
 const TestSection* GetLangSections(size_t* count);
 const TestSection* GetLangAstSections(size_t* count);
 const TestSection* GetLangCastSections(size_t* count);
+const TestSection* GetLangIntegrationSections(size_t* count);
 const TestSection* GetLangIrbSections(size_t* count);
 const TestSection* GetLangIreSections(size_t* count);
 const TestSection* GetLangLexerSections(size_t* count);
@@ -219,6 +220,10 @@ int main(int argc, char** argv) {
   const Simple::VM::Tests::TestSection* lang_cast_sections =
       Simple::VM::Tests::GetLangCastSections(&lang_cast_count);
   sections.insert(sections.end(), lang_cast_sections, lang_cast_sections + lang_cast_count);
+  size_t lang_integration_count = 0;
+  const Simple::VM::Tests::TestSection* lang_integration_sections =
+      Simple::VM::Tests::GetLangIntegrationSections(&lang_integration_count);
+  sections.insert(sections.end(), lang_integration_sections, lang_integration_sections + lang_integration_count);
   size_t lang_irb_count = 0;
   const Simple::VM::Tests::TestSection* lang_irb_sections =
       Simple::VM::Tests::GetLangIrbSections(&lang_irb_count);
