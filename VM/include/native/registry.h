@@ -54,6 +54,7 @@ class NativeRegistry {
 };
 
 void RegisterCoreRandom(NativeRegistry& registry);
+void RegisterCoreOs(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native

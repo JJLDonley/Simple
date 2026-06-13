@@ -4,6 +4,8 @@
 #include <utility>
 
 #include "native/random.h"
+#include "native/thread.h"
+#include "native/time.h"
 
 namespace Simple::VM::Native {
 namespace {
@@ -18,6 +20,10 @@ int32_t UnpackI32(Slot value) {
 
 int64_t UnpackI64(Slot value) {
   return static_cast<int64_t>(value);
+}
+
+Slot PackI64(int64_t value) {
+  return static_cast<uint64_t>(value);
 }
 
 Slot PackF64(double value) {
@@ -48,6 +54,25 @@ NativeCallResult RandomRange(NativeCallContext& context) {
 NativeCallResult RandomF64(NativeCallContext&) {
   NativeCallResult result;
   result.value = PackF64(Random::F64());
+  return result;
+}
+
+NativeCallResult OsTimeMonoNs(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Time::MonotonicNs());
+  return result;
+}
+
+NativeCallResult OsTimeWallNs(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Time::WallNs());
+  return result;
+}
+
+NativeCallResult OsSleepMs(NativeCallContext& context) {
+  Thread::SleepMs(UnpackI32(context.args[0]));
+  NativeCallResult result;
+  result.has_value = false;
   return result;
 }
 
@@ -95,9 +120,18 @@ void RegisterCoreRandom(NativeRegistry& registry) {
   registry.Register(MakeSpec("core.random", "f64", {}, TypeKind::F64, RandomF64));
 }
 
+void RegisterCoreOs(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("core.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
+  registry.Register(MakeSpec("core.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
+  registry.Register(MakeSpec("core.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,
+                             OsSleepMs));
+}
+
 NativeRegistry BuildDefaultRegistry() {
   NativeRegistry registry;
   RegisterCoreRandom(registry);
+  RegisterCoreOs(registry);
   return registry;
 }
 

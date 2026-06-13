@@ -1562,25 +1562,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             heap, AsciiToU16(Simple::VM::Native::Time::FormatWallNsUtc(UnpackI64(args[0])))));
         return true;
       }
-      if (sym == "time_mono_ns" || sym == "time_wall_ns") {
-        if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "core.os time return type mismatch";
+      if (sym == "time_mono_ns" || sym == "time_wall_ns" || sym == "sleep_ms") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::Unspecified) {
+          out_has_ret = false;
+        } else if (!IsI64LikeImportType(ret_kind)) {
+          out_error = "core.os " + sym + " return type mismatch";
           return false;
         }
-        if (sym == "time_mono_ns") {
-          out_ret = PackI64(Simple::VM::Native::Time::MonotonicNs());
-          return true;
-        }
-        out_ret = PackI64(Simple::VM::Native::Time::WallNs());
-        return true;
-      }
-      if (sym == "sleep_ms") {
-        out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = "core.os.sleep_ms arg count mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "core.os." + sym + " arg count mismatch";
           return false;
         }
-        Simple::VM::Native::Thread::SleepMs(UnpackI32(args[0]));
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (result.has_value) out_ret = result.value;
         return true;
       }
     }

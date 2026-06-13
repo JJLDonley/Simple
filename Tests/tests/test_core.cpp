@@ -16133,8 +16133,12 @@ bool RunNativeRegistryModuleTest() {
   const auto result = found->handler(ctx);
   Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
   const auto* random_i32 = default_registry.Find("core.random", "i32");
-  return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 &&
-         random_i32->result_type == Simple::Byte::TypeKind::I32;
+  const auto* os_time = default_registry.Find("core.os", "time_mono_ns");
+  const auto* os_sleep = default_registry.Find("core.os", "sleep_ms");
+  return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
+         os_sleep && random_i32->result_type == Simple::Byte::TypeKind::I32 &&
+         os_time->result_type == Simple::Byte::TypeKind::I64 &&
+         os_sleep->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 
 bool RunNativeThreadModuleTest() {
