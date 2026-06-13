@@ -1,5 +1,7 @@
 #include "Diagnostics/diagnostic.h"
 
+#include <utility>
+
 namespace Simple::Lang::Diagnostics {
 
 std::string DiagnosticPhaseName(DiagnosticPhase phase) {
@@ -15,6 +17,20 @@ std::string DiagnosticPhaseName(DiagnosticPhase phase) {
     case DiagnosticPhase::LSP: return "lsp";
   }
   return "unknown";
+}
+
+Diagnostic MakeDiagnostic(std::string code,
+                          DiagnosticPhase phase,
+                          std::string message,
+                          SourceSpan span,
+                          std::string help) {
+  Diagnostic diagnostic;
+  diagnostic.code = std::move(code);
+  diagnostic.phase = phase;
+  diagnostic.message = std::move(message);
+  diagnostic.span = span;
+  diagnostic.help = std::move(help);
+  return diagnostic;
 }
 
 std::string FormatDiagnostic(const Diagnostic& diagnostic) {

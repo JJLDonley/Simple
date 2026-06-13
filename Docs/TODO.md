@@ -148,7 +148,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] phase
   - [x] message
   - [x] help text
-- [ ] Compiler phases should return/report diagnostics instead of only plain strings.
+- [x] Compiler phases should return/report diagnostics instead of only plain strings.
+  - [x] Add structured validation diagnostic adapter.
 - [ ] CLI should render diagnostics only; it should not infer diagnostic codes from string matching.
 - [ ] LSP should consume the same structured diagnostics as CLI.
 

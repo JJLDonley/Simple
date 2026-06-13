@@ -32,6 +32,11 @@ struct Diagnostic {
 };
 
 std::string DiagnosticPhaseName(DiagnosticPhase phase);
+Diagnostic MakeDiagnostic(std::string code,
+                          DiagnosticPhase phase,
+                          std::string message,
+                          SourceSpan span = {},
+                          std::string help = {});
 std::string FormatDiagnostic(const Diagnostic& diagnostic);
 
 } // namespace Simple::Lang::Diagnostics

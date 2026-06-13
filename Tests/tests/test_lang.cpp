@@ -3143,6 +3143,16 @@ bool LangTastCheckExpressionShapeValidatesIdentifiers() {
          error.find("identifier expression missing name") != std::string::npos;
 }
 
+bool LangValidateProgramReturnsStructuredDiagnostic() {
+  Simple::Lang::Diagnostics::Diagnostic diagnostic;
+  if (Simple::Lang::ValidateProgramFromStringDiagnostic("main : i32 () { return true }", &diagnostic)) {
+    return false;
+  }
+  return diagnostic.code == "E4001" &&
+         diagnostic.phase == Simple::Lang::Diagnostics::DiagnosticPhase::TAST &&
+         diagnostic.message.find("return type mismatch") != std::string::npos;
+}
+
 bool LangDiagnosticsFormatStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
   diagnostic.code = "E1234";
@@ -5159,6 +5169,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},

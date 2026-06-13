@@ -4949,4 +4949,31 @@ bool ValidateProgramFromString(const std::string& text, std::string* error) {
   return ValidateProgram(program, error);
 }
 
+bool ValidateProgramDiagnostic(const Program& program,
+                               Diagnostics::Diagnostic* diagnostic) {
+  std::string error;
+  if (ValidateProgram(program, &error)) return true;
+  if (diagnostic) {
+    *diagnostic = Diagnostics::MakeDiagnostic("E4001",
+                                              Diagnostics::DiagnosticPhase::TAST,
+                                              error);
+  }
+  return false;
+}
+
+bool ValidateProgramFromStringDiagnostic(const std::string& text,
+                                         Diagnostics::Diagnostic* diagnostic) {
+  Program program;
+  std::string error;
+  if (!ParseProgramFromString(text, &program, &error)) {
+    if (diagnostic) {
+      *diagnostic = Diagnostics::MakeDiagnostic("E2001",
+                                                Diagnostics::DiagnosticPhase::CAST,
+                                                error);
+    }
+    return false;
+  }
+  return ValidateProgramDiagnostic(program, diagnostic);
+}
+
 } // namespace Simple::Lang
