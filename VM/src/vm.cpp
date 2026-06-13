@@ -31,6 +31,7 @@
 #include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
+#include "native/os.h"
 #include "native/path.h"
 #include "native/random.h"
 #include "native/thread.h"
@@ -1672,15 +1673,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.os.cwd_get return type mismatch";
           return false;
         }
-        try {
-          std::string cwd = std::filesystem::current_path().u8string();
-          uint32_t handle = CreateString(heap, AsciiToU16(cwd));
-          out_ret = PackRef(handle);
-          return true;
-        } catch (...) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
+        std::string cwd;
+        out_ret = PackRef(Simple::VM::Native::Os::CurrentWorkingDirectory(&cwd)
+                              ? CreateString(heap, AsciiToU16(cwd))
+                              : kNullRef);
+        return true;
       }
       if (sym == "formatWallNs") {
         if (!IsStringLikeImportType(ret_kind)) {

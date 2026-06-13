@@ -16,6 +16,7 @@
 #include "native/env.h"
 #include "native/json.h"
 #include "native/log.h"
+#include "native/os.h"
 #include "native/path.h"
 #include "native/random.h"
 #include "native/thread.h"
@@ -15943,6 +15944,12 @@ bool RunNativeLogModuleTest() {
   return text.find("hidden") == std::string::npos && text.find("[ERROR] shown") != std::string::npos;
 }
 
+bool RunNativeOsModuleTest() {
+  std::string cwd;
+  if (!Simple::VM::Native::Os::CurrentWorkingDirectory(&cwd)) return false;
+  return !cwd.empty();
+}
+
 bool RunNativePathModuleTest() {
   if (Simple::VM::Native::Path::Join("/tmp", "a/../b") != "/tmp/b") return false;
   if (Simple::VM::Native::Path::Dirname("/tmp/file.txt") != "/tmp") return false;
@@ -23553,6 +23560,7 @@ static const TestCase kCoreTests[] = {
   {"native_env_module", RunNativeEnvModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
+  {"native_os_module", RunNativeOsModuleTest},
   {"native_path_module", RunNativePathModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
   {"native_thread_module", RunNativeThreadModuleTest},
