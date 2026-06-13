@@ -2125,33 +2125,46 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = PackRef(handle);
         return true;
       }
-      if (sym == "copy") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.copy return type mismatch"; return false; }
-        if (args.size() != 2) { out_error = "System.fs.copy arg count mismatch"; return false; }
-        std::string from, to;
-        const bool ok = fs_arg_string(0, &from) && fs_arg_string(1, &to) &&
-                        Simple::VM::Native::Fs::CopyFile(from, to);
-        out_ret = PackI32(ok ? 1 : 0);
+      if (sym == "copy" || sym == "remove" || sym == "mkdir" || sym == "mkdirAll" ||
+          sym == "cwd") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
+        }
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = std::string("System.fs.") + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
+        }
         return true;
       }
-      if (sym == "remove" || sym == "mkdir" || sym == "mkdirAll" || sym == "setCwd") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = std::string("System.fs.") + sym + " return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = std::string("System.fs.") + sym + " arg count mismatch"; return false; }
+      if (sym == "setCwd") {
+        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.setCwd return type mismatch"; return false; }
+        if (args.size() != 1) { out_error = "System.fs.setCwd arg count mismatch"; return false; }
         std::string path;
-        bool ok = fs_arg_string(0, &path);
-        if (ok && sym == "remove") ok = Simple::VM::Native::Fs::Remove(path);
-        else if (ok && sym == "mkdir") ok = Simple::VM::Native::Fs::Mkdir(path);
-        else if (ok && sym == "mkdirAll") ok = Simple::VM::Native::Fs::MkdirAll(path);
-        else if (ok && sym == "setCwd") ok = Simple::VM::Native::Fs::SetCwd(path);
+        const bool ok = fs_arg_string(0, &path) && Simple::VM::Native::Fs::SetCwd(path);
         out_ret = PackI32(ok ? 1 : 0);
         return true;
-      }
-      if (sym == "cwd") {
-        if (!IsStringLikeImportType(ret_kind)) { out_error = "System.fs.cwd return type mismatch"; return false; }
-        if (!args.empty()) { out_error = "System.fs.cwd arg count mismatch"; return false; }
-        std::string cwd;
-        if (!Simple::VM::Native::Fs::Cwd(&cwd)) { out_ret = PackRef(kNullRef); return true; }
-        return fs_return_string(cwd);
       }
       if (sym == "open") {
         if (!IsI32LikeImportType(ret_kind)) {

@@ -6,6 +6,7 @@
 #include "native/buffer.h"
 #include "native/channel.h"
 #include "native/env.h"
+#include "native/fs.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/os.h"
@@ -534,6 +535,46 @@ NativeCallResult PathIsDir(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult FsCwd(NativeCallContext&) {
+  NativeCallResult result;
+  if (!Fs::Cwd(&result.string_value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+  }
+  return result;
+}
+
+NativeCallResult FsCopy(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string from;
+  std::string to;
+  result.value = PackI32(ReadStringArg(context, 0, &from) && ReadStringArg(context, 1, &to) &&
+                                 Fs::CopyFile(from, to)
+                             ? 1
+                             : 0);
+  return result;
+}
+
+NativeCallResult FsRemove(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && Fs::Remove(path) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult FsMkdir(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && Fs::Mkdir(path) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult FsMkdirAll(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && Fs::MkdirAll(path) ? 1 : 0);
+  return result;
+}
+
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   if (offset + 4 > payload.size()) return;
   payload[offset] = static_cast<uint8_t>(value & 0xffu);
@@ -757,6 +798,19 @@ void RegisterSystemPath(NativeRegistry& registry) {
                              PathIsDir));
 }
 
+void RegisterSystemFs(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
+  registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
+                             TypeKind::I32, FsCopy));
+  registry.Register(MakeSpec("System.fs", "remove", {TypeKind::String}, TypeKind::I32,
+                             FsRemove));
+  registry.Register(MakeSpec("System.fs", "mkdir", {TypeKind::String}, TypeKind::I32,
+                             FsMkdir));
+  registry.Register(MakeSpec("System.fs", "mkdirAll", {TypeKind::String}, TypeKind::I32,
+                             FsMkdirAll));
+}
+
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
@@ -865,6 +919,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemBuffer(registry);
   RegisterSystemEnv(registry);
   RegisterSystemPath(registry);
+  RegisterSystemFs(registry);
   return registry;
 }
 
