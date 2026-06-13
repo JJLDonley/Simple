@@ -159,7 +159,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 - [ ] Split VM tests out of `Tests/tests/test_System.cpp`:
   - [ ] `Tests/tests/vm/test_interpreter.cpp`
-  - [ ] `Tests/tests/vm/test_heap.cpp`
+  - [x] `Tests/tests/vm/test_heap.cpp`
   - [ ] `Tests/tests/vm/test_gc.cpp`
   - [ ] `Tests/tests/vm/test_runtime_limits.cpp`
   - [ ] `Tests/tests/vm/test_native_fs.cpp`
@@ -180,7 +180,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Tests/tests/cli/test_cli_build.cpp`
   - [x] `Tests/tests/cli/test_cli_imports.cpp`
 - [ ] Migration order:
-  - [ ] heap/gc tests first
+  - [x] heap/gc tests first
   - [x] lexer/parser tests second
   - [x] CLI tests third
   - [x] RAST/TAST tests fourth
