@@ -16149,6 +16149,10 @@ bool RunNativeRegistryModuleTest() {
   const auto* fs_read_bytes = default_registry.Find("System.fs", "readBytes");
   const auto* fs_write_bytes = default_registry.Find("System.fs", "writeBytes");
   const auto* fs_list_dir = default_registry.Find("System.fs", "listDir");
+  const auto* fs_open = default_registry.Find("System.fs", "open");
+  const auto* fs_read = default_registry.Find("System.fs", "read");
+  const auto* fs_write = default_registry.Find("System.fs", "write");
+  const auto* fs_close = default_registry.Find("System.fs", "close");
   const auto* fs_cwd = default_registry.Find("System.fs", "cwd");
   const auto* fs_copy = default_registry.Find("System.fs", "copy");
   const auto* fs_remove = default_registry.Find("System.fs", "remove");
@@ -16312,6 +16316,7 @@ bool RunNativeRegistryModuleTest() {
   const std::string fs_dst = fs_base + "_dst.txt";
   const std::string fs_text = fs_base + "_text.txt";
   const std::string fs_bytes = fs_base + "_bytes.bin";
+  const std::string fs_fd = fs_base + "_fd.bin";
   {
     std::ofstream out(fs_src, std::ios::binary);
     out << "metadata";
@@ -16321,6 +16326,7 @@ bool RunNativeRegistryModuleTest() {
   const uint32_t fs_dst_ref = make_metadata_string(fs_dst);
   const uint32_t fs_text_ref = make_metadata_string(fs_text);
   const uint32_t fs_bytes_ref = make_metadata_string(fs_bytes);
+  const uint32_t fs_fd_ref = make_metadata_string(fs_fd);
   const uint32_t fs_text_value_ref = make_metadata_string("hello metadata");
   const uint32_t fs_bytes_value_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
   HeapObject* fs_bytes_value = metadata_heap.Get(fs_bytes_value_ref);
@@ -16330,6 +16336,17 @@ bool RunNativeRegistryModuleTest() {
   WriteU32Payload(fs_bytes_value->payload, 8, 65);
   WriteU32Payload(fs_bytes_value->payload, 12, 66);
   WriteU32Payload(fs_bytes_value->payload, 16, 67);
+  const uint32_t fs_fd_write_buf_ref = metadata_heap.Allocate(ObjectKind::Array, 0, 4u + 3u * 4u);
+  HeapObject* fs_fd_write_buf = metadata_heap.Get(fs_fd_write_buf_ref);
+  if (!fs_fd_write_buf) return false;
+  WriteU32Payload(fs_fd_write_buf->payload, 0, 3);
+  WriteU32Payload(fs_fd_write_buf->payload, 4, 88);
+  WriteU32Payload(fs_fd_write_buf->payload, 8, 89);
+  WriteU32Payload(fs_fd_write_buf->payload, 12, 90);
+  const uint32_t fs_fd_read_buf_ref = metadata_heap.Allocate(ObjectKind::Array, 0, 4u + 3u * 4u);
+  HeapObject* fs_fd_read_buf = metadata_heap.Get(fs_fd_read_buf_ref);
+  if (!fs_fd_read_buf) return false;
+  WriteU32Payload(fs_fd_read_buf->payload, 0, 3);
   Simple::VM::Native::NativeCallContext fs_write_text_ctx;
   fs_write_text_ctx.heap = &metadata_heap;
   fs_write_text_ctx.args = {fs_text_ref, fs_text_value_ref};
@@ -16358,6 +16375,8 @@ bool RunNativeRegistryModuleTest() {
            (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
            (static_cast<uint32_t>(payload[offset + 3]) << 24u);
   };
+  const uint32_t fs_read_bytes_len = read_test_u32(fs_read_bytes_obj->payload, 0);
+  const uint32_t fs_read_bytes_first = read_test_u32(fs_read_bytes_obj->payload, 8);
   Simple::VM::Native::NativeCallContext fs_list_dir_ctx;
   fs_list_dir_ctx.heap = &metadata_heap;
   fs_list_dir_ctx.args = {dot_path};
@@ -16365,6 +16384,43 @@ bool RunNativeRegistryModuleTest() {
                                               : Simple::VM::Native::NativeCallResult{};
   HeapObject* fs_list_dir_obj = metadata_heap.Get(static_cast<uint32_t>(fs_list_dir_result.value));
   if (!fs_list_dir_obj) return false;
+  const uint32_t fs_list_dir_len = read_test_u32(fs_list_dir_obj->payload, 0);
+  std::vector<std::FILE*> metadata_open_files;
+  Simple::VM::Native::NativeCallContext fs_open_write_ctx;
+  fs_open_write_ctx.heap = &metadata_heap;
+  fs_open_write_ctx.open_files = &metadata_open_files;
+  fs_open_write_ctx.args = {fs_fd_ref, 1};
+  const auto fs_open_write_result = fs_open ? fs_open->handler(fs_open_write_ctx)
+                                            : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_write_ctx;
+  fs_write_ctx.heap = &metadata_heap;
+  fs_write_ctx.open_files = &metadata_open_files;
+  fs_write_ctx.args = {fs_open_write_result.value, fs_fd_write_buf_ref, 3};
+  const auto fs_write_result = fs_write ? fs_write->handler(fs_write_ctx)
+                                        : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_close_write_ctx;
+  fs_close_write_ctx.open_files = &metadata_open_files;
+  fs_close_write_ctx.args = {fs_open_write_result.value};
+  const auto fs_close_write_result = fs_close ? fs_close->handler(fs_close_write_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_open_read_ctx;
+  fs_open_read_ctx.heap = &metadata_heap;
+  fs_open_read_ctx.open_files = &metadata_open_files;
+  fs_open_read_ctx.args = {fs_fd_ref, 0};
+  const auto fs_open_read_result = fs_open ? fs_open->handler(fs_open_read_ctx)
+                                           : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_read_ctx;
+  fs_read_ctx.heap = &metadata_heap;
+  fs_read_ctx.open_files = &metadata_open_files;
+  fs_read_ctx.args = {fs_open_read_result.value, fs_fd_read_buf_ref, 3};
+  const auto fs_read_result = fs_read ? fs_read->handler(fs_read_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_close_read_ctx;
+  fs_close_read_ctx.open_files = &metadata_open_files;
+  fs_close_read_ctx.args = {fs_open_read_result.value};
+  const auto fs_close_read_result = fs_close ? fs_close->handler(fs_close_read_ctx)
+                                             : Simple::VM::Native::NativeCallResult{};
+  const uint32_t fs_fd_read_first = read_test_u32(fs_fd_read_buf->payload, 4);
   Simple::VM::Native::NativeCallContext fs_cwd_ctx;
   const auto fs_cwd_result = fs_cwd ? fs_cwd->handler(fs_cwd_ctx)
                                     : Simple::VM::Native::NativeCallResult{};
@@ -16401,6 +16457,10 @@ bool RunNativeRegistryModuleTest() {
   fs_remove_bytes_ctx.heap = &metadata_heap;
   fs_remove_bytes_ctx.args = {fs_bytes_ref};
   if (fs_remove) (void)fs_remove->handler(fs_remove_bytes_ctx);
+  Simple::VM::Native::NativeCallContext fs_remove_fd_ctx;
+  fs_remove_fd_ctx.heap = &metadata_heap;
+  fs_remove_fd_ctx.args = {fs_fd_ref};
+  if (fs_remove) (void)fs_remove->handler(fs_remove_fd_ctx);
   Simple::VM::Native::NativeCallContext fs_remove_dir_ctx;
   fs_remove_dir_ctx.heap = &metadata_heap;
   fs_remove_dir_ctx.args = {fs_dir_ref};
@@ -16453,17 +16513,20 @@ bool RunNativeRegistryModuleTest() {
          os_args_count_result.value == 2 && os_args_get_result.string_value == "legacy-arg" &&
          os_env_get_result.string_value == "metadata-env" && path_join && path_basename && path_normalize &&
          path_exists && fs_read_text && fs_write_text && fs_read_bytes && fs_write_bytes &&
-         fs_list_dir && fs_cwd && fs_copy && fs_remove && fs_mkdir && fs_set_cwd &&
+         fs_list_dir && fs_open && fs_read && fs_write && fs_close && fs_cwd && fs_copy &&
+         fs_remove && fs_mkdir && fs_set_cwd &&
          !os_cwd_result.string_value.empty() &&
          !os_format_result.string_value.empty() &&
          path_join_result.string_value == "/tmp/b.txt" &&
          path_basename_result.string_value == "b.txt" &&
          path_normalize_result.string_value == "b.txt" && path_exists_result.value == 1 &&
          fs_write_text_result.value == 1 && fs_read_text_result.string_value == "hello metadata" &&
-         fs_write_bytes_result.value == 1 && read_test_u32(fs_read_bytes_obj->payload, 0) == 3 &&
-         read_test_u32(fs_read_bytes_obj->payload, 8) == 65 &&
-         read_test_u32(fs_list_dir_obj->payload, 0) > 0 && !fs_cwd_result.string_value.empty() &&
-         fs_mkdir_result.value == 1 &&
+         fs_write_bytes_result.value == 1 && fs_read_bytes_len == 3 && fs_read_bytes_first == 65 &&
+         fs_list_dir_len > 0 && static_cast<int32_t>(fs_open_write_result.value) >= 0 &&
+         fs_write_result.value == 3 && !fs_close_write_result.has_value &&
+         static_cast<int32_t>(fs_open_read_result.value) >= 0 && fs_read_result.value == 3 &&
+         !fs_close_read_result.has_value && fs_fd_read_first == 88 &&
+         !fs_cwd_result.string_value.empty() && fs_mkdir_result.value == 1 &&
          fs_set_cwd_result.value == 1 && fs_copy_result.value == 1 &&
          fs_remove_dst_result.value == 1 && thread_yield &&
          thread_hw && channel_new && channel_send && channel_recv &&
@@ -16500,6 +16563,10 @@ bool RunNativeRegistryModuleTest() {
          fs_read_bytes->result_type == Simple::Byte::TypeKind::Ref &&
          fs_write_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          fs_list_dir->result_type == Simple::Byte::TypeKind::Ref &&
+         fs_open->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_read->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_write->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_close->result_type == Simple::Byte::TypeKind::Unspecified &&
          fs_cwd->result_type == Simple::Byte::TypeKind::String &&
          fs_copy->result_type == Simple::Byte::TypeKind::I32 &&
          fs_remove->result_type == Simple::Byte::TypeKind::I32 &&

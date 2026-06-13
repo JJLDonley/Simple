@@ -2093,116 +2093,29 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         return true;
       }
-      if (sym == "open") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.fs return type mismatch";
+      if (sym == "open" || sym == "read" || sym == "write" || sym == "close") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::Unspecified) {
+          out_has_ret = false;
+        } else if (!IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("System.fs.") + sym + " return type mismatch";
           return false;
         }
-        if (args.size() != 2) {
-          out_error = "System.fs.open arg count mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = std::string("System.fs.") + sym + " arg count mismatch";
           return false;
         }
-        uint32_t path_ref = UnpackRef(args[0]);
-        int32_t flags = UnpackI32(args[1]);
-        if (path_ref == kNullRef) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        HeapObject* path_obj = heap.Get(path_ref);
-        if (!path_obj || path_obj->header.kind != ObjectKind::String) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        std::string path = U16ToAscii(ReadString(path_obj));
-        const char* mode = "rb";
-        if (flags & 0x2) {
-          mode = (flags & 0x1) ? "ab" : "ab";
-        } else if (flags & 0x1) {
-          mode = "wb";
-        } else {
-          mode = "rb";
-        }
-        std::FILE* f = Simple::VM::Native::Fs::OpenFile(path, mode);
-        if (!f) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        open_files.push_back(f);
-        out_ret = PackI32(static_cast<int32_t>(open_files.size() - 1));
-        return true;
-      }
-      if (sym == "read" || sym == "write") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.fs return type mismatch";
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        context.open_files = &open_files;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
           return false;
         }
-        if (args.size() != 3) {
-          out_error = "System.fs io arg count mismatch";
-          return false;
-        }
-        int32_t fd = UnpackI32(args[0]);
-        uint32_t buf_ref = UnpackRef(args[1]);
-        int32_t len = UnpackI32(args[2]);
-        if (fd < 0 || static_cast<size_t>(fd) >= open_files.size()) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        std::FILE* f = open_files[static_cast<size_t>(fd)];
-        if (!f || buf_ref == kNullRef || len < 0) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        HeapObject* buf_obj = heap.Get(buf_ref);
-        if (!buf_obj || buf_obj->header.kind != ObjectKind::Array) {
-          out_ret = PackI32(-1);
-          return true;
-        }
-        uint32_t length = ReadU32Payload(buf_obj->payload, 0);
-        uint32_t max_len = length;
-        uint32_t req = static_cast<uint32_t>(len);
-        if (req > max_len) req = max_len;
-        ScratchScope scratch_scope(scratch_arena);
-        uint8_t* tmp = nullptr;
-        if (req > 0) {
-          tmp = scratch_arena.Allocate(req, 1);
-          if (!tmp) {
-            out_ret = PackI32(-1);
-            return true;
-          }
-          if (sym == "read") {
-            std::memset(tmp, 0, req);
-          }
-        }
-        if (sym == "read") {
-          size_t got = (req > 0) ? std::fread(tmp, 1, req, f) : 0;
-          for (size_t i = 0; i < got; ++i) {
-            WriteU32Payload(buf_obj->payload, 4 + i * 4, tmp[i]);
-          }
-          out_ret = PackI32(static_cast<int32_t>(got));
-          return true;
-        }
-        for (size_t i = 0; i < req; ++i) {
-          tmp[i] = static_cast<uint8_t>(ReadU32Payload(buf_obj->payload, 4 + i * 4));
-        }
-        size_t wrote = (req > 0) ? std::fwrite(tmp, 1, req, f) : 0;
-        out_ret = PackI32(static_cast<int32_t>(wrote));
-        return true;
-      }
-      if (sym == "close") {
-        out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = "System.fs.close arg count mismatch";
-          return false;
-        }
-        int32_t fd = UnpackI32(args[0]);
-        if (fd < 0 || static_cast<size_t>(fd) >= open_files.size()) {
-          return true;
-        }
-        std::FILE* f = open_files[static_cast<size_t>(fd)];
-        if (f) {
-          std::fclose(f);
-          open_files[static_cast<size_t>(fd)] = nullptr;
-        }
+        if (result.has_value) out_ret = result.value;
         return true;
       }
     }

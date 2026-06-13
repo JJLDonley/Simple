@@ -43,6 +43,7 @@ Slot PackRef(uint32_t handle) {
 }
 
 bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
+void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value);
 
 uint32_t UnpackU32Bits(Slot value) {
   return static_cast<uint32_t>(value);
@@ -677,6 +678,100 @@ NativeCallResult FsMkdirAll(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult FsOpen(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  if (!context.open_files || !ReadStringArg(context, 0, &path)) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  const int32_t flags = UnpackI32(context.args[1]);
+  const char* mode = "rb";
+  if (flags & 0x2) {
+    mode = "ab";
+  } else if (flags & 0x1) {
+    mode = "wb";
+  }
+  std::FILE* file = Fs::OpenFile(path, mode);
+  if (!file) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  context.open_files->push_back(file);
+  result.value = PackI32(static_cast<int32_t>(context.open_files->size() - 1));
+  return result;
+}
+
+NativeCallResult FsRead(NativeCallContext& context) {
+  NativeCallResult result;
+  const int32_t fd = UnpackI32(context.args[0]);
+  const int32_t count = UnpackI32(context.args[2]);
+  HeapObject* obj = GetHeapObject(context, 1);
+  if (!context.open_files || fd < 0 || static_cast<size_t>(fd) >= context.open_files->size() ||
+      !(*context.open_files)[static_cast<size_t>(fd)] || count < 0 || !obj ||
+      obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
+                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
+                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
+  uint32_t req = static_cast<uint32_t>(count);
+  if (req > length) req = length;
+  if (4u + static_cast<size_t>(length) * 4u > obj->payload.size()) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  std::vector<uint8_t> bytes(req);
+  const size_t got = req > 0 ? std::fread(bytes.data(), 1, req, (*context.open_files)[static_cast<size_t>(fd)]) : 0;
+  for (size_t i = 0; i < got; ++i) WriteU32(obj->payload, 4u + i * 4u, bytes[i]);
+  result.value = PackI32(static_cast<int32_t>(got));
+  return result;
+}
+
+NativeCallResult FsWrite(NativeCallContext& context) {
+  NativeCallResult result;
+  const int32_t fd = UnpackI32(context.args[0]);
+  const int32_t count = UnpackI32(context.args[2]);
+  HeapObject* obj = GetHeapObject(context, 1);
+  if (!context.open_files || fd < 0 || static_cast<size_t>(fd) >= context.open_files->size() ||
+      !(*context.open_files)[static_cast<size_t>(fd)] || count < 0 || !obj ||
+      obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
+                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
+                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
+  uint32_t req = static_cast<uint32_t>(count);
+  if (req > length) req = length;
+  if (4u + static_cast<size_t>(length) * 4u > obj->payload.size()) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  std::vector<uint8_t> bytes(req);
+  for (uint32_t i = 0; i < req; ++i) {
+    bytes[i] = static_cast<uint8_t>(obj->payload[4u + i * 4u]);
+  }
+  const size_t wrote = req > 0 ? std::fwrite(bytes.data(), 1, req, (*context.open_files)[static_cast<size_t>(fd)]) : 0;
+  result.value = PackI32(static_cast<int32_t>(wrote));
+  return result;
+}
+
+NativeCallResult FsClose(NativeCallContext& context) {
+  NativeCallResult result;
+  result.has_value = false;
+  if (!context.open_files) return result;
+  const int32_t fd = UnpackI32(context.args[0]);
+  if (fd < 0 || static_cast<size_t>(fd) >= context.open_files->size()) return result;
+  std::FILE* file = (*context.open_files)[static_cast<size_t>(fd)];
+  if (file) {
+    std::fclose(file);
+    (*context.open_files)[static_cast<size_t>(fd)] = nullptr;
+  }
+  return result;
+}
+
 NativeCallResult FsSetCwd(NativeCallContext& context) {
   NativeCallResult result;
   std::string path;
@@ -1027,6 +1122,14 @@ void RegisterSystemFs(NativeRegistry& registry) {
                              TypeKind::I32, FsWriteBytes));
   registry.Register(MakeSpec("System.fs", "listDir", {TypeKind::String}, TypeKind::Ref,
                              FsListDir));
+  registry.Register(MakeSpec("System.fs", "open", {TypeKind::String, TypeKind::I32},
+                             TypeKind::I32, FsOpen));
+  registry.Register(MakeSpec("System.fs", "read", {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
+                             TypeKind::I32, FsRead));
+  registry.Register(MakeSpec("System.fs", "write", {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
+                             TypeKind::I32, FsWrite));
+  registry.Register(MakeSpec("System.fs", "close", {TypeKind::I32}, TypeKind::Unspecified,
+                             FsClose));
   registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
   registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
                              TypeKind::I32, FsCopy));
