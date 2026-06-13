@@ -25,6 +25,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "interpreter/frames.h"
+#include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
 #include "native/buffer.h"
 #include "native/channel.h"
@@ -49,6 +50,8 @@ using Simple::Byte::OpCode;
 using Simple::Byte::OpCodeName;
 using Simple::Byte::TypeKind;
 using Slot = uint64_t;
+using Simple::VM::Interpreter::Pop;
+using Simple::VM::Interpreter::Push;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
 inline bool IsI32LikeImportType(TypeKind kind) {
@@ -1197,16 +1200,6 @@ uint16_t ReadU16(const std::vector<uint8_t>& code, size_t& pc) {
 
 uint8_t ReadU8(const std::vector<uint8_t>& code, size_t& pc) {
   return code[pc++];
-}
-
-Slot Pop(std::vector<Slot>& stack) {
-  Slot v = stack.back();
-  stack.pop_back();
-  return v;
-}
-
-void Push(std::vector<Slot>& stack, Slot v) {
-  stack.push_back(v);
 }
 
 uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset) {
