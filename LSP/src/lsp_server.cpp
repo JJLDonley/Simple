@@ -1,5 +1,6 @@
 #include "lsp_server.h"
 #include "diagnostic_bridge.h"
+#include "RAST/import_paths.h"
 
 #include <cctype>
 #include <cstring>
@@ -153,32 +154,6 @@ bool ExtractModuleHeaderName(const std::string& text, std::string* out) {
   return false;
 }
 
-bool ParseModuleMapLine(const std::string& line,
-                        std::string* out_name,
-                        std::string* out_path) {
-  if (!out_name || !out_path) return false;
-  std::string body = line;
-  const size_t comment = body.find("//");
-  if (comment != std::string::npos) body = body.substr(0, comment);
-  const size_t eq = body.find('=');
-  if (eq == std::string::npos) return false;
-  auto trim = [](std::string s) {
-    const size_t b = s.find_first_not_of(" \t\r\n");
-    if (b == std::string::npos) return std::string{};
-    const size_t e = s.find_last_not_of(" \t\r\n");
-    return s.substr(b, e - b + 1);
-  };
-  std::string name = trim(body.substr(0, eq));
-  std::string path = trim(body.substr(eq + 1));
-  if (path.size() >= 2 && path.front() == '"' && path.back() == '"') {
-    path = path.substr(1, path.size() - 2);
-  }
-  if (name.empty() || path.empty()) return false;
-  *out_name = std::move(name);
-  *out_path = std::move(path);
-  return true;
-}
-
 bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
                           std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
   if (!out) return false;
@@ -233,16 +208,15 @@ bool BuildModuleIndex(const std::filesystem::path& project_root,
   if (map_in) {
     std::string line;
     while (std::getline(map_in, line)) {
-      std::string name;
-      std::string rel;
-      if (!ParseModuleMapLine(line, &name, &rel)) continue;
-      fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (project_root / rel);
+      Simple::Lang::RAST::ModuleMapEntry entry;
+      if (!Simple::Lang::RAST::ParseModuleMapLine(line, &entry)) continue;
+      fs::path path = fs::path(entry.path).is_absolute() ? fs::path(entry.path) : (project_root / entry.path);
       if (!path.has_extension()) path += ".simple";
       std::error_code ec;
-      (*out)[name].push_back(fs::weakly_canonical(path, ec));
+      (*out)[entry.name].push_back(fs::weakly_canonical(path, ec));
       if (ec) {
         ec.clear();
-        (*out)[name].push_back(fs::absolute(path));
+        (*out)[entry.name].push_back(fs::absolute(path));
       }
     }
   }
@@ -316,10 +290,9 @@ bool ResolveModuleMapImportPath(const std::filesystem::path& base_dir,
     if (map_in) {
       std::string line;
       while (std::getline(map_in, line)) {
-        std::string name;
-        std::string rel;
-        if (!ParseModuleMapLine(line, &name, &rel) || name != import_path) continue;
-        fs::path path = fs::path(rel).is_absolute() ? fs::path(rel) : (cursor / rel);
+        Simple::Lang::RAST::ModuleMapEntry entry;
+        if (!Simple::Lang::RAST::ParseModuleMapLine(line, &entry) || entry.name != import_path) continue;
+        fs::path path = fs::path(entry.path).is_absolute() ? fs::path(entry.path) : (cursor / entry.path);
         if (!path.has_extension()) path += ".simple";
         *out = fs::weakly_canonical(path, ec);
         if (ec) {

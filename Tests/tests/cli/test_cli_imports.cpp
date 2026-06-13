@@ -6,6 +6,12 @@
 namespace Simple::VM::Tests {
 namespace {
 
+bool CliSplitImportsParseSharedModuleMapLines() {
+  Simple::Lang::RAST::ModuleMapEntry entry;
+  return Simple::Lang::RAST::ParseModuleMapLine("Math = \"lib/math.simple\" // comment", &entry) &&
+         entry.name == "Math" && entry.path == "lib/math.simple";
+}
+
 bool CliSplitImportsNormalizesSimplePaths() {
   return Simple::CLI::ImportPathWithSimpleExtension("lib/math") ==
              Simple::Lang::RAST::ImportPathWithSimpleExtension("lib/math") &&
@@ -16,6 +22,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 }
 
 const TestCase kCliImportsTests[] = {
+  {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},
   {"cli_split_imports_normalizes_simple_paths", CliSplitImportsNormalizesSimplePaths},
 };
 
