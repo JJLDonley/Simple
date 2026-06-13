@@ -225,14 +225,14 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [ ] switch/loop local lifetimes with refs
   - [ ] globals holding refs
   - [ ] temporary stack refs during calls
-- [ ] Define and enforce runtime limits:
-  - [ ] max stack
-  - [ ] max locals
-  - [ ] max call depth
-  - [ ] max heap objects/bytes
-  - [ ] max array/list size
-  - [ ] max const pool size
-  - [ ] max code size
+- [x] Define and enforce runtime limits:
+  - [x] max stack
+  - [x] max locals
+  - [x] max call depth
+  - [x] max heap objects/bytes
+  - [x] max array/list size
+  - [x] max const pool size
+  - [x] max code size
 - [ ] Keep interpreter as canonical until JIT behavior is fully specified.
 
 ## DL / FFI

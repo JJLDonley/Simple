@@ -1716,8 +1716,26 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   bool have_meta = vr.ok;
   if (module.functions.empty()) return Trap("no functions to execute");
   if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
+  const RuntimeLimits& limits = options.limits;
+  if (limits.max_const_pool_size != 0 && module.const_pool.size() > limits.max_const_pool_size) {
+    return Trap("runtime limit exceeded: const pool size");
+  }
+  if (limits.max_code_size != 0 && module.code.size() > limits.max_code_size) {
+    return Trap("runtime limit exceeded: code size");
+  }
+  for (const auto& func : module.functions) {
+    if (limits.max_stack_slots != 0 && func.stack_max > limits.max_stack_slots) {
+      return Trap("runtime limit exceeded: max stack");
+    }
+  }
+  for (const auto& method : module.methods) {
+    if (limits.max_locals != 0 && method.local_count > limits.max_locals) {
+      return Trap("runtime limit exceeded: max locals");
+    }
+  }
 
   Heap heap;
+  heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
   ScratchArena scratch_arena;
   scratch_arena.SetRequireScope(true);
   std::vector<Slot> globals(module.globals.size());
@@ -5077,6 +5095,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Frame> call_stack;
   std::vector<Slot> call_args;
 
+  auto check_sequence_limit = [&](uint32_t count, const char* what) -> bool {
+    if (limits.max_array_list_size == 0 || count <= limits.max_array_list_size) return true;
+    (void)what;
+    return false;
+  };
   auto alloc_locals = [&](uint16_t count) -> size_t {
     size_t base = locals_arena.size();
     locals_arena.resize(base + count);
@@ -5477,6 +5500,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArray: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
+        if (!check_sequence_limit(length, "array")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 4;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -5489,6 +5513,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArrayF64: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
+        if (!check_sequence_limit(length, "array")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 8;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -5501,6 +5526,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArrayRef: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
+        if (!check_sequence_limit(length, "array")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 4;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -5661,6 +5687,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewList: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
+        if (!check_sequence_limit(capacity, "list")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 4;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -5674,6 +5701,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewListF64: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
+        if (!check_sequence_limit(capacity, "list")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 8;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -5687,6 +5715,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewListRef: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
+        if (!check_sequence_limit(capacity, "list")) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 4;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -7220,6 +7249,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
         current.return_pc = pc;
         current.stack_base = stack.size();
+        if (limits.max_call_depth != 0 && call_stack.size() + 1 >= limits.max_call_depth) {
+          return Trap("runtime limit exceeded: call depth");
+        }
         call_stack.push_back(current);
         current = setup_frame(func_id, pc, stack.size(), kNullRef);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
@@ -7308,6 +7340,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
         current.return_pc = pc;
         current.stack_base = stack.size();
+        if (limits.max_call_depth != 0 && call_stack.size() + 1 >= limits.max_call_depth) {
+          return Trap("runtime limit exceeded: call depth");
+        }
         call_stack.push_back(current);
         current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {

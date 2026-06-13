@@ -15743,6 +15743,96 @@ bool RunHeapLayoutHelpersTest() {
   return Simple::VM::HeapLayout::kNullRef == 0xFFFFFFFFu;
 }
 
+std::vector<uint8_t> BuildSimpleAddModuleWithStackMax(uint32_t stack_max) {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModuleWithStackMax(code, 0, 0, stack_max);
+}
+
+std::vector<uint8_t> BuildTwoArraysModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::NewArray));
+  AppendU32(code, 0);
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
+bool RunRuntimeLimitsTest() {
+  Simple::Byte::LoadResult add_load = Simple::Byte::LoadModuleFromBytes(BuildSimpleAddModule());
+  if (!add_load.ok) return false;
+
+  Simple::VM::ExecOptions code_options;
+  code_options.limits.max_code_size = static_cast<uint32_t>(add_load.module.code.size() - 1);
+  Simple::VM::ExecResult code_result = Simple::VM::ExecuteModule(add_load.module, true, false, code_options);
+  if (code_result.status != Simple::VM::ExecStatus::Trapped ||
+      code_result.error.find("code size") == std::string::npos) {
+    return false;
+  }
+
+  Simple::Byte::LoadResult stack_load = Simple::Byte::LoadModuleFromBytes(BuildSimpleAddModuleWithStackMax(2));
+  if (!stack_load.ok) return false;
+  Simple::VM::ExecOptions stack_options;
+  stack_options.limits.max_stack_slots = 1;
+  Simple::VM::ExecResult stack_result = Simple::VM::ExecuteModule(stack_load.module, true, false, stack_options);
+  if (stack_result.status != Simple::VM::ExecStatus::Trapped ||
+      stack_result.error.find("max stack") == std::string::npos) {
+    return false;
+  }
+
+  Simple::Byte::LoadResult array_load = Simple::Byte::LoadModuleFromBytes(BuildArrayModule());
+  if (!array_load.ok) return false;
+  Simple::VM::ExecOptions array_options;
+  array_options.limits.max_array_list_size = 2;
+  Simple::VM::ExecResult array_result = Simple::VM::ExecuteModule(array_load.module, true, false, array_options);
+  if (array_result.status != Simple::VM::ExecStatus::Trapped ||
+      array_result.error.find("array/list size") == std::string::npos) {
+    return false;
+  }
+
+  Simple::VM::ExecOptions heap_bytes_options;
+  heap_bytes_options.limits.max_heap_bytes = 15;
+  Simple::VM::ExecResult heap_bytes_result = Simple::VM::ExecuteModule(array_load.module, true, false, heap_bytes_options);
+  if (heap_bytes_result.status != Simple::VM::ExecStatus::Trapped ||
+      heap_bytes_result.error.find("allocation failed") == std::string::npos) {
+    return false;
+  }
+
+  Simple::Byte::LoadResult two_arrays_load = Simple::Byte::LoadModuleFromBytes(BuildTwoArraysModule());
+  if (!two_arrays_load.ok) return false;
+  Simple::VM::ExecOptions heap_objects_options;
+  heap_objects_options.limits.max_heap_objects = 1;
+  Simple::VM::ExecResult heap_objects_result = Simple::VM::ExecuteModule(two_arrays_load.module, true, false, heap_objects_options);
+  if (heap_objects_result.status != Simple::VM::ExecStatus::Trapped ||
+      heap_objects_result.error.find("allocation failed") == std::string::npos) {
+    return false;
+  }
+
+  Simple::VM::ExecOptions ok_options;
+  ok_options.limits.max_code_size = static_cast<uint32_t>(add_load.module.code.size());
+  ok_options.limits.max_stack_slots = 8;
+  Simple::VM::ExecResult ok_result = Simple::VM::ExecuteModule(add_load.module, true, false, ok_options);
+  return ok_result.status == Simple::VM::ExecStatus::Halted;
+}
+
 bool RunCompatibilityVersionConstantsTest() {
   static_assert(Simple::Lang::kLangSyntaxVersionMajor == 1);
   static_assert(Simple::Lang::kSirVersionMajor == 1);
@@ -23267,6 +23357,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"runtime_limits", RunRuntimeLimitsTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},

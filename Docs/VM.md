@@ -36,6 +36,7 @@ ExecResult ExecuteModule(const SbcModule& module,
 
 - `argv` for OS argument runtime behavior
 - host import resolver callback
+- runtime limits for max stack slots, locals, call depth, array/list size, const pool size, and code size
 
 ### Execution Flow
 

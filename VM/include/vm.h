@@ -46,8 +46,20 @@ struct ExecResult {
   std::vector<uint32_t> jit_tier1_exec_counts;
 };
 
+struct RuntimeLimits {
+  uint32_t max_stack_slots = 0;
+  uint32_t max_locals = 0;
+  uint32_t max_call_depth = 0;
+  uint32_t max_heap_objects = 0;
+  uint64_t max_heap_bytes = 0;
+  uint32_t max_array_list_size = 0;
+  uint32_t max_const_pool_size = 0;
+  uint32_t max_code_size = 0;
+};
+
 struct ExecOptions {
   std::vector<std::string> argv;
+  RuntimeLimits limits;
   std::function<bool(const std::string& module, const std::string& symbol,
                      const std::vector<uint64_t>& args, uint64_t& out_ret,
                      bool& out_has_ret, std::string& out_error)>

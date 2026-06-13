@@ -86,6 +86,7 @@ constexpr bool IsRefKind(ObjectKind kind) {
 
 class Heap {
  public:
+  void SetLimits(uint32_t max_objects, uint64_t max_bytes);
   uint32_t Allocate(ObjectKind kind, uint32_t type_id, uint32_t size);
   HeapObject* Get(uint32_t handle);
   const HeapObject* Get(uint32_t handle) const;
@@ -96,6 +97,10 @@ class Heap {
  private:
   std::vector<HeapObject> objects_;
   std::vector<uint32_t> free_list_;
+  uint32_t max_objects_ = 0;
+  uint64_t max_bytes_ = 0;
+  uint32_t live_objects_ = 0;
+  uint64_t live_bytes_ = 0;
 };
 
 } // namespace Simple::VM
