@@ -140,6 +140,49 @@ NativeCallResult ChannelPendingI32(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult ChannelNewI64(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_i64));
+  return result;
+}
+
+NativeCallResult ChannelSendI64(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Send(Channel::g_i64, UnpackI64(context.args[0]),
+                                       UnpackI64(context.args[1]))
+                              ? 1
+                              : 0);
+  return result;
+}
+
+NativeCallResult ChannelRecvI64(NativeCallContext& context) {
+  int64_t value = 0;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_i64, UnpackI64(context.args[0]), true, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackI64(value);
+  return result;
+}
+
+NativeCallResult ChannelTryRecvI64(NativeCallContext& context) {
+  int64_t value = 0;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_i64, UnpackI64(context.args[0]), false, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackI64(value);
+  return result;
+}
+
+NativeCallResult ChannelPendingI64(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_i64, UnpackI64(context.args[0])));
+  return result;
+}
+
 NativeCallResult ChannelClose(NativeCallContext& context) {
   Channel::CloseAll(UnpackI64(context.args[0]));
   NativeCallResult result;
@@ -221,6 +264,17 @@ void RegisterSystemChannel(NativeRegistry& registry) {
                              ChannelTryRecvI32));
   registry.Register(MakeSpec("System.channel", "pendingI32", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingI32));
+  registry.Register(MakeSpec("System.channel", "newI64", {}, TypeKind::I64, ChannelNewI64));
+  registry.Register(MakeSpec("System.channel", "sendI64", {TypeKind::I64, TypeKind::I64},
+                             TypeKind::I32, ChannelSendI64));
+  registry.Register(MakeSpec("System.channel", "trySendI64", {TypeKind::I64, TypeKind::I64},
+                             TypeKind::I32, ChannelSendI64));
+  registry.Register(MakeSpec("System.channel", "recvI64", {TypeKind::I64}, TypeKind::I64,
+                             ChannelRecvI64));
+  registry.Register(MakeSpec("System.channel", "tryRecvI64", {TypeKind::I64}, TypeKind::I64,
+                             ChannelTryRecvI64));
+  registry.Register(MakeSpec("System.channel", "pendingI64", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingI64));
   registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
                              ChannelClose));
 }

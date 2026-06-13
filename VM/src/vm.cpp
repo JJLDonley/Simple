@@ -1798,7 +1798,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     if (mod == "System.channel") {
       if (sym == "newI32" || sym == "sendI32" || sym == "trySendI32" || sym == "recvI32" ||
-          sym == "tryRecvI32" || sym == "pendingI32" || sym == "close") {
+          sym == "tryRecvI32" || sym == "pendingI32" || sym == "newI64" ||
+          sym == "sendI64" || sym == "trySendI64" || sym == "recvI64" ||
+          sym == "tryRecvI64" || sym == "pendingI64" || sym == "close") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
         if (spec->result_type == TypeKind::Unspecified) {
