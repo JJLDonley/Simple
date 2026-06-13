@@ -16131,7 +16131,10 @@ bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeCallContext ctx;
   ctx.args.push_back(123);
   const auto result = found->handler(ctx);
-  return registry.Size() == 1 && result.ok && result.value == 123;
+  Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
+  const auto* random_i32 = default_registry.Find("core.random", "i32");
+  return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 &&
+         random_i32->result_type == Simple::Byte::TypeKind::I32;
 }
 
 bool RunNativeThreadModuleTest() {

@@ -72,6 +72,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] result type
   - [x] handler function
 - [ ] Use native metadata for VM runtime dispatch.
+  - [x] Route `core.random` through native metadata dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.
 - [ ] Use native metadata for stdlib documentation generation.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.

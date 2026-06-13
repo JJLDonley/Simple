@@ -53,6 +53,9 @@ class NativeRegistry {
   std::vector<NativeFunctionSpec> functions_;
 };
 
+void RegisterCoreRandom(NativeRegistry& registry);
+NativeRegistry BuildDefaultRegistry();
+
 } // namespace Simple::VM::Native
 
 #endif // SIMPLE_VM_NATIVE_REGISTRY_H

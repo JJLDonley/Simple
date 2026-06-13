@@ -38,6 +38,7 @@
 #include "native/os.h"
 #include "native/path.h"
 #include "native/random.h"
+#include "native/registry.h"
 #include "native/thread.h"
 #include "native/time.h"
 #include "opcode.h"
@@ -1417,6 +1418,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   const uint32_t jit_tier0_threshold = jit_thresholds.tier0;
   const uint32_t jit_tier1_threshold = jit_thresholds.tier1;
   const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
+  Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
   auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
                                 bool& out_has_ret, std::string& out_error) -> bool {
     if (module.imports.empty()) {
@@ -1765,51 +1767,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "core.random") {
-      if (sym == "seed") {
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::Unspecified) {
         out_has_ret = false;
-        if (args.size() != 1) {
-          out_error = "core.random.seed arg count mismatch";
-          return false;
-        }
-        Simple::VM::Native::Random::Seed(static_cast<uint64_t>(UnpackI64(args[0])));
-        return true;
-      }
-      if (sym == "i32") {
+      } else if (spec->result_type == TypeKind::I32) {
         if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.random.i32 return type mismatch";
+          out_error = "core.random." + sym + " return type mismatch";
           return false;
         }
-        if (!args.empty()) {
-          out_error = "core.random.i32 arg count mismatch";
-          return false;
-        }
-        out_ret = PackI32(Simple::VM::Native::Random::I32());
-        return true;
+      } else if (ret_kind != spec->result_type) {
+        out_error = "core.random." + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "range") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "core.random.range return type mismatch";
-          return false;
-        }
-        if (args.size() != 2) {
-          out_error = "core.random.range arg count mismatch";
-          return false;
-        }
-        out_ret = PackI32(Simple::VM::Native::Random::Range(UnpackI32(args[0]), UnpackI32(args[1])));
-        return true;
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = "core.random." + sym + " arg count mismatch";
+        return false;
       }
-      if (sym == "f64") {
-        if (ret_kind != TypeKind::F64) {
-          out_error = "core.random.f64 return type mismatch";
-          return false;
-        }
-        if (!args.empty()) {
-          out_error = "core.random.f64 arg count mismatch";
-          return false;
-        }
-        out_ret = PackF64Bits(F64ToBits(Simple::VM::Native::Random::F64()));
-        return true;
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
       }
+      if (result.has_value) out_ret = result.value;
+      return true;
     }
     if (mod == "core.channel") {
       auto do_new = [&](auto& registry, const char* name) -> bool {
