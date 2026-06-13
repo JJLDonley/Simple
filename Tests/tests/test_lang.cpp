@@ -1,3 +1,4 @@
+#include "diagnostic_render.h"
 #include "Diagnostics/diagnostic.h"
 #include "Lexer/lexer.h"
 #include "Lexer/token.h"
@@ -3153,6 +3154,12 @@ bool LangValidateProgramReturnsStructuredDiagnostic() {
          diagnostic.message.find("return type mismatch") != std::string::npos;
 }
 
+bool CliDiagnosticRendererClassifiesAndFormats() {
+  const std::string line = Simple::CLI::RenderErrorLine(" missing input file ");
+  return line == "error[E8001]: missing input file" &&
+         Simple::CLI::DiagnosticHelpFor("undeclared identifier 'x'").find("declare the symbol") != std::string::npos;
+}
+
 bool LangDiagnosticsFormatStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
   diagnostic.code = "E1234";
@@ -5169,6 +5176,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"cli_diagnostic_renderer_classifies_and_formats", CliDiagnosticRendererClassifiesAndFormats},
   {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},

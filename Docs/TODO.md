@@ -140,7 +140,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 - [x] Add `Lang/include/Diagnostics/diagnostic.h`.
 - [x] Add `Lang/src/Diagnostics/diagnostic.cpp`.
-- [ ] Add `CLI/src/diagnostic_render.cpp`.
+- [x] Add `CLI/src/diagnostic_render.cpp`.
 - [ ] Add `LSP/src/diagnostic_bridge.cpp`.
 - [x] Define structured diagnostics with:
   - [x] diagnostic code
@@ -150,7 +150,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] help text
 - [x] Compiler phases should return/report diagnostics instead of only plain strings.
   - [x] Add structured validation diagnostic adapter.
-- [ ] CLI should render diagnostics only; it should not infer diagnostic codes from string matching.
+- [x] CLI should render diagnostics only; it should not infer diagnostic codes from string matching.
+  - [x] Move diagnostic code/help rendering out of `CLI/src/main.cpp`.
 - [ ] LSP should consume the same structured diagnostics as CLI.
 
 ### SRP Phase 5: Test Split

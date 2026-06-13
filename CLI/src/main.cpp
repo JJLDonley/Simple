@@ -24,6 +24,7 @@
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"
+#include "diagnostic_render.h"
 
 namespace {
 #ifndef SIMPLEVM_VERSION
@@ -834,63 +835,12 @@ std::string GetSourceLine(const std::string& path, uint32_t line) {
   return {};
 }
 
-std::string DiagnosticCodeFor(const std::string& message) {
-  const std::string text = TrimCopy(message);
-  auto has = [&](const char* needle) { return text.find(needle) != std::string::npos; };
-  if (has("unexpected character") || has("invalid hex escape") || has("invalid string escape") ||
-      has("invalid char escape") || has("unterminated string") || has("unterminated char")) {
-    return "E1001";
-  }
-  if (has("unterminated block") || has("expected expression") || has("expected") || has("parse failed")) {
-    return "E2001";
-  }
-  if (has("undeclared identifier") || has("unknown module member") || has("unknown artifact member") ||
-      has("unknown enum member") || has("self outside artifact")) {
-    return "E3001";
-  }
-  if (has("IR text") || has("lower failed") || has("emit failed") || has("lowering")) return "E5001";
-  if (has("load failed") || has("verify failed") || has("bad magic") || has("unsupported version")) return "E6001";
-  if (has("runtime trap")) return "E7001";
-  if (has("missing input file") || has("failed to open file") || has("simple expects") ||
-      has("import file not found") || has("import not found") || has("ambiguous import path") ||
-      has("cyclic import") || has("unsupported import path")) {
-    return "E8001";
-  }
-  return "E4001";
-}
-
 void PrintError(const std::string& message) {
-  const std::string trimmed = TrimCopy(message);
-  std::cerr << "error[" << DiagnosticCodeFor(trimmed) << "]: " << trimmed << "\n";
-}
-
-std::string DiagnosticHelpFor(const std::string& message) {
-  if (message.find("unexpected character") != std::string::npos) {
-    return "remove unsupported characters or escape them if inside literals";
-  }
-  if (message.find("unsupported import path") != std::string::npos) {
-    return "use a reserved stdlib import, a relative/absolute path, or a unique bare filename under project root";
-  }
-  if (message.find("import not found in project root") != std::string::npos) {
-    return "add the target .simple file under project root or use an explicit relative path";
-  }
-  if (message.find("ambiguous import path") != std::string::npos) {
-    return "rename duplicate files or use an explicit relative path to disambiguate";
-  }
-  if (message.find("undeclared identifier") != std::string::npos) {
-    return "declare the symbol in scope, or fix a typo in the identifier name";
-  }
-  if (message.find("unterminated block") != std::string::npos) {
-    return "add the missing closing '}' for this block";
-  }
-  if (message.find("expected") != std::string::npos) {
-    return "check surrounding syntax near the highlighted token";
-  }
-  return {};
+  std::cerr << Simple::CLI::RenderErrorLine(message) << "\n";
 }
 
 void PrintDiagnosticHelp(const std::string& message) {
-  const std::string hint = DiagnosticHelpFor(message);
+  const std::string hint = Simple::CLI::DiagnosticHelpFor(message);
   if (!hint.empty()) {
     std::cerr << "  = help: " << hint << "\n";
   }
@@ -904,7 +854,7 @@ void PrintErrorWithContext(const std::string& path, const std::string& message) 
     PrintDiagnosticHelp(normalized);
     return;
   }
-  std::cerr << "error[" << DiagnosticCodeFor(loc.message) << "]: " << loc.message << "\n";
+  std::cerr << Simple::CLI::RenderErrorLine(loc.message) << "\n";
   const std::string source_path = loc.file.empty() ? path : loc.file;
   std::cerr << " --> " << source_path << ":" << loc.line << ":" << loc.column << "\n";
   std::string source = GetSourceLine(source_path, loc.line);
