@@ -3,6 +3,7 @@
 #include <cstring>
 #include <utility>
 
+#include "native/buffer.h"
 #include "native/channel.h"
 #include "native/json.h"
 #include "native/log.h"
@@ -23,6 +24,10 @@ int32_t UnpackI32(Slot value) {
 
 int64_t UnpackI64(Slot value) {
   return static_cast<int64_t>(value);
+}
+
+uint32_t UnpackRef(Slot value) {
+  return static_cast<uint32_t>(value & 0xFFFFFFFFu);
 }
 
 Slot PackI64(int64_t value) {
@@ -384,6 +389,13 @@ NativeCallResult LogSetLevel(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult BufferLen(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = context.heap ? context.heap->Get(UnpackRef(context.args[0])) : nullptr;
+  result.value = PackI32(static_cast<int32_t>(Buffer::Len(obj)));
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -454,6 +466,11 @@ void RegisterSystemLog(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
                              LogSetLevel));
+}
+
+void RegisterSystemBuffer(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.buffer", "len", {TypeKind::Ref}, TypeKind::I32, BufferLen));
 }
 
 void RegisterSystemChannel(NativeRegistry& registry) {
@@ -531,6 +548,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemChannel(registry);
   RegisterSystemJson(registry);
   RegisterSystemLog(registry);
+  RegisterSystemBuffer(registry);
   return registry;
 }
 

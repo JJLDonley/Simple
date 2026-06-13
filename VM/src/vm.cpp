@@ -2519,10 +2519,25 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return return_bytes(std::vector<uint32_t>(static_cast<size_t>(count), 0));
       }
       if (sym == "len") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.buffer.len return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.buffer.len arg count mismatch"; return false; }
-        HeapObject* obj = get_buffer(0);
-        out_ret = PackI32(static_cast<int32_t>(Simple::VM::Native::Buffer::Len(obj)));
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "System.buffer.len return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.buffer.len arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        out_ret = result.value;
         return true;
       }
       if (sym == "readU16LE" || sym == "readU32LE") {

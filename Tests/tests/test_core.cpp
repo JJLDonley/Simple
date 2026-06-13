@@ -16156,12 +16156,23 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_close = default_registry.Find("System.channel", "close");
   const auto* json_free = default_registry.Find("System.json", "free");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
+  const auto* buffer_len = default_registry.Find("System.buffer", "len");
+  Heap metadata_heap;
+  const uint32_t buffer_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
+  HeapObject* buffer_obj = metadata_heap.Get(buffer_ref);
+  if (!buffer_obj) return false;
+  WriteU32Payload(buffer_obj->payload, 0, 3);
+  WriteU32Payload(buffer_obj->payload, 4, 3);
+  Simple::VM::Native::NativeCallContext buffer_ctx;
+  buffer_ctx.heap = &metadata_heap;
+  buffer_ctx.args = {buffer_ref};
+  const auto buffer_result = buffer_len ? buffer_len->handler(buffer_ctx) : Simple::VM::Native::NativeCallResult{};
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
-         channel_close && json_free && log_set_level &&
+         channel_close && json_free && log_set_level && buffer_len && buffer_result.value == 3 &&
          random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
@@ -16185,6 +16196,7 @@ bool RunNativeRegistryModuleTest() {
          channel_pending_bytes->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified &&
          json_free->result_type == Simple::Byte::TypeKind::I32 &&
+         buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
          log_set_level->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 

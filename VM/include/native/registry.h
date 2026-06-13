@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "heap.h"
 #include "sbc_types.h"
 
 namespace Simple::VM::Native {
@@ -14,6 +15,7 @@ using Slot = uint64_t;
 
 struct NativeCallContext {
   std::vector<Slot> args;
+  Heap* heap = nullptr;
 };
 
 struct NativeCallResult {
@@ -59,6 +61,7 @@ void RegisterSystemThread(NativeRegistry& registry);
 void RegisterSystemChannel(NativeRegistry& registry);
 void RegisterSystemJson(NativeRegistry& registry);
 void RegisterSystemLog(NativeRegistry& registry);
+void RegisterSystemBuffer(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native
