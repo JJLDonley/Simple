@@ -3092,6 +3092,17 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
          error.find("duplicate symbol: Thing") != std::string::npos;
 }
 
+bool LangRastAllowsTypeInvalidPrograms() {
+  const char* src = "main : i32 () { return \"not an i32\" }";
+  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::AST::Program ast_program;
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
+  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
+  return Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error);
+}
+
 bool LangRastDeclarationResolutionFindsDeclSymbols() {
   const char* src =
       "Point :: artifact { x : i32; }\n"
@@ -5020,6 +5031,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
+  {"lang_rast_allows_type_invalid_programs", LangRastAllowsTypeInvalidPrograms},
   {"lang_rast_declaration_resolution_finds_decl_symbols", LangRastDeclarationResolutionFindsDeclSymbols},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},

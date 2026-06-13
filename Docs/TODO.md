@@ -98,7 +98,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 3: Language Validation Split
 
-- [ ] Split `Lang/src/lang_validate.cpp` into RAST modules:
+- [x] Split `Lang/src/lang_validate.cpp` into RAST modules:
   - [x] `Lang/src/RAST/import_graph.cpp`
   - [x] `Lang/src/RAST/symbol_table.cpp`
   - [x] `Lang/src/RAST/resolver.cpp`
@@ -109,7 +109,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] import resolution
   - [x] member resolution by name
   - [x] declaration reference resolution
-- [ ] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
+- [x] RAST must not decide arithmetic type validity, all-paths-return, or literal contextual typing.
 - [ ] Split `Lang/src/lang_validate.cpp` into TAST modules:
   - [ ] `Lang/src/TAST/type_checker.cpp`
   - [ ] `Lang/src/TAST/expressions.cpp`
