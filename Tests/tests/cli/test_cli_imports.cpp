@@ -1,12 +1,14 @@
 #include "test_utils.h"
 
+#include "RAST/import_paths.h"
 #include "import_contract.h"
 
 namespace Simple::VM::Tests {
 namespace {
 
 bool CliSplitImportsNormalizesSimplePaths() {
-  return Simple::CLI::ImportPathWithSimpleExtension("lib/math") == "lib/math.simple" &&
+  return Simple::CLI::ImportPathWithSimpleExtension("lib/math") ==
+             Simple::Lang::RAST::ImportPathWithSimpleExtension("lib/math") &&
          Simple::CLI::ImportPathWithSimpleExtension("lib/math.simple") == "lib/math.simple" &&
          Simple::CLI::IsExplicitRelativeImportPath("./lib/math") &&
          Simple::CLI::IsExplicitRelativeImportPath("lib/math") &&

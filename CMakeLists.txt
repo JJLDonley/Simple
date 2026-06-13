@@ -74,6 +74,7 @@ set(SIMPLEVM_FRONTEND_SRC
   ${SIMPLEVM_LANG_ROOT}/src/AST/lower_cast.cpp
   ${SIMPLEVM_LANG_ROOT}/src/Diagnostics/diagnostic.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/import_graph.cpp
+  ${SIMPLEVM_LANG_ROOT}/src/RAST/import_paths.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/member_resolution.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/reserved_resolution.cpp
   ${SIMPLEVM_LANG_ROOT}/src/RAST/symbol_table.cpp

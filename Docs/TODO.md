@@ -188,7 +188,9 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 ### SRP Phase 6: CLI / Import / Build Service Split
 
 - [ ] Move import graph construction out of CLI into shared Lang/RAST service.
+  - [x] Add shared RAST import path helpers.
 - [ ] Make CLI, LSP, and tests use the same import graph implementation.
+  - [x] Route CLI import path helper through shared RAST import path helpers.
 - [x] Move CLI diagnostic rendering into `CLI/src/diagnostic_render.cpp`.
 - [x] Move CLI build/embed/link helpers out of `CLI/src/main.cpp`.
   - [x] Add `CLI/src/build_contract.cpp` for build layout and embedded runner helpers.
