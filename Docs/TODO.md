@@ -207,7 +207,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] VM dispatch mapping
 - [x] Add tests comparing opcode metadata, verifier behavior, and VM stack behavior.
 - [x] Reduce verifier/VM opcode semantic drift.
-- [ ] Freeze or version opcode metadata used by external SBC producers.
+- [x] Freeze or version opcode metadata used by external SBC producers.
 
 ## VM / Runtime
 
@@ -311,10 +311,10 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [ ] runtime
   - [ ] tests
   - [ ] notes
-- [ ] Freeze or explicitly version:
-  - [ ] Lang syntax version
-  - [ ] SIR version
-  - [ ] SBC version
-  - [ ] runtime ABI version
-  - [ ] stdlib module version
+- [x] Freeze or explicitly version:
+  - [x] Lang syntax version
+  - [x] SIR version
+  - [x] SBC version
+  - [x] runtime ABI version
+  - [x] stdlib module version
 - [ ] Decide whether `Docs/Sprint.md` keeps historical obsolete commands as-is or gains an obsolete-command note.

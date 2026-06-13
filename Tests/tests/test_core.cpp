@@ -8,6 +8,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "lang_version.h"
 #include "opcode.h"
 #include "ir_lang.h"
 #include "ir_builder.h"
@@ -16,6 +17,7 @@
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "scratch_arena.h"
+#include "simple_api.h"
 #include "vm.h"
 #include "test_utils.h"
 
@@ -15722,6 +15724,19 @@ std::vector<uint8_t> BuildGcModule() {
   return BuildModule(code, 0, 1);
 }
 
+bool RunCompatibilityVersionConstantsTest() {
+  static_assert(Simple::Lang::kLangSyntaxVersionMajor == 1);
+  static_assert(Simple::Lang::kSirVersionMajor == 1);
+  static_assert(Simple::Lang::kStdlibVersionMajor == 1);
+  static_assert(Simple::Byte::kSbcVersion == 0x0001u);
+  static_assert(Simple::Byte::kOpcodeMetadataVersion == 1);
+  static_assert(Simple::VM::kRuntimeAbiVersionMajor == 1);
+  return Simple::Lang::kLangSyntaxVersionMinor == 0 &&
+         Simple::Lang::kSirVersionMinor == 0 &&
+         Simple::Lang::kStdlibVersionMinor == 0 &&
+         Simple::VM::kRuntimeAbiVersionMinor == 0;
+}
+
 bool RunOpcodeOperandWidthMetadataTest() {
   int width = -1;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Nop), &width) || width != 0) return false;
@@ -23232,6 +23247,7 @@ bool RunJmpTableEmptyTest() {
 }
 
 static const TestCase kCoreTests[] = {
+  {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
   {"opcode_stack_effect_metadata", RunOpcodeStackEffectMetadataTest},
   {"opcode_type_rule_metadata", RunOpcodeTypeRuleMetadataTest},

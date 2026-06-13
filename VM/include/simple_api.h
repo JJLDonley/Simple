@@ -1,6 +1,13 @@
 #ifndef SIMPLE_VM_API_H
 #define SIMPLE_VM_API_H
 
+#include <cstdint>
+
+namespace Simple::VM {
+constexpr uint16_t kRuntimeAbiVersionMajor = 1;
+constexpr uint16_t kRuntimeAbiVersionMinor = 0;
+} // namespace Simple::VM
+
 #if defined(_WIN32) || defined(__CYGWIN__)
 #  if defined(SIMPLEVM_SHARED)
 #    if defined(SIMPLEVM_BUILDING_DLL)

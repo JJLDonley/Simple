@@ -5,6 +5,8 @@
 
 namespace Simple::Byte {
 
+constexpr uint16_t kOpcodeMetadataVersion = 1;
+
 enum class OpCode : uint8_t {
   Nop = 0x00,
   Halt = 0x01,

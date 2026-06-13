@@ -40,7 +40,10 @@ Current magic/version constants:
 ```cpp
 constexpr uint32_t kSbcMagic = 0x30434253u;
 constexpr uint16_t kSbcVersion = 0x0001u;
+constexpr uint16_t kOpcodeMetadataVersion = 1;
 ```
+
+See `Docs/Compatibility.md` for the compatibility surfaces exposed to external producers.
 
 ### Sections
 
@@ -175,7 +178,6 @@ The VM assumes bytecode has passed loader/verifier checks when verification is e
 
 These are implemented partially or not yet frozen as compatibility guarantees:
 
-- formal SBC compatibility/versioning policy
 - archived SBC fixture compatibility tests
 - complete opcode semantic table shared by verifier and VM
 - stable binary debug-section contract
