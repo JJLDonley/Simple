@@ -162,6 +162,11 @@ Frozen CLI exit-code contract:
 Frozen stderr diagnostic behavior:
 
 - CLI/compiler/load/verify/build failures print one primary line prefixed with `error[E0001]: `
+- missing command input prints `error[E0001]: missing input file`
+- missing filesystem input prints `error[E0001]: failed to open file: <path>`
+- missing imports print diagnostics containing `import file not found`
+- ambiguous imports print diagnostics containing `ambiguous import path`
+- cyclic imports print diagnostics containing `cyclic import detected`
 - source location and caret context are printed when line/column and source are available
 - simple help hints are printed for selected common diagnostic classes
 - successful `check`, `build`, and `emit` commands do not write stderr

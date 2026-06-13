@@ -2213,6 +2213,16 @@ bool LangCliStderrDiagnosticContract() {
   return exit_code == 1 && stderr_text.find("error[E0001]: ") == 0;
 }
 
+bool LangCliMissingInputDiagnostics() {
+  int exit_code = -1;
+  std::string stderr_text = RunCommandCaptureStderr("bin/simple check", &exit_code);
+  if (exit_code != 1 || stderr_text.find("error[E0001]: missing input file") != 0) return false;
+
+  stderr_text = RunCommandCaptureStderr("bin/simple check /tmp/simple_missing_input_contract.simple", &exit_code);
+  return exit_code == 1 &&
+         stderr_text.find("error[E0001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
+}
+
 bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
@@ -5120,6 +5130,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
   {"lang_cli_exit_code_contract", LangCliExitCodeContract},
   {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},
+  {"lang_cli_missing_input_diagnostics", LangCliMissingInputDiagnostics},
   {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
   {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
   {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},

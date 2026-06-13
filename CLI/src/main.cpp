@@ -36,7 +36,7 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   if (!out) return false;
   std::ifstream in(path);
   if (!in) {
-    if (error) *error = "failed to open file";
+    if (error) *error = "failed to open file: " + path;
     return false;
   }
   std::ostringstream buffer;
