@@ -47,6 +47,7 @@ Slot PackRef(uint32_t handle) {
 }
 
 bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
+bool ReadByteList(NativeCallContext& context, size_t index, std::vector<int32_t>* out);
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value);
 
 uint32_t UnpackU32Bits(Slot value) {
@@ -396,6 +397,42 @@ NativeCallResult ChannelPendingBytes(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Channel::Pending(Channel::g_bytes, UnpackI64(context.args[0])));
   return result;
+}
+
+std::u16string AsciiToU16Local(const std::string& value) {
+  std::u16string out;
+  out.reserve(value.size());
+  for (unsigned char ch : value) out.push_back(static_cast<char16_t>(ch));
+  return out;
+}
+
+NativeCallResult ChannelSendString(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  result.value = PackI32(ReadStringArg(context, 1, &value) &&
+                                 Channel::Send(Channel::g_string, UnpackI64(context.args[0]),
+                                               AsciiToU16Local(value))
+                             ? 1
+                             : 0);
+  return result;
+}
+
+NativeCallResult ChannelTrySendString(NativeCallContext& context) {
+  return ChannelSendString(context);
+}
+
+NativeCallResult ChannelSendBytes(NativeCallContext& context) {
+  NativeCallResult result;
+  std::vector<int32_t> values;
+  result.value = PackI32(ReadByteList(context, 1, &values) &&
+                                 Channel::Send(Channel::g_bytes, UnpackI64(context.args[0]), values)
+                             ? 1
+                             : 0);
+  return result;
+}
+
+NativeCallResult ChannelTrySendBytes(NativeCallContext& context) {
+  return ChannelSendBytes(context);
 }
 
 NativeCallResult ChannelClose(NativeCallContext& context) {
@@ -1501,9 +1538,17 @@ void RegisterSystemChannel(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.channel", "pendingBool", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingBool));
   registry.Register(MakeSpec("System.channel", "newString", {}, TypeKind::I64, ChannelNewString));
+  registry.Register(MakeSpec("System.channel", "sendString", {TypeKind::I64, TypeKind::String},
+                             TypeKind::I32, ChannelSendString));
+  registry.Register(MakeSpec("System.channel", "trySendString", {TypeKind::I64, TypeKind::String},
+                             TypeKind::I32, ChannelTrySendString));
   registry.Register(MakeSpec("System.channel", "pendingString", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingString));
   registry.Register(MakeSpec("System.channel", "newBytes", {}, TypeKind::I64, ChannelNewBytes));
+  registry.Register(MakeSpec("System.channel", "sendBytes", {TypeKind::I64, TypeKind::Ref},
+                             TypeKind::I32, ChannelSendBytes));
+  registry.Register(MakeSpec("System.channel", "trySendBytes", {TypeKind::I64, TypeKind::Ref},
+                             TypeKind::I32, ChannelTrySendBytes));
   registry.Register(MakeSpec("System.channel", "pendingBytes", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingBytes));
   registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
