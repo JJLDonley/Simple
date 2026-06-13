@@ -1,4 +1,5 @@
 #include "lsp_server.h"
+#include "diagnostic_bridge.h"
 
 #include <cctype>
 #include <cstring>
@@ -834,20 +835,14 @@ void PublishDiagnostics(std::ostream& out,
                         const std::string& source_text) {
   const size_t first_content = source_text.find_first_not_of(" \t\r\n");
   if (first_content == std::string::npos) {
-    WriteLspMessage(
-        out,
-        "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
-        "\"params\":{\"uri\":\"" + JsonEscape(uri) + "\",\"diagnostics\":[]}}");
+    WriteLspMessage(out, Simple::LSP::PublishDiagnosticsMessage(uri, nullptr));
     return;
   }
 
   std::string error;
   const bool ok = ValidateProgramFromUriAndText(uri, source_text, &error);
   if (ok) {
-    WriteLspMessage(
-        out,
-        "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
-        "\"params\":{\"uri\":\"" + JsonEscape(uri) + "\",\"diagnostics\":[]}}");
+    WriteLspMessage(out, Simple::LSP::PublishDiagnosticsMessage(uri, nullptr));
     return;
   }
 
@@ -862,8 +857,6 @@ void PublishDiagnostics(std::ostream& out,
     col = parsed_col == 0 ? 1 : parsed_col;
     msg = parsed_msg;
   }
-  const uint32_t start_line = line > 0 ? (line - 1) : 0;
-  const uint32_t start_char = col > 0 ? (col - 1) : 0;
   uint32_t span_len = 1;
   {
     static const std::string marker = "undeclared identifier:";
@@ -882,18 +875,14 @@ void PublishDiagnostics(std::ostream& out,
       }
     }
   }
-  const uint32_t end_char = start_char + span_len;
-  WriteLspMessage(
-      out,
-      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\","
-      "\"params\":{\"uri\":\"" + JsonEscape(uri) + "\",\"diagnostics\":[{"
-      "\"range\":{\"start\":{\"line\":" + std::to_string(start_line) +
-      ",\"character\":" + std::to_string(start_char) + "},"
-      "\"end\":{\"line\":" + std::to_string(start_line) +
-      ",\"character\":" + std::to_string(end_char) + "}},"
-      "\"severity\":1,\"code\":\"E0001\","
-      "\"source\":\"simple-lsp\","
-      "\"message\":\"" + JsonEscape(msg) + "\"}]}}");
+  Simple::Lang::Diagnostics::Diagnostic diagnostic;
+  diagnostic.code = "E0001";
+  diagnostic.phase = Simple::Lang::Diagnostics::DiagnosticPhase::LSP;
+  diagnostic.span.line = line;
+  diagnostic.span.column = col;
+  diagnostic.span.length = span_len;
+  diagnostic.message = msg;
+  WriteLspMessage(out, Simple::LSP::PublishDiagnosticsMessage(uri, &diagnostic));
 }
 
 std::string GetLineText(const std::string& text, uint32_t line_index) {

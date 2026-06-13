@@ -1,4 +1,5 @@
 #include "test_utils.h"
+#include "diagnostic_bridge.h"
 
 #include <filesystem>
 #include <fstream>
@@ -8,6 +9,22 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool LspDiagnosticBridgePublishesStructuredDiagnostic() {
+  Simple::Lang::Diagnostics::Diagnostic diagnostic;
+  diagnostic.code = "E3001";
+  diagnostic.phase = Simple::Lang::Diagnostics::DiagnosticPhase::LSP;
+  diagnostic.span.line = 2;
+  diagnostic.span.column = 5;
+  diagnostic.span.length = 3;
+  diagnostic.message = "undeclared identifier: foo";
+  const std::string json = Simple::LSP::PublishDiagnosticsMessage("file:///tmp/a.simple", &diagnostic);
+  return json.find("\"method\":\"textDocument/publishDiagnostics\"") != std::string::npos &&
+         json.find("\"code\":\"E3001\"") != std::string::npos &&
+         json.find("\"line\":1") != std::string::npos &&
+         json.find("\"character\":4") != std::string::npos &&
+         json.find("undeclared identifier: foo") != std::string::npos;
+}
 
 bool RunCommand(const std::string& command) {
   const int result = std::system(command.c_str());
@@ -3097,6 +3114,7 @@ bool LspResponsesFollowRequestOrder() {
 }
 
 const TestCase kLspTests[] = {
+  {"lsp_diagnostic_bridge_publishes_structured_diagnostic", LspDiagnosticBridgePublishesStructuredDiagnostic},
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
   {"lsp_did_open_empty_document_clears_diagnostics", LspDidOpenEmptyDocumentClearsDiagnostics},
