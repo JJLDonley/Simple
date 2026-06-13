@@ -36,6 +36,7 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
+#include "native/buffer.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -2775,18 +2776,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array)) return nullptr;
         return obj;
       };
-      auto buffer_len = [&](HeapObject* obj) -> uint32_t {
-        return obj ? ReadU32Payload(obj->payload, 0) : 0u;
-      };
-      auto buffer_base = [&](HeapObject* obj) -> uint32_t {
-        return obj && obj->header.kind == ObjectKind::List ? 8u : 4u;
-      };
-      auto byte_at = [&](HeapObject* obj, uint32_t index) -> uint32_t {
-        return ReadU32Payload(obj->payload, buffer_base(obj) + index * 4u) & 0xffu;
-      };
-      auto set_byte = [&](HeapObject* obj, uint32_t index, uint32_t value) {
-        WriteU32Payload(obj->payload, buffer_base(obj) + index * 4u, value & 0xffu);
-      };
       auto return_bytes = [&](const std::vector<uint32_t>& values) -> bool {
         const uint32_t length = static_cast<uint32_t>(values.size());
         const uint32_t size = 8u + length * 4u;
@@ -2810,7 +2799,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.len return type mismatch"; return false; }
         if (args.size() != 1) { out_error = "core.buffer.len arg count mismatch"; return false; }
         HeapObject* obj = get_buffer(0);
-        out_ret = PackI32(obj ? static_cast<int32_t>(buffer_len(obj)) : 0);
+        out_ret = PackI32(static_cast<int32_t>(Simple::VM::Native::Buffer::Len(obj)));
         return true;
       }
       if (sym == "readU16LE" || sym == "readU32LE") {
@@ -2819,13 +2808,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = get_buffer(0);
         const int32_t offset = UnpackI32(args[1]);
         const uint32_t width = sym == "readU16LE" ? 2u : 4u;
-        if (!obj || offset < 0 || static_cast<uint32_t>(offset) > buffer_len(obj) || width > buffer_len(obj) - static_cast<uint32_t>(offset)) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        uint32_t value = 0;
-        for (uint32_t i = 0; i < width; ++i) value |= byte_at(obj, static_cast<uint32_t>(offset) + i) << (8u * i);
-        out_ret = PackI32(static_cast<int32_t>(value));
+        out_ret = PackI32(offset < 0 ? 0 : static_cast<int32_t>(
+            Simple::VM::Native::Buffer::ReadLE(obj, static_cast<uint32_t>(offset), width)));
         return true;
       }
       if (sym == "writeU16LE" || sym == "writeU32LE") {
@@ -2835,12 +2819,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         const int32_t offset = UnpackI32(args[1]);
         const uint32_t value = static_cast<uint32_t>(UnpackI32(args[2]));
         const uint32_t width = sym == "writeU16LE" ? 2u : 4u;
-        if (!obj || offset < 0 || static_cast<uint32_t>(offset) > buffer_len(obj) || width > buffer_len(obj) - static_cast<uint32_t>(offset)) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        for (uint32_t i = 0; i < width; ++i) set_byte(obj, static_cast<uint32_t>(offset) + i, value >> (8u * i));
-        out_ret = PackI32(1);
+        out_ret = PackI32(offset >= 0 && Simple::VM::Native::Buffer::WriteLE(
+                                          obj, static_cast<uint32_t>(offset), width, value)
+                              ? 1
+                              : 0);
         return true;
       }
       if (sym == "slice") {
@@ -2849,17 +2831,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj = get_buffer(0);
         const int32_t offset = UnpackI32(args[1]);
         const int32_t count = UnpackI32(args[2]);
-        if (!obj || offset < 0 || count < 0 || static_cast<uint32_t>(offset) > buffer_len(obj)) {
+        if (!obj || offset < 0 || count < 0 ||
+            static_cast<uint32_t>(offset) > Simple::VM::Native::Buffer::Len(obj)) {
           out_ret = PackRef(kNullRef);
           return true;
         }
-        uint32_t n = static_cast<uint32_t>(count);
-        const uint32_t available = buffer_len(obj) - static_cast<uint32_t>(offset);
-        if (n > available) n = available;
-        std::vector<uint32_t> values;
-        values.reserve(n);
-        for (uint32_t i = 0; i < n; ++i) values.push_back(byte_at(obj, static_cast<uint32_t>(offset) + i));
-        return return_bytes(values);
+        return return_bytes(Simple::VM::Native::Buffer::Slice(
+            obj, static_cast<uint32_t>(offset), static_cast<uint32_t>(count)));
       }
       if (sym == "copy") {
         if (!IsI32LikeImportType(ret_kind)) { out_error = "core.buffer.copy return type mismatch"; return false; }
@@ -2869,18 +2847,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         const int32_t dst_off = UnpackI32(args[1]);
         const int32_t src_off = UnpackI32(args[3]);
         const int32_t count = UnpackI32(args[4]);
-        if (!dst || !src || dst_off < 0 || src_off < 0 || count < 0 ||
-            static_cast<uint32_t>(dst_off) > buffer_len(dst) || static_cast<uint32_t>(src_off) > buffer_len(src)) {
+        if (dst_off < 0 || src_off < 0 || count < 0) {
           out_ret = PackI32(0);
           return true;
         }
-        uint32_t n = static_cast<uint32_t>(count);
-        n = std::min(n, buffer_len(dst) - static_cast<uint32_t>(dst_off));
-        n = std::min(n, buffer_len(src) - static_cast<uint32_t>(src_off));
-        std::vector<uint32_t> tmp;
-        tmp.reserve(n);
-        for (uint32_t i = 0; i < n; ++i) tmp.push_back(byte_at(src, static_cast<uint32_t>(src_off) + i));
-        for (uint32_t i = 0; i < n; ++i) set_byte(dst, static_cast<uint32_t>(dst_off) + i, tmp[i]);
+        const uint32_t n = Simple::VM::Native::Buffer::Copy(dst, static_cast<uint32_t>(dst_off), src,
+                                                            static_cast<uint32_t>(src_off),
+                                                            static_cast<uint32_t>(count));
         out_ret = PackI32(static_cast<int32_t>(n));
         return true;
       }

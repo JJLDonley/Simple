@@ -11,6 +11,7 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "lang_version.h"
+#include "native/buffer.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/random.h"
@@ -15866,6 +15867,22 @@ bool RunRuntimeLimitsTest() {
   return ok_result.status == Simple::VM::ExecStatus::Halted;
 }
 
+bool RunNativeBufferModuleTest() {
+  HeapObject obj{};
+  obj.header.kind = ObjectKind::List;
+  obj.payload.resize(8u + 4u * 4u);
+  WriteU32Payload(obj.payload, 0, 4);
+  WriteU32Payload(obj.payload, 4, 4);
+  if (Simple::VM::Native::Buffer::Len(&obj) != 4) return false;
+  if (!Simple::VM::Native::Buffer::WriteLE(&obj, 1, 2, 0x1234u)) return false;
+  if (Simple::VM::Native::Buffer::ReadLE(&obj, 1, 2) != 0x1234u) return false;
+  const auto slice = Simple::VM::Native::Buffer::Slice(&obj, 1, 2);
+  if (slice.size() != 2 || slice[0] != 0x34u || slice[1] != 0x12u) return false;
+  HeapObject dst = obj;
+  if (Simple::VM::Native::Buffer::Copy(&dst, 0, &obj, 1, 2) != 2) return false;
+  return Simple::VM::Native::Buffer::ReadLE(&dst, 0, 2) == 0x1234u;
+}
+
 bool RunNativeJsonModuleTest() {
   const int64_t handle = Simple::VM::Native::Json::Parse("{\"ok\":[true, null, 3]}");
   if (handle == 0) return false;
@@ -23482,6 +23499,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"native_buffer_module", RunNativeBufferModuleTest},
   {"native_json_module", RunNativeJsonModuleTest},
   {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},

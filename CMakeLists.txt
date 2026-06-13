@@ -41,6 +41,7 @@ set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/heap.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/json.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/log.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/random.cpp
