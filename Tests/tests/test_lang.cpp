@@ -13,6 +13,7 @@
 #include "TAST/tast.h"
 #include "TAST/calls.h"
 #include "TAST/expressions.h"
+#include "TAST/literals.h"
 #include "TAST/statements.h"
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
@@ -616,6 +617,17 @@ bool LangTastLiteralTypingRejectsInvalidExpectedType() {
   std::string error;
   if (Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
   return error.find("literal is not compatible") != std::string::npos;
+}
+
+bool LangTastLiteralTypingRejectsNonLiteral() {
+  Simple::Lang::AST::Expr expr;
+  expr.kind = Simple::Lang::ExprKind::Identifier;
+  expr.text = "x";
+
+  Simple::Lang::AST::TypeRef actual;
+  std::string error;
+  if (Simple::Lang::TAST::InferLiteralType(expr, nullptr, &actual, &error)) return false;
+  return error.find("expected literal expression") != std::string::npos;
 }
 
 bool LangIrbIrePipelineEmitsRunnableSir() {
@@ -5132,6 +5144,7 @@ const TestCase kLangTests[] = {
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
+  {"lang_tast_literal_typing_rejects_non_literal", LangTastLiteralTypingRejectsNonLiteral},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},

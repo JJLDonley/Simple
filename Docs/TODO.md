@@ -115,7 +115,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Lang/src/TAST/expressions.cpp`
   - [x] `Lang/src/TAST/statements.cpp`
   - [x] `Lang/src/TAST/calls.cpp`
-  - [ ] `Lang/src/TAST/literals.cpp`
+  - [x] `Lang/src/TAST/literals.cpp`
   - [ ] `Lang/src/TAST/mutability.cpp`
   - [ ] `Lang/src/TAST/control_flow.cpp`
   - [ ] `Lang/src/TAST/generics.cpp`
