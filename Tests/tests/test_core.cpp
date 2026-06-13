@@ -16144,10 +16144,13 @@ bool RunNativeRegistryModuleTest() {
   const auto* channel_pending = default_registry.Find("System.channel", "pendingI32");
   const auto* channel_i64 = default_registry.Find("System.channel", "recvI64");
   const auto* channel_pending_i64 = default_registry.Find("System.channel", "pendingI64");
+  const auto* channel_bool = default_registry.Find("System.channel", "recvBool");
+  const auto* channel_pending_bool = default_registry.Find("System.channel", "pendingBool");
   const auto* channel_close = default_registry.Find("System.channel", "close");
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
-         channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_close &&
+         channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_bool &&
+         channel_pending_bool && channel_close &&
          random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
@@ -16160,6 +16163,8 @@ bool RunNativeRegistryModuleTest() {
          channel_pending->result_type == Simple::Byte::TypeKind::I32 &&
          channel_i64->result_type == Simple::Byte::TypeKind::I64 &&
          channel_pending_i64->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_bool->result_type == Simple::Byte::TypeKind::Bool &&
+         channel_pending_bool->result_type == Simple::Byte::TypeKind::I32 &&
          channel_close->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 

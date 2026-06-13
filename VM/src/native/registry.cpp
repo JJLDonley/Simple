@@ -183,6 +183,49 @@ NativeCallResult ChannelPendingI64(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult ChannelNewBool(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_bool));
+  return result;
+}
+
+NativeCallResult ChannelSendBool(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Send(Channel::g_bool, UnpackI64(context.args[0]),
+                                       UnpackI32(context.args[1]) != 0)
+                              ? 1
+                              : 0);
+  return result;
+}
+
+NativeCallResult ChannelRecvBool(NativeCallContext& context) {
+  bool value = false;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_bool, UnpackI64(context.args[0]), true, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackI32(value ? 1 : 0);
+  return result;
+}
+
+NativeCallResult ChannelTryRecvBool(NativeCallContext& context) {
+  bool value = false;
+  NativeCallResult result;
+  if (!Channel::Receive(Channel::g_bool, UnpackI64(context.args[0]), false, &value)) {
+    result.value = PackI32(0);
+    return result;
+  }
+  result.value = PackI32(value ? 1 : 0);
+  return result;
+}
+
+NativeCallResult ChannelPendingBool(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_bool, UnpackI64(context.args[0])));
+  return result;
+}
+
 NativeCallResult ChannelClose(NativeCallContext& context) {
   Channel::CloseAll(UnpackI64(context.args[0]));
   NativeCallResult result;
@@ -275,6 +318,17 @@ void RegisterSystemChannel(NativeRegistry& registry) {
                              ChannelTryRecvI64));
   registry.Register(MakeSpec("System.channel", "pendingI64", {TypeKind::I64}, TypeKind::I32,
                              ChannelPendingI64));
+  registry.Register(MakeSpec("System.channel", "newBool", {}, TypeKind::I64, ChannelNewBool));
+  registry.Register(MakeSpec("System.channel", "sendBool", {TypeKind::I64, TypeKind::Bool},
+                             TypeKind::I32, ChannelSendBool));
+  registry.Register(MakeSpec("System.channel", "trySendBool", {TypeKind::I64, TypeKind::Bool},
+                             TypeKind::I32, ChannelSendBool));
+  registry.Register(MakeSpec("System.channel", "recvBool", {TypeKind::I64}, TypeKind::Bool,
+                             ChannelRecvBool));
+  registry.Register(MakeSpec("System.channel", "tryRecvBool", {TypeKind::I64}, TypeKind::Bool,
+                             ChannelTryRecvBool));
+  registry.Register(MakeSpec("System.channel", "pendingBool", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingBool));
   registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
                              ChannelClose));
 }
