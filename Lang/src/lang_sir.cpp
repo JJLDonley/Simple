@@ -12,6 +12,7 @@
 #include "lang_parser.h"
 #include "lang_reserved.h"
 #include "lang_validate.h"
+#include "native/registry.h"
 #include "TAST/control_flow.h"
 #include "intrinsic_ids.h"
 
@@ -5000,6 +5001,78 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return true;
   };
 
+  auto native_type_to_lang_type = [&](Simple::Byte::TypeKind kind, TypeRef* out) -> bool {
+    if (!out) return false;
+    switch (kind) {
+      case Simple::Byte::TypeKind::Bool:
+        *out = make_type("bool");
+        return true;
+      case Simple::Byte::TypeKind::I32:
+        *out = make_type("i32");
+        return true;
+      case Simple::Byte::TypeKind::I64:
+        *out = make_type("i64");
+        return true;
+      case Simple::Byte::TypeKind::F32:
+        *out = make_type("f32");
+        return true;
+      case Simple::Byte::TypeKind::F64:
+        *out = make_type("f64");
+        return true;
+      case Simple::Byte::TypeKind::String:
+        *out = make_type("string");
+        return true;
+      case Simple::Byte::TypeKind::Ref:
+        *out = make_list_type("i32");
+        return true;
+      case Simple::Byte::TypeKind::Unspecified:
+        *out = make_type("void");
+        return true;
+      default:
+        return false;
+    }
+  };
+  auto native_module_for_reserved = [](const std::string& reserved, std::string* out) -> bool {
+    if (!out) return false;
+    if (reserved == "IO") *out = "System.io";
+    else if (reserved == "DL") *out = "System.dl";
+    else if (reserved == "OS") *out = "System.os";
+    else if (reserved == "Thread") *out = "System.thread";
+    else if (reserved == "Random") *out = "System.random";
+    else if (reserved == "Env") *out = "System.env";
+    else if (reserved == "Path") *out = "System.path";
+    else if (reserved == "FS") *out = "System.fs";
+    else if (reserved == "Json") *out = "System.json";
+    else if (reserved == "Buffer") *out = "System.buffer";
+    else if (reserved == "Log") *out = "System.log";
+    else return false;
+    return true;
+  };
+  auto add_native_reserved_imports = [&](const std::string& reserved,
+                                         const std::vector<std::string>& aliases) -> bool {
+    std::string native_module;
+    if (!native_module_for_reserved(reserved, &native_module)) return true;
+    static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+    for (const auto& alias : aliases) {
+      for (const auto& spec : registry.Functions()) {
+        if (spec.module_name != native_module) continue;
+        std::vector<TypeRef> params;
+        params.reserve(spec.parameter_types.size());
+        for (Simple::Byte::TypeKind kind : spec.parameter_types) {
+          TypeRef param;
+          if (!native_type_to_lang_type(kind, &param)) return false;
+          params.push_back(std::move(param));
+        }
+        TypeRef ret;
+        if (!native_type_to_lang_type(spec.result_type, &ret)) return false;
+        if (!add_reserved_import(alias, spec.module_name, spec.symbol_name, std::move(params), std::move(ret))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   auto reserved_aliases_for = [&](const std::string& name) {
     std::vector<std::string> aliases;
     aliases.push_back(name);
@@ -5368,6 +5441,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> file_params;
       file_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.log", "setFile", std::move(file_params), make_type("bool"))) return false;
+    }
+  }
+
+  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Random", "Env", "Path", "FS",
+                                            "Json", "Buffer", "Log"}) {
+    if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
+        !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
+      return false;
     }
   }
 
