@@ -69,6 +69,7 @@ void RegisterSystemBuffer(NativeRegistry& registry);
 void RegisterSystemEnv(NativeRegistry& registry);
 void RegisterSystemPath(NativeRegistry& registry);
 void RegisterSystemFs(NativeRegistry& registry);
+void RegisterSystemIo(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native

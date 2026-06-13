@@ -787,6 +787,22 @@ void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   payload[offset + 3] = static_cast<uint8_t>((value >> 24u) & 0xffu);
 }
 
+uint32_t ReadU32(const std::vector<uint8_t>& payload, size_t offset) {
+  if (offset + 4 > payload.size()) return 0;
+  return payload[offset] | (static_cast<uint32_t>(payload[offset + 1]) << 8u) |
+         (static_cast<uint32_t>(payload[offset + 2]) << 16u) |
+         (static_cast<uint32_t>(payload[offset + 3]) << 24u);
+}
+
+bool IsBufferObject(const HeapObject* obj) {
+  return obj && (obj->header.kind == ObjectKind::List || obj->header.kind == ObjectKind::Array) &&
+         obj->payload.size() >= 4;
+}
+
+size_t BufferElementBase(const HeapObject* obj) {
+  return obj && obj->header.kind == ObjectKind::List ? 8u : 4u;
+}
+
 Slot CreateStringAscii(Heap& heap, const std::string& value) {
   const uint32_t length = static_cast<uint32_t>(value.size());
   const uint32_t handle = heap.Allocate(ObjectKind::String, 0, 4u + length * 2u);
@@ -1000,6 +1016,87 @@ NativeCallResult BufferCopy(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult IoBufferNew(NativeCallContext& context) {
+  NativeCallResult result;
+  if (!context.heap) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  const int32_t requested = UnpackI32(context.args[0]);
+  if (requested < 0) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  const uint32_t length = static_cast<uint32_t>(requested);
+  const uint32_t handle = context.heap->Allocate(ObjectKind::List, 0, 8u + length * 4u);
+  HeapObject* obj = context.heap->Get(handle);
+  if (!obj) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  WriteU32(obj->payload, 0, length);
+  WriteU32(obj->payload, 4, length);
+  result.value = PackRef(handle);
+  return result;
+}
+
+NativeCallResult IoBufferLen(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  result.value = PackI32(IsBufferObject(obj) ? static_cast<int32_t>(ReadU32(obj->payload, 0)) : -1);
+  return result;
+}
+
+NativeCallResult IoBufferFill(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* obj = GetHeapObject(context, 0);
+  const int32_t value = UnpackI32(context.args[1]);
+  const int32_t count = UnpackI32(context.args[2]);
+  if (!IsBufferObject(obj) || count < 0) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  uint32_t n = static_cast<uint32_t>(count);
+  const uint32_t length = ReadU32(obj->payload, 0);
+  if (n > length) n = length;
+  const size_t base = BufferElementBase(obj);
+  if (base + static_cast<size_t>(n) * 4u > obj->payload.size()) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  for (uint32_t i = 0; i < n; ++i) WriteU32(obj->payload, base + i * 4u, static_cast<uint32_t>(value));
+  result.value = PackI32(static_cast<int32_t>(n));
+  return result;
+}
+
+NativeCallResult IoBufferCopy(NativeCallContext& context) {
+  NativeCallResult result;
+  HeapObject* dst = GetHeapObject(context, 0);
+  HeapObject* src = GetHeapObject(context, 1);
+  const int32_t count = UnpackI32(context.args[2]);
+  if (!IsBufferObject(dst) || !IsBufferObject(src) || count < 0) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  uint32_t n = static_cast<uint32_t>(count);
+  const uint32_t dst_len = ReadU32(dst->payload, 0);
+  const uint32_t src_len = ReadU32(src->payload, 0);
+  if (n > dst_len) n = dst_len;
+  if (n > src_len) n = src_len;
+  const size_t dst_base = BufferElementBase(dst);
+  const size_t src_base = BufferElementBase(src);
+  if (dst_base + static_cast<size_t>(n) * 4u > dst->payload.size() ||
+      src_base + static_cast<size_t>(n) * 4u > src->payload.size()) {
+    result.value = PackI32(-1);
+    return result;
+  }
+  for (uint32_t i = 0; i < n; ++i) {
+    WriteU32(dst->payload, dst_base + i * 4u, ReadU32(src->payload, src_base + i * 4u));
+  }
+  result.value = PackI32(static_cast<int32_t>(n));
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -1156,6 +1253,20 @@ void RegisterSystemEnv(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.env", "exePath", {}, TypeKind::String, EnvExePath));
 }
 
+void RegisterSystemIo(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.io", "buffer_new", {TypeKind::I32}, TypeKind::Ref,
+                             IoBufferNew));
+  registry.Register(MakeSpec("System.io", "buffer_len", {TypeKind::Ref}, TypeKind::I32,
+                             IoBufferLen));
+  registry.Register(MakeSpec("System.io", "buffer_fill", {TypeKind::Ref, TypeKind::I32,
+                                                            TypeKind::I32},
+                             TypeKind::I32, IoBufferFill));
+  registry.Register(MakeSpec("System.io", "buffer_copy", {TypeKind::Ref, TypeKind::Ref,
+                                                            TypeKind::I32},
+                             TypeKind::I32, IoBufferCopy));
+}
+
 void RegisterSystemBuffer(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.buffer", "new", {TypeKind::I32}, TypeKind::Ref, BufferNew));
@@ -1258,6 +1369,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemEnv(registry);
   RegisterSystemPath(registry);
   RegisterSystemFs(registry);
+  RegisterSystemIo(registry);
   return registry;
 }
 

@@ -81,6 +81,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route `System.env` args/get/set/platform/arch/exePath helpers through native metadata dispatch.
   - [x] Route `System.path` helpers through native metadata dispatch.
   - [x] Route `System.fs` text/bytes/listDir/fd/cwd/copy/remove/mkdir/setCwd helpers through native metadata dispatch.
+  - [x] Route `System.io` buffer helpers through native metadata dispatch.
 - [ ] Use native metadata for Lang reserved module signature generation.
 - [ ] Use native metadata for stdlib documentation generation.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.

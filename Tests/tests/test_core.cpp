@@ -16189,6 +16189,10 @@ bool RunNativeRegistryModuleTest() {
   const auto* env_platform = default_registry.Find("System.env", "platform");
   const auto* env_arch = default_registry.Find("System.env", "arch");
   const auto* env_exe = default_registry.Find("System.env", "exePath");
+  const auto* io_buffer_new = default_registry.Find("System.io", "buffer_new");
+  const auto* io_buffer_len = default_registry.Find("System.io", "buffer_len");
+  const auto* io_buffer_fill = default_registry.Find("System.io", "buffer_fill");
+  const auto* io_buffer_copy = default_registry.Find("System.io", "buffer_copy");
   const auto* buffer_new = default_registry.Find("System.buffer", "new");
   const auto* buffer_len = default_registry.Find("System.buffer", "len");
   const auto* buffer_write = default_registry.Find("System.buffer", "writeU16LE");
@@ -16377,6 +16381,37 @@ bool RunNativeRegistryModuleTest() {
   };
   const uint32_t fs_read_bytes_len = read_test_u32(fs_read_bytes_obj->payload, 0);
   const uint32_t fs_read_bytes_first = read_test_u32(fs_read_bytes_obj->payload, 8);
+  Simple::VM::Native::NativeCallContext io_new_ctx;
+  io_new_ctx.heap = &metadata_heap;
+  io_new_ctx.args = {3};
+  const auto io_new_result = io_buffer_new ? io_buffer_new->handler(io_new_ctx)
+                                           : Simple::VM::Native::NativeCallResult{};
+  const uint32_t io_dst_ref = static_cast<uint32_t>(io_new_result.value);
+  HeapObject* io_dst_obj = metadata_heap.Get(io_dst_ref);
+  if (!io_dst_obj) return false;
+  Simple::VM::Native::NativeCallContext io_fill_ctx;
+  io_fill_ctx.heap = &metadata_heap;
+  io_fill_ctx.args = {io_dst_ref, 7, 3};
+  const auto io_fill_result = io_buffer_fill ? io_buffer_fill->handler(io_fill_ctx)
+                                             : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext io_len_ctx;
+  io_len_ctx.heap = &metadata_heap;
+  io_len_ctx.args = {io_dst_ref};
+  const auto io_len_result = io_buffer_len ? io_buffer_len->handler(io_len_ctx)
+                                           : Simple::VM::Native::NativeCallResult{};
+  const uint32_t io_src_ref = metadata_heap.Allocate(ObjectKind::Array, 0, 4u + 3u * 4u);
+  HeapObject* io_src_obj = metadata_heap.Get(io_src_ref);
+  if (!io_src_obj) return false;
+  WriteU32Payload(io_src_obj->payload, 0, 3);
+  WriteU32Payload(io_src_obj->payload, 4, 11);
+  WriteU32Payload(io_src_obj->payload, 8, 12);
+  WriteU32Payload(io_src_obj->payload, 12, 13);
+  Simple::VM::Native::NativeCallContext io_copy_ctx;
+  io_copy_ctx.heap = &metadata_heap;
+  io_copy_ctx.args = {io_dst_ref, io_src_ref, 2};
+  const auto io_copy_result = io_buffer_copy ? io_buffer_copy->handler(io_copy_ctx)
+                                             : Simple::VM::Native::NativeCallResult{};
+  const uint32_t io_dst_first = read_test_u32(metadata_heap.Get(io_dst_ref)->payload, 8);
   Simple::VM::Native::NativeCallContext fs_list_dir_ctx;
   fs_list_dir_ctx.heap = &metadata_heap;
   fs_list_dir_ctx.args = {dot_path};
@@ -16538,7 +16573,9 @@ bool RunNativeRegistryModuleTest() {
          env_args_count && env_arg && env_args_count_result.value == 2 &&
          env_arg_result.string_value == "arg-one" && env_get && env_set &&
          env_set_result.value == 1 && env_get_result.string_value == "metadata-env" &&
-         env_platform && env_arch && env_exe &&
+         env_platform && env_arch && env_exe && io_buffer_new && io_buffer_len &&
+         io_buffer_fill && io_buffer_copy && io_new_result.ok && io_len_result.value == 3 &&
+         io_fill_result.value == 3 && io_copy_result.value == 2 && io_dst_first == 11 &&
          buffer_new && buffer_len && buffer_write && buffer_read && buffer_slice && buffer_copy &&
          !env_platform_result.string_value.empty() && !env_arch_result.string_value.empty() &&
          !env_exe_result.string_value.empty() && buffer_new_result.ok && buffer_result.value == 3 &&
@@ -16606,6 +16643,10 @@ bool RunNativeRegistryModuleTest() {
          env_arg->result_type == Simple::Byte::TypeKind::String &&
          env_get->result_type == Simple::Byte::TypeKind::String &&
          env_set->result_type == Simple::Byte::TypeKind::I32 &&
+         io_buffer_new->result_type == Simple::Byte::TypeKind::Ref &&
+         io_buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
+         io_buffer_fill->result_type == Simple::Byte::TypeKind::I32 &&
+         io_buffer_copy->result_type == Simple::Byte::TypeKind::I32 &&
          env_platform->result_type == Simple::Byte::TypeKind::String &&
          env_arch->result_type == Simple::Byte::TypeKind::String &&
          env_exe->result_type == Simple::Byte::TypeKind::String;
