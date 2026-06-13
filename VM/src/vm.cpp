@@ -38,8 +38,9 @@
 
 #include "heap.h"
 #include "intrinsic_ids.h"
-#include "native/native_random.h"
-#include "native/native_time.h"
+#include "native/log.h"
+#include "native/random.h"
+#include "native/time.h"
 #include "opcode.h"
 #include "scratch_arena.h"
 #include "sbc_verifier.h"
@@ -76,13 +77,9 @@ ChannelRegistry<double> g_channel_f64;
 ChannelRegistry<bool> g_channel_bool;
 ChannelRegistry<std::u16string> g_channel_string;
 ChannelRegistry<std::vector<int32_t>> g_channel_bytes;
-std::atomic<int32_t> g_log_level{0};
 std::atomic<int64_t> g_next_json_handle{1};
 std::mutex g_json_mutex;
 std::unordered_map<int64_t, std::string> g_json_documents;
-std::mutex g_log_file_mutex;
-std::unique_ptr<std::ofstream> g_log_file;
-
 std::string HostPlatformName() {
 #if defined(_WIN32)
   return "windows";
@@ -2999,25 +2996,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!obj || obj->header.kind != ObjectKind::String) return {};
         return U16ToAscii(ReadString(obj));
       };
-      auto emit_log = [&](const std::string& message, int32_t level) {
-        if (level < g_log_level.load()) return;
-        const char* label = level >= 3 ? "ERROR" : (level == 2 ? "WARN" : "INFO");
-        std::lock_guard<std::mutex> lock(g_log_file_mutex);
-        if (g_log_file && g_log_file->is_open()) {
-          (*g_log_file) << "[" << label << "] " << message << "\n";
-          g_log_file->flush();
-          return;
-        }
-        std::ostream& stream = level >= 2 ? std::cerr : std::cout;
-        stream << "[" << label << "] " << message << "\n";
-      };
       if (sym == "setLevel") {
         out_has_ret = false;
         if (args.size() != 1) {
           out_error = "core.log.setLevel arg count mismatch";
           return false;
         }
-        g_log_level.store(UnpackI32(args[0]));
+        Simple::VM::Native::Log::SetLevel(UnpackI32(args[0]));
         return true;
       }
       if (sym == "setFile") {
@@ -3026,19 +3011,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
         }
         const std::string path = read_log_message(args[0]);
-        std::lock_guard<std::mutex> lock(g_log_file_mutex);
-        g_log_file.reset();
-        if (path.empty()) {
-          out_ret = PackI32(1);
-          return true;
-        }
-        auto file = std::make_unique<std::ofstream>(path, std::ios::out | std::ios::trunc);
-        if (!file->is_open()) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        g_log_file = std::move(file);
-        out_ret = PackI32(1);
+        out_ret = PackI32(Simple::VM::Native::Log::SetFile(path) ? 1 : 0);
         return true;
       }
       if (sym == "log") {
@@ -3047,7 +3020,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           out_error = "core.log.log arg count mismatch";
           return false;
         }
-        emit_log(read_log_message(args[0]), UnpackI32(args[1]));
+        Simple::VM::Native::Log::Emit(read_log_message(args[0]), UnpackI32(args[1]));
         return true;
       }
       if (sym == "info" || sym == "warn" || sym == "error") {
@@ -3057,7 +3030,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
         }
         int32_t level = (sym == "error") ? 3 : (sym == "warn" ? 2 : 1);
-        emit_log(read_log_message(args[0]), level);
+        Simple::VM::Native::Log::Emit(read_log_message(args[0]), level);
         return true;
       }
     }

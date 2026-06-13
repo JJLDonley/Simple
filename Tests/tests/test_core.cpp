@@ -1,6 +1,8 @@
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <chrono>
 #include <string>
@@ -9,8 +11,9 @@
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "lang_version.h"
-#include "native/native_random.h"
-#include "native/native_time.h"
+#include "native/log.h"
+#include "native/random.h"
+#include "native/time.h"
 #include "opcode.h"
 #include "ir_lang.h"
 #include "ir_builder.h"
@@ -15862,6 +15865,21 @@ bool RunRuntimeLimitsTest() {
   return ok_result.status == Simple::VM::ExecStatus::Halted;
 }
 
+bool RunNativeLogModuleTest() {
+  const std::string path = "/tmp/simple_native_log_module.txt";
+  std::remove(path.c_str());
+  Simple::VM::Native::Log::SetLevel(3);
+  if (!Simple::VM::Native::Log::SetFile(path)) return false;
+  Simple::VM::Native::Log::Emit("hidden", 1);
+  Simple::VM::Native::Log::Emit("shown", 3);
+  if (!Simple::VM::Native::Log::SetFile("")) return false;
+  Simple::VM::Native::Log::SetLevel(0);
+  std::ifstream in(path, std::ios::binary);
+  if (!in) return false;
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("hidden") == std::string::npos && text.find("[ERROR] shown") != std::string::npos;
+}
+
 bool RunNativeRandomModuleTest() {
   Simple::VM::Native::Random::Seed(123);
   const int32_t a = Simple::VM::Native::Random::I32();
@@ -23452,6 +23470,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"native_log_module", RunNativeLogModuleTest},
   {"native_random_module", RunNativeRandomModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},

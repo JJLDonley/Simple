@@ -33,18 +33,18 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] `VM/src/interpreter/dispatch.cpp`
   - [ ] `VM/src/interpreter/frames.cpp`
   - [ ] `VM/src/interpreter/stack.cpp`
-  - [ ] `VM/src/native/native_registry.cpp`
-  - [ ] `VM/src/native/native_os.cpp`
-  - [ ] `VM/src/native/native_fs.cpp`
-  - [ ] `VM/src/native/native_path.cpp`
-  - [ ] `VM/src/native/native_env.cpp`
-  - [x] `VM/src/native/native_time.cpp`
-  - [x] `VM/src/native/native_random.cpp`
-  - [ ] `VM/src/native/native_log.cpp`
-  - [ ] `VM/src/native/native_channel.cpp`
-  - [ ] `VM/src/native/native_buffer.cpp`
-  - [ ] `VM/src/native/native_json.cpp`
-  - [ ] `VM/src/native/native_thread.cpp`
+  - [ ] `VM/src/native/registry.cpp`
+  - [ ] `VM/src/native/os.cpp`
+  - [ ] `VM/src/native/fs.cpp`
+  - [ ] `VM/src/native/path.cpp`
+  - [ ] `VM/src/native/env.cpp`
+  - [x] `VM/src/native/time.cpp`
+  - [x] `VM/src/native/random.cpp`
+  - [x] `VM/src/native/log.cpp`
+  - [ ] `VM/src/native/channel.cpp`
+  - [ ] `VM/src/native/buffer.cpp`
+  - [ ] `VM/src/native/json.cpp`
+  - [ ] `VM/src/native/thread.cpp`
   - [ ] `VM/src/ffi/dl_runtime.cpp`
   - [ ] `VM/src/jit/jit_scaffold.cpp`
   - [ ] `VM/src/gc/root_tracer.cpp`
@@ -63,8 +63,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 2: Native Binding Metadata
 
-- [ ] Add `VM/include/native/native_registry.h`.
-- [ ] Add `VM/src/native/native_registry.cpp`.
+- [ ] Add `VM/include/native/registry.h`.
+- [ ] Add `VM/src/native/registry.cpp`.
 - [ ] Define `NativeFunctionSpec` metadata:
   - [ ] module name
   - [ ] symbol name

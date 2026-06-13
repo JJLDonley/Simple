@@ -64,11 +64,11 @@ New VM runtime features must move toward dedicated modules:
 - `VM/src/interpreter/dispatch.cpp`
 - `VM/src/interpreter/frames.cpp`
 - `VM/src/interpreter/stack.cpp`
-- `VM/src/native/native_registry.cpp`
-- `VM/src/native/native_fs.cpp`
-- `VM/src/native/native_channel.cpp`
-- `VM/src/native/native_buffer.cpp`
-- `VM/src/native/native_json.cpp`
+- `VM/src/native/registry.cpp`
+- `VM/src/native/fs.cpp`
+- `VM/src/native/channel.cpp`
+- `VM/src/native/buffer.cpp`
+- `VM/src/native/json.cpp`
 - `VM/src/ffi/dl_runtime.cpp`
 - `VM/src/jit/jit_scaffold.cpp`
 - `VM/src/gc/root_tracer.cpp`

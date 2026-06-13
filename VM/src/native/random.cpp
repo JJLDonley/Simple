@@ -1,4 +1,4 @@
-#include "native/native_random.h"
+#include "native/random.h"
 
 #include <mutex>
 #include <random>
