@@ -16137,6 +16137,10 @@ bool RunNativeRegistryModuleTest() {
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
   const auto* os_cwd = default_registry.Find("System.os", "cwd_get");
   const auto* os_format = default_registry.Find("System.os", "formatWallNs");
+  const auto* path_join = default_registry.Find("System.path", "join");
+  const auto* path_basename = default_registry.Find("System.path", "basename");
+  const auto* path_normalize = default_registry.Find("System.path", "normalize");
+  const auto* path_exists = default_registry.Find("System.path", "exists");
   const auto* thread_yield = default_registry.Find("System.thread", "yield");
   const auto* thread_hw = default_registry.Find("System.thread", "hardwareConcurrency");
   const auto* channel_new = default_registry.Find("System.channel", "newI32");
@@ -16182,6 +16186,42 @@ bool RunNativeRegistryModuleTest() {
   const auto env_exe_result = env_exe ? env_exe->handler(env_ctx)
                                       : Simple::VM::Native::NativeCallResult{};
   Heap metadata_heap;
+  auto make_metadata_string = [&](const std::string& value) -> uint32_t {
+    const uint32_t handle = metadata_heap.Allocate(ObjectKind::String, 0,
+                                                   4u + static_cast<uint32_t>(value.size()) * 2u);
+    HeapObject* obj = metadata_heap.Get(handle);
+    if (!obj) return 0xffffffffu;
+    WriteU32Payload(obj->payload, 0, static_cast<uint32_t>(value.size()));
+    for (size_t i = 0; i < value.size(); ++i) {
+      const size_t offset = 4u + i * 2u;
+      obj->payload[offset] = static_cast<uint8_t>(value[i]);
+      obj->payload[offset + 1] = 0;
+    }
+    return handle;
+  };
+  const uint32_t path_left = make_metadata_string("/tmp");
+  const uint32_t path_right = make_metadata_string("a/../b.txt");
+  Simple::VM::Native::NativeCallContext path_join_ctx;
+  path_join_ctx.heap = &metadata_heap;
+  path_join_ctx.args = {path_left, path_right};
+  const auto path_join_result = path_join ? path_join->handler(path_join_ctx)
+                                          : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext path_basename_ctx;
+  path_basename_ctx.heap = &metadata_heap;
+  path_basename_ctx.args = {path_right};
+  const auto path_basename_result = path_basename ? path_basename->handler(path_basename_ctx)
+                                                  : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext path_normalize_ctx;
+  path_normalize_ctx.heap = &metadata_heap;
+  path_normalize_ctx.args = {path_right};
+  const auto path_normalize_result = path_normalize ? path_normalize->handler(path_normalize_ctx)
+                                                    : Simple::VM::Native::NativeCallResult{};
+  const uint32_t dot_path = make_metadata_string(".");
+  Simple::VM::Native::NativeCallContext path_exists_ctx;
+  path_exists_ctx.heap = &metadata_heap;
+  path_exists_ctx.args = {dot_path};
+  const auto path_exists_result = path_exists ? path_exists->handler(path_exists_ctx)
+                                              : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext buffer_new_ctx;
   buffer_new_ctx.heap = &metadata_heap;
   buffer_new_ctx.args = {2};
@@ -16226,9 +16266,12 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
-         os_sleep && os_cwd && os_format && !os_cwd_result.string_value.empty() &&
-         !os_format_result.string_value.empty() && thread_yield && thread_hw && channel_new &&
-         channel_send && channel_recv &&
+         os_sleep && os_cwd && os_format && path_join && path_basename && path_normalize &&
+         path_exists && !os_cwd_result.string_value.empty() &&
+         !os_format_result.string_value.empty() && path_join_result.string_value == "/tmp/b.txt" &&
+         path_basename_result.string_value == "b.txt" &&
+         path_normalize_result.string_value == "b.txt" && path_exists_result.value == 1 &&
+         thread_yield && thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
@@ -16245,6 +16288,10 @@ bool RunNativeRegistryModuleTest() {
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          os_cwd->result_type == Simple::Byte::TypeKind::String &&
          os_format->result_type == Simple::Byte::TypeKind::String &&
+         path_join->result_type == Simple::Byte::TypeKind::String &&
+         path_basename->result_type == Simple::Byte::TypeKind::String &&
+         path_normalize->result_type == Simple::Byte::TypeKind::String &&
+         path_exists->result_type == Simple::Byte::TypeKind::I32 &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_hw->result_type == Simple::Byte::TypeKind::I32 &&
          channel_new->result_type == Simple::Byte::TypeKind::I64 &&

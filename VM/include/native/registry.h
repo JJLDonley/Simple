@@ -64,6 +64,7 @@ void RegisterSystemJson(NativeRegistry& registry);
 void RegisterSystemLog(NativeRegistry& registry);
 void RegisterSystemBuffer(NativeRegistry& registry);
 void RegisterSystemEnv(NativeRegistry& registry);
+void RegisterSystemPath(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native

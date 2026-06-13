@@ -9,6 +9,7 @@
 #include "native/json.h"
 #include "native/log.h"
 #include "native/os.h"
+#include "native/path.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -432,6 +433,107 @@ HeapObject* GetHeapObject(NativeCallContext& context, size_t index) {
   return context.heap->Get(UnpackRef(context.args[index]));
 }
 
+std::string ReadStringAscii(const HeapObject* obj) {
+  if (!obj || obj->header.kind != ObjectKind::String || obj->payload.size() < 4) return {};
+  const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
+                          (static_cast<uint32_t>(obj->payload[2]) << 16u) |
+                          (static_cast<uint32_t>(obj->payload[3]) << 24u);
+  if (4u + length * 2u > obj->payload.size()) return {};
+  std::string out;
+  out.reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    const size_t offset = 4u + i * 2u;
+    const uint16_t ch = obj->payload[offset] | (static_cast<uint16_t>(obj->payload[offset + 1]) << 8u);
+    out.push_back(ch <= 0x7fu ? static_cast<char>(ch) : '?');
+  }
+  return out;
+}
+
+bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value) {
+  if (!out_value) return false;
+  HeapObject* obj = GetHeapObject(context, index);
+  if (!obj || obj->header.kind != ObjectKind::String) return false;
+  *out_value = ReadStringAscii(obj);
+  return true;
+}
+
+NativeCallResult PathJoin(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string left;
+  std::string right;
+  if (!ReadStringArg(context, 0, &left) || !ReadStringArg(context, 1, &right)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Join(left, right);
+  return result;
+}
+
+NativeCallResult PathDirname(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  if (!ReadStringArg(context, 0, &value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Dirname(value);
+  return result;
+}
+
+NativeCallResult PathBasename(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  if (!ReadStringArg(context, 0, &value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Basename(value);
+  return result;
+}
+
+NativeCallResult PathExt(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  if (!ReadStringArg(context, 0, &value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Extension(value);
+  return result;
+}
+
+NativeCallResult PathNormalize(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  if (!ReadStringArg(context, 0, &value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Normalize(value);
+  return result;
+}
+
+NativeCallResult PathExists(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  result.value = PackI32(ReadStringArg(context, 0, &value) && Path::Exists(value) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult PathIsFile(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  result.value = PackI32(ReadStringArg(context, 0, &value) && Path::IsFile(value) ? 1 : 0);
+  return result;
+}
+
+NativeCallResult PathIsDir(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  result.value = PackI32(ReadStringArg(context, 0, &value) && Path::IsDir(value) ? 1 : 0);
+  return result;
+}
+
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   if (offset + 4 > payload.size()) return;
   payload[offset] = static_cast<uint8_t>(value & 0xffu);
@@ -635,6 +737,26 @@ void RegisterSystemLog(NativeRegistry& registry) {
                              LogSetLevel));
 }
 
+void RegisterSystemPath(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.path", "join", {TypeKind::String, TypeKind::String},
+                             TypeKind::String, PathJoin));
+  registry.Register(MakeSpec("System.path", "dirname", {TypeKind::String}, TypeKind::String,
+                             PathDirname));
+  registry.Register(MakeSpec("System.path", "basename", {TypeKind::String}, TypeKind::String,
+                             PathBasename));
+  registry.Register(MakeSpec("System.path", "ext", {TypeKind::String}, TypeKind::String,
+                             PathExt));
+  registry.Register(MakeSpec("System.path", "normalize", {TypeKind::String}, TypeKind::String,
+                             PathNormalize));
+  registry.Register(MakeSpec("System.path", "exists", {TypeKind::String}, TypeKind::I32,
+                             PathExists));
+  registry.Register(MakeSpec("System.path", "isFile", {TypeKind::String}, TypeKind::I32,
+                             PathIsFile));
+  registry.Register(MakeSpec("System.path", "isDir", {TypeKind::String}, TypeKind::I32,
+                             PathIsDir));
+}
+
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
@@ -742,6 +864,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemLog(registry);
   RegisterSystemBuffer(registry);
   RegisterSystemEnv(registry);
+  RegisterSystemPath(registry);
   return registry;
 }
 

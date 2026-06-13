@@ -1586,75 +1586,36 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
     }
     if (mod == "System.path") {
-      auto read_arg_string = [&](size_t index, std::string* out_value) -> bool {
-        if (index >= args.size() || !out_value) return false;
-        const uint32_t ref = UnpackRef(args[index]);
-        HeapObject* obj = ref == kNullRef ? nullptr : heap.Get(ref);
-        if (!obj || obj->header.kind != ObjectKind::String) return false;
-        *out_value = U16ToAscii(ReadString(obj));
-        return true;
-      };
-      auto return_string = [&](const std::string& value) -> bool {
-        out_ret = PackRef(CreateString(heap, AsciiToU16(value)));
-        return true;
-      };
-      if (sym == "join") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.path.join return type mismatch";
-          return false;
-        }
-        if (args.size() != 2) {
-          out_error = "System.path.join arg count mismatch";
-          return false;
-        }
-        std::string a;
-        std::string b;
-        if (!read_arg_string(0, &a) || !read_arg_string(1, &b)) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        return return_string(Simple::VM::Native::Path::Join(a, b));
+      const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+      if (!spec) return false;
+      if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+        out_error = std::string("System.path.") + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "dirname" || sym == "basename" || sym == "ext" || sym == "normalize") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = std::string("System.path.") + sym + " return type mismatch";
-          return false;
-        }
-        if (args.size() != 1) {
-          out_error = std::string("System.path.") + sym + " arg count mismatch";
-          return false;
-        }
-        std::string value;
-        if (!read_arg_string(0, &value)) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        if (sym == "dirname") return return_string(Simple::VM::Native::Path::Dirname(value));
-        if (sym == "basename") return return_string(Simple::VM::Native::Path::Basename(value));
-        if (sym == "ext") return return_string(Simple::VM::Native::Path::Extension(value));
-        return return_string(Simple::VM::Native::Path::Normalize(value));
+      if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+        out_error = std::string("System.path.") + sym + " return type mismatch";
+        return false;
       }
-      if (sym == "exists" || sym == "isFile" || sym == "isDir") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = std::string("System.path.") + sym + " return type mismatch";
-          return false;
-        }
-        if (args.size() != 1) {
-          out_error = std::string("System.path.") + sym + " arg count mismatch";
-          return false;
-        }
-        std::string value;
-        if (!read_arg_string(0, &value)) {
-          out_ret = PackI32(0);
-          return true;
-        }
-        bool result = false;
-        if (sym == "exists") result = Simple::VM::Native::Path::Exists(value);
-        else if (sym == "isFile") result = Simple::VM::Native::Path::IsFile(value);
-        else result = Simple::VM::Native::Path::IsDir(value);
-        out_ret = PackI32(result ? 1 : 0);
-        return true;
+      if (args.size() != spec->parameter_types.size()) {
+        out_error = std::string("System.path.") + sym + " arg count mismatch";
+        return false;
       }
+      Simple::VM::Native::NativeCallContext context;
+      context.args = args;
+      context.heap = &heap;
+      Simple::VM::Native::NativeCallResult result = spec->handler(context);
+      if (!result.ok) {
+        out_error = result.error;
+        return false;
+      }
+      if (spec->result_type == TypeKind::String) {
+        out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                      ? PackRef(kNullRef)
+                      : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+      } else {
+        out_ret = result.value;
+      }
+      return true;
     }
     if (mod == "System.env") {
       auto return_string = [&](const std::string& value) -> bool {
