@@ -89,8 +89,9 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Use native metadata for RAST reserved module member recognition.
   - [x] Use native metadata as validation signature fallback for reserved native members.
   - [x] Use native metadata to emit fallback SIR imports for reserved native modules.
-- [ ] Use native metadata for stdlib documentation generation.
+- [x] Use native metadata for stdlib documentation generation.
   - [x] Add native metadata Markdown generator for stdlib API snapshots.
+  - [x] Test generated stdlib docs include every registered native function.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.
 - [ ] Native functions must use named handlers such as `FsReadText`, `ChannelPendingI32`, and `JsonParse`.
 

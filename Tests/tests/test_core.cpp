@@ -16133,6 +16133,16 @@ bool RunNativeRegistryModuleTest() {
   const auto result = found->handler(ctx);
   Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
   const std::string stdlib_markdown = Simple::VM::Native::GenerateStdLibMarkdown(default_registry);
+  bool stdlib_markdown_complete = true;
+  for (const auto& native_spec : default_registry.Functions()) {
+    const std::string module_heading = "## " + native_spec.module_name;
+    const std::string symbol_cell = "| `" + native_spec.symbol_name + "` |";
+    if (stdlib_markdown.find(module_heading) == std::string::npos ||
+        stdlib_markdown.find(symbol_cell) == std::string::npos) {
+      stdlib_markdown_complete = false;
+      break;
+    }
+  }
   const auto* random_i32 = default_registry.Find("System.random", "i32");
   const auto* os_time = default_registry.Find("System.os", "time_mono_ns");
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
@@ -16637,6 +16647,7 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 &&
+         stdlib_markdown_complete &&
          stdlib_markdown.find("## System.fs") != std::string::npos &&
          stdlib_markdown.find("| `readText` | `(string) -> string` |") != std::string::npos &&
          stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` |") != std::string::npos &&
