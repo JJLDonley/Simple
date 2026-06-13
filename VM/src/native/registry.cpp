@@ -575,6 +575,13 @@ NativeCallResult FsMkdirAll(NativeCallContext& context) {
   return result;
 }
 
+NativeCallResult FsSetCwd(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string path;
+  result.value = PackI32(ReadStringArg(context, 0, &path) && Fs::SetCwd(path) ? 1 : 0);
+  return result;
+}
+
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
   if (offset + 4 > payload.size()) return;
   payload[offset] = static_cast<uint8_t>(value & 0xffu);
@@ -809,6 +816,8 @@ void RegisterSystemFs(NativeRegistry& registry) {
                              FsMkdir));
   registry.Register(MakeSpec("System.fs", "mkdirAll", {TypeKind::String}, TypeKind::I32,
                              FsMkdirAll));
+  registry.Register(MakeSpec("System.fs", "setCwd", {TypeKind::String}, TypeKind::I32,
+                             FsSetCwd));
 }
 
 void RegisterSystemEnv(NativeRegistry& registry) {

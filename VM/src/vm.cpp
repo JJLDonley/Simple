@@ -2126,7 +2126,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         return true;
       }
       if (sym == "copy" || sym == "remove" || sym == "mkdir" || sym == "mkdirAll" ||
-          sym == "cwd") {
+          sym == "setCwd" || sym == "cwd") {
         const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
         if (!spec) return false;
         if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
@@ -2156,14 +2156,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         } else {
           out_ret = result.value;
         }
-        return true;
-      }
-      if (sym == "setCwd") {
-        if (!IsI32LikeImportType(ret_kind)) { out_error = "System.fs.setCwd return type mismatch"; return false; }
-        if (args.size() != 1) { out_error = "System.fs.setCwd arg count mismatch"; return false; }
-        std::string path;
-        const bool ok = fs_arg_string(0, &path) && Simple::VM::Native::Fs::SetCwd(path);
-        out_ret = PackI32(ok ? 1 : 0);
         return true;
       }
       if (sym == "open") {

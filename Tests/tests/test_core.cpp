@@ -16145,6 +16145,7 @@ bool RunNativeRegistryModuleTest() {
   const auto* fs_copy = default_registry.Find("System.fs", "copy");
   const auto* fs_remove = default_registry.Find("System.fs", "remove");
   const auto* fs_mkdir = default_registry.Find("System.fs", "mkdir");
+  const auto* fs_set_cwd = default_registry.Find("System.fs", "setCwd");
   const auto* thread_yield = default_registry.Find("System.thread", "yield");
   const auto* thread_hw = default_registry.Find("System.thread", "hardwareConcurrency");
   const auto* channel_new = default_registry.Find("System.channel", "newI32");
@@ -16243,11 +16244,17 @@ bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeCallContext fs_cwd_ctx;
   const auto fs_cwd_result = fs_cwd ? fs_cwd->handler(fs_cwd_ctx)
                                     : Simple::VM::Native::NativeCallResult{};
+  const uint32_t fs_cwd_ref = make_metadata_string(fs_cwd_result.string_value);
   Simple::VM::Native::NativeCallContext fs_mkdir_ctx;
   fs_mkdir_ctx.heap = &metadata_heap;
   fs_mkdir_ctx.args = {fs_dir_ref};
   const auto fs_mkdir_result = fs_mkdir ? fs_mkdir->handler(fs_mkdir_ctx)
                                         : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext fs_set_cwd_ctx;
+  fs_set_cwd_ctx.heap = &metadata_heap;
+  fs_set_cwd_ctx.args = {fs_cwd_ref};
+  const auto fs_set_cwd_result = fs_set_cwd ? fs_set_cwd->handler(fs_set_cwd_ctx)
+                                            : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_copy_ctx;
   fs_copy_ctx.heap = &metadata_heap;
   fs_copy_ctx.args = {fs_src_ref, fs_dst_ref};
@@ -16311,13 +16318,14 @@ bool RunNativeRegistryModuleTest() {
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
          os_sleep && os_cwd && os_format && path_join && path_basename && path_normalize &&
-         path_exists && fs_cwd && fs_copy && fs_remove && fs_mkdir &&
+         path_exists && fs_cwd && fs_copy && fs_remove && fs_mkdir && fs_set_cwd &&
          !os_cwd_result.string_value.empty() && !os_format_result.string_value.empty() &&
          path_join_result.string_value == "/tmp/b.txt" &&
          path_basename_result.string_value == "b.txt" &&
          path_normalize_result.string_value == "b.txt" && path_exists_result.value == 1 &&
          !fs_cwd_result.string_value.empty() && fs_mkdir_result.value == 1 &&
-         fs_copy_result.value == 1 && fs_remove_dst_result.value == 1 && thread_yield &&
+         fs_set_cwd_result.value == 1 && fs_copy_result.value == 1 &&
+         fs_remove_dst_result.value == 1 && thread_yield &&
          thread_hw && channel_new && channel_send && channel_recv &&
          channel_try_recv && channel_pending && channel_i64 && channel_pending_i64 && channel_f32 &&
          channel_f64 && channel_pending_f64 && channel_bool && channel_pending_bool &&
@@ -16343,6 +16351,7 @@ bool RunNativeRegistryModuleTest() {
          fs_copy->result_type == Simple::Byte::TypeKind::I32 &&
          fs_remove->result_type == Simple::Byte::TypeKind::I32 &&
          fs_mkdir->result_type == Simple::Byte::TypeKind::I32 &&
+         fs_set_cwd->result_type == Simple::Byte::TypeKind::I32 &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_hw->result_type == Simple::Byte::TypeKind::I32 &&
          channel_new->result_type == Simple::Byte::TypeKind::I64 &&
