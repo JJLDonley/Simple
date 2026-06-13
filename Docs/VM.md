@@ -37,6 +37,7 @@ ExecResult ExecuteModule(const SbcModule& module,
 - `argv` for OS argument runtime behavior
 - host import resolver callback
 - runtime limits for max stack slots, locals, call depth, array/list size, const pool size, and code size
+- `force_interpreter` to keep execution on the canonical interpreter path
 
 ### Execution Flow
 
@@ -51,7 +52,7 @@ SbcModule
   -> ExecResult
 ```
 
-The bytecode verifier remains the canonical safety gate. The interpreter should not be treated as accepting arbitrary unverified bytecode.
+The bytecode verifier remains the canonical safety gate. The interpreter remains the canonical correctness path and can be forced with `ExecOptions::force_interpreter`. The interpreter should not be treated as accepting arbitrary unverified bytecode.
 
 ### Status Values
 
@@ -268,7 +269,7 @@ Implemented JIT-related structures include:
 - dispatch counters
 - tier execution counters
 
-The interpreter is still the canonical correctness path.
+The interpreter is still the canonical correctness path; embedders can set `ExecOptions::force_interpreter` to bypass JIT tiers.
 
 ## In Progress
 

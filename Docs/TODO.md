@@ -233,7 +233,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] max array/list size
   - [x] max const pool size
   - [x] max code size
-- [ ] Keep interpreter as canonical until JIT behavior is fully specified.
+- [x] Keep interpreter as canonical until JIT behavior is fully specified.
 
 ## DL / FFI
 

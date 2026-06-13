@@ -1711,6 +1711,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) 
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, const ExecOptions& options) {
+  if (options.force_interpreter) enable_jit = false;
   Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(module);
   if (verify && !vr.ok) return Trap(vr.error);
   bool have_meta = vr.ok;

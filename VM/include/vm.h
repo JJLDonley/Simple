@@ -60,6 +60,7 @@ struct RuntimeLimits {
 struct ExecOptions {
   std::vector<std::string> argv;
   RuntimeLimits limits;
+  bool force_interpreter = false;
   std::function<bool(const std::string& module, const std::string& symbol,
                      const std::vector<uint64_t>& args, uint64_t& out_ret,
                      bool& out_has_ret, std::string& out_error)>

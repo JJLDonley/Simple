@@ -15743,6 +15743,20 @@ bool RunHeapLayoutHelpersTest() {
   return Simple::VM::HeapLayout::kNullRef == 0xFFFFFFFFu;
 }
 
+std::vector<uint8_t> BuildHotNoopModule() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  for (uint32_t i = 0; i < Simple::VM::kJitOpcodeThreshold + 2; ++i) {
+    AppendU8(code, static_cast<uint8_t>(OpCode::Nop));
+  }
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  return BuildModule(code, 0, 0);
+}
+
 std::vector<uint8_t> BuildSimpleAddModuleWithStackMax(uint32_t stack_max) {
   using Simple::Byte::OpCode;
   std::vector<uint8_t> code;
@@ -15774,6 +15788,19 @@ std::vector<uint8_t> BuildTwoArraysModule() {
   AppendI32(code, 0);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
+}
+
+bool RunInterpreterCanonicalForceTest() {
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildHotNoopModule());
+  if (!load.ok) return false;
+  Simple::VM::ExecOptions options;
+  options.force_interpreter = true;
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, true, true, options);
+  if (exec.status != Simple::VM::ExecStatus::Halted) return false;
+  if (exec.jit_tiers.empty()) return false;
+  return exec.jit_tiers[0] == Simple::VM::JitTier::None &&
+         exec.jit_dispatch_counts[0] == 0 &&
+         exec.compile_counts[0] == 0;
 }
 
 bool RunRuntimeLimitsTest() {
@@ -23357,6 +23384,7 @@ bool RunJmpTableEmptyTest() {
 
 static const TestCase kCoreTests[] = {
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits", RunRuntimeLimitsTest},
   {"compatibility_version_constants", RunCompatibilityVersionConstantsTest},
   {"opcode_operand_width_metadata", RunOpcodeOperandWidthMetadataTest},
