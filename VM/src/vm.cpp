@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #if !defined(_WIN32)
-#include <dlfcn.h>
 #include <ffi.h>
 #endif
 #include <fstream>
@@ -23,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "ffi/dl_runtime.h"
 #include "heap.h"
 #include "intrinsic_ids.h"
 #include "native/buffer.h"
@@ -2725,24 +2725,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         std::string path = U16ToAscii(ReadString(path_obj));
-#if defined(_WIN32)
-        (void)path;
-        set_dl_error("core.dl.open is unsupported on windows");
-        out_ret = PackI64(0);
+        out_ret = PackI64(Simple::VM::Ffi::DlRuntime::Open(path, &dl_last_error));
         return true;
-#else
-        dlerror();
-        void* handle = dlopen(path.c_str(), RTLD_LAZY);
-        if (!handle) {
-          const char* err = dlerror();
-          set_dl_error(err ? err : "core.dl.open failed");
-          out_ret = PackI64(0);
-          return true;
-        }
-        dl_last_error.clear();
-        out_ret = PackI64(reinterpret_cast<int64_t>(handle));
-        return true;
-#endif
       }
       if (sym == "sym") {
         if (!IsI64LikeImportType(ret_kind)) {
@@ -2772,24 +2756,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         std::string name = U16ToAscii(ReadString(name_obj));
-#if defined(_WIN32)
-        (void)name;
-        set_dl_error("core.dl.sym is unsupported on windows");
-        out_ret = PackI64(0);
+        out_ret = PackI64(Simple::VM::Ffi::DlRuntime::Symbol(handle_bits, name, &dl_last_error));
         return true;
-#else
-        dlerror();
-        void* sym_ptr = dlsym(reinterpret_cast<void*>(handle_bits), name.c_str());
-        const char* err = dlerror();
-        if (err) {
-          set_dl_error(err);
-          out_ret = PackI64(0);
-          return true;
-        }
-        dl_last_error.clear();
-        out_ret = PackI64(reinterpret_cast<int64_t>(sym_ptr));
-        return true;
-#endif
       }
       if (sym == "close") {
         if (!IsI32LikeImportType(ret_kind)) {
@@ -2801,27 +2769,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return false;
         }
         int64_t handle_bits = UnpackI64(args[0]);
-        if (handle_bits == 0) {
-          set_dl_error("core.dl.close null handle");
-          out_ret = PackI32(-1);
-          return true;
-        }
-#if defined(_WIN32)
-        set_dl_error("core.dl.close is unsupported on windows");
-        out_ret = PackI32(-1);
+        out_ret = PackI32(Simple::VM::Ffi::DlRuntime::Close(handle_bits, &dl_last_error) ? 0 : -1);
         return true;
-#else
-        int rc = dlclose(reinterpret_cast<void*>(handle_bits));
-        if (rc != 0) {
-          const char* err = dlerror();
-          set_dl_error(err ? err : "core.dl.close failed");
-          out_ret = PackI32(-1);
-          return true;
-        }
-        dl_last_error.clear();
-        out_ret = PackI32(0);
-        return true;
-#endif
       }
       if (sym == "last_error") {
         if (!IsStringLikeImportType(ret_kind)) {

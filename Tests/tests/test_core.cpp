@@ -35,6 +35,7 @@
 #include "runtime/runtime_limits.h"
 #include "simple_api.h"
 #include "vm.h"
+#include "ffi/dl_runtime.h"
 #include "test_utils.h"
 
 namespace Simple::VM::Tests {
@@ -15941,6 +15942,20 @@ bool RunNativeEnvModuleTest() {
   return !Simple::VM::Native::Env::ExePath().empty();
 }
 
+bool RunFfiDlRuntimeModuleTest() {
+  std::string error;
+  if (Simple::VM::Ffi::DlRuntime::Open("/tmp/simple_missing_library.so", &error) != 0) {
+    return false;
+  }
+  if (error.empty()) return false;
+  error.clear();
+  if (Simple::VM::Ffi::DlRuntime::Symbol(0, "missing", &error) != 0) return false;
+  if (error != "core.dl.sym null handle") return false;
+  error.clear();
+  if (Simple::VM::Ffi::DlRuntime::Close(0, &error)) return false;
+  return error == "core.dl.close null handle";
+}
+
 bool RunNativeFsModuleTest() {
   const std::string dir = "/tmp/simple_native_fs_module";
   const std::string file = dir + "/data.txt";
@@ -23636,6 +23651,7 @@ static const TestCase kCoreTests[] = {
   {"native_thread_module", RunNativeThreadModuleTest},
   {"native_time_module", RunNativeTimeModuleTest},
   {"heap_nested_list_ref_trace", RunHeapNestedListRefTraceTest},
+  {"ffi_dl_runtime_module", RunFfiDlRuntimeModuleTest},
   {"interpreter_canonical_force", RunInterpreterCanonicalForceTest},
   {"runtime_limits_module", RunRuntimeLimitsModuleTest},
   {"runtime_limits", RunRuntimeLimitsTest},
