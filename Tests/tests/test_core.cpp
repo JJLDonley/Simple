@@ -16137,13 +16137,19 @@ bool RunNativeRegistryModuleTest() {
   const auto* os_sleep = default_registry.Find("System.os", "sleep_ms");
   const auto* thread_yield = default_registry.Find("System.thread", "yield");
   const auto* thread_hw = default_registry.Find("System.thread", "hardwareConcurrency");
+  const auto* channel_new = default_registry.Find("System.channel", "newI32");
+  const auto* channel_pending = default_registry.Find("System.channel", "pendingI32");
+  const auto* channel_close = default_registry.Find("System.channel", "close");
   return registry.Size() == 1 && result.ok && result.value == 123 && random_i32 && os_time &&
-         os_sleep && thread_yield && thread_hw &&
+         os_sleep && thread_yield && thread_hw && channel_new && channel_pending && channel_close &&
          random_i32->result_type == Simple::Byte::TypeKind::I32 &&
          os_time->result_type == Simple::Byte::TypeKind::I64 &&
          os_sleep->result_type == Simple::Byte::TypeKind::Unspecified &&
          thread_yield->result_type == Simple::Byte::TypeKind::Unspecified &&
-         thread_hw->result_type == Simple::Byte::TypeKind::I32;
+         thread_hw->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_new->result_type == Simple::Byte::TypeKind::I64 &&
+         channel_pending->result_type == Simple::Byte::TypeKind::I32 &&
+         channel_close->result_type == Simple::Byte::TypeKind::Unspecified;
 }
 
 bool RunNativeThreadModuleTest() {

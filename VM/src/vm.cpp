@@ -1797,6 +1797,34 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.channel") {
+      if (sym == "newI32" || sym == "pendingI32" || sym == "close") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::Unspecified) {
+          out_has_ret = false;
+        } else if (spec->result_type == TypeKind::I64) {
+          if (!IsI64LikeImportType(ret_kind)) {
+            out_error = "System.channel." + sym + " return type mismatch";
+            return false;
+          }
+        } else if (!IsI32LikeImportType(ret_kind)) {
+          out_error = "System.channel." + sym + " return type mismatch";
+          return false;
+        }
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = "System.channel." + sym + " arg count mismatch";
+          return false;
+        }
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
+          return false;
+        }
+        if (result.has_value) out_ret = result.value;
+        return true;
+      }
       auto do_new = [&](auto& registry, const char* name) -> bool {
         if (!IsI64LikeImportType(ret_kind)) {
           out_error = std::string("System.channel.") + name + " return type mismatch";

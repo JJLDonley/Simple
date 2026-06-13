@@ -3,6 +3,7 @@
 #include <cstring>
 #include <utility>
 
+#include "native/channel.h"
 #include "native/random.h"
 #include "native/thread.h"
 #include "native/time.h"
@@ -96,6 +97,25 @@ NativeCallResult ThreadHardwareConcurrency(NativeCallContext&) {
   return result;
 }
 
+NativeCallResult ChannelNewI32(NativeCallContext&) {
+  NativeCallResult result;
+  result.value = PackI64(Channel::New(Channel::g_i32));
+  return result;
+}
+
+NativeCallResult ChannelPendingI32(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Channel::Pending(Channel::g_i32, UnpackI64(context.args[0])));
+  return result;
+}
+
+NativeCallResult ChannelClose(NativeCallContext& context) {
+  Channel::CloseAll(UnpackI64(context.args[0]));
+  NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
 NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             std::vector<Simple::Byte::TypeKind> params,
                             Simple::Byte::TypeKind result_type,
@@ -130,7 +150,7 @@ size_t NativeRegistry::Size() const {
   return functions_.size();
 }
 
-void RegisterCoreRandom(NativeRegistry& registry) {
+void RegisterSystemRandom(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.random", "seed", {TypeKind::I64}, TypeKind::Unspecified,
                              RandomSeed));
@@ -140,7 +160,7 @@ void RegisterCoreRandom(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.random", "f64", {}, TypeKind::F64, RandomF64));
 }
 
-void RegisterCoreOs(NativeRegistry& registry) {
+void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
   registry.Register(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
@@ -148,7 +168,7 @@ void RegisterCoreOs(NativeRegistry& registry) {
                              OsSleepMs));
 }
 
-void RegisterCoreThread(NativeRegistry& registry) {
+void RegisterSystemThread(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.thread", "sleep", {TypeKind::I32}, TypeKind::Unspecified,
                              ThreadSleep));
@@ -157,11 +177,21 @@ void RegisterCoreThread(NativeRegistry& registry) {
                              ThreadHardwareConcurrency));
 }
 
+void RegisterSystemChannel(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.channel", "newI32", {}, TypeKind::I64, ChannelNewI32));
+  registry.Register(MakeSpec("System.channel", "pendingI32", {TypeKind::I64}, TypeKind::I32,
+                             ChannelPendingI32));
+  registry.Register(MakeSpec("System.channel", "close", {TypeKind::I64}, TypeKind::Unspecified,
+                             ChannelClose));
+}
+
 NativeRegistry BuildDefaultRegistry() {
   NativeRegistry registry;
-  RegisterCoreRandom(registry);
-  RegisterCoreOs(registry);
-  RegisterCoreThread(registry);
+  RegisterSystemRandom(registry);
+  RegisterSystemOs(registry);
+  RegisterSystemThread(registry);
+  RegisterSystemChannel(registry);
   return registry;
 }
 
