@@ -447,7 +447,8 @@ bool ResolveUsingReservedMember(const EmitState& st,
                 member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
                 member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
                 member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" ||
-                member == "close")) {
+                member == "pendingI32" || member == "pendingI64" || member == "pendingF32" || member == "pendingF64" ||
+                member == "pendingBool" || member == "pendingString" || member == "pendingBytes" || member == "close")) {
       if (found) return false;
       found = true;
       result = module;
@@ -5186,6 +5187,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
         std::vector<TypeRef> try_recv_params = recv_params;
         if (!add_reserved_import(alias, "core.channel", "recv" + suffix, std::move(recv_params), make_type(type_name.c_str()))) return false;
         if (!add_reserved_import(alias, "core.channel", "tryRecv" + suffix, std::move(try_recv_params), make_type(type_name.c_str()))) return false;
+        std::vector<TypeRef> pending_params;
+        pending_params.push_back(make_type("i64"));
+        if (!add_reserved_import(alias, "core.channel", "pending" + suffix, std::move(pending_params), make_type("i32"))) return false;
         return true;
       };
       if (!add_channel("I32", "i32")) return false;
@@ -5207,6 +5211,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> try_recv_bytes_params = recv_bytes_params;
       if (!add_reserved_import(alias, "core.channel", "recvBytes", std::move(recv_bytes_params), make_list_type("i32"))) return false;
       if (!add_reserved_import(alias, "core.channel", "tryRecvBytes", std::move(try_recv_bytes_params), make_list_type("i32"))) return false;
+      std::vector<TypeRef> pending_bytes_params;
+      pending_bytes_params.push_back(make_type("i64"));
+      if (!add_reserved_import(alias, "core.channel", "pendingBytes", std::move(pending_bytes_params), make_type("i32"))) return false;
 
       std::vector<TypeRef> close_params;
       close_params.push_back(make_type("i64"));

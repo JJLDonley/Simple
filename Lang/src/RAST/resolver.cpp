@@ -201,13 +201,13 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "listDir" || member == "cwd" || member == "setCwd";
   }
   if (canonical_module == "Channel") {
-    return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
-           member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
-           member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" ||
-           member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" ||
-           member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
-           member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
-           member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" ||
+    return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" || member == "pendingI32" ||
+           member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" || member == "pendingI64" ||
+           member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" || member == "pendingF32" ||
+           member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" || member == "pendingF64" ||
+           member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" || member == "pendingBool" ||
+           member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" || member == "pendingString" ||
+           member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" || member == "pendingBytes" ||
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";

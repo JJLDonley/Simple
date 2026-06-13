@@ -22,7 +22,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] `ChannelString`
   - [x] `ChannelBytes`
   - [x] `send`, `trySend`, `recv`, `tryRecv`, `close`
-  - [ ] non-blocking receive pattern for game loops
+  - [x] non-blocking receive pattern for game loops
   - [x] clear rules: channels copy values; no shared mutable Simple heap in first version
   - [ ] later generic `Channel<T>` once runtime/type support is ready
 - [ ] Expand native stdlib modules:

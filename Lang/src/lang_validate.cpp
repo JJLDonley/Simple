@@ -359,13 +359,13 @@ std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
             "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
   }
   if (resolved == "Channel") {
-    return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
-            "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
-            "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
-            "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64",
-            "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool",
-            "newString", "sendString", "trySendString", "recvString", "tryRecvString",
-            "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"};
+    return {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
+            "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
+            "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
+            "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
+            "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
+            "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
+            "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
   }
   if (resolved == "File") return {"open", "close", "read", "write"};
   if (resolved == "Json") return {"parse", "stringify", "free"};
@@ -822,6 +822,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       if (member == "recv" + suffix || member == "tryRecv" + suffix) {
         out->params.push_back(MakeSimpleType("i64"));
         out->return_type = channel_value_type(suffix);
+        out->return_mutability = Mutability::Mutable;
+        return true;
+      }
+      if (member == "pending" + suffix) {
+        out->params.push_back(MakeSimpleType("i64"));
+        out->return_type = MakeSimpleType("i32");
         out->return_mutability = Mutability::Mutable;
         return true;
       }

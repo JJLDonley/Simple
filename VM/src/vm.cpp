@@ -2263,6 +2263,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         out_ret = pack(value);
         return true;
       };
+      auto do_pending = [&](auto& registry, const char* name) -> bool {
+        if (!IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("core.channel.") + name + " return type mismatch";
+          return false;
+        }
+        if (args.size() != 1) {
+          out_error = std::string("core.channel.") + name + " arg count mismatch";
+          return false;
+        }
+        auto state = GetChannel(registry, UnpackI64(args[0]));
+        if (!state) {
+          out_ret = PackI32(0);
+          return true;
+        }
+        std::lock_guard<std::mutex> lock(state->mutex);
+        const size_t count = state->values.size();
+        out_ret = PackI32(count > static_cast<size_t>(std::numeric_limits<int32_t>::max())
+                              ? std::numeric_limits<int32_t>::max()
+                              : static_cast<int32_t>(count));
+        return true;
+      };
       auto close_one = [&](auto& registry, int64_t handle) {
         auto state = GetChannel(registry, handle);
         if (state) {
@@ -2296,6 +2317,13 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (sym == "newBool") return do_new(g_channel_bool, "newBool");
       if (sym == "newString") return do_new(g_channel_string, "newString");
       if (sym == "newBytes") return do_new(g_channel_bytes, "newBytes");
+      if (sym == "pendingI32") return do_pending(g_channel_i32, "pendingI32");
+      if (sym == "pendingI64") return do_pending(g_channel_i64, "pendingI64");
+      if (sym == "pendingF32") return do_pending(g_channel_f32, "pendingF32");
+      if (sym == "pendingF64") return do_pending(g_channel_f64, "pendingF64");
+      if (sym == "pendingBool") return do_pending(g_channel_bool, "pendingBool");
+      if (sym == "pendingString") return do_pending(g_channel_string, "pendingString");
+      if (sym == "pendingBytes") return do_pending(g_channel_bytes, "pendingBytes");
       if (sym == "sendI32" || sym == "trySendI32") return do_send(g_channel_i32, [](Slot v) { return UnpackI32(v); }, sym.c_str());
       if (sym == "sendI64" || sym == "trySendI64") return do_send(g_channel_i64, [](Slot v) { return UnpackI64(v); }, sym.c_str());
       if (sym == "sendF32" || sym == "trySendF32") return do_send(g_channel_f32, [](Slot v) { return BitsToF32(UnpackU32Bits(v)); }, sym.c_str());

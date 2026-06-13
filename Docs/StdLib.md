@@ -29,6 +29,7 @@ Reserved (compiler-mapped):
 - `Log`
 - `Buffer`
 - `Json`
+- `Channel`
 
 Preferred modern aliases:
 - `System.math`
@@ -40,6 +41,7 @@ Preferred modern aliases:
 - `System.log`
 - `System.buffer`
 - `System.json`
+- `System.channel`
 
 ## Import Mapping
 
@@ -54,6 +56,7 @@ Preferred modern aliases:
 | `Log` / `System.log` | `core.log` |
 | `Buffer` / `System.buffer` | `core.buffer` |
 | `Json` / `System.json` | `core.json` |
+| `Channel` / `System.channel` | `core.channel` |
 
 ## Core Module API Tables
 
@@ -100,6 +103,15 @@ Preferred modern aliases:
 | `writeU32LE` | `(buffer : i32[], offset : i32, value : i32) -> bool` |
 | `slice` | `(buffer : i32[], offset : i32, count : i32) -> i32[]` |
 | `copy` | `(dst : i32[], dstOffset : i32, src : i32[], srcOffset : i32, count : i32) -> i32` |
+
+### Channel
+| Member | Signature |
+|---|---|
+| `newI32`/`newI64`/`newF32`/`newF64`/`newBool`/`newString`/`newBytes` | `() -> i64` |
+| `send*`/`trySend*` | `(handle : i64, value : T) -> bool` |
+| `recv*`/`tryRecv*` | `(handle : i64) -> T` |
+| `pending*` | `(handle : i64) -> i32` queued values for non-blocking polling |
+| `close` | `(handle : i64) -> void` |
 
 ### Fs
 | Member | Signature |

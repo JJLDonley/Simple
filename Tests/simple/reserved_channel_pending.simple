@@ -1,0 +1,23 @@
+import Channel
+using Channel
+
+main : i32 () {
+  i32ch : i64 = newI32()
+  strch : i64 = newString()
+  bytesch : i64 = newBytes()
+  if (pendingI32(i32ch) != 0) { return 1 }
+  sendI32(i32ch, 10)
+  sendI32(i32ch, 20)
+  if (pendingI32(i32ch) != 2) { return 2 }
+  if (tryRecvI32(i32ch) != 10) { return 3 }
+  if (pendingI32(i32ch) != 1) { return 4 }
+  sendString(strch, "abc")
+  if (pendingString(strch) != 1) { return 5 }
+  data : i32[] = [1, 2, 3]
+  sendBytes(bytesch, data)
+  if (pendingBytes(bytesch) != 1) { return 6 }
+  close(i32ch)
+  close(strch)
+  close(bytesch)
+  return 0
+}

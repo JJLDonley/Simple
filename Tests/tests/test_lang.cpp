@@ -1995,6 +1995,10 @@ bool LangReservedChannelBytesUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_channel_bytes_using.simple", 13);
 }
 
+bool LangReservedChannelPendingRun() {
+  return RunSimpleFileExpectExit("Tests/simple/reserved_channel_pending.simple", 0);
+}
+
 bool LangReservedRandomRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_random.simple", 1);
 }
@@ -5056,6 +5060,7 @@ const TestCase kLangTests[] = {
   {"lang_reserved_channel_try_send_run", LangReservedChannelTrySendRun},
   {"lang_reserved_channel_bytes_run", LangReservedChannelBytesRun},
   {"lang_reserved_channel_bytes_using_run", LangReservedChannelBytesUsingRun},
+  {"lang_reserved_channel_pending_run", LangReservedChannelPendingRun},
   {"lang_reserved_random_run", LangReservedRandomRun},
   {"lang_reserved_random_using_run", LangReservedRandomUsingRun},
   {"lang_reserved_env_run", LangReservedEnvRun},
