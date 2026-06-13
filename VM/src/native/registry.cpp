@@ -7,6 +7,7 @@
 #include "native/channel.h"
 #include "native/env.h"
 #include "native/fs.h"
+#include "ffi/dl_runtime.h"
 #include "native/json.h"
 #include "native/log.h"
 #include "native/os.h"
@@ -419,6 +420,72 @@ NativeCallResult JsonStringify(NativeCallContext& context) {
 NativeCallResult JsonFree(NativeCallContext& context) {
   NativeCallResult result;
   result.value = PackI32(Json::Free(UnpackI64(context.args[0])) ? 1 : 0);
+  return result;
+}
+
+void SetDlError(NativeCallContext& context, const std::string& text) {
+  if (context.dl_last_error) *context.dl_last_error = text;
+}
+
+NativeCallResult DlOpen(NativeCallContext& context) {
+  NativeCallResult result;
+  if (!context.dl_last_error) {
+    result.value = PackI64(0);
+    return result;
+  }
+  const uint32_t path_ref = UnpackRef(context.args[0]);
+  if (path_ref == HeapLayout::kNullRef) {
+    SetDlError(context, "System.dl.open null path");
+    result.value = PackI64(0);
+    return result;
+  }
+  std::string path;
+  if (!ReadStringArg(context, 0, &path)) {
+    SetDlError(context, "System.dl.open path not string");
+    result.value = PackI64(0);
+    return result;
+  }
+  result.value = PackI64(Simple::VM::Ffi::DlRuntime::Open(path, context.dl_last_error));
+  return result;
+}
+
+NativeCallResult DlSymbol(NativeCallContext& context) {
+  NativeCallResult result;
+  const int64_t handle = UnpackI64(context.args[0]);
+  if (handle == 0) {
+    SetDlError(context, "System.dl.sym null handle");
+    result.value = PackI64(0);
+    return result;
+  }
+  const uint32_t name_ref = UnpackRef(context.args[1]);
+  if (name_ref == HeapLayout::kNullRef) {
+    SetDlError(context, "System.dl.sym null name");
+    result.value = PackI64(0);
+    return result;
+  }
+  std::string name;
+  if (!ReadStringArg(context, 1, &name)) {
+    SetDlError(context, "System.dl.sym name not string");
+    result.value = PackI64(0);
+    return result;
+  }
+  result.value = PackI64(context.dl_last_error ? Simple::VM::Ffi::DlRuntime::Symbol(handle, name, context.dl_last_error) : 0);
+  return result;
+}
+
+NativeCallResult DlClose(NativeCallContext& context) {
+  NativeCallResult result;
+  result.value = PackI32(Simple::VM::Ffi::DlRuntime::Close(UnpackI64(context.args[0]), context.dl_last_error) ? 0 : -1);
+  return result;
+}
+
+NativeCallResult DlLastError(NativeCallContext& context) {
+  NativeCallResult result;
+  if (!context.dl_last_error || context.dl_last_error->empty()) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = *context.dl_last_error;
   return result;
 }
 
@@ -1190,6 +1257,15 @@ void RegisterSystemJson(NativeRegistry& registry) {
   registry.Register(MakeSpec("System.json", "free", {TypeKind::I64}, TypeKind::I32, JsonFree));
 }
 
+void RegisterSystemDl(NativeRegistry& registry) {
+  using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.dl", "open", {TypeKind::String}, TypeKind::I64, DlOpen));
+  registry.Register(MakeSpec("System.dl", "sym", {TypeKind::I64, TypeKind::String}, TypeKind::I64,
+                             DlSymbol));
+  registry.Register(MakeSpec("System.dl", "close", {TypeKind::I64}, TypeKind::I32, DlClose));
+  registry.Register(MakeSpec("System.dl", "last_error", {}, TypeKind::String, DlLastError));
+}
+
 void RegisterSystemLog(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(MakeSpec("System.log", "setLevel", {TypeKind::I32}, TypeKind::Unspecified,
@@ -1389,6 +1465,7 @@ NativeRegistry BuildDefaultRegistry() {
   RegisterSystemPath(registry);
   RegisterSystemFs(registry);
   RegisterSystemIo(registry);
+  RegisterSystemDl(registry);
   return registry;
 }
 

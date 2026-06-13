@@ -16180,6 +16180,10 @@ bool RunNativeRegistryModuleTest() {
   const auto* json_parse = default_registry.Find("System.json", "parse");
   const auto* json_stringify = default_registry.Find("System.json", "stringify");
   const auto* json_free = default_registry.Find("System.json", "free");
+  const auto* dl_open = default_registry.Find("System.dl", "open");
+  const auto* dl_sym = default_registry.Find("System.dl", "sym");
+  const auto* dl_close = default_registry.Find("System.dl", "close");
+  const auto* dl_last_error = default_registry.Find("System.dl", "last_error");
   const auto* log_set_level = default_registry.Find("System.log", "setLevel");
   const auto* log_set_file = default_registry.Find("System.log", "setFile");
   const auto* log_emit = default_registry.Find("System.log", "log");
@@ -16282,6 +16286,29 @@ bool RunNativeRegistryModuleTest() {
   json_free_ctx.args = {json_parse_result.value};
   const auto json_free_result = json_free ? json_free->handler(json_free_ctx)
                                           : Simple::VM::Native::NativeCallResult{};
+  const uint32_t dl_missing_path = make_metadata_string("build/simple_missing_native_registry_library.so");
+  std::string metadata_dl_error;
+  Simple::VM::Native::NativeCallContext dl_open_ctx;
+  dl_open_ctx.heap = &metadata_heap;
+  dl_open_ctx.dl_last_error = &metadata_dl_error;
+  dl_open_ctx.args = {dl_missing_path};
+  const auto dl_open_result = dl_open ? dl_open->handler(dl_open_ctx)
+                                      : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext dl_sym_ctx;
+  dl_sym_ctx.heap = &metadata_heap;
+  dl_sym_ctx.dl_last_error = &metadata_dl_error;
+  dl_sym_ctx.args = {0, dl_missing_path};
+  const auto dl_sym_result = dl_sym ? dl_sym->handler(dl_sym_ctx)
+                                    : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext dl_last_error_ctx;
+  dl_last_error_ctx.dl_last_error = &metadata_dl_error;
+  const auto dl_last_error_result = dl_last_error ? dl_last_error->handler(dl_last_error_ctx)
+                                                  : Simple::VM::Native::NativeCallResult{};
+  Simple::VM::Native::NativeCallContext dl_close_ctx;
+  dl_close_ctx.dl_last_error = &metadata_dl_error;
+  dl_close_ctx.args = {0};
+  const auto dl_close_result = dl_close ? dl_close->handler(dl_close_ctx)
+                                        : Simple::VM::Native::NativeCallResult{};
   const uint32_t log_empty_path = make_metadata_string("");
   const uint32_t log_message = make_metadata_string("metadata log suppressed");
   Simple::VM::Native::NativeCallContext log_level_ctx;
@@ -16586,7 +16613,9 @@ bool RunNativeRegistryModuleTest() {
          channel_string && channel_pending_string && channel_bytes && channel_pending_bytes &&
          channel_close && json_parse && json_stringify && json_free && json_parse_result.value != 0 &&
          json_stringify_result.string_value == "{\"ok\":true}" && json_free_result.value == 1 &&
-         log_set_level && log_set_file && log_emit && log_info &&
+         dl_open && dl_sym && dl_close && dl_last_error && dl_open_result.value == 0 &&
+         dl_sym_result.value == 0 && !dl_last_error_result.string_value.empty() &&
+         static_cast<int32_t>(dl_close_result.value) == -1 && log_set_level && log_set_file && log_emit && log_info &&
          log_set_file_result.value == 1 && !log_emit_result.has_value && !log_info_result.has_value &&
          env_args_count && env_arg && env_args_count_result.value == 2 &&
          env_arg_result.string_value == "arg-one" && env_get && env_set &&
@@ -16649,6 +16678,10 @@ bool RunNativeRegistryModuleTest() {
          json_parse->result_type == Simple::Byte::TypeKind::I64 &&
          json_stringify->result_type == Simple::Byte::TypeKind::String &&
          json_free->result_type == Simple::Byte::TypeKind::I32 &&
+         dl_open->result_type == Simple::Byte::TypeKind::I64 &&
+         dl_sym->result_type == Simple::Byte::TypeKind::I64 &&
+         dl_close->result_type == Simple::Byte::TypeKind::I32 &&
+         dl_last_error->result_type == Simple::Byte::TypeKind::String &&
          buffer_new->result_type == Simple::Byte::TypeKind::Ref &&
          buffer_len->result_type == Simple::Byte::TypeKind::I32 &&
          buffer_write->result_type == Simple::Byte::TypeKind::I32 &&

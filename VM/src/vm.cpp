@@ -2318,93 +2318,41 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       return true;
     }
     if (mod == "System.dl") {
-      auto set_dl_error = [&](const std::string& text) {
-        dl_last_error = text;
-      };
-      if (sym == "open") {
-        if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "System.dl.open return type mismatch";
+      if (sym == "open" || sym == "sym" || sym == "close" || sym == "last_error") {
+        const Simple::VM::Native::NativeFunctionSpec* spec = native_registry.Find(mod, sym);
+        if (!spec) return false;
+        if (spec->result_type == TypeKind::I64 && !IsI64LikeImportType(ret_kind)) {
+          out_error = std::string("System.dl.") + sym + " return type mismatch";
           return false;
         }
-        if (args.size() != 1) {
-          out_error = "System.dl.open arg count mismatch";
+        if (spec->result_type == TypeKind::I32 && !IsI32LikeImportType(ret_kind)) {
+          out_error = std::string("System.dl.") + sym + " return type mismatch";
           return false;
         }
-        uint32_t path_ref = UnpackRef(args[0]);
-        if (path_ref == kNullRef) {
-          set_dl_error("System.dl.open null path");
-          out_ret = PackI64(0);
-          return true;
-        }
-        HeapObject* path_obj = heap.Get(path_ref);
-        if (!path_obj || path_obj->header.kind != ObjectKind::String) {
-          set_dl_error("System.dl.open path not string");
-          out_ret = PackI64(0);
-          return true;
-        }
-        std::string path = U16ToAscii(ReadString(path_obj));
-        out_ret = PackI64(Simple::VM::Ffi::DlRuntime::Open(path, &dl_last_error));
-        return true;
-      }
-      if (sym == "sym") {
-        if (!IsI64LikeImportType(ret_kind)) {
-          out_error = "System.dl.sym return type mismatch";
+        if (spec->result_type == TypeKind::String && !IsStringLikeImportType(ret_kind)) {
+          out_error = std::string("System.dl.") + sym + " return type mismatch";
           return false;
         }
-        if (args.size() != 2) {
-          out_error = "System.dl.sym arg count mismatch";
+        if (args.size() != spec->parameter_types.size()) {
+          out_error = std::string("System.dl.") + sym + " arg count mismatch";
           return false;
         }
-        int64_t handle_bits = UnpackI64(args[0]);
-        if (handle_bits == 0) {
-          set_dl_error("System.dl.sym null handle");
-          out_ret = PackI64(0);
-          return true;
-        }
-        uint32_t name_ref = UnpackRef(args[1]);
-        if (name_ref == kNullRef) {
-          set_dl_error("System.dl.sym null name");
-          out_ret = PackI64(0);
-          return true;
-        }
-        HeapObject* name_obj = heap.Get(name_ref);
-        if (!name_obj || name_obj->header.kind != ObjectKind::String) {
-          set_dl_error("System.dl.sym name not string");
-          out_ret = PackI64(0);
-          return true;
-        }
-        std::string name = U16ToAscii(ReadString(name_obj));
-        out_ret = PackI64(Simple::VM::Ffi::DlRuntime::Symbol(handle_bits, name, &dl_last_error));
-        return true;
-      }
-      if (sym == "close") {
-        if (!IsI32LikeImportType(ret_kind)) {
-          out_error = "System.dl.close return type mismatch";
+        Simple::VM::Native::NativeCallContext context;
+        context.args = args;
+        context.heap = &heap;
+        context.dl_last_error = &dl_last_error;
+        Simple::VM::Native::NativeCallResult result = spec->handler(context);
+        if (!result.ok) {
+          out_error = result.error;
           return false;
         }
-        if (args.size() != 1) {
-          out_error = "System.dl.close arg count mismatch";
-          return false;
+        if (spec->result_type == TypeKind::String) {
+          out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
+                        ? PackRef(kNullRef)
+                        : PackRef(CreateString(heap, AsciiToU16(result.string_value)));
+        } else {
+          out_ret = result.value;
         }
-        int64_t handle_bits = UnpackI64(args[0]);
-        out_ret = PackI32(Simple::VM::Ffi::DlRuntime::Close(handle_bits, &dl_last_error) ? 0 : -1);
-        return true;
-      }
-      if (sym == "last_error") {
-        if (!IsStringLikeImportType(ret_kind)) {
-          out_error = "System.dl.last_error return type mismatch";
-          return false;
-        }
-        if (!args.empty()) {
-          out_error = "System.dl.last_error arg count mismatch";
-          return false;
-        }
-        if (dl_last_error.empty()) {
-          out_ret = PackRef(kNullRef);
-          return true;
-        }
-        uint32_t handle = CreateString(heap, AsciiToU16(dl_last_error));
-        out_ret = PackRef(handle);
         return true;
       }
       if (sym.rfind("call$", 0) == 0) {
@@ -2429,7 +2377,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         int64_t ptr_bits = UnpackI64(args[0]);
         if (ptr_bits == 0) {
           if (dl_last_error.empty()) {
-            set_dl_error("System.dl.call null ptr");
+            dl_last_error = "System.dl.call null ptr";
             out_error = "System.dl.call null ptr";
           } else {
             out_error = "System.dl.call null ptr: " + dl_last_error;

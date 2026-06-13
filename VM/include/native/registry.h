@@ -19,6 +19,7 @@ struct NativeCallContext {
   Heap* heap = nullptr;
   const std::vector<std::string>* argv = nullptr;
   std::vector<std::FILE*>* open_files = nullptr;
+  std::string* dl_last_error = nullptr;
 };
 
 struct NativeCallResult {
@@ -70,6 +71,7 @@ void RegisterSystemEnv(NativeRegistry& registry);
 void RegisterSystemPath(NativeRegistry& registry);
 void RegisterSystemFs(NativeRegistry& registry);
 void RegisterSystemIo(NativeRegistry& registry);
+void RegisterSystemDl(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 
 } // namespace Simple::VM::Native
