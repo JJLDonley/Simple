@@ -1331,6 +1331,37 @@ std::u16string ReadString(const HeapObject* obj) {
 }
 
 
+std::string LookupMethodName(const SbcModule& module, size_t func_index) {
+  if (func_index >= module.functions.size()) return {};
+  const uint32_t method_id = module.functions[func_index].method_id;
+  if (method_id >= module.methods.size()) return {};
+  const uint32_t name_offset = module.methods[method_id].name_str;
+  if (name_offset >= module.const_pool.size()) return {};
+  std::string out;
+  for (size_t pos = name_offset; pos < module.const_pool.size(); ++pos) {
+    const char c = static_cast<char>(module.const_pool[pos]);
+    if (c == '\0') break;
+    out.push_back(c);
+  }
+  return out;
+}
+
+bool ReadU32Operand(const std::vector<uint8_t>& code, size_t offset, uint32_t& out_val) {
+  if (offset + 4 > code.size()) return false;
+  out_val = static_cast<uint32_t>(code[offset]) |
+            (static_cast<uint32_t>(code[offset + 1]) << 8) |
+            (static_cast<uint32_t>(code[offset + 2]) << 16) |
+            (static_cast<uint32_t>(code[offset + 3]) << 24);
+  return true;
+}
+
+bool ReadI32Operand(const std::vector<uint8_t>& code, size_t offset, int32_t& out_val) {
+  uint32_t raw = 0;
+  if (!ReadU32Operand(code, offset, raw)) return false;
+  out_val = static_cast<int32_t>(raw);
+  return true;
+}
+
 ExecResult Trap(const std::string& message) {
   ExecResult result;
   result.status = ExecStatus::Trapped;
@@ -1338,22 +1369,6 @@ ExecResult Trap(const std::string& message) {
     result.error = message;
     return result;
   }
-  auto get_method_name = [&](size_t func_index) -> std::string {
-    if (!g_trap_ctx->module) return {};
-    const auto& module = *g_trap_ctx->module;
-    if (func_index >= module.functions.size()) return {};
-    uint32_t method_id = module.functions[func_index].method_id;
-    if (method_id >= module.methods.size()) return {};
-    uint32_t name_offset = module.methods[method_id].name_str;
-    if (name_offset >= module.const_pool.size()) return {};
-    std::string out;
-    for (size_t pos = name_offset; pos < module.const_pool.size(); ++pos) {
-      char c = static_cast<char>(module.const_pool[pos]);
-      if (c == '\0') break;
-      out.push_back(c);
-    }
-    return out;
-  };
   std::ostringstream out;
   out << message;
   const Simple::VM::Interpreter::FrameState* current = g_trap_ctx->current;
@@ -1374,24 +1389,10 @@ ExecResult Trap(const std::string& message) {
   if (g_trap_ctx->module && g_trap_ctx->last_opcode != 0xFF) {
     const auto& code = g_trap_ctx->module->code;
     size_t op_pc = g_trap_ctx->pc;
-    auto read_u32 = [&](size_t offset, uint32_t& out_val) -> bool {
-      if (offset + 4 > code.size()) return false;
-      out_val = static_cast<uint32_t>(code[offset]) |
-                (static_cast<uint32_t>(code[offset + 1]) << 8) |
-                (static_cast<uint32_t>(code[offset + 2]) << 16) |
-                (static_cast<uint32_t>(code[offset + 3]) << 24);
-      return true;
-    };
-    auto read_i32 = [&](size_t offset, int32_t& out_val) -> bool {
-      uint32_t raw = 0;
-      if (!read_u32(offset, raw)) return false;
-      out_val = static_cast<int32_t>(raw);
-      return true;
-    };
     if (g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::Call)) {
       uint32_t func_id = 0;
       uint32_t arg_count = 0;
-      if (read_u32(op_pc + 1, func_id) && (op_pc + 5) < code.size()) {
+      if (ReadU32Operand(code, op_pc + 1, func_id) && (op_pc + 5) < code.size()) {
         arg_count = code[op_pc + 5];
         out << " operands call func_id=" << func_id << " arg_count=" << arg_count;
       }
@@ -1399,7 +1400,7 @@ ExecResult Trap(const std::string& message) {
                g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpTrue) ||
                g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpFalse)) {
       int32_t rel = 0;
-      if (read_i32(op_pc + 1, rel)) {
+      if (ReadI32Operand(code, op_pc + 1, rel)) {
         int64_t next_pc = static_cast<int64_t>(op_pc + 1 + 4);
         int64_t target = next_pc + rel;
         out << " operands rel=" << rel;
@@ -1412,7 +1413,7 @@ ExecResult Trap(const std::string& message) {
     } else if (g_trap_ctx->last_opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
       uint32_t const_id = 0;
       int32_t def_rel = 0;
-      if (read_u32(op_pc + 1, const_id) && read_i32(op_pc + 5, def_rel)) {
+      if (ReadU32Operand(code, op_pc + 1, const_id) && ReadI32Operand(code, op_pc + 5, def_rel)) {
         int64_t next_pc = static_cast<int64_t>(op_pc + 1 + 8);
         int64_t target = next_pc + def_rel;
         out << " operands table_const=" << const_id << " default_rel=" << def_rel;
@@ -1428,7 +1429,7 @@ ExecResult Trap(const std::string& message) {
     out << " line " << current->line;
     if (current->column > 0) out << ":" << current->column;
   }
-  std::string name = get_method_name(current->func_index);
+  std::string name = g_trap_ctx->module ? LookupMethodName(*g_trap_ctx->module, current->func_index) : std::string{};
   if (!name.empty()) {
     out << " name " << name;
   }
@@ -1437,7 +1438,7 @@ ExecResult Trap(const std::string& message) {
     out << " stack:";
     for (auto it = g_trap_ctx->call_stack->rbegin(); it != g_trap_ctx->call_stack->rend(); ++it) {
       out << " <- func " << it->func_index;
-      std::string caller_name = get_method_name(it->func_index);
+      std::string caller_name = g_trap_ctx->module ? LookupMethodName(*g_trap_ctx->module, it->func_index) : std::string{};
       if (!caller_name.empty()) {
         out << " " << caller_name;
       }
