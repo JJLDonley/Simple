@@ -48,6 +48,16 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
+bool VmRuntimeLimitAndLocalAllocationUseNamedHelpers() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("bool CheckRuntimeSequenceLimit(") != std::string::npos &&
+         text.find("size_t AllocateLocalSlots(") != std::string::npos &&
+         text.find("auto check_sequence_limit = [") == std::string::npos &&
+         text.find("auto alloc_locals = [") == std::string::npos;
+}
+
 bool VmConstantAndGlobalLookupsUseNamedHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -173,6 +183,7 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
+  {"vm_runtime_limit_and_local_allocation_use_named_helpers", VmRuntimeLimitAndLocalAllocationUseNamedHelpers},
   {"vm_constant_and_global_lookups_use_named_helpers", VmConstantAndGlobalLookupsUseNamedHelpers},
   {"vm_execution_stats_use_named_helper", VmExecutionStatsUseNamedHelper},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
