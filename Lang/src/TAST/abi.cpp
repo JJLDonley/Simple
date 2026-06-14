@@ -69,6 +69,37 @@ bool IsSupportedDlAbiType(
   return false;
 }
 
+bool CheckDlDynamicSignature(
+    const Simple::Lang::AST::ExternDecl& ext,
+    const std::unordered_set<std::string>& enum_types,
+    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    std::string* error) {
+  if (!IsSupportedDlAbiType(ext.return_type, enum_types, artifacts, true)) {
+    if (error) {
+      *error = "dynamic DL return type for '" + ext.module + "." + ext.name +
+               "' is not ABI-supported";
+    }
+    return false;
+  }
+  for (const auto& param : ext.params) {
+    if (!IsSupportedDlAbiType(param.type, enum_types, artifacts, false)) {
+      if (error) {
+        *error = "dynamic DL parameter type for '" + ext.module + "." + ext.name +
+                 "' is not ABI-supported";
+      }
+      return false;
+    }
+  }
+  if (ext.params.size() > 254) {
+    if (error) {
+      *error = "dynamic DL symbol '" + ext.module + "." + ext.name +
+               "' currently supports up to 254 ABI parameters";
+    }
+    return false;
+  }
+  return true;
+}
+
 bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
                           Simple::Lang::AST::TypeRef* out) {
   if (!out) return false;

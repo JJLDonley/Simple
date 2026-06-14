@@ -410,8 +410,19 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   if (!Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
   Simple::Lang::AST::TypeRef enum_type = Simple::Lang::TAST::MakeSimpleType("Mode");
   if (!Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, artifacts, false)) return false;
+  Simple::Lang::AST::ExternDecl ext;
+  ext.module = "ffi";
+  ext.name = "add";
+  ext.return_type = Simple::Lang::TAST::MakeSimpleType("i32");
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "x";
+  param.type = point_type;
+  ext.params.push_back(param);
+  if (!Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
   point.fields[0].type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
-  return !Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false);
+  if (Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
+  if (Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
+  return error.find("dynamic DL parameter type for 'ffi.add' is not ABI-supported") != std::string::npos;
 }
 
 

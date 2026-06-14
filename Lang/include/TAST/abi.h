@@ -19,5 +19,10 @@ bool IsSupportedDlAbiType(
     const std::unordered_set<std::string>& enum_types,
     const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
     bool allow_void);
+bool CheckDlDynamicSignature(
+    const Simple::Lang::AST::ExternDecl& ext,
+    const std::unordered_set<std::string>& enum_types,
+    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    std::string* error);
 
 } // namespace Simple::Lang::TAST
