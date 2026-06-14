@@ -127,6 +127,7 @@ using TAST::CheckFunctionCallArgs;
 using TAST::CheckCallTypeArgCount;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
+using TAST::CheckExternAbiType;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckArtifactLiteralDuplicateNamedFields;
 using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
@@ -3461,15 +3462,23 @@ bool ValidateProgram(const Program& program, std::string* error) {
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
-          if (!IsSupportedDlAbiType(decl.ext.return_type, ctx.enum_types, ctx.artifacts, true)) {
-            if (error) *error = "extern ABI return type is not supported";
+          if (!CheckExternAbiType(decl.ext.return_type,
+                                  ctx.enum_types,
+                                  ctx.artifacts,
+                                  true,
+                                  "extern ABI return type is not supported",
+                                  error)) {
             return false;
           }
           for (const auto& param : decl.ext.params) {
             if (!CheckUniqueParamName(param.name, &param_names, "duplicate extern parameter name: ", error)) return false;
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
-            if (!IsSupportedDlAbiType(param.type, ctx.enum_types, ctx.artifacts, false)) {
-              if (error) *error = "extern ABI parameter type is not supported";
+            if (!CheckExternAbiType(param.type,
+                                    ctx.enum_types,
+                                    ctx.artifacts,
+                                    false,
+                                    "extern ABI parameter type is not supported",
+                                    error)) {
               return false;
             }
           }

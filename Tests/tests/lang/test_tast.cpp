@@ -754,8 +754,25 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   param.type = point_type;
   ext.params.push_back(param);
   if (!Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
+  if (!Simple::Lang::TAST::CheckExternAbiType(point_type,
+                                             enum_types,
+                                             artifacts,
+                                             false,
+                                             "extern ABI parameter type is not supported",
+                                             &error)) {
+    return false;
+  }
   point.fields[0].type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
   if (Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
+  if (Simple::Lang::TAST::CheckExternAbiType(point_type,
+                                             enum_types,
+                                             artifacts,
+                                             false,
+                                             "extern ABI parameter type is not supported",
+                                             &error)) {
+    return false;
+  }
+  if (error.find("extern ABI parameter type is not supported") == std::string::npos) return false;
   if (Simple::Lang::TAST::CheckDlDynamicSignature(ext, enum_types, artifacts, &error)) return false;
   return error.find("dynamic DL parameter type for 'ffi.add' is not ABI-supported") != std::string::npos;
 }

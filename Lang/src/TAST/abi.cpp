@@ -69,6 +69,20 @@ bool IsSupportedDlAbiType(
   return false;
 }
 
+bool CheckExternAbiType(
+    const Simple::Lang::AST::TypeRef& type,
+    const std::unordered_set<std::string>& enum_types,
+    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    bool allow_void,
+    const std::string& error_message,
+    std::string* error) {
+  if (!IsSupportedDlAbiType(type, enum_types, artifacts, allow_void)) {
+    if (error) *error = error_message;
+    return false;
+  }
+  return true;
+}
+
 bool CheckDlDynamicSignature(
     const Simple::Lang::AST::ExternDecl& ext,
     const std::unordered_set<std::string>& enum_types,
