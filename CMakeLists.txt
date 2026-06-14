@@ -39,6 +39,7 @@ set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/Lang)
 set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
+  ${SIMPLEVM_VM_ROOT}/src/ffi/dl_call.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_runtime.cpp
   ${SIMPLEVM_VM_ROOT}/src/gc/root_tracer.cpp
   ${SIMPLEVM_VM_ROOT}/src/gc/stack_map_collection.cpp

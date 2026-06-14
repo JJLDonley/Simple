@@ -72,6 +72,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Move string encoding helpers into `VM/src/heap.cpp`.
   - [x] Move const-pool string decoding into `Byte/src/sbc_loader.cpp`.
   - [x] Move slot/value packing helpers into `VM/include/runtime/values.h`.
+  - [x] Move dynamic DL/FFI call machinery into `VM/src/ffi/dl_call.cpp`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [x] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 

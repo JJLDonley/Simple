@@ -28,6 +28,23 @@ bool VmRuntimeDispatchesRegisteredNativesByMetadataFirst() {
          vm_text.find("struct NativeMetadataDispatchContext") == std::string::npos;
 }
 
+bool VmDynamicDlDispatchLivesInFfiModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/ffi/dl_call.h");
+  std::ifstream source("VM/src/ffi/dl_call.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("DispatchDynamicDlCall(") != std::string::npos &&
+         source_text.find("bool DispatchDynamicDlCall(") != std::string::npos &&
+         source_text.find("struct DlAbiCache") != std::string::npos &&
+         source_text.find("ConvertDlArg") != std::string::npos &&
+         vm_text.find("bool DispatchDynamicDlCall(") == std::string::npos &&
+         vm_text.find("struct DlAbiCache") == std::string::npos &&
+         vm_text.find("ConvertDlArg") == std::string::npos;
+}
+
 bool VmRuntimeHasNoNativeStdlibForwardingGlue() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -75,6 +92,7 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
 
 const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_dispatches_registered_natives_by_metadata_first", VmRuntimeDispatchesRegisteredNativesByMetadataFirst},
+  {"vm_dynamic_dl_dispatch_lives_in_ffi_module", VmDynamicDlDispatchLivesInFfiModule},
   {"vm_runtime_has_no_native_stdlib_forwarding_glue", VmRuntimeHasNoNativeStdlibForwardingGlue},
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
