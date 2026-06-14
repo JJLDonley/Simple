@@ -63,7 +63,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Replace JIT failure operand-reader lambdas with named helpers.
   - [x] Move execution-result finalizer into `VM/src/runtime/execution_stats.cpp`.
   - [x] Replace constant-string/global lookup lambdas with named helpers.
-  - [x] Replace runtime-limit/local allocation lambdas with named helpers.
+  - [x] Move runtime-limit/local allocation helpers into runtime/interpreter modules.
   - [x] Move interpreter frame setup/local allocation helpers into `VM/src/interpreter/frames.cpp`.
   - [x] Move GC stack-map collection helpers into `VM/src/gc/stack_map_collection.cpp`.
   - [x] Move JIT tier-update helper into `VM/src/jit/tier_updater.cpp`.

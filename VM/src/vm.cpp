@@ -1378,10 +1378,6 @@ ExecResult Trap(const std::string& message) {
 
 } // namespace
 
-bool CheckRuntimeSequenceLimit(const Simple::VM::RuntimeLimits& limits, uint32_t count) {
-  return Simple::VM::Runtime::CheckSequenceLimit(limits, count);
-}
-
 bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               const ExecOptions& options,
                               const Simple::VM::Native::NativeRegistry& native_registry,
@@ -3665,7 +3661,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArray: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 4;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -3678,7 +3674,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArrayF64: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 8;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -3691,7 +3687,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewArrayRef: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t length = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, length)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 4 + length * 4;
         uint32_t handle = heap.Allocate(ObjectKind::Array, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -3852,7 +3848,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewList: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 4;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -3866,7 +3862,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewListF64: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 8;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
@@ -3880,7 +3876,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::NewListRef: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);
-        if (!CheckRuntimeSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
         uint32_t size = 8 + capacity * 4;
         uint32_t handle = heap.Allocate(ObjectKind::List, type_id, size);
         HeapObject* obj = heap.Get(handle);
