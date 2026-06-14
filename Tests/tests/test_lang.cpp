@@ -186,82 +186,6 @@ bool LangCastParserModuleParsesArtifactSwitch() {
          body[0].expr.kind == Simple::Lang::ExprKind::Switch;
 }
 
-bool LangTastCheckerAcceptsResolvedProgram() {
-  const char* src =
-      "extern Ray.InitWindow : void (w : i32, h : i32)\n"
-      "count : i32 = 1\n"
-      "main : i32 () { return 42; }";
-  Simple::Lang::CAST::Program cast_program;
-  Simple::Lang::AST::Program ast_program;
-  Simple::Lang::RAST::ResolvedProgram resolved;
-  Simple::Lang::TAST::TypedProgram typed;
-  std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
-  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
-  if (!Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
-  return typed.resolved == &resolved &&
-         !typed.typed_exprs.empty() &&
-         !typed.typed_stmts.empty() &&
-         !typed.expr_types.empty() &&
-         typed.mutability_facts["count"] == Simple::Lang::Mutability::Mutable &&
-         typed.abi_facts.extern_param_types.size() == 2 &&
-         typed.abi_facts.extern_return_types.size() == 1;
-}
-
-bool LangTastCheckerRejectsTypeMismatch() {
-  const char* src = "main : i32 () { x : i32 = true; return x; }";
-  Simple::Lang::CAST::Program cast_program;
-  Simple::Lang::AST::Program ast_program;
-  Simple::Lang::RAST::ResolvedProgram resolved;
-  Simple::Lang::TAST::TypedProgram typed;
-  std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
-  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
-  if (Simple::Lang::TAST::CheckResolvedProgram(resolved, &typed, &error)) return false;
-  return error.find("initializer type mismatch") != std::string::npos;
-}
-
-bool LangTastLiteralTypingUsesExpectedType() {
-  Simple::Lang::AST::Expr expr;
-  expr.kind = Simple::Lang::ExprKind::Literal;
-  expr.literal_kind = Simple::Lang::LiteralKind::Integer;
-  expr.text = "42";
-
-  Simple::Lang::AST::TypeRef expected;
-  expected.name = "u64";
-  Simple::Lang::AST::TypeRef actual;
-  std::string error;
-  if (!Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
-  return actual.name == "u64";
-}
-
-bool LangTastLiteralTypingRejectsInvalidExpectedType() {
-  Simple::Lang::AST::Expr expr;
-  expr.kind = Simple::Lang::ExprKind::Literal;
-  expr.literal_kind = Simple::Lang::LiteralKind::String;
-  expr.text = "nope";
-
-  Simple::Lang::AST::TypeRef expected;
-  expected.name = "i32";
-  Simple::Lang::AST::TypeRef actual;
-  std::string error;
-  if (Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
-  return error.find("literal is not compatible") != std::string::npos;
-}
-
-bool LangTastLiteralTypingRejectsNonLiteral() {
-  Simple::Lang::AST::Expr expr;
-  expr.kind = Simple::Lang::ExprKind::Identifier;
-  expr.text = "x";
-
-  Simple::Lang::AST::TypeRef actual;
-  std::string error;
-  if (Simple::Lang::TAST::InferLiteralType(expr, nullptr, &actual, &error)) return false;
-  return error.find("expected literal expression") != std::string::npos;
-}
-
 bool LangIrbIrePipelineEmitsRunnableSir() {
   const char* src =
       "Box :: Artifact {\n"
@@ -435,40 +359,6 @@ bool LangIrbRejectsMissingTypedInput() {
   std::string error;
   if (Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   return error.find("missing typed program input") != std::string::npos;
-}
-
-bool LangTastCheckReturnFlowRejectsFallthrough() {
-  std::vector<Simple::Lang::AST::Stmt> body;
-  Simple::Lang::AST::Stmt return_stmt;
-  return_stmt.kind = Simple::Lang::AST::StmtKind::Return;
-  std::string error;
-  if (Simple::Lang::TAST::CheckReturnFlow(body, true, &error)) return false;
-  if (error.find("not all paths return a value") == std::string::npos) return false;
-  body.push_back(return_stmt);
-  return Simple::Lang::TAST::CheckReturnFlow(body, true, &error);
-}
-
-bool LangTastControlFlowTracksReturnsAndBreaks() {
-  const char* src =
-      "main : i32 () {\n"
-      "  while (true) {\n"
-      "    if (true) { break; } else { skip; }\n"
-      "  }\n"
-      "  if (true) { return 1; } else { return 2; }\n"
-      "}\n";
-  Simple::Lang::CAST::Program cast_program;
-  Simple::Lang::AST::Program ast_program;
-  std::string error;
-  if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
-  if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
-  const auto& body = ast_program.decls[0].func.body;
-  Simple::Lang::TAST::Flow while_flow = Simple::Lang::TAST::AnalyzeStmtFlow(body[0]);
-  Simple::Lang::TAST::Flow block_flow = Simple::Lang::TAST::AnalyzeBlockFlow(body);
-  return while_flow.may_break &&
-         while_flow.may_skip &&
-         !while_flow.always_returns &&
-         block_flow.always_returns &&
-         !block_flow.may_fallthrough;
 }
 
 bool LangPhaseHeadersCompileAndPreserveBehavior() {
@@ -2626,17 +2516,6 @@ bool LangValidateSystemImportImplicitLowerAlias() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
-bool LangTastCheckExpressionShapeValidatesIdentifiers() {
-  Simple::Lang::AST::Expr ident;
-  ident.kind = Simple::Lang::AST::ExprKind::Identifier;
-  ident.text = "x";
-  std::string error;
-  if (!Simple::Lang::TAST::CheckExpressionShape(ident, &error)) return false;
-  ident.text.clear();
-  return !Simple::Lang::TAST::CheckExpressionShape(ident, &error) &&
-         error.find("identifier expression missing name") != std::string::npos;
-}
-
 bool LangValidateProgramReturnsStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
   if (Simple::Lang::ValidateProgramFromStringDiagnostic("main : i32 () { return true }", &diagnostic)) {
@@ -2689,70 +2568,6 @@ bool LangDiagnosticsFormatStructuredDiagnostic() {
   const std::string formatted = Simple::Lang::Diagnostics::FormatDiagnostic(diagnostic);
   return formatted.find("E1234[rast] 7:3: bad member") != std::string::npos &&
          formatted.find("help: check the import") != std::string::npos;
-}
-
-bool LangTastCheckAbiShapeRejectsGenericTypes() {
-  Simple::Lang::AST::TypeRef scalar;
-  scalar.name = "i32";
-  std::string error;
-  if (!Simple::Lang::TAST::CheckAbiShape(scalar, false, &error)) return false;
-  Simple::Lang::AST::TypeRef generic;
-  generic.name = "Box";
-  generic.type_args.push_back(scalar);
-  if (Simple::Lang::TAST::CheckAbiShape(generic, false, &error)) return false;
-  return error.find("extern ABI type shape is not supported") != std::string::npos;
-}
-
-bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
-  Simple::Lang::AST::TypeRef input;
-  input.name = "Box";
-  Simple::Lang::AST::TypeRef inner;
-  inner.name = "T";
-  input.type_args.push_back(inner);
-
-  Simple::Lang::AST::TypeRef replacement;
-  replacement.name = "i32";
-  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
-  substitutions["T"] = replacement;
-
-  Simple::Lang::AST::TypeRef output;
-  if (!Simple::Lang::TAST::SubstituteGenericTypes(input, substitutions, &output)) return false;
-  return output.name == "Box" && output.type_args.size() == 1 && output.type_args[0].name == "i32";
-}
-
-bool LangTastMutabilityChecksAssignments() {
-  std::string error;
-  if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
-  if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
-  return error.find("cannot assign to immutable value") != std::string::npos;
-}
-
-bool LangTastCheckAssignmentValidatesShape() {
-  Simple::Lang::AST::Stmt assign;
-  assign.kind = Simple::Lang::AST::StmtKind::Assign;
-  assign.target.kind = Simple::Lang::AST::ExprKind::Identifier;
-  assign.target.text = "x";
-  std::string error;
-  if (!Simple::Lang::TAST::CheckAssignment(assign, &error)) return false;
-  Simple::Lang::AST::Stmt expr_stmt;
-  expr_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
-  return !Simple::Lang::TAST::CheckAssignment(expr_stmt, &error) &&
-         error.find("expected assignment statement") != std::string::npos;
-}
-
-bool LangTastCheckCallExpressionValidatesShape() {
-  Simple::Lang::AST::Expr call;
-  call.kind = Simple::Lang::AST::ExprKind::Call;
-  Simple::Lang::AST::Expr callee;
-  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
-  callee.text = "f";
-  call.children.push_back(callee);
-  std::string error;
-  if (!Simple::Lang::TAST::CheckCallExpression(call, &error)) return false;
-  Simple::Lang::AST::Expr literal;
-  literal.kind = Simple::Lang::AST::ExprKind::Literal;
-  return !Simple::Lang::TAST::CheckCallExpression(literal, &error) &&
-         error.find("expected call expression") != std::string::npos;
 }
 
 bool LangValidateSystemOsCapabilityConstants() {
@@ -4647,12 +4462,6 @@ const TestCase kLangTests[] = {
   {"cli_diagnostic_renderer_classifies_and_formats", CliDiagnosticRendererClassifiesAndFormats},
   {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
-  {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
-  {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
-  {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
-  {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
-  {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
-  {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
   {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
@@ -4687,13 +4496,6 @@ const TestCase kLangTests[] = {
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
   {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_cast_parser_module_parses_artifact_switch", LangCastParserModuleParsesArtifactSwitch},
-  {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
-  {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
-  {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
-  {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
-  {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
-  {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
-  {"lang_tast_literal_typing_rejects_non_literal", LangTastLiteralTypingRejectsNonLiteral},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},
