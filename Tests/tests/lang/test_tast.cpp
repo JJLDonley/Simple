@@ -335,6 +335,15 @@ bool LangTastCheckCallExpressionValidatesShape() {
   if (Simple::Lang::TAST::CheckProcTypeArgs(&proc, 2, &error)) return false;
   if (error.find("call argument count mismatch") == std::string::npos) return false;
 
+  Simple::Lang::AST::FuncDecl fn;
+  fn.name = "f";
+  Simple::Lang::AST::ParamDecl fn_param;
+  fn_param.name = "x";
+  fn.params.push_back(fn_param);
+  if (!Simple::Lang::TAST::CheckFunctionCallArgs(&fn, 1, &error)) return false;
+  if (Simple::Lang::TAST::CheckFunctionCallArgs(&fn, 0, &error)) return false;
+  if (error.find("call argument count mismatch for f") == std::string::npos) return false;
+
   Simple::Lang::AST::Expr call;
   call.kind = Simple::Lang::AST::ExprKind::Call;
   Simple::Lang::AST::Expr callee;

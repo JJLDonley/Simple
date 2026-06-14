@@ -8,6 +8,9 @@
 namespace Simple::Lang::TAST {
 
 bool CheckCallExpression(const Expr& expr, std::string* error);
+bool CheckFunctionCallArgs(const Simple::Lang::AST::FuncDecl* fn,
+                           size_t arg_count,
+                           std::string* error);
 bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error);
 
 } // namespace Simple::Lang::TAST

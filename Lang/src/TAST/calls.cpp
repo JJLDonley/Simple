@@ -2,6 +2,20 @@
 
 namespace Simple::Lang::TAST {
 
+bool CheckFunctionCallArgs(const Simple::Lang::AST::FuncDecl* fn,
+                           size_t arg_count,
+                           std::string* error) {
+  if (!fn) return false;
+  if (fn->params.size() != arg_count) {
+    if (error) {
+      *error = "call argument count mismatch for " + fn->name + ": expected " +
+               std::to_string(fn->params.size()) + ", got " + std::to_string(arg_count);
+    }
+    return false;
+  }
+  return true;
+}
+
 bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error) {
   if (!type || !type->is_proc) return false;
   if (type->proc_params.size() != arg_count) {

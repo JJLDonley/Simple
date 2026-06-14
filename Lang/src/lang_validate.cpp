@@ -100,6 +100,7 @@ enum class TypeUse : uint8_t {
 
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
+using TAST::CheckFunctionCallArgs;
 using TAST::CheckProcTypeArgs;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
@@ -1847,18 +1848,6 @@ const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name
   return nullptr;
 }
 
-bool CheckCallArgs(const FuncDecl* fn, size_t arg_count, std::string* error) {
-  if (!fn) return false;
-  if (fn->params.size() != arg_count) {
-    if (error) {
-      *error = "call argument count mismatch for " + fn->name + ": expected " +
-               std::to_string(fn->params.size()) + ", got " + std::to_string(arg_count);
-    }
-    return false;
-  }
-  return true;
-}
-
 bool CheckCallTarget(const Expr& callee,
                      size_t arg_count,
                      const ValidateContext& ctx,
@@ -1882,7 +1871,7 @@ bool CheckCallTarget(const Expr& callee,
     }
     auto fn_it = ctx.functions.find(callee.text);
     if (fn_it != ctx.functions.end()) {
-      return CheckCallArgs(fn_it->second, arg_count, error);
+      return CheckFunctionCallArgs(fn_it->second, arg_count, error);
     }
     auto ext_it = ctx.externs.find(callee.text);
     if (ext_it != ctx.externs.end()) {
@@ -1945,7 +1934,7 @@ bool CheckCallTarget(const Expr& callee,
       }
       if (base.text == "self") {
         const FuncDecl* method = FindArtifactMethod(current_artifact, callee.text);
-        if (method) return CheckCallArgs(method, arg_count, error);
+        if (method) return CheckFunctionCallArgs(method, arg_count, error);
         if (FindArtifactField(current_artifact, callee.text)) {
           if (error) *error = "attempt to call non-function: self." + callee.text;
           return false;
@@ -1979,7 +1968,7 @@ bool CheckCallTarget(const Expr& callee,
       auto module_it = ctx.modules.find(base.text);
       if (module_it != ctx.modules.end()) {
         const FuncDecl* fn = FindModuleFunc(module_it->second, callee.text);
-        if (fn) return CheckCallArgs(fn, arg_count, error);
+        if (fn) return CheckFunctionCallArgs(fn, arg_count, error);
         if (FindModuleVar(module_it->second, callee.text)) {
           const VarDecl* var = FindModuleVar(module_it->second, callee.text);
           if (var && var->type.is_proc) {
@@ -2041,7 +2030,7 @@ bool CheckCallTarget(const Expr& callee,
         auto artifact_it = ctx.artifacts.find(local->type->name);
         const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
         const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
-        if (method) return CheckCallArgs(method, arg_count, error);
+        if (method) return CheckFunctionCallArgs(method, arg_count, error);
         if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
           if (field->type.is_proc) {
             return CheckProcTypeArgs(&field->type, arg_count, error);
@@ -2056,7 +2045,7 @@ bool CheckCallTarget(const Expr& callee,
         auto artifact_it = ctx.artifacts.find(global_it->second->type.name);
         const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
         const FuncDecl* method = FindArtifactMethod(artifact, callee.text);
-        if (method) return CheckCallArgs(method, arg_count, error);
+        if (method) return CheckFunctionCallArgs(method, arg_count, error);
         if (const VarDecl* field = FindArtifactField(artifact, callee.text)) {
           if (field->type.is_proc) {
             return CheckProcTypeArgs(&field->type, arg_count, error);
