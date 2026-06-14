@@ -95,12 +95,12 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `5` | `Ref` | `ref` | heap reference |
 | ✅ | `6` | `I8` | `i8` | signed integer |
 | ✅ | `7` | `I16` | `i16` | signed integer |
-| ✅ | `8` | `I128` | `i128` | signed integer metadata |
+| ☐ | retired | `I128` | `i128` | not planned at this time |
 | ✅ | `9` | `U8` | `u8` | unsigned integer |
 | ✅ | `10` | `U16` | `u16` | unsigned integer |
 | ✅ | `11` | `U32` | `u32` | unsigned integer |
 | ✅ | `12` | `U64` | `u64` | unsigned integer |
-| ✅ | `13` | `U128` | `u128` | unsigned integer metadata |
+| ☐ | retired | `U128` | `u128` | not planned at this time |
 | ✅ | `14` | `Bool` | `bool` | boolean |
 | ✅ | `15` | `Char` | `char` | current 16-bit char payload |
 | ✅ | `16` | `String` | `string` | string reference |
@@ -170,7 +170,9 @@ Status values:
 - `◐`: typed family is partially implemented for the listed `Code | T` mappings.
 - `☐`: planned opcode family with no assigned opcode yet.
 
-`<T>` means a typed opcode family over the relevant scalar/reference payload set instead of listing every scalar spelling. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
+`<T>` means a typed opcode family over the relevant scalar/reference payload set instead of listing every scalar spelling. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 u8 u16 u32 u64 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
+
+`i128`/`u128` opcode/type slots are retired from the active plan. They may remain visible in historical enum values for compatibility, but new IR/SBC work must not add 128-bit integer lowering until the type is deliberately reintroduced.
 
 ### Control and frame
 
@@ -212,12 +214,12 @@ Immediate constants, constant-pool references, and planned typed data/blob const
 | ✅ | `0x19` | `ConstI16` | 2 | 0 | 1 |
 | ✅ | `0x1A` | `ConstI32` | 4 | 0 | 1 |
 | ✅ | `0x1B` | `ConstI64` | 8 | 0 | 1 |
-| ✅ | `0x1C` | `ConstI128` | 4 | 0 | 1 |
+| ☐ | retired | `ConstI128` | 4 | 0 | 1 |
 | ✅ | `0x1D` | `ConstU8` | 1 | 0 | 1 |
 | ✅ | `0x1E` | `ConstU16` | 2 | 0 | 1 |
 | ✅ | `0x1F` | `ConstU32` | 4 | 0 | 1 |
 | ✅ | `0x20` | `ConstU64` | 8 | 0 | 1 |
-| ✅ | `0x21` | `ConstU128` | 4 | 0 | 1 |
+| ☐ | retired | `ConstU128` | 4 | 0 | 1 |
 | ✅ | `0x22` | `ConstF32` | 4 | 0 | 1 |
 | ✅ | `0x23` | `ConstF64` | 8 | 0 | 1 |
 | ✅ | `0x24` | `ConstBool` | 1 | 0 | 1 |

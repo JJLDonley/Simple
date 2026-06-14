@@ -87,7 +87,9 @@ Status values:
 
 `Code` is the emitted SBC opcode byte when assigned. `typed` means the row is a collapsed typed family whose assigned concrete opcode bytes are listed below that row.
 
-`<T>` means a typed instruction family over the relevant scalar/reference payload set instead of listing every scalar spelling inline. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
+SIR is intended to stay generic and typed. It should use forms such as `array.get i64` or `list.push f32`; the IR/SBC compiler chooses the concrete SBC opcode (`ArrayGetI64`, `ListPushF32`, etc.). Concrete bytecode suffix mnemonics are compatibility/parser details, not the preferred IR surface.
+
+`<T>` means a typed instruction family over the relevant scalar/reference payload set instead of listing every scalar spelling inline. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 u8 u16 u32 u64 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
 
 ## Formal SIR grammar
 
@@ -144,12 +146,10 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | `ref` | `Ref` / `5` | word | heap reference |
 | ✅ | `i8` | `I8` / `6` | 1 | signed integer |
 | ✅ | `i16` | `I16` / `7` | 2 | signed integer |
-| ✅ | `i128` | `I128` / `8` | 16 | currently represented through metadata/runtime support where available |
 | ✅ | `u8` | `U8` / `9` | 1 | unsigned integer |
 | ✅ | `u16` | `U16` / `10` | 2 | unsigned integer |
 | ✅ | `u32` | `U32` / `11` | 4 | unsigned integer |
 | ✅ | `u64` | `U64` / `12` | 8 | unsigned integer |
-| ✅ | `u128` | `U128` / `13` | 16 | currently represented through metadata/runtime support where available |
 | ✅ | `bool` | `Bool` / `14` | 1 | boolean |
 | ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
 | ✅ | `string` | `String` / `16` | ref | string reference |
@@ -684,42 +684,42 @@ Fixed-size array allocation and element access.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `newarray.<T>` | `type/length operands vary` | `NewArray<T>` | partially implemented typed family |
+| ◐ | `typed` | `newarray <T> <length>` | `type, length` | `NewArray<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xB1` | `array.len` | `none` | `ArrayLen` |  |
-| ◐ | `typed` | `array.get.<T>` | `none` | `ArrayGet<T>` | partially implemented typed family |
-| ◐ | `typed` | `array.set.<T>` | `none` | `ArraySet<T>` | partially implemented typed family |
-| ☐ | `TBD` | `array.copy.<T>` | `none` | `ArrayCopy<T>` | planned |
-| ☐ | `TBD` | `array.fill.<T>` | `none` | `ArrayFill<T>` | planned |
+| ◐ | `typed` | `array.get <T>` | `type` | `ArrayGet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `array.set <T>` | `type` | `ArraySet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ☐ | `TBD` | `array.copy <T>` | `type` | `ArrayCopy<T>` | planned |
+| ☐ | `TBD` | `array.fill <T>` | `type` | `ArrayFill<T>` | planned |
 
-newarray.<T> codes:
-
-| Code | T | Syntax |
-|---:|---|---|
-| `0xB0` | `generic` | `newarray <type> <len>` |
-| `0xB4` | `i64` | `newarray.i64 <len>` |
-| `0xB7` | `f32` | `newarray.f32 <len>` |
-| `0xBA` | `f64` | `newarray.f64 <len>` |
-| `0xBD` | `ref` | `newarray.ref <type> <len>` |
-
-array.get.<T> codes:
+newarray <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xB2` | `i32` | `array.get.i32` |
-| `0xB5` | `i64` | `array.get.i64` |
-| `0xB8` | `f32` | `array.get.f32` |
-| `0xBB` | `f64` | `array.get.f64` |
-| `0xBE` | `ref` | `array.get.ref` |
+| `0xB0` | `generic` | `newarray i32 <length>` |
+| `0xB4` | `i64` | `newarray i64 <length>` |
+| `0xB7` | `f32` | `newarray f32 <length>` |
+| `0xBA` | `f64` | `newarray f64 <length>` |
+| `0xBD` | `ref` | `newarray ref <type> <length>` |
 
-array.set.<T> codes:
+array.get <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xB3` | `i32` | `array.set.i32` |
-| `0xB6` | `i64` | `array.set.i64` |
-| `0xB9` | `f32` | `array.set.f32` |
-| `0xBC` | `f64` | `array.set.f64` |
-| `0xBF` | `ref` | `array.set.ref` |
+| `0xB2` | `i32` | `array.get i32` |
+| `0xB5` | `i64` | `array.get i64` |
+| `0xB8` | `f32` | `array.get f32` |
+| `0xBB` | `f64` | `array.get f64` |
+| `0xBE` | `ref` | `array.get ref` |
+
+array.set <T> SBC selection:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xB3` | `i32` | `array.set i32` |
+| `0xB6` | `i64` | `array.set i64` |
+| `0xB9` | `f32` | `array.set f32` |
+| `0xBC` | `f64` | `array.set f64` |
+| `0xBF` | `ref` | `array.set ref` |
 
 ### Lists
 
@@ -727,87 +727,87 @@ Growable list allocation and element operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `newlist.<T>` | `type/capacity operands vary` | `NewList<T>` | partially implemented typed family |
+| ◐ | `typed` | `newlist <T> <capacity>` | `type, capacity` | `NewList<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC1` | `list.len` | `none` | `ListLen` |  |
-| ◐ | `typed` | `list.get.<T>` | `none` | `ListGet<T>` | partially implemented typed family |
-| ◐ | `typed` | `list.set.<T>` | `none` | `ListSet<T>` | partially implemented typed family |
-| ◐ | `typed` | `list.push.<T>` | `none` | `ListPush<T>` | partially implemented typed family |
-| ◐ | `typed` | `list.pop.<T>` | `none` | `ListPop<T>` | partially implemented typed family |
-| ◐ | `typed` | `list.insert.<T>` | `none` | `ListInsert<T>` | partially implemented typed family |
-| ◐ | `typed` | `list.remove.<T>` | `none` | `ListRemove<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.get <T>` | `type` | `ListGet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `list.set <T>` | `type` | `ListSet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `list.push <T>` | `type` | `ListPush<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `list.pop <T>` | `type` | `ListPop<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `list.insert <T>` | `type` | `ListInsert<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ◐ | `typed` | `list.remove <T>` | `type` | `ListRemove<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC8` | `list.clear` | `none` | `ListClear` |  |
 | ☐ | `TBD` | `list.reserve` | `capacity` | `ListReserve` | planned |
 | ☐ | `TBD` | `list.resize` | `size fill` | `ListResize` | planned |
 
-newlist.<T> codes:
+newlist <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x36` | `ref` | `newlist.ref` |
-| `0xA8` | `f64` | `newlist.f64` |
-| `0xC0` | `i32` | `newlist <type> <capacity>` |
-| `0xC9` | `f32` | `newlist.f32` |
-| `0xD9` | `i64` | `newlist.i64` |
+| `0x36` | `ref` | `newlist ref` |
+| `0xA8` | `f64` | `newlist f64` |
+| `0xC0` | `i32` | `newlist i32 <capacity>` |
+| `0xC9` | `f32` | `newlist f32` |
+| `0xD9` | `i64` | `newlist i64` |
 
-list.get.<T> codes:
-
-| Code | T | Syntax |
-|---:|---|---|
-| `0x37` | `ref` | `list.get.ref` |
-| `0xA9` | `f64` | `list.get.f64` |
-| `0xC2` | `i32` | `list.get.i32` |
-| `0xCA` | `f32` | `list.get.f32` |
-| `0xDA` | `i64` | `list.get.i64` |
-
-list.set.<T> codes:
+list.get <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x38` | `ref` | `list.set.ref` |
-| `0xAA` | `f64` | `list.set.f64` |
-| `0xC3` | `i32` | `list.set.i32` |
-| `0xCB` | `f32` | `list.set.f32` |
-| `0xDB` | `i64` | `list.set.i64` |
+| `0x37` | `ref` | `list.get ref` |
+| `0xA9` | `f64` | `list.get f64` |
+| `0xC2` | `i32` | `list.get i32` |
+| `0xCA` | `f32` | `list.get f32` |
+| `0xDA` | `i64` | `list.get i64` |
 
-list.push.<T> codes:
-
-| Code | T | Syntax |
-|---:|---|---|
-| `0x39` | `ref` | `list.push.ref` |
-| `0xAB` | `f64` | `list.push.f64` |
-| `0xC4` | `i32` | `list.push.i32` |
-| `0xCC` | `f32` | `list.push.f32` |
-| `0xDC` | `i64` | `list.push.i64` |
-
-list.pop.<T> codes:
+list.set <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x3A` | `ref` | `list.pop.ref` |
-| `0xAC` | `f64` | `list.pop.f64` |
-| `0xC5` | `i32` | `list.pop.i32` |
-| `0xCD` | `f32` | `list.pop.f32` |
-| `0xDD` | `i64` | `list.pop.i64` |
+| `0x38` | `ref` | `list.set ref` |
+| `0xAA` | `f64` | `list.set f64` |
+| `0xC3` | `i32` | `list.set i32` |
+| `0xCB` | `f32` | `list.set f32` |
+| `0xDB` | `i64` | `list.set i64` |
 
-list.insert.<T> codes:
-
-| Code | T | Syntax |
-|---:|---|---|
-| `0x3B` | `ref` | `list.insert.ref` |
-| `0xAD` | `f64` | `list.insert.f64` |
-| `0xC6` | `i32` | `list.insert.i32` |
-| `0xCE` | `f32` | `list.insert.f32` |
-| `0xDE` | `i64` | `list.insert.i64` |
-
-list.remove.<T> codes:
+list.push <T> SBC selection:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x3C` | `ref` | `list.remove.ref` |
-| `0xAE` | `f64` | `list.remove.f64` |
-| `0xC7` | `i32` | `list.remove.i32` |
-| `0xCF` | `f32` | `list.remove.f32` |
-| `0xDF` | `i64` | `list.remove.i64` |
+| `0x39` | `ref` | `list.push ref` |
+| `0xAB` | `f64` | `list.push f64` |
+| `0xC4` | `i32` | `list.push i32` |
+| `0xCC` | `f32` | `list.push f32` |
+| `0xDC` | `i64` | `list.push i64` |
+
+list.pop <T> SBC selection:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3A` | `ref` | `list.pop ref` |
+| `0xAC` | `f64` | `list.pop f64` |
+| `0xC5` | `i32` | `list.pop i32` |
+| `0xCD` | `f32` | `list.pop f32` |
+| `0xDD` | `i64` | `list.pop i64` |
+
+list.insert <T> SBC selection:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3B` | `ref` | `list.insert ref` |
+| `0xAD` | `f64` | `list.insert f64` |
+| `0xC6` | `i32` | `list.insert i32` |
+| `0xCE` | `f32` | `list.insert f32` |
+| `0xDE` | `i64` | `list.insert i64` |
+
+list.remove <T> SBC selection:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3C` | `ref` | `list.remove ref` |
+| `0xAE` | `f64` | `list.remove f64` |
+| `0xC7` | `i32` | `list.remove i32` |
+| `0xCF` | `f32` | `list.remove f32` |
+| `0xDF` | `i64` | `list.remove i64` |
 
 ### Strings
 
