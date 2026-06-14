@@ -24,6 +24,13 @@ bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& exp
 bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
                                             const std::unordered_set<std::string>& seen,
                                             std::string* error);
+bool CheckArtifactLiteralKnownField(const std::string& field_name,
+                                    const std::unordered_set<std::string>& valid_fields,
+                                    std::string* error);
+bool CheckArtifactLiteralRequiredField(const std::string& field_name,
+                                       bool has_init_expr,
+                                       const std::unordered_set<std::string>& seen,
+                                       std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

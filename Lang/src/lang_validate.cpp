@@ -129,7 +129,9 @@ using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckArtifactLiteralDuplicateNamedFields;
 using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
+using TAST::CheckArtifactLiteralKnownField;
 using TAST::CheckArtifactLiteralPositionalCount;
+using TAST::CheckArtifactLiteralRequiredField;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
@@ -2184,10 +2186,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
       field_map[field.name] = &field;
     }
     for (const auto& name : expr.field_names) {
-      if (valid.find(name) == valid.end()) {
-        if (error) *error = "unknown artifact field: " + name;
-        return false;
-      }
+      if (!CheckArtifactLiteralKnownField(name, valid, error)) return false;
     }
     for (size_t i = 0; i < expr.field_names.size(); ++i) {
       const auto& name = expr.field_names[i];
@@ -2205,12 +2204,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
     }
   }
   for (const auto& field : artifact->fields) {
-    if (seen.find(field.name) == seen.end()) {
-      if (!field.has_init_expr) {
-        if (error) *error = "missing artifact field: " + field.name;
-        return false;
-      }
-    }
+    if (!CheckArtifactLiteralRequiredField(field.name, field.has_init_expr, seen, error)) return false;
   }
   return true;
 }

@@ -77,6 +77,27 @@ bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
   return true;
 }
 
+bool CheckArtifactLiteralKnownField(const std::string& field_name,
+                                    const std::unordered_set<std::string>& valid_fields,
+                                    std::string* error) {
+  if (valid_fields.find(field_name) == valid_fields.end()) {
+    if (error) *error = "unknown artifact field: " + field_name;
+    return false;
+  }
+  return true;
+}
+
+bool CheckArtifactLiteralRequiredField(const std::string& field_name,
+                                       bool has_init_expr,
+                                       const std::unordered_set<std::string>& seen,
+                                       std::string* error) {
+  if (seen.find(field_name) == seen.end() && !has_init_expr) {
+    if (error) *error = "missing artifact field: " + field_name;
+    return false;
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;

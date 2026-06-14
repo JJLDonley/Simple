@@ -459,7 +459,14 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   std::unordered_set<std::string> seen_fields = {"x"};
   if (Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("x", seen_fields, &shape_error)) return false;
   if (shape_error.find("field specified twice in artifact literal: x") == std::string::npos) return false;
-  return Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("y", seen_fields, &shape_error);
+  if (!Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("y", seen_fields, &shape_error)) return false;
+  if (!Simple::Lang::TAST::CheckArtifactLiteralKnownField("x", seen_fields, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckArtifactLiteralKnownField("z", seen_fields, &shape_error)) return false;
+  if (shape_error.find("unknown artifact field: z") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("x", false, seen_fields, &shape_error)) return false;
+  if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", true, seen_fields, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", false, seen_fields, &shape_error)) return false;
+  return shape_error.find("missing artifact field: z") != std::string::npos;
 }
 
 bool LangTastLiteralTypingUsesExpectedType() {
