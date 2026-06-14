@@ -411,7 +411,14 @@ bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {
   if (!Simple::Lang::TAST::TypesCompatibleForExpr(expected_scalar, actual_scalar, literal)) return false;
 
   expected_scalar.name = "bool";
-  return !Simple::Lang::TAST::TypesCompatibleForExpr(expected_scalar, actual_scalar, literal);
+  if (Simple::Lang::TAST::TypesCompatibleForExpr(expected_scalar, actual_scalar, literal)) return false;
+  std::string error;
+  if (Simple::Lang::TAST::CheckTypesCompatibleForExpr(expected_scalar, actual_scalar, literal,
+                                                       "type mismatch", &error)) return false;
+  if (error != "type mismatch") return false;
+  expected_scalar.name = "i64";
+  return Simple::Lang::TAST::CheckTypesCompatibleForExpr(expected_scalar, actual_scalar, literal,
+                                                         "type mismatch", &error);
 }
 
 bool LangTastLiteralHelpersClassifyBraceAndListShapes() {

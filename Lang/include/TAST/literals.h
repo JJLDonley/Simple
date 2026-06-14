@@ -46,6 +46,11 @@ bool IsLiteralCompatibleWithScalarType(const Simple::Lang::AST::Expr& expr,
 bool TypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
                             const Simple::Lang::AST::TypeRef& actual,
                             const Simple::Lang::AST::Expr& expr);
+bool CheckTypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
+                                 const Simple::Lang::AST::TypeRef& actual,
+                                 const Simple::Lang::AST::Expr& expr,
+                                 const std::string& error_message,
+                                 std::string* error);
 bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr);
 bool CheckArrayLiteralShape(const Simple::Lang::AST::Expr& expr,
                             const std::vector<Simple::Lang::AST::TypeDim>& dims,

@@ -173,6 +173,16 @@ bool TypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
          actual.dims.empty() && IsLiteralCompatibleWithScalarType(expr, expected);
 }
 
+bool CheckTypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
+                                 const Simple::Lang::AST::TypeRef& actual,
+                                 const Simple::Lang::AST::Expr& expr,
+                                 const std::string& error_message,
+                                 std::string* error) {
+  if (TypesCompatibleForExpr(expected, actual, expr)) return true;
+  if (error) *error = error_message;
+  return false;
+}
+
 bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr) {
   return expr.kind == ExprKind::ListLiteral;
 }

@@ -147,6 +147,7 @@ using TAST::CheckIoPrintFormatTemplateArg;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckSingleArgCallCount;
+using TAST::CheckTypesCompatibleForExpr;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -1969,10 +1970,8 @@ bool CheckCallArgTypes(const Expr& call_expr,
     if (!SubstituteTypeParams(info.params[i], mapping, &expected)) return false;
     TypeRef actual;
     if (!InferExprType(call_expr.args[i], ctx, scopes, current_artifact, &actual)) continue;
-    if (!TypesCompatibleForExpr(expected, actual, call_expr.args[i])) {
-      if (error) *error = "call argument type mismatch";
-      return false;
-    }
+    if (!CheckTypesCompatibleForExpr(expected, actual, call_expr.args[i],
+                                     "call argument type mismatch", error)) return false;
   }
   return true;
 }
@@ -2234,10 +2233,8 @@ bool CheckStmt(const Stmt& stmt,
         if (expected_return) {
           TypeRef actual;
           if (InferExprType(stmt.expr, ctx, scopes, current_artifact, &actual)) {
-            if (!TypesCompatibleForExpr(*expected_return, actual, stmt.expr)) {
-              if (error) *error = "return type mismatch";
-              return false;
-            }
+            if (!CheckTypesCompatibleForExpr(*expected_return, actual, stmt.expr,
+                                             "return type mismatch", error)) return false;
           }
         }
         return true;
@@ -2276,10 +2273,9 @@ bool CheckStmt(const Stmt& stmt,
         if (have_target && stmt.expr.kind == ExprKind::FnLiteral) {
           if (!CheckFnLiteralAgainstType(stmt.expr, target_type, error)) return false;
         }
-        if (have_target && have_value && !TypesCompatibleForExpr(target_type, value_type, stmt.expr)) {
-          if (error) *error = "assignment type mismatch";
-          return false;
-        }
+        if (have_target && have_value &&
+            !CheckTypesCompatibleForExpr(target_type, value_type, stmt.expr,
+                                         "assignment type mismatch", error)) return false;
         if (have_target && have_value && stmt.assign_op != "=") {
           std::string op = stmt.assign_op;
           if (!op.empty() && op.back() == '=') op.pop_back();
@@ -2666,10 +2662,8 @@ bool ValidateVarInitExpr(const VarDecl& var,
     have_init_type = true;
   }
   if (have_init_type) {
-    if (!TypesCompatibleForExpr(var.type, init_type, var.init_expr)) {
-      if (error) *error = "initializer type mismatch";
-      return false;
-    }
+    if (!CheckTypesCompatibleForExpr(var.type, init_type, var.init_expr,
+                                     "initializer type mismatch", error)) return false;
   }
   if (var.init_expr.kind == ExprKind::ArtifactLiteral && var.type.dims.empty()) {
     auto artifact_it = ctx.artifacts.find(var.type.name);
@@ -2990,10 +2984,8 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
         if (have_target && have_value &&
-            !TypesCompatibleForExpr(target_type, value_type, expr.children[1])) {
-          if (error) *error = "assignment type mismatch";
-          return false;
-        }
+            !CheckTypesCompatibleForExpr(target_type, value_type, expr.children[1],
+                                         "assignment type mismatch", error)) return false;
         return true;
       }
       return CheckBinaryOpTypes(expr, ctx, scopes, current_artifact, error);
