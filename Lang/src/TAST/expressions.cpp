@@ -1,5 +1,6 @@
 #include "TAST/expressions.h"
 
+#include "TAST/literals.h"
 #include "TAST/types.h"
 
 namespace Simple::Lang::TAST {
@@ -28,6 +29,101 @@ bool CheckCompoundAssignOp(const std::string& op,
     if (error) *error = "assignment type mismatch";
     return false;
   }
+  if (op == "&&" || op == "||") {
+    if (!IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires bool operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "==" || op == "!=") {
+    if (IsStringTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' does not support string operands";
+      return false;
+    }
+    if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "<" || op == "<=" || op == ">" || op == ">=") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "+" || op == "-" || op == "*" || op == "/") {
+    if (!IsNumericTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "%") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '%' requires integer operands";
+      return false;
+    }
+    return true;
+  }
+  if (op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
+    if (!IsIntegerTypeName(lhs.name)) {
+      if (error) *error = "operator '" + op + "' requires integer operands";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+bool CheckUnaryOpTypeRules(const std::string& expr_op,
+                           const TypeRef& operand,
+                           const Expr& operand_expr,
+                           std::string* error) {
+  const std::string op = expr_op.rfind("post", 0) == 0 ? expr_op.substr(4) : expr_op;
+  if (op == "&") {
+    if (!IsAddressableExpr(operand_expr)) {
+      if (error) *error = "address-of requires assignable expression";
+      return false;
+    }
+    return true;
+  }
+  if (!RequireScalar(operand, expr_op, error)) return false;
+  if (op == "!") {
+    if (!IsBoolTypeName(operand.name)) {
+      if (error) *error = "operator '!' requires bool operand";
+      return false;
+    }
+    return true;
+  }
+  if (op == "++" || op == "--" || op == "-") {
+    if (!IsNumericTypeName(operand.name)) {
+      if (error) *error = "operator '" + op + "' requires numeric operand";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+bool CheckBinaryOpTypeRules(const std::string& op,
+                            const TypeRef& lhs,
+                            const TypeRef& rhs,
+                            const Expr& lhs_expr,
+                            const Expr& rhs_expr,
+                            std::string* error) {
+  if (!RequireScalar(lhs, op, error)) return false;
+  if (!RequireScalar(rhs, op, error)) return false;
+  if (!TypeEquals(lhs, rhs)) {
+    if (!IsLiteralCompatibleWithScalarType(lhs_expr, rhs) &&
+        !IsLiteralCompatibleWithScalarType(rhs_expr, lhs)) {
+      if (error) *error = "operator '" + op + "' requires matching operand types";
+      return false;
+    }
+  }
+
   if (op == "&&" || op == "||") {
     if (!IsBoolTypeName(lhs.name)) {
       if (error) *error = "operator '" + op + "' requires bool operands";

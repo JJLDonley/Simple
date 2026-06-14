@@ -118,7 +118,9 @@ using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
 using TAST::CheckFunctionCallArgs;
+using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckProcTypeArgs;
+using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
 using TAST::CollectTypeParamsMerged;
 using TAST::CountFormatPlaceholders;
@@ -3203,30 +3205,7 @@ bool CheckUnaryOpTypes(const Expr& expr,
   TypeRef operand;
   if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return true;
 
-  const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
-  if (op == "&") {
-    if (!IsAddressableExpr(expr.children[0])) {
-      if (error) *error = "address-of requires assignable expression";
-      return false;
-    }
-    return true;
-  }
-  if (!RequireScalar(operand, expr.op, error)) return false;
-  if (op == "!") {
-    if (!IsBoolTypeName(operand.name)) {
-      if (error) *error = "operator '!' requires bool operand";
-      return false;
-    }
-    return true;
-  }
-  if (op == "++" || op == "--" || op == "-") {
-    if (!IsNumericTypeName(operand.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric operand";
-      return false;
-    }
-    return true;
-  }
-  return true;
+  return CheckUnaryOpTypeRules(expr.op, operand, expr.children[0], error);
 }
 
 bool CheckBinaryOpTypes(const Expr& expr,
@@ -3239,70 +3218,7 @@ bool CheckBinaryOpTypes(const Expr& expr,
   if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &lhs)) return true;
   if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return true;
 
-  if (!RequireScalar(lhs, expr.op, error)) return false;
-  if (!RequireScalar(rhs, expr.op, error)) return false;
-  if (!TypeEquals(lhs, rhs)) {
-    if (!IsLiteralCompatibleWithScalarType(expr.children[0], rhs) &&
-        !IsLiteralCompatibleWithScalarType(expr.children[1], lhs)) {
-      if (error) *error = "operator '" + expr.op + "' requires matching operand types";
-      return false;
-    }
-  }
-
-  const std::string& op = expr.op;
-  if (op == "&&" || op == "||") {
-    if (!IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires bool operands";
-      return false;
-    }
-    return true;
-  }
-
-  if (op == "==" || op == "!=") {
-    if (IsStringTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' does not support string operands";
-      return false;
-    }
-    if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
-      return false;
-    }
-    return true;
-  }
-
-  if (op == "<" || op == "<=" || op == ">" || op == ">=") {
-    if (!IsNumericTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric operands";
-      return false;
-    }
-    return true;
-  }
-
-  if (op == "+" || op == "-" || op == "*" || op == "/") {
-    if (!IsNumericTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric operands";
-      return false;
-    }
-    return true;
-  }
-
-  if (op == "%") {
-    if (!IsIntegerTypeName(lhs.name)) {
-      if (error) *error = "operator '%' requires integer operands";
-      return false;
-    }
-    return true;
-  }
-
-  if (op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
-    if (!IsIntegerTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires integer operands";
-      return false;
-    }
-    return true;
-  }
-
-  return true;
+  return CheckBinaryOpTypeRules(expr.op, lhs, rhs, expr.children[0], expr.children[1], error);
 }
 
 bool LooksLikeFnLiteralStart(const std::vector<Token>& tokens, size_t index) {
