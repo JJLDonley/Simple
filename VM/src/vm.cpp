@@ -1249,6 +1249,35 @@ uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset) {
          (static_cast<uint32_t>(payload[offset + 3]) << 24);
 }
 
+bool LoadConstStringSlot(const SbcModule& module, Heap& heap, uint32_t const_id, Slot& out_value) {
+  const uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+  if (kind != 0) return false;
+  if (const_id + 8 > module.const_pool.size()) return false;
+  const uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
+  if (str_offset >= module.const_pool.size()) return false;
+  const char* base = reinterpret_cast<const char*>(module.const_pool.data() + str_offset);
+  std::u16string text;
+  for (size_t i = 0; str_offset + i < module.const_pool.size(); ++i) {
+    const char c = base[i];
+    if (c == '\0') break;
+    text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
+  }
+  const uint32_t handle = CreateString(heap, text);
+  if (handle == 0xFFFFFFFFu) return false;
+  out_value = PackRef(handle);
+  return true;
+}
+
+bool IsRefLikeGlobal(const SbcModule& module, size_t global_index) {
+  if (global_index >= module.globals.size()) return false;
+  const uint32_t type_id = module.globals[global_index].type_id;
+  if (type_id >= module.types.size()) return false;
+  const auto& row = module.types[type_id];
+  const TypeKind kind = static_cast<TypeKind>(row.kind);
+  if (kind == TypeKind::Ref || kind == TypeKind::String) return true;
+  return kind == TypeKind::Unspecified && (row.flags & 0x1u) != 0u;
+}
+
 uint64_t ReadU64Payload(const std::vector<uint8_t>& payload, size_t offset) {
   return static_cast<uint64_t>(payload[offset]) |
          (static_cast<uint64_t>(payload[offset + 1]) << 8) |
@@ -3397,34 +3426,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     return jit_fail("JIT compiled missing RET", static_cast<uint8_t>(OpCode::Ret), end_pc);
   };
-  auto read_const_string = [&](uint32_t const_id, Slot& out_value) -> bool {
-    uint32_t kind = ReadU32Payload(module.const_pool, const_id);
-    if (kind != 0) return false;
-    if (const_id + 8 > module.const_pool.size()) return false;
-    uint32_t str_offset = ReadU32Payload(module.const_pool, const_id + 4);
-    if (str_offset >= module.const_pool.size()) return false;
-    const char* base = reinterpret_cast<const char*>(module.const_pool.data() + str_offset);
-    std::u16string text;
-    for (size_t i = 0; str_offset + i < module.const_pool.size(); ++i) {
-      char c = base[i];
-      if (c == '\0') break;
-      text.push_back(static_cast<char16_t>(static_cast<unsigned char>(c)));
-    }
-    uint32_t handle = CreateString(heap, text);
-    if (handle == 0xFFFFFFFFu) return false;
-    out_value = PackRef(handle);
-    return true;
-  };
-  auto is_ref_like_global = [&](size_t global_index) -> bool {
-    if (global_index >= module.globals.size()) return false;
-    uint32_t type_id = module.globals[global_index].type_id;
-    if (type_id >= module.types.size()) return false;
-    const auto& row = module.types[type_id];
-    TypeKind kind = static_cast<TypeKind>(row.kind);
-    if (kind == TypeKind::Ref || kind == TypeKind::String) return true;
-    if (kind == TypeKind::Unspecified && (row.flags & 0x1u) != 0u) return true;
-    return false;
-  };
   for (size_t i = 0; i < module.globals.size(); ++i) {
     uint32_t const_id = module.globals[i].init_const_id;
     if (const_id == 0xFFFFFFFFu) continue;
@@ -3432,14 +3433,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     uint32_t kind = ReadU32Payload(module.const_pool, const_id);
     if (kind == 0) {
       Slot value = 0;
-      if (!read_const_string(const_id, value)) return Trap("GLOBAL init string failed");
+      if (!LoadConstStringSlot(module, heap, const_id, value)) return Trap("GLOBAL init string failed");
       globals[i] = value;
       continue;
     }
     if (kind == 3) {
       if (const_id + 8 > module.const_pool.size()) return Trap("GLOBAL init f32 out of bounds");
       uint32_t bits = ReadU32Payload(module.const_pool, const_id + 4);
-      if (bits == 0 && is_ref_like_global(i)) {
+      if (bits == 0 && IsRefLikeGlobal(module, i)) {
         globals[i] = PackRef(kNullRef);
         continue;
       }
@@ -3449,7 +3450,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (kind == 4) {
       if (const_id + 12 > module.const_pool.size()) return Trap("GLOBAL init f64 out of bounds");
       uint64_t bits = ReadU64Payload(module.const_pool, const_id + 4);
-      if (bits == 0 && is_ref_like_global(i)) {
+      if (bits == 0 && IsRefLikeGlobal(module, i)) {
         globals[i] = PackRef(kNullRef);
         continue;
       }
