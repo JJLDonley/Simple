@@ -135,12 +135,12 @@ main : i32 () {
 }
 ```
 
-### File/package headers
+### File/module headers
 
-`package` names a file for import indexing. It does not create a runtime namespace.
+`module` names a file for import indexing. It does not create a runtime namespace.
 
 ```simple
-package Tools.Math
+module Tools.Math
 
 add : i32 (a : i32, b : i32) {
   return a + b
@@ -179,10 +179,10 @@ main : i32 () {
 
 ### Modules
 
-Modules are language namespace objects. They are separate from `package` headers.
+Modules are language namespace objects. They are separate from `module` headers.
 
 ```simple
-Math :: Module {
+Math :: Namespace {
   two :: i32 = 2
 
   add : i32 (a : i32, b : i32) {

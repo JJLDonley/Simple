@@ -1,4 +1,4 @@
-Math :: module {
+Math :: Namespace {
   bad : i32 () {
     return "nope"
   }

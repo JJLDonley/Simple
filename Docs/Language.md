@@ -13,7 +13,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Full language syntax tables](#full-language-syntax-tables)
 - [Lexical rules](#lexical-rules)
 - [Program structure and entry points](#program-structure-and-entry-points)
-- [File/package headers](#filepackage-headers)
+- [File/module headers](#filemodule-headers)
 - [Declarations](#declarations)
 - [Mutability](#mutability)
 - [Types](#types)
@@ -64,8 +64,8 @@ Important syntax facts:
 
 - `name : Type` declares a **mutable** binding.
 - `name :: Type` declares an **immutable** binding.
-- `package Name` declares the file/package header used by import indexing.
-- `Name :: Artifact`, `Name :: Module`, and `Name :: Enum` declare top-level kinds.
+- `module Name` declares the file/module header used by import indexing.
+- `Name :: Artifact`, `Name :: Namespace`, and `Name :: Enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
 
@@ -115,17 +115,17 @@ Language syntax tables use the same status style as the IR and Byte references:
 This is the high-level grammar contract for accepted source. Details are refined by the syntax tables below.
 
 ```ebnf
-program        = [ package-decl ] { import-decl | using-decl | extern-decl | top-decl | stmt } ;
-package-decl   = "package" qualified-name ;
+program        = [ module-header-decl ] { import-decl | using-decl | extern-decl | top-decl | stmt } ;
+module-header-decl   = "module" qualified-name ;
 import-decl    = "import" qualified-name [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
 extern-decl    = "extern" [ qualified-name ] function-signature ;
-top-decl       = var-decl | func-decl | artifact-decl | module-decl | enum-decl ;
+top-decl       = var-decl | func-decl | artifact-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
 func-decl      = ident ":" type "(" [ params ] ")" block ;
 artifact-decl  = ident "::" ("Artifact" | "artifact") "{" { field-decl | func-decl } "}" ;
-module-decl    = ident "::" ("Module" | "module") "{" { top-decl } "}" ;
+namespace-decl = ident "::" "Namespace" "{" { top-decl } "}" ;
 enum-decl      = ident "::" ("Enum" | "enum") "{" enum-member { enum-member } "}" ;
 
 stmt           = var-decl | assign-stmt | expr-stmt | if-stmt | switch-stmt | while-stmt | for-stmt |
@@ -160,8 +160,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 
 | Status | Syntax | Phase | Meaning / rule |
 |:---:|---|---|---|
-| ✅ | `package` | CAST/RAST | File/package header. |
-| ✅ | `import` | RAST | Imports another package/module source. |
+| ✅ | `module` | CAST/RAST | File/module header. |
+| ✅ | `import` | RAST | Imports another module identity source. |
 | ✅ | `using` | RAST | Brings reserved/native module members into lookup. |
 | ✅ | `extern` | RAST/TAST | Declares external/native callable. |
 | ✅ | `while`, `for`, `break`, `skip`, `return` | CAST/TAST | Loop/control statements. |
@@ -170,7 +170,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `self` | RAST/TAST | Artifact method receiver. |
 | ✅ | `true`, `false` | CAST/TAST | Boolean literals. |
 | ✅ | `Artifact`, `artifact` | CAST/TAST | Artifact declaration kind. |
-| ✅ | `Module`, `module` | CAST/RAST | Module declaration kind. |
+| ✅ | `Namespace` | CAST/RAST | Namespace declaration kind. |
 | ✅ | `Enum`, `enum` | CAST/TAST | Enum declaration kind. |
 | ❌ | keyword as identifier | CAST | Rejected except where keyword is expected syntax. |
 
@@ -204,7 +204,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
 | ✅ | `name : Ret (params) block` | TAST | Function declaration. |
 | ✅ | `Name :: Artifact { ... }` | TAST | Artifact type declaration. |
-| ✅ | `Name :: Module { ... }` | RAST/TAST | Namespace/module declaration. |
+| ✅ | `Name :: Namespace { ... }` | RAST/TAST | Namespace/module declaration. |
 | ✅ | `Name :: Enum { ... }` | TAST | Enum declaration. |
 | ✅ | top-level executable statement | AST/IRE | Normalized into implicit script entry. |
 | ❌ | assign to immutable binding | TAST | Rejected. |
@@ -291,7 +291,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | artifact methods | RAST/TAST | Methods with `self`. |
 | ✅ | module members | RAST/TAST | Namespaced vars/functions/types. |
 | ✅ | enum members | TAST/IRE | Enum values lower as supported integer-like values. |
-| ✅ | `import Package.Name` | RAST | Import source/package. |
+| ✅ | `import Module.Name` | RAST | Import source/module identity. |
 | ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
 | ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
 | ✅ | `DL.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
@@ -335,7 +335,7 @@ Most keywords are lowercase:
 
 ```txt
 while for break skip return if else default switch fn self
-package import using extern as true false
+module import using extern as true false
 ```
 
 The declaration-kind keywords accept the capitalized forms used by existing fixtures:
@@ -343,10 +343,10 @@ The declaration-kind keywords accept the capitalized forms used by existing fixt
 ```txt
 artifact Artifact
 enum     Enum
-module   Module
+Namespace
 ```
 
-Use `package` for file/package headers. Use `Name :: Module { ... }` for in-language namespace objects.
+Use `module` for file/module headers. Use `Name :: Namespace { ... }` for in-language namespace objects.
 
 ### Operators and punctuation
 
@@ -391,10 +391,10 @@ main : i32 () {
 
 ## Program structure and entry points
 
-A file may start with an optional package header and may then contain imports, extern declarations, top-level declarations, and top-level script statements.
+A file may start with an optional module header and may then contain imports, extern declarations, top-level declarations, and top-level script statements.
 
 ```simple
-package Examples.Math
+module Examples.Math
 import Math
 
 square : i32 (x : i32) {
@@ -413,25 +413,25 @@ Entry behavior:
 - Top-level `return` is invalid.
 - A `main : void ()` function is valid; a missing explicit return is valid for `void`.
 
-## File/package headers
+## File/module headers
 
-A file may start with a package header:
+A file may start with a module header:
 
 ```simple
-package Tools.Widget
+module Tools.Widget
 ```
 
-The package header gives the file an import-index name. It does **not** declare a runtime namespace object and it does **not** wrap the declarations that follow it.
+The module header gives the file an import-index name. It does **not** declare a runtime namespace object and it does **not** wrap the declarations that follow it.
 
 ```simple
-package Tools.Widget
+module Tools.Widget
 
 widgetValue : i32 () {
   return 42
 }
 ```
 
-Another file can import that package name:
+Another file can import that module name:
 
 ```simple
 import Tools.Widget
@@ -443,16 +443,16 @@ main : i32 () {
 
 Rules:
 
-- The header keyword is `package`.
-- The package name is an identifier path, for example `Main`, `Lib`, or `Tools.Widget`.
+- The header keyword is `module`.
+- The module name is an identifier path, for example `Main`, `Lib`, or `Tools.Widget`.
 - The header should appear before imports/declarations/statements.
-- Only import indexing uses the package name; ordinary language lookup still uses declarations, imports, modules, and `using`.
-- Old `module Name` file headers are intentionally rejected to avoid confusion with `Name :: Module { ... }` declarations.
+- Only import indexing uses the module name; ordinary language lookup still uses declarations, imports, modules, and `using`.
+- `Name :: Namespace { ... }` is the declaration form for language namespace values; headers never use braces.
 
-Use `Name :: Module { ... }` only when you want a language module/namespace value:
+Use `Name :: Namespace { ... }` only when you want a language namespace value:
 
 ```simple
-Math :: Module {
+Math :: Namespace {
   one : i32 () { return 1 }
 }
 ```
@@ -503,7 +503,7 @@ The marker before the return type also carries return mutability facts used by v
 ```simple
 Pi :: f64 = 3.141592
 Point :: Artifact { x : i32; y : i32 }
-Math :: Module { one : i32 () { return 1 } }
+Math :: Namespace { one : i32 () { return 1 } }
 Color :: Enum { Red = 1, Green = 2 }
 ```
 
@@ -873,10 +873,10 @@ Artifact ABI flattening is used for supported extern/DL cases. Recursive artifac
 
 ## Modules
 
-Modules group variables and functions under a namespace:
+Namespaces group variables and functions under a named scope:
 
 ```simple
-Math :: Module {
+Math :: Namespace {
   base :: i32 = 2
 
   add : i32 (a : i32, b : i32) {

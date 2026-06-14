@@ -1,4 +1,4 @@
-X :: Module {
+X :: Namespace {
     Base: i32 () { return 3 }
 
     Add: i32 (a: i32, b: i32) {
@@ -40,7 +40,7 @@ Holder :: Artifact {
     }
 }
 
-Y :: Module {
+Y :: Namespace {
     BuildHolder: Holder (seed: i32) {
         h : Holder = { [], 0 }
         for (i : i32 = 0; i < seed; i += 1) {
@@ -58,7 +58,7 @@ Y :: Module {
     }
 }
 
-Z :: Module {
+Z :: Namespace {
     Run: i32 (v: i32) {
         p : Pair = { v, X.Base() }
         p.Scale(2)

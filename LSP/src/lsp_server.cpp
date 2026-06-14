@@ -1557,7 +1557,7 @@ void ReplyCompletion(std::ostream& out,
                      uint32_t character,
                      const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kKeywords = {
-      "fn", "callback", "package", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
+      "fn", "callback", "module", "import", "extern", "if", "else", "while", "for", "return", "break", "skip"};
   std::vector<std::string> labels;
 
   auto doc_it = open_docs.find(uri);
@@ -1871,7 +1871,7 @@ bool IsKeywordToken(Simple::Lang::TokenKind kind) {
     case TK::KwArtifact:
     case TK::KwEnum:
     case TK::KwModule:
-    case TK::KwPackage:
+    case TK::KwNamespace:
     case TK::KwImport:
     case TK::KwExtern:
     case TK::KwAs:
@@ -1966,7 +1966,7 @@ struct SemanticTokenEntry {
 bool IsKeywordText(const std::string& text) {
   static const std::unordered_set<std::string> kKeywords = {
       "while", "for", "break", "skip", "return", "if", "else", "default", "switch",
-      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Module", "package", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Namespace", "import", "extern", "as",
       "true", "false",
   };
   return kKeywords.find(text) != kKeywords.end();
@@ -2658,8 +2658,8 @@ std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Module",
-      "package", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Namespace",
+      "import", "extern", "as",
       "true", "false",
   };
   if (name.empty()) return false;

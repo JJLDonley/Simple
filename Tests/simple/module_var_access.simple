@@ -1,4 +1,4 @@
-Math :: Module {
+Math :: Namespace {
   x : i32 = 5
 }
 

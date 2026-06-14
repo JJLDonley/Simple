@@ -1668,7 +1668,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
   } docs[] = {
       {"Docs/Language.md", "## Table of contents", "skip` is the loop-continue statement"},
       {"Docs/Language.md", "x : i32 = 1", "limit :: i32 = 10"},
-      {"Docs/Language.md", "## File/package headers", "Old `module Name` file headers are intentionally rejected"},
+      {"Docs/Language.md", "## File/module headers", "Name :: Namespace { ... }"},
       {"Docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},
@@ -1894,7 +1894,7 @@ bool LangValidateArtifactDefaultFieldOk() {
 
 bool LangValidateModuleDefaultFieldOk() {
   const char* src =
-      "Config :: Module { width : i32 = 10; height : i32 = 20 }\n"
+      "Config :: Namespace { width : i32 = 10; height : i32 = 20 }\n"
       "main : i32 () { return Config.width + Config.height; }";
   std::string sir;
   std::string error;
@@ -1990,7 +1990,7 @@ bool LangValidateEnumUnknownMember() {
 }
 
 bool LangValidateModuleNotValue() {
-  const char* src = "Math :: module { } main : void () { x : i32 = Math; }";
+  const char* src = "Math :: Namespace { } main : void () { x : i32 = Math; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2043,7 +2043,7 @@ bool LangValidateArtifactDuplicateMember() {
 }
 
 bool LangValidateModuleDuplicateMember() {
-  const char* src = "Math :: module { x : i32 = 1; x : i32 = 2; }";
+  const char* src = "Math :: Namespace { x : i32 = 1; x : i32 = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2051,7 +2051,7 @@ bool LangValidateModuleDuplicateMember() {
 
 bool LangValidateModuleVarNoInit() {
   const char* src =
-    "Math :: module { x : i32; }"
+    "Math :: Namespace { x : i32; }"
     "main : i32 () { return 0; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2211,7 +2211,7 @@ bool LangValidateImmutableSelfFieldAssign() {
 
 bool LangValidateImmutableModuleAssign() {
   const char* src =
-    "Math :: module { PI :: f64 = 3.14; }"
+    "Math :: Namespace { PI :: f64 = 3.14; }"
     "main : void () { Math.PI = 0.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2229,7 +2229,7 @@ bool LangValidateAssignToFunctionFail() {
 
 bool LangValidateAssignToModuleFunctionFail() {
   const char* src =
-    "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
     "main : void () { Math.add = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2256,7 +2256,7 @@ bool LangValidateProcValueRejectsArtifactMethod() {
 
 bool LangValidateProcValueRejectsModuleFunction() {
   const char* src =
-    "Math :: module { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
     "main : void () { f : fn i32 (i32, i32) = Math.add; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2287,7 +2287,7 @@ bool LangValidateIncDecInvalidTarget() {
 
 bool LangValidateUnknownModuleMember() {
   const char* src =
-    "Math :: module { x : i32 = 1; }"
+    "Math :: Namespace { x : i32 = 1; }"
     "main : i32 () { return Math.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2440,7 +2440,7 @@ bool LangValidateCallNonFunction() {
 
 bool LangValidateCallModuleFuncCount() {
   const char* src =
-    "Math :: module { add : i32 (a : i32, b : i32) { return a; } }"
+    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a; } }"
     "main : i32 () { return Math.add(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2449,7 +2449,7 @@ bool LangValidateCallModuleFuncCount() {
 
 bool LangValidateCallModuleVar() {
   const char* src =
-    "Math :: module { PI :: f64 = 3.14; }"
+    "Math :: Namespace { PI :: f64 = 3.14; }"
     "main : i32 () { return Math.PI(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2908,7 +2908,7 @@ bool LangValidateEnumTypeArgsRejected() {
 }
 
 bool LangValidateModuleNotType() {
-  const char* src = "Math :: module { pi : i32 = 3; } main : void () { x : Math = 1; }";
+  const char* src = "Math :: Namespace { pi : i32 = 3; } main : void () { x : Math = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;

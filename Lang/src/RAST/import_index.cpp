@@ -37,11 +37,11 @@ bool ExtractModuleHeaderName(const std::string& text, std::string* out) {
       start = end + 1;
       continue;
     }
-    if (line.compare(first, 7, "package") != 0 ||
-        (first + 7 < line.size() && !std::isspace(static_cast<unsigned char>(line[first + 7])))) {
+    if (line.compare(first, 6, "module") != 0 ||
+        (first + 6 < line.size() && !std::isspace(static_cast<unsigned char>(line[first + 6])))) {
       return false;
     }
-    size_t pos = first + 7;
+    size_t pos = first + 6;
     while (pos < line.size() && std::isspace(static_cast<unsigned char>(line[pos]))) ++pos;
     size_t name_end = pos;
     while (name_end < line.size()) {

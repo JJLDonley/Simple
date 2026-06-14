@@ -129,7 +129,7 @@ blank         = { whitespace } ;
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
 | ☐ | module | `sir version <major>.<minor>` | Planned explicit SIR version directive. | SBC version/metadata |
-| ☐ | module | `module <name>` | Planned package/module identity. | module metadata |
+| ☐ | module | `module <name>` | Planned module identity. | module metadata |
 | ☐ | exports | `export <symbol> <func> [flags=<u32>]` | Planned explicit exports. | `ExportRow` |
 | ☐ | debug | `file`, `line`, `span`, `symbol` rows | Planned source-map/debug rows. | debug section |
 
@@ -236,7 +236,7 @@ Textual SIR is the stable inspection/lowering format. `IRB` is the structured la
 
 | Status | IRB node family | Required fields | Lowers to |
 |:---:|---|---|---|
-| ✅ | module | package/module identity, imports, globals, funcs | SIR sections |
+| ✅ | module | module identity, imports, globals, funcs | SIR sections |
 | ✅ | function | name, signature, locals, blocks/ops | `func` body |
 | ✅ | local/global/import/signature allocation | typed symbol metadata | SIR metadata rows |
 | ✅ | expression op | typed operator, operands, result type | typed SIR op |

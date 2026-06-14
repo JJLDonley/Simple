@@ -29,7 +29,7 @@ enum class TokenKind : uint8_t {
   KwArtifact,
   KwEnum,
   KwModule,
-  KwPackage,
+  KwNamespace,
   KwImport,
   KwUsing,
   KwExtern,

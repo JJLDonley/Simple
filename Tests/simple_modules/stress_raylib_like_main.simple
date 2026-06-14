@@ -1,6 +1,6 @@
 import "stress_raylib_like_types"
 
-World :: Module {
+World :: Namespace {
     Width: f32 () { return 100.0 }
     Height: f32 () { return 100.0 }
 

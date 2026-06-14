@@ -305,7 +305,7 @@ bool LangParsesArtifactDeclCapitalized() {
 
 
 bool LangParsesModuleDecl() {
-  const char* src = "Math :: module { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: Namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -320,7 +320,7 @@ bool LangParsesModuleDecl() {
 
 
 bool LangParsesModuleDeclCapitalized() {
-  const char* src = "Math :: Module { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: Namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;

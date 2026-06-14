@@ -54,7 +54,7 @@ bool IsKeywordToken(TokenKind kind) {
     case TokenKind::KwArtifact:
     case TokenKind::KwEnum:
     case TokenKind::KwModule:
-    case TokenKind::KwPackage:
+    case TokenKind::KwNamespace:
     case TokenKind::KwImport:
     case TokenKind::KwUsing:
     case TokenKind::KwExtern:
@@ -239,11 +239,11 @@ bool Parser::ParseTypeInner(TypeRef* out) {
 }
 
 bool Parser::ParseDecl(Decl* out) {
-  if (Match(TokenKind::KwPackage)) {
+  if (Match(TokenKind::KwModule)) {
     std::string module_name;
     const Token& name_tok = Peek();
     if (name_tok.kind != TokenKind::Identifier) {
-      error_ = "expected package name after 'package'";
+      error_ = "expected module name after 'module'";
       return false;
     }
     module_name = name_tok.text;
@@ -251,7 +251,7 @@ bool Parser::ParseDecl(Decl* out) {
     while (Match(TokenKind::Dot)) {
       const Token& seg_tok = Peek();
       if (seg_tok.kind != TokenKind::Identifier) {
-        error_ = "expected identifier after '.' in package name";
+        error_ = "expected identifier after '.' in module name";
         return false;
       }
       module_name += ".";
@@ -263,7 +263,7 @@ bool Parser::ParseDecl(Decl* out) {
       out->module_header.name = std::move(module_name);
     }
     if (Match(TokenKind::Semicolon) || IsImplicitStmtTerminator()) return true;
-    error_ = "expected end of package declaration";
+    error_ = "expected end of module declaration";
     return false;
   }
   if (Match(TokenKind::KwFn)) {
@@ -455,7 +455,7 @@ bool Parser::ParseDecl(Decl* out) {
     if (Match(TokenKind::KwArtifact)) {
       return ParseArtifactDecl(name_tok, std::move(generics), out);
     }
-    if (Match(TokenKind::KwModule)) {
+    if (Match(TokenKind::KwNamespace)) {
       return ParseModuleDecl(name_tok, out);
     }
     if (Match(TokenKind::KwEnum)) {

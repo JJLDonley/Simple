@@ -17,7 +17,7 @@ bool LspUsesSharedRastSourceImportLoader() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "dep.simple");
-    out << "package Lsp.Dep\ndep : i32 () { return 3 }";
+    out << "module Lsp.Dep\ndep : i32 () { return 3 }";
   }
   const auto entry = dir / "open.simple";
   Simple::Lang::Program program;
@@ -755,7 +755,7 @@ bool LspCompletionReturnsItems() {
          out_contents.find("\"id\":4") != std::string::npos &&
          out_contents.find("\"items\"") != std::string::npos &&
          out_contents.find("\"fn\"") != std::string::npos &&
-         out_contents.find("\"package\"") != std::string::npos &&
+         out_contents.find("\"module\"") != std::string::npos &&
          out_contents.find("IO.println") != std::string::npos;
 }
 
@@ -1428,7 +1428,7 @@ bool LspSemanticTokensReturnsData() {
          out_contents.find("\"result\":{\"data\":[]}") == std::string::npos;
 }
 
-bool LspSemanticTokensClassifyPackageKeyword() {
+bool LspSemanticTokensClassifyModuleKeyword() {
   const std::string in_path = TempPath("simple_lsp_tokens_package_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_package_out.txt");
   const std::string err_path = TempPath("simple_lsp_tokens_package_err.txt");
@@ -1437,7 +1437,7 @@ bool LspSemanticTokensClassifyPackageKeyword() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"package Main\\nmain : i32 () { return 0; }\"}}}";
+      "\"text\":\"module Main\\nmain : i32 () { return 0; }\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":69,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
@@ -1458,7 +1458,7 @@ bool LspSemanticTokensClassifyPackageKeyword() {
   std::vector<SemanticTokenEntry> entries;
   if (!DecodeSemanticData(out_contents, &entries)) return false;
   for (const auto& entry : entries) {
-    if (entry.line == 0 && entry.col == 0 && entry.len == 7 && entry.type == 0) return true;
+    if (entry.line == 0 && entry.col == 0 && entry.len == 6 && entry.type == 0) return true;
   }
   return false;
 }
@@ -1764,7 +1764,7 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
   const std::string uri = "file:///workspace/tokens_module_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
-      "Math :: module { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;";
+      "Math :: Namespace { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
@@ -2676,7 +2676,7 @@ bool LspRenameRejectsReservedKeyword() {
   const std::string rename_req =
       "{\"jsonrpc\":\"2.0\",\"id\":25,\"method\":\"textDocument/rename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
-      "\"newName\":\"package\"}}";
+      "\"newName\":\"module\"}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -3224,7 +3224,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_System_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
-  {"lsp_semantic_tokens_classify_package_keyword", LspSemanticTokensClassifyPackageKeyword},
+  {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",
    LspSemanticTokensDebugEnvDoesNotBreakResponse},

@@ -79,7 +79,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `9` | `Debug` | `DebugHeader` + debug rows | source/debug metadata |
 | ✅ | `10` | `Imports` | `ImportRow` | external symbols |
 | ✅ | `11` | `Exports` | `ExportRow` | exported functions |
-| ☐ | TBD | `Module` | module metadata | planned package/module identity |
+| ☐ | TBD | `Module` | module metadata | planned module identity |
 | ☐ | TBD | `Data` | typed blob rows | planned immutable data section |
 | ☐ | TBD | `Capabilities` | capability rows | planned sandbox/security metadata |
 

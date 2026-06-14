@@ -30,8 +30,8 @@
     "imports": {
       "patterns": [
         {
-          "name": "meta.package.simple",
-          "match": "\\b(package)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+          "name": "meta.module-header.simple",
+          "match": "\\b(module)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)",
           "captures": {
             "1": { "name": "keyword.declaration.simple" },
             "2": { "name": "entity.name.namespace.simple" }
@@ -65,7 +65,7 @@
       "patterns": [
         {
           "name": "meta.declaration.aggregate.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::)\\s*(artifact|Artifact|enum|Enum|module|Module)\\b",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::)\\s*(artifact|Artifact|enum|Enum|Namespace)\\b",
           "captures": {
             "1": { "name": "entity.name.type.simple" },
             "2": { "name": "keyword.operator.simple" },
@@ -135,7 +135,7 @@
         },
         {
           "name": "keyword.declaration.simple",
-          "match": "\\b(?:fn|callback|package|import|extern|module|Module|artifact|Artifact|enum|Enum|as)\\b"
+          "match": "\\b(?:fn|callback|module|Namespace|import|extern|artifact|Artifact|enum|Enum|as)\\b"
         },
         {
           "name": "constant.language.simple",
