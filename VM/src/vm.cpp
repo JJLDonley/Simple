@@ -50,6 +50,7 @@
 #include "sbc_verifier.h"
 #include "runtime/execution_stats.h"
 #include "runtime/import_dispatch.h"
+#include "runtime/print_any.h"
 #include "runtime/runtime_limits.h"
 #include "runtime/values.h"
 
@@ -2787,67 +2788,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (stack.size() < 2) return Trap("INTRINSIC print_any stack underflow");
             uint32_t tag = static_cast<uint32_t>(UnpackI32(Pop(stack)));
             Slot value = Pop(stack);
-            auto write_text = [](const std::string& text) {
-              if (!text.empty()) std::fwrite(text.data(), 1, text.size(), stdout);
-            };
-            switch (tag) {
-              case kPrintAnyTagString: {
-                uint32_t ref = UnpackRef(value);
-                HeapObject* obj = heap.Get(ref);
-                if (!obj || obj->header.kind != ObjectKind::String) {
-                  return Trap("print_any: unsupported ref kind");
-                }
-                write_text(U16ToAscii(ReadString(obj)));
-                break;
-              }
-              case kPrintAnyTagI8:
-                write_text(std::to_string(static_cast<int32_t>(static_cast<int8_t>(UnpackI32(value)))));
-                break;
-              case kPrintAnyTagI16:
-                write_text(std::to_string(static_cast<int32_t>(static_cast<int16_t>(UnpackI32(value)))));
-                break;
-              case kPrintAnyTagI32:
-                write_text(std::to_string(static_cast<int32_t>(UnpackI32(value))));
-                break;
-              case kPrintAnyTagI64:
-                write_text(std::to_string(static_cast<int64_t>(UnpackI64(value))));
-                break;
-              case kPrintAnyTagU8:
-                write_text(std::to_string(static_cast<uint32_t>(static_cast<uint8_t>(UnpackI32(value)))));
-                break;
-              case kPrintAnyTagU16:
-                write_text(std::to_string(static_cast<uint32_t>(static_cast<uint16_t>(UnpackI32(value)))));
-                break;
-              case kPrintAnyTagU32:
-                write_text(std::to_string(static_cast<uint32_t>(UnpackI32(value))));
-                break;
-              case kPrintAnyTagU64:
-                write_text(std::to_string(static_cast<uint64_t>(UnpackI64(value))));
-                break;
-              case kPrintAnyTagF32: {
-                float v = BitsToF32(UnpackU32Bits(value));
-                write_text(std::to_string(v));
-                break;
-              }
-              case kPrintAnyTagF64: {
-                double v = BitsToF64(UnpackU64Bits(value));
-                write_text(std::to_string(v));
-                break;
-              }
-              case kPrintAnyTagBool: {
-                const char* text = (UnpackI32(value) != 0) ? "true" : "false";
-                std::fwrite(text, 1, std::strlen(text), stdout);
-                break;
-              }
-              case kPrintAnyTagChar: {
-                uint32_t ch = static_cast<uint32_t>(UnpackI32(value)) & 0xFFu;
-                char out = (ch <= 0x7Fu) ? static_cast<char>(ch) : '?';
-                std::fwrite(&out, 1, 1, stdout);
-                break;
-              }
-              default:
-                return Trap("print_any: unsupported tag");
-            }
+            std::string print_error;
+            if (!Simple::VM::Runtime::PrintAny(heap, tag, value, &print_error)) return Trap(print_error);
             std::fflush(stdout);
             break;
           }

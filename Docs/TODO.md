@@ -76,6 +76,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Move dynamic DL/FFI call machinery into `VM/src/ffi/dl_call.cpp`.
   - [x] Move JIT compile eligibility policy into `VM/src/jit/compile_policy.cpp`.
   - [x] Replace JIT compile predicate lambda with `Simple::VM::Jit::CompilePredicate`.
+  - [x] Move `print_any` formatting into `VM/src/runtime/print_any.cpp`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [x] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 
