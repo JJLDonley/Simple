@@ -55,6 +55,8 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          Simple::Lang::TAST::IsBoolTypeName("bool") &&
          Simple::Lang::TAST::IsStringTypeName("string") &&
          Simple::Lang::TAST::IsPrimitiveTypeName("i32") &&
+         Simple::Lang::TAST::IsListMethodName("push") &&
+         !Simple::Lang::TAST::IsListMethodName("missing") &&
          Simple::Lang::TAST::GetAtCastTargetName("@f64", &cast_target) &&
          cast_target == "f64" &&
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");

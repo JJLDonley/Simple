@@ -122,6 +122,7 @@ using TAST::IsFloatTypeName;
 using TAST::IsIntegerTypeName;
 using TAST::IsLiteralCompatibleWithScalarType;
 using TAST::IsListLiteralExpr;
+using TAST::IsListMethodName;
 using TAST::IsNumericTypeName;
 using TAST::IsPositionalBraceLiteralExpr;
 using TAST::IsPrimitiveCastName;
@@ -3078,11 +3079,6 @@ bool CheckStmt(const Stmt& stmt,
       return true;
   }
   return true;
-}
-
-bool IsListMethodName(const std::string& name) {
-  return name == "len" || name == "push" || name == "pop" ||
-         name == "insert" || name == "remove" || name == "clear";
 }
 
 bool CheckArrayLiteralShape(const Expr& expr,

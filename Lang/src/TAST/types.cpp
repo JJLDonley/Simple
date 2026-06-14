@@ -149,6 +149,11 @@ bool IsNumericTypeName(const std::string& name) {
   return IsIntegerTypeName(name) || IsFloatTypeName(name);
 }
 
+bool IsListMethodName(const std::string& name) {
+  return name == "len" || name == "push" || name == "pop" ||
+         name == "insert" || name == "remove" || name == "clear";
+}
+
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type) {
   return type.pointer_depth == 0 &&
          !type.is_proc &&

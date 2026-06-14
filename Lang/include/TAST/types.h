@@ -28,6 +28,7 @@ bool IsFloatTypeName(const std::string& name);
 bool IsBoolTypeName(const std::string& name);
 bool IsStringTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
+bool IsListMethodName(const std::string& name);
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type);
 
 } // namespace Simple::Lang::TAST
