@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "AST/lower_cast.h"
@@ -298,7 +299,18 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
   Simple::Lang::TAST::GenericSubstitutionMap map;
   std::string error;
   if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(instance, &artifact, &map, &error)) return false;
-  return map.size() == 1 && map["T"].name == "i32";
+  if (map.size() != 1 || map["T"].name != "i32") return false;
+
+  Simple::Lang::AST::TypeRef generic_param;
+  generic_param.name = "T";
+  generic_param.dims.push_back({false, true, 2});
+  Simple::Lang::AST::TypeRef array_arg;
+  array_arg.name = "string";
+  array_arg.dims.push_back({false, true, 2});
+  Simple::Lang::TAST::GenericSubstitutionMap inferred;
+  std::unordered_set<std::string> type_params = {"T"};
+  if (!Simple::Lang::TAST::UnifyTypeParams(generic_param, array_arg, type_params, &inferred)) return false;
+  return inferred.size() == 1 && inferred["T"].name == "string" && inferred["T"].dims.empty();
 }
 
 

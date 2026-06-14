@@ -62,6 +62,55 @@ bool BuildArtifactTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
   return true;
 }
 
+bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
+                     const Simple::Lang::AST::TypeRef& arg,
+                     const std::unordered_set<std::string>& type_params,
+                     GenericSubstitutionMap* mapping) {
+  if (!mapping) return false;
+  if (type_params.find(param.name) != type_params.end()) {
+    if (!param.dims.empty()) {
+      if (!TypeDimsEqual(param.dims, arg.dims)) return false;
+      Simple::Lang::AST::TypeRef base;
+      if (!CloneTypeRef(arg, &base)) return false;
+      base.dims.clear();
+      auto it = mapping->find(param.name);
+      if (it == mapping->end()) {
+        (*mapping)[param.name] = std::move(base);
+        return true;
+      }
+      return TypeEquals(it->second, base);
+    }
+    auto it = mapping->find(param.name);
+    if (it == mapping->end()) {
+      Simple::Lang::AST::TypeRef copy;
+      if (!CloneTypeRef(arg, &copy)) return false;
+      (*mapping)[param.name] = std::move(copy);
+      return true;
+    }
+    return TypeEquals(it->second, arg);
+  }
+  if (param.pointer_depth != arg.pointer_depth) return false;
+  if (param.is_proc != arg.is_proc) return false;
+  if (!TypeDimsEqual(param.dims, arg.dims)) return false;
+  if (param.name != arg.name) return false;
+  if (param.type_args.size() != arg.type_args.size()) return false;
+  for (size_t i = 0; i < param.type_args.size(); ++i) {
+    if (!UnifyTypeParams(param.type_args[i], arg.type_args[i], type_params, mapping)) return false;
+  }
+  if (param.is_proc) {
+    if (param.proc_params.size() != arg.proc_params.size()) return false;
+    for (size_t i = 0; i < param.proc_params.size(); ++i) {
+      if (!UnifyTypeParams(param.proc_params[i], arg.proc_params[i], type_params, mapping)) return false;
+    }
+    if (param.proc_return && arg.proc_return) {
+      if (!UnifyTypeParams(*param.proc_return, *arg.proc_return, type_params, mapping)) return false;
+    } else if (param.proc_return || arg.proc_return) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool SubstituteGenericTypes(const Simple::Lang::AST::TypeRef& input,
                             const GenericSubstitutionMap& substitutions,
                             Simple::Lang::AST::TypeRef* out) {
