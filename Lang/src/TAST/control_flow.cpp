@@ -62,6 +62,20 @@ bool CheckFunctionReturnFlow(const Simple::Lang::AST::FuncDecl& fn,
   return false;
 }
 
+bool CheckReturnStmtValuePresence(const Simple::Lang::AST::Stmt& stmt,
+                                  bool return_is_void,
+                                  std::string* error) {
+  if (return_is_void && stmt.has_return_expr) {
+    if (error) *error = "void function cannot return a value";
+    return false;
+  }
+  if (!return_is_void && !stmt.has_return_expr) {
+    if (error) *error = "non-void function must return a value";
+    return false;
+  }
+  return true;
+}
+
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error) {
   if (type.pointer_depth != 0 || !IsBoolTypeName(type.name)) {

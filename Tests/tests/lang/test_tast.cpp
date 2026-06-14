@@ -597,7 +597,15 @@ bool LangTastControlFlowChecksFunctionReturns() {
   if (!Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error)) return false;
   fn.name = "void_fn";
   fn.return_type = Simple::Lang::TAST::MakeSimpleType("void");
-  return Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error);
+  if (!Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error)) return false;
+  Simple::Lang::AST::Stmt ret;
+  ret.kind = Simple::Lang::AST::StmtKind::Return;
+  ret.has_return_expr = true;
+  if (Simple::Lang::TAST::CheckReturnStmtValuePresence(ret, true, &error)) return false;
+  if (error.find("void function cannot return a value") == std::string::npos) return false;
+  ret.has_return_expr = false;
+  if (Simple::Lang::TAST::CheckReturnStmtValuePresence(ret, false, &error)) return false;
+  return error.find("non-void function must return a value") != std::string::npos;
 }
 
 bool LangTastControlFlowTracksReturnsAndBreaks() {

@@ -136,6 +136,7 @@ using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckReturnStmtValuePresence;
 using TAST::CheckPrimitiveCastArgType;
 using TAST::CheckAssignTargetSelfName;
 using TAST::CheckPrimitiveCastSyntaxName;
@@ -2219,14 +2220,7 @@ bool CheckStmt(const Stmt& stmt,
                std::string* error) {
   switch (stmt.kind) {
     case StmtKind::Return:
-      if (return_is_void && stmt.has_return_expr) {
-        if (error) *error = "void function cannot return a value";
-        return false;
-      }
-      if (!return_is_void && !stmt.has_return_expr) {
-        if (error) *error = "non-void function must return a value";
-        return false;
-      }
+      if (!CheckReturnStmtValuePresence(stmt, return_is_void, error)) return false;
       if (stmt.has_return_expr) {
         if (!CheckExpr(stmt.expr, ctx, scopes, current_artifact, error)) return false;
         if (expected_return) {
