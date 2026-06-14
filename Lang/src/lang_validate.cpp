@@ -113,6 +113,7 @@ using RAST::ModuleMembers;
 using RAST::NativeModuleNameForReserved;
 using RAST::NormalizeDlMemberName;
 using RAST::ReservedModuleMembers;
+using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
@@ -290,41 +291,6 @@ bool IsSupportedDlAbiType(const TypeRef& type,
     return check_struct(type.name);
   }
   return false;
-}
-
-size_t EditDistance(const std::string& a, const std::string& b) {
-  std::vector<size_t> prev(b.size() + 1);
-  std::vector<size_t> cur(b.size() + 1);
-  for (size_t j = 0; j <= b.size(); ++j) prev[j] = j;
-  for (size_t i = 1; i <= a.size(); ++i) {
-    cur[0] = i;
-    for (size_t j = 1; j <= b.size(); ++j) {
-      const size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
-      cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost});
-    }
-    prev.swap(cur);
-  }
-  return prev[b.size()];
-}
-
-std::string UnknownMemberErrorWithSuggestion(const std::string& module_name,
-                                             const std::string& member,
-                                             const std::vector<std::string>& candidates) {
-  std::string out = "unknown module member: " + module_name + "." + member;
-  if (candidates.empty()) return out;
-  size_t best_dist = static_cast<size_t>(-1);
-  std::string best;
-  for (const auto& c : candidates) {
-    const size_t d = EditDistance(member, c);
-    if (d < best_dist) {
-      best_dist = d;
-      best = c;
-    }
-  }
-  if (!best.empty() && best_dist <= 3) {
-    out += " (did you mean '" + best + "'?)";
-  }
-  return out;
 }
 
 bool IsSupportedDlDynamicSignature(const ExternDecl& ext,

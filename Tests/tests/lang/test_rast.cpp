@@ -220,8 +220,14 @@ bool LangRastMemberLookupFindsDeclMembers() {
   const auto module_members = Simple::Lang::RAST::ModuleMembers(&module);
   const bool saw_module_var = !module_members.empty() && module_members[0] == "answer";
   const bool saw_module_func = module_members.size() == 2 && module_members[1] == "add";
+  const std::string suggestion = Simple::Lang::RAST::UnknownMemberErrorWithSuggestion(
+      "Math", "answr", module_members);
+  const std::string no_suggestion = Simple::Lang::RAST::UnknownMemberErrorWithSuggestion(
+      "Math", "zzzzzz", module_members);
 
-  return saw_module_var &&
+  return suggestion.find("did you mean 'answer'") != std::string::npos &&
+         no_suggestion == "unknown module member: Math.zzzzzz" &&
+         saw_module_var &&
          saw_module_func &&
          Simple::Lang::RAST::ModuleMembers(nullptr).empty() &&
          Simple::Lang::RAST::FindModuleVar(&module, "answer") == &module.variables[0] &&

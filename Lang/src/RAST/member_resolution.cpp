@@ -1,5 +1,6 @@
 #include "RAST/member_resolution.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "RAST/import_graph.h"
@@ -8,12 +9,51 @@
 
 namespace Simple::Lang::RAST {
 
+namespace {
+
+size_t EditDistance(const std::string& a, const std::string& b) {
+  std::vector<size_t> prev(b.size() + 1);
+  std::vector<size_t> cur(b.size() + 1);
+  for (size_t j = 0; j <= b.size(); ++j) prev[j] = j;
+  for (size_t i = 1; i <= a.size(); ++i) {
+    cur[0] = i;
+    for (size_t j = 1; j <= b.size(); ++j) {
+      const size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+      cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost});
+    }
+    prev.swap(cur);
+  }
+  return prev[b.size()];
+}
+
+} // namespace
+
 std::vector<std::string> ModuleMembers(const ModuleDecl* module) {
   std::vector<std::string> out;
   if (!module) return out;
   out.reserve(module->variables.size() + module->functions.size());
   for (const auto& var : module->variables) out.push_back(var.name);
   for (const auto& fn : module->functions) out.push_back(fn.name);
+  return out;
+}
+
+std::string UnknownMemberErrorWithSuggestion(const std::string& module_name,
+                                             const std::string& member,
+                                             const std::vector<std::string>& candidates) {
+  std::string out = "unknown module member: " + module_name + "." + member;
+  if (candidates.empty()) return out;
+  size_t best_dist = static_cast<size_t>(-1);
+  std::string best;
+  for (const auto& candidate : candidates) {
+    const size_t distance = EditDistance(member, candidate);
+    if (distance < best_dist) {
+      best_dist = distance;
+      best = candidate;
+    }
+  }
+  if (!best.empty() && best_dist <= 3) {
+    out += " (did you mean '" + best + "'?)";
+  }
   return out;
 }
 

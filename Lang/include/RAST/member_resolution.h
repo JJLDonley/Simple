@@ -7,6 +7,9 @@
 namespace Simple::Lang::RAST {
 
 std::vector<std::string> ModuleMembers(const ModuleDecl* module);
+std::string UnknownMemberErrorWithSuggestion(const std::string& module_name,
+                                             const std::string& member,
+                                             const std::vector<std::string>& candidates);
 const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
 const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
 const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
