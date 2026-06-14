@@ -356,7 +356,13 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   generic.name = "Box";
   generic.type_args.push_back(scalar);
   if (Simple::Lang::TAST::CheckAbiShape(generic, false, &error)) return false;
-  return error.find("extern ABI type shape is not supported") != std::string::npos;
+  if (error.find("extern ABI type shape is not supported") == std::string::npos) return false;
+
+  Simple::Lang::AST::TypeRef mapped;
+  if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::I64, &mapped)) return false;
+  if (mapped.name != "i64" || !mapped.dims.empty()) return false;
+  if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::Ref, &mapped)) return false;
+  return mapped.name == "i32" && mapped.dims.size() == 1 && mapped.dims[0].is_list;
 }
 
 

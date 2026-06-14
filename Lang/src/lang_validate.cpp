@@ -11,6 +11,7 @@
 #include "native/registry.h"
 #include "RAST/member_resolution.h"
 #include "RAST/reserved_resolution.h"
+#include "TAST/abi.h"
 #include "TAST/calls.h"
 #include "TAST/control_flow.h"
 #include "TAST/expressions.h"
@@ -145,6 +146,7 @@ using TAST::IsScalarType;
 using TAST::IsStringTypeName;
 using TAST::MakeListType;
 using TAST::MakeSimpleType;
+using TAST::NativeTypeToLangType;
 using TAST::RequireScalar;
 using TAST::SubstituteTypeParams;
 using TAST::TypeDimsEqual;
@@ -375,38 +377,6 @@ bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
   if (out_module) *out_module = std::move(found_module);
   if (out) *out = std::move(found_info);
   return true;
-}
-
-bool NativeTypeToLangType(Simple::Byte::TypeKind kind, TypeRef* out) {
-  if (!out) return false;
-  switch (kind) {
-    case Simple::Byte::TypeKind::Bool:
-      *out = MakeSimpleType("bool");
-      return true;
-    case Simple::Byte::TypeKind::I32:
-      *out = MakeSimpleType("i32");
-      return true;
-    case Simple::Byte::TypeKind::I64:
-      *out = MakeSimpleType("i64");
-      return true;
-    case Simple::Byte::TypeKind::F32:
-      *out = MakeSimpleType("f32");
-      return true;
-    case Simple::Byte::TypeKind::F64:
-      *out = MakeSimpleType("f64");
-      return true;
-    case Simple::Byte::TypeKind::String:
-      *out = MakeSimpleType("string");
-      return true;
-    case Simple::Byte::TypeKind::Ref:
-      *out = MakeListType("i32");
-      return true;
-    case Simple::Byte::TypeKind::Unspecified:
-      *out = MakeSimpleType("void");
-      return true;
-    default:
-      return false;
-  }
 }
 
 bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,

@@ -1,5 +1,7 @@
 #include "TAST/abi.h"
 
+#include "TAST/types.h"
+
 namespace Simple::Lang::TAST {
 namespace {
 
@@ -11,6 +13,39 @@ bool IsAbiScalar(const std::string& name) {
 }
 
 } // namespace
+
+bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
+                          Simple::Lang::AST::TypeRef* out) {
+  if (!out) return false;
+  switch (kind) {
+    case Simple::Byte::TypeKind::Bool:
+      *out = MakeSimpleType("bool");
+      return true;
+    case Simple::Byte::TypeKind::I32:
+      *out = MakeSimpleType("i32");
+      return true;
+    case Simple::Byte::TypeKind::I64:
+      *out = MakeSimpleType("i64");
+      return true;
+    case Simple::Byte::TypeKind::F32:
+      *out = MakeSimpleType("f32");
+      return true;
+    case Simple::Byte::TypeKind::F64:
+      *out = MakeSimpleType("f64");
+      return true;
+    case Simple::Byte::TypeKind::String:
+      *out = MakeSimpleType("string");
+      return true;
+    case Simple::Byte::TypeKind::Ref:
+      *out = MakeListType("i32");
+      return true;
+    case Simple::Byte::TypeKind::Unspecified:
+      *out = MakeSimpleType("void");
+      return true;
+    default:
+      return false;
+  }
+}
 
 bool CheckAbiShape(const Simple::Lang::AST::TypeRef& type,
                    bool allow_void,
