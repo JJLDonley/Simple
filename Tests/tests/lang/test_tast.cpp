@@ -74,6 +74,14 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
 }
 
 bool LangSplitTastAbiAndGenericsSmoke() {
+  std::unordered_set<std::string> collected;
+  std::string generic_error;
+  if (!Simple::Lang::TAST::CollectTypeParams({"T", "U"}, &collected, &generic_error)) return false;
+  if (collected.size() != 2 || collected.find("T") == collected.end()) return false;
+  if (!Simple::Lang::TAST::CollectTypeParamsMerged({"T"}, {"U"}, &collected, &generic_error)) return false;
+  if (Simple::Lang::TAST::CollectTypeParamsMerged({"T"}, {"T"}, &collected, &generic_error)) return false;
+  if (generic_error.find("duplicate generic parameter: T") == std::string::npos) return false;
+
   Simple::Lang::AST::TypeRef scalar;
   scalar.name = "i64";
   std::string error;

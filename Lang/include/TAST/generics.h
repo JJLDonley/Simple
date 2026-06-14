@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -9,6 +10,14 @@
 namespace Simple::Lang::TAST {
 
 using GenericSubstitutionMap = std::unordered_map<std::string, Simple::Lang::AST::TypeRef>;
+
+bool CollectTypeParams(const std::vector<std::string>& generics,
+                       std::unordered_set<std::string>* out,
+                       std::string* error);
+bool CollectTypeParamsMerged(const std::vector<std::string>& a,
+                             const std::vector<std::string>& b,
+                             std::unordered_set<std::string>* out,
+                             std::string* error);
 
 bool ApplyTypeSubstitution(Simple::Lang::AST::TypeRef* type,
                            const GenericSubstitutionMap& substitutions);
