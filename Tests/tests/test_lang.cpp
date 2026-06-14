@@ -45,11 +45,6 @@
 namespace Simple::VM::Tests {
 namespace {
 
-bool RunCommand(const std::string& command) {
-  const int result = std::system(command.c_str());
-  return result == 0;
-}
-
 int SystemExitCode(int result) {
 #ifdef _WIN32
   return result;
@@ -850,28 +845,6 @@ bool LangStressEnumArtifactProcedureCompositionRuntime() {
   return RunSirTextExpectExit(sir, 42);
 }
 
-bool LangStressImportChainCliRun() {
-  return RunCommand("bin/svm run Tests/simple_modules/stress_import_main.simple");
-}
-
-bool LangStressImportMissingCliCheck() {
-  int exit_code = 0;
-  const std::string stderr_text =
-      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_import_missing_main.simple",
-                              &exit_code);
-  return exit_code != 0 &&
-         stderr_text.find("import file not found") != std::string::npos;
-}
-
-bool LangStressImportAmbiguousCliCheck() {
-  int exit_code = 0;
-  const std::string stderr_text =
-      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_import_ambiguous_main.simple",
-                              &exit_code);
-  return exit_code != 0 &&
-         stderr_text.find("ambiguous import path") != std::string::npos;
-}
-
 bool LangStressTypeExplicitArtifactFieldFail() {
   const char* src =
       "Wrap :: artifact { x : i32 }\n"
@@ -957,31 +930,6 @@ bool LangStressParseNestedIfElseInElseBranch() {
   if (stmt.if_else.size() != 1) return false;
   if (stmt.if_else[0].kind != Simple::Lang::StmtKind::IfStmt) return false;
   return true;
-}
-
-bool LangStressImportDeepChainCliRun() {
-  int exit_code = 0;
-  const std::string stderr_text =
-      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_deep_main.simple",
-                              &exit_code);
-  return exit_code == 0 && stderr_text.empty();
-}
-
-bool LangStressImportRelativeSubdirCliRun() {
-  int exit_code = 0;
-  const std::string stderr_text =
-      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_rel/main.simple",
-                              &exit_code);
-  return exit_code == 0 && stderr_text.empty();
-}
-
-bool LangStressImportCycleCliCheck() {
-  int exit_code = 0;
-  const std::string stderr_text =
-      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_cycle_main.simple",
-                              &exit_code);
-  return exit_code != 0 &&
-         stderr_text.find("cyclic import detected") != std::string::npos;
 }
 
 bool LangSimpleBadMissingReturn() {
@@ -3344,17 +3292,11 @@ const TestCase kLangTests[] = {
   {"lang_stress_procedure_arg_type_strict", LangStressProcedureArgTypeStrict},
   {"lang_stress_procedure_return_type_strict", LangStressProcedureReturnTypeStrict},
   {"lang_stress_enum_artifact_procedure_composition_runtime", LangStressEnumArtifactProcedureCompositionRuntime},
-  {"lang_stress_import_chain_cli_run", LangStressImportChainCliRun},
-  {"lang_stress_import_missing_cli_check", LangStressImportMissingCliCheck},
-  {"lang_stress_import_ambiguous_cli_check", LangStressImportAmbiguousCliCheck},
   {"lang_stress_type_explicit_artifact_field_fail", LangStressTypeExplicitArtifactFieldFail},
   {"lang_stress_parse_call_member_index_precedence", LangStressParseCallMemberIndexPrecedence},
   {"lang_stress_parse_fn_literal_call_in_call_arg", LangStressParseFnLiteralCallInCallArg},
   {"lang_stress_parse_for_loop_complex_step", LangStressParseForLoopComplexStep},
   {"lang_stress_parse_nested_if_else_in_else_branch", LangStressParseNestedIfElseInElseBranch},
-  {"lang_stress_import_deep_chain_cli_run", LangStressImportDeepChainCliRun},
-  {"lang_stress_import_relative_subdir_cli_run", LangStressImportRelativeSubdirCliRun},
-  {"lang_stress_import_cycle_cli_check", LangStressImportCycleCliCheck},
   {"lang_simple_bad_missing_return", LangSimpleBadMissingReturn},
   {"lang_simple_bad_type_mismatch", LangSimpleBadTypeMismatch},
   {"lang_simple_bad_print_array", LangSimpleBadPrintArray},

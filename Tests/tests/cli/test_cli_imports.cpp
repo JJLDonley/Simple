@@ -6,6 +6,9 @@
 #include <iterator>
 #include <string>
 #include <unordered_set>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 
 #include "RAST/import_index.h"
 #include "RAST/import_loader.h"
@@ -20,7 +23,66 @@ std::filesystem::path CliTempPath(const std::string& name) {
 }
 
 bool RunCliCommand(const std::string& command) {
-  return std::system(command.c_str()) == 0;
+  return std::system((command + " >/dev/null 2>/dev/null").c_str()) == 0;
+}
+
+int CliSystemExitCode(int result) {
+#ifdef _WIN32
+  return result;
+#else
+  if (WIFEXITED(result)) return WEXITSTATUS(result);
+  if (WIFSIGNALED(result)) return 128 + WTERMSIG(result);
+  return result;
+#endif
+}
+
+std::string RunCliCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
+  const auto err_path = CliTempPath("simple_cli_import_stderr.txt");
+  const int result = std::system((command + " 1>/dev/null 2> " + err_path.string()).c_str());
+  if (out_exit_code) *out_exit_code = CliSystemExitCode(result);
+  std::ifstream in(err_path);
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::filesystem::remove(err_path);
+  return text;
+}
+
+bool CliStressImportChainRun() {
+  return RunCliCommand("bin/svm run Tests/simple_modules/stress_import_main.simple");
+}
+
+bool CliStressImportMissingCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_import_missing_main.simple", &exit_code);
+  return exit_code != 0 && stderr_text.find("import file not found") != std::string::npos;
+}
+
+bool CliStressImportAmbiguousCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_import_ambiguous_main.simple", &exit_code);
+  return exit_code != 0 && stderr_text.find("ambiguous import path") != std::string::npos;
+}
+
+bool CliStressImportDeepChainCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_deep_main.simple", &exit_code);
+  return exit_code == 0 && stderr_text.empty();
+}
+
+bool CliStressImportRelativeSubdirCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_rel/main.simple", &exit_code);
+  return exit_code == 0 && stderr_text.empty();
+}
+
+bool CliStressImportCycleCheck() {
+  int exit_code = 0;
+  const std::string stderr_text =
+      RunCliCaptureStderr("bin/svm check Tests/simple_modules/stress_cycle_main.simple", &exit_code);
+  return exit_code != 0 && stderr_text.find("cyclic import detected") != std::string::npos;
 }
 
 bool CliAcceptsModuleHeaderInCheckCommand() {
@@ -206,6 +268,12 @@ bool CliSplitImportsNormalizesSimplePaths() {
 }
 
 const TestCase kCliImportsTests[] = {
+  {"cli_stress_import_chain_run", CliStressImportChainRun},
+  {"cli_stress_import_missing_check", CliStressImportMissingCheck},
+  {"cli_stress_import_ambiguous_check", CliStressImportAmbiguousCheck},
+  {"cli_stress_import_deep_chain_check", CliStressImportDeepChainCheck},
+  {"cli_stress_import_relative_subdir_check", CliStressImportRelativeSubdirCheck},
+  {"cli_stress_import_cycle_check", CliStressImportCycleCheck},
   {"cli_accepts_module_header_in_check_command", CliAcceptsModuleHeaderInCheckCommand},
   {"cli_local_using_import_does_not_reach_validator", CliLocalUsingImportDoesNotReachValidator},
   {"cli_split_imports_no_cli_lsp_duplicate_import_wrappers", CliSplitImportsNoCliLspDuplicateImportWrappers},
