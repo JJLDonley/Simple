@@ -110,14 +110,22 @@ bool VmRuntimeLimitsLiveInRuntimeModule() {
          vm_text.find("auto alloc_locals = [") == std::string::npos;
 }
 
-bool VmConstantAndGlobalLookupsUseNamedHelpers() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("bool LoadConstStringSlot(") != std::string::npos &&
-         text.find("bool IsRefLikeGlobal(") != std::string::npos &&
-         text.find("auto read_const_string = [") == std::string::npos &&
-         text.find("auto is_ref_like_global = [") == std::string::npos;
+bool VmConstantAndGlobalLookupsLiveInInterpreterModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/interpreter/globals.h");
+  std::ifstream source("VM/src/interpreter/globals.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("bool LoadConstStringSlot(") != std::string::npos &&
+         header_text.find("bool IsRefLikeGlobal(") != std::string::npos &&
+         source_text.find("bool LoadConstStringSlot(") != std::string::npos &&
+         source_text.find("bool IsRefLikeGlobal(") != std::string::npos &&
+         vm_text.find("bool LoadConstStringSlot(") == std::string::npos &&
+         vm_text.find("bool IsRefLikeGlobal(") == std::string::npos &&
+         vm_text.find("auto read_const_string = [") == std::string::npos &&
+         vm_text.find("auto is_ref_like_global = [") == std::string::npos;
 }
 
 bool VmExecutionStatsLiveInRuntimeModule() {
@@ -245,7 +253,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_gc_stack_map_collection_lives_in_gc_module", VmGcStackMapCollectionLivesInGcModule},
   {"vm_frame_setup_lives_in_interpreter_module", VmFrameSetupLivesInInterpreterModule},
   {"vm_runtime_limits_live_in_runtime_module", VmRuntimeLimitsLiveInRuntimeModule},
-  {"vm_constant_and_global_lookups_use_named_helpers", VmConstantAndGlobalLookupsUseNamedHelpers},
+  {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_uses_named_helpers", VmTrapFormattingUsesNamedHelpers},
