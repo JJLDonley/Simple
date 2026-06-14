@@ -61,7 +61,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Replace import-call dispatch lambda with `DispatchImportCallByName`.
   - [x] Replace trap-formatting helper lambdas with named helpers.
   - [x] Replace JIT failure operand-reader lambdas with named helpers.
-  - [x] Replace execution-result finalizer lambda with `AttachExecutionStats`.
+  - [x] Move execution-result finalizer into `VM/src/runtime/execution_stats.cpp`.
   - [x] Replace constant-string/global lookup lambdas with named helpers.
   - [x] Replace runtime-limit/local allocation lambdas with named helpers.
   - [x] Move interpreter frame setup/local allocation helpers into `VM/src/interpreter/frames.cpp`.

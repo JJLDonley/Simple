@@ -62,6 +62,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/native/registry.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/thread.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/time.cpp
+  ${SIMPLEVM_VM_ROOT}/src/runtime/execution_stats.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/runtime_limits.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/opcode.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_loader.cpp
