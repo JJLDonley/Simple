@@ -1,4 +1,4 @@
-# Simple::IR / Compiler (Current Contract)
+# Simple::IR / SIR Contract
 
 `Simple::IR` owns SIR parsing/lowering and SBC binary emission. It is the compiler layer between the language front-end and the bytecode loader/runtime.
 
@@ -9,11 +9,7 @@ Primary implementation files:
 - SBC compiler/packer: `IR/src/ir_compiler.cpp`
 - Public headers: `IR/include/ir_lang.h`, `IR/include/ir_builder.h`, `IR/include/ir_compiler.h`
 
-## Implemented
-
-### Compiler Pipeline Position
-
-Implemented compiler path:
+## Pipeline
 
 ```txt
 Simple::Lang AST
@@ -22,13 +18,10 @@ Simple::Lang AST
   -> Simple::IR::IrModule
   -> SBC bytes
   -> Byte loader/verifier
+  -> VM execution
 ```
 
-The language front-end emits SIR text. The IR layer parses and lowers that text into a binary SBC module.
-
-### Public API
-
-Implemented APIs:
+## Public API
 
 ```cpp
 bool ParseIrTextModule(const std::string& text,
@@ -44,9 +37,9 @@ bool CompileToSbc(const IrModule& module,
                   std::string* error);
 ```
 
-### SIR Text Structure
+## SIR text structure
 
-Implemented SIR is section-oriented. Supported sections include:
+SIR is section-oriented. Implemented sections are:
 
 - `types:`
 - `sigs:`
@@ -60,28 +53,754 @@ Representative shape:
 
 ```txt
 types:
-  Point = object size=16
+  type Point kind=object size=16
+  field x i32 offset=0
+  field y i32 offset=4
 
 sigs:
-  sig0 = i32(i32,i32)
+  sig sig0: (i32, i32) -> i32
 
 consts:
-  c0 = string "hello"
+  const c0 string "hello"
 
 globals:
-  g0 : i32 = 0
+  global g0 i32 init=0
 
 func add locals=2 stack=2 sig=sig0
   enter 2
-  load_local 0
-  load_local 1
-  add_i32
+  load.local 0
+  load.local 1
+  add.i32
   ret
+end
 
 entry add
 ```
 
-### Text Module Model
+## Status and typed syntax
+
+Status values:
+
+- `✅`: accepted by the current SIR parser/lowerer and emitted to assigned SBC bytecode.
+- `◐`: typed SIR instruction family is partially implemented; assigned forms are listed in the `Code | T | Syntax` tables.
+- `☐`: planned robust typed IR syntax, not accepted by the current lowerer yet.
+
+`Code` is the emitted SBC opcode byte when assigned. `typed` means the row is a collapsed typed family whose assigned concrete opcode bytes are listed below that row.
+
+`<T>` means a typed instruction family over the relevant scalar/reference payload set instead of listing every scalar spelling inline. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
+
+## Full instruction syntax and codes
+
+### Control and frame
+
+Control-flow, frame, and labels. Labels are source-only and lower to relative branch offsets.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0x00` | `nop` | `none` | `Nop` |  |
+| ✅ | `0x74` | `enter <locals>` | `u16 locals` | `Enter` |  |
+| ✅ | `0x73` | `ret` | `none` | `Ret` |  |
+| ✅ | `0x04` | `jmp <label>` | `label` | `Jmp` |  |
+| ✅ | `0x05` | `jmp.true <label>` | `label` | `JmpTrue` |  |
+| ✅ | `0x06` | `jmp.false <label>` | `label` | `JmpFalse` |  |
+| ✅ | `0x07` | `jmptable <default> <case>...` | `default label plus case labels` | `JmpTable` |  |
+| ☐ | `TBD` | `halt` | `none` | `Halt` | planned |
+| ☐ | `TBD` | `trap` | `none` | `Trap` | planned |
+| ☐ | `TBD` | `breakpoint` | `none` | `Breakpoint` | planned |
+
+### Stack
+
+Operand-stack manipulation.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0x10` | `pop` | `none` | `Pop` |  |
+| ✅ | `0x11` | `dup` | `none` | `Dup` |  |
+| ✅ | `0x12` | `dup2` | `none` | `Dup2` |  |
+| ✅ | `0x13` | `swap` | `none` | `Swap` |  |
+| ✅ | `0x14` | `rot` | `none` | `Rot` |  |
+
+### Constants and data
+
+Immediate constants, constant-pool references, and planned typed data/blob constants.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `const.<T> <value>` | `typed literal` | `Const<T>` | implemented for listed scalar/string/null forms |
+| ☐ | `TBD` | `const.bytes <const>` | `const id/name` | `ConstBytes` | planned |
+| ☐ | `TBD` | `const.data <const>` | `const id/name` | `ConstData` | planned |
+| ☐ | `TBD` | `load.dataref <const>` | `const id/name` | `LoadDataRef` | planned |
+
+const.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x18` | `i8` | `const.i8 <value>` |
+| `0x19` | `i16` | `const.i16 <value>` |
+| `0x1A` | `i32` | `const.i32 <value>` |
+| `0x1B` | `i64` | `const.i64 <value>` |
+| `0x1D` | `u8` | `const.u8 <value>` |
+| `0x1E` | `u16` | `const.u16 <value>` |
+| `0x1F` | `u32` | `const.u32 <value>` |
+| `0x20` | `u64` | `const.u64 <value>` |
+| `0x22` | `f32` | `const.f32 <value>` |
+| `0x23` | `f64` | `const.f64 <value>` |
+| `0x24` | `bool` | `const.bool <0|1>` |
+| `0x25` | `char` | `const.char <u16>` |
+| `0x26` | `string` | `const.string <const>` |
+| `0x27` | `null` | `const.null` |
+
+### Locals, globals, upvalues, and module init
+
+Slot access and module/global initialization.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0x30` | `ldloc <slot> / load.local <slot>` | `local index/name` | `LoadLocal` |  |
+| ✅ | `0x31` | `stloc <slot> / store.local <slot>` | `local index/name` | `StoreLocal` |  |
+| ✅ | `0x32` | `ldglob <slot> / load.global <slot>` | `global index/name` | `LoadGlobal` |  |
+| ✅ | `0x33` | `stglob <slot> / store.global <slot>` | `global index/name` | `StoreGlobal` |  |
+| ✅ | `0x34` | `ldupv <slot> / load.upvalue <slot>` | `upvalue index/name` | `LoadUpvalue` |  |
+| ✅ | `0x35` | `stupv <slot> / store.upvalue <slot>` | `upvalue index/name` | `StoreUpvalue` |  |
+| ☐ | `TBD` | `init.global <global>` | `global index/name` | `InitGlobal` | planned |
+| ☐ | `TBD` | `init.module <module>` | `module id/name` | `InitModule` | planned |
+| ☐ | `TBD` | `ensure.module.init <module>` | `module id/name` | `EnsureModuleInit` | planned |
+
+### Arithmetic
+
+Binary arithmetic. `<T>` covers every valid numeric scalar type.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `add.<T>` | `none` | `Add<T>` | partially implemented typed family |
+| ◐ | `typed` | `sub.<T>` | `none` | `Sub<T>` | partially implemented typed family |
+| ◐ | `typed` | `mul.<T>` | `none` | `Mul<T>` | partially implemented typed family |
+| ◐ | `typed` | `div.<T>` | `none` | `Div<T>` | partially implemented typed family |
+| ◐ | `typed` | `mod.<T>` | `none` | `Mod<T>` | partially implemented typed family |
+
+add.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x40` | `i32` | `add.i32` |
+| `0x45` | `i64` | `add.i64` |
+| `0x4A` | `f32` | `add.f32` |
+| `0x4E` | `f64` | `add.f64` |
+| `0xE1` | `u32` | `add.u32` |
+| `0xE6` | `u64` | `add.u64` |
+
+sub.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x41` | `i32` | `sub.i32` |
+| `0x46` | `i64` | `sub.i64` |
+| `0x4B` | `f32` | `sub.f32` |
+| `0x4F` | `f64` | `sub.f64` |
+| `0xE2` | `u32` | `sub.u32` |
+| `0xE7` | `u64` | `sub.u64` |
+
+mul.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x42` | `i32` | `mul.i32` |
+| `0x47` | `i64` | `mul.i64` |
+| `0x4C` | `f32` | `mul.f32` |
+| `0x5C` | `f64` | `mul.f64` |
+| `0xE3` | `u32` | `mul.u32` |
+| `0xE8` | `u64` | `mul.u64` |
+
+div.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x43` | `i32` | `div.i32` |
+| `0x48` | `i64` | `div.i64` |
+| `0x4D` | `f32` | `div.f32` |
+| `0x5D` | `f64` | `div.f64` |
+| `0xE4` | `u32` | `div.u32` |
+| `0xE9` | `u64` | `div.u64` |
+
+mod.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x44` | `i32` | `mod.i32` |
+| `0x49` | `i64` | `mod.i64` |
+| `0xE5` | `u32` | `mod.u32` |
+| `0xEA` | `u64` | `mod.u64` |
+
+### Increment and decrement
+
+Unary increment/decrement.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `inc.<T>` | `none` | `Inc<T>` | partially implemented typed family |
+| ◐ | `typed` | `dec.<T>` | `none` | `Dec<T>` | partially implemented typed family |
+
+inc.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x92` | `i8` | `inc.i8` |
+| `0x94` | `i16` | `inc.i16` |
+| `0x83` | `i32` | `inc.i32` |
+| `0x85` | `i64` | `inc.i64` |
+| `0x96` | `u8` | `inc.u8` |
+| `0x98` | `u16` | `inc.u16` |
+| `0x8B` | `u32` | `inc.u32` |
+| `0x8D` | `u64` | `inc.u64` |
+| `0x87` | `f32` | `inc.f32` |
+| `0x89` | `f64` | `inc.f64` |
+
+dec.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x93` | `i8` | `dec.i8` |
+| `0x95` | `i16` | `dec.i16` |
+| `0x84` | `i32` | `dec.i32` |
+| `0x86` | `i64` | `dec.i64` |
+| `0x97` | `u8` | `dec.u8` |
+| `0x99` | `u16` | `dec.u16` |
+| `0x8C` | `u32` | `dec.u32` |
+| `0x8E` | `u64` | `dec.u64` |
+| `0x88` | `f32` | `dec.f32` |
+| `0x8A` | `f64` | `dec.f64` |
+
+### Negation
+
+Unary numeric negation.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `neg.<T>` | `none` | `Neg<T>` | partially implemented typed family |
+
+neg.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x9A` | `i8` | `neg.i8` |
+| `0x9B` | `i16` | `neg.i16` |
+| `0x5E` | `i32` | `neg.i32` |
+| `0x5F` | `i64` | `neg.i64` |
+| `0x9C` | `u8` | `neg.u8` |
+| `0x9D` | `u16` | `neg.u16` |
+| `0x9E` | `u32` | `neg.u32` |
+| `0x9F` | `u64` | `neg.u64` |
+| `0x7E` | `f32` | `neg.f32` |
+| `0x7F` | `f64` | `neg.f64` |
+
+### Comparisons
+
+Equality and ordering comparisons over comparable typed values.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `cmp.eq.<T>` | `none` | `CmpEq<T>` | partially implemented typed family |
+| ◐ | `typed` | `cmp.ne.<T>` | `none` | `CmpNe<T>` | partially implemented typed family |
+| ◐ | `typed` | `cmp.lt.<T>` | `none` | `CmpLt<T>` | partially implemented typed family |
+| ◐ | `typed` | `cmp.le.<T>` | `none` | `CmpLe<T>` | partially implemented typed family |
+| ◐ | `typed` | `cmp.gt.<T>` | `none` | `CmpGt<T>` | partially implemented typed family |
+| ◐ | `typed` | `cmp.ge.<T>` | `none` | `CmpGe<T>` | partially implemented typed family |
+
+cmp.eq.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x50` | `i32` | `cmp.eq.i32` |
+| `0x56` | `i64` | `cmp.eq.i64` |
+| `0xEB` | `u32` | `cmp.eq.u32` |
+| `0xF1` | `u64` | `cmp.eq.u64` |
+| `0x63` | `f32` | `cmp.eq.f32` |
+| `0x69` | `f64` | `cmp.eq.f64` |
+
+cmp.ne.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x52` | `i32` | `cmp.ne.i32` |
+| `0x57` | `i64` | `cmp.ne.i64` |
+| `0xEC` | `u32` | `cmp.ne.u32` |
+| `0xF2` | `u64` | `cmp.ne.u64` |
+| `0x64` | `f32` | `cmp.ne.f32` |
+| `0x6A` | `f64` | `cmp.ne.f64` |
+
+cmp.lt.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x51` | `i32` | `cmp.lt.i32` |
+| `0x58` | `i64` | `cmp.lt.i64` |
+| `0xED` | `u32` | `cmp.lt.u32` |
+| `0xF3` | `u64` | `cmp.lt.u64` |
+| `0x65` | `f32` | `cmp.lt.f32` |
+| `0x6B` | `f64` | `cmp.lt.f64` |
+
+cmp.le.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x53` | `i32` | `cmp.le.i32` |
+| `0x59` | `i64` | `cmp.le.i64` |
+| `0xEE` | `u32` | `cmp.le.u32` |
+| `0xF4` | `u64` | `cmp.le.u64` |
+| `0x66` | `f32` | `cmp.le.f32` |
+| `0x6C` | `f64` | `cmp.le.f64` |
+
+cmp.gt.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x54` | `i32` | `cmp.gt.i32` |
+| `0x5A` | `i64` | `cmp.gt.i64` |
+| `0xEF` | `u32` | `cmp.gt.u32` |
+| `0xF5` | `u64` | `cmp.gt.u64` |
+| `0x67` | `f32` | `cmp.gt.f32` |
+| `0x6D` | `f64` | `cmp.gt.f64` |
+
+cmp.ge.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x55` | `i32` | `cmp.ge.i32` |
+| `0x5B` | `i64` | `cmp.ge.i64` |
+| `0xF0` | `u32` | `cmp.ge.u32` |
+| `0xF6` | `u64` | `cmp.ge.u64` |
+| `0x68` | `f32` | `cmp.ge.f32` |
+| `0x6E` | `f64` | `cmp.ge.f64` |
+
+### Boolean logic
+
+Boolean logical operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0x60` | `bool.not` | `none` | `BoolNot` |  |
+| ✅ | `0x61` | `bool.and` | `none` | `BoolAnd` |  |
+| ✅ | `0x62` | `bool.or` | `none` | `BoolOr` |  |
+
+### Bitwise and shifts
+
+Bitwise and shift operations over integer scalar types.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `and.<T>` | `none` | `And<T>` | partially implemented typed family |
+| ◐ | `typed` | `or.<T>` | `none` | `Or<T>` | partially implemented typed family |
+| ◐ | `typed` | `xor.<T>` | `none` | `Xor<T>` | partially implemented typed family |
+| ◐ | `typed` | `shl.<T>` | `none` | `Shl<T>` | partially implemented typed family |
+| ◐ | `typed` | `shr.<T>` | `none` | `Shr<T>` | partially implemented typed family |
+
+and.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xF7` | `i32` | `and.i32` |
+| `0xD4` | `i64` | `and.i64` |
+
+or.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xF8` | `i32` | `or.i32` |
+| `0xD5` | `i64` | `or.i64` |
+
+xor.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xF9` | `i32` | `xor.i32` |
+| `0xD6` | `i64` | `xor.i64` |
+
+shl.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xFA` | `i32` | `shl.i32` |
+| `0xD7` | `i64` | `shl.i64` |
+
+shr.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xFB` | `i32` | `shr.i32` |
+| `0xD8` | `i64` | `shr.i64` |
+
+### Calls
+
+Direct, indirect, tail, import/native, method, and virtual calls.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0x70` | `call <func> <argc>` | `function id/name, argc` | `Call` |  |
+| ✅ | `0x71` | `call.indirect <sig> <argc>` | `signature id/name, argc` | `CallIndirect` |  |
+| ✅ | `0x72` | `tailcall <func> <argc>` | `function id/name, argc` | `TailCall` |  |
+| ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
+| ☐ | `TBD` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | planned |
+| ☐ | `TBD` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | planned |
+| ☐ | `TBD` | `call.method <method> <argc>` | `method id/name, argc` | `CallMethod` | planned |
+| ☐ | `TBD` | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallVirtual` | planned |
+
+### Conversions
+
+Scalar conversions.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | partially implemented typed family |
+| ☐ | `TBD` | `checked.conv.<From>.<To>` | `none` | `CheckedConv<From,To>` | planned |
+
+conv.<From>.<To> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x76` | `i32 -> i64` | `conv.i32.i64` |
+| `0x77` | `i64 -> i32` | `conv.i64.i32` |
+| `0x78` | `i32 -> f32` | `conv.i32.f32` |
+| `0x79` | `i32 -> f64` | `conv.i32.f64` |
+| `0x7A` | `f32 -> i32` | `conv.f32.i32` |
+| `0x7B` | `f64 -> i32` | `conv.f64.i32` |
+| `0x7C` | `f32 -> f64` | `conv.f32.f64` |
+| `0x7D` | `f64 -> f32` | `conv.f64.f32` |
+
+### Debug, profiling, native, and system runtime
+
+Line/profile markers and runtime/native escape hatches.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `line <file> <line>` | `u32 file, u32 line` | `Line` | planned SIR syntax for implemented bytecode |
+| ☐ | `TBD` | `profile.start <id>` | `u32 id` | `ProfileStart` | planned |
+| ☐ | `TBD` | `profile.end <id>` | `u32 id` | `ProfileEnd` | planned |
+| ✅ | `0x90` | `intrinsic <id>` | `u32 id` | `Intrinsic` |  |
+| ✅ | `0x91` | `syscall <id>` | `u32 id` | `SysCall` |  |
+| ☐ | `TBD` | `span <file> <start> <end>` | `source span` | `Span` | planned |
+| ☐ | `TBD` | `trace.enter <id>` | `u32 id` | `TraceEnter` | planned |
+| ☐ | `TBD` | `trace.leave <id>` | `u32 id` | `TraceLeave` | planned |
+| ☐ | `TBD` | `stacktrace` | `none` | `StackTrace` | planned |
+
+### Objects, closures, refs, and fields
+
+Heap object, closure, reference, field, lifecycle, and typed reference operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0xA0` | `newobj <type>` | `type id/name` | `NewObject` |  |
+| ✅ | `0xA1` | `newclosure <method> <upvalues>` | `method id/name, upvalue count` | `NewClosure` |  |
+| ✅ | `0xA2` | `ldfld <field>` | `field id/name` | `LoadField` |  |
+| ✅ | `0xA3` | `stfld <field>` | `field id/name` | `StoreField` |  |
+| ✅ | `0xA4` | `isnull` | `none` | `IsNull` |  |
+| ✅ | `0xA5` | `ref.eq` | `none` | `RefEq` |  |
+| ✅ | `0xA6` | `ref.ne` | `none` | `RefNe` |  |
+| ✅ | `0xA7` | `typeof` | `none` | `TypeOf` |  |
+| ☐ | `TBD` | `capture.local <slot>` | `local index/name` | `CaptureLocal` | planned |
+| ☐ | `TBD` | `capture.ref <slot>` | `slot` | `CaptureRef` | planned |
+| ☐ | `TBD` | `close.upvalue <slot>` | `upvalue index/name` | `CloseUpvalue` | planned |
+| ☐ | `TBD` | `init.object <type>` | `type id/name` | `InitObject` | planned |
+| ☐ | `TBD` | `drop.object` | `none` | `DropObject` | planned |
+| ☐ | `TBD` | `clone.object` | `none` | `CloneObject` | planned |
+| ☐ | `TBD` | `object.eq` | `none` | `ObjectEq` | planned |
+| ☐ | `TBD` | `instanceof.<T>` | `type id/name` | `InstanceOf<T>` | planned |
+| ☐ | `TBD` | `cast.ref.<T>` | `type id/name` | `CastRef<T>` | planned |
+| ☐ | `TBD` | `checked.cast.ref.<T>` | `type id/name` | `CheckedCastRef<T>` | planned |
+| ☐ | `TBD` | `load.vtable` | `none` | `LoadVTable` | planned |
+
+### Arrays
+
+Fixed-size array allocation and element access.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `newarray.<T>` | `type/length operands vary` | `NewArray<T>` | partially implemented typed family |
+| ✅ | `0xB1` | `array.len` | `none` | `ArrayLen` |  |
+| ◐ | `typed` | `array.get.<T>` | `none` | `ArrayGet<T>` | partially implemented typed family |
+| ◐ | `typed` | `array.set.<T>` | `none` | `ArraySet<T>` | partially implemented typed family |
+| ☐ | `TBD` | `array.copy.<T>` | `none` | `ArrayCopy<T>` | planned |
+| ☐ | `TBD` | `array.fill.<T>` | `none` | `ArrayFill<T>` | planned |
+
+newarray.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xB0` | `generic` | `newarray <type> <len>` |
+| `0xB4` | `i64` | `newarray.i64 <len>` |
+| `0xB7` | `f32` | `newarray.f32 <len>` |
+| `0xBA` | `f64` | `newarray.f64 <len>` |
+| `0xBD` | `ref` | `newarray.ref <type> <len>` |
+
+array.get.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xB2` | `i32` | `array.get.i32` |
+| `0xB5` | `i64` | `array.get.i64` |
+| `0xB8` | `f32` | `array.get.f32` |
+| `0xBB` | `f64` | `array.get.f64` |
+| `0xBE` | `ref` | `array.get.ref` |
+
+array.set.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0xB3` | `i32` | `array.set.i32` |
+| `0xB6` | `i64` | `array.set.i64` |
+| `0xB9` | `f32` | `array.set.f32` |
+| `0xBC` | `f64` | `array.set.f64` |
+| `0xBF` | `ref` | `array.set.ref` |
+
+### Lists
+
+Growable list allocation and element operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ◐ | `typed` | `newlist.<T>` | `type/capacity operands vary` | `NewList<T>` | partially implemented typed family |
+| ✅ | `0xC1` | `list.len` | `none` | `ListLen` |  |
+| ◐ | `typed` | `list.get.<T>` | `none` | `ListGet<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.set.<T>` | `none` | `ListSet<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.push.<T>` | `none` | `ListPush<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.pop.<T>` | `none` | `ListPop<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.insert.<T>` | `none` | `ListInsert<T>` | partially implemented typed family |
+| ◐ | `typed` | `list.remove.<T>` | `none` | `ListRemove<T>` | partially implemented typed family |
+| ✅ | `0xC8` | `list.clear` | `none` | `ListClear` |  |
+| ☐ | `TBD` | `list.reserve` | `capacity` | `ListReserve` | planned |
+| ☐ | `TBD` | `list.resize` | `size fill` | `ListResize` | planned |
+
+newlist.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x36` | `ref` | `newlist.ref` |
+| `0xA8` | `f64` | `newlist.f64` |
+| `0xC0` | `i32` | `newlist <type> <capacity>` |
+| `0xC9` | `f32` | `newlist.f32` |
+| `0xD9` | `i64` | `newlist.i64` |
+
+list.get.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x37` | `ref` | `list.get.ref` |
+| `0xA9` | `f64` | `list.get.f64` |
+| `0xC2` | `i32` | `list.get.i32` |
+| `0xCA` | `f32` | `list.get.f32` |
+| `0xDA` | `i64` | `list.get.i64` |
+
+list.set.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x38` | `ref` | `list.set.ref` |
+| `0xAA` | `f64` | `list.set.f64` |
+| `0xC3` | `i32` | `list.set.i32` |
+| `0xCB` | `f32` | `list.set.f32` |
+| `0xDB` | `i64` | `list.set.i64` |
+
+list.push.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x39` | `ref` | `list.push.ref` |
+| `0xAB` | `f64` | `list.push.f64` |
+| `0xC4` | `i32` | `list.push.i32` |
+| `0xCC` | `f32` | `list.push.f32` |
+| `0xDC` | `i64` | `list.push.i64` |
+
+list.pop.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3A` | `ref` | `list.pop.ref` |
+| `0xAC` | `f64` | `list.pop.f64` |
+| `0xC5` | `i32` | `list.pop.i32` |
+| `0xCD` | `f32` | `list.pop.f32` |
+| `0xDD` | `i64` | `list.pop.i64` |
+
+list.insert.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3B` | `ref` | `list.insert.ref` |
+| `0xAD` | `f64` | `list.insert.f64` |
+| `0xC6` | `i32` | `list.insert.i32` |
+| `0xCE` | `f32` | `list.insert.f32` |
+| `0xDE` | `i64` | `list.insert.i64` |
+
+list.remove.<T> codes:
+
+| Code | T | Syntax |
+|---:|---|---|
+| `0x3C` | `ref` | `list.remove.ref` |
+| `0xAE` | `f64` | `list.remove.f64` |
+| `0xC7` | `i32` | `list.remove.i32` |
+| `0xCF` | `f32` | `list.remove.f32` |
+| `0xDF` | `i64` | `list.remove.i64` |
+
+### Strings
+
+String-specific operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ✅ | `0xD0` | `string.len` | `none` | `StringLen` |  |
+| ✅ | `0xD1` | `string.concat` | `none` | `StringConcat` |  |
+| ✅ | `0xD2` | `string.get.char` | `none` | `StringGetChar` |  |
+| ✅ | `0xD3` | `string.slice` | `none` | `StringSlice` |  |
+| ☐ | `TBD` | `string.eq` | `none` | `StringEq` | planned |
+| ☐ | `TBD` | `string.ne` | `none` | `StringNe` | planned |
+| ☐ | `TBD` | `string.compare` | `none` | `StringCompare` | planned |
+| ☐ | `TBD` | `string.find` | `none` | `StringFind` | planned |
+| ☐ | `TBD` | `string.to.bytes` | `none` | `StringToBytes` | planned |
+| ☐ | `TBD` | `bytes.to.string` | `none` | `BytesToString` | planned |
+
+### Pointer and memory
+
+Explicit pointer/address and raw memory operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `addrof.local <slot>` | `local` | `AddressOfLocal` | planned |
+| ☐ | `TBD` | `addrof.global <slot>` | `global` | `AddressOfGlobal` | planned |
+| ☐ | `TBD` | `addrof.field <field>` | `field` | `AddressOfField` | planned |
+| ☐ | `TBD` | `load.ptr.<T>` | `none` | `LoadPtr<T>` | planned |
+| ☐ | `TBD` | `store.ptr.<T>` | `none` | `StorePtr<T>` | planned |
+| ☐ | `TBD` | `ptr.add` | `none` | `PtrAdd` | planned |
+| ☐ | `TBD` | `ptr.offset` | `none` | `PtrOffset` | planned |
+| ☐ | `TBD` | `ptr.eq` | `none` | `PtrEq` | planned |
+| ☐ | `TBD` | `ptr.ne` | `none` | `PtrNe` | planned |
+| ☐ | `TBD` | `ptr.isnull` | `none` | `PtrIsNull` | planned |
+| ☐ | `TBD` | `ptr.check.null` | `none` | `PtrCheckNull` | planned |
+| ☐ | `TBD` | `ptr.check.bounds` | `none` | `PtrCheckBounds` | planned |
+| ☐ | `TBD` | `mem.copy` | `none` | `MemCopy` | planned |
+| ☐ | `TBD` | `mem.move` | `none` | `MemMove` | planned |
+| ☐ | `TBD` | `mem.set` | `none` | `MemSet` | planned |
+| ☐ | `TBD` | `mem.compare` | `none` | `MemCompare` | planned |
+
+### Checked operations
+
+Checked arithmetic, bounds, null, and conversions.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `checked.add.<T>` | `none` | `CheckedAdd<T>` | planned |
+| ☐ | `TBD` | `checked.sub.<T>` | `none` | `CheckedSub<T>` | planned |
+| ☐ | `TBD` | `checked.mul.<T>` | `none` | `CheckedMul<T>` | planned |
+| ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | planned |
+| ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | planned |
+| ☐ | `TBD` | `checked.array.get.<T>` | `none` | `CheckedArrayGet<T>` | planned |
+| ☐ | `TBD` | `checked.array.set.<T>` | `none` | `CheckedArraySet<T>` | planned |
+| ☐ | `TBD` | `checked.list.get.<T>` | `none` | `CheckedListGet<T>` | planned |
+| ☐ | `TBD` | `checked.list.set.<T>` | `none` | `CheckedListSet<T>` | planned |
+| ☐ | `TBD` | `checked.string.get.char` | `none` | `CheckedStringGetChar` | planned |
+| ☐ | `TBD` | `checked.string.slice` | `none` | `CheckedStringSlice` | planned |
+| ☐ | `TBD` | `checked.null` | `none` | `CheckedNull` | planned |
+| ☐ | `TBD` | `checked.bounds` | `none` | `CheckedBounds` | planned |
+
+### Enums, variants, results, and errors
+
+Tagged data and error operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `enum.tag` | `none` | `EnumTag` | planned |
+| ☐ | `TBD` | `enum.payload.<T> <case>` | `case` | `EnumPayload<T>` | planned |
+| ☐ | `TBD` | `enum.make.<T> <case>` | `case` | `EnumMake<T>` | planned |
+| ☐ | `TBD` | `variant.tag` | `none` | `VariantTag` | planned |
+| ☐ | `TBD` | `variant.payload.<T> <case>` | `case` | `VariantPayload<T>` | planned |
+| ☐ | `TBD` | `variant.make.<T> <case>` | `case` | `VariantMake<T>` | planned |
+| ☐ | `TBD` | `result.ok.<T>` | `none` | `ResultOk<T>` | planned |
+| ☐ | `TBD` | `result.err.<T>` | `none` | `ResultErr<T>` | planned |
+| ☐ | `TBD` | `result.is.ok` | `none` | `ResultIsOk` | planned |
+| ☐ | `TBD` | `result.is.err` | `none` | `ResultIsErr` | planned |
+| ☐ | `TBD` | `result.unwrap.<T>` | `none` | `ResultUnwrap<T>` | planned |
+| ☐ | `TBD` | `result.propagate.err` | `none` | `ResultPropagateErr` | planned |
+| ☐ | `TBD` | `throw` | `none` | `Throw` | planned |
+| ☐ | `TBD` | `catch <label>` | `label` | `Catch` | planned |
+| ☐ | `TBD` | `finally <label>` | `label` | `Finally` | planned |
+| ☐ | `TBD` | `panic` | `none` | `Panic` | planned |
+
+### Range and iterators
+
+Typed range/iterator bytecodes.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `range.new.<T>` | `none` | `RangeNew<T>` | planned |
+| ☐ | `TBD` | `range.new.step.<T>` | `none` | `RangeNewStep<T>` | planned |
+| ☐ | `TBD` | `range.next.<T>` | `none` | `RangeNext<T>` | planned |
+| ☐ | `TBD` | `iter.next.<T>` | `none` | `IteratorNext<T>` | planned |
+| ☐ | `TBD` | `iter.has.next` | `none` | `IteratorHasNext` | planned |
+| ☐ | `TBD` | `iter.value.<T>` | `none` | `IteratorValue<T>` | planned |
+
+### Concurrency, atomics, locks, and monitors
+
+Thread/job/channel/atomic/monitor operations.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `spawn <func>` | `function` | `Spawn` | planned |
+| ☐ | `TBD` | `join` | `none` | `Join` | planned |
+| ☐ | `TBD` | `detach` | `none` | `Detach` | planned |
+| ☐ | `TBD` | `await` | `none` | `Await` | planned |
+| ☐ | `TBD` | `yield` | `none` | `Yield` | planned |
+| ☐ | `TBD` | `resume` | `none` | `Resume` | planned |
+| ☐ | `TBD` | `suspend` | `none` | `Suspend` | planned |
+| ☐ | `TBD` | `future.make <func>` | `function` | `MakeFuture` | planned |
+| ☐ | `TBD` | `future.poll` | `none` | `PollFuture` | planned |
+| ☐ | `TBD` | `channel.send.<T>` | `none` | `ChannelSend<T>` | planned |
+| ☐ | `TBD` | `channel.recv.<T>` | `none` | `ChannelRecv<T>` | planned |
+| ☐ | `TBD` | `channel.try.recv.<T>` | `none` | `ChannelTryRecv<T>` | planned |
+| ☐ | `TBD` | `atomic.load.<T>` | `none` | `AtomicLoad<T>` | planned |
+| ☐ | `TBD` | `atomic.store.<T>` | `none` | `AtomicStore<T>` | planned |
+| ☐ | `TBD` | `atomic.add.<T>` | `none` | `AtomicAdd<T>` | planned |
+| ☐ | `TBD` | `atomic.sub.<T>` | `none` | `AtomicSub<T>` | planned |
+| ☐ | `TBD` | `atomic.cmpxchg.<T>` | `none` | `AtomicCompareExchange<T>` | planned |
+| ☐ | `TBD` | `fence` | `none` | `Fence` | planned |
+| ☐ | `TBD` | `lock` | `none` | `Lock` | planned |
+| ☐ | `TBD` | `unlock` | `none` | `Unlock` | planned |
+| ☐ | `TBD` | `trylock` | `none` | `TryLock` | planned |
+| ☐ | `TBD` | `wait` | `none` | `Wait` | planned |
+| ☐ | `TBD` | `notify` | `none` | `Notify` | planned |
+| ☐ | `TBD` | `notify.all` | `none` | `NotifyAll` | planned |
+
+### GC, JIT, capabilities, and SIMD
+
+Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
+
+| Status | Code | Syntax | Operands | Emits | Notes |
+|:---:|---:|---|---|---|---|
+| ☐ | `TBD` | `safepoint` | `none` | `Safepoint` | planned |
+| ☐ | `TBD` | `alloc.checkpoint` | `none` | `AllocCheckpoint` | planned |
+| ☐ | `TBD` | `write.barrier` | `none` | `WriteBarrier` | planned |
+| ☐ | `TBD` | `read.barrier` | `none` | `ReadBarrier` | planned |
+| ☐ | `TBD` | `pin.ref` | `none` | `PinRef` | planned |
+| ☐ | `TBD` | `unpin.ref` | `none` | `UnpinRef` | planned |
+| ☐ | `TBD` | `keepalive` | `none` | `KeepAlive` | planned |
+| ☐ | `TBD` | `deopt <id>` | `u32 id` | `Deopt` | planned |
+| ☐ | `TBD` | `patchpoint <id>` | `u32 id` | `Patchpoint` | planned |
+| ☐ | `TBD` | `inline.cache <id>` | `u32 id` | `InlineCache` | planned |
+| ☐ | `TBD` | `guard.type.<T>` | `type` | `GuardType<T>` | planned |
+| ☐ | `TBD` | `guard.bounds` | `none` | `GuardBounds` | planned |
+| ☐ | `TBD` | `guard.notnull` | `none` | `GuardNotNull` | planned |
+| ☐ | `TBD` | `cap.check <id>` | `u32 id` | `CheckCapability` | planned |
+| ☐ | `TBD` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | planned |
+| ☐ | `TBD` | `sandbox.exit` | `none` | `ExitSandbox` | planned |
+| ☐ | `TBD` | `vec.load.<T,N>` | `none` | `VecLoad<T,N>` | planned |
+| ☐ | `TBD` | `vec.store.<T,N>` | `none` | `VecStore<T,N>` | planned |
+| ☐ | `TBD` | `vec.splat.<T,N>` | `none` | `VecSplat<T,N>` | planned |
+| ☐ | `TBD` | `vec.extract.<T,N> <lane>` | `lane` | `VecExtract<T,N>` | planned |
+| ☐ | `TBD` | `vec.add.<T,N>` | `none` | `VecAdd<T,N>` | planned |
+| ☐ | `TBD` | `vec.sub.<T,N>` | `none` | `VecSub<T,N>` | planned |
+| ☐ | `TBD` | `vec.mul.<T,N>` | `none` | `VecMul<T,N>` | planned |
+| ☐ | `TBD` | `vec.div.<T,N>` | `none` | `VecDiv<T,N>` | planned |
+| ☐ | `TBD` | `vec.and.<T,N>` | `none` | `VecAnd<T,N>` | planned |
+| ☐ | `TBD` | `vec.or.<T,N>` | `none` | `VecOr<T,N>` | planned |
+| ☐ | `TBD` | `vec.xor.<T,N>` | `none` | `VecXor<T,N>` | planned |
+
+## Module model
 
 Implemented parsed model includes:
 
@@ -95,176 +814,15 @@ Implemented parsed model includes:
 - `IrTextInst`
 - `IrTextModule`
 
-Functions track:
+Functions track name, locals count, max stack, signature id/name, local names/types, upvalue names/types, labels, and instruction list.
 
-- name
-- locals count
-- max stack
-- signature id/name
-- local names/types
-- upvalue names/types
-- instruction list
+## Lowering and validation
 
-### Type and Signature Lowering
+Implemented lowering handles primitive/object type rows, fields, signatures, constants, globals, imports, function rows, method rows, labels, relative branch fixups, and jump-table fixups.
 
-Implemented lowering handles:
+IR/compiler diagnostics reject unknown sections, malformed entries, malformed signatures/constants, unknown type names, unknown opcode names, invalid operands, duplicate labels, unresolved labels, duplicate or missing entry points, and unsupported metadata combinations known to the lowerer. Additional bytecode validation is performed by the Byte loader/verifier after compilation.
 
-- primitive type names used by SBC type rows
-- object/artifact type rows
-- field metadata
-- signature rows
-- signature parameter type lists
-- return type ids
-- call/import signature references
-
-### Constants
-
-Implemented const handling includes:
-
-- string constants
-- numeric constants represented in SIR syntax and lowered where supported
-- const-pool offsets used by SBC rows and constant opcodes
-
-The const pool is emitted as SBC bytes and revalidated by the Byte loader.
-
-### Globals
-
-Implemented global handling includes:
-
-- global rows
-- global type ids
-- optional initializer constants
-- global load/store op emission through SIR instructions
-
-### Imports
-
-Implemented import lowering supports runtime/native/import metadata rows with:
-
-- module name
-- symbol name
-- signature reference
-- flags
-
-Language extern and reserved runtime imports are emitted into this section by `Lang/src/lang_sir.cpp`.
-
-### Functions and Labels
-
-Implemented function lowering includes:
-
-- opcode parsing
-- operand parsing
-- local/upvalue name resolution
-- labels
-- duplicate-label rejection
-- unresolved-label rejection
-- relative branch fixups through `IrBuilder`
-- jump table fixups
-- function code offsets/sizes
-- method rows
-- function rows
-
-Example:
-
-```txt
-func loop locals=1 stack=2 sig=sig0
-  enter 1
-L0:
-  load_local 0
-  const_i32 10
-  cmp_lt_i32
-  jmp_false L1
-  load_local 0
-  const_i32 1
-  add_i32
-  store_local 0
-  jmp L0
-L1:
-  ret
-```
-
-### Opcode Emission
-
-Implemented `IrBuilder` methods cover the current SBC opcode surface, including:
-
-- control flow
-- stack ops
-- constants
-- calls
-- locals/globals/upvalues
-- arithmetic and comparison lanes
-- boolean ops
-- conversions
-- objects/fields/closures
-- arrays
-- lists
-- strings
-- intrinsics/syscalls
-- debug/profile opcodes
-
-`IrBuilder::Finish` resolves labels/fixups and produces final code bytes.
-
-### SBC Compilation
-
-Implemented `CompileToSbc` packs an `IrModule` into SBC bytes with:
-
-- header
-- section table
-- aligned sections
-- types/fields/methods/sigs/globals/functions/imports/exports
-- const pool
-- code
-- debug bytes where present
-
-SBC structural validity is ultimately checked by `Byte/src/sbc_loader.cpp`.
-
-### Validation and Diagnostics
-
-Implemented IR/compiler diagnostics reject:
-
-- unknown sections
-- malformed section entries
-- malformed signatures
-- malformed constants
-- unknown type names
-- unknown opcode names
-- invalid operand widths/values
-- invalid table references caught during lowering
-- duplicate labels
-- unresolved labels
-- duplicate or missing entry where required
-- unsupported metadata combinations known to the lowerer
-
-Additional bytecode-level validation is performed by the Byte loader/verifier after compilation.
-
-## In Progress
-
-These areas are implemented enough for current language/test usage but are not yet frozen as a stable external IR contract:
-
-- complete formal SIR grammar
-- exhaustive list of every accepted opcode mnemonic and operand form
-- stable textual SIR compatibility/versioning policy
-- full structured IR builder replacing string-oriented SIR emission from Lang
-- richer typed section builders instead of raw metadata byte buffers in `IrModule`
-- complete debug section contract
-- complete export section language-facing contract
-- archived SIR compatibility fixtures
-- stable diagnostic codes for SIR parse/lower errors
-
-## Future
-
-Not currently implemented as stable compiler contract:
-
-- optimizing middle-end passes
-- SSA-based IR
-- register allocation
-- AOT/native backend
-- stable external plugin API for compiler passes
-- cross-module incremental compilation
-- package-aware module graph compiler
-- formal IR version negotiation
-- source-map/debug-info format freeze
-
-## Current Compiler Invariants
+## Current compiler invariants
 
 - Lang must emit SIR accepted by `ParseIrTextModule` and `LowerIrTextToModule`.
 - IR lowering must emit SBC accepted by the Byte loader.
