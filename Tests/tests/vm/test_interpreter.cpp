@@ -48,6 +48,14 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
+bool VmExecutionStatsUseNamedHelper() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("ExecResult AttachExecutionStats(") != std::string::npos &&
+         text.find("auto finish = [") == std::string::npos;
+}
+
 bool VmJitFailureUsesNamedOperandHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -155,6 +163,7 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
+  {"vm_execution_stats_use_named_helper", VmExecutionStatsUseNamedHelper},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_uses_named_helpers", VmTrapFormattingUsesNamedHelpers},
   {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
