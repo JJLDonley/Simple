@@ -1,7 +1,7 @@
 #include "TAST/type_checker.h"
 
 #include "TAST/control_flow.h"
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 
 namespace Simple::Lang::TAST {
 

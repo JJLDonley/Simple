@@ -18,7 +18,7 @@
 #include "ir_lang.h"
 #include "CAST/parser.h"
 #include "lang_reserved.h"
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 #include "lang_sir.h"
 #include "lsp_server.h"
 #include "sbc_loader.h"

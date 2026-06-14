@@ -11,7 +11,7 @@
 
 #include "CAST/parser.h"
 #include "lang_reserved.h"
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
 #include "intrinsic_ids.h"

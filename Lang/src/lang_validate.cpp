@@ -1,4 +1,4 @@
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 
 #include <algorithm>
 #include <functional>

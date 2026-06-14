@@ -29,7 +29,7 @@
 #include "lang_lexer.h"
 #include "CAST/parser.h"
 #include "lang_sir.h"
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 #include "ir_lang.h"
 #include "ir_compiler.h"
 #include "simple_runner.h"

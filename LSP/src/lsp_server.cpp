@@ -19,7 +19,7 @@
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "lang_token.h"
-#include "lang_validate.h"
+#include "TAST/type_checker.h"
 
 namespace Simple::LSP {
 namespace {

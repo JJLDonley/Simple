@@ -247,7 +247,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Remove legacy `lang_*.h` compatibility facades after callers move to phase headers:
   - [x] remove `lang_ast.h`
   - [x] remove `lang_parser.h`
-  - [ ] remove `lang_validate.h`
+  - [x] remove `lang_validate.h`
   - [ ] remove `lang_sir.h`
 - [ ] Remove facade-only Lang phase modules; each phase must own real implementation.
 - [x] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
@@ -342,7 +342,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 - [ ] Remove legacy include facades after migration:
   - [x] remove `lang_ast.h`
   - [x] remove `lang_parser.h`
-  - [ ] remove `lang_validate.h`
+  - [x] remove `lang_validate.h`
   - [ ] remove `lang_sir.h`
   - [ ] update all project includes to phase headers
   - [ ] delete compatibility tests that only exist to preserve legacy facades
