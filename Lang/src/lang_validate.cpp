@@ -3417,8 +3417,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
         }
         break;
     }
-    if (name_ptr && !ctx.top_level.insert(*name_ptr).second) {
-      if (error) *error = "duplicate top-level declaration: " + *name_ptr;
+    if (name_ptr && !CheckUniqueNamedMember(*name_ptr,
+                                            &ctx.top_level,
+                                            "duplicate top-level declaration: ",
+                                            error)) {
       return false;
     }
   }
@@ -3490,10 +3492,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
           if (!CollectTypeParams(decl.artifact.generics, &type_params, error)) return false;
           std::unordered_set<std::string> names;
           for (const auto& field : decl.artifact.fields) {
-            if (!names.insert(field.name).second) {
-              if (error) *error = "duplicate artifact member: " + field.name;
-              return false;
-            }
+            if (!CheckUniqueNamedMember(field.name, &names, "duplicate artifact member: ", error)) return false;
             if (!CheckTypeRef(field.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (field.has_init_expr) {
               if (!ValidateVarInitExpr(field,
@@ -3507,10 +3506,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             }
           }
           for (const auto& method : decl.artifact.methods) {
-            if (!names.insert(method.name).second) {
-              if (error) *error = "duplicate artifact member: " + method.name;
-              return false;
-            }
+            if (!CheckUniqueNamedMember(method.name, &names, "duplicate artifact member: ", error)) return false;
           }
           for (const auto& method : decl.artifact.methods) {
             std::unordered_set<std::string> method_params;
@@ -3533,10 +3529,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> names;
           for (const auto& var : decl.module.variables) {
-            if (!names.insert(var.name).second) {
-              if (error) *error = "duplicate module member: " + var.name;
-              return false;
-            }
+            if (!CheckUniqueNamedMember(var.name, &names, "duplicate module member: ", error)) return false;
             std::unordered_set<std::string> type_params;
             if (!CheckTypeRef(var.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (var.has_init_expr) {
@@ -3551,10 +3544,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             }
           }
           for (const auto& fn : decl.module.functions) {
-            if (!names.insert(fn.name).second) {
-              if (error) *error = "duplicate module member: " + fn.name;
-              return false;
-            }
+            if (!CheckUniqueNamedMember(fn.name, &names, "duplicate module member: ", error)) return false;
           }
         }
         for (const auto& fn : decl.module.functions) {
