@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "RAST/import_graph.h"
+#include "lang_reserved.h"
 #include "native/registry.h"
 
 namespace Simple::Lang::RAST {
@@ -145,6 +146,35 @@ bool GetReservedModuleVarType(const std::string& canonical_module,
   if (canonical_module == "OS" &&
       (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
     return set_simple("bool");
+  }
+  return false;
+}
+
+bool IsReservedModuleEnabled(const std::unordered_set<std::string>& reserved_imports,
+                             const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+                             const std::string& name) {
+  if (reserved_import_aliases.find(name) != reserved_import_aliases.end()) return true;
+  if (reserved_imports.find(name) != reserved_imports.end()) return true;
+  std::string canonical;
+  if (!CanonicalizeReservedImportPath(name, &canonical)) return false;
+  return reserved_imports.find(canonical) != reserved_imports.end();
+}
+
+bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_imports,
+                               const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+                               const std::string& name,
+                               std::string* out) {
+  if (!out) return false;
+  std::string canonical;
+  if (CanonicalizeReservedImportPath(name, &canonical) &&
+      reserved_imports.find(canonical) != reserved_imports.end()) {
+    *out = canonical;
+    return true;
+  }
+  auto it = reserved_import_aliases.find(name);
+  if (it != reserved_import_aliases.end()) {
+    *out = it->second;
+    return true;
   }
   return false;
 }

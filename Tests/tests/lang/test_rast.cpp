@@ -1,5 +1,8 @@
 #include "test_utils.h"
 
+#include <unordered_map>
+#include <unordered_set>
+
 #include "AST/lower_cast.h"
 #include "CAST/parser.h"
 #include "RAST/resolver.h"
@@ -270,11 +273,23 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
     return false;
   };
   Simple::Lang::AST::TypeRef reserved_var_type;
+  std::unordered_set<std::string> reserved_imports = {"FS", "DL"};
+  std::unordered_map<std::string, std::string> reserved_aliases = {{"Files", "FS"}};
+  std::string resolved_reserved;
+  const bool resolves_reserved_alias = Simple::Lang::RAST::ResolveReservedModuleName(
+      reserved_imports, reserved_aliases, "Files", &resolved_reserved) && resolved_reserved == "FS";
+  const bool resolves_reserved_direct = Simple::Lang::RAST::ResolveReservedModuleName(
+      reserved_imports, reserved_aliases, "DL", &resolved_reserved) && resolved_reserved == "DL";
+  const bool enables_reserved_alias = Simple::Lang::RAST::IsReservedModuleEnabled(
+      reserved_imports, reserved_aliases, "Files");
   const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
                             reserved_var_type.name == "f64";
   const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
                             reserved_var_type.name == "bool";
-  return math_pi_type &&
+  return resolves_reserved_alias &&
+         resolves_reserved_direct &&
+         enables_reserved_alias &&
+         math_pi_type &&
          os_flag_type &&
          !Simple::Lang::RAST::GetReservedModuleVarType("Math", "missing", &reserved_var_type) &&
          has_fs_member("readText") &&
