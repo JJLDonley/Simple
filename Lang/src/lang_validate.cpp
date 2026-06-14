@@ -102,6 +102,7 @@ using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckFunctionCallArgs;
 using TAST::CheckProcTypeArgs;
+using TAST::CountFormatPlaceholders;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
@@ -136,29 +137,6 @@ bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
   return ResolveReservedModuleName(ctx, module_name, &resolved) && resolved == "IO";
-}
-
-bool CountFormatPlaceholders(const std::string& fmt,
-                             size_t* out_count,
-                             std::string* error) {
-  if (!out_count) return false;
-  *out_count = 0;
-  for (size_t i = 0; i < fmt.size(); ++i) {
-    if (fmt[i] == '{') {
-      if (i + 1 >= fmt.size() || fmt[i + 1] != '}') {
-        if (error) *error = "invalid format string: expected '{}' placeholder";
-        return false;
-      }
-      ++(*out_count);
-      ++i;
-      continue;
-    }
-    if (fmt[i] == '}') {
-      if (error) *error = "invalid format string: unmatched '}'";
-      return false;
-    }
-  }
-  return true;
 }
 
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {

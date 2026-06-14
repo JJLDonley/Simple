@@ -1,11 +1,15 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 
 #include "AST/ast.h"
 
 namespace Simple::Lang::TAST {
 
+bool CountFormatPlaceholders(const std::string& fmt,
+                             size_t* out_count,
+                             std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

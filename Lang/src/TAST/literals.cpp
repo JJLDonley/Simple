@@ -4,6 +4,29 @@
 
 namespace Simple::Lang::TAST {
 
+bool CountFormatPlaceholders(const std::string& fmt,
+                             size_t* out_count,
+                             std::string* error) {
+  if (!out_count) return false;
+  *out_count = 0;
+  for (size_t i = 0; i < fmt.size(); ++i) {
+    if (fmt[i] == '{') {
+      if (i + 1 >= fmt.size() || fmt[i + 1] != '}') {
+        if (error) *error = "invalid format string: expected '{}' placeholder";
+        return false;
+      }
+      ++(*out_count);
+      ++i;
+      continue;
+    }
+    if (fmt[i] == '}') {
+      if (error) *error = "invalid format string: unmatched '}'";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;

@@ -119,6 +119,17 @@ bool LangTastCheckerRejectsTypeMismatch() {
 }
 
 
+bool LangTastFormatStringCountsPlaceholders() {
+  size_t count = 0;
+  std::string error;
+  if (!Simple::Lang::TAST::CountFormatPlaceholders("a {} b {}", &count, &error)) return false;
+  if (count != 2) return false;
+  if (Simple::Lang::TAST::CountFormatPlaceholders("a { b", &count, &error)) return false;
+  if (error.find("expected '{}' placeholder") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CountFormatPlaceholders("a } b", &count, &error)) return false;
+  return error.find("unmatched '}'") != std::string::npos;
+}
+
 bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {
   Simple::Lang::AST::TypeRef expected_array;
   expected_array.name = "i32";
@@ -384,6 +395,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
+  {"lang_tast_format_string_counts_placeholders", LangTastFormatStringCountsPlaceholders},
   {"lang_tast_literal_compatibility_accepts_flexible_array_and_scalar_literals", LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals},
   {"lang_tast_literal_helpers_classify_brace_and_list_shapes", LangTastLiteralHelpersClassifyBraceAndListShapes},
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
