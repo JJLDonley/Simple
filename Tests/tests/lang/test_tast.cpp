@@ -74,6 +74,20 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastCallsCheckReservedDlOpenArgTypes() {
+  std::string error;
+  std::vector<Simple::Lang::AST::TypeRef> args = {Simple::Lang::TAST::MakeSimpleType("string")};
+  if (!Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
+  args.push_back(Simple::Lang::TAST::MakeSimpleType("manifest"));
+  if (!Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
+  args.clear();
+  if (Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
+  if (error.find("DL.open expects (string) or (string, manifest)") == std::string::npos) return false;
+  args = {Simple::Lang::TAST::MakeSimpleType("i32")};
+  if (Simple::Lang::TAST::CheckReservedDlOpenArgTypes(args, &error)) return false;
+  return error.find("DL.open expects first argument string path") != std::string::npos;
+}
+
 bool LangTastCallsCheckReservedFileArgTypes() {
   std::string error;
   auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
@@ -658,6 +672,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_calls_check_reserved_dl_open_arg_types", LangTastCallsCheckReservedDlOpenArgTypes},
   {"lang_tast_calls_check_reserved_file_arg_types", LangTastCallsCheckReservedFileArgTypes},
   {"lang_tast_calls_check_reserved_io_buffer_arg_types", LangTastCallsCheckReservedIoBufferArgTypes},
   {"lang_tast_calls_check_reserved_math_arg_types", LangTastCallsCheckReservedMathArgTypes},

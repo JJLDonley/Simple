@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
@@ -1887,16 +1888,11 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return CheckReservedTimeCallArgTypes(name, arg_types, error);
       }
       if (mod == "DL" && NormalizeDlMemberName(name) == "open") {
-        if (call_expr.args.size() != 1 && call_expr.args.size() != 2) {
-          if (error) *error = "DL.open expects (string) or (string, manifest)";
-          return false;
-        }
         TypeRef path;
-        if (!infer_arg(0, &path)) return true;
-        if (path.name != "string" || !path.dims.empty()) {
-          if (error) *error = "DL.open expects first argument string path";
-          return false;
-        }
+        if (!call_expr.args.empty() && !infer_arg(0, &path)) return true;
+        std::vector<TypeRef> arg_types(call_expr.args.size());
+        if (!arg_types.empty()) arg_types[0] = std::move(path);
+        if (!CheckReservedDlOpenArgTypes(arg_types, error)) return false;
         if (call_expr.args.size() == 2) {
           if (call_expr.args[1].kind != ExprKind::Identifier) {
             if (error) *error = "DL.open manifest must be an extern module identifier";

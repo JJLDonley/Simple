@@ -132,6 +132,20 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
   return true;
 }
 
+bool CheckReservedDlOpenArgTypes(const std::vector<TypeRef>& args,
+                                 std::string* error) {
+  if (args.size() != 1 && args.size() != 2) {
+    if (error) *error = "DL.open expects (string) or (string, manifest)";
+    return false;
+  }
+  const TypeRef& path = args[0];
+  if (path.name != "string" || !path.dims.empty()) {
+    if (error) *error = "DL.open expects first argument string path";
+    return false;
+  }
+  return true;
+}
+
 bool CheckReservedFileCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error) {
