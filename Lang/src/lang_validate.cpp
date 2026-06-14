@@ -10,6 +10,7 @@
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
+#include "TAST/literals.h"
 #include "TAST/types.h"
 
 namespace Simple::Lang {
@@ -59,8 +60,6 @@ bool InferExprType(const Expr& expr,
                    const ArtifactDecl* current_artifact,
                    TypeRef* out);
 bool IsIntegerLiteralExpr(const Expr& expr);
-bool IsListLiteralExpr(const Expr& expr);
-bool IsPositionalBraceLiteralExpr(const Expr& expr);
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -105,7 +104,9 @@ using TAST::IsFloatScalarTypeName;
 using TAST::IsFloatTypeName;
 using TAST::IsIntegerScalarTypeName;
 using TAST::IsIntegerTypeName;
+using TAST::IsListLiteralExpr;
 using TAST::IsNumericTypeName;
+using TAST::IsPositionalBraceLiteralExpr;
 using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
@@ -1222,16 +1223,6 @@ bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, cons
     return true;
   }
   return false;
-}
-
-bool IsListLiteralExpr(const Expr& expr) {
-  return expr.kind == ExprKind::ListLiteral;
-}
-
-bool IsPositionalBraceLiteralExpr(const Expr& expr) {
-  if (expr.kind == ExprKind::ArrayLiteral) return true;
-  if (expr.kind != ExprKind::ArtifactLiteral) return false;
-  return expr.field_names.empty() && expr.field_values.empty();
 }
 
 bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b) {

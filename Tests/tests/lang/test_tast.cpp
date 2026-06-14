@@ -104,6 +104,25 @@ bool LangTastCheckerRejectsTypeMismatch() {
 }
 
 
+bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
+  Simple::Lang::AST::Expr list;
+  list.kind = Simple::Lang::AST::ExprKind::ListLiteral;
+  if (!Simple::Lang::TAST::IsListLiteralExpr(list)) return false;
+
+  Simple::Lang::AST::Expr array;
+  array.kind = Simple::Lang::AST::ExprKind::ArrayLiteral;
+  if (!Simple::Lang::TAST::IsPositionalBraceLiteralExpr(array)) return false;
+
+  Simple::Lang::AST::Expr positional_artifact;
+  positional_artifact.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
+  if (!Simple::Lang::TAST::IsPositionalBraceLiteralExpr(positional_artifact)) return false;
+
+  Simple::Lang::AST::Expr named_artifact;
+  named_artifact.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
+  named_artifact.field_names.push_back("x");
+  return !Simple::Lang::TAST::IsPositionalBraceLiteralExpr(named_artifact);
+}
+
 bool LangTastLiteralTypingUsesExpectedType() {
   Simple::Lang::AST::Expr expr;
   expr.kind = Simple::Lang::ExprKind::Literal;
@@ -277,6 +296,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
+  {"lang_tast_literal_helpers_classify_brace_and_list_shapes", LangTastLiteralHelpersClassifyBraceAndListShapes},
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},
   {"lang_tast_literal_typing_rejects_non_literal", LangTastLiteralTypingRejectsNonLiteral},
