@@ -59,8 +59,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `RootTraceContext`
 - [ ] Replace and move real subsystem lambdas/helpers out of `vm.cpp` into owned modules.
   - [x] Replace import-call dispatch lambda with `DispatchImportCallByName`.
-  - [x] Replace trap-formatting helper lambdas with named helpers.
-  - [x] Replace JIT failure operand-reader lambdas with named helpers.
+  - [x] Move trap-formatting helpers into `VM/src/interpreter/traps.cpp`.
+  - [x] Move JIT/trap operand-reader helpers into `VM/src/interpreter/traps.cpp`.
   - [x] Move execution-result finalizer into `VM/src/runtime/execution_stats.cpp`.
   - [x] Move constant-string/global lookup helpers into `VM/src/interpreter/globals.cpp`.
   - [x] Move runtime-limit/local allocation helpers into runtime/interpreter modules.

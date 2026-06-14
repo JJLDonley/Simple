@@ -157,14 +157,23 @@ bool VmJitFailureUsesNamedOperandHelpers() {
          body.find("ReadI32Operand(module.code") != std::string::npos;
 }
 
-bool VmTrapFormattingUsesNamedHelpers() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("std::string LookupMethodName(") != std::string::npos &&
-         text.find("bool ReadU32Operand(") != std::string::npos &&
-         text.find("bool ReadI32Operand(") != std::string::npos &&
-         text.find("auto get_method_name = [") == std::string::npos;
+bool VmTrapFormattingLivesInInterpreterModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/interpreter/traps.h");
+  std::ifstream source("VM/src/interpreter/traps.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("struct TrapContext") != std::string::npos &&
+         header_text.find("ExecResult Trap(") != std::string::npos &&
+         source_text.find("std::string LookupMethodName(") != std::string::npos &&
+         source_text.find("bool ReadU32Operand(") != std::string::npos &&
+         source_text.find("bool ReadI32Operand(") != std::string::npos &&
+         vm_text.find("std::string LookupMethodName(") == std::string::npos &&
+         vm_text.find("bool ReadU32Operand(") == std::string::npos &&
+         vm_text.find("bool ReadI32Operand(") == std::string::npos &&
+         vm_text.find("auto get_method_name = [") == std::string::npos;
 }
 
 bool VmImportDispatcherUsesNamedFunction() {
@@ -256,7 +265,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
-  {"vm_trap_formatting_uses_named_helpers", VmTrapFormattingUsesNamedHelpers},
+  {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
   {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
   {"vm_boundary_types_are_explicit", VmBoundaryTypesAreExplicit},
