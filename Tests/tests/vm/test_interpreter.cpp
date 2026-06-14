@@ -13,6 +13,14 @@
 namespace Simple::VM::Tests {
 namespace {
 
+bool VmImportDispatcherUsesNamedFunction() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("bool DispatchImportCallByName(") != std::string::npos &&
+         text.find("auto handle_import_call = [") == std::string::npos;
+}
+
 bool VmRuntimeSplitModulesExist() {
   const std::array<const char*, 19> paths = {
       "VM/src/interpreter/interpreter.cpp",
@@ -85,6 +93,7 @@ bool VmSplitInterpreterStackAndFrames() {
 }
 
 const TestCase kVmInterpreterTests[] = {
+  {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
   {"vm_boundary_types_are_explicit", VmBoundaryTypesAreExplicit},
   {"vm_split_interpreter_stack_and_frames", VmSplitInterpreterStackAndFrames},

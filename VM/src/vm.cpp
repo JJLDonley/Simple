@@ -1453,60 +1453,17 @@ ExecResult Trap(const std::string& message) {
 
 } // namespace
 
-ExecResult ExecuteModule(const SbcModule& module) {
-  return ExecuteModule(module, true, true, ExecOptions{});
-}
-
-ExecResult ExecuteModule(const SbcModule& module, bool verify) {
-  return ExecuteModule(module, verify, true, ExecOptions{});
-}
-
-ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) {
-  return ExecuteModule(module, verify, enable_jit, ExecOptions{});
-}
-
-ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, const ExecOptions& options) {
-  if (options.force_interpreter) enable_jit = false;
-  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(module);
-  if (verify && !vr.ok) return Trap(vr.error);
-  bool have_meta = vr.ok;
-  if (module.functions.empty()) return Trap("no functions to execute");
-  if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
-  const RuntimeLimits& limits = options.limits;
-  const std::string limit_error = Simple::VM::Runtime::CheckModuleLimits(limits, module);
-  if (!limit_error.empty()) return Trap(limit_error);
-
-  Heap heap;
-  heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
-  ScratchArena scratch_arena;
-  scratch_arena.SetRequireScope(true);
-  Simple::VM::Interpreter::InterpreterState interpreter_state =
-      Simple::VM::Interpreter::MakeInterpreterState(module.globals.size());
-  std::vector<Slot>& globals = interpreter_state.globals;
-  std::vector<Slot>& locals_arena = interpreter_state.locals_arena;
-  std::vector<Slot> jit_stack;
-  std::vector<Slot> jit_locals;
-  std::vector<uint32_t> call_counts(module.functions.size(), 0);
-  std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
-  std::vector<Simple::VM::Jit::Stub> jit_stubs(module.functions.size());
-  std::vector<uint64_t> opcode_counts(256, 0);
-  std::vector<uint32_t> compile_counts(module.functions.size(), 0);
-  std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
-  std::vector<uint64_t> compile_ticks_tier0(module.functions.size(), 0);
-  std::vector<uint64_t> compile_ticks_tier1(module.functions.size(), 0);
-  std::vector<uint32_t> jit_dispatch_counts(module.functions.size(), 0);
-  std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
-  std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
-  std::vector<std::FILE*> open_files;
-  std::string dl_last_error;
-  uint64_t compile_tick = 0;
-  const Simple::VM::Jit::Thresholds jit_thresholds = Simple::VM::Jit::ReadThresholdsFromEnv();
-  const uint32_t jit_tier0_threshold = jit_thresholds.tier0;
-  const uint32_t jit_tier1_threshold = jit_thresholds.tier1;
-  const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
-  Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
-  auto handle_import_call = [&](uint32_t func_id, const std::vector<Slot>& args, Slot& out_ret,
-                                bool& out_has_ret, std::string& out_error) -> bool {
+bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
+                              const ExecOptions& options,
+                              const Simple::VM::Native::NativeRegistry& native_registry,
+                              Heap& heap,
+                              std::vector<std::FILE*>& open_files,
+                              std::string& dl_last_error,
+                              uint32_t func_id,
+                              const std::vector<Slot>& args,
+                              Slot& out_ret,
+                              bool& out_has_ret,
+                              std::string& out_error) {
     if (module.imports.empty()) {
       out_error = "import not supported";
       return false;
@@ -1640,7 +1597,60 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     }
     out_error = "import not supported: " + mod + "." + sym;
     return false;
-  };
+}
+
+ExecResult ExecuteModule(const SbcModule& module) {
+  return ExecuteModule(module, true, true, ExecOptions{});
+}
+
+ExecResult ExecuteModule(const SbcModule& module, bool verify) {
+  return ExecuteModule(module, verify, true, ExecOptions{});
+}
+
+ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) {
+  return ExecuteModule(module, verify, enable_jit, ExecOptions{});
+}
+
+ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, const ExecOptions& options) {
+  if (options.force_interpreter) enable_jit = false;
+  Simple::Byte::VerifyResult vr = Simple::Byte::VerifyModule(module);
+  if (verify && !vr.ok) return Trap(vr.error);
+  bool have_meta = vr.ok;
+  if (module.functions.empty()) return Trap("no functions to execute");
+  if (module.header.entry_method_id == 0xFFFFFFFFu) return Trap("no entry point");
+  const RuntimeLimits& limits = options.limits;
+  const std::string limit_error = Simple::VM::Runtime::CheckModuleLimits(limits, module);
+  if (!limit_error.empty()) return Trap(limit_error);
+
+  Heap heap;
+  heap.SetLimits(limits.max_heap_objects, limits.max_heap_bytes);
+  ScratchArena scratch_arena;
+  scratch_arena.SetRequireScope(true);
+  Simple::VM::Interpreter::InterpreterState interpreter_state =
+      Simple::VM::Interpreter::MakeInterpreterState(module.globals.size());
+  std::vector<Slot>& globals = interpreter_state.globals;
+  std::vector<Slot>& locals_arena = interpreter_state.locals_arena;
+  std::vector<Slot> jit_stack;
+  std::vector<Slot> jit_locals;
+  std::vector<uint32_t> call_counts(module.functions.size(), 0);
+  std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
+  std::vector<Simple::VM::Jit::Stub> jit_stubs(module.functions.size());
+  std::vector<uint64_t> opcode_counts(256, 0);
+  std::vector<uint32_t> compile_counts(module.functions.size(), 0);
+  std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
+  std::vector<uint64_t> compile_ticks_tier0(module.functions.size(), 0);
+  std::vector<uint64_t> compile_ticks_tier1(module.functions.size(), 0);
+  std::vector<uint32_t> jit_dispatch_counts(module.functions.size(), 0);
+  std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
+  std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
+  std::vector<std::FILE*> open_files;
+  std::string dl_last_error;
+  uint64_t compile_tick = 0;
+  const Simple::VM::Jit::Thresholds jit_thresholds = Simple::VM::Jit::ReadThresholdsFromEnv();
+  const uint32_t jit_tier0_threshold = jit_thresholds.tier0;
+  const uint32_t jit_tier1_threshold = jit_thresholds.tier1;
+  const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
+  Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
   std::vector<uint8_t> compile_stack(module.functions.size(), 0);
   auto can_compile = [&](auto&& self, size_t func_index) -> bool {
     if (func_index >= module.functions.size()) return false;
@@ -5571,7 +5581,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!handle_import_call(func_id, call_args, ret, has_ret, error)) {
+          if (!DispatchImportCallByName(module, options, native_registry, heap, open_files, dl_last_error, func_id, call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (has_ret) Push(stack, ret);
@@ -5661,7 +5671,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!handle_import_call(static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
+          if (!DispatchImportCallByName(module, options, native_registry, heap, open_files, dl_last_error, static_cast<uint32_t>(func_index), call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (has_ret) Push(stack, ret);
@@ -5730,7 +5740,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot ret = 0;
           bool has_ret = false;
           std::string error;
-          if (!handle_import_call(func_id, call_args, ret, has_ret, error)) {
+          if (!DispatchImportCallByName(module, options, native_registry, heap, open_files, dl_last_error, func_id, call_args, ret, has_ret, error)) {
             return Trap(error);
           }
           if (call_stack.empty()) {

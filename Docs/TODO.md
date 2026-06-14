@@ -58,6 +58,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `InterpreterState`
   - [x] `RootTraceContext`
 - [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.
+  - [x] Replace import-call dispatch lambda with `DispatchImportCallByName`.
 - [ ] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [ ] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 
