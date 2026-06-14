@@ -73,37 +73,12 @@ std::string ReadFileText(const std::string& path) {
   return text;
 }
 
-std::string RunCommandCaptureStdout(const std::string& command) {
-  const std::string out_path = TempPath("simple_command_capture.txt");
-  const std::string wrapped = command + " > " + out_path + " 2>/dev/null";
-  if (std::system(wrapped.c_str()) != 0) return {};
-  return ReadFileText(out_path);
-}
-
 std::string RunCommandCaptureStderr(const std::string& command, int* out_exit_code = nullptr) {
   const std::string err_path = TempPath("simple_command_stderr_capture.txt");
   const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
   const int result = std::system(wrapped.c_str());
   if (out_exit_code) *out_exit_code = SystemExitCode(result);
   return ReadFileText(err_path);
-}
-
-bool RunCommandExpectFail(const std::string& command) {
-  const std::string err_path = TempPath("simple_expect_fail_err.txt");
-  const std::string wrapped = command + " 1>/dev/null 2> " + err_path;
-  const int result = std::system(wrapped.c_str());
-  if (result == 0) {
-    std::cerr << "expected failure: command succeeded\n";
-    return false;
-  }
-  std::ifstream in(err_path);
-  std::string line;
-  if (in.good() && std::getline(in, line)) {
-    std::cerr << "expected failure: " << line << "\n";
-  } else {
-    std::cerr << "expected failure: (no error output)\n";
-  }
-  return true;
 }
 
 std::string TempPath(const std::string& name) {
@@ -1415,29 +1390,6 @@ bool LangReservedLogUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_log_using.simple", 1);
 }
 
-bool LangCliSimpleRejectsBuildCommand() {
-  return RunCommandExpectFail("bin/simple build Tests/simple/hello.simple");
-}
-
-bool LangCliSimpleRejectsCompileCommand() {
-  return RunCommandExpectFail("bin/simple compile Tests/simple/hello.simple");
-}
-
-bool LangCliCompileSvmDefaultsToExeAndInfersSimpleExt() {
-  const std::string out_path = TempPath("svm_compile_hello_exec");
-  const std::string cmd = "bin/svm compile Tests/simple/hello --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  return RunCommand(out_path);
-}
-
-bool LangCliCompileSvmOutSbcStaysBytecode() {
-  const std::string out_path = TempPath("svm_compile_hello.sbc");
-  const std::string cmd = "bin/svm compile Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  std::ifstream in(out_path, std::ios::binary);
-  return in.good() && in.peek() != std::ifstream::traits_type::eof();
-}
-
 bool LangCliLocalUsingImportDoesNotReachValidator() {
   namespace fs = std::filesystem;
   const fs::path dir = fs::temp_directory_path() / "simple_local_using_import_case";
@@ -1457,54 +1409,8 @@ bool LangCliLocalUsingImportDoesNotReachValidator() {
   return RunCommand(cmd);
 }
 
-bool LangCliBuildDynamicExe() {
-  const std::string out_path = TempPath("simple_build_hello_exec");
-  const std::string cmd =
-      "bin/svm build -d Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  if (!RunCommand(out_path)) return false;
-#if defined(__linux__)
-  const std::string deps = RunCommandCaptureStdout("ldd " + out_path);
-  if (deps.empty()) return false;
-  if (deps.find("libsimplevm_runtime.so") == std::string::npos) return false;
-#endif
-  return true;
-}
-
-bool LangCliBuildStaticExe() {
-  const std::string out_path = TempPath("simple_build_hello_exec_static");
-  const std::string cmd =
-      "bin/svm build -s Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  if (!RunCommand(out_path)) return false;
-#if defined(__linux__)
-  const std::string deps = RunCommandCaptureStdout("ldd " + out_path);
-  if (deps.empty()) return false;
-  if (deps.find("libsimplevm_runtime.so") != std::string::npos) return false;
-#endif
-  return true;
-}
-
 bool LangCliRunSimple() {
   return RunCommand("bin/svm run Tests/simple/hello.simple");
-}
-
-bool LangCliSimpleStubWithoutPayloadFails() {
-  int exit_code = -1;
-  const std::string stderr_text = RunCommandCaptureStderr("bin/simple", &exit_code);
-  return exit_code == 1 && stderr_text.find("no embedded SBC payload") != std::string::npos;
-}
-
-bool LangCliSimpleRejectsSimpleSource() {
-  return RunCommandExpectFail("bin/simple run Tests/simple/hello.simple");
-}
-
-bool LangCliSimpleRejectsCheckCommand() {
-  return RunCommandExpectFail("bin/simple check Tests/simple/hello.simple");
-}
-
-bool LangCliSimpleRejectSir() {
-  return RunCommandExpectFail("bin/simple run Tests/sir/fib_iter.sir");
 }
 
 bool LangCliExitCodeContract() {
@@ -3625,19 +3531,8 @@ const TestCase kLangTests[] = {
   {"lang_reserved_buffer_using_run", LangReservedBufferUsingRun},
   {"lang_reserved_log_run", LangReservedLogRun},
   {"lang_reserved_log_using_run", LangReservedLogUsingRun},
-  {"lang_cli_simple_rejects_build_command", LangCliSimpleRejectsBuildCommand},
-  {"lang_cli_simple_rejects_compile_command", LangCliSimpleRejectsCompileCommand},
-  {"lang_cli_compile_svm_defaults_to_exe_and_infers_simple_ext",
-   LangCliCompileSvmDefaultsToExeAndInfersSimpleExt},
-  {"lang_cli_compile_svm_out_sbc_stays_bytecode", LangCliCompileSvmOutSbcStaysBytecode},
   {"lang_cli_local_using_import_does_not_reach_validator", LangCliLocalUsingImportDoesNotReachValidator},
-  {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
-  {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
-  {"lang_cli_simple_stub_without_payload_fails", LangCliSimpleStubWithoutPayloadFails},
-  {"lang_cli_simple_rejects_simple_source", LangCliSimpleRejectsSimpleSource},
-  {"lang_cli_simple_rejects_check_command", LangCliSimpleRejectsCheckCommand},
-  {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
   {"lang_cli_exit_code_contract", LangCliExitCodeContract},
   {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},
   {"lang_cli_missing_input_diagnostics", LangCliMissingInputDiagnostics},

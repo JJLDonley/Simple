@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <string>
+#include <sys/wait.h>
 
 #include "build_contract.h"
 #include "command_contract.h"
@@ -17,6 +19,63 @@ std::filesystem::path CliBuildTempPath(const std::string& name) {
 
 bool RunCliBuildCommand(const std::string& command) {
   return std::system(command.c_str()) == 0;
+}
+
+std::string RunCliBuildCaptureStdout(const std::string& command) {
+  const auto path = CliBuildTempPath("simple_cli_build_stdout.txt");
+  const int rc = std::system((command + " > " + path.string()).c_str());
+  if (rc == -1 || WEXITSTATUS(rc) != 0) return "";
+  std::ifstream in(path);
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::filesystem::remove(path);
+  return text;
+}
+
+bool CliCompileSvmDefaultsToExeAndInfersSimpleExt() {
+  const auto out_path = CliBuildTempPath("svm_compile_hello_exec");
+  const std::string cmd = "bin/svm compile Tests/simple/hello --out " + out_path.string();
+  if (!RunCliBuildCommand(cmd)) return false;
+  const bool ok = RunCliBuildCommand(out_path.string());
+  std::filesystem::remove(out_path);
+  return ok;
+}
+
+bool CliCompileSvmOutSbcStaysBytecode() {
+  const auto out_path = CliBuildTempPath("svm_compile_hello.sbc");
+  const std::string cmd = "bin/svm compile Tests/simple/hello.simple --out " + out_path.string();
+  if (!RunCliBuildCommand(cmd)) return false;
+  std::ifstream in(out_path, std::ios::binary);
+  const bool ok = in.good() && in.peek() != std::ifstream::traits_type::eof();
+  std::filesystem::remove(out_path);
+  return ok;
+}
+
+bool CliBuildDynamicExe() {
+  const auto out_path = CliBuildTempPath("simple_build_hello_exec");
+  const std::string cmd = "bin/svm build -d Tests/simple/hello.simple --out " + out_path.string();
+  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliBuildCommand(out_path.string())) return false;
+#if defined(__linux__)
+  const std::string deps = RunCliBuildCaptureStdout("ldd " + out_path.string());
+  if (deps.empty()) return false;
+  if (deps.find("libsimplevm_runtime.so") == std::string::npos) return false;
+#endif
+  std::filesystem::remove(out_path);
+  return true;
+}
+
+bool CliBuildStaticExe() {
+  const auto out_path = CliBuildTempPath("simple_build_hello_exec_static");
+  const std::string cmd = "bin/svm build -s Tests/simple/hello.simple --out " + out_path.string();
+  if (!RunCliBuildCommand(cmd)) return false;
+  if (!RunCliBuildCommand(out_path.string())) return false;
+#if defined(__linux__)
+  const std::string deps = RunCliBuildCaptureStdout("ldd " + out_path.string());
+  if (deps.empty()) return false;
+  if (deps.find("libsimplevm_runtime.so") != std::string::npos) return false;
+#endif
+  std::filesystem::remove(out_path);
+  return true;
 }
 
 bool CliBuildEmitIr() {
@@ -79,6 +138,10 @@ bool CliSplitBuildComputesDefaultOutputs() {
 }
 
 const TestCase kCliBuildTests[] = {
+  {"cli_compile_svm_defaults_to_exe_and_infers_simple_ext", CliCompileSvmDefaultsToExeAndInfersSimpleExt},
+  {"cli_compile_svm_out_sbc_stays_bytecode", CliCompileSvmOutSbcStaysBytecode},
+  {"cli_build_dynamic_exe", CliBuildDynamicExe},
+  {"cli_build_static_exe", CliBuildStaticExe},
   {"cli_build_emit_ir", CliBuildEmitIr},
   {"cli_build_emit_sbc", CliBuildEmitSbc},
   {"cli_build_check_simple", CliBuildCheckSimple},
