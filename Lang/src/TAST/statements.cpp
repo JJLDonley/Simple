@@ -2,6 +2,12 @@
 
 namespace Simple::Lang::TAST {
 
+bool IsAssignOp(const std::string& op) {
+  return op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" ||
+         op == "%=" || op == "&=" || op == "|=" || op == "^=" || op == "<<=" ||
+         op == ">>=";
+}
+
 bool CheckAssignment(const Stmt& stmt, std::string* error) {
   if (stmt.kind != Simple::Lang::AST::StmtKind::Assign) {
     if (error) *error = "expected assignment statement";

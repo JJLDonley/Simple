@@ -355,6 +355,10 @@ bool LangTastMutabilityChecksAssignments() {
 
 
 bool LangTastCheckAssignmentValidatesShape() {
+  if (!Simple::Lang::TAST::IsAssignOp("=")) return false;
+  if (!Simple::Lang::TAST::IsAssignOp("<<=")) return false;
+  if (Simple::Lang::TAST::IsAssignOp("==")) return false;
+
   Simple::Lang::AST::Stmt assign;
   assign.kind = Simple::Lang::AST::StmtKind::Assign;
   assign.target.kind = Simple::Lang::AST::ExprKind::Identifier;

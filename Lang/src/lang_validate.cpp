@@ -14,6 +14,7 @@
 #include "TAST/expressions.h"
 #include "TAST/generics.h"
 #include "TAST/literals.h"
+#include "TAST/statements.h"
 #include "TAST/types.h"
 
 namespace Simple::Lang {
@@ -109,6 +110,7 @@ using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::IsBoolTypeName;
+using TAST::IsAssignOp;
 using TAST::IsFloatTypeName;
 using TAST::IsIntegerTypeName;
 using TAST::IsLiteralCompatibleWithScalarType;
@@ -1731,11 +1733,6 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
     }
   }
   return true;
-}
-
-bool IsAssignOp(const std::string& op) {
-  return op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" ||
-         op == "%=" || op == "&=" || op == "|=" || op == "^=" || op == "<<=" || op == ">>=";
 }
 
 const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name) {
