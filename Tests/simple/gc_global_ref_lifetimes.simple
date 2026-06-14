@@ -1,0 +1,18 @@
+Box :: Artifact { text : string }
+
+GlobalText :: string = "global"
+GlobalBox :: Box = { "boxed" }
+
+main : i32 () {
+  i : i32 = 0
+  while (i < 2500) {
+    temp : string = "collect"
+    if (len(temp) == 0) { return 1 }
+    if (len(GlobalText) != 6) { return 2 }
+    if (len(GlobalBox.text) != 5) { return 3 }
+    i = i + 1
+  }
+  if (len(GlobalText) != 6) { return 4 }
+  if (len(GlobalBox.text) != 5) { return 5 }
+  return 0
+}
