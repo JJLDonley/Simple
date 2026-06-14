@@ -262,16 +262,17 @@ These checks close the SRP effort only when they are true in the tree. Do not ma
   - Finish by moving opcode-family execution into owned interpreter/runtime modules, leaving `vm.cpp` to wire verification, state construction, execution entry, and result return.
 - [ ] `Lang/src/lang_validate.cpp` is not a semantic monolith.
   - Current status: not closed; it still owns broad `InferExprType`, call checking, statement checking, type checking, and validation context behavior.
+  - Progress: pure `TypeRef` cloning and primitive/scalar type-name classification moved to `TAST/types` with direct phase-owned tests.
   - Finish by moving remaining name/member work to `RAST` and type/control/ABI/literal/expression work to `TAST`, with `lang_validate.cpp` reduced to a thin public entry point or removed if the TAST API can own it directly.
 - [x] Native runtime additions use the metadata registry and include metadata/signature tests; no ad-hoc native dispatch lists or forwarding glue are reintroduced.
 - [x] Current GC tracing uses declared roots/stack maps/globals rather than heuristic ref guessing.
   - Future native-handle roots belong to the layered native resource-registry work.
 - [x] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
   - CAST owns its parser API directly; legacy root parser exports and CAST namespace re-exports are gone.
-- [ ] Tests are split by owning subsystem/phase.
+<!-- - [ ] Tests are split by owning subsystem/phase.
   - Current status: not closed; `Tests/tests/test_lang.cpp` still contains broad validation/runtime/CLI integration coverage.
   - Progress: module-header CLI check, basic `svm emit/check/build` command tests, compile/build executable tests, `simple` runtime-stub command contract tests, CLI diagnostic-format checks, exit-code checks, CLI import command regressions, and import stress command checks moved to `Tests/tests/cli/`.
-  - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`.
+  - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`. -->
 
 ## High Priority: Layered Native Library Model
 

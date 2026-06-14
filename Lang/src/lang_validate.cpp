@@ -10,6 +10,7 @@
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
+#include "TAST/types.h"
 
 namespace Simple::Lang {
 namespace {
@@ -57,12 +58,7 @@ bool InferExprType(const Expr& expr,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                    const ArtifactDecl* current_artifact,
                    TypeRef* out);
-bool CloneTypeRef(const TypeRef& src, TypeRef* out);
 bool IsIntegerLiteralExpr(const Expr& expr);
-bool IsIntegerScalarTypeName(const std::string& name);
-bool IsBoolTypeName(const std::string& name);
-bool IsNumericTypeName(const std::string& name);
-bool IsScalarType(const TypeRef& type);
 bool IsListLiteralExpr(const Expr& expr);
 bool IsPositionalBraceLiteralExpr(const Expr& expr);
 bool AnalyzeSwitchExpr(const Expr& expr,
@@ -102,24 +98,18 @@ enum class TypeUse : uint8_t {
   Return,
 };
 
-const std::unordered_set<std::string> kPrimitiveTypes = {
-  "i8", "i16", "i32", "i64",
-  "u8", "u16", "u32", "u64",
-  "f32", "f64",
-  "bool", "char", "string",
-};
-
-bool IsPrimitiveCastName(const std::string& name) {
-  return kPrimitiveTypes.find(name) != kPrimitiveTypes.end();
-}
-
-bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
-  if (name.size() < 2 || name[0] != '@') return false;
-  const std::string target = name.substr(1);
-  if (!IsPrimitiveCastName(target)) return false;
-  if (out_target) *out_target = target;
-  return true;
-}
+using TAST::CloneTypeRef;
+using TAST::GetAtCastTargetName;
+using TAST::IsBoolTypeName;
+using TAST::IsFloatScalarTypeName;
+using TAST::IsFloatTypeName;
+using TAST::IsIntegerScalarTypeName;
+using TAST::IsIntegerTypeName;
+using TAST::IsNumericTypeName;
+using TAST::IsPrimitiveCastName;
+using TAST::IsPrimitiveTypeName;
+using TAST::IsScalarType;
+using TAST::IsStringTypeName;
 
 bool IsIoPrintName(const std::string& name);
 bool ResolveReservedModuleName(const ValidateContext& ctx,
@@ -1143,36 +1133,6 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
-bool CloneTypeRef(const TypeRef& src, TypeRef* out) {
-  if (!out) return false;
-  out->name = src.name;
-  out->pointer_depth = src.pointer_depth;
-  out->type_args.clear();
-  out->dims = src.dims;
-  out->is_proc = src.is_proc;
-  out->proc_return_mutability = src.proc_return_mutability;
-  out->proc_params.clear();
-  out->proc_return.reset();
-  out->line = src.line;
-  out->column = src.column;
-  for (const auto& arg : src.type_args) {
-    TypeRef copy;
-    if (!CloneTypeRef(arg, &copy)) return false;
-    out->type_args.push_back(std::move(copy));
-  }
-  for (const auto& param : src.proc_params) {
-    TypeRef copy;
-    if (!CloneTypeRef(param, &copy)) return false;
-    out->proc_params.push_back(std::move(copy));
-  }
-  if (src.proc_return) {
-    TypeRef copy;
-    if (!CloneTypeRef(*src.proc_return, &copy)) return false;
-    out->proc_return = std::make_unique<TypeRef>(std::move(copy));
-  }
-  return true;
-}
-
 bool CloneTypeVector(const std::vector<TypeRef>& src, std::vector<TypeRef>* out) {
   if (!out) return false;
   out->clear();
@@ -1196,7 +1156,6 @@ bool TypeDimsEqual(const std::vector<TypeDim>& a, const std::vector<TypeDim>& b)
 }
 
 bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b);
-bool IsIntegerTypeName(const std::string& name);
 
 bool TypeEquals(const TypeRef& a, const TypeRef& b) {
   if (a.pointer_depth != b.pointer_depth) return false;
@@ -1223,15 +1182,6 @@ bool IsIntegerLiteralExpr(const Expr& expr) {
 
 bool IsFloatLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float;
-}
-
-bool IsIntegerScalarTypeName(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64";
-}
-
-bool IsFloatScalarTypeName(const std::string& name) {
-  return name == "f32" || name == "f64";
 }
 
 bool IsLiteralCompatibleWithScalarType(const Expr& expr, const TypeRef& expected) {
@@ -1463,7 +1413,7 @@ bool CheckTypeRef(const TypeRef& type,
     return true;
   }
 
-  const bool is_primitive = kPrimitiveTypes.find(type.name) != kPrimitiveTypes.end();
+  const bool is_primitive = IsPrimitiveTypeName(type.name);
   const bool is_type_param = type_params.find(type.name) != type_params.end();
   const bool is_user_type = ctx.top_level.find(type.name) != ctx.top_level.end();
 
@@ -3426,38 +3376,9 @@ bool CheckStmt(const Stmt& stmt,
   return true;
 }
 
-bool IsIntegerTypeName(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
-         name == "char";
-}
-
-bool IsFloatTypeName(const std::string& name) {
-  return name == "f32" || name == "f64";
-}
-
-bool IsBoolTypeName(const std::string& name) {
-  return name == "bool";
-}
-
-bool IsStringTypeName(const std::string& name) {
-  return name == "string";
-}
-
 bool IsListMethodName(const std::string& name) {
   return name == "len" || name == "push" || name == "pop" ||
          name == "insert" || name == "remove" || name == "clear";
-}
-
-bool IsNumericTypeName(const std::string& name) {
-  return IsIntegerTypeName(name) || IsFloatTypeName(name);
-}
-
-bool IsScalarType(const TypeRef& type) {
-  return type.pointer_depth == 0 &&
-         !type.is_proc &&
-         type.dims.empty() &&
-         type.type_args.empty();
 }
 
 bool CheckArrayLiteralShape(const Expr& expr,

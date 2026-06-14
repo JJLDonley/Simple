@@ -1,5 +1,7 @@
 #include "test_utils.h"
 
+#include <memory>
+
 #include "AST/lower_cast.h"
 #include "CAST/parser.h"
 #include "RAST/resolver.h"
@@ -10,11 +12,38 @@
 #include "TAST/mutability.h"
 #include "TAST/statements.h"
 #include "TAST/type_checker.h"
+#include "TAST/types.h"
 #include "TAST/abi.h"
 #include "TAST/generics.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
+  Simple::Lang::AST::TypeRef proc;
+  proc.is_proc = true;
+  proc.proc_return = std::make_unique<Simple::Lang::AST::TypeRef>();
+  proc.proc_return->name = "bool";
+  Simple::Lang::AST::TypeRef param;
+  param.name = "i32";
+  proc.proc_params.push_back(param);
+
+  Simple::Lang::AST::TypeRef clone;
+  if (!Simple::Lang::TAST::CloneTypeRef(proc, &clone)) return false;
+  if (!clone.is_proc || !clone.proc_return || clone.proc_return->name != "bool") return false;
+  if (clone.proc_params.size() != 1 || clone.proc_params[0].name != "i32") return false;
+
+  std::string cast_target;
+  return Simple::Lang::TAST::IsIntegerScalarTypeName("u64") &&
+         Simple::Lang::TAST::IsFloatTypeName("f32") &&
+         Simple::Lang::TAST::IsNumericTypeName("char") &&
+         Simple::Lang::TAST::IsBoolTypeName("bool") &&
+         Simple::Lang::TAST::IsStringTypeName("string") &&
+         Simple::Lang::TAST::IsPrimitiveTypeName("i32") &&
+         Simple::Lang::TAST::GetAtCastTargetName("@f64", &cast_target) &&
+         cast_target == "f64" &&
+         !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
+}
 
 bool LangSplitTastAbiAndGenericsSmoke() {
   Simple::Lang::AST::TypeRef scalar;
@@ -236,6 +265,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 
 const TestCase kLangTastTests[] = {
+  {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
