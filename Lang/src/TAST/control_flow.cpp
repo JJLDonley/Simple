@@ -51,6 +51,34 @@ bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
   return false;
 }
 
+bool GetSwitchBranchValueExpr(const Simple::Lang::AST::SwitchBranch& branch,
+                              bool require_explicit_return,
+                              const Simple::Lang::AST::Expr** out_expr,
+                              std::string* error) {
+  if (!out_expr) return false;
+  *out_expr = nullptr;
+  if (branch.is_block) {
+    if (branch.block.empty() ||
+        branch.block.back().kind != StmtKind::Return ||
+        !branch.block.back().has_return_expr) {
+      if (error) *error = "switch branch block must end with a return value";
+      return false;
+    }
+    *out_expr = &branch.block.back().expr;
+    return true;
+  }
+  if (!branch.has_inline_value) {
+    if (error) *error = "switch branch requires a value";
+    return false;
+  }
+  if (require_explicit_return && !branch.is_explicit_return) {
+    if (error) *error = "assigning switch branches must use 'return'";
+    return false;
+  }
+  *out_expr = &branch.value;
+  return true;
+}
+
 Flow AnalyzeStmtFlow(const Simple::Lang::AST::Stmt& stmt) {
   switch (stmt.kind) {
     case StmtKind::Return:

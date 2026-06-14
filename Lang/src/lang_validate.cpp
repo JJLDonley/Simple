@@ -130,6 +130,7 @@ using TAST::CloneElementType;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
+using TAST::GetSwitchBranchValueExpr;
 using TAST::IsBoolTypeName;
 using TAST::IsAddressableExpr;
 using TAST::IsAssignOp;
@@ -3017,34 +3018,6 @@ bool ValidateVarInitExpr(const VarDecl& var,
     if (error) *error = "array/list literal requires array or list type";
     return false;
   }
-  return true;
-}
-
-bool GetSwitchBranchValueExpr(const SwitchBranch& branch,
-                              bool require_explicit_return,
-                              const Expr** out_expr,
-                              std::string* error) {
-  if (!out_expr) return false;
-  *out_expr = nullptr;
-  if (branch.is_block) {
-    if (branch.block.empty() ||
-        branch.block.back().kind != StmtKind::Return ||
-        !branch.block.back().has_return_expr) {
-      if (error) *error = "switch branch block must end with a return value";
-      return false;
-    }
-    *out_expr = &branch.block.back().expr;
-    return true;
-  }
-  if (!branch.has_inline_value) {
-    if (error) *error = "switch branch requires a value";
-    return false;
-  }
-  if (require_explicit_return && !branch.is_explicit_return) {
-    if (error) *error = "assigning switch branches must use 'return'";
-    return false;
-  }
-  *out_expr = &branch.value;
   return true;
 }
 

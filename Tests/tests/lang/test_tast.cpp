@@ -277,6 +277,31 @@ bool LangTastCheckReturnFlowRejectsFallthrough() {
 }
 
 
+bool LangTastControlFlowExtractsSwitchBranchValues() {
+  Simple::Lang::AST::SwitchBranch branch;
+  branch.has_inline_value = true;
+  branch.value.kind = Simple::Lang::AST::ExprKind::Literal;
+  const Simple::Lang::AST::Expr* value = nullptr;
+  std::string error;
+  if (!Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, false, &value, &error)) return false;
+  if (value != &branch.value) return false;
+  if (Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, true, &value, &error)) return false;
+  if (error.find("must use 'return'") == std::string::npos) return false;
+
+  Simple::Lang::AST::SwitchBranch block_branch;
+  block_branch.is_block = true;
+  Simple::Lang::AST::Stmt ret;
+  ret.kind = Simple::Lang::AST::StmtKind::Return;
+  ret.has_return_expr = true;
+  ret.expr.kind = Simple::Lang::AST::ExprKind::Literal;
+  block_branch.block.push_back(ret);
+  if (!Simple::Lang::TAST::GetSwitchBranchValueExpr(block_branch, true, &value, &error)) return false;
+  if (value != &block_branch.block.back().expr) return false;
+  block_branch.block.back().has_return_expr = false;
+  if (Simple::Lang::TAST::GetSwitchBranchValueExpr(block_branch, false, &value, &error)) return false;
+  return error.find("block must end with a return value") != std::string::npos;
+}
+
 bool LangTastControlFlowTracksReturnsAndBreaks() {
   const char* src =
       "main : i32 () {\n"
@@ -487,6 +512,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
+  {"lang_tast_control_flow_extracts_switch_branch_values", LangTastControlFlowExtractsSwitchBranchValues},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
   {"lang_tast_format_string_counts_placeholders", LangTastFormatStringCountsPlaceholders},
