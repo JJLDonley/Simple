@@ -12,12 +12,20 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool VmRuntimeDispatchesRegisteredNativesByMetadataFirst() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  const size_t dispatch = text.find("DispatchNativeMetadataImport(native_registry");
-  const size_t dl_call = text.find("if (mod == \"System.dl\")");
-  return dispatch != std::string::npos && dl_call != std::string::npos && dispatch < dl_call;
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/native/dispatch.h");
+  std::ifstream source("VM/src/native/dispatch.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  const size_t dispatch = vm_text.find("Simple::VM::Native::DispatchMetadataImport(native_registry");
+  const size_t dl_call = vm_text.find("if (mod == \"System.dl\")");
+  return dispatch != std::string::npos && dl_call != std::string::npos && dispatch < dl_call &&
+         header_text.find("struct MetadataDispatchContext") != std::string::npos &&
+         source_text.find("bool DispatchMetadataImport(") != std::string::npos &&
+         vm_text.find("bool DispatchNativeMetadataImport(") == std::string::npos &&
+         vm_text.find("struct NativeMetadataDispatchContext") == std::string::npos;
 }
 
 bool VmRuntimeHasNoNativeStdlibForwardingGlue() {

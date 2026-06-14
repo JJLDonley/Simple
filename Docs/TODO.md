@@ -67,6 +67,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Move interpreter frame setup/local allocation helpers into `VM/src/interpreter/frames.cpp`.
   - [x] Move GC stack-map collection helpers into `VM/src/gc/stack_map_collection.cpp`.
   - [x] Move JIT tier-update helper into `VM/src/jit/tier_updater.cpp`.
+  - [x] Move native metadata dispatch into `VM/src/native/dispatch.cpp`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [x] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 

@@ -33,6 +33,7 @@
 #include "jit/tier_updater.h"
 #include "native/buffer.h"
 #include "native/channel.h"
+#include "native/dispatch.h"
 #include "native/env.h"
 #include "native/fs.h"
 #include "native/json.h"
@@ -66,116 +67,7 @@ using Simple::VM::Interpreter::Pop;
 using Simple::VM::Interpreter::Push;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-inline bool IsI32LikeImportType(TypeKind kind) {
-  switch (kind) {
-    case TypeKind::I8:
-    case TypeKind::I16:
-    case TypeKind::I32:
-    case TypeKind::U8:
-    case TypeKind::U16:
-    case TypeKind::U32:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-      return true;
-    default:
-      return false;
-  }
-}
-
-inline bool IsI64LikeImportType(TypeKind kind) {
-  return kind == TypeKind::I64 || kind == TypeKind::U64;
-}
-
-inline bool IsStringLikeImportType(TypeKind kind) {
-  return kind == TypeKind::String || kind == TypeKind::Ref;
-}
-
 inline Slot PackRef(uint32_t handle);
-std::u16string AsciiToU16(const std::string& text);
-uint32_t CreateString(Heap& heap, const std::u16string& text);
-
-struct NativeMetadataDispatchContext {
-  Heap* heap = nullptr;
-  const std::vector<std::string>* argv = nullptr;
-  std::vector<std::FILE*>* open_files = nullptr;
-  std::string* dl_last_error = nullptr;
-};
-
-bool IsCompatibleNativeReturnType(TypeKind expected, TypeKind actual) {
-  switch (expected) {
-    case TypeKind::Unspecified:
-      return true;
-    case TypeKind::I32:
-    case TypeKind::U32:
-    case TypeKind::I16:
-    case TypeKind::U16:
-    case TypeKind::I8:
-    case TypeKind::U8:
-    case TypeKind::Bool:
-    case TypeKind::Char:
-      return IsI32LikeImportType(actual);
-    case TypeKind::I64:
-    case TypeKind::U64:
-      return IsI64LikeImportType(actual);
-    case TypeKind::String:
-      return IsStringLikeImportType(actual);
-    case TypeKind::Ref:
-      return actual == TypeKind::Ref;
-    case TypeKind::F32:
-    case TypeKind::F64:
-      return actual == expected;
-    default:
-      return actual == expected;
-  }
-}
-
-bool DispatchNativeMetadataImport(const Simple::VM::Native::NativeRegistry& registry,
-                                  const std::string& module_name,
-                                  const std::string& symbol_name,
-                                  const std::vector<Slot>& args,
-                                  TypeKind return_kind,
-                                  NativeMetadataDispatchContext runtime,
-                                  Slot* out_ret,
-                                  bool* out_has_ret,
-                                  std::string* out_error) {
-  const Simple::VM::Native::NativeFunctionSpec* spec = registry.Find(module_name, symbol_name);
-  if (!spec) return false;
-  if (!out_ret || !out_has_ret || !runtime.heap) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " native dispatch context invalid";
-    return true;
-  }
-  if (spec->result_type == TypeKind::Unspecified) {
-    *out_has_ret = false;
-  } else if (!IsCompatibleNativeReturnType(spec->result_type, return_kind)) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " return type mismatch";
-    return true;
-  }
-  if (args.size() != spec->parameter_types.size()) {
-    if (out_error) *out_error = module_name + "." + symbol_name + " arg count mismatch";
-    return true;
-  }
-
-  Simple::VM::Native::NativeCallContext context;
-  context.args = args;
-  context.heap = runtime.heap;
-  context.argv = runtime.argv;
-  context.open_files = runtime.open_files;
-  context.dl_last_error = runtime.dl_last_error;
-  Simple::VM::Native::NativeCallResult result = spec->handler(context);
-  if (!result.ok) {
-    if (out_error) *out_error = result.error;
-    return true;
-  }
-  if (spec->result_type == TypeKind::String) {
-    *out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
-                   ? PackRef(kNullRef)
-                   : PackRef(CreateString(*runtime.heap, AsciiToU16(result.string_value)));
-  } else if (result.has_value) {
-    *out_ret = result.value;
-  }
-  return true;
-}
-
 std::u16string AsciiToU16(const std::string& text);
 std::string U16ToAscii(const std::u16string& text);
 uint32_t CreateString(Heap& heap, const std::u16string& text);
@@ -1560,12 +1452,12 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
         return false;
       }
     }
-    NativeMetadataDispatchContext native_context;
+    Simple::VM::Native::MetadataDispatchContext native_context;
     native_context.heap = &heap;
     native_context.argv = &options.argv;
     native_context.open_files = &open_files;
     native_context.dl_last_error = &dl_last_error;
-    if (DispatchNativeMetadataImport(native_registry,
+    if (Simple::VM::Native::DispatchMetadataImport(native_registry,
                                      mod,
                                      sym,
                                      args,
