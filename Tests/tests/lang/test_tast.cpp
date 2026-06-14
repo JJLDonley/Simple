@@ -711,6 +711,17 @@ bool LangTastMutabilityChecksAssignments() {
   if (Simple::Lang::TAST::AddLocal(scopes, "x", 2, &error)) return false;
   if (error.find("duplicate local declaration: x") == std::string::npos) return false;
 
+  Simple::Lang::AST::Expr target;
+  target.kind = Simple::Lang::AST::ExprKind::Identifier;
+  target.text = "x";
+  Simple::Lang::AST::Expr address_of;
+  address_of.kind = Simple::Lang::AST::ExprKind::Unary;
+  address_of.op = "&";
+  address_of.children.push_back(target);
+  const Simple::Lang::AST::Expr* extracted = nullptr;
+  if (!Simple::Lang::TAST::IsAddressOfExpr(address_of, &extracted) || !extracted || extracted->text != "x") return false;
+  if (Simple::Lang::TAST::IsAddressOfExpr(target, nullptr)) return false;
+
   if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
   if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
   return error.find("cannot assign to immutable value") != std::string::npos;

@@ -153,6 +153,7 @@ using TAST::InferLiteralType;
 using TAST::IsBuiltinValueIdentifierName;
 using TAST::IsBoolTypeName;
 using TAST::IsAddressableExpr;
+using TAST::IsAddressOfExpr;
 using TAST::IsAssignOp;
 using TAST::IsFloatTypeName;
 using TAST::IsIntegerTypeName;
@@ -1288,9 +1289,10 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
                                     bool* out_points_to_immutable) {
   if (out_known) *out_known = false;
   if (out_points_to_immutable) *out_points_to_immutable = false;
-  if (expr.kind == ExprKind::Unary && expr.op == "&" && !expr.children.empty()) {
+  const Expr* address_target = nullptr;
+  if (IsAddressOfExpr(expr, &address_target)) {
     bool known = false;
-    const bool is_mutable = IsMutableStorageExpr(expr.children[0], ctx, scopes, current_artifact, &known);
+    const bool is_mutable = IsMutableStorageExpr(*address_target, ctx, scopes, current_artifact, &known);
     if (out_known) *out_known = known;
     if (out_points_to_immutable) *out_points_to_immutable = known && !is_mutable;
     return true;

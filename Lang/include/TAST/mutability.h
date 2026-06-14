@@ -33,6 +33,8 @@ bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
 }
 
 bool IsMutable(Simple::Lang::Mutability mutability);
+bool IsAddressOfExpr(const Simple::Lang::AST::Expr& expr,
+                     const Simple::Lang::AST::Expr** out_target = nullptr);
 bool CheckMutableAssignment(Simple::Lang::Mutability mutability,
                             std::string* error);
 
