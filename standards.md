@@ -175,7 +175,7 @@ Relevant docs:
 - `Docs/StdLib.md`
 - `Docs/VM.md`
 - `Docs/Compatibility.md`
-- `Docs/LangMigration.md`
+- `Docs/Language.md`
 
 TODO entries must be actionable.
 

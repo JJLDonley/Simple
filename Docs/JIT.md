@@ -1,44 +1,51 @@
 # Simple JIT
 
-`Simple::VM::Jit` owns tiering policy, JIT counters, compiled-runner scaffolding, and compiled-path failure formatting. The interpreter remains the correctness baseline.
+The Simple JIT is an optional execution path layered on top of the VM. The interpreter remains the correctness baseline.
 
-## Owned files
+## Status
 
-- JIT public/runtime constants: `VM/include/vm.h`
-- Tier updater: `VM/include/jit/tier_updater.h`, `VM/src/jit/tier_updater.cpp`
-- Compile policy: `VM/include/jit/compile_policy.h`, `VM/src/jit/compile_policy.cpp`
-- Compiled runner: `VM/include/jit/compiled_runner.h`, `VM/src/jit/compiled_runner.cpp`
-- Failure formatting: `VM/include/jit/failure_format.h`, `VM/src/jit/failure_format.cpp`
-- Scaffold classification: `VM/include/jit/jit_scaffold.h`, `VM/src/jit/jit_scaffold.cpp`
+The current JIT is a tiering and compiled-runner scaffold, not a full native-code compiler. It tracks hot functions, classifies eligibility, executes a supported compiled subset, and falls back or reports safe failures for unsupported paths.
 
-## Runtime contract
+## Enabling JIT
 
-- JIT is optional and controlled through `ExecuteModule(..., enable_jit, options)`.
-- `ExecOptions::force_interpreter` keeps execution on the interpreter path.
-- Tier counters are exposed through `ExecResult` for tests and diagnostics.
-- Hot functions may move to Tier0/Tier1 according to call/opcode thresholds.
-- Unsupported compiled-path behavior must fail safely or fall back; it must not change interpreter correctness.
+JIT behavior is controlled through the VM execution API:
 
-## Tiering and policy
+```cpp
+ExecuteModule(module, verify, enable_jit, options)
+```
 
-Tiering state uses `JitTier`, call counts, opcode counts, dispatch counts, compiled execution counts, and Tier1 execution counts. `CompilePredicate` and `CanCompileMethod` decide whether a method is eligible for the compiled runner.
+`ExecOptions::force_interpreter` disables compiled-path execution even when JIT is otherwise enabled.
+
+## Tiering
+
+The VM records per-function call counts and opcode counts. When thresholds are reached, functions may move through JIT tiers:
+
+- baseline/interpreter state
+- Tier0 for opcode-hot or initially compiled candidates
+- Tier1 for hotter call-count driven candidates
+
+`ExecResult` exposes tier and counter vectors so tests and diagnostics can inspect what happened.
+
+## Eligibility
+
+Not every method can run through the compiled runner. The compile policy checks method shape, bytecode features, and supported opcode subsets before allowing compiled execution.
+
+Unsupported methods stay on or fall back to the interpreter path.
 
 ## Compiled runner
 
-`RunCompiledFunction` executes the supported compiled subset using `CompiledRunContext`. It owns the former VM-local compiled-runner lambda and handles recursive compiled calls through the same context.
+The compiled runner executes a supported bytecode subset in a JIT-owned path. It supports scalar arithmetic, locals, selected control flow, direct/indirect/tail calls where eligible, and the other opcode behavior covered by JIT tests.
 
-Failure details are formatted by `FormatCompiledFailure` / `CompiledFailureReporter`, including opcode, pc, call operands, jump operands, and jump-table operands where available.
+Recursive compiled calls reuse the same compiled-runner context.
 
-## Forbidden dependencies
+## Failure reporting
 
-- JIT helpers must not live in `VM/src/vm.cpp` as lambdas/helpers.
-- JIT must not own native stdlib, FFI/DL, CLI, or LSP behavior.
-- JIT must preserve interpreter semantics and runtime limits.
+Compiled-path failures include opcode, program counter, and decoded operand context where possible. The error should make it clear which opcode and location failed without corrupting VM state.
+
+## Correctness rule
+
+The JIT must never define different language semantics from the interpreter. If a behavior is not supported by the compiled path, it must fail safely or use interpreter execution.
 
 ## Tests
 
-JIT coverage lives in:
-
-- `Tests/tests/test_jit.cpp`
-- `Tests/tests/vm/test_jit.cpp`
-- JIT ownership guards in `Tests/tests/vm/test_interpreter.cpp`
+JIT behavior is covered by `Tests/tests/test_jit.cpp`, `Tests/tests/vm/test_jit.cpp`, and VM integration tests that inspect tier counters and compiled execution counters.

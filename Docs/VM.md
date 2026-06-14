@@ -1,27 +1,8 @@
 # Simple VM
 
-`Simple::VM` executes verified SBC modules and hosts runtime services.
+The Simple VM executes verified SBC modules and provides the runtime services used by compiled programs.
 
-## Scope
-
-```txt
-SbcModule -> optional Byte verification -> interpreter/runtime -> ExecResult
-```
-
-The interpreter is the correctness baseline. JIT behavior is documented separately in `Docs/JIT.md`.
-
-## Owned files
-
-- Public API: `VM/include/vm.h`, `VM/include/simple_api.h`
-- Runtime entry/orchestration: `VM/src/vm.cpp`
-- Interpreter: `VM/include/interpreter/`, `VM/src/interpreter/`
-- Runtime helpers: `VM/include/runtime/`, `VM/src/runtime/`
-- Heap: `VM/include/heap.h`, `VM/src/heap.cpp`
-- Native modules: `VM/include/native/`, `VM/src/native/`
-- FFI/DL runtime: `VM/include/ffi/`, `VM/src/ffi/`
-- GC helpers: `VM/include/gc/`, `VM/src/gc/`
-
-## Public API
+## Execution API
 
 ```cpp
 ExecResult ExecuteModule(const SbcModule& module);
@@ -33,37 +14,69 @@ ExecResult ExecuteModule(const SbcModule& module,
                          const ExecOptions& options);
 ```
 
-`ExecResult` reports status, error text, exit code, and execution counters used by diagnostics/tests. `ExecOptions` carries argv, host import resolver, runtime limits, and `force_interpreter`.
+`ExecResult` includes status, error text, exit code, call/opcode counters, and JIT counters. `ExecOptions` includes argv, host import resolution, runtime limits, and `force_interpreter`.
 
-## Runtime model
+## Execution model
 
-- Slots are 64-bit VM values. Packing/unpacking lives in `VM/include/runtime/values.h`.
-- Frames track function id, pc, locals, stack boundaries, and return metadata.
-- Interpreter dispatch owns opcode execution, stack operations, frames, locals/globals, calls/tailcalls, and traps.
-- Runtime limits defend stack slots, locals, call depth, sequence size, const-pool size, and code size.
-- Execution stats are attached by `VM/src/runtime/execution_stats.cpp`.
+1. Optionally verify the SBC module.
+2. Initialize globals and runtime state.
+3. Resolve the entry method/function.
+4. Execute bytecode through the interpreter unless the optional JIT path is enabled and eligible.
+5. Return an `ExecResult` with status and counters.
 
-## Heap/object model
+The interpreter is the correctness baseline.
 
-The heap stores strings, arrays, lists, artifacts, closures, and runtime object payloads. Helpers in `VM/src/heap.cpp` own payload reads/writes, list capacity, string creation, and string decoding/encoding.
+## Values and slots
 
-## Imports and native modules
+VM stack/local/global values are 64-bit slots. Integers, floats, references, and bit patterns are packed into slots by the runtime value helpers.
 
-Reserved language imports map to runtime modules documented in `Docs/StdLib.md`. Native metadata dispatch is owned by `VM/src/native/dispatch.cpp` and registry metadata in `VM/src/native/registry.cpp`.
+Null references use the VM heap null sentinel. Runtime code distinguishes integer zero from null references by opcode/type context.
 
-Dynamic library calls (`System.dl.call$...`) are owned by `VM/src/ffi/dl_call.cpp`. Recursive artifact ABI remains unsupported.
+## Frames and calls
 
-## Forbidden dependencies
+Each call frame tracks function id, program counter, locals, stack boundaries, return behavior, and closure/self context where needed.
 
-- VM runtime must not depend on CLI or LSP.
-- Interpreter must not own native stdlib internals, DL/FFI internals, JSON parsers, channel registries, or platform filesystem code.
-- Native modules must register metadata rather than adding ad-hoc VM dispatch glue.
+Supported call forms include direct calls, indirect calls, tail calls, imported calls, and runtime intrinsic/syscall dispatch.
 
-## Tests
+## Heap objects
 
-VM coverage lives in:
+The heap stores runtime objects such as:
 
-- `Tests/tests/vm/test_*.cpp`
-- `Tests/tests/test_core.cpp`
-- `Tests/tests/test_jit.cpp`
-- `.simple` runtime fixtures under `Tests/simple/`
+- strings
+- arrays
+- lists
+- artifacts
+- closures
+- native/runtime payload objects
+
+Strings are stored as VM string payloads and converted at API boundaries. Lists grow dynamically for list operations. Arrays remain fixed-size.
+
+## Runtime limits
+
+`ExecOptions` can enforce limits for stack slots, locals, call depth, array/list sizes, constant-pool size, and code size. Violations become runtime errors instead of host crashes.
+
+## Imports and native runtime
+
+Language imports map to VM runtime modules. `System.*` names are canonical. The standard-library surface is documented in `Docs/StdLib.md`.
+
+Native modules include time, filesystem/path/env/OS helpers, logging, buffers, JSON, channels, random values, and threads where implemented by tests.
+
+## Dynamic libraries / FFI
+
+`System.dl` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime checks argument count, argument types, return shape, and ABI support. Recursive artifact ABI is rejected.
+
+## Intrinsics and syscalls
+
+The VM implements internal intrinsics for common runtime behavior such as time, random placeholders, printing, string conversion, object/list operations, and selected system/runtime hooks.
+
+## Errors and traps
+
+Invalid bytecode, stack underflow, type mismatch, invalid heap references, unsupported imports, and runtime-limit violations produce trap/error text in `ExecResult`. The VM should fail closed even when verification is disabled.
+
+## Garbage collection and roots
+
+Runtime root tracing covers stacks, locals, globals, closures, heap references, and GC stack-map helpers. Tests include heap and GC stress scenarios.
+
+## JIT relationship
+
+The JIT is optional. It tracks hot functions and may execute an eligible compiled subset, but it must preserve interpreter semantics and safe fallback behavior. See `Docs/JIT.md`.

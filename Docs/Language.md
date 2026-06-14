@@ -1,111 +1,194 @@
 # Simple Language
 
-This is the canonical language-front-end document. It combines the previous language contract, phase ownership, and migration notes into one current reference.
+Simple is a strict, statically typed language that compiles `.simple` source to SIR and then to SBC bytecode.
 
-## Scope
+This document describes the language as exercised by the current parser, validator, fixtures, and tests.
 
-`Simple::Lang` owns `.simple` source handling from text through SIR emission:
+## Compilation pipeline
 
 ```txt
-source -> Lexer -> CAST -> AST -> RAST -> TAST -> IRB -> IRE -> SIR text
+.simple source
+  -> tokens
+  -> parsed program
+  -> normalized AST
+  -> resolved names/imports
+  -> typed program
+  -> SIR text
+  -> SBC bytecode
 ```
 
-The implementation is strict and statically typed. Unsupported constructs are rejected before SIR emission.
+Compatibility entry points include `ParseProgramFromString`, `ValidateProgramFromString`, `ValidateProgramFromStringDiagnostic`, `EmitSirFromString`, and `EmitSir`.
 
-## Owned files
+## Program structure
 
-- Lexer: `Lang/include/Lexer/`, `Lang/src/Lexer/`
-- CAST parser tree: `Lang/include/CAST/`, `Lang/src/CAST/`
-- Normalized AST: `Lang/include/AST/`, `Lang/src/AST/`
-- Resolver/imports/symbols: `Lang/include/RAST/`, `Lang/src/RAST/`
-- Type checking/control-flow/mutability/ABI: `Lang/include/TAST/`, `Lang/src/TAST/`
-- IR builder: `Lang/include/IRB/`, `Lang/src/IRB/`
-- SIR emitter: `Lang/include/IRE/`, `Lang/src/IRE/`
-- Compatibility headers: `Lang/include/lang_*.h`
-- Structured diagnostics: `Lang/include/Diagnostics/`, `Lang/src/Diagnostics/`
-
-## Public API
-
-Preferred phase APIs:
-
-- `Simple::Lang::CAST::ParseProgramFromString`
-- `Simple::Lang::AST::LowerCastProgram`
-- `Simple::Lang::RAST::ResolveProgram`
-- `Simple::Lang::TAST::CheckResolvedProgram`
-- `Simple::Lang::IRB::BuildModule`
-- `Simple::Lang::IRE::EmitSirModule`
-
-Compatibility APIs remain available during the v1 window:
-
-- `ParseProgramFromString`
-- `ValidateProgramFromString`
-- `ValidateProgramFromStringDiagnostic`
-- `EmitSirFromString`
-- `EmitSir`
-
-New compiler code should prefer phase headers. Legacy `lang_*.h` headers are compatibility surfaces, not the place for new phase logic.
-
-## Forbidden dependencies
-
-- Lexer and CAST must not depend on semantic phases.
-- RAST owns names, imports, symbols, and member references only.
-- TAST owns types, mutability, ABI facts, and control-flow type facts.
-- IRB consumes TAST, not raw parser state.
-- IRE consumes IRB modules.
-- CLI and LSP must not duplicate compiler semantic checks.
-
-## Program entry
-
-- Top-level declarations are declarations only.
-- Top-level statements are collected into an implicit script entry function.
-- If no top-level script statements exist and `main` exists, `main` is used as the entry.
-- Top-level `return` is rejected.
-
-Supported `main` form:
+A source file contains imports plus declarations and/or script statements.
 
 ```simple
+import System.io
+
 main : i32 () {
+  System.io.println("hello")
   return 0
 }
 ```
 
-## Syntax and semantics
+Top-level executable statements are collected into an implicit script entry. If there are no top-level script statements and `main` exists, `main` is used as entry. Top-level `return` is invalid.
 
-Implemented language surface includes:
+## Declarations and mutability
 
-- identifiers, literals, calls, member access, indexing, unary and binary operators
-- primitive scalar types: signed/unsigned integers, floats, bool, char, void
-- strings, arrays, lists, artifacts, enums, references/pointers, and procedure values
-- `let`, `mut`, assignment, blocks, `if`, loops, `break`, `continue`, `return`
-- switch expressions with enforced default/exhaustiveness rules used by tests
-- procedure declarations and typed function literals
-- imports, modules, `using`, reserved standard-library imports, and extern declarations
-- explicit casts using `@T(value)`
-- string and IO format placeholder validation
+Variables and functions use name-first syntax.
 
-Mutability is explicit: immutable bindings cannot be reassigned, mutable bindings use `mut`, and pointer/address-of validation preserves mutable/immutable access rules.
+Mutable declarations use `:`:
 
-## Modules and imports
+```simple
+x : i32 = 1
+x = x + 1
+```
 
-- `import Name` binds a module namespace.
-- Reserved imports map to runtime namespaces documented in `Docs/StdLib.md`.
-- `System.*` names are canonical for standard-library modules.
-- Import graph, path resolution, and symbol indexing live in RAST.
+Immutable declarations use `::`:
 
-## Extern and ABI metadata
+```simple
+answer :: i32 = 42
+```
 
-`extern` declarations describe host/dynamic-library ABI contracts. The language validates shape and metadata before the VM attempts runtime binding. Recursive artifact ABI for extern/DL is rejected by the runtime.
+Assigning to an immutable local, parameter, field, module variable, return value, or immutable pointer base is rejected.
+
+Functions use the same marker before the return type:
+
+```simple
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+```
+
+Parameters also use `:` for mutable and `::` for immutable parameter bindings.
+
+## Types
+
+Primitive types accepted by the type parser include:
+
+- `i8`, `i16`, `i32`, `i64`, `i128`
+- `u8`, `u16`, `u32`, `u64`, `u128`
+- `f32`, `f64`
+- `bool`, `char`, `string`, `void`
+
+Composite type forms include:
+
+```simple
+i32{10}      // fixed array size syntax
+i32[]        // list syntax
+i32[][]      // nested lists
+Map<string, i32>
+i32*
+void**
+fn bool (i32, string)
+fn i32 ()
+```
+
+Not every parsed type is fully supported by every runtime/ABI path; unsupported runtime paths are rejected later by validation or VM checks.
+
+## Casts
+
+Primitive casts require the `@` form:
+
+```simple
+a : i8 = 1
+b : i8 = 2
+return add(@i32(a), @i32(b))
+```
+
+Using primitive type names as normal calls for casts is rejected; tests expect diagnostics such as “primitive cast syntax requires '@'”.
+
+String conversions are also expressed with `@string(value)` where supported by validation/runtime tests.
+
+## Expressions
+
+Implemented expression forms include:
+
+- identifiers and literals
+- unary and binary operators
+- calls and generic calls
+- member access with `.` and pointer member access with `->`
+- indexing
+- array/list literals
+- artifact literals with named fields
+- function literals
+- switch expressions
+- format strings
+
+Assignment operators include `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, and `>>=`. Increment/decrement are validated against mutability.
+
+## Statements and control flow
+
+Supported statements include:
+
+- variable declarations
+- expression statements
+- assignment statements
+- `return`
+- `if` / `else`
+- `while`
+- `for` range forms
+- `break`
+- `skip`
+- switch expression blocks
+
+`skip` is the loop-continue statement.
+
+## Artifacts
+
+Artifacts are declared with `:: artifact`:
+
+```simple
+Point :: artifact {
+  x : i32
+  y : i32
+
+  sum : i32 () {
+    return self.x + self.y
+  }
+}
+```
+
+Artifact member access inside methods uses `self`. Tests reject unqualified artifact field access when `self` is required.
+
+Artifacts support named initialization where covered by fixtures/tests.
+
+## Modules, imports, and using
+
+Modules are declared with `:: module`. Imports bring modules/files into scope. `System.*` is the canonical standard-library namespace.
+
+Reserved compatibility imports include names such as `Math`, `IO`, `Time`, `File`, `DL`, `OS`, `FS`, `Log`, `Buffer`, `Json`, and `Channel`; these map to runtime modules documented in `Docs/StdLib.md`.
+
+`using` is supported for imported/reserved modules where tests cover it.
+
+## Enums and switch
+
+Enums are declared with `:: enum`. Switch expressions use `=>` branches and a `default` branch where needed:
+
+```simple
+return switch (value) {
+  value > 0 => { tmp : i32 = 1; return tmp }
+  default => return 0
+}
+```
+
+Validation checks branch shapes and result compatibility.
+
+## Procedure values and function literals
+
+Procedure types use `fn`:
+
+```simple
+fn i32 (i32, i32)
+```
+
+Typed function literals are supported where the parser/type checker can infer or receive the procedure type. Direct inline invocation of an anonymous function literal remains unsupported.
+
+## Extern and dynamic-library metadata
+
+`extern` declarations describe ABI contracts for host or dynamic-library calls. Validation checks declared shapes before runtime. The VM rejects unsupported ABI shapes such as recursive artifact ABI for DL calls.
 
 ## Diagnostics
 
-Compiler phases produce structured diagnostics through `Simple::Lang::Diagnostics`. CLI renders terminal messages; LSP converts diagnostics to protocol JSON.
-
-## Tests
-
-Language coverage lives in:
-
-- `Tests/tests/test_lang.cpp`
-- `Tests/tests/lang/test_*.cpp`
-- `.simple` fixtures under `Tests/simple/` and related fixture directories
-
-Guard tests enforce phase boundaries, structured diagnostics, import behavior, ABI validation, and current syntax/semantic contracts.
+Language diagnostics carry a code, phase, source span, message, and optional help text. CLI and LSP render the same diagnostics for terminal and editor clients.

@@ -50,17 +50,15 @@ This directory documents the current Simple compiler, language, bytecode, VM, CL
 
 ## Canonical Docs
 
-- `Docs/Lang.md` - language syntax/semantics as currently implemented
-- `Docs/LanguagePlan.md` - staged Lang split into Lexer/CAST/AST/RAST/TAST/IRB/IRE
-- `Docs/TODO.md` - implementation and hardening checklist
+- `Docs/Language.md` - language syntax, semantics, imports, casts, mutability, and diagnostics
 - `Docs/StdLib.md` - reserved imports and runtime module APIs
 - `Docs/IR.md` - SIR/compiler contract
 - `Docs/Byte.md` - SBC format, loader, verifier contract
 - `Docs/VM.md` - runtime model, heap, imports, DL ABI
+- `Docs/JIT.md` - optional JIT tiering and compiled-runner behavior
 - `Docs/CLI.md` - command-line behavior
 - `Docs/LSP.md` - editor/LSP behavior
-- `Docs/Modules.md` - ownership boundaries across the stack
-- `Docs/Implementation.md` - implementation status and roadmap
+- `Docs/TODO.md` - implementation and hardening checklist
 - `Docs/Sprint.md` - change log and execution history
 
 ## Documentation Rules

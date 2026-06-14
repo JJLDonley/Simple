@@ -4,10 +4,11 @@ This document aligns the current compiler, language, bytecode, and VM documentat
 
 For detailed module contracts, see:
 
-- `Docs/Lang.md`
+- `Docs/Language.md`
 - `Docs/IR.md`
 - `Docs/Byte.md`
 - `Docs/VM.md`
+- `Docs/JIT.md`
 - `Docs/CLI.md`
 - `Docs/StdLib.md`
 - `Docs/LSP.md`
@@ -289,7 +290,7 @@ Not implemented as stable current contract.
 
 Before declaring a stable alpha contract, the following should be true:
 
-1. `Docs/Lang.md`, `Docs/IR.md`, `Docs/Byte.md`, `Docs/VM.md`, and `Docs/CLI.md` match tested behavior.
+1. `Docs/Language.md`, `Docs/IR.md`, `Docs/Byte.md`, `Docs/VM.md`, `Docs/JIT.md`, and `Docs/CLI.md` match tested behavior.
 2. Build/test commands in docs match actual scripts.
 3. SBC compatibility/versioning policy is explicit.
 4. SIR accepted syntax is explicitly documented.

@@ -1,68 +1,81 @@
 # Simple CLI
 
-`Simple::CLI` owns command-line parsing, user diagnostics, import/build orchestration, and command dispatch.
+The Simple command line tools compile, check, emit, build, run, and serve language tooling for Simple programs.
 
-## Owned files
+## Tool names
 
-- Entry point: `CLI/src/main.cpp`
-- Command contract/dispatch: `CLI/include/command_contract.h`, `CLI/src/command_contract.cpp`, `CLI/include/command_dispatch.h`, `CLI/src/command_dispatch.cpp`
-- Build contract: `CLI/include/build_contract.h`, `CLI/src/build_contract.cpp`
-- Import contract: `CLI/include/import_contract.h`, `CLI/src/import_contract.cpp`
-- Diagnostic rendering: `CLI/include/diagnostic_render.h`, `CLI/src/diagnostic_render.cpp`
+The same command implementation supports different compatibility modes by executable name:
 
-## Binaries
+- `svm`: primary compiler/runtime command. Accepts `.simple`, `.sir`, and `.sbc` inputs.
+- `simple`: user-facing compatibility command focused on `.simple` workflows.
+- `simplevm`: VM/developer compatibility command. Accepts `.simple`, `.sir`, and `.sbc`; build/compile default to `.sbc` output.
 
-The code supports behavior by executable name:
+## Common options
 
-- `svm`: primary compiler/runtime name; accepts `.simple`, `.sir`, and `.sbc`; `build`/`compile` default to executable stubs unless output ends in `.sbc`
-- `simple`: compatibility user-facing name focused on `.simple` workflows
-- `simplevm`: compatibility/developer VM name; accepts `.simple`, `.sir`, and `.sbc`; `build`/`compile` default to `.sbc`
+```txt
+--help, -h, help
+--version, -v, version
+```
+
+Help prints command usage. Version prints the Simple tool version.
 
 ## Commands
 
-Implemented commands:
+```txt
+run      compile/load and execute input
+check    validate input without executing
+build    produce an output artifact
+compile  alias-style build workflow
+emit     print or write intermediate output
+lsp      start the stdio language server
+```
 
-- `run`
-- `check`
-- `build`
-- `compile`
-- `emit`
-- `lsp`
-- `help`, `--help`, `-h`
-- `version`, `--version`, `-v`
+## Input types
 
-## Input modes
+### `.simple`
 
-- `.simple`: parse/validate, emit SIR, compile to SBC, optionally execute
-- `.sir`: lower/compile to SBC, optionally execute
-- `.sbc`: load/verify, optionally execute
+A Simple source file is parsed, validated, emitted to SIR, lowered to SBC, and then either executed or written depending on the command.
+
+### `.sir`
+
+A textual SIR module is parsed/lowered to SBC and then optionally executed.
+
+### `.sbc`
+
+An SBC bytecode file is loaded, verified, and optionally executed.
 
 ## Command behavior
 
-- `check` validates without execution.
-- `emit` writes requested intermediate output, especially SIR/SBC workflows.
-- `build`/`compile` produce `.sbc` or executable stubs depending on binary/output mode.
-- `run` executes the selected source/artifact through the pipeline.
-- `lsp` starts the stdio LSP server.
+### `run`
 
-## Diagnostics and exits
+Runs the selected input through the necessary pipeline and executes it in the VM.
 
-CLI renders structured compiler diagnostics for terminals. Compiler phases own semantic checks; CLI owns presentation and process exit behavior.
+### `check`
 
-Common failures include missing input, wrong extension for compatibility modes, parse/validation errors, load/verify errors, and runtime errors.
+Validates syntax/semantics or bytecode structure without execution. For `.simple`, this means language validation; for `.sbc`, loader/verifier checks apply.
 
-## Forbidden dependencies
+### `emit`
 
-- CLI must not duplicate language semantic checks.
-- CLI must not own LSP protocol formatting.
-- CLI should use shared import/build contracts instead of embedding command-specific import graph logic.
+Emits intermediate output. Current workflows use it primarily for SIR/SBC inspection.
 
-## Tests
+### `build` / `compile`
 
-CLI coverage lives in:
+Builds an output artifact. In `simplevm` compatibility mode the default output style is `.sbc`; in `svm` workflows executable-stub behavior is selected unless the output path ends in `.sbc`.
 
-- `Tests/tests/cli/test_cli_build.cpp`
-- `Tests/tests/cli/test_cli_contract.cpp`
-- `Tests/tests/cli/test_cli_diagnostics.cpp`
-- `Tests/tests/cli/test_cli_imports.cpp`
-- CLI portions of `Tests/tests/test_lang.cpp`
+### `lsp`
+
+Starts the JSON-RPC language server over stdio. See `Docs/LSP.md`.
+
+## Diagnostics
+
+CLI diagnostics use stable `error[Exxxx]:` prefixes where command-level errors apply. Compiler diagnostics are produced by the language pipeline and rendered for terminal output.
+
+Examples of command-level failures include missing input, unsupported extension for the selected compatibility mode, bad arguments, load/verify failure, and runtime failure.
+
+## Imports in CLI workflows
+
+When compiling `.simple`, the CLI resolves local imports, project-root imports, module-map entries, and reserved standard-library imports. Generated `simple.modules` files are build artifacts and should not be committed.
+
+## Build scripts
+
+Platform build scripts package the CLI/runtime artifacts and copy documentation into release staging directories where applicable.

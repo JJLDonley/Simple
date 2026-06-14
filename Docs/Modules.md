@@ -53,10 +53,11 @@ This file defines ownership boundaries across the stack.
 - positive and negative behavior contracts
 
 ## Canonical Docs
-- Language: `Docs/Lang.md`
+- Language: `Docs/Language.md`
 - Stdlib/import APIs: `Docs/StdLib.md`
 - Bytecode: `Docs/Byte.md`
 - IR: `Docs/IR.md`
 - VM runtime: `Docs/VM.md`
+- JIT behavior: `Docs/JIT.md`
 - CLI behavior: `Docs/CLI.md`
 - LSP behavior: `Docs/LSP.md`

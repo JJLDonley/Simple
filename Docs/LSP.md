@@ -1,45 +1,59 @@
 # Simple LSP
 
-`Simple::LSP` owns editor protocol behavior for `.simple` sources.
+The Simple language server provides editor features for `.simple` source files over stdio JSON-RPC.
 
-## Owned files
+## Starting the server
 
-- Server: `LSP/src/lsp_server.cpp`
-- Diagnostic bridge: `LSP/include/diagnostic_bridge.h`, `LSP/src/diagnostic_bridge.cpp`
-- Editor packages: `Editor/vscode-simple/`, `Editor/zed-simple/`
+```txt
+simple lsp
+svm lsp
+```
 
-## Supported
+The server reads JSON-RPC messages from stdin and writes responses/notifications to stdout.
 
-- Stdio JSON-RPC server through `simple lsp` / `svm lsp`.
-- Single-workspace indexing.
-- Incremental document sync with version guards.
-- Parse/validate diagnostics from the `Simple::Lang` pipeline.
-- Hover, definition, declaration, references, document symbols.
-- Completion, signature help, rename/prepareRename, code actions.
-- Semantic tokens and TextMate grammar fallback.
-- VS Code and Zed syntax-highlighting baselines.
+## Supported editor features
 
-## Not supported
+Current behavior includes:
 
-- Formatting engine.
-- Refactor-heavy code actions.
-- Multi-root workspace indexing.
+- initialize/shutdown/exit
+- document open/change/close
+- incremental document sync with version guards
+- diagnostics from the Simple language validator
+- hover
+- definition and declaration
+- references
+- document symbols
+- completion
+- signature help
+- rename and prepareRename
+- code actions
+- semantic tokens
 
-## Protocol contract
+VS Code and Zed syntax-highlighting baselines exist under the editor extension directories.
 
-Implemented/covered methods include initialization, shutdown/exit, document open/change/close, diagnostics, hover, definition/declaration/references, document symbols, completion, signature help, semantic tokens, rename/prepareRename, and code actions.
+## Diagnostics
 
-LSP diagnostics are produced by the language front-end and converted to protocol JSON by the diagnostic bridge.
+The language server reuses the compiler pipeline for parse and validation diagnostics. It does not implement separate semantic rules. Compiler diagnostics are converted to LSP diagnostics with source ranges and messages.
 
-## Forbidden dependencies
+## Workspace model
 
-- LSP must not duplicate parser/type-checker semantics.
-- LSP must not own CLI terminal rendering.
-- Long-running behavior should remain cancellation-aware where request dispatch supports it.
+The server currently targets a single-workspace model. Multi-root workspace indexing is not part of the current supported behavior.
+
+## Completion and signature help
+
+Completion and signature help are based on the parsed/validated source model and known standard-library/reserved APIs. Signature help includes current IO formatting behavior and cast-call syntax where supported.
+
+## Semantic tokens and highlighting
+
+Semantic tokens provide structured highlighting for editor clients. TextMate grammar support is available as a fallback/baseline for editor packages.
+
+## Not supported yet
+
+- formatting
+- broad refactor code actions
+- multi-root indexing
+- advanced cancellation inside every long-running operation
 
 ## Tests
 
-LSP coverage lives in:
-
-- `Tests/tests/test_lsp.cpp`
-- diagnostic bridge coverage shared with language/CLI tests
+LSP behavior is covered by `Tests/tests/test_lsp.cpp` and shared diagnostic bridge tests.

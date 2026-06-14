@@ -235,18 +235,11 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add `CLI/src/command_dispatch.cpp`.
 - [x] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.
 
-### SRP Phase 7: Documentation / Ownership
+### SRP Phase 7: Documentation Consolidation
 
-- [x] Add/update architecture ownership docs:
-  - [x] `Docs/Architecture.md`
-  - [x] `Docs/LanguagePipeline.md`
-  - [x] `Docs/NativeBindings.md`
-  - [x] `Docs/Diagnostics.md`
-- [x] Each subsystem doc must list:
-  - [x] owned files
-  - [x] forbidden dependencies
-  - [x] public API
-  - [x] tests
+- [x] Replace split ownership pages with behavior-focused subsystem docs.
+- [x] Consolidate language docs into `Docs/Language.md`.
+- [x] Keep subsystem docs user/implementer focused rather than file-ownership focused.
 - [ ] Keep `Docs/TODO.md` actionable with file-level tasks, not broad statements.
 
 ### SRP Phase 8: No-Shim / No-Facade End State

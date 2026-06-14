@@ -3161,21 +3161,25 @@ bool CliDiagnosticRendererClassifiesAndFormats() {
          Simple::CLI::DiagnosticHelpFor("undeclared identifier 'x'").find("declare the symbol") != std::string::npos;
 }
 
-bool DocsOwnershipPagesHaveRequiredSections() {
-  const char* paths[] = {
-      "Docs/Architecture.md",
-      "Docs/LanguagePipeline.md",
-      "Docs/NativeBindings.md",
-      "Docs/Diagnostics.md",
+bool DocsCanonicalPagesDescribeBehavior() {
+  struct RequiredDocText {
+    const char* path;
+    const char* required_a;
+    const char* required_b;
+  } docs[] = {
+      {"Docs/Language.md", "x : i32 = 1", "answer :: i32 = 42"},
+      {"Docs/Byte.md", "SBC is the binary bytecode format", "## Verifier contract"},
+      {"Docs/VM.md", "The interpreter is the correctness baseline", "## Dynamic libraries / FFI"},
+      {"Docs/JIT.md", "The current JIT is a tiering", "## Correctness rule"},
+      {"Docs/CLI.md", "## Commands", "## Input types"},
+      {"Docs/LSP.md", "stdio JSON-RPC", "## Supported editor features"},
   };
-  for (const char* path : paths) {
-    std::ifstream in(path);
+  for (const auto& doc : docs) {
+    std::ifstream in(doc.path);
     if (!in) return false;
     const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (text.find("## Owned files") == std::string::npos) return false;
-    if (text.find("## Forbidden dependencies") == std::string::npos) return false;
-    if (text.find("## Public API") == std::string::npos) return false;
-    if (text.find("## Tests") == std::string::npos) return false;
+    if (text.find(doc.required_a) == std::string::npos) return false;
+    if (text.find(doc.required_b) == std::string::npos) return false;
   }
   return true;
 }
@@ -5196,7 +5200,7 @@ const TestCase kLangTests[] = {
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
-  {"docs_ownership_pages_have_required_sections", DocsOwnershipPagesHaveRequiredSections},
+  {"docs_canonical_pages_describe_behavior", DocsCanonicalPagesDescribeBehavior},
   {"cli_diagnostic_renderer_classifies_and_formats", CliDiagnosticRendererClassifiesAndFormats},
   {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
