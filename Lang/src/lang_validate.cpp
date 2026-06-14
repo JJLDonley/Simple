@@ -162,6 +162,7 @@ using TAST::IsLiteralCompatibleWithScalarType;
 using TAST::IsListLiteralExpr;
 using TAST::IsLenCompatibleType;
 using TAST::IsListMethodName;
+using TAST::IsMemberAccessExpr;
 using TAST::IsNumericTypeName;
 using TAST::IsPositionalBraceLiteralExpr;
 using TAST::IsPrimitiveCastName;
@@ -1236,10 +1237,9 @@ bool IsMutableStorageExpr(const Expr& expr,
     if (out_known) *out_known = false;
     return true;
   }
-  if (expr.kind == ExprKind::Member &&
-      (expr.op == "." || expr.op == "->") &&
-      !expr.children.empty()) {
-    const Expr& base = expr.children[0];
+  const Expr* member_base = nullptr;
+  if (IsMemberAccessExpr(expr, &member_base, nullptr)) {
+    const Expr& base = *member_base;
     if (base.kind == ExprKind::Identifier) {
       if (base.text == "self") {
         const VarDecl* field = FindArtifactField(current_artifact, expr.text);
@@ -1988,10 +1988,9 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       return true;
     }
-    if (expr.kind == ExprKind::Member &&
-        (expr.op == "." || expr.op == "->") &&
-        !expr.children.empty()) {
-      const Expr& base = expr.children[0];
+    const Expr* member_base = nullptr;
+    if (IsMemberAccessExpr(expr, &member_base, nullptr)) {
+      const Expr& base = *member_base;
       if (base.kind == ExprKind::Identifier) {
         if (base.text == "self") {
           const VarDecl* field = FindArtifactField(current_artifact, expr.text);
@@ -2058,10 +2057,9 @@ bool CheckAssignmentTarget(const Expr& target,
     }
     return true;
   }
-  if (target.kind == ExprKind::Member &&
-      (target.op == "." || target.op == "->") &&
-      !target.children.empty()) {
-    const Expr& base = target.children[0];
+  const Expr* target_member_base = nullptr;
+  if (IsMemberAccessExpr(target, &target_member_base, nullptr)) {
+    const Expr& base = *target_member_base;
     if (!is_mutable_expr(base)) {
       if (error) *error = "cannot assign through immutable value";
       return false;

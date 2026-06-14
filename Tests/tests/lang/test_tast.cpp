@@ -562,6 +562,16 @@ bool LangTastExpressionOperatorsValidateScalarAndCompoundAssign() {
   Simple::Lang::AST::Expr call_expr;
   call_expr.kind = Simple::Lang::AST::ExprKind::Call;
   if (Simple::Lang::TAST::IsAddressableExpr(call_expr)) return false;
+  Simple::Lang::AST::Expr member_expr;
+  member_expr.kind = Simple::Lang::AST::ExprKind::Member;
+  member_expr.op = "->";
+  member_expr.children.push_back(identifier);
+  const Simple::Lang::AST::Expr* member_base = nullptr;
+  bool pointer_access = false;
+  if (!Simple::Lang::TAST::IsMemberAccessExpr(member_expr, &member_base, &pointer_access)) return false;
+  if (!member_base || member_base->kind != Simple::Lang::AST::ExprKind::Identifier || !pointer_access) return false;
+  member_expr.op = "+";
+  if (Simple::Lang::TAST::IsMemberAccessExpr(member_expr, nullptr, nullptr)) return false;
 
   Simple::Lang::AST::TypeRef i32;
   i32.name = "i32";

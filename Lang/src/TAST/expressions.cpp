@@ -11,6 +11,18 @@ bool IsAddressableExpr(const Expr& expr) {
          expr.kind == Simple::Lang::AST::ExprKind::Index;
 }
 
+bool IsMemberAccessExpr(const Expr& expr,
+                        const Expr** out_base,
+                        bool* out_is_pointer_access) {
+  if (expr.kind != Simple::Lang::AST::ExprKind::Member ||
+      (expr.op != "." && expr.op != "->") || expr.children.empty()) {
+    return false;
+  }
+  if (out_base) *out_base = &expr.children[0];
+  if (out_is_pointer_access) *out_is_pointer_access = expr.op == "->";
+  return true;
+}
+
 bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
   if (!IsScalarType(type)) {
     if (error) *error = "operator '" + op + "' requires scalar operands";
