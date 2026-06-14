@@ -108,6 +108,7 @@ using RAST::FindArtifactMethod;
 using RAST::FindModuleFunc;
 using RAST::FindModuleVar;
 using RAST::GetModuleNameFromExpr;
+using RAST::GetReservedModuleVarType;
 using RAST::IsArtifactMemberName;
 using RAST::IsIoPrintName;
 using RAST::ModuleMembers;
@@ -247,26 +248,13 @@ bool ResolveDlModuleForIdentifier(
   return false;
 }
 
-bool GetReservedModuleVarType(const ValidateContext& ctx,
-                              const std::string& module,
-                              const std::string& member,
-                              TypeRef* out) {
+bool ResolveReservedModuleVarType(const ValidateContext& ctx,
+                                  const std::string& module,
+                                  const std::string& member,
+                                  TypeRef* out) {
   std::string resolved;
   if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
-  if (resolved == "Math" && member == "PI") {
-    if (out) *out = MakeSimpleType("f64");
-    return true;
-  }
-  if (resolved == "DL" && member == "supported") {
-    if (out) *out = MakeSimpleType("bool");
-    return true;
-  }
-  if (resolved == "OS" &&
-      (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
-    if (out) *out = MakeSimpleType("bool");
-    return true;
-  }
-  return false;
+  return GetReservedModuleVarType(resolved, member, out);
 }
 
 bool GetReservedModuleCallTarget(const ValidateContext& ctx,
@@ -1026,7 +1014,7 @@ bool InferExprType(const Expr& expr,
       std::string module_name;
       if (GetModuleNameFromExpr(base, &module_name)) {
         if (IsReservedModuleEnabled(ctx, module_name)) {
-          if (GetReservedModuleVarType(ctx, module_name, expr.text, out)) {
+          if (ResolveReservedModuleVarType(ctx, module_name, expr.text, out)) {
             return true;
           }
         }
@@ -3451,7 +3439,7 @@ bool CheckExpr(const Expr& expr,
           if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
             TypeRef var_type;
             CallTargetInfo info;
-            if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+            if (ResolveReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
                 GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
@@ -3495,7 +3483,7 @@ bool CheckExpr(const Expr& expr,
           if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
             TypeRef var_type;
             CallTargetInfo info;
-            if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+            if (ResolveReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
                 GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
               return true;
             }
@@ -3513,7 +3501,7 @@ bool CheckExpr(const Expr& expr,
         if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
           TypeRef var_type;
           CallTargetInfo info;
-          if (GetReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
+          if (ResolveReservedModuleVarType(ctx, module_name, expr.text, &var_type) ||
               GetReservedModuleCallTarget(ctx, module_name, expr.text, &info)) {
             return true;
           }

@@ -130,6 +130,25 @@ bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
 }
 
+bool GetReservedModuleVarType(const std::string& canonical_module,
+                              const std::string& member,
+                              Simple::Lang::AST::TypeRef* out) {
+  auto set_simple = [out](const std::string& name) {
+    if (out) {
+      *out = Simple::Lang::AST::TypeRef{};
+      out->name = name;
+    }
+    return true;
+  };
+  if (canonical_module == "Math" && member == "PI") return set_simple("f64");
+  if (canonical_module == "DL" && member == "supported") return set_simple("bool");
+  if (canonical_module == "OS" &&
+      (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
+    return set_simple("bool");
+  }
+  return false;
+}
+
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
   std::string native_module;
   if (NativeModuleNameForReserved(canonical_module, &native_module) &&

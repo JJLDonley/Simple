@@ -269,7 +269,15 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
     }
     return false;
   };
-  return has_fs_member("readText") &&
+  Simple::Lang::AST::TypeRef reserved_var_type;
+  const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
+                            reserved_var_type.name == "f64";
+  const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
+                            reserved_var_type.name == "bool";
+  return math_pi_type &&
+         os_flag_type &&
+         !Simple::Lang::RAST::GetReservedModuleVarType("Math", "missing", &reserved_var_type) &&
+         has_fs_member("readText") &&
          has_fs_member("open") &&
          Simple::Lang::RAST::ReservedModuleMembers("Missing").empty() &&
          Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
