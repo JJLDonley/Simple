@@ -6,7 +6,7 @@
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "RAST/resolver.h"
-#include "lang_sir.h"
+#include "IRE/sir_emitter.h"
 #include "TAST/type_checker.h"
 
 namespace Simple::VM::Tests {

@@ -1,4 +1,4 @@
-#include "lang_sir.h"
+#include "IRE/sir_emitter.h"
 
 #include <cstdint>
 #include <functional>

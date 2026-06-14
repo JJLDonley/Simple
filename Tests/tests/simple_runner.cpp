@@ -10,7 +10,7 @@
 
 #include "ir_compiler.h"
 #include "ir_lang.h"
-#include "lang_sir.h"
+#include "IRE/sir_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"

@@ -19,7 +19,7 @@
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "TAST/type_checker.h"
-#include "lang_sir.h"
+#include "IRE/sir_emitter.h"
 #include "lsp_server.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"

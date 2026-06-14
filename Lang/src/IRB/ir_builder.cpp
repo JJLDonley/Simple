@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "lang_sir.h"
+#include "IRE/sir_emitter.h"
 
 namespace Simple::Lang::IRB {
 namespace {
