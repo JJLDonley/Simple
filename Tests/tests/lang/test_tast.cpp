@@ -74,6 +74,27 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastCallsCheckReservedFileArgTypes() {
+  std::string error;
+  auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  auto string_type = Simple::Lang::TAST::MakeSimpleType("string");
+  auto i32_buffer = i32;
+  i32_buffer.dims.push_back(Simple::Lang::AST::TypeDim{});
+  std::vector<Simple::Lang::AST::TypeRef> args = {string_type, i32};
+  if (!Simple::Lang::TAST::CheckReservedFileCallArgTypes("open", args, &error)) return false;
+  args = {i32, i32};
+  if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("open", args, &error)) return false;
+  if (error.find("File.open expects (string, i32)") == std::string::npos) return false;
+  args = {i32_buffer};
+  if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("close", args, &error)) return false;
+  if (error.find("File.close expects (i32)") == std::string::npos) return false;
+  args = {i32, i32_buffer, i32};
+  if (!Simple::Lang::TAST::CheckReservedFileCallArgTypes("read", args, &error)) return false;
+  args = {i32, i32, i32};
+  if (Simple::Lang::TAST::CheckReservedFileCallArgTypes("write", args, &error)) return false;
+  return error.find("File.write expects (i32, i32[], i32)") != std::string::npos;
+}
+
 bool LangTastCallsCheckReservedIoBufferArgTypes() {
   std::string error;
   auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
@@ -637,6 +658,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_calls_check_reserved_file_arg_types", LangTastCallsCheckReservedFileArgTypes},
   {"lang_tast_calls_check_reserved_io_buffer_arg_types", LangTastCallsCheckReservedIoBufferArgTypes},
   {"lang_tast_calls_check_reserved_math_arg_types", LangTastCallsCheckReservedMathArgTypes},
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},

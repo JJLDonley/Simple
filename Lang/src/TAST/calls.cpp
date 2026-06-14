@@ -132,6 +132,43 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
   return true;
 }
 
+bool CheckReservedFileCallArgTypes(const std::string& member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  if (member == "open") {
+    if (args.size() != 2) return true;
+    const TypeRef& path = args[0];
+    const TypeRef& flags = args[1];
+    if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
+      if (error) *error = "File.open expects (string, i32)";
+      return false;
+    }
+    return true;
+  }
+  if (member == "close") {
+    if (args.size() != 1) return true;
+    const TypeRef& fd = args[0];
+    if (fd.name != "i32" || !fd.dims.empty()) {
+      if (error) *error = "File.close expects (i32)";
+      return false;
+    }
+    return true;
+  }
+  if (member == "read" || member == "write") {
+    if (args.size() != 3) return true;
+    const TypeRef& fd = args[0];
+    const TypeRef& buf = args[1];
+    const TypeRef& len = args[2];
+    if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
+        !IsI32BufferType(buf)) {
+      if (error) *error = "File." + member + " expects (i32, i32[], i32)";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
 bool CheckReservedIoBufferCallArgTypes(const std::string& member,
                                        const std::vector<TypeRef>& args,
                                        std::string* error) {

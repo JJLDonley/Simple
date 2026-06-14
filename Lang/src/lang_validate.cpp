@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
@@ -1855,9 +1856,6 @@ bool CheckCallArgTypes(const Expr& call_expr,
         if (index >= call_expr.args.size()) return false;
         return InferExprType(call_expr.args[index], ctx, scopes, current_artifact, out_type);
       };
-      auto is_i32_buffer = [&](const TypeRef& t) -> bool {
-        return t.name == "i32" && !t.is_proc && t.type_args.empty() && t.dims.size() == 1;
-      };
       if (mod == "Math") {
         std::vector<TypeRef> arg_types;
         arg_types.reserve(call_expr.args.size());
@@ -1917,40 +1915,14 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return true;
       }
       if (mod == "File") {
-        if (name == "open") {
-          if (call_expr.args.size() != 2) return true;
-          TypeRef path;
-          TypeRef flags;
-          if (!infer_arg(0, &path) || !infer_arg(1, &flags)) return true;
-          if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
-            if (error) *error = "File.open expects (string, i32)";
-            return false;
-          }
-          return true;
+        std::vector<TypeRef> arg_types;
+        arg_types.reserve(call_expr.args.size());
+        for (size_t i = 0; i < call_expr.args.size(); ++i) {
+          TypeRef arg;
+          if (!infer_arg(i, &arg)) return true;
+          arg_types.push_back(std::move(arg));
         }
-        if (name == "close") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef fd;
-          if (!infer_arg(0, &fd)) return true;
-          if (fd.name != "i32" || !fd.dims.empty()) {
-            if (error) *error = "File.close expects (i32)";
-            return false;
-          }
-          return true;
-        }
-        if (name == "read" || name == "write") {
-          if (call_expr.args.size() != 3) return true;
-          TypeRef fd;
-          TypeRef buf;
-          TypeRef len;
-          if (!infer_arg(0, &fd) || !infer_arg(1, &buf) || !infer_arg(2, &len)) return true;
-          if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
-              !is_i32_buffer(buf)) {
-            if (error) *error = "File." + name + " expects (i32, i32[], i32)";
-            return false;
-          }
-          return true;
-        }
+        return CheckReservedFileCallArgTypes(name, arg_types, error);
       }
     }
   }
