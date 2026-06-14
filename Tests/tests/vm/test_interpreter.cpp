@@ -142,6 +142,20 @@ bool VmExecutionStatsLiveInRuntimeModule() {
          vm_text.find("auto finish = [") == std::string::npos;
 }
 
+bool VmJitCompilePolicyLivesInJitModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/jit/compile_policy.h");
+  std::ifstream source("VM/src/jit/compile_policy.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("CanCompileMethod(") != std::string::npos &&
+         source_text.find("bool CanCompileMethod(") != std::string::npos &&
+         vm_text.find("auto can_compile = [") == std::string::npos &&
+         vm_text.find("auto note_ref_op = [") == std::string::npos;
+}
+
 bool VmJitFailureUsesNamedOperandHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -286,6 +300,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_runtime_limits_live_in_runtime_module", VmRuntimeLimitsLiveInRuntimeModule},
   {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
+  {"vm_jit_compile_policy_lives_in_jit_module", VmJitCompilePolicyLivesInJitModule},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
   {"vm_value_packing_helpers_live_in_runtime_module", VmValuePackingHelpersLiveInRuntimeModule},
