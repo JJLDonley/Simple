@@ -179,15 +179,7 @@ bool ResolveReservedModuleName(const ValidateContext& ctx,
 }
 
 bool IsCoreDlOpenCallExpr(const Expr& expr, const ValidateContext& ctx) {
-  if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
-  const Expr& callee = expr.children[0];
-  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
-  std::string module_name;
-  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
-  if (!IsReservedModuleEnabled(ctx, module_name)) return false;
-  std::string resolved;
-  if (!ResolveReservedModuleName(ctx, module_name, &resolved)) return false;
-  return resolved == "DL" && NormalizeDlMemberName(callee.text) == "open";
+  return RAST::IsCoreDlOpenCallExpr(expr, ctx.reserved_imports, ctx.reserved_import_aliases);
 }
 
 bool GetDlOpenManifestModule(const Expr& expr,

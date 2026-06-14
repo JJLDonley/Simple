@@ -297,6 +297,23 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   io_print.text = "write";
   const bool rejects_non_print = !Simple::Lang::RAST::IsIoPrintCallExpr(
       io_print, reserved_imports, reserved_aliases);
+  Simple::Lang::AST::Expr dl_base;
+  dl_base.kind = Simple::Lang::AST::ExprKind::Identifier;
+  dl_base.text = "Dyn";
+  Simple::Lang::AST::Expr dl_member;
+  dl_member.kind = Simple::Lang::AST::ExprKind::Member;
+  dl_member.op = ".";
+  dl_member.text = "Open";
+  dl_member.children.push_back(dl_base);
+  Simple::Lang::AST::Expr dl_call;
+  dl_call.kind = Simple::Lang::AST::ExprKind::Call;
+  dl_call.children.push_back(dl_member);
+  reserved_aliases["Dyn"] = "DL";
+  const bool recognizes_dl_open = Simple::Lang::RAST::IsCoreDlOpenCallExpr(
+      dl_call, reserved_imports, reserved_aliases);
+  dl_call.children[0].text = "Sym";
+  const bool rejects_dl_sym = !Simple::Lang::RAST::IsCoreDlOpenCallExpr(
+      dl_call, reserved_imports, reserved_aliases);
   const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
                             reserved_var_type.name == "f64";
   const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
@@ -306,6 +323,8 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
          enables_reserved_alias &&
          recognizes_io_print &&
          rejects_non_print &&
+         recognizes_dl_open &&
+         rejects_dl_sym &&
          math_pi_type &&
          os_flag_type &&
          !Simple::Lang::RAST::GetReservedModuleVarType("Math", "missing", &reserved_var_type) &&

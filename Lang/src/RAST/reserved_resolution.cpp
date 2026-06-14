@@ -289,6 +289,22 @@ bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
          resolved == "IO";
 }
 
+bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
+                          const std::unordered_set<std::string>& reserved_imports,
+                          const std::unordered_map<std::string, std::string>& reserved_import_aliases) {
+  if (expr.kind != Simple::Lang::AST::ExprKind::Call || expr.children.empty()) return false;
+  const auto& callee = expr.children[0];
+  if (callee.kind != Simple::Lang::AST::ExprKind::Member || callee.op != "." || callee.children.empty()) {
+    return false;
+  }
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  if (!IsReservedModuleEnabled(reserved_imports, reserved_import_aliases, module_name)) return false;
+  std::string resolved;
+  if (!ResolveReservedModuleName(reserved_imports, reserved_import_aliases, module_name, &resolved)) return false;
+  return resolved == "DL" && NormalizeDlMemberName(callee.text) == "open";
+}
+
 bool GetDlOpenManifestModule(const ResolvedProgram* program,
                              const Simple::Lang::AST::Expr& expr,
                              std::string* out_module) {
