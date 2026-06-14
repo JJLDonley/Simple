@@ -13,6 +13,41 @@
 namespace Simple::VM::Tests {
 namespace {
 
+bool VmInterpreterModuleExcludesNativeSubsystems() {
+  const std::array<const char*, 4> paths = {
+      "VM/src/interpreter/interpreter.cpp",
+      "VM/src/interpreter/dispatch.cpp",
+      "VM/src/interpreter/frames.cpp",
+      "VM/src/interpreter/stack.cpp",
+  };
+  const char* forbidden[] = {
+      "native/",
+      "ffi/",
+      "json",
+      "Channel",
+      "std::filesystem",
+      "<filesystem>",
+  };
+  for (const char* path : paths) {
+    std::ifstream in(path);
+    if (!in) return false;
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    for (const char* token : forbidden) {
+      if (text.find(token) != std::string::npos) return false;
+    }
+  }
+  return true;
+}
+
+bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
+  std::ifstream in("VM/include/interpreter/interpreter.h");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("struct InterpreterState") != std::string::npos &&
+         text.find("native/") == std::string::npos &&
+         text.find("ffi/") == std::string::npos;
+}
+
 bool VmTrapFormattingUsesNamedHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -103,6 +138,8 @@ bool VmSplitInterpreterStackAndFrames() {
 }
 
 const TestCase kVmInterpreterTests[] = {
+  {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
+  {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
   {"vm_trap_formatting_uses_named_helpers", VmTrapFormattingUsesNamedHelpers},
   {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
