@@ -280,7 +280,25 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
 
   Simple::Lang::AST::TypeRef output;
   if (!Simple::Lang::TAST::SubstituteGenericTypes(input, substitutions, &output)) return false;
-  return output.name == "Box" && output.type_args.size() == 1 && output.type_args[0].name == "i32";
+  if (output.name != "Box" || output.type_args.size() != 1 || output.type_args[0].name != "i32") return false;
+
+  Simple::Lang::AST::TypeRef pointer_to_t;
+  pointer_to_t.name = "T";
+  pointer_to_t.pointer_depth = 1;
+  Simple::Lang::AST::TypeRef applied;
+  if (!Simple::Lang::TAST::SubstituteTypeParams(pointer_to_t, substitutions, &applied)) return false;
+  if (applied.name != "i32" || applied.pointer_depth != 1) return false;
+
+  Simple::Lang::AST::ArtifactDecl artifact;
+  artifact.name = "Box";
+  artifact.generics.push_back("T");
+  Simple::Lang::AST::TypeRef instance;
+  instance.name = "Box";
+  instance.type_args.push_back(replacement);
+  Simple::Lang::TAST::GenericSubstitutionMap map;
+  std::string error;
+  if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(instance, &artifact, &map, &error)) return false;
+  return map.size() == 1 && map["T"].name == "i32";
 }
 
 

@@ -233,7 +233,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add `CLI/src/build_contract.cpp` for build layout and embedded runner helpers.
 - [x] Move CLI command parsing/dispatch into dedicated command modules.
   - [x] Add `CLI/src/command_dispatch.cpp`.
-- [x] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.
+- [x] Remove CLI/LSP duplicate import wrappers after shared import graph adoption.
 
 ### SRP Phase 7: Documentation Consolidation
 
@@ -251,7 +251,8 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] remove `lang_sir.h`
 - [x] Remove facade-only Lang compatibility modules from the public surface; remaining phase ownership work is tracked under [Lang Architecture](#lang-architecture).
 - [x] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
-- [x] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
+- [x] Remove CLI/LSP duplicate import wrappers once shared import graph is adopted.
+  - Scope: source-level duplicate import helpers/wrappers are gone. Test ownership remains tracked by the open completion check below.
 
 ### SRP Completion / Regression Checks
 
@@ -269,10 +270,10 @@ These checks close the SRP effort only when they are true in the tree. Do not ma
   - Future native-handle roots belong to the layered native resource-registry work.
 - [x] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
   - CAST owns its parser API directly; legacy root parser exports and CAST namespace re-exports are gone.
-<!-- - [ ] Tests are split by owning subsystem/phase.
+- [ ] Tests are split by owning subsystem/phase.
   - Current status: not closed; `Tests/tests/test_lang.cpp` still contains broad validation/runtime/CLI integration coverage.
   - Progress: module-header CLI check, basic `svm emit/check/build` command tests, compile/build executable tests, `simple` runtime-stub command contract tests, CLI diagnostic-format checks, exit-code checks, CLI import command regressions, and import stress command checks moved to `Tests/tests/cli/`.
-  - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`. -->
+  - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`.
 
 ## High Priority: Layered Native Library Model
 

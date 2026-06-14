@@ -10,6 +10,7 @@
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
+#include "TAST/generics.h"
 #include "TAST/literals.h"
 #include "TAST/types.h"
 
@@ -96,6 +97,8 @@ enum class TypeUse : uint8_t {
   Return,
 };
 
+using TAST::ApplyTypeSubstitution;
+using TAST::BuildArtifactTypeParamMap;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
@@ -110,6 +113,7 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
+using TAST::SubstituteTypeParams;
 using TAST::TypeDimsEqual;
 using TAST::TypeEquals;
 using TAST::TypesCompatibleForExpr;
@@ -1134,62 +1138,6 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
 
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
-}
-
-bool ApplyTypeSubstitution(TypeRef* type,
-                           const std::unordered_map<std::string, TypeRef>& mapping) {
-  if (!type) return false;
-  for (auto& arg : type->type_args) {
-    if (!ApplyTypeSubstitution(&arg, mapping)) return false;
-  }
-  if (type->is_proc) {
-    for (auto& param : type->proc_params) {
-      if (!ApplyTypeSubstitution(&param, mapping)) return false;
-    }
-    if (type->proc_return) {
-      if (!ApplyTypeSubstitution(type->proc_return.get(), mapping)) return false;
-    }
-  }
-  auto it = mapping.find(type->name);
-  if (it == mapping.end()) return true;
-  TypeRef replacement;
-  if (!CloneTypeRef(it->second, &replacement)) return false;
-  replacement.pointer_depth += type->pointer_depth;
-  if (!type->dims.empty()) {
-    replacement.dims.insert(replacement.dims.end(), type->dims.begin(), type->dims.end());
-  }
-  *type = std::move(replacement);
-  return true;
-}
-
-bool SubstituteTypeParams(const TypeRef& src,
-                          const std::unordered_map<std::string, TypeRef>& mapping,
-                          TypeRef* out) {
-  if (!out) return false;
-  if (!CloneTypeRef(src, out)) return false;
-  return ApplyTypeSubstitution(out, mapping);
-}
-
-bool BuildArtifactTypeParamMap(const TypeRef& instance_type,
-                               const ArtifactDecl* artifact,
-                               std::unordered_map<std::string, TypeRef>* out,
-                               std::string* error) {
-  if (!out) return false;
-  out->clear();
-  if (!artifact) return false;
-  if (artifact->generics.empty()) return true;
-  if (instance_type.type_args.size() != artifact->generics.size()) {
-    if (error) {
-      *error = "generic type argument count mismatch for " + artifact->name;
-    }
-    return false;
-  }
-  for (size_t i = 0; i < artifact->generics.size(); ++i) {
-    TypeRef copy;
-    if (!CloneTypeRef(instance_type.type_args[i], &copy)) return false;
-    (*out)[artifact->generics[i]] = std::move(copy);
-  }
-  return true;
 }
 
 bool UnifyTypeParams(const TypeRef& param,
