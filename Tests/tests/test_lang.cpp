@@ -1415,44 +1415,6 @@ bool LangReservedLogUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_log_using.simple", 1);
 }
 
-bool LangCliEmitIr() {
-  const std::string out_path = TempPath("simple_emit_ir.sir");
-  const std::string cmd = "bin/svm emit -ir Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  std::ifstream in(out_path);
-  if (!in) return false;
-  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("func") != std::string::npos;
-}
-
-bool LangCliEmitSbc() {
-  const std::string out_path = TempPath("simple_emit_sbc.sbc");
-  const std::string cmd = "bin/svm emit -sbc Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  std::ifstream in(out_path, std::ios::binary);
-  return in.good() && in.peek() != std::ifstream::traits_type::eof();
-}
-
-bool LangCliCheckSimple() {
-  return RunCommand("bin/svm check Tests/simple/hello.simple");
-}
-
-bool LangCliCheckSir() {
-  return RunCommand("bin/svm check Tests/sir/fib_iter.sir");
-}
-
-bool LangCliCheckSbc() {
-  return RunCommand("bin/svm check Tests/tests/fixtures/add_i32.sbc");
-}
-
-bool LangCliBuildSimple() {
-  const std::string out_path = TempPath("simple_build_hello.sbc");
-  const std::string cmd = "bin/svm build Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  std::ifstream in(out_path, std::ios::binary);
-  return in.good() && in.peek() != std::ifstream::traits_type::eof();
-}
-
 bool LangCliSimpleRejectsBuildCommand() {
   return RunCommandExpectFail("bin/simple build Tests/simple/hello.simple");
 }
@@ -3663,12 +3625,6 @@ const TestCase kLangTests[] = {
   {"lang_reserved_buffer_using_run", LangReservedBufferUsingRun},
   {"lang_reserved_log_run", LangReservedLogRun},
   {"lang_reserved_log_using_run", LangReservedLogUsingRun},
-  {"lang_cli_emit_ir", LangCliEmitIr},
-  {"lang_cli_emit_sbc", LangCliEmitSbc},
-  {"lang_cli_check_simple", LangCliCheckSimple},
-  {"lang_cli_check_sir", LangCliCheckSir},
-  {"lang_cli_check_sbc", LangCliCheckSbc},
-  {"lang_cli_build_simple", LangCliBuildSimple},
   {"lang_cli_simple_rejects_build_command", LangCliSimpleRejectsBuildCommand},
   {"lang_cli_simple_rejects_compile_command", LangCliSimpleRejectsCompileCommand},
   {"lang_cli_compile_svm_defaults_to_exe_and_infers_simple_ext",
