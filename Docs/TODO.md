@@ -71,7 +71,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] parameter types
   - [x] result type
   - [x] handler function
-- [ ] Use native metadata for VM runtime dispatch.
+- [x] Use native metadata for VM runtime dispatch.
   - [x] Route `System.random` through native metadata dispatch.
   - [x] Route `System.os` args/env/time/sleep plus cwd/format helpers through native metadata dispatch.
   - [x] Route `System.thread` through native metadata dispatch.
