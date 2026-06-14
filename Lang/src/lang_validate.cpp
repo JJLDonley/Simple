@@ -134,6 +134,7 @@ using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
+using TAST::CheckScalarCallArgTypes;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -2935,6 +2936,8 @@ bool CheckExpr(const Expr& expr,
         }
         return false;
       }
+      std::vector<TypeRef> arg_types;
+      arg_types.reserve(expr.args.size());
       for (const auto& arg : expr.args) {
         if (!CheckExpr(arg, ctx, scopes, current_artifact, error)) return false;
         TypeRef arg_type;
@@ -2942,10 +2945,10 @@ bool CheckExpr(const Expr& expr,
           if (error && error->empty()) *error = "format expects scalar arguments";
           return false;
         }
-        if (!IsScalarType(arg_type)) {
-          if (error) *error = "format expects scalar arguments";
-          return false;
-        }
+        arg_types.push_back(std::move(arg_type));
+      }
+      if (!CheckScalarCallArgTypes(arg_types, "format expects scalar arguments", error)) return false;
+      for (const auto& arg_type : arg_types) {
         if (!(IsNumericTypeName(arg_type.name) ||
               IsBoolTypeName(arg_type.name) ||
               arg_type.name == "string")) {
@@ -3054,10 +3057,8 @@ bool CheckExpr(const Expr& expr,
             if (error && error->empty()) *error = "IO.print expects scalar argument";
             return false;
           }
-          if (!IsScalarType(arg_type)) {
-            if (error) *error = "IO.print expects scalar argument";
-            return false;
-          }
+          std::vector<TypeRef> arg_types = {arg_type};
+          if (!CheckScalarCallArgTypes(arg_types, "IO.print expects scalar argument", error)) return false;
           if (!(IsNumericTypeName(arg_type.name) ||
                 IsBoolTypeName(arg_type.name) ||
                 arg_type.name == "char" ||
@@ -3084,16 +3085,18 @@ bool CheckExpr(const Expr& expr,
             }
             return false;
           }
+          std::vector<TypeRef> arg_types;
+          arg_types.reserve(expr.args.size() - 1);
           for (size_t i = 1; i < expr.args.size(); ++i) {
             TypeRef arg_type;
             if (!InferExprType(expr.args[i], ctx, scopes, current_artifact, &arg_type)) {
               if (error && error->empty()) *error = "IO.print format expects scalar arguments";
               return false;
             }
-            if (!IsScalarType(arg_type)) {
-              if (error) *error = "IO.print format expects scalar arguments";
-              return false;
-            }
+            arg_types.push_back(std::move(arg_type));
+          }
+          if (!CheckScalarCallArgTypes(arg_types, "IO.print format expects scalar arguments", error)) return false;
+          for (const auto& arg_type : arg_types) {
             if (!(IsNumericTypeName(arg_type.name) ||
                   IsBoolTypeName(arg_type.name) ||
                   arg_type.name == "char" ||

@@ -110,6 +110,18 @@ bool LangTastPrimitiveCastArgTypeRules() {
   return error.find("i32 cast expects scalar argument") != std::string::npos;
 }
 
+bool LangTastCallsCheckScalarArgTypes() {
+  std::string error;
+  auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  auto list_i32 = i32;
+  list_i32.dims.push_back(Simple::Lang::AST::TypeDim{true, false, 0});
+  std::vector<Simple::Lang::AST::TypeRef> args = {i32, Simple::Lang::TAST::MakeSimpleType("bool")};
+  if (!Simple::Lang::TAST::CheckScalarCallArgTypes(args, "scalar only", &error)) return false;
+  args.push_back(list_i32);
+  if (Simple::Lang::TAST::CheckScalarCallArgTypes(args, "scalar only", &error)) return false;
+  return error == "scalar only";
+}
+
 bool LangTastCallsCheckReservedDlOpenArgTypes() {
   std::string error;
   std::vector<Simple::Lang::AST::TypeRef> args = {Simple::Lang::TAST::MakeSimpleType("string")};
@@ -709,6 +721,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_tast_primitive_cast_arg_type_rules", LangTastPrimitiveCastArgTypeRules},
+  {"lang_tast_calls_check_scalar_arg_types", LangTastCallsCheckScalarArgTypes},
   {"lang_tast_calls_check_reserved_dl_open_arg_types", LangTastCallsCheckReservedDlOpenArgTypes},
   {"lang_tast_calls_check_reserved_file_arg_types", LangTastCallsCheckReservedFileArgTypes},
   {"lang_tast_calls_check_reserved_io_buffer_arg_types", LangTastCallsCheckReservedIoBufferArgTypes},

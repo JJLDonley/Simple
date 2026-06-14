@@ -132,6 +132,18 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
   return true;
 }
 
+bool CheckScalarCallArgTypes(const std::vector<TypeRef>& args,
+                             const std::string& error_message,
+                             std::string* error) {
+  for (const auto& arg : args) {
+    if (!IsScalarType(arg)) {
+      if (error) *error = error_message;
+      return false;
+    }
+  }
+  return true;
+}
+
 bool CheckReservedDlOpenArgTypes(const std::vector<TypeRef>& args,
                                  std::string* error) {
   if (args.size() != 1 && args.size() != 2) {
