@@ -156,6 +156,7 @@ using TAST::IsAddressableExpr;
 using TAST::IsAddressOfExpr;
 using TAST::IsAssignOp;
 using TAST::IsFloatTypeName;
+using TAST::IsIndexExpr;
 using TAST::IsIntegerTypeName;
 using TAST::IsLiteralCompatibleWithScalarType;
 using TAST::IsListLiteralExpr;
@@ -1274,8 +1275,9 @@ bool IsMutableStorageExpr(const Expr& expr,
     if (out_known) *out_known = false;
     return true;
   }
-  if (expr.kind == ExprKind::Index && !expr.children.empty()) {
-    return IsMutableStorageExpr(expr.children[0], ctx, scopes, current_artifact, out_known);
+  const Expr* index_base = nullptr;
+  if (IsIndexExpr(expr, &index_base)) {
+    return IsMutableStorageExpr(*index_base, ctx, scopes, current_artifact, out_known);
   }
   if (out_known) *out_known = false;
   return true;

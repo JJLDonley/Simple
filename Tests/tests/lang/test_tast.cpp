@@ -721,6 +721,12 @@ bool LangTastMutabilityChecksAssignments() {
   const Simple::Lang::AST::Expr* extracted = nullptr;
   if (!Simple::Lang::TAST::IsAddressOfExpr(address_of, &extracted) || !extracted || extracted->text != "x") return false;
   if (Simple::Lang::TAST::IsAddressOfExpr(target, nullptr)) return false;
+  Simple::Lang::AST::Expr index_expr;
+  index_expr.kind = Simple::Lang::AST::ExprKind::Index;
+  index_expr.children.push_back(target);
+  const Simple::Lang::AST::Expr* index_base = nullptr;
+  if (!Simple::Lang::TAST::IsIndexExpr(index_expr, &index_base) || !index_base || index_base->text != "x") return false;
+  if (Simple::Lang::TAST::IsIndexExpr(target, nullptr)) return false;
 
   if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
   if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
