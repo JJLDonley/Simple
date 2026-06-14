@@ -1,6 +1,5 @@
 #include "test_utils.h"
 
-#include "CAST/cast.h"
 #include "CAST/parser.h"
 
 namespace Simple::VM::Tests {

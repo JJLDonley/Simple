@@ -3,7 +3,7 @@
 #include <string>
 
 #include "AST/ast.h"
-#include "CAST/cast.h"
+#include "CAST/parser.h"
 
 namespace Simple::Lang::AST {
 

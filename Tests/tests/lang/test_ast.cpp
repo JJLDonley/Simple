@@ -1,7 +1,6 @@
 #include "test_utils.h"
 
 #include "AST/lower_cast.h"
-#include "CAST/cast.h"
 #include "CAST/parser.h"
 
 namespace Simple::VM::Tests {
