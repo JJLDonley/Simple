@@ -29,6 +29,7 @@
 #include "interpreter/stack.h"
 #include "interpreter/traps.h"
 #include "jit/compile_policy.h"
+#include "jit/failure_format.h"
 #include "jit/jit_scaffold.h"
 #include "jit/tier_updater.h"
 #include "native/buffer.h"
@@ -195,72 +196,24 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     std::vector<Slot> call_args;
     bool saw_enter = false;
     bool skip_nops = (jit_tiers[func_index] == JitTier::Tier1);
-    auto jit_fail = [&](const char* msg, uint8_t op, size_t inst_pc) -> bool {
-      std::ostringstream out;
-      out << msg << " op 0x";
-      static const char kHex[] = "0123456789ABCDEF";
-      out << kHex[(op >> 4) & 0xF] << kHex[op & 0xF];
-      const char* name = OpCodeName(op);
-      if (name && name[0] != '\0') {
-        out << " " << name;
-      }
-      if (inst_pc >= func.code_offset) {
-        out << " pc " << (inst_pc - func.code_offset);
-      }
-      if (inst_pc + 1 < module.code.size()) {
-        if (op == static_cast<uint8_t>(OpCode::Call)) {
-          uint32_t func_id = 0;
-          uint32_t arg_count = 0;
-          if (ReadU32Operand(module.code, inst_pc + 1, func_id) && (inst_pc + 5) < module.code.size()) {
-            arg_count = module.code[inst_pc + 5];
-            out << " operands call func_id=" << func_id << " arg_count=" << arg_count;
-          }
-        } else if (op == static_cast<uint8_t>(OpCode::Jmp) ||
-                   op == static_cast<uint8_t>(OpCode::JmpTrue) ||
-                   op == static_cast<uint8_t>(OpCode::JmpFalse)) {
-          int32_t rel = 0;
-          if (ReadI32Operand(module.code, inst_pc + 1, rel)) {
-            int64_t next_pc = static_cast<int64_t>(inst_pc + 1 + 4);
-            int64_t target = next_pc + rel;
-            out << " operands rel=" << rel;
-            if (func.code_offset <= static_cast<size_t>(target)) {
-              out << " target_pc=" << (target - static_cast<int64_t>(func.code_offset));
-            } else {
-              out << " target_pc=" << target;
-            }
-          }
-        } else if (op == static_cast<uint8_t>(OpCode::JmpTable)) {
-          uint32_t const_id = 0;
-          int32_t def_rel = 0;
-          if (ReadU32Operand(module.code, inst_pc + 1, const_id) && ReadI32Operand(module.code, inst_pc + 5, def_rel)) {
-            int64_t next_pc = static_cast<int64_t>(inst_pc + 1 + 8);
-            int64_t target = next_pc + def_rel;
-            out << " operands table_const=" << const_id << " default_rel=" << def_rel;
-            if (func.code_offset <= static_cast<size_t>(target)) {
-              out << " default_target_pc=" << (target - static_cast<int64_t>(func.code_offset));
-            } else {
-              out << " default_target_pc=" << target;
-            }
-          }
-        }
-      }
-      error = out.str();
-      return false;
-    };
+    Simple::VM::Jit::CompiledFailureReporter fail_compiled;
+    fail_compiled.module = &module;
+    fail_compiled.function = &func;
+    fail_compiled.error = &error;
     while (pc < end_pc) {
       uint8_t op = module.code[pc++];
       size_t inst_pc = pc - 1;
       switch (static_cast<OpCode>(op)) {
         case OpCode::Enter: {
           if (pc + 2 > end_pc) {
-            return jit_fail("JIT compiled ENTER out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled ENTER out of bounds", op, inst_pc);
           }
           uint16_t locals_count = ReadU16(module.code, pc);
           if (!saw_enter) {
             locals.assign(locals_count, 0);
             if (param_count > 0) {
               if (locals_count < param_count) {
-                return jit_fail("JIT compiled locals < param count", op, inst_pc);
+                return fail_compiled("JIT compiled locals < param count", op, inst_pc);
               }
               for (uint16_t i = 0; i < param_count; ++i) {
                 locals[static_cast<size_t>(i)] = args[static_cast<size_t>(i)];
@@ -268,7 +221,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             }
             saw_enter = true;
           } else if (locals.size() != locals_count) {
-            return jit_fail("JIT compiled locals mismatch", op, inst_pc);
+            return fail_compiled("JIT compiled locals mismatch", op, inst_pc);
           }
           break;
         }
@@ -279,7 +232,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         case OpCode::Line: {
           if (pc + 8 > end_pc) {
-            return jit_fail("JIT compiled LINE out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled LINE out of bounds", op, inst_pc);
           }
           ReadU32(module.code, pc);
           ReadU32(module.code, pc);
@@ -288,21 +241,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ProfileStart:
         case OpCode::ProfileEnd: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled PROFILE out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled PROFILE out of bounds", op, inst_pc);
           }
           ReadU32(module.code, pc);
           break;
         }
         case OpCode::Dup: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled DUP underflow", op, inst_pc);
+            return fail_compiled("JIT compiled DUP underflow", op, inst_pc);
           }
           local_stack.push_back(local_stack.back());
           break;
         }
         case OpCode::Dup2: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled DUP2 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled DUP2 underflow", op, inst_pc);
           }
           Slot a = local_stack[local_stack.size() - 2];
           Slot b = local_stack[local_stack.size() - 1];
@@ -312,7 +265,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::Swap: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled SWAP underflow", op, inst_pc);
+            return fail_compiled("JIT compiled SWAP underflow", op, inst_pc);
           }
           Slot a = local_stack[local_stack.size() - 1];
           Slot b = local_stack[local_stack.size() - 2];
@@ -322,7 +275,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::Rot: {
           if (local_stack.size() < 3) {
-            return jit_fail("JIT compiled ROT underflow", op, inst_pc);
+            return fail_compiled("JIT compiled ROT underflow", op, inst_pc);
           }
           Slot c = local_stack[local_stack.size() - 1];
           Slot b = local_stack[local_stack.size() - 2];
@@ -334,7 +287,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstI8: {
           if (pc + 1 > end_pc) {
-            return jit_fail("JIT compiled CONST_I8 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_I8 out of bounds", op, inst_pc);
           }
           int8_t value = static_cast<int8_t>(ReadU8(module.code, pc));
           local_stack.push_back(PackI32(value));
@@ -342,7 +295,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstU8: {
           if (pc + 1 > end_pc) {
-            return jit_fail("JIT compiled CONST_U8 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_U8 out of bounds", op, inst_pc);
           }
           uint8_t value = ReadU8(module.code, pc);
           local_stack.push_back(PackI32(static_cast<int32_t>(value)));
@@ -350,7 +303,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstBool: {
           if (pc + 1 > end_pc) {
-            return jit_fail("JIT compiled CONST_BOOL out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_BOOL out of bounds", op, inst_pc);
           }
           uint8_t value = ReadU8(module.code, pc);
           local_stack.push_back(PackI32(value ? 1 : 0));
@@ -358,7 +311,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstI16: {
           if (pc + 2 > end_pc) {
-            return jit_fail("JIT compiled CONST_I16 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_I16 out of bounds", op, inst_pc);
           }
           int16_t value = static_cast<int16_t>(ReadU16(module.code, pc));
           local_stack.push_back(PackI32(value));
@@ -366,7 +319,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstU16: {
           if (pc + 2 > end_pc) {
-            return jit_fail("JIT compiled CONST_U16 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_U16 out of bounds", op, inst_pc);
           }
           uint16_t value = ReadU16(module.code, pc);
           local_stack.push_back(PackI32(static_cast<int32_t>(value)));
@@ -374,7 +327,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstChar: {
           if (pc + 2 > end_pc) {
-            return jit_fail("JIT compiled CONST_CHAR out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_CHAR out of bounds", op, inst_pc);
           }
           uint16_t value = ReadU16(module.code, pc);
           local_stack.push_back(PackI32(static_cast<int32_t>(value)));
@@ -382,7 +335,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstI32: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled CONST_I32 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_I32 out of bounds", op, inst_pc);
           }
           int32_t value = ReadI32(module.code, pc);
           local_stack.push_back(PackI32(value));
@@ -390,7 +343,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstU32: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled CONST_U32 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_U32 out of bounds", op, inst_pc);
           }
           uint32_t value = ReadU32(module.code, pc);
           local_stack.push_back(PackI32(static_cast<int32_t>(value)));
@@ -398,7 +351,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstI64: {
           if (pc + 8 > end_pc) {
-            return jit_fail("JIT compiled CONST_I64 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_I64 out of bounds", op, inst_pc);
           }
           int64_t value = ReadI64(module.code, pc);
           local_stack.push_back(PackI64(value));
@@ -406,7 +359,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstU64: {
           if (pc + 8 > end_pc) {
-            return jit_fail("JIT compiled CONST_U64 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_U64 out of bounds", op, inst_pc);
           }
           uint64_t value = ReadU64(module.code, pc);
           local_stack.push_back(PackI64(static_cast<int64_t>(value)));
@@ -414,7 +367,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstF32: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled CONST_F32 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_F32 out of bounds", op, inst_pc);
           }
           uint32_t bits = ReadU32(module.code, pc);
           local_stack.push_back(PackF32Bits(bits));
@@ -422,7 +375,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConstF64: {
           if (pc + 8 > end_pc) {
-            return jit_fail("JIT compiled CONST_F64 out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CONST_F64 out of bounds", op, inst_pc);
           }
           uint64_t bits = ReadU64(module.code, pc);
           local_stack.push_back(PackF64Bits(bits));
@@ -434,7 +387,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::AddI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled ADD_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled ADD_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -445,7 +398,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::SubI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled SUB_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled SUB_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -456,7 +409,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::MulI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled MUL_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled MUL_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
@@ -467,35 +420,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::DivI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled DIV_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled DIV_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
           int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
-            return jit_fail("JIT compiled DIV_I32 by zero", op, inst_pc);
+            return fail_compiled("JIT compiled DIV_I32 by zero", op, inst_pc);
           }
           local_stack.push_back(PackI32(static_cast<int32_t>(a / b)));
           break;
         }
         case OpCode::ModI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled MOD_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled MOD_I32 underflow", op, inst_pc);
           }
           int32_t b = UnpackI32(local_stack.back());
           local_stack.pop_back();
           int32_t a = UnpackI32(local_stack.back());
           local_stack.pop_back();
           if (b == 0) {
-            return jit_fail("JIT compiled MOD_I32 by zero", op, inst_pc);
+            return fail_compiled("JIT compiled MOD_I32 by zero", op, inst_pc);
           }
           local_stack.push_back(PackI32(static_cast<int32_t>(a % b)));
           break;
         }
         case OpCode::NegI32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_I32 underflow", op, inst_pc);
           }
           int32_t a = UnpackI32(local_stack.back());
           local_stack.back() = PackI32(static_cast<int32_t>(-a));
@@ -504,7 +457,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncI32:
         case OpCode::DecI32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_I32 underflow", op, inst_pc);
           }
           int32_t a = UnpackI32(local_stack.back());
           a = (static_cast<OpCode>(op) == OpCode::IncI32) ? (a + 1) : (a - 1);
@@ -517,7 +470,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::DivU32:
         case OpCode::ModU32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled U32 binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled U32 binop underflow", op, inst_pc);
           }
           uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
           local_stack.pop_back();
@@ -548,7 +501,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegU32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_U32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_U32 underflow", op, inst_pc);
           }
           uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
           uint32_t out = 0u - a;
@@ -558,7 +511,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncU32:
         case OpCode::DecU32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_U32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_U32 underflow", op, inst_pc);
           }
           uint32_t a = static_cast<uint32_t>(UnpackI32(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncU32) ? (a + 1u) : (a - 1u);
@@ -571,7 +524,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::DivI64:
         case OpCode::ModI64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled I64 binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled I64 binop underflow", op, inst_pc);
           }
           int64_t b = UnpackI64(local_stack.back());
           local_stack.pop_back();
@@ -602,7 +555,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegI64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_I64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_I64 underflow", op, inst_pc);
           }
           int64_t a = UnpackI64(local_stack.back());
           local_stack.back() = PackI64(-a);
@@ -611,7 +564,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncI64:
         case OpCode::DecI64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_I64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_I64 underflow", op, inst_pc);
           }
           int64_t a = UnpackI64(local_stack.back());
           a = (static_cast<OpCode>(op) == OpCode::IncI64) ? (a + 1) : (a - 1);
@@ -624,7 +577,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::DivU64:
         case OpCode::ModU64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled U64 binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled U64 binop underflow", op, inst_pc);
           }
           uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
           local_stack.pop_back();
@@ -655,7 +608,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegU64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_U64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_U64 underflow", op, inst_pc);
           }
           uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
           uint64_t out = 0u - a;
@@ -665,7 +618,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncU64:
         case OpCode::DecU64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_U64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_U64 underflow", op, inst_pc);
           }
           uint64_t a = static_cast<uint64_t>(UnpackI64(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncU64) ? (a + 1u) : (a - 1u);
@@ -677,7 +630,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::MulF32:
         case OpCode::DivF32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled F32 binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled F32 binop underflow", op, inst_pc);
           }
           float b = BitsToF32(UnpackU32Bits(local_stack.back()));
           local_stack.pop_back();
@@ -705,7 +658,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegF32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_F32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_F32 underflow", op, inst_pc);
           }
           float a = BitsToF32(UnpackU32Bits(local_stack.back()));
           local_stack.back() = PackF32Bits(F32ToBits(-a));
@@ -714,7 +667,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncF32:
         case OpCode::DecF32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_F32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_F32 underflow", op, inst_pc);
           }
           float a = BitsToF32(UnpackU32Bits(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncF32) ? (a + 1.0f) : (a - 1.0f);
@@ -726,7 +679,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::MulF64:
         case OpCode::DivF64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled F64 binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled F64 binop underflow", op, inst_pc);
           }
           double b = BitsToF64(UnpackU64Bits(local_stack.back()));
           local_stack.pop_back();
@@ -754,7 +707,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegF64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_F64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_F64 underflow", op, inst_pc);
           }
           double a = BitsToF64(UnpackU64Bits(local_stack.back()));
           local_stack.back() = PackF64Bits(F64ToBits(-a));
@@ -763,7 +716,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncF64:
         case OpCode::DecF64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_F64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_F64 underflow", op, inst_pc);
           }
           double a = BitsToF64(UnpackU64Bits(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncF64) ? (a + 1.0) : (a - 1.0);
@@ -772,7 +725,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegI8: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_I8 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_I8 underflow", op, inst_pc);
           }
           int8_t a = static_cast<int8_t>(UnpackI32(local_stack.back()));
           local_stack.back() = PackI32(static_cast<int8_t>(-a));
@@ -780,7 +733,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegI16: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_I16 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_I16 underflow", op, inst_pc);
           }
           int16_t a = static_cast<int16_t>(UnpackI32(local_stack.back()));
           local_stack.back() = PackI32(static_cast<int16_t>(-a));
@@ -788,7 +741,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegU8: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_U8 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_U8 underflow", op, inst_pc);
           }
           uint8_t a = static_cast<uint8_t>(UnpackI32(local_stack.back()));
           uint8_t out = static_cast<uint8_t>(0u - a);
@@ -797,7 +750,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::NegU16: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled NEG_U16 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled NEG_U16 underflow", op, inst_pc);
           }
           uint16_t a = static_cast<uint16_t>(UnpackI32(local_stack.back()));
           uint16_t out = static_cast<uint16_t>(0u - a);
@@ -807,7 +760,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncI8:
         case OpCode::DecI8: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_I8 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_I8 underflow", op, inst_pc);
           }
           int8_t a = static_cast<int8_t>(UnpackI32(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncI8) ? static_cast<int8_t>(a + 1)
@@ -818,7 +771,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncI16:
         case OpCode::DecI16: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_I16 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_I16 underflow", op, inst_pc);
           }
           int16_t a = static_cast<int16_t>(UnpackI32(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncI16) ? static_cast<int16_t>(a + 1)
@@ -829,7 +782,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncU8:
         case OpCode::DecU8: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_U8 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_U8 underflow", op, inst_pc);
           }
           uint8_t a = static_cast<uint8_t>(UnpackI32(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncU8) ? static_cast<uint8_t>(a + 1u)
@@ -840,7 +793,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::IncU16:
         case OpCode::DecU16: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled INC/DEC_U16 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled INC/DEC_U16 underflow", op, inst_pc);
           }
           uint16_t a = static_cast<uint16_t>(UnpackI32(local_stack.back()));
           a = (static_cast<OpCode>(op) == OpCode::IncU16) ? static_cast<uint16_t>(a + 1u)
@@ -855,7 +808,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtI32:
         case OpCode::CmpGeI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_I32 underflow", op, inst_pc);
           }
           Slot rhs = local_stack.back();
           local_stack.pop_back();
@@ -896,7 +849,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtU32:
         case OpCode::CmpGeU32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_U32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_U32 underflow", op, inst_pc);
           }
           uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
           local_stack.pop_back();
@@ -935,7 +888,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtI64:
         case OpCode::CmpGeI64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_I64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_I64 underflow", op, inst_pc);
           }
           int64_t b = UnpackI64(local_stack.back());
           local_stack.pop_back();
@@ -974,7 +927,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtU64:
         case OpCode::CmpGeU64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_U64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_U64 underflow", op, inst_pc);
           }
           uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
           local_stack.pop_back();
@@ -1013,7 +966,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtF32:
         case OpCode::CmpGeF32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_F32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_F32 underflow", op, inst_pc);
           }
           float b = BitsToF32(UnpackU32Bits(local_stack.back()));
           local_stack.pop_back();
@@ -1052,7 +1005,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::CmpGtF64:
         case OpCode::CmpGeF64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled CMP_F64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CMP_F64 underflow", op, inst_pc);
           }
           double b = BitsToF64(UnpackU64Bits(local_stack.back()));
           local_stack.pop_back();
@@ -1086,7 +1039,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::BoolNot: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled BOOL_NOT underflow", op, inst_pc);
+            return fail_compiled("JIT compiled BOOL_NOT underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.pop_back();
@@ -1096,7 +1049,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::BoolAnd:
         case OpCode::BoolOr: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled BOOL binop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled BOOL binop underflow", op, inst_pc);
           }
           Slot rhs = local_stack.back();
           local_stack.pop_back();
@@ -1117,7 +1070,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ShlI32:
         case OpCode::ShrI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled I32 bitop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled I32 bitop underflow", op, inst_pc);
           }
           uint32_t b = static_cast<uint32_t>(UnpackI32(local_stack.back()));
           local_stack.pop_back();
@@ -1152,7 +1105,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::ShlI64:
         case OpCode::ShrI64: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled I64 bitop underflow", op, inst_pc);
+            return fail_compiled("JIT compiled I64 bitop underflow", op, inst_pc);
           }
           uint64_t b = static_cast<uint64_t>(UnpackI64(local_stack.back()));
           local_stack.pop_back();
@@ -1183,7 +1136,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::IsNull: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled IS_NULL underflow", op, inst_pc);
+            return fail_compiled("JIT compiled IS_NULL underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.back() = PackI32(IsNullRef(v) ? 1 : 0);
@@ -1192,7 +1145,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::RefEq:
         case OpCode::RefNe: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled REF_EQ underflow", op, inst_pc);
+            return fail_compiled("JIT compiled REF_EQ underflow", op, inst_pc);
           }
           Slot b = local_stack.back();
           local_stack.pop_back();
@@ -1205,16 +1158,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ArrayLen: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled ARRAY_LEN underflow", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_LEN underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled ARRAY_LEN on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_LEN on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::Array) {
-            return jit_fail("JIT compiled ARRAY_LEN on non-array", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_LEN on non-array", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           local_stack.push_back(PackI32(static_cast<int32_t>(length)));
@@ -1222,23 +1175,23 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ArrayGetI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled ARRAY_GET underflow", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_GET underflow", op, inst_pc);
           }
           Slot idx_val = local_stack.back();
           local_stack.pop_back();
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled ARRAY_GET on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_GET on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::Array) {
-            return jit_fail("JIT compiled ARRAY_GET on non-array", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_GET on non-array", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           int32_t index = UnpackI32(idx_val);
           if (index < 0 || static_cast<uint32_t>(index) >= length) {
-            return jit_fail("JIT compiled ARRAY_GET out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_GET out of bounds", op, inst_pc);
           }
           size_t offset = 4 + static_cast<size_t>(index) * 4;
           int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
@@ -1247,7 +1200,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ArraySetI32: {
           if (local_stack.size() < 3) {
-            return jit_fail("JIT compiled ARRAY_SET underflow", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_SET underflow", op, inst_pc);
           }
           Slot value = local_stack.back();
           local_stack.pop_back();
@@ -1256,16 +1209,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled ARRAY_SET on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_SET on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::Array) {
-            return jit_fail("JIT compiled ARRAY_SET on non-array", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_SET on non-array", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           int32_t index = UnpackI32(idx_val);
           if (index < 0 || static_cast<uint32_t>(index) >= length) {
-            return jit_fail("JIT compiled ARRAY_SET out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled ARRAY_SET out of bounds", op, inst_pc);
           }
           size_t offset = 4 + static_cast<size_t>(index) * 4;
           WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
@@ -1273,16 +1226,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ListLen: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled LIST_LEN underflow", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_LEN underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled LIST_LEN on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_LEN on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::List) {
-            return jit_fail("JIT compiled LIST_LEN on non-list", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_LEN on non-list", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           local_stack.push_back(PackI32(static_cast<int32_t>(length)));
@@ -1290,23 +1243,23 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ListGetI32: {
           if (local_stack.size() < 2) {
-            return jit_fail("JIT compiled LIST_GET underflow", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_GET underflow", op, inst_pc);
           }
           Slot idx_val = local_stack.back();
           local_stack.pop_back();
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled LIST_GET on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_GET on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::List) {
-            return jit_fail("JIT compiled LIST_GET on non-list", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_GET on non-list", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           int32_t index = UnpackI32(idx_val);
           if (index < 0 || static_cast<uint32_t>(index) >= length) {
-            return jit_fail("JIT compiled LIST_GET out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_GET out of bounds", op, inst_pc);
           }
           size_t offset = 8 + static_cast<size_t>(index) * 4;
           int32_t value = static_cast<int32_t>(ReadU32Payload(obj->payload, offset));
@@ -1315,7 +1268,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ListSetI32: {
           if (local_stack.size() < 3) {
-            return jit_fail("JIT compiled LIST_SET underflow", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_SET underflow", op, inst_pc);
           }
           Slot value = local_stack.back();
           local_stack.pop_back();
@@ -1324,16 +1277,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled LIST_SET on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_SET on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::List) {
-            return jit_fail("JIT compiled LIST_SET on non-list", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_SET on non-list", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           int32_t index = UnpackI32(idx_val);
           if (index < 0 || static_cast<uint32_t>(index) >= length) {
-            return jit_fail("JIT compiled LIST_SET out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled LIST_SET out of bounds", op, inst_pc);
           }
           size_t offset = 8 + static_cast<size_t>(index) * 4;
           WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
@@ -1341,16 +1294,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::StringLen: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled STRING_LEN underflow", op, inst_pc);
+            return fail_compiled("JIT compiled STRING_LEN underflow", op, inst_pc);
           }
           Slot v = local_stack.back();
           local_stack.pop_back();
           if (IsNullRef(v)) {
-            return jit_fail("JIT compiled STRING_LEN on non-ref", op, inst_pc);
+            return fail_compiled("JIT compiled STRING_LEN on non-ref", op, inst_pc);
           }
           HeapObject* obj = heap.Get(UnpackRef(v));
           if (!obj || obj->header.kind != ObjectKind::String) {
-            return jit_fail("JIT compiled STRING_LEN on non-string", op, inst_pc);
+            return fail_compiled("JIT compiled STRING_LEN on non-string", op, inst_pc);
           }
           uint32_t length = ReadU32Payload(obj->payload, 0);
           local_stack.push_back(PackI32(static_cast<int32_t>(length)));
@@ -1358,30 +1311,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::Call: {
           if (pc + 5 > end_pc) {
-            return jit_fail("JIT compiled CALL out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled CALL out of bounds", op, inst_pc);
           }
           uint32_t func_id = ReadU32(module.code, pc);
           uint8_t arg_count = ReadU8(module.code, pc);
           if (func_id >= module.functions.size()) {
-            return jit_fail("JIT compiled CALL invalid function id", op, inst_pc);
+            return fail_compiled("JIT compiled CALL invalid function id", op, inst_pc);
           }
           const auto& target_func = module.functions[func_id];
           if (target_func.method_id >= module.methods.size()) {
-            return jit_fail("JIT compiled CALL invalid method id", op, inst_pc);
+            return fail_compiled("JIT compiled CALL invalid method id", op, inst_pc);
           }
           const auto& target_method = module.methods[target_func.method_id];
           if (target_method.sig_id >= module.sigs.size()) {
-            return jit_fail("JIT compiled CALL invalid signature id", op, inst_pc);
+            return fail_compiled("JIT compiled CALL invalid signature id", op, inst_pc);
           }
           const auto& target_sig = module.sigs[target_method.sig_id];
           if (arg_count != target_sig.param_count) {
-            return jit_fail("JIT compiled CALL arg count mismatch", op, inst_pc);
+            return fail_compiled("JIT compiled CALL arg count mismatch", op, inst_pc);
           }
           if (local_stack.size() < arg_count) {
-            return jit_fail("JIT compiled CALL underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CALL underflow", op, inst_pc);
           }
           if (!can_compile_func(func_id)) {
-            return jit_fail("JIT compiled CALL callee unsupported", op, inst_pc);
+            return fail_compiled("JIT compiled CALL callee unsupported", op, inst_pc);
           }
           call_args.resize(arg_count);
           for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
@@ -1397,7 +1350,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           bool has_ret = false;
           std::string error;
           if (!self(self, func_id, call_args, ret, has_ret, error)) {
-            return jit_fail(error.c_str(), op, inst_pc);
+            return fail_compiled(error.c_str(), op, inst_pc);
           }
           if (has_ret) {
             local_stack.push_back(ret);
@@ -1407,11 +1360,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         case OpCode::JmpTrue:
         case OpCode::JmpFalse: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled JMP out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled JMP out of bounds", op, inst_pc);
           }
           int32_t rel = ReadI32(module.code, pc);
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled JMP underflow", op, inst_pc);
+            return fail_compiled("JIT compiled JMP underflow", op, inst_pc);
           }
           Slot cond = local_stack.back();
           local_stack.pop_back();
@@ -1424,7 +1377,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             if (next < static_cast<int64_t>(func.code_offset) || next > static_cast<int64_t>(end_pc)) {
               std::ostringstream out;
               out << "JIT compiled JMP out of bounds rel=" << rel << " target=" << next;
-              return jit_fail(out.str().c_str(), op, inst_pc);
+              return fail_compiled(out.str().c_str(), op, inst_pc);
             }
             pc = static_cast<size_t>(next);
           }
@@ -1432,39 +1385,39 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::Jmp: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled JMP out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled JMP out of bounds", op, inst_pc);
           }
           int32_t rel = ReadI32(module.code, pc);
           int64_t next = static_cast<int64_t>(pc) + rel;
           if (next < static_cast<int64_t>(func.code_offset) || next > static_cast<int64_t>(end_pc)) {
             std::ostringstream out;
             out << "JIT compiled JMP out of bounds rel=" << rel << " target=" << next;
-            return jit_fail(out.str().c_str(), op, inst_pc);
+            return fail_compiled(out.str().c_str(), op, inst_pc);
           }
           pc = static_cast<size_t>(next);
           break;
         }
         case OpCode::LoadLocal: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled LOAD_LOCAL out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled LOAD_LOCAL out of bounds", op, inst_pc);
           }
           uint32_t idx = ReadU32(module.code, pc);
           if (idx >= locals.size()) {
-            return jit_fail("JIT compiled LOAD_LOCAL invalid index", op, inst_pc);
+            return fail_compiled("JIT compiled LOAD_LOCAL invalid index", op, inst_pc);
           }
           local_stack.push_back(locals[idx]);
           break;
         }
         case OpCode::StoreLocal: {
           if (pc + 4 > end_pc) {
-            return jit_fail("JIT compiled STORE_LOCAL out of bounds", op, inst_pc);
+            return fail_compiled("JIT compiled STORE_LOCAL out of bounds", op, inst_pc);
           }
           uint32_t idx = ReadU32(module.code, pc);
           if (idx >= locals.size()) {
-            return jit_fail("JIT compiled STORE_LOCAL invalid index", op, inst_pc);
+            return fail_compiled("JIT compiled STORE_LOCAL invalid index", op, inst_pc);
           }
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled STORE_LOCAL underflow", op, inst_pc);
+            return fail_compiled("JIT compiled STORE_LOCAL underflow", op, inst_pc);
           }
           locals[idx] = local_stack.back();
           local_stack.pop_back();
@@ -1472,7 +1425,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvI32ToI64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_I32_TO_I64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_I32_TO_I64 underflow", op, inst_pc);
           }
           int32_t v = UnpackI32(local_stack.back());
           local_stack.back() = PackI64(static_cast<int64_t>(v));
@@ -1480,7 +1433,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvI64ToI32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_I64_TO_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_I64_TO_I32 underflow", op, inst_pc);
           }
           int64_t v = UnpackI64(local_stack.back());
           local_stack.back() = PackI32(static_cast<int32_t>(v));
@@ -1488,7 +1441,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvI32ToF32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_I32_TO_F32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_I32_TO_F32 underflow", op, inst_pc);
           }
           int32_t v = UnpackI32(local_stack.back());
           local_stack.back() = PackF32Bits(F32ToBits(static_cast<float>(v)));
@@ -1496,7 +1449,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvI32ToF64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_I32_TO_F64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_I32_TO_F64 underflow", op, inst_pc);
           }
           int32_t v = UnpackI32(local_stack.back());
           local_stack.back() = PackF64Bits(F64ToBits(static_cast<double>(v)));
@@ -1504,7 +1457,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvF32ToI32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_F32_TO_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_F32_TO_I32 underflow", op, inst_pc);
           }
           float v = BitsToF32(UnpackU32Bits(local_stack.back()));
           local_stack.back() = PackI32(static_cast<int32_t>(v));
@@ -1512,7 +1465,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvF64ToI32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_F64_TO_I32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_F64_TO_I32 underflow", op, inst_pc);
           }
           double v = BitsToF64(UnpackU64Bits(local_stack.back()));
           local_stack.back() = PackI32(static_cast<int32_t>(v));
@@ -1520,7 +1473,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvF32ToF64: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_F32_TO_F64 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_F32_TO_F64 underflow", op, inst_pc);
           }
           float v = BitsToF32(UnpackU32Bits(local_stack.back()));
           local_stack.back() = PackF64Bits(F64ToBits(static_cast<double>(v)));
@@ -1528,7 +1481,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::ConvF64ToF32: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled CONV_F64_TO_F32 underflow", op, inst_pc);
+            return fail_compiled("JIT compiled CONV_F64_TO_F32 underflow", op, inst_pc);
           }
           double v = BitsToF64(UnpackU64Bits(local_stack.back()));
           local_stack.back() = PackF32Bits(F32ToBits(static_cast<float>(v)));
@@ -1536,7 +1489,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
         case OpCode::Pop: {
           if (local_stack.empty()) {
-            return jit_fail("JIT compiled POP underflow", op, inst_pc);
+            return fail_compiled("JIT compiled POP underflow", op, inst_pc);
           }
           local_stack.pop_back();
           break;
@@ -1550,10 +1503,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return true;
         }
         default:
-          return jit_fail("JIT compiled unsupported opcode", op, inst_pc);
+          return fail_compiled("JIT compiled unsupported opcode", op, inst_pc);
       }
     }
-    return jit_fail("JIT compiled missing RET", static_cast<uint8_t>(OpCode::Ret), end_pc);
+    return fail_compiled("JIT compiled missing RET", static_cast<uint8_t>(OpCode::Ret), end_pc);
   };
   for (size_t i = 0; i < module.globals.size(); ++i) {
     uint32_t const_id = module.globals[i].init_const_id;

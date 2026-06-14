@@ -159,19 +159,20 @@ bool VmJitCompilePolicyLivesInJitModule() {
          vm_text.find("auto note_ref_op = [") == std::string::npos;
 }
 
-bool VmJitFailureUsesNamedOperandHelpers() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  const size_t jit_fail = text.find("auto jit_fail = [");
-  if (jit_fail == std::string::npos) return false;
-  const size_t loop = text.find("while (pc < end_pc)", jit_fail);
-  if (loop == std::string::npos) return false;
-  const std::string body = text.substr(jit_fail, loop - jit_fail);
-  return body.find("auto read_u32 = [") == std::string::npos &&
-         body.find("auto read_i32 = [") == std::string::npos &&
-         body.find("ReadU32Operand(module.code") != std::string::npos &&
-         body.find("ReadI32Operand(module.code") != std::string::npos;
+bool VmJitFailureFormattingLivesInJitModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/jit/failure_format.h");
+  std::ifstream source("VM/src/jit/failure_format.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("struct CompiledFailureReporter") != std::string::npos &&
+         source_text.find("FormatCompiledFailure(") != std::string::npos &&
+         source_text.find("ReadU32Operand(module.code") != std::string::npos &&
+         source_text.find("ReadI32Operand(module.code") != std::string::npos &&
+         vm_text.find("auto jit_fail = [") == std::string::npos &&
+         vm_text.find("auto fail_compiled = [") == std::string::npos;
 }
 
 bool VmTrapFormattingLivesInInterpreterModule() {
@@ -304,7 +305,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
   {"vm_jit_compile_policy_lives_in_jit_module", VmJitCompilePolicyLivesInJitModule},
-  {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
+  {"vm_jit_failure_formatting_lives_in_jit_module", VmJitFailureFormattingLivesInJitModule},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
   {"vm_value_packing_helpers_live_in_runtime_module", VmValuePackingHelpersLiveInRuntimeModule},
   {"vm_import_dispatcher_lives_in_runtime_module", VmImportDispatcherLivesInRuntimeModule},

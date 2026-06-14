@@ -61,6 +61,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Move import-call dispatch into `VM/src/runtime/import_dispatch.cpp`.
   - [x] Move trap-formatting helpers into `VM/src/interpreter/traps.cpp`.
   - [x] Move JIT/trap operand-reader helpers into `VM/src/interpreter/traps.cpp`.
+  - [x] Move JIT compiled failure formatting into `VM/src/jit/failure_format.cpp`.
   - [x] Move execution-result finalizer into `VM/src/runtime/execution_stats.cpp`.
   - [x] Move constant-string/global lookup helpers into `VM/src/interpreter/globals.cpp`.
   - [x] Move runtime-limit/local allocation helpers into runtime/interpreter modules.
