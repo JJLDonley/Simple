@@ -41,7 +41,7 @@ bool LangTastCheckerAcceptsResolvedProgram() {
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "count : i32 = 1\n"
       "main : i32 () { return 42; }";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -62,7 +62,7 @@ bool LangTastCheckerAcceptsResolvedProgram() {
 
 bool LangTastCheckerRejectsTypeMismatch() {
   const char* src = "main : i32 () { x : i32 = true; return x; }";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -137,7 +137,7 @@ bool LangTastControlFlowTracksReturnsAndBreaks() {
       "  }\n"
       "  if (true) { return 1; } else { return 2; }\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;

@@ -29,7 +29,7 @@ main :: i32 () {
 }
 
 bool LangSplitIreEmitsSirModule() {
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;

@@ -9,7 +9,7 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool LangSplitAstLowersCastProgram() {
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString("main : i32 () { x : i32 = 1; return x; }", &cast_program, &error)) {
@@ -31,7 +31,7 @@ bool LangAstLowerCastPreservesProgramShape() {
       "  x : i32 = 40 + 2;\n"
       "  return x;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   Simple::Lang::AST::Program ast_program;
@@ -48,7 +48,7 @@ bool LangAstNormalizesTopLevelScriptBody() {
       "add : i32 (a : i32, b : i32) { return a + b; }\n"
       "x = add(40, 2);\n"
       "x = x + 1;\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -65,7 +65,7 @@ bool LangAstNormalizesFnLiteralDeclarations() {
       "  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b; };\n"
       "  return f(1, 2);\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -88,7 +88,7 @@ bool LangAstNormalizesLoopShorthand() {
       "  while (total < 10) { total += 1; }\n"
       "  return total;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -113,7 +113,7 @@ bool LangAstNormalizesIfChain() {
       "  |> (x == 1) { return 1; }\n"
       "  |> default { return 2; }\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -138,7 +138,7 @@ bool LangAstNormalizesSwitchBranches() {
       "  };\n"
       "  return y;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -170,7 +170,7 @@ bool LangAstClassifiesSwitchUsage() {
       "  y = switch (x) { default => 1 };\n"
       "  return switch (x) { default => 2 };\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -194,7 +194,7 @@ bool LangAstNormalizesCallMemberIndexShapes() {
       "  z : i32 = box.score();\n"
       "  return x + y + z;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::NormalizedProgram ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
@@ -228,7 +228,7 @@ bool LangAstTypeCoverage() {
       "proc : fn i32 (); proc2 :: fn bool (a : i32, b : f64);";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   std::unordered_map<std::string, const Simple::Lang::VarDecl*> vars;
   for (const auto& decl : program.decls) {
     if (decl.kind != Simple::Lang::DeclKind::Variable) continue;

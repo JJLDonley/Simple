@@ -3969,7 +3969,7 @@ bool EmitExpr(EmitState& st,
       end.kind = TokenKind::End;
       tokens.push_back(end);
 
-      Parser parser(std::move(tokens));
+      CAST::Parser parser(std::move(tokens));
       if (!parser.ParseBlock(&lambda.body)) {
         if (error) *error = parser.Error();
         return false;
@@ -5717,7 +5717,7 @@ bool EmitSir(const Program& program, std::string* out, std::string* error) {
 bool EmitSirFromString(const std::string& text, std::string* out, std::string* error) {
   Program program;
   std::string parse_error;
-  if (!ParseProgramFromString(text, &program, &parse_error)) {
+  if (!CAST::ParseProgramFromString(text, &program, &parse_error)) {
     if (error) *error = parse_error;
     return false;
   }

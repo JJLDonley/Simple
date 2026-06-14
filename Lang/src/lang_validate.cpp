@@ -4945,7 +4945,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
 
 bool ValidateProgramFromString(const std::string& text, std::string* error) {
   Program program;
-  if (!ParseProgramFromString(text, &program, error)) return false;
+  if (!CAST::ParseProgramFromString(text, &program, error)) return false;
   return ValidateProgram(program, error);
 }
 
@@ -4965,7 +4965,7 @@ bool ValidateProgramFromStringDiagnostic(const std::string& text,
                                          Diagnostics::Diagnostic* diagnostic) {
   Program program;
   std::string error;
-  if (!ParseProgramFromString(text, &program, &error)) {
+  if (!CAST::ParseProgramFromString(text, &program, &error)) {
     if (diagnostic) {
       *diagnostic = Diagnostics::MakeDiagnostic("E2001",
                                                 Diagnostics::DiagnosticPhase::CAST,

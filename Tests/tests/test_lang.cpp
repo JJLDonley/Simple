@@ -151,7 +151,7 @@ bool LangPhaseHeadersCompileAndPreserveBehavior() {
   if (lexer.Tokens().front().kind != Simple::Lang::TokenKind::Identifier) return false;
 
   Simple::Lang::CAST::Parser parser(lexer.Tokens());
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   if (!parser.ParseProgram(&cast_program)) return false;
 
   Simple::Lang::AST::Program* ast_program = &cast_program;
@@ -795,7 +795,7 @@ bool LangGenericMethodParseRejected() {
       "main : i32 () { return 0 }";
   Simple::Lang::Program program;
   std::string error;
-  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   return error.find("expected ':' or '::' after member name") != std::string::npos;
 }
 
@@ -915,7 +915,7 @@ bool LangStressParseCallMemberIndexPrecedence() {
       "main : i32 () { return f(1).items[2].value + 3; }";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 1) return false;
   const auto& stmt = program.decls[0].func.body[0];
   if (stmt.kind != Simple::Lang::StmtKind::Return) return false;
@@ -940,7 +940,7 @@ bool LangStressParseFnLiteralCallInCallArg() {
       "main : i32 () { return apply((x) { return x + 1; }, 41); }";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   if (program.decls.size() != 2) return false;
   const auto& call = program.decls[1].func.body[0].expr;
   if (call.kind != Simple::Lang::ExprKind::Call) return false;
@@ -958,7 +958,7 @@ bool LangStressParseForLoopComplexStep() {
       "}";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   const auto& body = program.decls[0].func.body;
   if (body.size() < 2) return false;
   const auto& loop = body[1];
@@ -976,7 +976,7 @@ bool LangStressParseNestedIfElseInElseBranch() {
       "}";
   Simple::Lang::Program program;
   std::string error;
-  if (!Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   const auto& stmt = program.decls[0].func.body[0];
   if (stmt.kind != Simple::Lang::StmtKind::IfStmt) return false;
   if (stmt.if_else.size() != 1) return false;
@@ -2093,7 +2093,7 @@ bool LangPointerDerefParseRejected() {
   const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return *p }";
   std::string error;
   Simple::Lang::Program program;
-  if (Simple::Lang::ParseProgramFromString(src, &program, &error)) return false;
+  if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
   return error.find("expected expression") != std::string::npos;
 }
 

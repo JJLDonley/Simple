@@ -94,7 +94,7 @@ bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& so
   if (!FileUriToPath(uri, &entry_path)) {
     Simple::Lang::Program parsed;
     std::string parse_error;
-    if (!Simple::Lang::ParseProgramFromString(source_text, &parsed, &parse_error)) {
+    if (!Simple::Lang::CAST::ParseProgramFromString(source_text, &parsed, &parse_error)) {
       if (error) *error = parse_error;
       return false;
     }

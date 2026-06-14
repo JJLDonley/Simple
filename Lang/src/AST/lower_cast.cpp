@@ -403,7 +403,7 @@ void CollectExprShapeDecls(const std::vector<Decl>& decls, std::vector<Normalize
 
 } // namespace
 
-bool LowerCastProgram(const Simple::Lang::CAST::Program& in,
+bool LowerCastProgram(const Simple::Lang::Program& in,
                       Program* out,
                       std::string* error) {
   if (!out) {
@@ -414,7 +414,7 @@ bool LowerCastProgram(const Simple::Lang::CAST::Program& in,
   return true;
 }
 
-bool LowerCastProgramNormalized(const Simple::Lang::CAST::Program& in,
+bool LowerCastProgramNormalized(const Simple::Lang::Program& in,
                                 NormalizedProgram* out,
                                 std::string* error) {
   if (!out) {

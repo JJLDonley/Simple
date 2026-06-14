@@ -134,7 +134,7 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
 
   Program program;
   std::string parse_error;
-  if (!ParseProgramFromString(text, &program, &parse_error)) {
+  if (!CAST::ParseProgramFromString(text, &program, &parse_error)) {
     if (error) *error = key + ": " + parse_error;
     visiting->erase(key);
     return false;

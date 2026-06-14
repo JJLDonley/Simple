@@ -34,7 +34,7 @@ bool ParseIntegerLiteral(const std::string& text, uint64_t* out) {
 
 } // namespace
 
-namespace Simple::Lang {
+namespace Simple::Lang::CAST {
 
 namespace {
 
@@ -1942,4 +1942,4 @@ bool ParseProgramFromString(const std::string& text, Program* out, std::string* 
   return true;
 }
 
-} // namespace Simple::Lang
+} // namespace Simple::Lang::CAST

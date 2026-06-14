@@ -12,7 +12,7 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool LangSplitRastResolvesFunctionSymbol() {
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -36,7 +36,7 @@ bool LangRastResolverCollectsQualifiedSymbols() {
       "}\n"
       "Mode :: Enum { Off = 0, On = 1 }\n"
       "main : i32 () { return Config.Max; }\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -59,7 +59,7 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
       "  v : i32\n"
       "  v : i32\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -84,7 +84,7 @@ bool LangRastResolverCollectsCallableScopes() {
       "  b : Box = { 1 };\n"
       "  return b.score(41);\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -109,7 +109,7 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
       "  };\n"
       "  return value;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -148,7 +148,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "  b : Box = { 2 };\n"
       "  return b.score() + x;\n"
       "}\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -257,7 +257,7 @@ bool LangRastSymbolTableAddsAndRejectsDuplicates() {
 
 bool LangRastAllowsTypeInvalidPrograms() {
   const char* src = "main : i32 () { return \"not an i32\" }";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -271,7 +271,7 @@ bool LangRastDeclarationResolutionFindsDeclSymbols() {
   const char* src =
       "Point :: artifact { x : i32; }\n"
       "main : i32 () { return 0 }";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   std::string error;
@@ -291,7 +291,7 @@ bool LangRastImportGraphResolvesReservedAliases() {
   const char* src =
       "import FS as FileSystem\n"
       "main : void () {}";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;

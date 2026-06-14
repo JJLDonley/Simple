@@ -11,7 +11,7 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool LangSplitIrbBuildsModule() {
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -34,7 +34,7 @@ bool LangIrbIrePipelineEmitsRunnableSir() {
       "  score : i32 () { return self.v + 40; }\n"
       "}\n"
       "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -96,7 +96,7 @@ bool LangIrbCollectsAllocationMetadata() {
       "extern host.puts : i32 (text : string)\n"
       "g : i32 = 7\n"
       "main : i32 () { host.puts(\"hi\"); return g; }\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -134,7 +134,7 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
       "Inner :: Artifact { x : i32; y : i32 }\n"
       "Outer :: Artifact { inner : Inner; z : f64 }\n"
       "main : i32 () { return 0; }\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;
@@ -160,7 +160,7 @@ bool LangIrbIreKeepsSirOutputStable() {
   const char* src =
       "Box :: Artifact { v : i32; score : i32 () { return self.v + 40; } }\n"
       "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
-  Simple::Lang::CAST::Program cast_program;
+  Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
   Simple::Lang::RAST::ResolvedProgram resolved;
   Simple::Lang::TAST::TypedProgram typed;

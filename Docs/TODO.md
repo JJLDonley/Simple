@@ -266,8 +266,8 @@ These checks close the SRP effort only when they are true in the tree. Do not ma
 - [x] Native runtime additions use the metadata registry and include metadata/signature tests; no ad-hoc native dispatch lists or forwarding glue are reintroduced.
 - [x] Current GC tracing uses declared roots/stack maps/globals rather than heuristic ref guessing.
   - Future native-handle roots belong to the layered native resource-registry work.
-- [ ] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
-  - Current status: mostly closed, but verify/remove remaining alias-style phase exports such as CAST namespace re-exports before marking complete.
+- [x] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
+  - CAST owns its parser API directly; legacy root parser exports and CAST namespace re-exports are gone.
 - [ ] Tests are split by owning subsystem/phase.
   - Current status: not closed; `Tests/tests/test_lang.cpp` still contains broad validation/runtime/CLI integration coverage.
   - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`.
