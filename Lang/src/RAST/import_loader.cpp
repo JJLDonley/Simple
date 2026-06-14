@@ -1,7 +1,7 @@
 #include "RAST/import_loader.h"
 
 #include "RAST/import_index.h"
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_reserved.h"
 
 #include <fstream>

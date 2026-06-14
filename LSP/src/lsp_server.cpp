@@ -16,7 +16,7 @@
 #include <iostream>
 
 #include "lang_lexer.h"
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "lang_token.h"
 #include "lang_validate.h"

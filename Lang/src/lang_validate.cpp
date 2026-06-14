@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"

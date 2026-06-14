@@ -27,7 +27,7 @@
 #include "IRE/sir_emitter.h"
 #include "AST/ast.h"
 #include "lang_lexer.h"
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_sir.h"
 #include "lang_validate.h"
 #include "ir_lang.h"

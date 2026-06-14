@@ -16,7 +16,7 @@
 
 #include "ir_compiler.h"
 #include "ir_lang.h"
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "lang_validate.h"
 #include "lang_sir.h"

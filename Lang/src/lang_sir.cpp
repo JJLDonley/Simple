@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "lang_parser.h"
+#include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "lang_validate.h"
 #include "native/registry.h"
