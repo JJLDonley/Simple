@@ -74,12 +74,10 @@ std::string LspBinaryPath() {
   namespace fs = std::filesystem;
   fs::path cursor = fs::current_path();
   for (int i = 0; i < 6; ++i) {
-    const fs::path build_simplevm = cursor / "build" / "bin" / "simplevm";
-    if (fs::exists(build_simplevm)) return build_simplevm.string();
-    const fs::path simplevm = cursor / "bin" / "simplevm";
-    if (fs::exists(simplevm)) return simplevm.string();
-    const fs::path simple = cursor / "bin" / "simple";
-    if (fs::exists(simple)) return simple.string();
+    const fs::path build_svm = cursor / "build" / "bin" / "svm";
+    if (fs::exists(build_svm)) return build_svm.string();
+    const fs::path svm = cursor / "bin" / "svm";
+    if (fs::exists(svm)) return svm.string();
     if (!cursor.has_parent_path()) break;
     const fs::path parent = cursor.parent_path();
     if (parent == cursor) break;

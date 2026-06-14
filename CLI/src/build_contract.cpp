@@ -49,9 +49,16 @@ bool ResolveBuildLayoutPaths(const char* argv0, BuildLayoutPaths* out) {
     if (root.empty()) return false;
     const fs::path vm_inc = root / "VM" / "include";
     const fs::path byte_inc = root / "Byte" / "include";
-    const fs::path lib_dir = root / "bin";
+    const fs::path root_bin = root / "bin";
+    const fs::path build_bin = root / "build" / "bin";
+    fs::path lib_dir;
+    if (fs::exists(build_bin / "libsimplevm_runtime.a")) {
+      lib_dir = build_bin;
+    } else if (fs::exists(root_bin / "libsimplevm_runtime.a")) {
+      lib_dir = root_bin;
+    }
     if (fs::exists(vm_inc / "vm.h") && fs::exists(byte_inc / "sbc_loader.h") &&
-        fs::exists(lib_dir / "libsimplevm_runtime.a")) {
+        !lib_dir.empty()) {
       out->vm_include = vm_inc.string();
       out->byte_include = byte_inc.string();
       out->lib_dir = lib_dir.string();
@@ -160,7 +167,7 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   if (!fs::exists(runtime_lib)) {
     if (error) {
       *error = std::string("missing runtime library: ") + runtime_lib.string() +
-               " (rebuild with ./Simple/build.sh or reinstall simple runtime)";
+               " (rebuild with ./build.sh or reinstall simple runtime)";
     }
     return false;
   }

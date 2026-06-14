@@ -37,6 +37,7 @@ set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
 set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
 set(SIMPLEVM_LANG_ROOT ${SIMPLEVM_ROOT}/Lang)
 set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
+set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/CLI)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_call.cpp
@@ -212,10 +213,20 @@ target_include_directories(simplevm PRIVATE
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm PRIVATE SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}")
+set_target_properties(simplevm PROPERTIES OUTPUT_NAME svm)
 add_custom_command(TARGET simplevm POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:simplevm> $<TARGET_FILE_DIR:simplevm>/simple
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:simplevm> $<TARGET_FILE_DIR:simplevm>/svm
+  COMMAND ${CMAKE_COMMAND} -E rm -f $<TARGET_FILE_DIR:simplevm>/simplevm
 )
+
+add_executable(simple_stub
+  ${SIMPLEVM_CLI_ROOT}/src/simple_stub.cpp
+)
+set_target_properties(simple_stub PROPERTIES OUTPUT_NAME simple)
+target_include_directories(simple_stub PRIVATE
+  ${SIMPLEVM_VM_ROOT}/include
+  ${SIMPLEVM_BYTE_ROOT}/include
+)
+target_link_libraries(simple_stub PRIVATE simplevm_core_static)
 
 add_executable(simplevm_tests
   ${SIMPLEVM_TEST_ROOT}/test_core.cpp
@@ -272,6 +283,7 @@ simplevm_apply_warnings(simplevm_core_obj)
 simplevm_apply_warnings(simplevm_runtime_static)
 simplevm_apply_warnings(simplevm_runtime_shared)
 simplevm_apply_warnings(simplevm)
+simplevm_apply_warnings(simple_stub)
 simplevm_apply_warnings(simplevm_tests)
 
 enable_testing()

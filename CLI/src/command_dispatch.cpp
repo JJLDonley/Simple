@@ -6,7 +6,7 @@ ToolMode DetectToolMode(const std::string& tool_name) {
   ToolMode mode;
   mode.simple_only = tool_name == "simple";
   mode.svm_mode = tool_name == "svm" || tool_name == "SVM";
-  mode.compiler_frontend = mode.simple_only || mode.svm_mode;
+  mode.compiler_frontend = mode.svm_mode;
   return mode;
 }
 

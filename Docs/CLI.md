@@ -17,9 +17,10 @@ The Simple command line tools compile, check, emit, build, run, and serve langua
 
 The same command implementation supports different compatibility modes by executable name:
 
-- `svm`: primary compiler/runtime command. Accepts `.simple`, `.sir`, and `.sbc` inputs.
-- `simple`: user-facing compatibility command focused on `.simple` workflows.
-- `simplevm`: VM/developer compatibility command. Accepts `.simple`, `.sir`, and `.sbc`; build/compile default to `.sbc` output.
+- `svm`: the compiler/tooling/runtime command. It owns `run`, `check`, `build`, `compile`, `emit`, and `lsp`.
+- `simple`: runtime-stub name only. It is not a compiler and does not expose compiler commands.
+
+The root `bin/` directory should contain only these two files after `./build.sh` or `build.bat`.
 
 ## Common options
 
@@ -71,11 +72,11 @@ Emits intermediate output. Current workflows use it primarily for SIR/SBC inspec
 
 ### `build` / `compile`
 
-Builds an output artifact. In `simplevm` compatibility mode the default output style is `.sbc`; in `svm` workflows executable-stub behavior is selected unless the output path ends in `.sbc`.
+Builds an output artifact. `svm` produces executable stubs unless the output path ends in `.sbc`, in which case bytecode is written. `simple` does not build or compile.
 
 ### `lsp`
 
-Starts the JSON-RPC language server over stdio.
+Starts the JSON-RPC language server over stdio. This is an `svm` command; `simple` does not start LSP.
 
 ## Diagnostics
 
@@ -89,4 +90,14 @@ When compiling `.simple`, the CLI resolves local imports, project-root imports, 
 
 ## Build scripts
 
-Platform build scripts package the CLI/runtime artifacts and copy documentation into release staging directories where applicable.
+Use the root scripts for local builds:
+
+```bash
+./build.sh
+```
+
+```bat
+build.bat
+```
+
+They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root.

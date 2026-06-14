@@ -513,7 +513,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 
 - [x] Freeze CLI exit-code contract.
 - [x] Freeze stderr diagnostic format.
-- [x] Define `svm`, `simple`, and `simplevm` behavior precisely.
+- [x] Define `svm` and `simple` behavior precisely; root `bin/` publishes only those two.
 - [x] Document build output behavior.
 - [ ] Document executable embedding/linking behavior.
 - [x] Document dynamic/static flags.

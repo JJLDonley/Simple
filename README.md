@@ -49,22 +49,30 @@ Key syntax:
 ## Build
 
 ```bash
-cmake -S . -B build
-cmake --build build --target simplevm -j2
+./build.sh
 ```
 
-The main VM/CLI binary is produced at:
+On Windows:
 
-```bash
-./build/bin/simplevm
+```bat
+build.bat
 ```
+
+The root `bin/` directory is intentionally kept small:
+
+```txt
+bin/svm      # compiler/tooling/runtime CLI
+bin/simple   # runtime stub only; not a compiler
+```
+
+The compiler CMake target is still named `simplevm`; the runtime-stub target is `simple_stub`.
 
 ## Run programs
 
 ```bash
-./build/bin/simplevm run Tests/simple/hello.simple
-./build/bin/simplevm check Tests/simple/point_sum.simple
-./build/bin/simplevm emit Tests/simple/hello.simple
+./bin/svm run Tests/simple/hello.simple
+./bin/svm check Tests/simple/point_sum.simple
+./bin/svm emit Tests/simple/hello.simple
 ```
 
 The CLI supports `.simple`, `.sir`, and `.sbc` workflows. See [Docs/CLI.md](Docs/CLI.md).

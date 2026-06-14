@@ -1301,7 +1301,7 @@ bool LangSimpleFixtureStressLangFeatures() {
 
 bool LangSimpleFixtureStressRaylibLike() {
   int exit_code = 0;
-  RunCommandCaptureStderr("bin/simple run Tests/simple_modules/stress_raylib_like_main.simple",
+  RunCommandCaptureStderr("bin/svm run Tests/simple_modules/stress_raylib_like_main.simple",
                           &exit_code);
   return exit_code == 16;
 }
@@ -1586,13 +1586,13 @@ bool LangStressEnumArtifactProcedureCompositionRuntime() {
 }
 
 bool LangStressImportChainCliRun() {
-  return RunCommand("bin/simple run Tests/simple_modules/stress_import_main.simple");
+  return RunCommand("bin/svm run Tests/simple_modules/stress_import_main.simple");
 }
 
 bool LangStressImportMissingCliCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_import_missing_main.simple",
+      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_import_missing_main.simple",
                               &exit_code);
   return exit_code != 0 &&
          stderr_text.find("import file not found") != std::string::npos;
@@ -1601,7 +1601,7 @@ bool LangStressImportMissingCliCheck() {
 bool LangStressImportAmbiguousCliCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_import_ambiguous_main.simple",
+      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_import_ambiguous_main.simple",
                               &exit_code);
   return exit_code != 0 &&
          stderr_text.find("ambiguous import path") != std::string::npos;
@@ -1697,7 +1697,7 @@ bool LangStressParseNestedIfElseInElseBranch() {
 bool LangStressImportDeepChainCliRun() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_deep_main.simple",
+      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_deep_main.simple",
                               &exit_code);
   return exit_code == 0 && stderr_text.empty();
 }
@@ -1705,7 +1705,7 @@ bool LangStressImportDeepChainCliRun() {
 bool LangStressImportRelativeSubdirCliRun() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_rel/main.simple",
+      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_rel/main.simple",
                               &exit_code);
   return exit_code == 0 && stderr_text.empty();
 }
@@ -1713,7 +1713,7 @@ bool LangStressImportRelativeSubdirCliRun() {
 bool LangStressImportCycleCliCheck() {
   int exit_code = 0;
   const std::string stderr_text =
-      RunCommandCaptureStderr("bin/simple check Tests/simple_modules/stress_cycle_main.simple",
+      RunCommandCaptureStderr("bin/svm check Tests/simple_modules/stress_cycle_main.simple",
                               &exit_code);
   return exit_code != 0 &&
          stderr_text.find("cyclic import detected") != std::string::npos;
@@ -1978,7 +1978,7 @@ bool LangSimpleBadForMissingInit() {
 bool LangCliCheckSimpleErrorFormat() {
   const std::string err_path = TempPath("simple_check_err.txt");
   const std::string cmd =
-      "bin/simplevm check Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
+      "bin/svm check Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -1992,7 +1992,7 @@ bool LangCliCheckSimpleErrorFormat() {
 bool LangCliCheckSimpleLexerErrorFormat() {
   const std::string err_path = TempPath("simple_check_lex_err.txt");
   const std::string cmd =
-      "bin/simplevm check Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
+      "bin/svm check Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -2006,7 +2006,7 @@ bool LangCliCheckSimpleLexerErrorFormat() {
 bool LangCliCheckSimpleParserErrorFormat() {
   const std::string err_path = TempPath("simple_check_parse_err.txt");
   const std::string cmd =
-      "bin/simplevm check Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
+      "bin/svm check Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
   if (RunCommand(cmd)) return false;
   std::ifstream in(err_path);
   if (!in) return false;
@@ -2127,7 +2127,7 @@ bool LangReservedLogUsingRun() {
 
 bool LangCliEmitIr() {
   const std::string out_path = TempPath("simple_emit_ir.sir");
-  const std::string cmd = "bin/simplevm emit -ir Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/svm emit -ir Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path);
   if (!in) return false;
@@ -2137,44 +2137,38 @@ bool LangCliEmitIr() {
 
 bool LangCliEmitSbc() {
   const std::string out_path = TempPath("simple_emit_sbc.sbc");
-  const std::string cmd = "bin/simplevm emit -sbc Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/svm emit -sbc Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
 }
 
 bool LangCliCheckSimple() {
-  return RunCommand("bin/simplevm check Tests/simple/hello.simple");
+  return RunCommand("bin/svm check Tests/simple/hello.simple");
 }
 
 bool LangCliCheckSir() {
-  return RunCommand("bin/simplevm check Tests/sir/fib_iter.sir");
+  return RunCommand("bin/svm check Tests/sir/fib_iter.sir");
 }
 
 bool LangCliCheckSbc() {
-  return RunCommand("bin/simplevm check Tests/tests/fixtures/add_i32.sbc");
+  return RunCommand("bin/svm check Tests/tests/fixtures/add_i32.sbc");
 }
 
 bool LangCliBuildSimple() {
   const std::string out_path = TempPath("simple_build_hello.sbc");
-  const std::string cmd = "bin/simplevm build Tests/simple/hello.simple --out " + out_path;
+  const std::string cmd = "bin/svm build Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   std::ifstream in(out_path, std::ios::binary);
   return in.good() && in.peek() != std::ifstream::traits_type::eof();
 }
 
-bool LangCliBuildSimpleAliasDefaultsToExe() {
-  const std::string out_path = TempPath("simple_build_hello_alias_exec");
-  const std::string cmd = "bin/simple build Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  return RunCommand(out_path);
+bool LangCliSimpleRejectsBuildCommand() {
+  return RunCommandExpectFail("bin/simple build Tests/simple/hello.simple");
 }
 
-bool LangCliCompileSimpleAliasDefaultsToExe() {
-  const std::string out_path = TempPath("simple_compile_hello_alias_exec");
-  const std::string cmd = "bin/simple compile Tests/simple/hello.simple --out " + out_path;
-  if (!RunCommand(cmd)) return false;
-  return RunCommand(out_path);
+bool LangCliSimpleRejectsCompileCommand() {
+  return RunCommandExpectFail("bin/simple compile Tests/simple/hello.simple");
 }
 
 bool LangCliCompileSvmDefaultsToExeAndInfersSimpleExt() {
@@ -2214,7 +2208,7 @@ bool LangCliLocalUsingImportDoesNotReachValidator() {
 bool LangCliBuildDynamicExe() {
   const std::string out_path = TempPath("simple_build_hello_exec");
   const std::string cmd =
-      "bin/simplevm build -d Tests/simple/hello.simple --out " + out_path;
+      "bin/svm build -d Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   if (!RunCommand(out_path)) return false;
 #if defined(__linux__)
@@ -2228,7 +2222,7 @@ bool LangCliBuildDynamicExe() {
 bool LangCliBuildStaticExe() {
   const std::string out_path = TempPath("simple_build_hello_exec_static");
   const std::string cmd =
-      "bin/simplevm build -s Tests/simple/hello.simple --out " + out_path;
+      "bin/svm build -s Tests/simple/hello.simple --out " + out_path;
   if (!RunCommand(cmd)) return false;
   if (!RunCommand(out_path)) return false;
 #if defined(__linux__)
@@ -2240,62 +2234,64 @@ bool LangCliBuildStaticExe() {
 }
 
 bool LangCliRunSimple() {
-  return RunCommand("bin/simplevm run Tests/simple/hello.simple");
+  return RunCommand("bin/svm run Tests/simple/hello.simple");
 }
 
-bool LangCliRunSimpleAlias() {
-  return RunCommand("bin/simple run Tests/simple/hello.simple");
+bool LangCliSimpleStubWithoutPayloadFails() {
+  int exit_code = -1;
+  const std::string stderr_text = RunCommandCaptureStderr("bin/simple", &exit_code);
+  return exit_code == 1 && stderr_text.find("no embedded SBC payload") != std::string::npos;
 }
 
-bool LangCliRunSimpleLocalImport() {
-  return RunCommand("bin/simple run Tests/simple_modules/import_local_main.simple");
+bool LangCliSimpleRejectsSimpleSource() {
+  return RunCommandExpectFail("bin/simple run Tests/simple/hello.simple");
 }
 
-bool LangCliCheckSimpleAlias() {
-  return RunCommand("bin/simple check Tests/simple/hello.simple");
+bool LangCliSimpleRejectsCheckCommand() {
+  return RunCommandExpectFail("bin/simple check Tests/simple/hello.simple");
 }
 
 bool LangCliSimpleRejectSir() {
-  return RunCommandExpectFail("bin/simple check Tests/sir/fib_iter.sir");
+  return RunCommandExpectFail("bin/simple run Tests/sir/fib_iter.sir");
 }
 
 bool LangCliExitCodeContract() {
   int exit_code = -1;
-  RunCommandCaptureStderr("bin/simple --version", &exit_code);
+  RunCommandCaptureStderr("bin/svm --version", &exit_code);
   if (exit_code != 0) return false;
 
-  RunCommandCaptureStderr("bin/simple check Tests/simple/hello.simple", &exit_code);
+  RunCommandCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
   if (exit_code != 0) return false;
 
-  RunCommandCaptureStderr("bin/simple run Tests/simple/add_fn.simple", &exit_code);
+  RunCommandCaptureStderr("bin/svm run Tests/simple/add_fn.simple", &exit_code);
   if (exit_code != 42) return false;
 
-  RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  RunCommandCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
   return exit_code == 1;
 }
 
 bool LangCliStderrDiagnosticContract() {
   int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple/hello.simple", &exit_code);
+  std::string stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
   if (exit_code != 0 || !stderr_text.empty()) return false;
 
-  stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
   return exit_code == 1 && stderr_text.find("error[E") == 0;
 }
 
 bool LangCliResolverDiagnosticCode() {
   int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/simple check Tests/simple_bad/module_unknown_member.simple", &exit_code);
+  std::string stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple_bad/module_unknown_member.simple", &exit_code);
   return exit_code == 1 && stderr_text.find("error[E3001]:") == 0 &&
          stderr_text.find("unknown module member") != std::string::npos;
 }
 
 bool LangCliMissingInputDiagnostics() {
   int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/simple check", &exit_code);
+  std::string stderr_text = RunCommandCaptureStderr("bin/svm check", &exit_code);
   if (exit_code != 1 || stderr_text.find("error[E8001]: missing input file") != 0) return false;
 
-  stderr_text = RunCommandCaptureStderr("bin/simple check /tmp/simple_missing_input_contract.simple", &exit_code);
+  stderr_text = RunCommandCaptureStderr("bin/svm check /tmp/simple_missing_input_contract.simple", &exit_code);
   return exit_code == 1 &&
          stderr_text.find("error[E8001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
 }
@@ -5463,8 +5459,8 @@ const TestCase kLangTests[] = {
   {"lang_cli_check_sir", LangCliCheckSir},
   {"lang_cli_check_sbc", LangCliCheckSbc},
   {"lang_cli_build_simple", LangCliBuildSimple},
-  {"lang_cli_build_simple_alias_defaults_to_exe", LangCliBuildSimpleAliasDefaultsToExe},
-  {"lang_cli_compile_simple_alias_defaults_to_exe", LangCliCompileSimpleAliasDefaultsToExe},
+  {"lang_cli_simple_rejects_build_command", LangCliSimpleRejectsBuildCommand},
+  {"lang_cli_simple_rejects_compile_command", LangCliSimpleRejectsCompileCommand},
   {"lang_cli_compile_svm_defaults_to_exe_and_infers_simple_ext",
    LangCliCompileSvmDefaultsToExeAndInfersSimpleExt},
   {"lang_cli_compile_svm_out_sbc_stays_bytecode", LangCliCompileSvmOutSbcStaysBytecode},
@@ -5472,9 +5468,9 @@ const TestCase kLangTests[] = {
   {"lang_cli_build_dynamic_exe", LangCliBuildDynamicExe},
   {"lang_cli_build_static_exe", LangCliBuildStaticExe},
   {"lang_cli_run_simple", LangCliRunSimple},
-  {"lang_cli_run_simple_alias", LangCliRunSimpleAlias},
-  {"lang_cli_run_simple_local_import", LangCliRunSimpleLocalImport},
-  {"lang_cli_check_simple_alias", LangCliCheckSimpleAlias},
+  {"lang_cli_simple_stub_without_payload_fails", LangCliSimpleStubWithoutPayloadFails},
+  {"lang_cli_simple_rejects_simple_source", LangCliSimpleRejectsSimpleSource},
+  {"lang_cli_simple_rejects_check_command", LangCliSimpleRejectsCheckCommand},
   {"lang_cli_simple_reject_sir", LangCliSimpleRejectSir},
   {"lang_cli_exit_code_contract", LangCliExitCodeContract},
   {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},

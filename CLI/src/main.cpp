@@ -286,7 +286,13 @@ int main(int argc, char** argv) {
   const bool compiler_frontend = tool_mode.compiler_frontend;
   auto print_usage = [&]() {
     std::cerr << "usage:\n";
-    if (compiler_frontend) {
+    if (simple_only) {
+      std::cerr << "  " << tool_name << " --version | -v\n"
+                << "  " << tool_name << " --help | -h\n"
+                << "  " << tool_name << " help\n"
+                << "  " << tool_name << " run <module.sbc> [--no-verify]\n"
+                << "  " << tool_name << " <module.sbc> [--no-verify]\n";
+    } else if (compiler_frontend) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
@@ -303,15 +309,7 @@ int main(int argc, char** argv) {
     } else {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
-                << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
-                << "  " << tool_name << " build <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
-                << "  " << tool_name << " compile <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
-                << "  " << tool_name << " emit -ir <file.simple> [--out <file.sir>]\n"
-                << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
-                << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
-                << "  " << tool_name << " lsp\n"
-                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
+                << "  " << tool_name << " help\n";
     }
   };
   if (argc < 2) {
@@ -356,6 +354,11 @@ int main(int argc, char** argv) {
 
   if (is_command && cmd != "lsp" && path.empty()) {
     PrintError("missing input file");
+    return 1;
+  }
+
+  if (simple_only && is_command && cmd != "run") {
+    PrintError("simple is a runtime stub; use svm for compiler commands");
     return 1;
   }
 
@@ -582,8 +585,8 @@ int main(int argc, char** argv) {
       PrintError("missing input file");
       return 1;
     }
-    if (simple_only && !HasExt(path, ".simple")) {
-      PrintError("simple expects .simple input");
+    if (simple_only && !HasExt(path, ".sbc")) {
+      PrintError("simple expects an embedded payload or .sbc input");
       return 1;
     }
   }
@@ -591,6 +594,10 @@ int main(int argc, char** argv) {
   Simple::Byte::LoadResult load{};
   std::vector<uint8_t> bytes;
   std::string error;
+  if (simple_only && !HasExt(path, ".sbc")) {
+    PrintError("simple expects an embedded payload or .sbc input");
+    return 1;
+  }
   if (HasExt(path, ".simple")) {
     if (!CompileSimpleFileToSbc(path, &bytes, &error)) {
       PrintErrorWithContext(path, error);
@@ -605,10 +612,6 @@ int main(int argc, char** argv) {
     }
     load = Simple::Byte::LoadModuleFromBytes(bytes);
   } else {
-    if (simple_only) {
-      PrintError("simple expects .simple input");
-      return 1;
-    }
     load = Simple::Byte::LoadModuleFromFile(path);
   }
   if (!load.ok) {
