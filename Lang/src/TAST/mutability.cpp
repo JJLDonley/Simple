@@ -22,6 +22,14 @@ bool IsIndexExpr(const Simple::Lang::AST::Expr& expr,
   return true;
 }
 
+bool CheckAssignTargetSelfName(const Simple::Lang::AST::Expr& expr, std::string* error) {
+  if (expr.kind == Simple::Lang::AST::ExprKind::Identifier && expr.text == "self") {
+    if (error) *error = "cannot assign to self";
+    return false;
+  }
+  return true;
+}
+
 bool CheckMutableAssignment(Simple::Lang::Mutability mutability,
                             std::string* error) {
   if (IsMutable(mutability)) return true;

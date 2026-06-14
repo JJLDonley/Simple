@@ -131,6 +131,7 @@ using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckPrimitiveCastArgType;
+using TAST::CheckAssignTargetSelfName;
 using TAST::CheckPrimitiveCastSyntaxName;
 using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
@@ -2041,10 +2042,7 @@ bool CheckAssignmentTarget(const Expr& target,
     return true;
   };
   if (target.kind == ExprKind::Identifier) {
-    if (target.text == "self") {
-      if (error) *error = "cannot assign to self";
-      return false;
-    }
+    if (!CheckAssignTargetSelfName(target, error)) return false;
     if (const LocalInfo* local = FindLocal(scopes, target.text)) {
       if (local->mutability == Mutability::Immutable) {
         if (error) *error = "cannot assign to immutable local: " + target.text;

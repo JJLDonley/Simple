@@ -37,6 +37,7 @@ bool IsAddressOfExpr(const Simple::Lang::AST::Expr& expr,
                      const Simple::Lang::AST::Expr** out_target = nullptr);
 bool IsIndexExpr(const Simple::Lang::AST::Expr& expr,
                  const Simple::Lang::AST::Expr** out_base = nullptr);
+bool CheckAssignTargetSelfName(const Simple::Lang::AST::Expr& expr, std::string* error);
 bool CheckMutableAssignment(Simple::Lang::Mutability mutability,
                             std::string* error);
 

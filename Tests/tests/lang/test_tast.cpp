@@ -768,6 +768,13 @@ bool LangTastMutabilityChecksAssignments() {
   if (!Simple::Lang::TAST::IsIndexExpr(index_expr, &index_base) || !index_base || index_base->text != "x") return false;
   if (Simple::Lang::TAST::IsIndexExpr(target, nullptr)) return false;
 
+  Simple::Lang::AST::Expr self_target;
+  self_target.kind = Simple::Lang::AST::ExprKind::Identifier;
+  self_target.text = "self";
+  if (Simple::Lang::TAST::CheckAssignTargetSelfName(self_target, &error)) return false;
+  if (error.find("cannot assign to self") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckAssignTargetSelfName(target, &error)) return false;
+
   if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
   if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
   return error.find("cannot assign to immutable value") != std::string::npos;
