@@ -1,210 +1,60 @@
-# Simple::Byte (Current Contract)
+# Simple Bytecode
 
-`Simple::Byte` defines the SBC binary format, loader, opcode metadata, and verifier used by the VM.
+`Simple::Byte` owns the SBC binary format, opcode metadata, loading, and verification.
 
-Primary implementation files:
+## Scope
+
+```txt
+SIR/IR emission -> SBC bytes -> Byte loader -> Byte verifier -> VM
+```
+
+## Owned files
 
 - SBC types: `Byte/include/sbc_types.h`
-- Opcode enum/metadata: `Byte/include/opcode.h`, `Byte/src/opcode.cpp`
-- Loader: `Byte/src/sbc_loader.cpp`
-- Verifier: `Byte/src/sbc_verifier.cpp`
+- Opcode enum and metadata: `Byte/include/opcode.h`, `Byte/src/opcode.cpp`
+- Loader: `Byte/include/sbc_loader.h`, `Byte/src/sbc_loader.cpp`
+- Verifier: `Byte/include/sbc_verifier.h`, `Byte/src/sbc_verifier.cpp`
 - Emitter helpers: `Byte/include/sbc_emitter.h`
 
-## Implemented
+## Public contract
 
-### SBC Purpose
+SBC modules contain:
 
-SBC is the binary bytecode format consumed by `Simple::VM`.
+- header with `SBC0` magic, version `0x0001`, endian marker, flags, section count, table offset, and entry method id
+- section table for strings, types, signatures, methods, functions, globals, constants, imports, exports, and code
+- compact metadata rows defined in `sbc_types.h`
+- opcode stream defined by `OpCode` and opcode metadata
 
-Current pipeline:
+External producers must follow the compatibility constants in `Docs/Compatibility.md`.
 
-```txt
-SIR text -> Simple::IR lowering -> SBC bytes -> loader -> verifier -> VM
-```
+## Loader
 
-### Header
+The loader validates binary structure, section bounds, row sizes, code ranges, string decoding, and table consistency needed to construct `SbcModule`. `ReadConstPoolString` is the canonical constant-pool string decoder.
 
-Implemented header fields are defined in `SbcHeader`:
+## Verifier
 
-- magic: `SBC0`
-- version: `0x0001`
-- endian marker
-- flags
-- section count
-- section-table offset
-- entry method id
-- reserved fields
+The verifier enforces structural and type-stack invariants before execution:
 
-Current magic/version constants:
+- valid method/function/signature references
+- code range and operand bounds
+- local/global/constant type compatibility
+- branch target validity and stack-shape compatibility
+- call/import arity and return-shape compatibility
+- heap/reference operation type constraints where metadata is available
 
-```cpp
-constexpr uint32_t kSbcMagic = 0x30434253u;
-constexpr uint16_t kSbcVersion = 0x0001u;
-constexpr uint16_t kOpcodeMetadataVersion = 1;
-```
+Verification failures are returned as diagnostics strings and must not execute in the VM.
 
-See `Docs/Compatibility.md` for the compatibility surfaces exposed to external producers.
+## Forbidden dependencies
 
-### Sections
+- Byte must not depend on CLI, LSP, or VM runtime services.
+- Loader/verifier must not implement language semantics; those belong in Lang.
+- VM must execute verified modules but must still defend against malformed input.
 
-Implemented section ids:
+## Tests
 
-- `Types`
-- `Fields`
-- `Methods`
-- `Sigs`
-- `ConstPool`
-- `Globals`
-- `Functions`
-- `Code`
-- `Debug`
-- `Imports`
-- `Exports`
+Byte coverage is exercised by:
 
-The loader validates section bounds, alignment, overlap, and row counts/sizes.
-
-### Metadata Tables
-
-Implemented rows include:
-
-- `TypeRow`
-- `FieldRow`
-- `MethodRow`
-- `SigRow`
-- `GlobalRow`
-- `FunctionRow`
-- `ImportRow`
-- `ExportRow`
-- debug rows
-
-`SbcModule` stores loaded rows plus code, const-pool bytes, debug bytes, function import flags, and signature parameter type ids.
-
-### Type Kinds
-
-Implemented `TypeKind` values include:
-
-- `Unspecified`
-- `I8`, `I16`, `I32`, `I64`
-- `U8`, `U16`, `U32`, `U64`
-- `F32`, `F64`
-- `Bool`
-- `Char`
-- `String`
-- `Ref`
-
-The metadata enum still contains historical `I128/U128` constants, but they are not language/runtime implementation targets.
-
-### Opcode Metadata
-
-Implemented opcode families include:
-
-- control flow
-- stack manipulation
-- constants
-- local/global/upvalue access
-- signed integer arithmetic
-- unsigned integer arithmetic
-- floating-point arithmetic
-- unary numeric operations
-- comparisons
-- boolean logic
-- calls and tail calls
-- conversions
-- object/closure/ref operations
-- array operations
-- list operations
-- string operations
-- intrinsics
-- syscalls/imports
-- line/profile/debug opcodes
-
-`GetOpInfo` provides operand width and coarse stack effect metadata. Deeper type and control-flow validation is performed by the verifier.
-
-### Loader
-
-Implemented loader responsibilities:
-
-- read SBC from file or bytes
-- validate header magic/version
-- validate section table position and count
-- validate section bounds
-- validate section alignment
-- reject overlapping sections
-- validate row sizes/counts for table sections
-- load table rows into `SbcModule`
-- load code/const/debug bytes
-- validate const-pool references where structurally known
-- validate cross-table references where structurally known
-- produce deterministic error text on failure
-
-Public loader API is exposed through `Byte/include/sbc_loader.h`.
-
-### Verifier
-
-Implemented verifier responsibilities:
-
-- validate function code ranges
-- validate opcode boundaries
-- validate operand availability
-- validate jump targets
-- validate jump-table targets
-- validate stack underflow/overflow discipline
-- validate stack merge compatibility
-- validate local load/store indices
-- validate global load/store indices
-- validate type-compatible local/global access
-- validate direct call signatures
-- validate indirect call signatures
-- validate tailcall signatures
-- validate intrinsic ids/signatures
-- validate syscall/import ids/signatures where represented
-- validate field access metadata
-- validate array/list/string/object operation shape where possible
-
-Public verifier API is exposed through `Byte/include/sbc_verifier.h`.
-
-### Failure Model
-
-Invalid bytecode should fail before VM execution:
-
-```txt
-bad structure -> loader error
-bad semantics/type/stack/control flow -> verifier error
-```
-
-The VM assumes bytecode has passed loader/verifier checks when verification is enabled.
-
-## In Progress
-
-These are implemented partially or not yet frozen as compatibility guarantees:
-
-- archived SBC fixture compatibility tests
-- complete opcode semantic table shared by verifier and VM
-- stable binary debug-section contract
-- stable export-section contract for external consumers
-- stable metadata flag registry
-- complete documentation for every opcode operand and stack effect
-- richer verifier diagnostics with stable error codes
-
-## Future
-
-Not currently implemented as stable bytecode contract:
-
-- backward/forward compatibility guarantees across major SBC versions
-- bytecode feature negotiation
-- compressed bytecode sections
-- signed/verified package artifacts
-- stable third-party SBC producer API
-- independent bytecode optimizer
-- debug/profiling format freeze
-
-## Current Bytecode Invariants
-
-- `SBC0` magic and supported version are required.
-- Sections must be in bounds and non-overlapping.
-- Table references must be valid.
-- Code must decode into known opcodes with valid operands.
-- Branches must target valid instruction boundaries.
-- Stack behavior must be verifier-compatible at all merge points.
-- Calls must match declared signatures.
-- Unknown intrinsic/syscall/import forms are rejected or trapped; they are not guessed.
+- `Tests/tests/test_core.cpp`
+- `Tests/tests/test_jit.cpp`
+- VM verifier/runtime fixture tests
+- SBC fixtures under `Tests/tests/fixtures/`

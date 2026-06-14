@@ -1,191 +1,45 @@
-# Simple::LSP (API)
+# Simple LSP
 
-`Simple::LSP` defines editor protocol behavior and highlighting for `.simple` sources.
+`Simple::LSP` owns editor protocol behavior for `.simple` sources.
+
+## Owned files
+
+- Server: `LSP/src/lsp_server.cpp`
+- Diagnostic bridge: `LSP/include/diagnostic_bridge.h`, `LSP/src/diagnostic_bridge.cpp`
+- Editor packages: `Editor/vscode-simple/`, `Editor/zed-simple/`
 
 ## Supported
-- Stdio JSON-RPC LSP server (`simple lsp`).
+
+- Stdio JSON-RPC server through `simple lsp` / `svm lsp`.
 - Single-workspace indexing.
-- Incremental document sync (`textDocument/didChange`).
-- Parse/validate diagnostics aligned with `Simple::Lang`.
-- Navigation: hover, definition, declaration, references, document symbols.
+- Incremental document sync with version guards.
+- Parse/validate diagnostics from the `Simple::Lang` pipeline.
+- Hover, definition, declaration, references, document symbols.
 - Completion, signature help, rename/prepareRename, code actions.
 - Semantic tokens and TextMate grammar fallback.
-- VS Code extension baseline in `Editor/vscode-simple/`.
-- Zed syntax-highlighting extension baseline in `Editor/zed-simple/`.
+- VS Code and Zed syntax-highlighting baselines.
 
-## Not Supported
+## Not supported
+
 - Formatting engine.
 - Refactor-heavy code actions.
 - Multi-root workspace indexing.
 
-## Planned
-- Multi-root workspace support.
-- Cancellation-aware long-running handlers (mid-dispatch checkpoints).
-- Performance/debouncing improvements for large files.
-- Expanded integration tests for diagnostics and symbol resolution.
+## Protocol contract
 
-## Architecture
+Implemented/covered methods include initialization, shutdown/exit, document open/change/close, diagnostics, hover, definition/declaration/references, document symbols, completion, signature help, semantic tokens, rename/prepareRename, and code actions.
 
-### Server Model
-- process model: stdio JSON-RPC LSP server (`simple lsp`)
-- single workspace first, multi-root later
-- incremental document sync (`textDocument/didChange`)
-- authoritative parse/validate path reuses `Lang` front-end pipeline
-- deterministic single-thread request handling (responses emitted in request order)
-- document version guards for `didChange` (stale/duplicate versions ignored)
-- `$\/cancelRequest` support for pre-dispatch cancellation
+LSP diagnostics are produced by the language front-end and converted to protocol JSON by the diagnostic bridge.
 
-### Core Data Pipeline
-1. document open/change event updates in-memory source snapshot
-2. debounce + parse/validate source
-3. publish diagnostics with ranges and severity
-4. update symbol/type index for language features
-5. answer requests (hover/completion/definition/references/tokens) from indexed state
+## Forbidden dependencies
 
-## Protocol Contract (v1)
+- LSP must not duplicate parser/type-checker semantics.
+- LSP must not own CLI terminal rendering.
+- Long-running behavior should remain cancellation-aware where request dispatch supports it.
 
-### Must-Have Methods
-- `initialize` / `initialized` / `shutdown` / `exit`
-- `$/cancelRequest`
-- `textDocument/didOpen`
-- `textDocument/didChange`
-- `textDocument/didClose`
-- `textDocument/publishDiagnostics`
-- `textDocument/hover`
-- `textDocument/definition`
-- `textDocument/declaration`
-- `textDocument/documentHighlight`
-- `textDocument/references`
-- `textDocument/documentSymbol`
-- `textDocument/completion`
-- `textDocument/signatureHelp`
-- `textDocument/rename`
-- `textDocument/prepareRename`
-- `textDocument/codeAction`
-- `textDocument/semanticTokens/full`
-- `workspace/symbol`
+## Tests
 
-### Nice-to-Have (post-v1)
-- cancellation-aware long-running feature handlers (mid-dispatch checkpoints)
-- multi-root workspace indexing
+LSP coverage lives in:
 
-## Semantic Features
-
-### Diagnostics
-- reuse existing rust-style diagnostic formatter behavior and source span extraction
-- map parser/validator errors to LSP diagnostics with stable codes (`E0001`, etc.)
-- include related information where possible (for example duplicate symbol sites)
-- quick-fix code actions for undeclared identifiers insert declarations after top-of-file import headers (instead of always line 0)
-- undeclared-identifier quick-fix infers scalar declaration type for simple assignments (`bool`, `string`, `char`, `i32`, `f64`)
-
-### Symbols and Navigation
-- declarations: functions, variables, modules, artifacts, enums, externs
-- local scopes for function/block-level identifiers
-- import-aware resolution for project-local files and reserved modules
-- hover enriches reserved imported alias members with callable signatures (for example `OS.args_get(index) -> string`)
-- hover also enriches IO aliases with callable signature text (for example `Out.println(value) -> void`)
-- rename/prepareRename reject reserved imported module member symbols (for example `OS.args_get`, `IO.println`) to prevent invalid API rewrites
-- document highlights classify declaration + assignment targets as write highlights and other uses as read highlights
-
-### Completion
-- keywords and builtins
-- in-scope identifiers
-- member completion (`Module.member`, `Artifact.member`, `IO.println`, etc.)
-- reserved module member completion for imported modules/aliases (for example `import "System.DL" as DL` enables `DL.call_i32`, `DL.open`, ...)
-- import path completion inside import declarations (quoted or unquoted):
-  - reserved module names (`System.*`, `IO`, `Math`, `Time`, `File`, `System.*`)
-  - open-document `.simple` module stems
-
-### Signature Help (Current)
-- trigger characters: `(`, `,`, `@` (cast-call friendly)
-- builtins:
-  - `IO.print(value)` / `IO.println(value)`
-  - `IO.print(format, values...)` / `IO.println(format, values...)` for `{}` format-placeholder calls
-- IO aliases imported via `as` keep the same overloaded signature-help behavior (for example `Out.println(format, values...)`)
-- language casts:
-  - `@T(value)` cast-call signature help (for example `@i32(value)`)
-- reserved imported modules (including `as` aliases):
-  - signature help resolves known reserved-module members such as `OS.args_get(index)`, `DL.open(path)`, `FS.read(fd, buffer, count)`, etc.
-  - overload-aware signatures are emitted where applicable (for example `DL.open(path)` and `DL.open(path, manifest)`)
-- local function-style declarations:
-  - resolves `name : type (params)` declarations to signature payloads with per-parameter labels
-
-## Syntax Highlighting Plan
-Deliver both layers:
-1. semantic tokens from LSP:
-   - token kinds: keyword, type, function, variable, parameter, property, enumMember, namespace, string, number, operator
-   - modifiers: declaration, readonly, defaultLibrary
-2. grammar fallback (TextMate):
-   - VS Code extension grammar for immediate non-LSP highlighting
-   - keeps basic highlighting available if server is unavailable
-
-## Repository Plan
-Planned layout:
-- `LSP/` core server implementation
-- `LSP/include/` shared protocol/types interfaces
-- `LSP/src/` JSON-RPC, document store, feature handlers
-- `Editor/vscode-simple/` VS Code extension:
-  - client launcher for `simple lsp`
-  - TextMate grammar
-  - language configuration (`comments`, `brackets`, `autoClosingPairs`)
-- `Editor/zed-simple/` Zed extension:
-  - Tree-sitter grammar for `.simple`
-  - highlight query
-  - language configuration (`comments`, `brackets`, `autoclose`)
-
-### VS Code Setup (Implemented Baseline)
-- extension scaffold lives under `Editor/vscode-simple/`
-- extension currently provides:
-  - language registration for `.simple`
-  - stdio LSP client launch (`simple lsp`)
-  - TextMate grammar fallback highlighting
-  - language configuration for comments/brackets/autoclose
-- extension runtime settings:
-  - `simple.lspPath`
-  - `simple.lspArgs`
-
-### Zed Setup (Implemented Baseline)
-- extension scaffold lives under `Editor/zed-simple/`
-- extension currently provides:
-  - language registration for `.simple`
-  - bundled Tree-sitter grammar
-  - syntax highlight query
-  - comments/brackets/autoclose configuration
-
-### VS Code Packaging + Release Automation
-- CI workflow: `.github/workflows/vscode-extension.yml`
-- behavior:
-  - on `main` pushes that touch `Editor/vscode-simple/**`, build `simple-vscode.vsix` and publish as workflow artifact
-  - on manual dispatch, if `tag_name` is provided, attach VSIX + checksum to that GitHub release tag
-- packaging command used by CI:
-  - `npx --yes @vscode/vsce package --out simple-vscode.vsix`
-
-## Milestones
-
-### M1: Functional Server Skeleton
-- `simple lsp` command launches stdio server
-- initialize/shutdown lifecycle implemented
-- open/change/close document management
-- diagnostics publish on save/change
-
-### M2: Navigation + Completion
-- hover
-- go-to-definition
-- references
-- document symbols
-- completion
-
-### M3: Highlighting
-- semantic tokens full-document implementation
-- VS Code TextMate grammar + language config
-
-### M4: Stability
-- cancellation + request ordering handling
-- debouncing/perf for large files
-- regression tests for diagnostics and symbol resolution
-
-## Test Plan
-- protocol tests for JSON-RPC framing and initialize contract
-- integration tests for diagnostics and definition/references across imported files
-- semantic token snapshot tests for representative fixtures
-- editor smoke test checklist (open, edit, diagnostics, completion, navigation, highlighting)
+- `Tests/tests/test_lsp.cpp`
+- diagnostic bridge coverage shared with language/CLI tests
