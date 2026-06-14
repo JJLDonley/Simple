@@ -9,6 +9,7 @@
 
 namespace Simple::Byte {
 
+SIMPLEVM_API std::string ReadConstPoolString(const SbcModule& module, uint32_t offset);
 SIMPLEVM_API LoadResult LoadModuleFromFile(const std::string& path);
 SIMPLEVM_API LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes);
 

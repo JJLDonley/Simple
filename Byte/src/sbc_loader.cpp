@@ -7,6 +7,19 @@
 #include <unordered_set>
 
 namespace Simple::Byte {
+
+std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
+  if (offset == 0xFFFFFFFFu) return {};
+  if (module.const_pool.empty()) return {};
+  if (offset >= module.const_pool.size()) return {};
+  size_t pos = offset;
+  while (pos < module.const_pool.size() && module.const_pool[pos] != 0) {
+    ++pos;
+  }
+  if (pos >= module.const_pool.size()) return {};
+  return std::string(reinterpret_cast<const char*>(&module.const_pool[offset]), pos - offset);
+}
+
 namespace {
 
 constexpr size_t kHeaderSize = 32;
@@ -513,15 +526,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     return false;
   };
   auto read_name = [&](uint32_t offset) -> std::string {
-    if (offset == 0xFFFFFFFFu) return {};
-    if (module.const_pool.empty()) return {};
-    if (offset >= module.const_pool.size()) return {};
-    size_t pos = offset;
-    while (pos < module.const_pool.size() && module.const_pool[pos] != 0) {
-      ++pos;
-    }
-    if (pos >= module.const_pool.size()) return {};
-    return std::string(reinterpret_cast<const char*>(&module.const_pool[offset]), pos - offset);
+    return ReadConstPoolString(module, offset);
   };
   auto method_label = [&](uint32_t method_id) -> std::string {
     if (method_id >= module.methods.size()) return "method " + std::to_string(method_id);

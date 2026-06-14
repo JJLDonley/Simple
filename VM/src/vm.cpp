@@ -49,6 +49,7 @@
 #include "opcode.h"
 #include "scratch_arena.h"
 #include "sbc_verifier.h"
+#include "sbc_loader.h"
 #include "runtime/execution_stats.h"
 #include "runtime/runtime_limits.h"
 
@@ -1085,17 +1086,6 @@ bool DispatchDynamicDlCall(int64_t /*ptr_bits*/,
 
 #undef SIMPLE_DL_FOREACH_TYPE
 
-std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
-  if (offset >= module.const_pool.size()) return {};
-  std::string out;
-  for (size_t pos = offset; pos < module.const_pool.size(); ++pos) {
-    char c = static_cast<char>(module.const_pool[pos]);
-    if (c == '\0') break;
-    out.push_back(c);
-  }
-  return out;
-}
-
 
 } // namespace
 
@@ -1125,8 +1115,8 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
       return false;
     }
     const Simple::Byte::ImportRow& row = module.imports[import_index];
-    std::string mod = ReadConstPoolString(module, row.module_name_str);
-    std::string sym = ReadConstPoolString(module, row.symbol_name_str);
+    std::string mod = Simple::Byte::ReadConstPoolString(module, row.module_name_str);
+    std::string sym = Simple::Byte::ReadConstPoolString(module, row.symbol_name_str);
     if (mod.empty() || sym.empty()) {
       out_error = "import name invalid";
       return false;

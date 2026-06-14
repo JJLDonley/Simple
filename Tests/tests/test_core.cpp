@@ -24361,7 +24361,17 @@ bool RunJmpTableEmptyTest() {
   return true;
 }
 
+bool RunByteConstPoolStringHelperTest() {
+  Simple::Byte::SbcModule module;
+  module.const_pool = {'x', 'y', 'z', 0, 'a'};
+  if (Simple::Byte::ReadConstPoolString(module, 0) != "xyz") return false;
+  if (!Simple::Byte::ReadConstPoolString(module, 4).empty()) return false;
+  if (!Simple::Byte::ReadConstPoolString(module, 99).empty()) return false;
+  return true;
+}
+
 static const TestCase kCoreTests[] = {
+  {"byte_const_pool_string_helper", RunByteConstPoolStringHelperTest},
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
   {"native_buffer_module", RunNativeBufferModuleTest},
   {"native_channel_module", RunNativeChannelModuleTest},

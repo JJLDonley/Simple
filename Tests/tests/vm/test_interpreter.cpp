@@ -177,11 +177,18 @@ bool VmTrapFormattingLivesInInterpreterModule() {
 }
 
 bool VmImportDispatcherUsesNamedFunction() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("bool DispatchImportCallByName(") != std::string::npos &&
-         text.find("auto handle_import_call = [") == std::string::npos;
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("Byte/include/sbc_loader.h");
+  std::ifstream source("Byte/src/sbc_loader.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return vm_text.find("bool DispatchImportCallByName(") != std::string::npos &&
+         vm_text.find("std::string ReadConstPoolString(") == std::string::npos &&
+         vm_text.find("auto handle_import_call = [") == std::string::npos &&
+         header_text.find("ReadConstPoolString(") != std::string::npos &&
+         source_text.find("ReadConstPoolString(") != std::string::npos;
 }
 
 bool VmRuntimeSplitModulesExist() {
