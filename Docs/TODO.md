@@ -263,9 +263,98 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [ ] Language phase review gate: new semantic logic must identify whether it belongs to RAST or TAST.
 - [ ] Test review gate: new tests must live in the correct subsystem after test split.
 
+## High Priority: Layered Native Library Model
+
+After the SRP/module-boundary work, replace the current flat low-level reserved native library with a layered native library architecture suitable for a general-purpose language and future AOT.
+
+Target model:
+
+```txt
+VM Native Core
+  internal host primitives, handle registry, traps, cleanup, capability checks
+
+System Layer
+  low-level public APIs close to OS/runtime concepts
+
+Std Layer
+  ergonomic general-purpose APIs built on System
+
+Domain Libraries
+  optional higher-level packages: net, http, json, fs, process, graphics, etc.
+```
+
+Design rules:
+
+- [ ] Raw native capabilities must not be the default user-facing API.
+- [ ] VM native core owns host resources through typed handles, not raw integers/pointers in user code.
+- [ ] Every native resource must support:
+  - [ ] owned handle representation
+  - [ ] explicit early release where useful (`close`, `dispose`, `cancel`, `join`, etc.)
+  - [ ] guaranteed VM-exit cleanup for unreleased owned handles
+  - [ ] controlled double-close behavior
+  - [ ] controlled use-after-close diagnostics/traps
+- [ ] AOT and interpreter must share the same native ABI/resource contract.
+- [ ] Low-level APIs belong under `System.*`; high-level convenience APIs belong under `Std`/top-level standard modules.
+- [ ] Keep raw VM/native entry points internal unless deliberately exposed as unsafe/system APIs.
+- [ ] Document capability/security policy before exposing process, socket, filesystem mutation, dynamic loading, or thread primitives as stable public APIs.
+
+Layer ownership tasks:
+
+- [ ] Add VM native resource registry:
+  - [ ] typed native handle id
+  - [ ] handle kind enum (`file`, `dir`, `socket`, `process`, `thread`, `channel`, `dl`, `buffer`, `timer`, etc.)
+  - [ ] close/finalize callback per handle kind
+  - [ ] ownership flags
+  - [ ] closed-state tracking
+  - [ ] VM shutdown cleanup sweep
+  - [ ] tests for leak cleanup, double close, and use-after-close
+- [ ] Split native implementation into layers:
+  - [ ] `VM/native/core` or equivalent for raw host operations and registry internals
+  - [ ] `System.*` reserved/native modules for explicit low-level APIs
+  - [ ] `Std.*` or top-level standard modules for ergonomic wrappers
+- [ ] Update native metadata to carry layer/safety/resource facts:
+  - [ ] layer: `core`, `system`, `std`
+  - [ ] safety/capability tags
+  - [ ] resource kind produced/consumed
+  - [ ] cleanup behavior
+  - [ ] blocking/non-blocking behavior
+  - [ ] platform availability
+- [ ] Update generated native/stdlib docs to group APIs by layer instead of one flat native surface.
+- [ ] Update Lang reserved module resolution to distinguish internal VM native symbols from public `System`/`Std` APIs.
+- [ ] Add migration tests proving user-facing fixtures use the intended high-level or `System` layer, not raw VM-native internals.
+
+Resource-family migration plan:
+
+- [ ] Files/directories/path:
+  - [ ] core host file/dir handles
+  - [ ] `System.FS` low-level open/read/write/close/list/cwd APIs
+  - [ ] high-level `FS.readText`, `FS.writeText`, `Path.join`, etc.
+- [ ] Dynamic libraries/FFI:
+  - [ ] core DL handle registry integration
+  - [ ] `System.DL` explicit low-level open/sym/close/error APIs
+  - [ ] high-level managed library/symbol wrapper with VM-exit cleanup
+- [ ] Channels/threads/jobs:
+  - [ ] core scheduler/job/thread/channel handles
+  - [ ] `System.Thread`/`System.Channel` explicit low-level APIs
+  - [ ] high-level `Thread.run`, `Channel<T>` style wrappers when generic/runtime type support is ready
+- [ ] Buffers/bytes:
+  - [ ] core native buffer handles or heap-owned byte arrays
+  - [ ] `System.Buffer` low-level binary read/write/slice APIs
+  - [ ] high-level `Bytes` conveniences
+- [ ] Network/process/timers/watchers:
+  - [ ] design resource ownership before implementation
+  - [ ] expose low-level `System.*` first only after capability policy exists
+  - [ ] add high-level `Net`, `Http`, `Process`, `Timer` APIs after stable handle cleanup exists
+- [ ] JSON/log/random/time/env/os:
+  - [ ] classify existing APIs as pure/stateless vs resource-owning
+  - [ ] move low-level calls to `System.*`
+  - [ ] keep ergonomic wrappers in top-level/high-level modules
+
+Migration rule: do not preserve permanent forwarding shims from old flat reserved modules. Temporary adapters are allowed only inside an active migration commit series and must be removed before the section is complete.
+
 ## High Priority: Native SVM Standard Library
 
-All Simple standard/core library modules should be implemented as native C++ runtime functions integrated into SVM. They should not be implemented as DL libraries.
+All Simple standard/core library modules should be implemented through the layered native model above. They should not be implemented as application DL libraries. Low-level reusable pieces belong in VM Native Core/System; ergonomic general-purpose APIs belong in Std/top-level standard modules.
 
 - [ ] Add `Thread` core module:
   - [x] `Thread.sleep(ms)`
