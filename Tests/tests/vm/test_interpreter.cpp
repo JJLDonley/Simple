@@ -48,6 +48,15 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
+bool VmJitTierUpdatesUseNamedType() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  return text.find("struct JitTierUpdater") != std::string::npos &&
+         text.find("UpdateJitTierForFunction(") != std::string::npos &&
+         text.find("auto update_tier = [") == std::string::npos;
+}
+
 bool VmGcStackMapCollectionUsesNamedHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -201,6 +210,7 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
+  {"vm_jit_tier_updates_use_named_type", VmJitTierUpdatesUseNamedType},
   {"vm_gc_stack_map_collection_uses_named_helpers", VmGcStackMapCollectionUsesNamedHelpers},
   {"vm_frame_setup_uses_named_helper", VmFrameSetupUsesNamedHelper},
   {"vm_runtime_limit_and_local_allocation_use_named_helpers", VmRuntimeLimitAndLocalAllocationUseNamedHelpers},
