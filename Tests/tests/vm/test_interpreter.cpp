@@ -48,13 +48,19 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
-bool VmJitTierUpdatesUseNamedType() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("struct JitTierUpdater") != std::string::npos &&
-         text.find("UpdateJitTierForFunction(") != std::string::npos &&
-         text.find("auto update_tier = [") == std::string::npos;
+bool VmJitTierUpdatesLiveInJitModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/jit/tier_updater.h");
+  std::ifstream source("VM/src/jit/tier_updater.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("struct TierUpdater") != std::string::npos &&
+         source_text.find("UpdateTierForFunction(") != std::string::npos &&
+         vm_text.find("struct JitTierUpdater") == std::string::npos &&
+         vm_text.find("UpdateJitTierForFunction(") == std::string::npos &&
+         vm_text.find("auto update_tier = [") == std::string::npos;
 }
 
 bool VmGcStackMapCollectionUsesNamedHelpers() {
@@ -210,7 +216,7 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
-  {"vm_jit_tier_updates_use_named_type", VmJitTierUpdatesUseNamedType},
+  {"vm_jit_tier_updates_live_in_jit_module", VmJitTierUpdatesLiveInJitModule},
   {"vm_gc_stack_map_collection_uses_named_helpers", VmGcStackMapCollectionUsesNamedHelpers},
   {"vm_frame_setup_uses_named_helper", VmFrameSetupUsesNamedHelper},
   {"vm_runtime_limit_and_local_allocation_use_named_helpers", VmRuntimeLimitAndLocalAllocationUseNamedHelpers},

@@ -9,7 +9,6 @@
 #include <ffi.h>
 #endif
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <atomic>
 #include <memory>
@@ -30,6 +29,7 @@
 #include "interpreter/frames.h"
 #include "interpreter/stack.h"
 #include "jit/jit_scaffold.h"
+#include "jit/tier_updater.h"
 #include "native/buffer.h"
 #include "native/channel.h"
 #include "native/env.h"
@@ -1569,74 +1569,6 @@ void MaybeCollectWithStackMap(bool have_meta,
   heap.Sweep();
 }
 
-template <typename CanCompileFn>
-void UpdateJitTierForFunction(bool enable_jit,
-                              size_t func_index,
-                              uint32_t tier0_threshold,
-                              uint32_t tier1_threshold,
-                              std::vector<uint32_t>& call_counts,
-                              std::vector<JitTier>& jit_tiers,
-                              std::vector<Simple::VM::Jit::Stub>& jit_stubs,
-                              std::vector<uint32_t>& compile_counts,
-                              std::vector<uint64_t>& compile_ticks_tier0,
-                              std::vector<uint64_t>& compile_ticks_tier1,
-                              uint64_t& compile_tick,
-                              CanCompileFn can_compile) {
-  if (!enable_jit) return;
-  if (func_index >= call_counts.size()) return;
-  const uint32_t count = ++call_counts[func_index];
-  if (count >= tier1_threshold) {
-    if (jit_tiers[func_index] != JitTier::Tier1) {
-      jit_tiers[func_index] = JitTier::Tier1;
-      jit_stubs[func_index].active = true;
-      jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
-      compile_counts[func_index] += 1;
-      compile_ticks_tier1[func_index] = ++compile_tick;
-    }
-  } else if (count >= tier0_threshold) {
-    if (jit_tiers[func_index] == JitTier::None) {
-      jit_tiers[func_index] = JitTier::Tier0;
-      jit_stubs[func_index].active = true;
-      jit_stubs[func_index].compiled = jit_stubs[func_index].disabled ? false : can_compile(func_index);
-      compile_counts[func_index] += 1;
-      compile_ticks_tier0[func_index] = ++compile_tick;
-    }
-  }
-}
-
-struct JitTierUpdater {
-  bool enable_jit = false;
-  uint32_t tier0_threshold = 0;
-  uint32_t tier1_threshold = 0;
-  std::vector<uint32_t>* call_counts = nullptr;
-  std::vector<JitTier>* jit_tiers = nullptr;
-  std::vector<Simple::VM::Jit::Stub>* jit_stubs = nullptr;
-  std::vector<uint32_t>* compile_counts = nullptr;
-  std::vector<uint64_t>* compile_ticks_tier0 = nullptr;
-  std::vector<uint64_t>* compile_ticks_tier1 = nullptr;
-  uint64_t* compile_tick = nullptr;
-  std::function<bool(size_t)> can_compile;
-
-  void operator()(size_t func_index) const {
-    if (!call_counts || !jit_tiers || !jit_stubs || !compile_counts ||
-        !compile_ticks_tier0 || !compile_ticks_tier1 || !compile_tick || !can_compile) {
-      return;
-    }
-    UpdateJitTierForFunction(enable_jit,
-                             func_index,
-                             tier0_threshold,
-                             tier1_threshold,
-                             *call_counts,
-                             *jit_tiers,
-                             *jit_stubs,
-                             *compile_counts,
-                             *compile_ticks_tier0,
-                             *compile_ticks_tier1,
-                             *compile_tick,
-                             can_compile);
-  }
-};
-
 ExecResult AttachExecutionStats(ExecResult result,
                                 const std::vector<JitTier>& jit_tiers,
                                 const std::vector<uint32_t>& call_counts,
@@ -2167,7 +2099,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     return true;
   };
   auto can_compile_func = [&](size_t func_index) -> bool { return can_compile(can_compile, func_index); };
-  JitTierUpdater update_tier;
+  Simple::VM::Jit::TierUpdater update_tier;
   update_tier.enable_jit = enable_jit;
   update_tier.tier0_threshold = jit_tier0_threshold;
   update_tier.tier1_threshold = jit_tier1_threshold;

@@ -47,6 +47,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/interpreter/frames.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/stack.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
+  ${SIMPLEVM_VM_ROOT}/src/jit/tier_updater.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/channel.cpp
