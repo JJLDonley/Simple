@@ -249,7 +249,17 @@ bool LangRastMemberResolutionRecordsMemberRefs() {
 
 bool LangRastReservedResolutionUsesNativeMetadata() {
   std::string native_module;
-  return Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
+  const auto fs_members = Simple::Lang::RAST::ReservedModuleMembers("FS");
+  const auto has_fs_member = [&fs_members](const std::string& name) {
+    for (const auto& member : fs_members) {
+      if (member == name) return true;
+    }
+    return false;
+  };
+  return has_fs_member("readText") &&
+         has_fs_member("open") &&
+         Simple::Lang::RAST::ReservedModuleMembers("Missing").empty() &&
+         Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
          native_module == "System.fs" &&
          Simple::Lang::RAST::IsIoPrintName("print") &&
          Simple::Lang::RAST::IsIoPrintName("println") &&

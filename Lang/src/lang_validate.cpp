@@ -111,6 +111,7 @@ using RAST::IsArtifactMemberName;
 using RAST::IsIoPrintName;
 using RAST::NativeModuleNameForReserved;
 using RAST::NormalizeDlMemberName;
+using RAST::ReservedModuleMembers;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
@@ -303,96 +304,6 @@ size_t EditDistance(const std::string& a, const std::string& b) {
     prev.swap(cur);
   }
   return prev[b.size()];
-}
-
-void AddNativeReservedMembers(const std::string& resolved, std::vector<std::string>* out) {
-  if (!out) return;
-  std::string native_module;
-  if (!NativeModuleNameForReserved(resolved, &native_module)) return;
-  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
-  for (const auto& spec : registry.Functions()) {
-    if (spec.module_name != native_module) continue;
-    if (std::find(out->begin(), out->end(), spec.symbol_name) == out->end()) {
-      out->push_back(spec.symbol_name);
-    }
-  }
-}
-
-std::vector<std::string> ReservedModuleMembers(const std::string& resolved) {
-  std::vector<std::string> out;
-  if (resolved == "IO") {
-    out = {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Math") return {"abs", "min", "max", "sqrt", "PI"};
-  if (resolved == "Time") return {"mono_ns", "wall_ns", "formatWallNs"};
-  if (resolved == "DL") {
-    out = {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
-           "call_str0", "supported"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "OS") {
-    out = {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
-           "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Thread") {
-    out = {"sleep", "yield", "hardwareConcurrency"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Random") {
-    out = {"seed", "i32", "range", "f64"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Env") {
-    out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Path") {
-    out = {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "FS") {
-    out = {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
-           "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Channel") {
-    out = {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
-           "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
-           "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
-           "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
-           "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
-           "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
-           "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "File") return {"open", "close", "read", "write"};
-  if (resolved == "Json") {
-    out = {"parse", "stringify", "free"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Buffer") {
-    out = {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  if (resolved == "Log") {
-    out = {"log", "info", "warn", "error", "setLevel", "setFile"};
-    AddNativeReservedMembers(resolved, &out);
-    return out;
-  }
-  return out;
 }
 
 std::vector<std::string> ModuleMembers(const ModuleDecl* module) {

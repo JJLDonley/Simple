@@ -1,5 +1,7 @@
 #include "RAST/reserved_resolution.h"
 
+#include <algorithm>
+
 #include "RAST/import_graph.h"
 #include "native/registry.h"
 
@@ -29,6 +31,99 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "Log") *out = "System.log";
   else return false;
   return true;
+}
+
+namespace {
+
+void AddNativeReservedMembers(const std::string& canonical_module, std::vector<std::string>* out) {
+  if (!out) return;
+  std::string native_module;
+  if (!NativeModuleNameForReserved(canonical_module, &native_module)) return;
+  for (const auto& spec : ReservedNativeRegistry().Functions()) {
+    if (spec.module_name != native_module) continue;
+    if (std::find(out->begin(), out->end(), spec.symbol_name) == out->end()) {
+      out->push_back(spec.symbol_name);
+    }
+  }
+}
+
+} // namespace
+
+std::vector<std::string> ReservedModuleMembers(const std::string& canonical_module) {
+  std::vector<std::string> out;
+  if (canonical_module == "IO") {
+    out = {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Math") return {"abs", "min", "max", "sqrt", "PI"};
+  if (canonical_module == "Time") return {"mono_ns", "wall_ns", "formatWallNs"};
+  if (canonical_module == "DL") {
+    out = {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
+           "call_str0", "supported"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "OS") {
+    out = {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
+           "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Thread") {
+    out = {"sleep", "yield", "hardwareConcurrency"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Random") {
+    out = {"seed", "i32", "range", "f64"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Env") {
+    out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Path") {
+    out = {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "FS") {
+    out = {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
+           "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Channel") {
+    out = {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
+           "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
+           "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
+           "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
+           "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
+           "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
+           "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "File") return {"open", "close", "read", "write"};
+  if (canonical_module == "Json") {
+    out = {"parse", "stringify", "free"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Buffer") {
+    out = {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  if (canonical_module == "Log") {
+    out = {"log", "info", "warn", "error", "setLevel", "setFile"};
+    AddNativeReservedMembers(canonical_module, &out);
+    return out;
+  }
+  return out;
 }
 
 bool IsIoPrintName(const std::string& name) {
