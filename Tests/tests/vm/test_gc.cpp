@@ -33,10 +33,15 @@ bool VmGcTracesGlobalRefs() {
   return RunSimpleFile("Tests/simple/gc_global_ref_lifetimes.simple", true) == 0;
 }
 
+bool VmGcTracesCallTemporaryRefs() {
+  return RunSimpleFile("Tests/simple/gc_call_stack_temp_refs.simple", true) == 0;
+}
+
 const TestCase kVmGcTests[] = {
   {"vm_split_gc_traces_global_roots", VmSplitGcTracesGlobalRoots},
   {"vm_gc_traces_switch_loop_local_refs", VmGcTracesSwitchLoopLocalRefs},
   {"vm_gc_traces_global_refs", VmGcTracesGlobalRefs},
+  {"vm_gc_traces_call_temporary_refs", VmGcTracesCallTemporaryRefs},
 };
 
 const TestSection kVmGcSections[] = {

@@ -487,7 +487,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] artifact fields containing refs
   - [x] switch/loop local lifetimes with refs
   - [x] globals holding refs
-  - [ ] temporary stack refs during calls
+  - [x] temporary stack refs during calls
 - [x] Define and enforce runtime limits:
   - [x] max stack
   - [x] max locals

@@ -1,0 +1,30 @@
+Box :: Artifact { text : string }
+
+makeText : string (i : i32) {
+  if (i % 2 == 0) { return "even" }
+  return "odd"
+}
+
+wrap : Box (text : string) {
+  return { text }
+}
+
+measure : i32 (box : Box) {
+  return len(box.text)
+}
+
+main : i32 () {
+  i : i32 = 0
+  total : i32 = 0
+  while (i < 2500) {
+    total = total + measure(wrap(makeText(i)))
+    if (i % 2 == 0) {
+      if (measure(wrap(makeText(i))) != 4) { return 1 }
+    } else {
+      if (measure(wrap(makeText(i))) != 3) { return 2 }
+    }
+    i = i + 1
+  }
+  if (total != 8750) { return 3 }
+  return 0
+}
