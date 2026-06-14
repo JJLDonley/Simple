@@ -28,7 +28,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 1: VM Native/Runtime Extraction
 
-- [ ] Split `VM/src/vm.cpp` into explicit modules:
+- [x] Split `VM/src/vm.cpp` into explicit modules:
   - [x] `VM/src/interpreter/interpreter.cpp`
   - [x] `VM/src/interpreter/dispatch.cpp`
   - [x] `VM/src/interpreter/frames.cpp`
@@ -49,7 +49,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `VM/src/jit/jit_scaffold.cpp`
   - [x] `VM/src/gc/root_tracer.cpp`
   - [x] `VM/src/runtime/runtime_limits.cpp`
-- [ ] Define explicit VM boundary types:
+- [x] Define explicit VM boundary types:
   - [x] `NativeCallContext`
   - [x] `NativeCallResult`
   - [x] `NativeModule`
