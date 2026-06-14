@@ -30,11 +30,17 @@ std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entr
   namespace fs = std::filesystem;
   std::error_code ec;
   fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
-  fs::path root = fs::weakly_canonical(entry.parent_path(), ec);
-  if (!ec && !root.empty()) return root;
+  fs::path parent = entry.parent_path();
+  if (!parent.empty() && (fs::exists(entry, ec) || fs::exists(parent, ec) || fs::exists(parent / "simple.modules", ec))) {
+    fs::path root = fs::weakly_canonical(parent, ec);
+    if (!ec && !root.empty()) return root;
+    ec.clear();
+    root = fs::absolute(parent, ec);
+    if (!ec && !root.empty()) return root;
+  }
   ec.clear();
-  root = fs::absolute(entry.parent_path(), ec);
-  if (!ec && !root.empty()) return root;
+  fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
+  if (!ec && !cwd.empty()) return cwd;
   return fs::current_path();
 }
 

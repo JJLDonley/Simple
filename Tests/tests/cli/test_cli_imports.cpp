@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <string>
 #include <unordered_set>
 
 #include "RAST/import_index.h"
@@ -12,6 +13,22 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool CliSplitImportsNoCliLspDuplicateImportWrappers() {
+  const char* paths[] = {"CLI/src/main.cpp", "LSP/src/lsp_server.cpp"};
+  for (const char* path : paths) {
+    std::ifstream in(path);
+    if (!in) return false;
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (text.find("BuildSimpleFileIndex(") != std::string::npos) return false;
+    if (text.find("BuildModuleIndex(") != std::string::npos) return false;
+    if (text.find("AppendProgramWithLocalImports(") != std::string::npos) return false;
+    if (text.find("ResolveLocalImportPath(") != std::string::npos) return false;
+    if (text.find("RAST/import_index.h") != std::string::npos) return false;
+    if (text.find("RAST/import_paths.h") != std::string::npos) return false;
+  }
+  return true;
+}
 
 bool CliSplitImportsBuildSharedSimpleFileIndex() {
   const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_index_test";
@@ -139,6 +156,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 }
 
 const TestCase kCliImportsTests[] = {
+  {"cli_split_imports_no_cli_lsp_duplicate_import_wrappers", CliSplitImportsNoCliLspDuplicateImportWrappers},
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
   {"cli_split_imports_load_program_with_shared_entry_point", CliSplitImportsLoadProgramWithSharedEntryPoint},

@@ -187,7 +187,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Phase 6: CLI / Import / Build Service Split
 
-- [ ] Move import graph construction out of CLI into shared Lang/RAST service.
+- [x] Move import graph construction out of CLI into shared Lang/RAST service.
   - [x] Add shared RAST import path helpers.
   - [x] Add shared RAST module-map line parser.
   - [x] Add shared RAST simple-file index builder.
@@ -197,7 +197,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add shared RAST local import program loader.
   - [x] Add shared RAST full import-loading entry point for CLI.
   - [x] Add shared RAST source-text import-loading entry point for LSP.
-- [ ] Make CLI, LSP, and tests use the same import graph implementation.
+- [x] Make CLI, LSP, and tests use the same import graph implementation.
   - [x] Route CLI import path helper through shared RAST import path helpers.
   - [x] Route CLI and LSP module-map parsing through shared RAST parser.
   - [x] Route LSP simple-file index building through shared RAST builder.
@@ -212,7 +212,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add `CLI/src/build_contract.cpp` for build layout and embedded runner helpers.
 - [x] Move CLI command parsing/dispatch into dedicated command modules.
   - [x] Add `CLI/src/command_dispatch.cpp`.
-- [ ] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.
+- [x] Remove CLI/LSP/test duplicate import wrappers after shared import graph adoption.
 
 ### SRP Phase 7: Documentation / Ownership
 
@@ -237,7 +237,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] remove `lang_sir.h`
 - [ ] Remove facade-only Lang phase modules; each phase must own real implementation.
 - [ ] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
-- [ ] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
+- [x] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
 - [ ] Add tests/checks that fail if removed legacy headers/facades are reintroduced.
 
 ### SRP Code Review Checks

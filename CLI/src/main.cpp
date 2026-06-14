@@ -28,9 +28,7 @@
 #include "command_contract.h"
 #include "command_dispatch.h"
 #include "diagnostic_render.h"
-#include "RAST/import_index.h"
 #include "RAST/import_loader.h"
-#include "RAST/import_paths.h"
 #include "import_contract.h"
 
 namespace {
