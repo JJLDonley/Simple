@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFormatCallArgTypes;
+using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckPrimitiveCastArgType;
 using TAST::CheckReservedDlOpenArgTypes;
@@ -141,7 +142,6 @@ using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
 using TAST::CollectTypeParamsMerged;
-using TAST::CountFormatPlaceholders;
 using TAST::CloneElementType;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
@@ -2928,16 +2928,7 @@ bool CheckExpr(const Expr& expr,
     case ExprKind::Literal:
       return true;
     case ExprKind::FormatString: {
-      size_t placeholder_count = 0;
-      if (!CountFormatPlaceholders(expr.text, &placeholder_count, error)) return false;
-      if (placeholder_count != expr.args.size()) {
-        if (error) {
-          *error = "format placeholder count mismatch: expected " +
-                   std::to_string(placeholder_count) + ", got " +
-                   std::to_string(expr.args.size());
-        }
-        return false;
-      }
+      if (!CheckFormatPlaceholderCount(expr.text, expr.args.size(), "format", error)) return false;
       std::vector<TypeRef> arg_types;
       arg_types.reserve(expr.args.size());
       for (const auto& arg : expr.args) {
@@ -3058,17 +3049,8 @@ bool CheckExpr(const Expr& expr,
             if (error) *error = "IO.print format call expects string literal as first argument";
             return false;
           }
-          size_t placeholder_count = 0;
-          if (!CountFormatPlaceholders(expr.args[0].text, &placeholder_count, error)) {
-            return false;
-          }
           const size_t value_count = expr.args.size() - 1;
-          if (placeholder_count != value_count) {
-            if (error) {
-              *error = "IO.print format placeholder count mismatch: expected " +
-                       std::to_string(placeholder_count) + ", got " +
-                       std::to_string(value_count);
-            }
+          if (!CheckFormatPlaceholderCount(expr.args[0].text, value_count, "IO.print format", error)) {
             return false;
           }
           std::vector<TypeRef> arg_types;

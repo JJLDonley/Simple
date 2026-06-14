@@ -11,6 +11,10 @@ namespace Simple::Lang::TAST {
 bool CountFormatPlaceholders(const std::string& fmt,
                              size_t* out_count,
                              std::string* error);
+bool CheckFormatPlaceholderCount(const std::string& fmt,
+                                 size_t value_count,
+                                 const std::string& context,
+                                 std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

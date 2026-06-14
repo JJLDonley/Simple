@@ -346,7 +346,10 @@ bool LangTastFormatStringCountsPlaceholders() {
   if (Simple::Lang::TAST::CountFormatPlaceholders("a { b", &count, &error)) return false;
   if (error.find("expected '{}' placeholder") == std::string::npos) return false;
   if (Simple::Lang::TAST::CountFormatPlaceholders("a } b", &count, &error)) return false;
-  return error.find("unmatched '}'") != std::string::npos;
+  if (error.find("unmatched '}'") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckFormatPlaceholderCount("{} {}", 2, "format", &error)) return false;
+  if (Simple::Lang::TAST::CheckFormatPlaceholderCount("{} {}", 1, "IO.print format", &error)) return false;
+  return error.find("IO.print format placeholder count mismatch: expected 2, got 1") != std::string::npos;
 }
 
 bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {

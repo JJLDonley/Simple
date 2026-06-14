@@ -27,6 +27,22 @@ bool CountFormatPlaceholders(const std::string& fmt,
   return true;
 }
 
+bool CheckFormatPlaceholderCount(const std::string& fmt,
+                                 size_t value_count,
+                                 const std::string& context,
+                                 std::string* error) {
+  size_t placeholder_count = 0;
+  if (!CountFormatPlaceholders(fmt, &placeholder_count, error)) return false;
+  if (placeholder_count != value_count) {
+    if (error) {
+      *error = context + " placeholder count mismatch: expected " +
+               std::to_string(placeholder_count) + ", got " + std::to_string(value_count);
+    }
+    return false;
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;
