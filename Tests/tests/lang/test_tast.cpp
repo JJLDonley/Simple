@@ -71,7 +71,12 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   proc_type.is_proc = true;
 
   std::string cast_target;
-  return Simple::Lang::TAST::IsScalarType(scalar_i32) &&
+  auto string_type = Simple::Lang::TAST::MakeSimpleType("string");
+
+  return Simple::Lang::TAST::IsLenCompatibleType(string_type) &&
+         Simple::Lang::TAST::IsLenCompatibleType(scalar_list_i32) &&
+         !Simple::Lang::TAST::IsLenCompatibleType(scalar_i32) &&
+         Simple::Lang::TAST::IsScalarType(scalar_i32) &&
          !Simple::Lang::TAST::IsScalarType(pointer_i32) &&
          !Simple::Lang::TAST::IsScalarType(generic_box) &&
          !Simple::Lang::TAST::IsScalarType(scalar_list_i32) &&

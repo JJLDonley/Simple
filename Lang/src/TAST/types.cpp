@@ -192,4 +192,8 @@ bool IsScalarType(const Simple::Lang::AST::TypeRef& type) {
          type.type_args.empty();
 }
 
+bool IsLenCompatibleType(const Simple::Lang::AST::TypeRef& type) {
+  return !type.dims.empty() || type.name == "string";
+}
+
 } // namespace Simple::Lang::TAST
