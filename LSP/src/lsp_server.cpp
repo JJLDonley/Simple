@@ -1,8 +1,6 @@
 #include "lsp_server.h"
 #include "diagnostic_bridge.h"
-#include "RAST/import_index.h"
 #include "RAST/import_loader.h"
-#include "RAST/import_paths.h"
 
 #include <cctype>
 #include <cstring>
@@ -91,24 +89,6 @@ bool FileUriToPath(const std::string& uri, std::string* out_path) {
   return DecodeUriPath(rest.substr(path_pos), out_path);
 }
 
-std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
-  fs::path parent = entry.parent_path();
-  if (!parent.empty() && (fs::exists(entry, ec) || fs::exists(parent / "simple.modules", ec))) {
-    fs::path root = fs::weakly_canonical(parent, ec);
-    if (!ec && !root.empty()) return root;
-    ec.clear();
-    root = fs::absolute(parent, ec);
-    if (!ec && !root.empty()) return root;
-  }
-  ec.clear();
-  fs::path cwd = fs::weakly_canonical(fs::current_path(), ec);
-  if (!ec && !cwd.empty()) return cwd;
-  return fs::current_path();
-}
-
 bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& source_text, std::string* error) {
   std::string entry_path;
   if (!FileUriToPath(uri, &entry_path)) {
@@ -128,37 +108,8 @@ bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& so
     }
     return Simple::Lang::ValidateProgramFromString(source_text, error);
   }
-  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
-  std::unordered_map<std::string, std::vector<std::filesystem::path>> project_index;
-  if (!Simple::Lang::RAST::BuildSimpleFileIndex(project_root, &project_index)) {
-    if (error) {
-      *error = "failed to enumerate .simple files under project root: " + project_root.string();
-    }
-    return false;
-  }
-
-  std::unordered_map<std::string, std::vector<std::filesystem::path>> module_index;
-  if (!Simple::Lang::RAST::BuildModuleIndex(project_root, project_index, &module_index)) {
-    if (error) *error = "failed to build module index under project root: " + project_root.string();
-    return false;
-  }
-  if (!Simple::Lang::RAST::WriteAutoModuleMapIfMissing(project_root, module_index)) {
-    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
-    return false;
-  }
-
   Simple::Lang::Program program;
-  program.decls.clear();
-  std::unordered_set<std::string> visiting;
-  std::unordered_set<std::string> visited;
-  if (!Simple::Lang::RAST::AppendProgramWithLocalImports(entry_path,
-                                                               project_index,
-                                                               module_index,
-                                                               &program,
-                                                               &visiting,
-                                                               &visited,
-                                                               error,
-                                                               &source_text)) {
+  if (!Simple::Lang::RAST::LoadProgramWithImportsFromString(entry_path, source_text, &program, error)) {
     return false;
   }
   return Simple::Lang::ValidateProgram(program, error);

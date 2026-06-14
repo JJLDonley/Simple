@@ -196,6 +196,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add shared RAST import path resolution helpers.
   - [x] Add shared RAST local import program loader.
   - [x] Add shared RAST full import-loading entry point for CLI.
+  - [x] Add shared RAST source-text import-loading entry point for LSP.
 - [ ] Make CLI, LSP, and tests use the same import graph implementation.
   - [x] Route CLI import path helper through shared RAST import path helpers.
   - [x] Route CLI and LSP module-map parsing through shared RAST parser.
@@ -205,6 +206,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Route CLI and LSP import path resolution through shared RAST helpers.
   - [x] Route CLI and LSP local import program assembly through shared RAST loader.
   - [x] Route CLI full import graph construction through shared RAST loader entry point.
+  - [x] Route LSP open-document import graph construction through shared RAST loader entry point.
 - [x] Move CLI diagnostic rendering into `CLI/src/diagnostic_render.cpp`.
 - [x] Move CLI build/embed/link helpers out of `CLI/src/main.cpp`.
   - [x] Add `CLI/src/build_contract.cpp` for build layout and embedded runner helpers.

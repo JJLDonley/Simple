@@ -64,6 +64,40 @@ bool LoadProgramWithImports(const std::filesystem::path& entry_path,
   return AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
 }
 
+bool LoadProgramWithImportsFromString(const std::filesystem::path& entry_path,
+                                      const std::string& source_text,
+                                      Program* out,
+                                      std::string* error) {
+  if (!out) return false;
+  out->decls.clear();
+  out->top_level_stmts.clear();
+  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
+  ImportPathIndex project_index;
+  if (!BuildSimpleFileIndex(project_root, &project_index)) {
+    if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
+    return false;
+  }
+  ImportPathIndex module_index;
+  if (!BuildModuleIndex(project_root, project_index, &module_index)) {
+    if (error) *error = "failed to build module index under project root: " + project_root.string();
+    return false;
+  }
+  if (!WriteAutoModuleMapIfMissing(project_root, module_index)) {
+    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
+    return false;
+  }
+  std::unordered_set<std::string> visiting;
+  std::unordered_set<std::string> visited;
+  return AppendProgramWithLocalImports(entry_path,
+                                       project_index,
+                                       module_index,
+                                       out,
+                                       &visiting,
+                                       &visited,
+                                       error,
+                                       &source_text);
+}
+
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
                                    const ImportPathIndex& project_index,
                                    const ImportPathIndex& module_index,

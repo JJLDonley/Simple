@@ -1,6 +1,7 @@
 #include "test_utils.h"
 #include "diagnostic_bridge.h"
 #include "RAST/import_index.h"
+#include "RAST/import_loader.h"
 
 #include <filesystem>
 #include <fstream>
@@ -10,6 +11,25 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool LspUsesSharedRastSourceImportLoader() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_lsp_source_import_loader_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "dep.simple");
+    out << "module Lsp.Dep\ndep : i32 () { return 3 }";
+  }
+  const auto entry = dir / "open.simple";
+  Simple::Lang::Program program;
+  std::string error;
+  const bool ok = Simple::Lang::RAST::LoadProgramWithImportsFromString(
+      entry,
+      "import Lsp.Dep\nmain : i32 () { return dep() }",
+      &program,
+      &error);
+  std::filesystem::remove_all(dir);
+  return ok && program.decls.size() == 2;
+}
 
 bool LspUsesSharedRastSimpleFileIndex() {
   const auto dir = std::filesystem::temp_directory_path() / "simple_lsp_import_index_test";
@@ -3128,6 +3148,7 @@ bool LspResponsesFollowRequestOrder() {
 }
 
 const TestCase kLspTests[] = {
+  {"lsp_uses_shared_rast_source_import_loader", LspUsesSharedRastSourceImportLoader},
   {"lsp_uses_shared_rast_simple_file_index", LspUsesSharedRastSimpleFileIndex},
   {"lsp_diagnostic_bridge_publishes_structured_diagnostic", LspDiagnosticBridgePublishesStructuredDiagnostic},
   {"lsp_initialize_handshake", LspInitializeHandshake},
