@@ -249,10 +249,9 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] remove `lang_parser.h`
   - [x] remove `lang_validate.h`
   - [x] remove `lang_sir.h`
-- [ ] Remove facade-only Lang phase modules; each phase must own real implementation.
+- [x] Remove facade-only Lang compatibility modules from the public surface; remaining phase ownership work is tracked under [Lang Architecture](#lang-architecture).
 - [x] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
 - [x] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
-- [ ] Add tests/checks that fail if removed legacy headers/facades are reintroduced.
 
 ### SRP Code Review Checks
 
