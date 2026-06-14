@@ -29,7 +29,7 @@ bool LangSplitIrbBuildsModule() {
 
 bool LangIrbIrePipelineEmitsRunnableSir() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v + 40; }\n"
       "}\n"
@@ -131,8 +131,8 @@ bool LangIrbCollectsAllocationMetadata() {
 
 bool LangIrbCollectsAbiFlatteningMetadata() {
   const char* src =
-      "Inner :: Artifact { x : i32; y : i32 }\n"
-      "Outer :: Artifact { inner : Inner; z : f64 }\n"
+      "Inner :: artifact { x : i32; y : i32 }\n"
+      "Outer :: artifact { inner : Inner; z : f64 }\n"
       "main : i32 () { return 0; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -158,7 +158,7 @@ bool LangIrbCollectsAbiFlatteningMetadata() {
 
 bool LangIrbIreKeepsSirOutputStable() {
   const char* src =
-      "Box :: Artifact { v : i32; score : i32 () { return self.v + 40; } }\n"
+      "Box :: artifact { v : i32; score : i32 () { return self.v + 40; } }\n"
       "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;

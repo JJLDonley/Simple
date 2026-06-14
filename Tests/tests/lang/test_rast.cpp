@@ -27,14 +27,14 @@ bool LangSplitRastResolvesFunctionSymbol() {
 
 bool LangRastResolverCollectsQualifiedSymbols() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
       "}\n"
-      "Config :: Namespace {\n"
+      "Config :: namespace {\n"
       "  Max :: i32 = 42\n"
       "}\n"
-      "Mode :: Enum { Off = 0, On = 1 }\n"
+      "Mode :: enum { Off = 0, On = 1 }\n"
       "main : i32 () { return Config.Max; }\n";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -55,7 +55,7 @@ bool LangRastResolverCollectsQualifiedSymbols() {
 
 bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  v : i32\n"
       "}\n";
@@ -72,7 +72,7 @@ bool LangRastResolverRejectsDuplicateQualifiedSymbols() {
 
 bool LangRastResolverCollectsCallableScopes() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 (amount : i32) {\n"
       "    total : i32 = amount + self.v;\n"
@@ -126,14 +126,14 @@ bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
       "import IO\n"
       "import DL\n"
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
       "}\n"
-      "Config :: Namespace {\n"
+      "Config :: namespace {\n"
       "  Max :: i32 = 40\n"
       "}\n"
-      "Mode :: Enum { Off = 0, On = 1 }\n"
+      "Mode :: enum { Off = 0, On = 1 }\n"
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "extern ffi.simple_add_i32 : i32 (a : i32, b : i32)\n"
       "glib :: i64 = DL.Open(\"libffi.so\", ffi)\n"

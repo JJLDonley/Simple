@@ -162,7 +162,7 @@ main : i32 () {
 Artifacts are record-like types with fields and methods.
 
 ```simple
-Point :: Artifact {
+Point :: artifact {
   x : i32
   y : i32
 
@@ -182,7 +182,7 @@ main : i32 () {
 Modules are language namespace objects. They are separate from `module` headers.
 
 ```simple
-Math :: Namespace {
+Math :: namespace {
   two :: i32 = 2
 
   add : i32 (a : i32, b : i32) {

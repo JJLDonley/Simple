@@ -142,7 +142,7 @@ bool LangPhaseHeadersCompileAndPreserveBehavior() {
 
 bool LangNestedArtifactMethodSwitchIfChainRuntime() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () {\n"
       "    tmp : i32 = 0;\n"
@@ -172,7 +172,7 @@ bool LangNestedArtifactMethodSwitchIfChainRuntime() {
 
 bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () {\n"
       "    tmp : i32 = 0;\n"
@@ -194,7 +194,7 @@ bool LangNestedArtifactMethodSwitchIfChainBadCondition() {
 
 bool LangNestedSwitchBranchBlockLocalRuntime() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () {\n"
       "    return switch (self.v) {\n"
@@ -218,7 +218,7 @@ bool LangNestedSwitchBranchBlockLocalRuntime() {
 
 bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () {\n"
       "    while (true) {\n"
@@ -1421,8 +1421,8 @@ bool LangSirEmitsIoPrintFormat() {
 
 bool LangSirEmitsExternAbiFlatten() {
   const char* src =
-      "Tex :: Artifact { id : u32; width : i32; }\n"
-      "RT :: Artifact { id : u32; tex : Tex; }\n"
+      "Tex :: artifact { id : u32; width : i32; }\n"
+      "RT :: artifact { id : u32; tex : Tex; }\n"
       "extern ffi.Use : void (t : RT)\n"
       "main : void () { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
   std::string sir;
@@ -1668,7 +1668,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
   } docs[] = {
       {"Docs/Language.md", "## Table of contents", "skip` is the loop-continue statement"},
       {"Docs/Language.md", "x : i32 = 1", "limit :: i32 = 10"},
-      {"Docs/Language.md", "## File/module headers", "Name :: Namespace { ... }"},
+      {"Docs/Language.md", "## File/module headers", "Name :: namespace { ... }"},
       {"Docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},
@@ -1782,7 +1782,7 @@ bool LangValidateExternPointerCallOk() {
 
 bool LangValidatePointerMemberAccessOk() {
   const char* src =
-      "Node :: Artifact { value : i32 }\n"
+      "Node :: artifact { value : i32 }\n"
       "main : i32 () {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
@@ -1796,7 +1796,7 @@ bool LangValidatePointerMemberAccessOk() {
 
 bool LangValidatePointerMemberRequiresPointer() {
   const char* src =
-      "Node :: Artifact { value : i32 }\n"
+      "Node :: artifact { value : i32 }\n"
       "main : void () {"
       "  n : Node = { 1 };"
       "  n->value = 2;"
@@ -1808,7 +1808,7 @@ bool LangValidatePointerMemberRequiresPointer() {
 
 bool LangValidatePointerToImmutableRejectsMutation() {
   const char* src =
-      "Node :: Artifact { value : i32 }\n"
+      "Node :: artifact { value : i32 }\n"
       "main : void () {"
       "  n :: Node = { 1 };"
       "  p : Node* = &n;"
@@ -1821,7 +1821,7 @@ bool LangValidatePointerToImmutableRejectsMutation() {
 
 bool LangValidatePointerToMutableAllowsMutation() {
   const char* src =
-      "Node :: Artifact { value : i32 }\n"
+      "Node :: artifact { value : i32 }\n"
       "main : i32 () {"
       "  n : Node = { 1 };"
       "  p : Node* = &n;"
@@ -1881,7 +1881,7 @@ bool LangPointerToRefShapesValidate() {
 
 bool LangValidateArtifactDefaultFieldOk() {
   const char* src =
-      "Point :: Artifact { x : i32 = 1; y : i32 }\n"
+      "Point :: artifact { x : i32 = 1; y : i32 }\n"
       "main : i32 () {"
       "  p : Point = { .y = 3 };"
       "  return p.x + p.y;"
@@ -1894,7 +1894,7 @@ bool LangValidateArtifactDefaultFieldOk() {
 
 bool LangValidateModuleDefaultFieldOk() {
   const char* src =
-      "Config :: Namespace { width : i32 = 10; height : i32 = 20 }\n"
+      "Config :: namespace { width : i32 = 10; height : i32 = 20 }\n"
       "main : i32 () { return Config.width + Config.height; }";
   std::string sir;
   std::string error;
@@ -1990,7 +1990,7 @@ bool LangValidateEnumUnknownMember() {
 }
 
 bool LangValidateModuleNotValue() {
-  const char* src = "Math :: Namespace { } main : void () { x : i32 = Math; }";
+  const char* src = "Math :: namespace { } main : void () { x : i32 = Math; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2043,7 +2043,7 @@ bool LangValidateArtifactDuplicateMember() {
 }
 
 bool LangValidateModuleDuplicateMember() {
-  const char* src = "Math :: Namespace { x : i32 = 1; x : i32 = 2; }";
+  const char* src = "Math :: namespace { x : i32 = 1; x : i32 = 2; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2051,7 +2051,7 @@ bool LangValidateModuleDuplicateMember() {
 
 bool LangValidateModuleVarNoInit() {
   const char* src =
-    "Math :: Namespace { x : i32; }"
+    "Math :: namespace { x : i32; }"
     "main : i32 () { return 0; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2211,7 +2211,7 @@ bool LangValidateImmutableSelfFieldAssign() {
 
 bool LangValidateImmutableModuleAssign() {
   const char* src =
-    "Math :: Namespace { PI :: f64 = 3.14; }"
+    "Math :: namespace { PI :: f64 = 3.14; }"
     "main : void () { Math.PI = 0.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2229,7 +2229,7 @@ bool LangValidateAssignToFunctionFail() {
 
 bool LangValidateAssignToModuleFunctionFail() {
   const char* src =
-    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
     "main : void () { Math.add = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2256,7 +2256,7 @@ bool LangValidateProcValueRejectsArtifactMethod() {
 
 bool LangValidateProcValueRejectsModuleFunction() {
   const char* src =
-    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
+    "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
     "main : void () { f : fn i32 (i32, i32) = Math.add; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2287,7 +2287,7 @@ bool LangValidateIncDecInvalidTarget() {
 
 bool LangValidateUnknownModuleMember() {
   const char* src =
-    "Math :: Namespace { x : i32 = 1; }"
+    "Math :: namespace { x : i32 = 1; }"
     "main : i32 () { return Math.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2440,7 +2440,7 @@ bool LangValidateCallNonFunction() {
 
 bool LangValidateCallModuleFuncCount() {
   const char* src =
-    "Math :: Namespace { add : i32 (a : i32, b : i32) { return a; } }"
+    "Math :: namespace { add : i32 (a : i32, b : i32) { return a; } }"
     "main : i32 () { return Math.add(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2449,7 +2449,7 @@ bool LangValidateCallModuleFuncCount() {
 
 bool LangValidateCallModuleVar() {
   const char* src =
-    "Math :: Namespace { PI :: f64 = 3.14; }"
+    "Math :: namespace { PI :: f64 = 3.14; }"
     "main : i32 () { return Math.PI(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
@@ -2559,7 +2559,7 @@ bool LangValidateCallFnLiteralOk() {
 
 bool LangValidateArtifactMemberRequiresSelfField() {
   const char* src =
-    "Point :: Artifact { x : i32; get : i32 () { return x; } }";
+    "Point :: artifact { x : i32; get : i32 () { return x; } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2567,7 +2567,7 @@ bool LangValidateArtifactMemberRequiresSelfField() {
 
 bool LangValidateArtifactMemberRequiresSelfMethod() {
   const char* src =
-    "Point :: Artifact { get : i32 () { return 1; } use : i32 () { return get(); } }";
+    "Point :: artifact { get : i32 () { return 1; } use : i32 () { return get(); } }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2575,7 +2575,7 @@ bool LangValidateArtifactMemberRequiresSelfMethod() {
 
 bool LangValidateArtifactMemberSelfOk() {
   const char* src =
-    "Point :: Artifact { x : i32; get : i32 () { return self.x; } use : i32 () { return self.get(); } }";
+    "Point :: artifact { x : i32; get : i32 () { return self.x; } use : i32 () { return self.get(); } }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2908,7 +2908,7 @@ bool LangValidateEnumTypeArgsRejected() {
 }
 
 bool LangValidateModuleNotType() {
-  const char* src = "Math :: Namespace { pi : i32 = 3; } main : void () { x : Math = 1; }";
+  const char* src = "Math :: namespace { pi : i32 = 3; } main : void () { x : Math = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -3007,7 +3007,7 @@ bool LangValidateListLiteralOk() {
 
 bool LangValidateArtifactArrayLiteralOk() {
   const char* src =
-      "Bullet :: Artifact { x : i32 } "
+      "Bullet :: artifact { x : i32 } "
       "main : void () { bullets : Bullet{2} = {{1}, {2}}; }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;

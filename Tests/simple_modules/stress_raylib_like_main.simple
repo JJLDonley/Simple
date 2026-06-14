@@ -1,6 +1,6 @@
 import "stress_raylib_like_types"
 
-World :: Namespace {
+World :: namespace {
     Width: f32 () { return 100.0 }
     Height: f32 () { return 100.0 }
 
@@ -24,7 +24,7 @@ World :: Namespace {
     }
 }
 
-Player :: Artifact {
+Player :: artifact {
     position: Vector2
     bullets: Bullet[]
     fireCooldown: f32

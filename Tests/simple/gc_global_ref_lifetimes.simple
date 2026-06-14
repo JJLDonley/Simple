@@ -1,4 +1,4 @@
-Box :: Artifact { text : string }
+Box :: artifact { text : string }
 
 GlobalText :: string = "global"
 GlobalBox :: Box = { "boxed" }

@@ -1,4 +1,4 @@
-Point :: Artifact {
+Point :: artifact {
   x : i32
   y : i32
 

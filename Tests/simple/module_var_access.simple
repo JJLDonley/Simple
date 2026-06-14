@@ -1,4 +1,4 @@
-Math :: Namespace {
+Math :: namespace {
   x : i32 = 5
 }
 

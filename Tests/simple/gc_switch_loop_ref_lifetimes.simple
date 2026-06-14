@@ -1,4 +1,4 @@
-Box :: Artifact { text : string }
+Box :: artifact { text : string }
 
 main : i32 () {
   i : i32 = 0

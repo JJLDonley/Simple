@@ -1966,7 +1966,7 @@ struct SemanticTokenEntry {
 bool IsKeywordText(const std::string& text) {
   static const std::unordered_set<std::string> kKeywords = {
       "while", "for", "break", "skip", "return", "if", "else", "default", "switch",
-      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Namespace", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "enum", "module", "namespace", "import", "extern", "as",
       "true", "false",
   };
   return kKeywords.find(text) != kKeywords.end();
@@ -2658,7 +2658,7 @@ std::string DocumentSymbolJson(const Simple::Lang::Token& tk,
 bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
-      "fn", "callback", "self", "artifact", "Artifact", "enum", "Enum", "module", "Namespace",
+      "fn", "callback", "self", "artifact", "enum", "module", "namespace",
       "import", "extern", "as",
       "true", "false",
   };

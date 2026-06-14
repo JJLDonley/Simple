@@ -1764,7 +1764,7 @@ bool LspSemanticTokensClassifyModuleAccessAsNamespace() {
   const std::string uri = "file:///workspace/tokens_module_access.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_text =
-      "Math :: Namespace { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;";
+      "Math :: namespace { pi : f64 = 3.14 }\\nvalue : f64 = Math.pi;";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"

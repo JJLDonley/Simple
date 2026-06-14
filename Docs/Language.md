@@ -40,7 +40,7 @@ This page is the canonical language reference for the syntax and behavior covere
 ```simple
 import IO
 
-Point :: Artifact {
+Point :: artifact {
   x : i32
   y : i32
 
@@ -65,7 +65,7 @@ Important syntax facts:
 - `name : Type` declares a **mutable** binding.
 - `name :: Type` declares an **immutable** binding.
 - `module Name` declares the file/module header used by import indexing.
-- `Name :: Artifact`, `Name :: Namespace`, and `Name :: Enum` declare top-level kinds.
+- `Name :: artifact`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
 
@@ -124,9 +124,9 @@ top-decl       = var-decl | func-decl | artifact-decl | namespace-decl | enum-de
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
 func-decl      = ident ":" type "(" [ params ] ")" block ;
-artifact-decl  = ident "::" ("Artifact" | "artifact") "{" { field-decl | func-decl } "}" ;
-namespace-decl = ident "::" "Namespace" "{" { top-decl } "}" ;
-enum-decl      = ident "::" ("Enum" | "enum") "{" enum-member { enum-member } "}" ;
+artifact-decl  = ident "::" "artifact" "{" { field-decl | func-decl } "}" ;
+namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
+enum-decl      = ident "::" "enum" "{" enum-member { enum-member } "}" ;
 
 stmt           = var-decl | assign-stmt | expr-stmt | if-stmt | switch-stmt | while-stmt | for-stmt |
                  break-stmt | skip-stmt | return-stmt | block ;
@@ -169,9 +169,9 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `fn` | CAST/TAST | Procedure type/literal marker. |
 | ✅ | `self` | RAST/TAST | Artifact method receiver. |
 | ✅ | `true`, `false` | CAST/TAST | Boolean literals. |
-| ✅ | `Artifact`, `artifact` | CAST/TAST | Artifact declaration kind. |
-| ✅ | `Namespace` | CAST/RAST | Namespace declaration kind. |
-| ✅ | `Enum`, `enum` | CAST/TAST | Enum declaration kind. |
+| ✅ | `artifact` | CAST/TAST | Artifact declaration kind. |
+| ✅ | `namespace` | CAST/RAST | Namespace declaration kind. |
+| ✅ | `enum` | CAST/TAST | Enum declaration kind. |
 | ❌ | keyword as identifier | CAST | Rejected except where keyword is expected syntax. |
 
 ### Operators and punctuation
@@ -203,9 +203,9 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name : Type = expr` | TAST | Mutable binding with typed initializer. |
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
 | ✅ | `name : Ret (params) block` | TAST | Function declaration. |
-| ✅ | `Name :: Artifact { ... }` | TAST | Artifact type declaration. |
-| ✅ | `Name :: Namespace { ... }` | RAST/TAST | Namespace/module declaration. |
-| ✅ | `Name :: Enum { ... }` | TAST | Enum declaration. |
+| ✅ | `Name :: artifact { ... }` | TAST | Artifact type declaration. |
+| ✅ | `Name :: namespace { ... }` | RAST/TAST | Namespace/module declaration. |
+| ✅ | `Name :: enum { ... }` | TAST | Enum declaration. |
 | ✅ | top-level executable statement | AST/IRE | Normalized into implicit script entry. |
 | ❌ | assign to immutable binding | TAST | Rejected. |
 | ❌ | duplicate/conflicting declaration | RAST/TAST | Rejected by symbol/member resolution. |
@@ -295,7 +295,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
 | ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
 | ✅ | `DL.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
-| ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Enum.Member`. |
+| ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Type.Member`. |
 | ❌ | unknown module/member/import | RAST/TAST | Rejected. |
 | ❌ | unsupported extern ABI type | TAST | Rejected. |
 
@@ -341,12 +341,12 @@ module import using extern as true false
 The declaration-kind keywords accept the capitalized forms used by existing fixtures:
 
 ```txt
-artifact Artifact
-enum     Enum
-Namespace
+artifact
+enum
+namespace
 ```
 
-Use `module` for file/module headers. Use `Name :: Namespace { ... }` for in-language namespace objects.
+Use `module` for file/module headers. Use `Name :: namespace { ... }` for in-language namespace objects.
 
 ### Operators and punctuation
 
@@ -447,12 +447,12 @@ Rules:
 - The module name is an identifier path, for example `Main`, `Lib`, or `Tools.Widget`.
 - The header should appear before imports/declarations/statements.
 - Only import indexing uses the module name; ordinary language lookup still uses declarations, imports, modules, and `using`.
-- `Name :: Namespace { ... }` is the declaration form for language namespace values; headers never use braces.
+- `Name :: namespace { ... }` is the declaration form for language namespace values; headers never use braces.
 
-Use `Name :: Namespace { ... }` only when you want a language namespace value:
+Use `Name :: namespace { ... }` only when you want a language namespace value:
 
 ```simple
-Math :: Namespace {
+Math :: namespace {
   one : i32 () { return 1 }
 }
 ```
@@ -502,9 +502,9 @@ The marker before the return type also carries return mutability facts used by v
 
 ```simple
 Pi :: f64 = 3.141592
-Point :: Artifact { x : i32; y : i32 }
-Math :: Namespace { one : i32 () { return 1 } }
-Color :: Enum { Red = 1, Green = 2 }
+Point :: artifact { x : i32; y : i32 }
+Math :: namespace { one : i32 () { return 1 } }
+Color :: enum { Red = 1, Green = 2 }
 ```
 
 ## Mutability
@@ -838,7 +838,7 @@ Formatting and standard-library calls are part of the standard library surface s
 Artifacts are record-like declarations with fields and methods:
 
 ```simple
-Point :: Artifact {
+Point :: artifact {
   x : i32
   y : i32
 
@@ -860,7 +860,7 @@ Inside artifact methods, fields must be accessed through `self` unless a local b
 Artifact methods may mutate mutable fields:
 
 ```simple
-Counter :: Artifact {
+Counter :: artifact {
   value : i32
 
   inc : void () {
@@ -876,7 +876,7 @@ Artifact ABI flattening is used for supported extern/DL cases. Recursive artifac
 Namespaces group variables and functions under a named scope:
 
 ```simple
-Math :: Namespace {
+Math :: namespace {
   base :: i32 = 2
 
   add : i32 (a : i32, b : i32) {
@@ -893,10 +893,10 @@ Unknown module members, using modules as types, and assigning to immutable modul
 
 ## Enums
 
-Enums use `:: Enum` and require qualified access:
+Enums use `:: enum` and require qualified access:
 
 ```simple
-Color :: Enum {
+Color :: enum {
   Red = 1,
   Green = 2
 }

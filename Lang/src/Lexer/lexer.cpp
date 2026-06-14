@@ -20,11 +20,9 @@ const std::unordered_map<std::string, TokenKind> kKeywords = {
   {"fn", TokenKind::KwFn},
   {"self", TokenKind::KwSelf},
   {"artifact", TokenKind::KwArtifact},
-  {"Artifact", TokenKind::KwArtifact},
   {"enum", TokenKind::KwEnum},
-  {"Enum", TokenKind::KwEnum},
   {"module", TokenKind::KwModule},
-  {"Namespace", TokenKind::KwNamespace},
+  {"namespace", TokenKind::KwNamespace},
   {"import", TokenKind::KwImport},
   {"using", TokenKind::KwUsing},
   {"extern", TokenKind::KwExtern},
@@ -68,7 +66,7 @@ const char* ToString(TokenKind kind) {
     case TokenKind::KwArtifact: return "artifact";
     case TokenKind::KwEnum: return "enum";
     case TokenKind::KwModule: return "module";
-    case TokenKind::KwNamespace: return "Namespace";
+    case TokenKind::KwNamespace: return "namespace";
     case TokenKind::KwImport: return "import";
     case TokenKind::KwUsing: return "using";
     case TokenKind::KwExtern: return "extern";

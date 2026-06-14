@@ -22,7 +22,7 @@ bool LangSplitCastParsesFunctionDecl() {
 
 bool LangCastParserModuleParsesArtifactSwitch() {
   const char* src =
-      "Box :: Artifact {\n"
+      "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () {\n"
       "    return switch (self.v) {\n"
@@ -63,7 +63,7 @@ bool LangParseErrorIncludesLocation() {
 
 
 bool LangParseArtifactCommaDiagnosticHint() {
-  const char* src = "Point :: Artifact { x : i32, y : i32 }";
+  const char* src = "Point :: artifact { x : i32, y : i32 }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -72,7 +72,7 @@ bool LangParseArtifactCommaDiagnosticHint() {
 
 
 bool LangParseReservedKeywordParameterDiagnosticHint() {
-  const char* src = "f : void (Artifact: i32) { return; }";
+  const char* src = "f : void (artifact: i32) { return; }";
   Simple::Lang::Program program;
   std::string error;
   if (Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -290,7 +290,7 @@ bool LangParsesArtifactDecl() {
 
 
 bool LangParsesArtifactDeclCapitalized() {
-  const char* src = "Point :: Artifact { x : f32; y :: f32; len : i32 () { return 1; } }";
+  const char* src = "Point :: artifact { x : f32; y :: f32; len : i32 () { return 1; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -305,7 +305,7 @@ bool LangParsesArtifactDeclCapitalized() {
 
 
 bool LangParsesModuleDecl() {
-  const char* src = "Math :: Namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -320,7 +320,7 @@ bool LangParsesModuleDecl() {
 
 
 bool LangParsesModuleDeclCapitalized() {
-  const char* src = "Math :: Namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
+  const char* src = "Math :: namespace { scale : i32 = 2; add : i32 (a : i32, b : i32) { return a + b; } }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -421,8 +421,8 @@ bool LangParsesEnumDecl() {
 
 bool LangParsesEnumDeclCapitalized() {
   const char* src =
-    "Status :: Enum { Pending = 1, Active = 2 }"
-    "Color :: Enum { Red, Green, Blue }";
+    "Status :: enum { Pending = 1, Active = 2 }"
+    "Color :: enum { Red, Green, Blue }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
