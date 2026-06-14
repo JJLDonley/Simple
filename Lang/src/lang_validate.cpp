@@ -150,6 +150,7 @@ using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::GetSwitchBranchValueExpr;
 using TAST::InferLiteralType;
+using TAST::IsBuiltinValueIdentifierName;
 using TAST::IsBoolTypeName;
 using TAST::IsAddressableExpr;
 using TAST::IsAssignOp;
@@ -2877,10 +2878,7 @@ bool CheckExpr(const Expr& expr,
           return true;
         }
       }
-      if (expr.text == "len" ||
-          IsPrimitiveCastName(expr.text) || GetAtCastTargetName(expr.text, nullptr)) {
-        return true;
-      }
+      if (IsBuiltinValueIdentifierName(expr.text)) return true;
       if (FindLocal(scopes, expr.text)) return true;
       if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
         if (error) *error = "artifact members must be accessed via self: " + expr.text;

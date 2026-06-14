@@ -95,6 +95,10 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::CheckPrimitiveCastSyntaxName("i32", &cast_error) &&
          cast_error.find("primitive cast syntax requires '@': use @i32(value)") != std::string::npos &&
          Simple::Lang::TAST::CheckPrimitiveCastSyntaxName("make", &cast_error) &&
+         Simple::Lang::TAST::IsBuiltinValueIdentifierName("len") &&
+         Simple::Lang::TAST::IsBuiltinValueIdentifierName("i32") &&
+         Simple::Lang::TAST::IsBuiltinValueIdentifierName("@f64") &&
+         !Simple::Lang::TAST::IsBuiltinValueIdentifierName("make") &&
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
