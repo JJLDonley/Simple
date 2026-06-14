@@ -32,6 +32,16 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   if (!Simple::Lang::TAST::CloneTypeRef(proc, &clone)) return false;
   if (!clone.is_proc || !clone.proc_return || clone.proc_return->name != "bool") return false;
   if (clone.proc_params.size() != 1 || clone.proc_params[0].name != "i32") return false;
+  if (!Simple::Lang::TAST::TypeEquals(proc, clone)) return false;
+
+  Simple::Lang::AST::TypeRef fixed_array;
+  fixed_array.name = "i32";
+  fixed_array.dims.push_back({false, true, 4});
+  Simple::Lang::AST::TypeRef other_array;
+  if (!Simple::Lang::TAST::CloneTypeRef(fixed_array, &other_array)) return false;
+  if (!Simple::Lang::TAST::TypeDimsEqual(fixed_array.dims, other_array.dims)) return false;
+  other_array.dims[0].size = 8;
+  if (Simple::Lang::TAST::TypeEquals(fixed_array, other_array)) return false;
 
   std::string cast_target;
   return Simple::Lang::TAST::IsIntegerScalarTypeName("u64") &&

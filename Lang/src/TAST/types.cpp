@@ -48,6 +48,45 @@ bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
   return true;
 }
 
+bool TypeDimsEqual(const std::vector<Simple::Lang::AST::TypeDim>& a,
+                   const std::vector<Simple::Lang::AST::TypeDim>& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a[i].is_list != b[i].is_list) return false;
+    if (a[i].has_size != b[i].has_size) return false;
+    if (a[i].has_size && a[i].size != b[i].size) return false;
+  }
+  return true;
+}
+
+bool TypeArgsEqual(const std::vector<Simple::Lang::AST::TypeRef>& a,
+                   const std::vector<Simple::Lang::AST::TypeRef>& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (!TypeEquals(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+bool TypeEquals(const Simple::Lang::AST::TypeRef& a,
+                const Simple::Lang::AST::TypeRef& b) {
+  if (a.pointer_depth != b.pointer_depth) return false;
+  if (a.is_proc != b.is_proc) return false;
+  if (a.is_proc) {
+    if (a.proc_return_mutability != b.proc_return_mutability) return false;
+    if (a.proc_params.size() != b.proc_params.size()) return false;
+    for (size_t i = 0; i < a.proc_params.size(); ++i) {
+      if (!TypeEquals(a.proc_params[i], b.proc_params[i])) return false;
+    }
+    if (!a.proc_return || !b.proc_return) return false;
+    if (!TypeEquals(*a.proc_return, *b.proc_return)) return false;
+    return true;
+  }
+  return a.name == b.name &&
+         TypeArgsEqual(a.type_args, b.type_args) &&
+         TypeDimsEqual(a.dims, b.dims);
+}
+
 bool IsPlainTypeRef(const Simple::Lang::AST::TypeRef& type) {
   return !type.is_proc && type.pointer_depth == 0 && type.dims.empty() && type.type_args.empty();
 }

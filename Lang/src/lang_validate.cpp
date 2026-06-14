@@ -111,6 +111,9 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
+using TAST::TypeArgsEqual;
+using TAST::TypeDimsEqual;
+using TAST::TypeEquals;
 
 bool IsIoPrintName(const std::string& name);
 bool ResolveReservedModuleName(const ValidateContext& ctx,
@@ -1146,37 +1149,6 @@ bool CloneTypeVector(const std::vector<TypeRef>& src, std::vector<TypeRef>* out)
   return true;
 }
 
-bool TypeDimsEqual(const std::vector<TypeDim>& a, const std::vector<TypeDim>& b) {
-  if (a.size() != b.size()) return false;
-  for (size_t i = 0; i < a.size(); ++i) {
-    if (a[i].is_list != b[i].is_list) return false;
-    if (a[i].has_size != b[i].has_size) return false;
-    if (a[i].has_size && a[i].size != b[i].size) return false;
-  }
-  return true;
-}
-
-bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b);
-
-bool TypeEquals(const TypeRef& a, const TypeRef& b) {
-  if (a.pointer_depth != b.pointer_depth) return false;
-  if (a.is_proc != b.is_proc) return false;
-  if (a.is_proc) {
-    if (a.proc_return_mutability != b.proc_return_mutability) return false;
-    if (a.proc_params.size() != b.proc_params.size()) return false;
-    for (size_t i = 0; i < a.proc_params.size(); ++i) {
-      if (!TypeEquals(a.proc_params[i], b.proc_params[i])) return false;
-    }
-    if (!a.proc_return || !b.proc_return) return false;
-    if (!TypeEquals(*a.proc_return, *b.proc_return)) return false;
-  } else {
-    if (a.name != b.name) return false;
-    if (!TypeArgsEqual(a.type_args, b.type_args)) return false;
-    if (!TypeDimsEqual(a.dims, b.dims)) return false;
-  }
-  return true;
-}
-
 bool IsIntegerLiteralExpr(const Expr& expr) {
   return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
 }
@@ -1223,14 +1195,6 @@ bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, cons
     return true;
   }
   return false;
-}
-
-bool TypeArgsEqual(const std::vector<TypeRef>& a, const std::vector<TypeRef>& b) {
-  if (a.size() != b.size()) return false;
-  for (size_t i = 0; i < a.size(); ++i) {
-    if (!TypeEquals(a[i], b[i])) return false;
-  }
-  return true;
 }
 
 bool ApplyTypeSubstitution(TypeRef* type,
