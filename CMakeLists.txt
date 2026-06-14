@@ -51,6 +51,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/interpreter/stack.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/traps.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/compile_policy.cpp
+  ${SIMPLEVM_VM_ROOT}/src/jit/compiled_runner.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/failure_format.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/tier_updater.cpp

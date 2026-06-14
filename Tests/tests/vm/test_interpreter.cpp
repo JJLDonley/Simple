@@ -157,6 +157,20 @@ bool VmExecutionStatsLiveInRuntimeModule() {
          vm_text.find("auto finish = [") == std::string::npos;
 }
 
+bool VmJitCompiledRunnerLivesInJitModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/jit/compiled_runner.h");
+  std::ifstream source("VM/src/jit/compiled_runner.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("struct CompiledRunContext") != std::string::npos &&
+         header_text.find("RunCompiledFunction(") != std::string::npos &&
+         source_text.find("bool RunCompiledFunction(") != std::string::npos &&
+         vm_text.find("auto run_compiled = [") == std::string::npos;
+}
+
 bool VmJitCompilePolicyLivesInJitModule() {
   std::ifstream vm("VM/src/vm.cpp");
   std::ifstream header("VM/include/jit/compile_policy.h");
@@ -320,6 +334,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_print_any_lives_in_runtime_module", VmPrintAnyLivesInRuntimeModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
+  {"vm_jit_compiled_runner_lives_in_jit_module", VmJitCompiledRunnerLivesInJitModule},
   {"vm_jit_compile_policy_lives_in_jit_module", VmJitCompilePolicyLivesInJitModule},
   {"vm_jit_failure_formatting_lives_in_jit_module", VmJitFailureFormattingLivesInJitModule},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},

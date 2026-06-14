@@ -57,7 +57,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `FrameState`
   - [x] `InterpreterState`
   - [x] `RootTraceContext`
-- [ ] Replace and move real subsystem lambdas/helpers out of `vm.cpp` into owned modules.
+- [x] Replace and move real subsystem lambdas/helpers out of `vm.cpp` into owned modules.
   - [x] Move import-call dispatch into `VM/src/runtime/import_dispatch.cpp`.
   - [x] Move trap-formatting helpers into `VM/src/interpreter/traps.cpp`.
   - [x] Move JIT/trap operand-reader helpers into `VM/src/interpreter/traps.cpp`.
@@ -75,8 +75,10 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Move slot/value packing helpers into `VM/include/runtime/values.h`.
   - [x] Move dynamic DL/FFI call machinery into `VM/src/ffi/dl_call.cpp`.
   - [x] Move JIT compile eligibility policy into `VM/src/jit/compile_policy.cpp`.
+  - [x] Move JIT compiled runner into `VM/src/jit/compiled_runner.cpp`.
   - [x] Replace JIT compile predicate lambda with `Simple::VM::Jit::CompilePredicate`.
   - [x] Move `print_any` formatting into `VM/src/runtime/print_any.cpp`.
+  - [x] Move JIT compiled runner into `VM/src/jit/compiled_runner.cpp`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [x] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 
