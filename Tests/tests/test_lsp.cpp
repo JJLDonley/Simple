@@ -1,5 +1,6 @@
 #include "test_utils.h"
 #include "diagnostic_bridge.h"
+#include "RAST/import_index.h"
 
 #include <filesystem>
 #include <fstream>
@@ -9,6 +10,19 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool LspUsesSharedRastSimpleFileIndex() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_lsp_import_index_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "LspThing.simple");
+    out << "main : i32 () { return 0 }";
+  }
+  Simple::Lang::RAST::ImportPathIndex index;
+  const bool ok = Simple::Lang::RAST::BuildSimpleFileIndex(dir, &index);
+  std::filesystem::remove_all(dir);
+  return ok && index.find("LspThing.simple") != index.end();
+}
 
 bool LspDiagnosticBridgePublishesStructuredDiagnostic() {
   Simple::Lang::Diagnostics::Diagnostic diagnostic;
@@ -3114,6 +3128,7 @@ bool LspResponsesFollowRequestOrder() {
 }
 
 const TestCase kLspTests[] = {
+  {"lsp_uses_shared_rast_simple_file_index", LspUsesSharedRastSimpleFileIndex},
   {"lsp_diagnostic_bridge_publishes_structured_diagnostic", LspDiagnosticBridgePublishesStructuredDiagnostic},
   {"lsp_initialize_handshake", LspInitializeHandshake},
   {"lsp_did_open_publishes_diagnostics", LspDidOpenPublishesDiagnostics},
