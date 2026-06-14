@@ -132,7 +132,7 @@ bool LangIreSerializesPrecomputedSirLines() {
       "  sig main: () -> i32",
       "func main locals=0 stack=1 sig=main",
       "  enter 0",
-      "  const.i32 42",
+      "  const i32 42",
       "  ret",
       "end",
       "entry main",

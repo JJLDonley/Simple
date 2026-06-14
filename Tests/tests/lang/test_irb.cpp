@@ -77,7 +77,7 @@ bool LangIrbStructuredIrSkeletonStoresModuleShape() {
   fn.signature.has_result = true;
   Simple::Lang::IRB::IrBlock block;
   block.label = "entry";
-  block.instructions.push_back({"const.i32", {"42"}});
+  block.instructions.push_back({"const i32", {"42"}});
   block.instructions.push_back({"ret", {}});
   fn.blocks.push_back(block);
   module.ir.functions.push_back(fn);

@@ -70,7 +70,7 @@ func add locals=2 stack=2 sig=sig0
   enter 2
   load.local 0
   load.local 1
-  add.i32
+  add i32
   ret
 end
 
@@ -170,7 +170,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 |:---:|---|---|---|---|
 | ✅ | unsigned integer | `<uN>` | decimal or `0x` via C++ integer parser | bounds checked per opcode |
 | ✅ | signed integer | `<iN>` | decimal or `0x`, optional `-` | bounds checked per opcode |
-| ✅ | float | `<fN>` | C++ floating parser syntax | used by `const.f32`, `const.f64` |
+| ✅ | float | `<fN>` | C++ floating parser syntax | used by `const f32`, `const f64` |
 | ✅ | boolean | `<bool>` | `0`, `1`, `true`, `false` where accepted | current const lowering accepts numeric bool |
 | ✅ | string | `"..."` or `'...'` | supports `\n`, `\r`, `\t`, `\xNN`, quotes, slash | const section only |
 | ✅ | symbol | `[A-Za-z_][A-Za-z0-9_]*` | names for labels, sigs, funcs, locals, globals | parser validates labels/signature names |
@@ -305,20 +305,20 @@ const.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x18` | `i8` | `const.i8 <value>` |
-| `0x19` | `i16` | `const.i16 <value>` |
-| `0x1A` | `i32` | `const.i32 <value>` |
-| `0x1B` | `i64` | `const.i64 <value>` |
-| `0x1D` | `u8` | `const.u8 <value>` |
-| `0x1E` | `u16` | `const.u16 <value>` |
-| `0x1F` | `u32` | `const.u32 <value>` |
-| `0x20` | `u64` | `const.u64 <value>` |
-| `0x22` | `f32` | `const.f32 <value>` |
-| `0x23` | `f64` | `const.f64 <value>` |
-| `0x24` | `bool` | `const.bool <0|1>` |
-| `0x25` | `char` | `const.char <u16>` |
-| `0x26` | `string` | `const.string <const>` |
-| `0x27` | `null` | `const.null` |
+| `0x18` | `i8` | `const i8 <value>` |
+| `0x19` | `i16` | `const i16 <value>` |
+| `0x1A` | `i32` | `const i32 <value>` |
+| `0x1B` | `i64` | `const i64 <value>` |
+| `0x1D` | `u8` | `const u8 <value>` |
+| `0x1E` | `u16` | `const u16 <value>` |
+| `0x1F` | `u32` | `const u32 <value>` |
+| `0x20` | `u64` | `const u64 <value>` |
+| `0x22` | `f32` | `const f32 <value>` |
+| `0x23` | `f64` | `const f64 <value>` |
+| `0x24` | `bool` | `const bool <0|1>` |
+| `0x25` | `char` | `const char <u16>` |
+| `0x26` | `string` | `const string <const>` |
+| `0x27` | `null` | `const null` |
 
 ### Locals, globals, upvalues, and module init
 
@@ -352,54 +352,54 @@ add.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x40` | `i32` | `add.i32` |
-| `0x45` | `i64` | `add.i64` |
-| `0x4A` | `f32` | `add.f32` |
-| `0x4E` | `f64` | `add.f64` |
-| `0xE1` | `u32` | `add.u32` |
-| `0xE6` | `u64` | `add.u64` |
+| `0x40` | `i32` | `add i32` |
+| `0x45` | `i64` | `add i64` |
+| `0x4A` | `f32` | `add f32` |
+| `0x4E` | `f64` | `add f64` |
+| `0xE1` | `u32` | `add u32` |
+| `0xE6` | `u64` | `add u64` |
 
 sub.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x41` | `i32` | `sub.i32` |
-| `0x46` | `i64` | `sub.i64` |
-| `0x4B` | `f32` | `sub.f32` |
-| `0x4F` | `f64` | `sub.f64` |
-| `0xE2` | `u32` | `sub.u32` |
-| `0xE7` | `u64` | `sub.u64` |
+| `0x41` | `i32` | `sub i32` |
+| `0x46` | `i64` | `sub i64` |
+| `0x4B` | `f32` | `sub f32` |
+| `0x4F` | `f64` | `sub f64` |
+| `0xE2` | `u32` | `sub u32` |
+| `0xE7` | `u64` | `sub u64` |
 
 mul.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x42` | `i32` | `mul.i32` |
-| `0x47` | `i64` | `mul.i64` |
-| `0x4C` | `f32` | `mul.f32` |
-| `0x5C` | `f64` | `mul.f64` |
-| `0xE3` | `u32` | `mul.u32` |
-| `0xE8` | `u64` | `mul.u64` |
+| `0x42` | `i32` | `mul i32` |
+| `0x47` | `i64` | `mul i64` |
+| `0x4C` | `f32` | `mul f32` |
+| `0x5C` | `f64` | `mul f64` |
+| `0xE3` | `u32` | `mul u32` |
+| `0xE8` | `u64` | `mul u64` |
 
 div.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x43` | `i32` | `div.i32` |
-| `0x48` | `i64` | `div.i64` |
-| `0x4D` | `f32` | `div.f32` |
-| `0x5D` | `f64` | `div.f64` |
-| `0xE4` | `u32` | `div.u32` |
-| `0xE9` | `u64` | `div.u64` |
+| `0x43` | `i32` | `div i32` |
+| `0x48` | `i64` | `div i64` |
+| `0x4D` | `f32` | `div f32` |
+| `0x5D` | `f64` | `div f64` |
+| `0xE4` | `u32` | `div u32` |
+| `0xE9` | `u64` | `div u64` |
 
 mod.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x44` | `i32` | `mod.i32` |
-| `0x49` | `i64` | `mod.i64` |
-| `0xE5` | `u32` | `mod.u32` |
-| `0xEA` | `u64` | `mod.u64` |
+| `0x44` | `i32` | `mod i32` |
+| `0x49` | `i64` | `mod i64` |
+| `0xE5` | `u32` | `mod u32` |
+| `0xEA` | `u64` | `mod u64` |
 
 ### Increment and decrement
 
@@ -414,31 +414,31 @@ inc.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x92` | `i8` | `inc.i8` |
-| `0x94` | `i16` | `inc.i16` |
-| `0x83` | `i32` | `inc.i32` |
-| `0x85` | `i64` | `inc.i64` |
-| `0x96` | `u8` | `inc.u8` |
-| `0x98` | `u16` | `inc.u16` |
-| `0x8B` | `u32` | `inc.u32` |
-| `0x8D` | `u64` | `inc.u64` |
-| `0x87` | `f32` | `inc.f32` |
-| `0x89` | `f64` | `inc.f64` |
+| `0x92` | `i8` | `inc i8` |
+| `0x94` | `i16` | `inc i16` |
+| `0x83` | `i32` | `inc i32` |
+| `0x85` | `i64` | `inc i64` |
+| `0x96` | `u8` | `inc u8` |
+| `0x98` | `u16` | `inc u16` |
+| `0x8B` | `u32` | `inc u32` |
+| `0x8D` | `u64` | `inc u64` |
+| `0x87` | `f32` | `inc f32` |
+| `0x89` | `f64` | `inc f64` |
 
 dec.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x93` | `i8` | `dec.i8` |
-| `0x95` | `i16` | `dec.i16` |
-| `0x84` | `i32` | `dec.i32` |
-| `0x86` | `i64` | `dec.i64` |
-| `0x97` | `u8` | `dec.u8` |
-| `0x99` | `u16` | `dec.u16` |
-| `0x8C` | `u32` | `dec.u32` |
-| `0x8E` | `u64` | `dec.u64` |
-| `0x88` | `f32` | `dec.f32` |
-| `0x8A` | `f64` | `dec.f64` |
+| `0x93` | `i8` | `dec i8` |
+| `0x95` | `i16` | `dec i16` |
+| `0x84` | `i32` | `dec i32` |
+| `0x86` | `i64` | `dec i64` |
+| `0x97` | `u8` | `dec u8` |
+| `0x99` | `u16` | `dec u16` |
+| `0x8C` | `u32` | `dec u32` |
+| `0x8E` | `u64` | `dec u64` |
+| `0x88` | `f32` | `dec f32` |
+| `0x8A` | `f64` | `dec f64` |
 
 ### Negation
 
@@ -452,16 +452,16 @@ neg.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x9A` | `i8` | `neg.i8` |
-| `0x9B` | `i16` | `neg.i16` |
-| `0x5E` | `i32` | `neg.i32` |
-| `0x5F` | `i64` | `neg.i64` |
-| `0x9C` | `u8` | `neg.u8` |
-| `0x9D` | `u16` | `neg.u16` |
-| `0x9E` | `u32` | `neg.u32` |
-| `0x9F` | `u64` | `neg.u64` |
-| `0x7E` | `f32` | `neg.f32` |
-| `0x7F` | `f64` | `neg.f64` |
+| `0x9A` | `i8` | `neg i8` |
+| `0x9B` | `i16` | `neg i16` |
+| `0x5E` | `i32` | `neg i32` |
+| `0x5F` | `i64` | `neg i64` |
+| `0x9C` | `u8` | `neg u8` |
+| `0x9D` | `u16` | `neg u16` |
+| `0x9E` | `u32` | `neg u32` |
+| `0x9F` | `u64` | `neg u64` |
+| `0x7E` | `f32` | `neg f32` |
+| `0x7F` | `f64` | `neg f64` |
 
 ### Comparisons
 
@@ -480,67 +480,67 @@ cmp.eq.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x50` | `i32` | `cmp.eq.i32` |
-| `0x56` | `i64` | `cmp.eq.i64` |
-| `0xEB` | `u32` | `cmp.eq.u32` |
-| `0xF1` | `u64` | `cmp.eq.u64` |
-| `0x63` | `f32` | `cmp.eq.f32` |
-| `0x69` | `f64` | `cmp.eq.f64` |
+| `0x50` | `i32` | `cmp.eq i32` |
+| `0x56` | `i64` | `cmp.eq i64` |
+| `0xEB` | `u32` | `cmp.eq u32` |
+| `0xF1` | `u64` | `cmp.eq u64` |
+| `0x63` | `f32` | `cmp.eq f32` |
+| `0x69` | `f64` | `cmp.eq f64` |
 
 cmp.ne.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x52` | `i32` | `cmp.ne.i32` |
-| `0x57` | `i64` | `cmp.ne.i64` |
-| `0xEC` | `u32` | `cmp.ne.u32` |
-| `0xF2` | `u64` | `cmp.ne.u64` |
-| `0x64` | `f32` | `cmp.ne.f32` |
-| `0x6A` | `f64` | `cmp.ne.f64` |
+| `0x52` | `i32` | `cmp.ne i32` |
+| `0x57` | `i64` | `cmp.ne i64` |
+| `0xEC` | `u32` | `cmp.ne u32` |
+| `0xF2` | `u64` | `cmp.ne u64` |
+| `0x64` | `f32` | `cmp.ne f32` |
+| `0x6A` | `f64` | `cmp.ne f64` |
 
 cmp.lt.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x51` | `i32` | `cmp.lt.i32` |
-| `0x58` | `i64` | `cmp.lt.i64` |
-| `0xED` | `u32` | `cmp.lt.u32` |
-| `0xF3` | `u64` | `cmp.lt.u64` |
-| `0x65` | `f32` | `cmp.lt.f32` |
-| `0x6B` | `f64` | `cmp.lt.f64` |
+| `0x51` | `i32` | `cmp.lt i32` |
+| `0x58` | `i64` | `cmp.lt i64` |
+| `0xED` | `u32` | `cmp.lt u32` |
+| `0xF3` | `u64` | `cmp.lt u64` |
+| `0x65` | `f32` | `cmp.lt f32` |
+| `0x6B` | `f64` | `cmp.lt f64` |
 
 cmp.le.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x53` | `i32` | `cmp.le.i32` |
-| `0x59` | `i64` | `cmp.le.i64` |
-| `0xEE` | `u32` | `cmp.le.u32` |
-| `0xF4` | `u64` | `cmp.le.u64` |
-| `0x66` | `f32` | `cmp.le.f32` |
-| `0x6C` | `f64` | `cmp.le.f64` |
+| `0x53` | `i32` | `cmp.le i32` |
+| `0x59` | `i64` | `cmp.le i64` |
+| `0xEE` | `u32` | `cmp.le u32` |
+| `0xF4` | `u64` | `cmp.le u64` |
+| `0x66` | `f32` | `cmp.le f32` |
+| `0x6C` | `f64` | `cmp.le f64` |
 
 cmp.gt.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x54` | `i32` | `cmp.gt.i32` |
-| `0x5A` | `i64` | `cmp.gt.i64` |
-| `0xEF` | `u32` | `cmp.gt.u32` |
-| `0xF5` | `u64` | `cmp.gt.u64` |
-| `0x67` | `f32` | `cmp.gt.f32` |
-| `0x6D` | `f64` | `cmp.gt.f64` |
+| `0x54` | `i32` | `cmp.gt i32` |
+| `0x5A` | `i64` | `cmp.gt i64` |
+| `0xEF` | `u32` | `cmp.gt u32` |
+| `0xF5` | `u64` | `cmp.gt u64` |
+| `0x67` | `f32` | `cmp.gt f32` |
+| `0x6D` | `f64` | `cmp.gt f64` |
 
 cmp.ge.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x55` | `i32` | `cmp.ge.i32` |
-| `0x5B` | `i64` | `cmp.ge.i64` |
-| `0xF0` | `u32` | `cmp.ge.u32` |
-| `0xF6` | `u64` | `cmp.ge.u64` |
-| `0x68` | `f32` | `cmp.ge.f32` |
-| `0x6E` | `f64` | `cmp.ge.f64` |
+| `0x55` | `i32` | `cmp.ge i32` |
+| `0x5B` | `i64` | `cmp.ge i64` |
+| `0xF0` | `u32` | `cmp.ge u32` |
+| `0xF6` | `u64` | `cmp.ge u64` |
+| `0x68` | `f32` | `cmp.ge f32` |
+| `0x6E` | `f64` | `cmp.ge f64` |
 
 ### Boolean logic
 
@@ -568,36 +568,36 @@ and.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xF7` | `i32` | `and.i32` |
-| `0xD4` | `i64` | `and.i64` |
+| `0xF7` | `i32` | `and i32` |
+| `0xD4` | `i64` | `and i64` |
 
 or.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xF8` | `i32` | `or.i32` |
-| `0xD5` | `i64` | `or.i64` |
+| `0xF8` | `i32` | `or i32` |
+| `0xD5` | `i64` | `or i64` |
 
 xor.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xF9` | `i32` | `xor.i32` |
-| `0xD6` | `i64` | `xor.i64` |
+| `0xF9` | `i32` | `xor i32` |
+| `0xD6` | `i64` | `xor i64` |
 
 shl.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xFA` | `i32` | `shl.i32` |
-| `0xD7` | `i64` | `shl.i64` |
+| `0xFA` | `i32` | `shl i32` |
+| `0xD7` | `i64` | `shl i64` |
 
 shr.<T> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0xFB` | `i32` | `shr.i32` |
-| `0xD8` | `i64` | `shr.i64` |
+| `0xFB` | `i32` | `shr i32` |
+| `0xD8` | `i64` | `shr i64` |
 
 ### Calls
 
@@ -627,14 +627,14 @@ conv.<From>.<To> codes:
 
 | Code | T | Syntax |
 |---:|---|---|
-| `0x76` | `i32 -> i64` | `conv.i32.i64` |
-| `0x77` | `i64 -> i32` | `conv.i64.i32` |
-| `0x78` | `i32 -> f32` | `conv.i32.f32` |
-| `0x79` | `i32 -> f64` | `conv.i32.f64` |
-| `0x7A` | `f32 -> i32` | `conv.f32.i32` |
-| `0x7B` | `f64 -> i32` | `conv.f64.i32` |
-| `0x7C` | `f32 -> f64` | `conv.f32.f64` |
-| `0x7D` | `f64 -> f32` | `conv.f64.f32` |
+| `0x76` | `i32 -> i64` | `conv i32 i64` |
+| `0x77` | `i64 -> i32` | `conv i64 i32` |
+| `0x78` | `i32 -> f32` | `conv i32 f32` |
+| `0x79` | `i32 -> f64` | `conv i32 f64` |
+| `0x7A` | `f32 -> i32` | `conv f32 i32` |
+| `0x7B` | `f64 -> i32` | `conv f64 i32` |
+| `0x7C` | `f32 -> f64` | `conv f32 f64` |
+| `0x7D` | `f64 -> f32` | `conv f64 f32` |
 
 ### Debug, profiling, native, and system runtime
 

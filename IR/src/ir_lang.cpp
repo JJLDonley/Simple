@@ -182,7 +182,7 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
   value = Trim(line.substr(pos));
   if (!value.empty() && (value[0] == '"' || value[0] == '\'')) {
     if (value.size() < 2 || value.back() != value.front()) {
-      if (error) *error = "const string missing closing quote";
+      if (error) *error = "const.string missing closing quote";
       return false;
     }
     char quote = value.front();
@@ -193,7 +193,7 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
       char c = value[i];
       if (c == '\\') {
         if (i + 1 >= value.size()) {
-          if (error) *error = "const string invalid escape";
+          if (error) *error = "const.string invalid escape";
           return false;
         }
         char esc = value[++i];
@@ -203,7 +203,7 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
           case 't': unescaped.push_back('\t'); break;
           case 'x': {
             if (i + 2 >= value.size()) {
-              if (error) *error = "const string invalid escape";
+              if (error) *error = "const.string invalid escape";
               return false;
             }
             auto hex = [](char c) -> int {
@@ -215,7 +215,7 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
             int hi = hex(value[i + 1]);
             int lo = hex(value[i + 2]);
             if (hi < 0 || lo < 0) {
-              if (error) *error = "const string invalid escape";
+              if (error) *error = "const.string invalid escape";
               return false;
             }
             uint8_t byte = static_cast<uint8_t>((hi << 4) | lo);
@@ -233,7 +233,7 @@ bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* erro
             else unescaped.push_back('\'');
             break;
           default:
-            if (error) *error = "const string invalid escape";
+            if (error) *error = "const.string invalid escape";
             return false;
         }
       } else {
@@ -882,7 +882,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     }
     if ((kind == Simple::Byte::TypeKind::Ref || kind == Simple::Byte::TypeKind::String) &&
         !(size == 0 || size == 4 || size == 8)) {
-      if (error) *error = "type size mismatch for ref/string: " + type.name;
+      if (error) *error = "type size mismatch for.ref/string: " + type.name;
       return false;
     }
     if (!add_type(type.name, kind, flags, size)) return false;
@@ -1007,14 +1007,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     } else if (kind == "f32") {
       double parsed = 0.0;
       if (!ParseFloat(c.value, &parsed)) {
-        if (error) *error = "const f32 parse failed: " + c.name;
+        if (error) *error = "const.f32 parse failed: " + c.name;
         return false;
       }
       const_f32_ids[c.name] = append_const_f32(static_cast<float>(parsed));
     } else if (kind == "f64") {
       double parsed = 0.0;
       if (!ParseFloat(c.value, &parsed)) {
-        if (error) *error = "const f64 parse failed: " + c.name;
+        if (error) *error = "const.f64 parse failed: " + c.name;
         return false;
       }
       const_f64_ids[c.name] = append_const_f64(parsed);
@@ -1349,6 +1349,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
 
       std::string op = Lower(inst.op);
+      std::vector<std::string> args = inst.args;
       auto fail = [&](const std::string& msg) {
         if (error) {
           if (inst.line_no > 0) {
@@ -1359,9 +1360,74 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         return false;
       };
+      auto is_type_name = [](const std::string& t) {
+        return t == "i8" || t == "i16" || t == "i32" || t == "i64" ||
+               t == "u8" || t == "u16" || t == "u32" || t == "u64" ||
+               t == "f32" || t == "f64" || t == "bool" || t == "char" ||
+               t == "string" || t == "ref" || t == "null";
+      };
+      auto has_legacy_typed_suffix = [&](const std::string& mnemonic) {
+        const std::vector<std::string> prefixes = {
+          "const", "add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
+          "and", "or", "xor", "shl", "shr", "array.get", "array.set",
+          "list.get", "list.set", "list.push", "list.pop", "list.insert", "list.remove"
+        };
+        for (const auto& prefix : prefixes) {
+          std::string lead = prefix + ".";
+          if (mnemonic.rfind(lead, 0) == 0 && is_type_name(mnemonic.substr(lead.size()))) return true;
+        }
+        const std::vector<std::string> cmps = {"cmp.eq", "cmp.ne", "cmp.lt", "cmp.le", "cmp.gt", "cmp.ge"};
+        for (const auto& prefix : cmps) {
+          std::string lead = prefix + ".";
+          if (mnemonic.rfind(lead, 0) == 0 && is_type_name(mnemonic.substr(lead.size()))) return true;
+        }
+        if (mnemonic.rfind("conv.", 0) == 0) return true;
+        return false;
+      };
+      auto normalize_typed = [&]() -> bool {
+        if (has_legacy_typed_suffix(op)) {
+          return fail("legacy typed SIR mnemonic removed; use generic typed form");
+        }
+        auto take_one_type = [&](const std::vector<std::string>& names) -> bool {
+          for (const auto& name : names) {
+            if (op == name) {
+              if (args.size() != 1 || !is_type_name(Lower(args[0]))) return false;
+              op = op + "." + Lower(args[0]);
+              args.clear();
+              return true;
+            }
+          }
+          return false;
+        };
+        if (op == "const") {
+          if (args.empty()) return false;
+          std::string t = Lower(args[0]);
+          if (!is_type_name(t)) return false;
+          op = "const." + t;
+          args.erase(args.begin());
+          return true;
+        }
+        if (op == "conv") {
+          if (args.size() != 2 || !is_type_name(Lower(args[0])) || !is_type_name(Lower(args[1]))) return false;
+          op = "conv." + Lower(args[0]) + "." + Lower(args[1]);
+          args.clear();
+          return true;
+        }
+        if (take_one_type({"add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
+                           "and", "or", "xor", "shl", "shr",
+                           "cmp.eq", "cmp.ne", "cmp.lt", "cmp.le", "cmp.gt", "cmp.ge",
+                           "array.get", "array.set",
+                           "list.get", "list.set", "list.push", "list.pop", "list.insert", "list.remove"})) {
+          return true;
+        }
+        return true;
+      };
+      if (!normalize_typed()) {
+        return fail("typed instruction expects generic typed form");
+      }
       if (op == "enter") {
         uint64_t locals = 0;
-        if (inst.args.size() != 1 || !ParseUint(inst.args[0], &locals)) {
+        if (args.size() != 1 || !ParseUint(args[0], &locals)) {
           return fail("enter expects locals");
         }
         builder.EmitEnter(static_cast<uint16_t>(locals));
@@ -1397,12 +1463,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.i32") {
         int64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.i32 expects value");
         }
-        if (!ParseInt(inst.args[0], &value)) {
+        if (!ParseInt(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("i32", inst.args[0], &named) ||
+          if (!resolve_named_const("i32", args[0], &named) ||
               !ParseInt(named, &value)) {
             return fail("const.i32 expects value");
           }
@@ -1415,12 +1481,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.i8") {
         int64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.i8 expects value");
         }
-        if (!ParseInt(inst.args[0], &value)) {
+        if (!ParseInt(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("i8", inst.args[0], &named) ||
+          if (!resolve_named_const("i8", args[0], &named) ||
               !ParseInt(named, &value)) {
             return fail("const.i8 expects value");
           }
@@ -1433,12 +1499,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.i16") {
         int64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.i16 expects value");
         }
-        if (!ParseInt(inst.args[0], &value)) {
+        if (!ParseInt(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("i16", inst.args[0], &named) ||
+          if (!resolve_named_const("i16", args[0], &named) ||
               !ParseInt(named, &value)) {
             return fail("const.i16 expects value");
           }
@@ -1451,12 +1517,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.i64") {
         int64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.i64 expects value");
         }
-        if (!ParseInt(inst.args[0], &value)) {
+        if (!ParseInt(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("i64", inst.args[0], &named) ||
+          if (!resolve_named_const("i64", args[0], &named) ||
               !ParseInt(named, &value)) {
             return fail("const.i64 expects value");
           }
@@ -1469,12 +1535,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.u8") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.u8 expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("u8", inst.args[0], &named) ||
+          if (!resolve_named_const("u8", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.u8 expects value");
           }
@@ -1487,12 +1553,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.u16") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.u16 expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("u16", inst.args[0], &named) ||
+          if (!resolve_named_const("u16", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.u16 expects value");
           }
@@ -1505,12 +1571,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.u32") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.u32 expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("u32", inst.args[0], &named) ||
+          if (!resolve_named_const("u32", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.u32 expects value");
           }
@@ -1523,12 +1589,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.u64") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.u64 expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("u64", inst.args[0], &named) ||
+          if (!resolve_named_const("u64", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.u64 expects value");
           }
@@ -1541,12 +1607,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.f32") {
         double value = 0.0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.f32 expects value");
         }
-        if (!ParseFloat(inst.args[0], &value)) {
+        if (!ParseFloat(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("f32", inst.args[0], &named) ||
+          if (!resolve_named_const("f32", args[0], &named) ||
               !ParseFloat(named, &value)) {
             return fail("const.f32 expects value");
           }
@@ -1556,12 +1622,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.f64") {
         double value = 0.0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.f64 expects value");
         }
-        if (!ParseFloat(inst.args[0], &value)) {
+        if (!ParseFloat(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("f64", inst.args[0], &named) ||
+          if (!resolve_named_const("f64", args[0], &named) ||
               !ParseFloat(named, &value)) {
             return fail("const.f64 expects value");
           }
@@ -1571,12 +1637,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.bool") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.bool expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("bool", inst.args[0], &named) ||
+          if (!resolve_named_const("bool", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.bool expects value");
           }
@@ -1586,12 +1652,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.char") {
         uint64_t value = 0;
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("const.char expects value");
         }
-        if (!ParseUint(inst.args[0], &value)) {
+        if (!ParseUint(args[0], &value)) {
           std::string named;
-          if (!resolve_named_const("char", inst.args[0], &named) ||
+          if (!resolve_named_const("char", args[0], &named) ||
               !ParseUint(named, &value)) {
             return fail("const.char expects value");
           }
@@ -1601,7 +1667,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "const.string") {
         uint32_t const_id = 0;
-        if (inst.args.size() != 1 || !resolve_const_string_id(inst.args[0], &const_id)) {
+        if (args.size() != 1 || !resolve_const_string_id(args[0], &const_id)) {
           return fail("const.string expects const_id");
         }
         builder.EmitConstString(const_id);
@@ -2040,67 +2106,67 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op == "jmp") {
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("jmp expects label");
         }
-        if (!IsValidLabelName(inst.args[0])) {
-          return fail("invalid label: " + inst.args[0]);
+        if (!IsValidLabelName(args[0])) {
+          return fail("invalid label: " + args[0]);
         }
-        auto it = labels.find(inst.args[0]);
+        auto it = labels.find(args[0]);
         if (it == labels.end()) {
-          return fail("unknown label: " + inst.args[0]);
+          return fail("unknown label: " + args[0]);
         }
         builder.EmitJmp(it->second);
         continue;
       }
       if (op == "jmp.true") {
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("jmp.true expects label");
         }
-        if (!IsValidLabelName(inst.args[0])) {
-          return fail("invalid label: " + inst.args[0]);
+        if (!IsValidLabelName(args[0])) {
+          return fail("invalid label: " + args[0]);
         }
-        auto it = labels.find(inst.args[0]);
+        auto it = labels.find(args[0]);
         if (it == labels.end()) {
-          return fail("unknown label: " + inst.args[0]);
+          return fail("unknown label: " + args[0]);
         }
         builder.EmitJmpTrue(it->second);
         continue;
       }
       if (op == "jmp.false") {
-        if (inst.args.size() != 1) {
+        if (args.size() != 1) {
           return fail("jmp.false expects label");
         }
-        if (!IsValidLabelName(inst.args[0])) {
-          return fail("invalid label: " + inst.args[0]);
+        if (!IsValidLabelName(args[0])) {
+          return fail("invalid label: " + args[0]);
         }
-        auto it = labels.find(inst.args[0]);
+        auto it = labels.find(args[0]);
         if (it == labels.end()) {
-          return fail("unknown label: " + inst.args[0]);
+          return fail("unknown label: " + args[0]);
         }
         builder.EmitJmpFalse(it->second);
         continue;
       }
       if (op == "jmptable") {
-        if (inst.args.size() < 2) {
+        if (args.size() < 2) {
           return fail("jmptable expects default and cases");
         }
-        if (!IsValidLabelName(inst.args[0])) {
-          return fail("invalid label: " + inst.args[0]);
+        if (!IsValidLabelName(args[0])) {
+          return fail("invalid label: " + args[0]);
         }
-        auto def_it = labels.find(inst.args[0]);
+        auto def_it = labels.find(args[0]);
         if (def_it == labels.end()) {
-          return fail("unknown label: " + inst.args[0]);
+          return fail("unknown label: " + args[0]);
         }
         IrLabel def = def_it->second;
         std::vector<IrLabel> cases;
-        for (size_t i = 1; i < inst.args.size(); ++i) {
-          if (!IsValidLabelName(inst.args[i])) {
-            return fail("invalid label: " + inst.args[i]);
+        for (size_t i = 1; i < args.size(); ++i) {
+          if (!IsValidLabelName(args[i])) {
+            return fail("invalid label: " + args[i]);
           }
-          auto it = labels.find(inst.args[i]);
+          auto it = labels.find(args[i]);
           if (it == labels.end()) {
-            return fail("unknown label: " + inst.args[i]);
+            return fail("unknown label: " + args[i]);
           }
           cases.push_back(it->second);
         }
@@ -2108,36 +2174,36 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op == "call") {
-        if (inst.args.size() != 2) {
+        if (args.size() != 2) {
           return fail("call expects func_id arg_count");
         }
         uint32_t func_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_func_id(inst.args[0], &func_id) || !ParseUint(inst.args[1], &arg_count)) {
+        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count)) {
           return fail("call expects numeric args");
         }
         builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
         continue;
       }
       if (op == "call.indirect") {
-        if (inst.args.size() != 2) {
+        if (args.size() != 2) {
           return fail("call.indirect expects sig_id arg_count");
         }
         uint32_t sig_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_sig_id(inst.args[0], &sig_id) || !ParseUint(inst.args[1], &arg_count)) {
+        if (!resolve_sig_id(args[0], &sig_id) || !ParseUint(args[1], &arg_count)) {
           return fail("call.indirect expects numeric args");
         }
         builder.EmitCallIndirect(sig_id, static_cast<uint8_t>(arg_count));
         continue;
       }
       if (op == "tailcall") {
-        if (inst.args.size() != 2) {
+        if (args.size() != 2) {
           return fail("tailcall expects func_id arg_count");
         }
         uint32_t func_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_func_id(inst.args[0], &func_id) || !ParseUint(inst.args[1], &arg_count)) {
+        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count)) {
           return fail("tailcall expects numeric args");
         }
         builder.EmitTailCall(func_id, static_cast<uint8_t>(arg_count));
@@ -2177,7 +2243,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "ldloc" || op == "load.local") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_local(fn, inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail("ldloc expects index");
         }
         builder.EmitLoadLocal(index);
@@ -2185,7 +2251,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "stloc" || op == "store.local") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_local(fn, inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail("stloc expects index");
         }
         builder.EmitStoreLocal(index);
@@ -2197,7 +2263,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "intrinsic") {
         uint32_t id = 0;
-        if (inst.args.size() != 1 || !resolve_intrinsic_id(inst.args[0], &id)) {
+        if (args.size() != 1 || !resolve_intrinsic_id(args[0], &id)) {
           return fail("intrinsic expects id");
         }
         builder.EmitIntrinsic(id);
@@ -2205,7 +2271,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "syscall") {
         uint32_t id = 0;
-        if (inst.args.size() != 1 || !resolve_syscall_id(inst.args[0], &id)) {
+        if (args.size() != 1 || !resolve_syscall_id(args[0], &id)) {
           return fail("syscall expects id");
         }
         builder.EmitSysCall(id);
@@ -2213,7 +2279,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "newobj") {
         uint32_t type_id = 0;
-        if (inst.args.size() != 1 || !resolve_type_id(inst.args[0], &type_id)) {
+        if (args.size() != 1 || !resolve_type_id(args[0], &type_id)) {
           return fail("newobj expects type_id");
         }
         builder.EmitNewObject(type_id);
@@ -2221,7 +2287,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "ldfld") {
         uint32_t field_id = 0;
-        if (inst.args.size() != 1 || !resolve_field_id(inst.args[0], &field_id)) {
+        if (args.size() != 1 || !resolve_field_id(args[0], &field_id)) {
           return fail("ldfld expects field_id");
         }
         builder.EmitLoadField(field_id);
@@ -2229,7 +2295,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "stfld") {
         uint32_t field_id = 0;
-        if (inst.args.size() != 1 || !resolve_field_id(inst.args[0], &field_id)) {
+        if (args.size() != 1 || !resolve_field_id(args[0], &field_id)) {
           return fail("stfld expects field_id");
         }
         builder.EmitStoreField(field_id);
@@ -2254,8 +2320,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "newclosure") {
         uint32_t method_id = 0;
         uint64_t upvalues = 0;
-        if (inst.args.size() != 2 || !resolve_func_id(inst.args[0], &method_id) ||
-            !ParseUint(inst.args[1], &upvalues)) {
+        if (args.size() != 2 || !resolve_func_id(args[0], &method_id) ||
+            !ParseUint(args[1], &upvalues)) {
           return fail("newclosure expects method_id upvalue_count");
         }
         builder.EmitNewClosure(method_id, static_cast<uint8_t>(upvalues));
@@ -2264,8 +2330,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "newarray") {
         uint32_t type_id = 0;
         uint64_t length = 0;
-        if (inst.args.size() != 2 || !resolve_type_id(inst.args[0], &type_id) ||
-            !ParseUint(inst.args[1], &length)) {
+        if (args.size() != 2 || !resolve_type_id(args[0], &type_id) ||
+            !ParseUint(args[1], &length)) {
           return fail("newarray expects type_id length");
         }
         builder.EmitNewArray(type_id, static_cast<uint32_t>(length));
@@ -2318,8 +2384,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "newlist") {
         uint32_t type_id = 0;
         uint64_t cap = 0;
-        if (inst.args.size() != 2 || !resolve_type_id(inst.args[0], &type_id) ||
-            !ParseUint(inst.args[1], &cap)) {
+        if (args.size() != 2 || !resolve_type_id(args[0], &type_id) ||
+            !ParseUint(args[1], &cap)) {
           return fail("newlist expects type_id capacity");
         }
         builder.EmitNewList(type_id, static_cast<uint32_t>(cap));
@@ -2471,7 +2537,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "ldglob" || op == "load.global") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_global(inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_global(args[0], &index)) {
           return fail("ldglob expects index");
         }
         builder.EmitLoadGlobal(index);
@@ -2479,7 +2545,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "stglob" || op == "store.global") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_global(inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_global(args[0], &index)) {
           return fail("stglob expects index");
         }
         builder.EmitStoreGlobal(index);
@@ -2487,7 +2553,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "ldupv" || op == "load.upvalue") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_upvalue(fn, inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_upvalue(fn, args[0], &index)) {
           return fail("ldupv expects index");
         }
         builder.EmitLoadUpvalue(index);
@@ -2495,7 +2561,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "stupv" || op == "store.upvalue") {
         uint32_t index = 0;
-        if (inst.args.size() != 1 || !resolve_upvalue(fn, inst.args[0], &index)) {
+        if (args.size() != 1 || !resolve_upvalue(fn, args[0], &index)) {
           return fail("stupv expects index");
         }
         builder.EmitStoreUpvalue(index);

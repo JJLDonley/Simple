@@ -45,7 +45,7 @@ bool LangSplitIreEmitsSirModule() {
   if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
   if (!Simple::Lang::IRE::EmitSirModule(module, &sir, &error)) return false;
   return sir.find("func main") != std::string::npos &&
-         sir.find("const.i32 4") != std::string::npos;
+         sir.find("const i32 4") != std::string::npos;
 }
 
 const TestCase kLangIreTests[] = {

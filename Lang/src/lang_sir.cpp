@@ -664,7 +664,7 @@ bool EmitPrintAnyValue(EmitState& st,
   if (!EmitExpr(st, arg_expr, &arg_type, error)) return false;
   uint32_t tag = 0;
   if (!GetPrintAnyTagForType(arg_type, &tag, error)) return false;
-  (*st.out) << "  const.i32 " << static_cast<int32_t>(tag) << "\n";
+  (*st.out) << "  const i32 " << static_cast<int32_t>(tag) << "\n";
   PushStack(st, 1);
   (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
   PopStack(st, 2);
@@ -675,9 +675,9 @@ bool EmitPrintNewline(EmitState& st, std::string* error) {
   (void)error;
   std::string newline_name;
   if (!AddStringConst(st, "\n", &newline_name)) return false;
-  (*st.out) << "  const.string " << newline_name << "\n";
+  (*st.out) << "  const string " << newline_name << "\n";
   PushStack(st, 1);
-  (*st.out) << "  const.i32 " << static_cast<int32_t>(Simple::VM::kPrintAnyTagString) << "\n";
+  (*st.out) << "  const i32 " << static_cast<int32_t>(Simple::VM::kPrintAnyTagString) << "\n";
   PushStack(st, 1);
   (*st.out) << "  intrinsic " << Simple::VM::kIntrinsicPrintAny << "\n";
   PopStack(st, 2);
@@ -811,30 +811,30 @@ const char* NormalizeBitwiseOpType(const std::string& name) {
 }
 
 const char* IncOpForType(const std::string& name) {
-  if (name == "i8") return "inc.i8";
-  if (name == "i16") return "inc.i16";
-  if (name == "i32" || name == "char" || name == "bool") return "inc.i32";
-  if (name == "i64") return "inc.i64";
-  if (name == "u8") return "inc.u8";
-  if (name == "u16") return "inc.u16";
-  if (name == "u32") return "inc.u32";
-  if (name == "u64") return "inc.u64";
-  if (name == "f32") return "inc.f32";
-  if (name == "f64") return "inc.f64";
+  if (name == "i8") return "inc i8";
+  if (name == "i16") return "inc i16";
+  if (name == "i32" || name == "char" || name == "bool") return "inc i32";
+  if (name == "i64") return "inc i64";
+  if (name == "u8") return "inc u8";
+  if (name == "u16") return "inc u16";
+  if (name == "u32") return "inc u32";
+  if (name == "u64") return "inc u64";
+  if (name == "f32") return "inc f32";
+  if (name == "f64") return "inc f64";
   return nullptr;
 }
 
 const char* DecOpForType(const std::string& name) {
-  if (name == "i8") return "dec.i8";
-  if (name == "i16") return "dec.i16";
-  if (name == "i32" || name == "char" || name == "bool") return "dec.i32";
-  if (name == "i64") return "dec.i64";
-  if (name == "u8") return "dec.u8";
-  if (name == "u16") return "dec.u16";
-  if (name == "u32") return "dec.u32";
-  if (name == "u64") return "dec.u64";
-  if (name == "f32") return "dec.f32";
-  if (name == "f64") return "dec.f64";
+  if (name == "i8") return "dec i8";
+  if (name == "i16") return "dec i16";
+  if (name == "i32" || name == "char" || name == "bool") return "dec i32";
+  if (name == "i64") return "dec i64";
+  if (name == "u8") return "dec u8";
+  if (name == "u16") return "dec u16";
+  if (name == "u32") return "dec u32";
+  if (name == "u64") return "dec u64";
+  if (name == "f32") return "dec f32";
+  if (name == "f64") return "dec f64";
   return nullptr;
 }
 
@@ -1754,18 +1754,18 @@ bool EmitConstForType(EmitState& st,
   if (expr.literal_kind == LiteralKind::String) {
     std::string name;
     if (!AddStringConst(st, expr.text, &name)) return false;
-    (*st.out) << "  const.string " << name << "\n";
+    (*st.out) << "  const string " << name << "\n";
     return PushStack(st, 1);
   }
   if (expr.literal_kind == LiteralKind::Char) {
     uint16_t value = static_cast<unsigned char>(expr.text.empty() ? '\0' : expr.text[0]);
-    (*st.out) << "  const.char " << value << "\n";
+    (*st.out) << "  const char " << value << "\n";
     return PushStack(st, 1);
   }
   if (expr.literal_kind == LiteralKind::Bool) {
     const std::string text = expr.text;
     uint32_t value = (text == "true") ? 1u : 0u;
-    (*st.out) << "  const.bool " << value << "\n";
+    (*st.out) << "  const bool " << value << "\n";
     return PushStack(st, 1);
   }
 
@@ -1775,11 +1775,11 @@ bool EmitConstForType(EmitState& st,
   }
 
   if (expr.literal_kind == LiteralKind::Float) {
-    (*st.out) << "  const." << type.name << " " << expr.text << "\n";
+    (*st.out) << "  const " << type.name << " " << expr.text << "\n";
     return PushStack(st, 1);
   }
 
-  (*st.out) << "  const." << type.name << " " << expr.text << "\n";
+  (*st.out) << "  const " << type.name << " " << expr.text << "\n";
   return PushStack(st, 1);
 }
 
@@ -1794,9 +1794,9 @@ bool EmitIndexSetOp(EmitState& st,
                     const TypeRef& container_type,
                     const char* op_suffix) {
   if (container_type.dims.front().is_list) {
-    (*st.out) << "  list.set." << op_suffix << "\n";
+    (*st.out) << "  list.set " << op_suffix << "\n";
   } else {
-    (*st.out) << "  array.set." << op_suffix << "\n";
+    (*st.out) << "  array.set " << op_suffix << "\n";
   }
   PopStack(st, 3);
   return true;
@@ -1806,9 +1806,9 @@ bool EmitIndexGetOp(EmitState& st,
                     const TypeRef& container_type,
                     const char* op_suffix) {
   if (container_type.dims.front().is_list) {
-    (*st.out) << "  list.get." << op_suffix << "\n";
+    (*st.out) << "  list.get " << op_suffix << "\n";
   } else {
-    (*st.out) << "  array.get." << op_suffix << "\n";
+    (*st.out) << "  array.get " << op_suffix << "\n";
   }
   PopStack(st, 2);
   return PushStack(st, 1);
@@ -1872,25 +1872,25 @@ bool EmitLocalAssignment(EmitState& st,
     return false;
   }
   if (std::string(bin_op) == "+") {
-    (*st.out) << "  add." << op_type << "\n";
+    (*st.out) << "  add " << op_type << "\n";
   } else if (std::string(bin_op) == "-") {
-    (*st.out) << "  sub." << op_type << "\n";
+    (*st.out) << "  sub " << op_type << "\n";
   } else if (std::string(bin_op) == "*") {
-    (*st.out) << "  mul." << op_type << "\n";
+    (*st.out) << "  mul " << op_type << "\n";
   } else if (std::string(bin_op) == "/") {
-    (*st.out) << "  div." << op_type << "\n";
+    (*st.out) << "  div " << op_type << "\n";
   } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
-    (*st.out) << "  mod." << op_type << "\n";
+    (*st.out) << "  mod " << op_type << "\n";
   } else if (std::string(bin_op) == "&") {
-    (*st.out) << "  and." << op_type << "\n";
+    (*st.out) << "  and " << op_type << "\n";
   } else if (std::string(bin_op) == "|") {
-    (*st.out) << "  or." << op_type << "\n";
+    (*st.out) << "  or " << op_type << "\n";
   } else if (std::string(bin_op) == "^") {
-    (*st.out) << "  xor." << op_type << "\n";
+    (*st.out) << "  xor " << op_type << "\n";
   } else if (std::string(bin_op) == "<<") {
-    (*st.out) << "  shl." << op_type << "\n";
+    (*st.out) << "  shl " << op_type << "\n";
   } else if (std::string(bin_op) == ">>") {
-    (*st.out) << "  shr." << op_type << "\n";
+    (*st.out) << "  shr " << op_type << "\n";
   } else {
     if (error) *error = "unsupported assignment operator '" + op + "'";
     return false;
@@ -1948,25 +1948,25 @@ bool EmitGlobalAssignment(EmitState& st,
     return false;
   }
   if (std::string(bin_op) == "+") {
-    (*st.out) << "  add." << op_type << "\n";
+    (*st.out) << "  add " << op_type << "\n";
   } else if (std::string(bin_op) == "-") {
-    (*st.out) << "  sub." << op_type << "\n";
+    (*st.out) << "  sub " << op_type << "\n";
   } else if (std::string(bin_op) == "*") {
-    (*st.out) << "  mul." << op_type << "\n";
+    (*st.out) << "  mul " << op_type << "\n";
   } else if (std::string(bin_op) == "/") {
-    (*st.out) << "  div." << op_type << "\n";
+    (*st.out) << "  div " << op_type << "\n";
   } else if (std::string(bin_op) == "%" && IsIntegralType(type.name)) {
-    (*st.out) << "  mod." << op_type << "\n";
+    (*st.out) << "  mod " << op_type << "\n";
   } else if (std::string(bin_op) == "&") {
-    (*st.out) << "  and." << op_type << "\n";
+    (*st.out) << "  and " << op_type << "\n";
   } else if (std::string(bin_op) == "|") {
-    (*st.out) << "  or." << op_type << "\n";
+    (*st.out) << "  or " << op_type << "\n";
   } else if (std::string(bin_op) == "^") {
-    (*st.out) << "  xor." << op_type << "\n";
+    (*st.out) << "  xor " << op_type << "\n";
   } else if (std::string(bin_op) == "<<") {
-    (*st.out) << "  shl." << op_type << "\n";
+    (*st.out) << "  shl " << op_type << "\n";
   } else if (std::string(bin_op) == ">>") {
-    (*st.out) << "  shr." << op_type << "\n";
+    (*st.out) << "  shr " << op_type << "\n";
   } else {
     if (error) *error = "unsupported assignment operator '" + op + "'";
     return false;
@@ -2045,25 +2045,25 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
         return false;
       }
       if (std::string(bin_op) == "+") {
-        (*st.out) << "  add." << op_type << "\n";
+        (*st.out) << "  add " << op_type << "\n";
       } else if (std::string(bin_op) == "-") {
-        (*st.out) << "  sub." << op_type << "\n";
+        (*st.out) << "  sub " << op_type << "\n";
       } else if (std::string(bin_op) == "*") {
-        (*st.out) << "  mul." << op_type << "\n";
+        (*st.out) << "  mul " << op_type << "\n";
       } else if (std::string(bin_op) == "/") {
-        (*st.out) << "  div." << op_type << "\n";
+        (*st.out) << "  div " << op_type << "\n";
       } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
-        (*st.out) << "  mod." << op_type << "\n";
+        (*st.out) << "  mod " << op_type << "\n";
       } else if (std::string(bin_op) == "&") {
-        (*st.out) << "  and." << op_type << "\n";
+        (*st.out) << "  and " << op_type << "\n";
       } else if (std::string(bin_op) == "|") {
-        (*st.out) << "  or." << op_type << "\n";
+        (*st.out) << "  or " << op_type << "\n";
       } else if (std::string(bin_op) == "^") {
-        (*st.out) << "  xor." << op_type << "\n";
+        (*st.out) << "  xor " << op_type << "\n";
       } else if (std::string(bin_op) == "<<") {
-        (*st.out) << "  shl." << op_type << "\n";
+        (*st.out) << "  shl " << op_type << "\n";
       } else if (std::string(bin_op) == ">>") {
-        (*st.out) << "  shr." << op_type << "\n";
+        (*st.out) << "  shr " << op_type << "\n";
       } else {
         if (error) *error = "unsupported assignment operator '" + expr.op + "'";
         return false;
@@ -2134,25 +2134,25 @@ bool EmitAssignmentExpr(EmitState& st, const Expr& expr, std::string* error) {
         return false;
       }
       if (std::string(bin_op) == "+") {
-        (*st.out) << "  add." << op_type << "\n";
+        (*st.out) << "  add " << op_type << "\n";
       } else if (std::string(bin_op) == "-") {
-        (*st.out) << "  sub." << op_type << "\n";
+        (*st.out) << "  sub " << op_type << "\n";
       } else if (std::string(bin_op) == "*") {
-        (*st.out) << "  mul." << op_type << "\n";
+        (*st.out) << "  mul " << op_type << "\n";
       } else if (std::string(bin_op) == "/") {
-        (*st.out) << "  div." << op_type << "\n";
+        (*st.out) << "  div " << op_type << "\n";
       } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
-        (*st.out) << "  mod." << op_type << "\n";
+        (*st.out) << "  mod " << op_type << "\n";
       } else if (std::string(bin_op) == "&") {
-        (*st.out) << "  and." << op_type << "\n";
+        (*st.out) << "  and " << op_type << "\n";
       } else if (std::string(bin_op) == "|") {
-        (*st.out) << "  or." << op_type << "\n";
+        (*st.out) << "  or " << op_type << "\n";
       } else if (std::string(bin_op) == "^") {
-        (*st.out) << "  xor." << op_type << "\n";
+        (*st.out) << "  xor " << op_type << "\n";
       } else if (std::string(bin_op) == "<<") {
-        (*st.out) << "  shl." << op_type << "\n";
+        (*st.out) << "  shl " << op_type << "\n";
       } else if (std::string(bin_op) == ">>") {
-        (*st.out) << "  shr." << op_type << "\n";
+        (*st.out) << "  shr " << op_type << "\n";
       } else {
         if (error) *error = "unsupported assignment operator '" + expr.op + "'";
         return false;
@@ -2363,7 +2363,7 @@ bool EmitUnary(EmitState& st,
   }
   if (!EmitExpr(st, expr.children[0], use_type, error)) return false;
   if (expr.op == "-" && IsNumericType(use_type->name)) {
-    (*st.out) << "  neg." << use_type->name << "\n";
+    (*st.out) << "  neg " << use_type->name << "\n";
     return true;
   }
   if (expr.op == "!" && use_type->name == "bool") {
@@ -2428,11 +2428,11 @@ bool EmitBinary(EmitState& st,
       if (!EmitExpr(st, expr.children[1], &bool_type, error)) return false;
       (*st.out) << "  jmp.false " << short_label << "\n";
       PopStack(st, 1);
-      (*st.out) << "  const.bool 1\n";
+      (*st.out) << "  const bool 1\n";
       PushStack(st, 1);
       (*st.out) << "  jmp " << end_label << "\n";
       (*st.out) << short_label << ":\n";
-      (*st.out) << "  const.bool 0\n";
+      (*st.out) << "  const bool 0\n";
       PushStack(st, 1);
       (*st.out) << end_label << ":\n";
       return true;
@@ -2442,11 +2442,11 @@ bool EmitBinary(EmitState& st,
     if (!EmitExpr(st, expr.children[1], &bool_type, error)) return false;
     (*st.out) << "  jmp.true " << short_label << "\n";
     PopStack(st, 1);
-    (*st.out) << "  const.bool 0\n";
+    (*st.out) << "  const bool 0\n";
     PushStack(st, 1);
     (*st.out) << "  jmp " << end_label << "\n";
     (*st.out) << short_label << ":\n";
-    (*st.out) << "  const.bool 1\n";
+    (*st.out) << "  const bool 1\n";
     PushStack(st, 1);
     (*st.out) << end_label << ":\n";
     return true;
@@ -2479,12 +2479,12 @@ bool EmitBinary(EmitState& st,
       return false;
     }
     const char* cmp = nullptr;
-    if (expr.op == "==") cmp = "cmp.eq.";
-    else if (expr.op == "!=") cmp = "cmp.ne.";
-    else if (expr.op == "<") cmp = "cmp.lt.";
-    else if (expr.op == "<=") cmp = "cmp.le.";
-    else if (expr.op == ">") cmp = "cmp.gt.";
-    else if (expr.op == ">=") cmp = "cmp.ge.";
+    if (expr.op == "==") cmp = "cmp.eq ";
+    else if (expr.op == "!=") cmp = "cmp.ne ";
+    else if (expr.op == "<") cmp = "cmp.lt ";
+    else if (expr.op == "<=") cmp = "cmp.le ";
+    else if (expr.op == ">") cmp = "cmp.gt ";
+    else if (expr.op == ">=") cmp = "cmp.ge ";
     (*st.out) << "  " << cmp << op_type << "\n";
     return true;
   }
@@ -2495,23 +2495,23 @@ bool EmitBinary(EmitState& st,
       return false;
     }
     if (expr.op == "+" ) {
-    (*st.out) << "  add." << op_type << "\n";
+    (*st.out) << "  add " << op_type << "\n";
     return true;
   }
     if (expr.op == "-") {
-      (*st.out) << "  sub." << op_type << "\n";
+      (*st.out) << "  sub " << op_type << "\n";
       return true;
     }
     if (expr.op == "*") {
-      (*st.out) << "  mul." << op_type << "\n";
+      (*st.out) << "  mul " << op_type << "\n";
       return true;
     }
     if (expr.op == "/") {
-      (*st.out) << "  div." << op_type << "\n";
+      (*st.out) << "  div " << op_type << "\n";
       return true;
     }
     if (expr.op == "%" && IsIntegralType(type.name)) {
-      (*st.out) << "  mod." << op_type << "\n";
+      (*st.out) << "  mod " << op_type << "\n";
       return true;
     }
   }
@@ -2522,15 +2522,15 @@ bool EmitBinary(EmitState& st,
       return false;
     }
     if (expr.op == "&") {
-      (*st.out) << "  and." << op_type << "\n";
+      (*st.out) << "  and " << op_type << "\n";
     } else if (expr.op == "|") {
-      (*st.out) << "  or." << op_type << "\n";
+      (*st.out) << "  or " << op_type << "\n";
     } else if (expr.op == "^") {
-      (*st.out) << "  xor." << op_type << "\n";
+      (*st.out) << "  xor " << op_type << "\n";
     } else if (expr.op == "<<") {
-      (*st.out) << "  shl." << op_type << "\n";
+      (*st.out) << "  shl " << op_type << "\n";
     } else if (expr.op == ">>") {
-      (*st.out) << "  shr." << op_type << "\n";
+      (*st.out) << "  shr " << op_type << "\n";
     }
     return true;
   }
@@ -2899,7 +2899,7 @@ bool EmitExpr(EmitState& st,
             if (!EmitExpr(st, base, &ptr_type, error)) return false;
             std::string symbol_name;
             if (!AddStringConst(st, callee.text, &symbol_name)) return false;
-            (*st.out) << "  const.string " << symbol_name << "\n";
+            (*st.out) << "  const string " << symbol_name << "\n";
             PushStack(st, 1);
             (*st.out) << "  call " << sym_import_id << " 2\n";
             PopStack(st, 2);
@@ -2967,7 +2967,7 @@ bool EmitExpr(EmitState& st,
             }
             if (!emit_list_value(base, list_type)) return false;
             if (!emit_list_value(expr.args[0], element_type)) return false;
-            (*st.out) << "  list.push." << op_suffix << "\n";
+            (*st.out) << "  list.push " << op_suffix << "\n";
             PopStack(st, 2);
             return true;
           }
@@ -2982,7 +2982,7 @@ bool EmitExpr(EmitState& st,
               return false;
             }
             if (!emit_list_value(base, list_type)) return false;
-            (*st.out) << "  list.pop." << op_suffix << "\n";
+            (*st.out) << "  list.pop " << op_suffix << "\n";
             PopStack(st, 1);
             PushStack(st, 1);
             return true;
@@ -3001,7 +3001,7 @@ bool EmitExpr(EmitState& st,
             if (!emit_list_value(base, list_type)) return false;
             if (!emit_list_value(expr.args[0], index_type)) return false;
             if (!emit_list_value(expr.args[1], element_type)) return false;
-            (*st.out) << "  list.insert." << op_suffix << "\n";
+            (*st.out) << "  list.insert " << op_suffix << "\n";
             PopStack(st, 3);
             return true;
           }
@@ -3018,7 +3018,7 @@ bool EmitExpr(EmitState& st,
             TypeRef index_type = MakeTypeRef("i32");
             if (!emit_list_value(base, list_type)) return false;
             if (!emit_list_value(expr.args[0], index_type)) return false;
-            (*st.out) << "  list.remove." << op_suffix << "\n";
+            (*st.out) << "  list.remove " << op_suffix << "\n";
             PopStack(st, 2);
             PushStack(st, 1);
             return true;
@@ -3476,21 +3476,21 @@ bool EmitExpr(EmitState& st,
         }
         if (src != dst) {
           if (src == CastVmKind::I32 && dst == CastVmKind::I64) {
-            (*st.out) << "  conv.i32.i64\n";
+            (*st.out) << "  conv i32 i64\n";
           } else if (src == CastVmKind::I64 && dst == CastVmKind::I32) {
-            (*st.out) << "  conv.i64.i32\n";
+            (*st.out) << "  conv i64 i32\n";
           } else if (src == CastVmKind::I32 && dst == CastVmKind::F32) {
-            (*st.out) << "  conv.i32.f32\n";
+            (*st.out) << "  conv i32 f32\n";
           } else if (src == CastVmKind::I32 && dst == CastVmKind::F64) {
-            (*st.out) << "  conv.i32.f64\n";
+            (*st.out) << "  conv i32 f64\n";
           } else if (src == CastVmKind::F32 && dst == CastVmKind::I32) {
-            (*st.out) << "  conv.f32.i32\n";
+            (*st.out) << "  conv f32 i32\n";
           } else if (src == CastVmKind::F64 && dst == CastVmKind::I32) {
-            (*st.out) << "  conv.f64.i32\n";
+            (*st.out) << "  conv f64 i32\n";
           } else if (src == CastVmKind::F32 && dst == CastVmKind::F64) {
-            (*st.out) << "  conv.f32.f64\n";
+            (*st.out) << "  conv f32 f64\n";
           } else if (src == CastVmKind::F64 && dst == CastVmKind::F32) {
-            (*st.out) << "  conv.f64.f32\n";
+            (*st.out) << "  conv f64 f32\n";
           } else {
             if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + cast_target;
             return false;
@@ -3502,15 +3502,15 @@ bool EmitExpr(EmitState& st,
               if (error) *error = "unsupported cast in SIR emission: " + arg_type.name + " -> " + cast_target;
               return false;
             }
-            (*st.out) << "  const.i32 0\n";
+            (*st.out) << "  const i32 0\n";
             PushStack(st, 1);
-            (*st.out) << "  add.i32\n";
+            (*st.out) << "  add i32\n";
             PopStack(st, 2);
             PushStack(st, 1);
           } else if (dst == CastVmKind::I64 && cast_target == "i64" && arg_type.name == "u64") {
-            (*st.out) << "  const.i64 -1\n";
+            (*st.out) << "  const i64 -1\n";
             PushStack(st, 1);
-            (*st.out) << "  and.i64\n";
+            (*st.out) << "  and i64\n";
             PopStack(st, 2);
             PushStack(st, 1);
           }
@@ -3769,13 +3769,13 @@ bool EmitExpr(EmitState& st,
         PushStack(st, 1);
         if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
         if (is_list) {
-          (*st.out) << "  list.push." << op_suffix << "\n";
+          (*st.out) << "  list.push " << op_suffix << "\n";
           PopStack(st, 2);
         } else {
-          (*st.out) << "  const.i32 " << i << "\n";
+          (*st.out) << "  const i32 " << i << "\n";
           PushStack(st, 1);
           (*st.out) << "  swap\n";
-          (*st.out) << "  array.set." << op_suffix << "\n";
+          (*st.out) << "  array.set " << op_suffix << "\n";
           PopStack(st, 3);
         }
       }
@@ -3807,9 +3807,9 @@ bool EmitExpr(EmitState& st,
       index_type.name = "i32";
       if (!EmitExpr(st, expr.children[1], &index_type, error)) return false;
       if (container_type.dims.front().is_list) {
-        (*st.out) << "  list.get." << op_suffix << "\n";
+        (*st.out) << "  list.get " << op_suffix << "\n";
       } else {
-        (*st.out) << "  array.get." << op_suffix << "\n";
+        (*st.out) << "  array.get " << op_suffix << "\n";
       }
       PopStack(st, 2);
       PushStack(st, 1);
@@ -3845,13 +3845,13 @@ bool EmitExpr(EmitState& st,
           PushStack(st, 1);
           if (!EmitExpr(st, expr.children[i], &element_type, error)) return false;
           if (is_list) {
-            (*st.out) << "  list.push." << op_suffix << "\n";
+            (*st.out) << "  list.push " << op_suffix << "\n";
             PopStack(st, 2);
           } else {
-            (*st.out) << "  const.i32 " << i << "\n";
+            (*st.out) << "  const i32 " << i << "\n";
             PushStack(st, 1);
             (*st.out) << "  swap\n";
-            (*st.out) << "  array.set." << op_suffix << "\n";
+            (*st.out) << "  array.set " << op_suffix << "\n";
             PopStack(st, 3);
           }
         }
@@ -4003,12 +4003,12 @@ bool EmitExpr(EmitState& st,
         std::string resolved;
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
             resolved == "Math" && expr.text == "PI") {
-          (*st.out) << "  const.f64 3.141592653589793\n";
+          (*st.out) << "  const f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
             resolved == "DL" && expr.text == "supported") {
-          (*st.out) << "  const.i32 " << (HostHasDl() ? 1 : 0) << "\n";
+          (*st.out) << "  const i32 " << (HostHasDl() ? 1 : 0) << "\n";
           return PushStack(st, 1);
         }
         if (ResolveReservedModuleName(st, base.text, &resolved) &&
@@ -4020,7 +4020,7 @@ bool EmitExpr(EmitState& st,
           else if (expr.text == "is_macos") value = HostIsMacOs();
           else if (expr.text == "is_windows") value = HostIsWindows();
           else if (expr.text == "has_dl") value = HostHasDl();
-          (*st.out) << "  const.i32 " << (value ? 1 : 0) << "\n";
+          (*st.out) << "  const i32 " << (value ? 1 : 0) << "\n";
           return PushStack(st, 1);
         }
         auto enum_it = st.enum_values.find(base.text);
@@ -4030,7 +4030,7 @@ bool EmitExpr(EmitState& st,
             if (error) *error = "unknown enum member '" + expr.text + "'";
             return false;
           }
-          (*st.out) << "  const.i32 " << member_it->second << "\n";
+          (*st.out) << "  const i32 " << member_it->second << "\n";
           return PushStack(st, 1);
         }
         const std::string qualified = base.text + "." + expr.text;
@@ -4080,19 +4080,19 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     return false;
   }
   if (type.is_proc) {
-    (*st.out) << "  const.null\n";
+    (*st.out) << "  const null\n";
     return PushStack(st, 1);
   }
   if (st.artifacts.find(type.name) != st.artifacts.end()) {
-    (*st.out) << "  const.null\n";
+    (*st.out) << "  const null\n";
     return PushStack(st, 1);
   }
   if (st.enum_values.find(type.name) != st.enum_values.end()) {
-    (*st.out) << "  const.i32 0\n";
+    (*st.out) << "  const i32 0\n";
     return PushStack(st, 1);
   }
   if (!type.dims.empty()) {
-    (*st.out) << "  const.null\n";
+    (*st.out) << "  const null\n";
     return PushStack(st, 1);
   }
   if (type.name == "string") {
@@ -4218,9 +4218,9 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
         if (stmt.assign_op != "=") {
           if (!EmitDup2(st)) return false;
           if (container_type.dims.front().is_list) {
-            (*st.out) << "  list.get." << op_suffix << "\n";
+            (*st.out) << "  list.get " << op_suffix << "\n";
           } else {
-            (*st.out) << "  array.get." << op_suffix << "\n";
+            (*st.out) << "  array.get " << op_suffix << "\n";
           }
           PopStack(st, 2);
           PushStack(st, 1);
@@ -4243,42 +4243,42 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
             return false;
           }
           if (std::string(bin_op) == "+") {
-            (*st.out) << "  add." << op_type << "\n";
+            (*st.out) << "  add " << op_type << "\n";
           } else if (std::string(bin_op) == "-") {
-            (*st.out) << "  sub." << op_type << "\n";
+            (*st.out) << "  sub " << op_type << "\n";
           } else if (std::string(bin_op) == "*") {
-            (*st.out) << "  mul." << op_type << "\n";
+            (*st.out) << "  mul " << op_type << "\n";
           } else if (std::string(bin_op) == "/") {
-            (*st.out) << "  div." << op_type << "\n";
+            (*st.out) << "  div " << op_type << "\n";
           } else if (std::string(bin_op) == "%" && IsIntegralType(element_type.name)) {
-            (*st.out) << "  mod." << op_type << "\n";
+            (*st.out) << "  mod " << op_type << "\n";
           } else if (std::string(bin_op) == "&") {
-            (*st.out) << "  and." << op_type << "\n";
+            (*st.out) << "  and " << op_type << "\n";
           } else if (std::string(bin_op) == "|") {
-            (*st.out) << "  or." << op_type << "\n";
+            (*st.out) << "  or " << op_type << "\n";
           } else if (std::string(bin_op) == "^") {
-            (*st.out) << "  xor." << op_type << "\n";
+            (*st.out) << "  xor " << op_type << "\n";
           } else if (std::string(bin_op) == "<<") {
-            (*st.out) << "  shl." << op_type << "\n";
+            (*st.out) << "  shl " << op_type << "\n";
           } else if (std::string(bin_op) == ">>") {
-            (*st.out) << "  shr." << op_type << "\n";
+            (*st.out) << "  shr " << op_type << "\n";
           } else {
             if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
             return false;
           }
           if (container_type.dims.front().is_list) {
-            (*st.out) << "  list.set." << op_suffix << "\n";
+            (*st.out) << "  list.set " << op_suffix << "\n";
           } else {
-            (*st.out) << "  array.set." << op_suffix << "\n";
+            (*st.out) << "  array.set " << op_suffix << "\n";
           }
           PopStack(st, 3);
           return true;
         }
         if (!EmitExpr(st, stmt.expr, &element_type, error)) return false;
         if (container_type.dims.front().is_list) {
-          (*st.out) << "  list.set." << op_suffix << "\n";
+          (*st.out) << "  list.set " << op_suffix << "\n";
         } else {
-          (*st.out) << "  array.set." << op_suffix << "\n";
+          (*st.out) << "  array.set " << op_suffix << "\n";
         }
         PopStack(st, 3);
         return true;
@@ -4340,25 +4340,25 @@ bool EmitStmt(EmitState& st, const Stmt& stmt, std::string* error) {
             return false;
           }
           if (std::string(bin_op) == "+") {
-            (*st.out) << "  add." << op_type << "\n";
+            (*st.out) << "  add " << op_type << "\n";
           } else if (std::string(bin_op) == "-") {
-            (*st.out) << "  sub." << op_type << "\n";
+            (*st.out) << "  sub " << op_type << "\n";
           } else if (std::string(bin_op) == "*") {
-            (*st.out) << "  mul." << op_type << "\n";
+            (*st.out) << "  mul " << op_type << "\n";
           } else if (std::string(bin_op) == "/") {
-            (*st.out) << "  div." << op_type << "\n";
+            (*st.out) << "  div " << op_type << "\n";
           } else if (std::string(bin_op) == "%" && IsIntegralType(field_type.name)) {
-            (*st.out) << "  mod." << op_type << "\n";
+            (*st.out) << "  mod " << op_type << "\n";
           } else if (std::string(bin_op) == "&") {
-            (*st.out) << "  and." << op_type << "\n";
+            (*st.out) << "  and " << op_type << "\n";
           } else if (std::string(bin_op) == "|") {
-            (*st.out) << "  or." << op_type << "\n";
+            (*st.out) << "  or " << op_type << "\n";
           } else if (std::string(bin_op) == "^") {
-            (*st.out) << "  xor." << op_type << "\n";
+            (*st.out) << "  xor " << op_type << "\n";
           } else if (std::string(bin_op) == "<<") {
-            (*st.out) << "  shl." << op_type << "\n";
+            (*st.out) << "  shl " << op_type << "\n";
           } else if (std::string(bin_op) == ">>") {
-            (*st.out) << "  shr." << op_type << "\n";
+            (*st.out) << "  shr " << op_type << "\n";
           } else {
             if (error) *error = "unsupported assignment operator '" + stmt.assign_op + "'";
             return false;
@@ -4582,7 +4582,7 @@ bool EmitFunction(EmitState& st,
   const bool body_returns = Simple::Lang::TAST::AnalyzeBlockFlow(stmt_body).always_returns;
   if (return_is_void || !body_returns) {
     if (!body_returns && (fn.name == "main" || is_entry) && fn.return_type.name == "i32") {
-      (*st.out) << "  const.i32 0\n";
+      (*st.out) << "  const i32 0\n";
       PushStack(st, 1);
     }
     (*st.out) << "  ret\n";
