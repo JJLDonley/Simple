@@ -1,52 +1,39 @@
 # Simple
 
-Simple is a strict, statically typed programming language that compiles `.simple` source to SIR, lowers SIR to SBC bytecode, and executes it on the Simple VM.
+Simple is a statically typed systems-style programming language that compiles to a compact bytecode format and runs on the Simple VM.
 
-The project includes the language front-end, IR/SIR compiler layer, SBC bytecode loader/verifier, VM runtime, optional JIT scaffolding, CLI, tests, and editor/LSP code.
+The project is both a language implementation and a VM/toolchain playground: it includes the parser, resolver, type checker, SIR/IR lowering, SBC bytecode loader/verifier, interpreter runtime, native standard-library bindings, CLI, LSP server, and JIT scaffolding.
 
-## Quick links
+> Status: active development. The language is feature-rich enough for fixtures, runtime tests, imports, native modules, artifacts, lists, arrays, and dynamic-library experiments, but the docs and APIs should still be treated as evolving.
 
-- [Language reference](Docs/Language.md)
-- [VM runtime](Docs/VM.md)
-- [IR / SIR](Docs/IR.md)
-- [SBC bytecode](Docs/Byte.md)
-- [CLI](Docs/CLI.md)
-- [JIT](Docs/JIT.md)
-- [TODO](Docs/TODO.md)
-- [Project standards](Docs/Standards.md)
+## Contents
 
-## Example
+- [Why Simple?](#why-simple)
+- [Quick start](#quick-start)
+- [Hello world](#hello-world)
+- [Language taste](#language-taste)
+- [CLI overview](#cli-overview)
+- [Build outputs](#build-outputs)
+- [Compiler pipeline](#compiler-pipeline)
+- [Repository map](#repository-map)
+- [Tests](#tests)
+- [Documentation](#documentation)
+- [Current focus](#current-focus)
 
-```simple
-import IO
+## Why Simple?
 
-Point :: Artifact {
-  x : i32
-  y : i32
+Simple is designed around a few practical goals:
 
-  sum : i32 () {
-    return self.x + self.y
-  }
-}
+- **Readable typed syntax** with explicit declarations and direct control flow.
+- **Clear compilation stages** from source to IR to bytecode.
+- **A verified bytecode runtime** with defensive loading and verification.
+- **Native runtime modules** for real programs: IO, FS, paths, env, JSON, buffers, channels, random, time, logging, dynamic loading, and more.
+- **Embeddable execution** through generated runtime stubs.
+- **Tooling-first development** with a CLI, LSP server, and a large test suite.
 
-main : i32 () {
-  p : Point = { .x = 3, .y = 4 }
-  IO.println("sum={}", p.sum())
-  return p.sum()
-}
-```
+## Quick start
 
-Key syntax:
-
-- `name : Type` declares a mutable binding.
-- `name :: Type` declares an immutable binding or a top-level kind declaration.
-- `package Name` declares a file/package header for import indexing.
-- `Thing :: Artifact`, `Thing :: Module`, and `Thing :: Enum` define language objects.
-- `skip` is loop-continue.
-- Primitive casts use `@Type(value)`, for example `@i32(x)`.
-- `System.*` is the canonical standard-library namespace; compatibility imports such as `IO`, `Math`, `FS`, and `DL` are supported.
-
-## Build
+Build the compiler/runtime tools:
 
 ```bash
 ./build.sh
@@ -58,37 +45,209 @@ On Windows:
 build.bat
 ```
 
-The root `bin/` directory is intentionally kept small:
-
-```txt
-bin/svm      # compiler/tooling/runtime CLI
-bin/simple   # runtime stub only; not a compiler
-```
-
-The compiler CMake target is still named `simplevm`; the runtime-stub target is `simple_stub`.
-
-## Run programs
+Run a fixture:
 
 ```bash
 ./bin/svm run Tests/simple/hello.simple
-./bin/svm check Tests/simple/point_sum.simple
-./bin/svm emit Tests/simple/hello.simple
 ```
 
-The CLI supports `.simple`, `.sir`, and `.sbc` workflows. See [Docs/CLI.md](Docs/CLI.md).
+Check a source file without running it:
 
-## Test
+```bash
+./bin/svm check Tests/simple/point_sum.simple
+```
+
+Emit bytecode:
+
+```bash
+./bin/svm emit -sbc Tests/simple/hello.simple --out hello.sbc
+```
+
+Run tests:
 
 ```bash
 cmake --build build --target simplevm_tests -j2
 ./build/bin/simplevm_tests
 ```
 
-The test suite covers parser/validator behavior, IR/SBC emission, bytecode loading and verification, VM execution, native runtime modules, CLI behavior, LSP behavior, and JIT tiering/scaffolding.
+## Hello world
 
-## Source map
+```simple
+import IO
 
-Use this as the quick source for finding implementation code:
+main : i32 () {
+  IO.println("hello from Simple")
+  return 0
+}
+```
+
+Run it:
+
+```bash
+./bin/svm run hello.simple
+```
+
+## Language taste
+
+### Declarations and mutability
+
+```simple
+main : i32 () {
+  count : i32 = 1      // mutable
+  limit :: i32 = 10    // immutable
+
+  count += 1
+  return count + limit
+}
+```
+
+### File/package headers
+
+`package` names a file for import indexing. It does not create a runtime namespace.
+
+```simple
+package Tools.Math
+
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+```
+
+Import it from another file:
+
+```simple
+import Tools.Math
+
+main : i32 () {
+  return add(40, 2)
+}
+```
+
+### Artifacts
+
+Artifacts are record-like types with fields and methods.
+
+```simple
+Point :: Artifact {
+  x : i32
+  y : i32
+
+  sum : i32 () {
+    return self.x + self.y
+  }
+}
+
+main : i32 () {
+  p : Point = { .x = 3, .y = 4 }
+  return p.sum()
+}
+```
+
+### Modules
+
+Modules are language namespace objects. They are separate from `package` headers.
+
+```simple
+Math :: Module {
+  two :: i32 = 2
+
+  add : i32 (a : i32, b : i32) {
+    return a + b
+  }
+}
+
+main : i32 () {
+  return Math.add(Math.two, 40)
+}
+```
+
+### Lists, arrays, loops
+
+```simple
+main : i32 () {
+  values : i32[] = [1, 2, 3]
+  values.push(4)
+
+  total : i32 = 0
+  for (i : i32 = 0; i < values.len(); i += 1) {
+    total += values[i]
+  }
+
+  return total
+}
+```
+
+### Casts
+
+Primitive casts use `@Type(value)`:
+
+```simple
+a : i8 = 40
+b : i8 = 2
+return @i32(a) + @i32(b)
+```
+
+### Standard library imports
+
+`System.*` is canonical. Compatibility imports such as `IO`, `Math`, `FS`, `DL`, `Json`, `Buffer`, and `Channel` are also supported.
+
+```simple
+import FS
+import Json
+
+main : i32 () {
+  text : string = FS.readText("data.json")
+  handle : i64 = Json.parse(text)
+  Json.free(handle)
+  return 0
+}
+```
+
+See [Docs/Language.md](Docs/Language.md) for the full language reference.
+
+## CLI overview
+
+`svm` is the compiler/tooling/runtime command:
+
+```bash
+./bin/svm run <file.simple|file.sir|module.sbc>
+./bin/svm check <file.simple|file.sir|module.sbc>
+./bin/svm build <file.simple|file.sir> --out <program|program.sbc>
+./bin/svm compile <file.simple|file.sir> --out <program|program.sbc>
+./bin/svm emit -ir <file.simple> --out <file.sir>
+./bin/svm emit -sbc <file.simple|file.sir> --out <file.sbc>
+./bin/svm lsp
+```
+
+`simple` is not a compiler. It is the runtime-stub executable name used for embedded SBC payloads.
+
+## Build outputs
+
+The root `bin/` directory is intentionally small:
+
+```txt
+bin/svm      compiler/tooling/runtime CLI
+bin/simple   runtime stub only; not a compiler
+```
+
+Build internals, tests, static libraries, and shared libraries live under `build/bin/`.
+
+## Compiler pipeline
+
+```txt
+.simple source
+  -> Lang lexer/parser
+  -> AST / RAST / TAST
+  -> SIR text
+  -> IR lowering
+  -> SBC bytecode
+  -> Byte loader/verifier
+  -> VM interpreter or optional JIT path
+```
+
+The interpreter is the correctness baseline. The JIT is optional scaffolding for tiering and compiled-runner experiments.
+
+## Repository map
 
 | Area | Path | Doc |
 |---|---|---|
@@ -97,39 +256,49 @@ Use this as the quick source for finding implementation code:
 | SBC bytecode | `Byte/` | [Docs/Byte.md](Docs/Byte.md) |
 | VM runtime | `VM/` | [Docs/VM.md](Docs/VM.md) |
 | JIT scaffolding | `VM/include/jit/`, `VM/src/jit/` | [Docs/JIT.md](Docs/JIT.md) |
-| CLI | `CLI/` | [Docs/CLI.md](Docs/CLI.md) |
-| LSP/editor support | `LSP/`, `Editor/` | CLI-integrated; no separate active doc |
-| Tests | `Tests/` | See command above |
+| CLI and build stubs | `CLI/` | [Docs/CLI.md](Docs/CLI.md) |
+| LSP/editor support | `LSP/`, `Editor/` | via `svm lsp` |
+| Tests and fixtures | `Tests/` | see [Tests](#tests) |
 
-## Current status
+## Tests
 
-Implemented today:
+Run the full C++ test binary:
 
-- `.simple` parsing and validation
-- SIR emission and IR/SBC lowering
-- SBC loader/verifier
-- VM interpreter and runtime imports
-- heap objects for strings, arrays, lists, artifacts, closures, and runtime payloads
-- reserved/System standard-library modules
-- dynamic-library interop on supported platforms
-- CLI workflows for run/check/build/compile/emit/lsp
-- optional JIT tiering and compiled-runner scaffolding
-
-Known limits are documented in the relevant subsystem docs, especially [Docs/Language.md](Docs/Language.md), [Docs/VM.md](Docs/VM.md), and [Docs/JIT.md](Docs/JIT.md).
-
-## Documentation policy
-
-The active docs are intentionally small:
-
-```txt
-Docs/TODO.md
-Docs/Language.md
-Docs/VM.md
-Docs/IR.md
-Docs/Byte.md
-Docs/CLI.md
-Docs/JIT.md
-Docs/Standards.md
+```bash
+cmake --build build --target simplevm_tests -j2
+./build/bin/simplevm_tests
 ```
 
-If behavior changes, update the matching doc in the same change.
+The suite covers:
+
+- language parsing, resolution, type checking, mutability, imports, and SIR emission
+- IR lowering and SBC emission
+- bytecode loading and verification
+- VM interpreter behavior and traps
+- heap, GC, native modules, FFI/DL, runtime limits
+- CLI behavior
+- LSP behavior
+- JIT tiering and compiled-runner behavior
+
+## Documentation
+
+Active docs are intentionally small and focused:
+
+- [Docs/Language.md](Docs/Language.md) — language syntax, semantics, imports, stdlib surface
+- [Docs/VM.md](Docs/VM.md) — runtime, heap, imports, ABI, execution model
+- [Docs/IR.md](Docs/IR.md) — SIR/IR contract
+- [Docs/Byte.md](Docs/Byte.md) — SBC bytecode, loader, verifier
+- [Docs/CLI.md](Docs/CLI.md) — `svm` and `simple` behavior
+- [Docs/JIT.md](Docs/JIT.md) — optional JIT/tiering behavior
+- [Docs/TODO.md](Docs/TODO.md) — active work list
+- [Docs/Standards.md](Docs/Standards.md) — coding standards
+
+## Current focus
+
+Current cleanup/refactor focus is tracked in [Docs/TODO.md](Docs/TODO.md). Major themes include:
+
+- keeping docs accurate and consolidated
+- reducing monolithic test/source files
+- keeping VM and language phase boundaries clean
+- making `svm` the single compiler/tooling entry point
+- keeping `simple` as a real runtime stub, not a compiler alias
