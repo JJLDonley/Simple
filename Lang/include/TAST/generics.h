@@ -28,6 +28,10 @@ bool BuildArtifactTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
                                const Simple::Lang::AST::ArtifactDecl* artifact,
                                GenericSubstitutionMap* out,
                                std::string* error);
+bool BuildExplicitTypeArgMap(const std::vector<std::string>& type_params,
+                             const std::vector<Simple::Lang::AST::TypeRef>& explicit_args,
+                             GenericSubstitutionMap* out,
+                             std::string* error);
 bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
                      const Simple::Lang::AST::TypeRef& arg,
                      const std::unordered_set<std::string>& type_params,

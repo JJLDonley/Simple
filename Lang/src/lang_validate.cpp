@@ -120,6 +120,7 @@ using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::AddLocal;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
+using TAST::BuildExplicitTypeArgMap;
 using TAST::CheckCompoundAssignOp;
 using TAST::CheckConditionType;
 using TAST::CheckDlDynamicSignature;
@@ -2057,11 +2058,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
   if (!info.type_params.empty()) {
     std::unordered_set<std::string> type_param_set(info.type_params.begin(), info.type_params.end());
     if (!call_expr.type_args.empty()) {
-      for (size_t i = 0; i < info.type_params.size(); ++i) {
-        TypeRef copy;
-        if (!CloneTypeRef(call_expr.type_args[i], &copy)) return false;
-        mapping[info.type_params[i]] = std::move(copy);
-      }
+      if (!BuildExplicitTypeArgMap(info.type_params, call_expr.type_args, &mapping, error)) return false;
     } else {
       if (!InferTypeArgsFromCall(info.params, call_expr.args, type_param_set,
                                  ctx, scopes, current_artifact, &mapping)) {

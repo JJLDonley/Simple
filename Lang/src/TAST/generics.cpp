@@ -97,6 +97,27 @@ bool BuildArtifactTypeParamMap(const Simple::Lang::AST::TypeRef& instance_type,
   return true;
 }
 
+bool BuildExplicitTypeArgMap(const std::vector<std::string>& type_params,
+                             const std::vector<Simple::Lang::AST::TypeRef>& explicit_args,
+                             GenericSubstitutionMap* out,
+                             std::string* error) {
+  if (!out) return false;
+  out->clear();
+  if (type_params.size() != explicit_args.size()) {
+    if (error) {
+      *error = "generic type argument count mismatch: expected " +
+               std::to_string(type_params.size()) + ", got " + std::to_string(explicit_args.size());
+    }
+    return false;
+  }
+  for (size_t i = 0; i < type_params.size(); ++i) {
+    Simple::Lang::AST::TypeRef copy;
+    if (!CloneTypeRef(explicit_args[i], &copy)) return false;
+    (*out)[type_params[i]] = std::move(copy);
+  }
+  return true;
+}
+
 bool UnifyTypeParams(const Simple::Lang::AST::TypeRef& param,
                      const Simple::Lang::AST::TypeRef& arg,
                      const std::unordered_set<std::string>& type_params,

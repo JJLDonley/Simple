@@ -495,6 +495,13 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
   std::string error;
   if (!Simple::Lang::TAST::BuildArtifactTypeParamMap(instance, &artifact, &map, &error)) return false;
   if (map.size() != 1 || map["T"].name != "i32") return false;
+  std::vector<std::string> explicit_params = {"T"};
+  std::vector<Simple::Lang::AST::TypeRef> explicit_args = {replacement};
+  if (!Simple::Lang::TAST::BuildExplicitTypeArgMap(explicit_params, explicit_args, &map, &error)) return false;
+  if (map.size() != 1 || map["T"].name != "i32") return false;
+  explicit_args.push_back(replacement);
+  if (Simple::Lang::TAST::BuildExplicitTypeArgMap(explicit_params, explicit_args, &map, &error)) return false;
+  if (error.find("generic type argument count mismatch") == std::string::npos) return false;
 
   Simple::Lang::AST::TypeRef generic_param;
   generic_param.name = "T";
