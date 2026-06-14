@@ -89,6 +89,176 @@ Status values:
 
 `<T>` means a typed instruction family over the relevant scalar/reference payload set instead of listing every scalar spelling inline. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
 
+## Formal SIR grammar
+
+SIR is a line-oriented textual IR. Whitespace separates tokens except inside quoted strings. `;` and `#` start comments outside strings.
+
+```ebnf
+module        = { section | function | entry | blank | comment } ;
+section       = types | sigs | consts | imports | globals ;
+types         = "types:" { type-row | field-row } ;
+sigs          = "sigs:" { sig-row } ;
+consts        = "consts:" { const-row } ;
+imports       = "imports:" { import-row | intrinsic-row | syscall-row } ;
+globals       = "globals:" { global-row } ;
+function      = func-header { label | instruction } [ "end" ] ;
+entry         = "entry" symbol ;
+label         = label-name ":" ;
+instruction   = mnemonic { operand } ;
+comment       = (";" | "#") { any-char } ;
+blank         = { whitespace } ;
+```
+
+## Section syntax
+
+| Status | Section | Syntax | Meaning | SBC target |
+|:---:|---|---|---|---|
+| ✅ | types | `type <name> kind=<kind> size=<bytes>` | Defines a type row. | `TypeRow` |
+| ✅ | types | `field <name> <type> offset=<bytes>` | Adds a field to the preceding type. | `FieldRow` |
+| ✅ | sigs | `sig <name>: (<param>, ...) -> <ret>` | Defines a callable signature. | `SigRow` plus param type list |
+| ✅ | consts | `const <name> <kind> <value>` | Defines a constant-pool value. | const pool |
+| ✅ | imports | `import <name> <module> <symbol> sig=<sig> [flags=<u32>]` | Defines an external import. | `ImportRow` plus method row |
+| ✅ | imports | `intrinsic <name> [=] <id>` | Defines an intrinsic id alias. | import metadata / intrinsic id |
+| ✅ | imports | `syscall <name> [=] <id>` | Defines a syscall id alias. | import metadata / syscall id |
+| ✅ | globals | `global <name> <type> [init=<const>]` | Defines a typed global. | `GlobalRow` |
+| ✅ | function | `func <name> locals=<u16> stack=<u32> [sig=<sig>]` | Starts a function body. | `MethodRow`, `FunctionRow`, code |
+| ☐ | function | `local <name> <type> <slot>` | Planned named/typed local slot declaration. | function-local metadata |
+| ☐ | function | `upvalue <name> <type> <slot>` | Planned named/typed upvalue slot declaration. | function-upvalue metadata |
+| ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
+| ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
+| ☐ | module | `sir version <major>.<minor>` | Planned explicit SIR version directive. | SBC version/metadata |
+| ☐ | module | `module <name>` | Planned package/module identity. | module metadata |
+| ☐ | exports | `export <symbol> <func> [flags=<u32>]` | Planned explicit exports. | `ExportRow` |
+| ☐ | debug | `file`, `line`, `span`, `symbol` rows | Planned source-map/debug rows. | debug section |
+
+## Type syntax and SBC type codes
+
+Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned typed-IR surface unless listed as implemented by the current lowerer.
+
+| Status | SIR type syntax | SBC kind/code | Size | Notes |
+|:---:|---|---:|---:|---|
+| ✅ | `i32` | `I32` / `1` | 4 | signed integer |
+| ✅ | `i64` | `I64` / `2` | 8 | signed integer |
+| ✅ | `f32` | `F32` / `3` | 4 | IEEE-754 binary32 |
+| ✅ | `f64` | `F64` / `4` | 8 | IEEE-754 binary64 |
+| ✅ | `ref` | `Ref` / `5` | word | heap reference |
+| ✅ | `i8` | `I8` / `6` | 1 | signed integer |
+| ✅ | `i16` | `I16` / `7` | 2 | signed integer |
+| ✅ | `i128` | `I128` / `8` | 16 | currently represented through metadata/runtime support where available |
+| ✅ | `u8` | `U8` / `9` | 1 | unsigned integer |
+| ✅ | `u16` | `U16` / `10` | 2 | unsigned integer |
+| ✅ | `u32` | `U32` / `11` | 4 | unsigned integer |
+| ✅ | `u64` | `U64` / `12` | 8 | unsigned integer |
+| ✅ | `u128` | `U128` / `13` | 16 | currently represented through metadata/runtime support where available |
+| ✅ | `bool` | `Bool` / `14` | 1 | boolean |
+| ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
+| ✅ | `string` | `String` / `16` | ref | string reference |
+| ✅ | object type name | `Ref` or object row kind | declared | resolved by `types:` rows |
+| ☐ | `void` | TBD | 0 | planned no-result signature spelling |
+| ☐ | `never` | TBD | 0 | planned non-returning control-flow type |
+| ☐ | `ptr<T>` | TBD | word | planned typed pointer |
+| ☐ | `array<T>` | TBD | ref | planned first-class aggregate type syntax |
+| ☐ | `list<T>` | TBD | ref | planned first-class aggregate type syntax |
+| ☐ | `fn<sig>` | TBD | ref | planned typed function/closure ref |
+| ☐ | `result<T,E>` | TBD | ref/value | planned result type |
+| ☐ | `option<T>` | TBD | ref/value | planned optional type |
+| ☐ | `vec<T,N>` | TBD | vector | planned SIMD/vector type |
+
+## Operand and literal grammar
+
+| Status | Operand | Syntax | Accepted forms | Notes |
+|:---:|---|---|---|---|
+| ✅ | unsigned integer | `<uN>` | decimal or `0x` via C++ integer parser | bounds checked per opcode |
+| ✅ | signed integer | `<iN>` | decimal or `0x`, optional `-` | bounds checked per opcode |
+| ✅ | float | `<fN>` | C++ floating parser syntax | used by `const.f32`, `const.f64` |
+| ✅ | boolean | `<bool>` | `0`, `1`, `true`, `false` where accepted | current const lowering accepts numeric bool |
+| ✅ | string | `"..."` or `'...'` | supports `\n`, `\r`, `\t`, `\xNN`, quotes, slash | const section only |
+| ✅ | symbol | `[A-Za-z_][A-Za-z0-9_]*` | names for labels, sigs, funcs, locals, globals | parser validates labels/signature names |
+| ✅ | slot | `<u32>` or `<name>` | index or previously named local/global/upvalue | name resolution is section/function scoped |
+| ✅ | label | `<symbol>` | function-local label | lowered to relative branch fixup |
+| ✅ | type ref | `<u32>` or `<name>` | numeric type id or type name | checked during lowering |
+| ✅ | sig ref | `<u32>` or `<name>` | numeric sig id or sig name | checked during lowering |
+| ✅ | const ref | `<u32>` or `<name>` | numeric const offset/id or const name | checked during lowering |
+| ☐ | typed immediate | `<T>:<value>` | planned explicit literal typing | avoids opcode suffix ambiguity |
+| ☐ | source span | `<file>:<line>:<col>` | planned debug operand | debug/source mapping |
+
+## Instruction aliases
+
+| Canonical syntax | Alias | Emits |
+|---|---|---|
+| `load.local <slot>` | `ldloc <slot>` | `LoadLocal` |
+| `store.local <slot>` | `stloc <slot>` | `StoreLocal` |
+| `load.global <slot>` | `ldglob <slot>` | `LoadGlobal` |
+| `store.global <slot>` | `stglob <slot>` | `StoreGlobal` |
+| `load.upvalue <slot>` | `ldupv <slot>` | `LoadUpvalue` |
+| `store.upvalue <slot>` | `stupv <slot>` | `StoreUpvalue` |
+| `load.field <field>` | `ldfld <field>` | `LoadField` |
+| `store.field <field>` | `stfld <field>` | `StoreField` |
+
+## Constant-pool contract
+
+| Status | Const kind | SIR syntax | SBC encoding | Notes |
+|:---:|---|---|---|---|
+| ✅ | string | `const <name> string "..."` | kind + payload offset + byte length + bytes | decoded by `ReadConstPoolString` |
+| ✅ | numeric | `const <name> <scalar> <value>` | scalar payload where supported by lowerer | also available as immediate const instructions |
+| ☐ | bytes | `const <name> bytes "..."` | planned length-delimited bytes | pairs with `const.bytes` |
+| ☐ | data | `const <name> data <blob>` | planned typed data blob | pairs with `const.data` / `load.dataref` |
+| ☐ | array literal | `const <name> array<T> [...]` | planned typed aggregate const | may lower to data blob |
+
+## Import ABI contract
+
+| Status | Form | Required metadata | Lowering rule |
+|:---:|---|---|---|
+| ✅ | `import` | module, symbol, signature, flags | creates import row and callable method metadata |
+| ✅ | `intrinsic` | name/id | callable through `intrinsic <id>` instruction |
+| ✅ | `syscall` | name/id | callable through `syscall <id>` instruction |
+| ☐ | `call.import` | import ref, argc, signature | planned explicit import-call instruction |
+| ☐ | `call.native` | native ref, argc, signature | planned explicit native-call instruction |
+
+All import/native calls must be signature checked by lowering and again by bytecode verification where metadata is available.
+
+## Instruction effects and verifier columns
+
+The instruction table below lists syntax and emitted opcode. The robust typed IR contract additionally requires every instruction family to define:
+
+| Field | Meaning |
+|---|---|
+| Inputs | typed stack values consumed by the instruction |
+| Outputs | typed stack values produced by the instruction |
+| Traps | runtime traps possible after verification |
+| Verifier rule | static checks required before emission/execution |
+
+These columns are planned for a later expansion of each instruction-family table; until then, stack effects remain synchronized with `Docs/Byte.md` and bytecode opcode metadata.
+
+## Structured IRB model
+
+Textual SIR is the stable inspection/lowering format. `IRB` is the structured language IR that should eventually own typed lowering before SIR serialization.
+
+| Status | IRB node family | Required fields | Lowers to |
+|:---:|---|---|---|
+| ✅ | module | package/module identity, imports, globals, funcs | SIR sections |
+| ✅ | function | name, signature, locals, blocks/ops | `func` body |
+| ✅ | local/global/import/signature allocation | typed symbol metadata | SIR metadata rows |
+| ✅ | expression op | typed operator, operands, result type | typed SIR op |
+| ✅ | call op | callee, signature, args | `call*` |
+| ✅ | aggregate op | array/list/object operation, payload type | aggregate SIR op |
+| ✅ | control op | labels/branches/return | branch/return SIR op |
+| ☐ | SSA value | id, type, defining op | future middle IR |
+| ☐ | basic block | params, ops, terminator | future typed CFG IR |
+| ☐ | phi/block args | predecessor values | future SSA lowering |
+| ☐ | pass metadata | dominance/liveness/debug | future optimizer input |
+
+## Versioning and diagnostics
+
+| Status | Area | Contract |
+|:---:|---|---|
+| ✅ | current parser | unknown sections/opcodes/types are hard errors |
+| ✅ | current lowering | duplicate labels, unresolved labels, invalid references are hard errors |
+| ☐ | SIR version | planned `sir version <major>.<minor>` directive |
+| ☐ | compatibility | planned explicit syntax/version compatibility policy |
+| ☐ | diagnostic codes | planned stable `E5xxx` IR/lowering diagnostic code table |
+| ☐ | fixtures | planned archived SIR compatibility fixtures |
+
 ## Full instruction syntax and codes
 
 ### Control and frame

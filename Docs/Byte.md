@@ -62,6 +62,100 @@ Methods connect a symbol name/signature to a function body or import. Functions 
 
 Constant-pool strings are decoded through the loader helper `ReadConstPoolString`. String data is length-delimited and must remain inside the owning section.
 
+## Binary section schema
+
+SBC metadata rows are compact little-endian POD-style records defined in `Byte/include/sbc_types.h`. Section table entries identify each section by id, byte offset, byte size, and row count.
+
+| Status | Section id | Name | Row/payload | Purpose |
+|:---:|---:|---|---|---|
+| ✅ | `1` | `Types` | `TypeRow` | type metadata |
+| ✅ | `2` | `Fields` | `FieldRow` | object/artifact field metadata |
+| ✅ | `3` | `Methods` | `MethodRow` | callable method metadata |
+| ✅ | `4` | `Sigs` | `SigRow` plus param type list | function signatures |
+| ✅ | `5` | `ConstPool` | tagged variable payloads | constants and strings |
+| ✅ | `6` | `Globals` | `GlobalRow` | global slots |
+| ✅ | `7` | `Functions` | `FunctionRow` | bytecode ranges and stack limits |
+| ✅ | `8` | `Code` | opcode byte stream | executable instructions |
+| ✅ | `9` | `Debug` | `DebugHeader` + debug rows | source/debug metadata |
+| ✅ | `10` | `Imports` | `ImportRow` | external symbols |
+| ✅ | `11` | `Exports` | `ExportRow` | exported functions |
+| ☐ | TBD | `Module` | module metadata | planned package/module identity |
+| ☐ | TBD | `Data` | typed blob rows | planned immutable data section |
+| ☐ | TBD | `Capabilities` | capability rows | planned sandbox/security metadata |
+
+## Binary type codes
+
+| Status | Code | TypeKind | SIR spelling | Notes |
+|:---:|---:|---|---|---|
+| ✅ | `0` | `Unspecified` | internal | placeholder/invalid default |
+| ✅ | `1` | `I32` | `i32` | signed integer |
+| ✅ | `2` | `I64` | `i64` | signed integer |
+| ✅ | `3` | `F32` | `f32` | IEEE-754 binary32 |
+| ✅ | `4` | `F64` | `f64` | IEEE-754 binary64 |
+| ✅ | `5` | `Ref` | `ref` | heap reference |
+| ✅ | `6` | `I8` | `i8` | signed integer |
+| ✅ | `7` | `I16` | `i16` | signed integer |
+| ✅ | `8` | `I128` | `i128` | signed integer metadata |
+| ✅ | `9` | `U8` | `u8` | unsigned integer |
+| ✅ | `10` | `U16` | `u16` | unsigned integer |
+| ✅ | `11` | `U32` | `u32` | unsigned integer |
+| ✅ | `12` | `U64` | `u64` | unsigned integer |
+| ✅ | `13` | `U128` | `u128` | unsigned integer metadata |
+| ✅ | `14` | `Bool` | `bool` | boolean |
+| ✅ | `15` | `Char` | `char` | current 16-bit char payload |
+| ✅ | `16` | `String` | `string` | string reference |
+| ☐ | TBD | `Void` | `void` | planned no-result signature type |
+| ☐ | TBD | `Never` | `never` | planned non-returning type |
+| ☐ | TBD | `Ptr` | `ptr<T>` | planned typed pointer |
+| ☐ | TBD | `Array` | `array<T>` | planned aggregate metadata |
+| ☐ | TBD | `List` | `list<T>` | planned aggregate metadata |
+| ☐ | TBD | `Function` | `fn<sig>` | planned typed function ref |
+| ☐ | TBD | `Result` | `result<T,E>` | planned tagged result |
+| ☐ | TBD | `Option` | `option<T>` | planned optional value |
+| ☐ | TBD | `Vector` | `vec<T,N>` | planned SIMD/vector type |
+
+## Binary row schemas
+
+| Status | Row | Fields |
+|:---:|---|---|
+| ✅ | `SbcHeader` | `magic`, `version`, `endian`, `flags`, `section_count`, `section_table_offset`, `entry_method_id`, reserved words |
+| ✅ | `SectionEntry` | `id`, `offset`, `size`, `count` |
+| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `size`, `field_start`, `field_count` |
+| ✅ | `FieldRow` | `name_str`, `type_id`, `offset`, `flags` |
+| ✅ | `MethodRow` | `name_str`, `sig_id`, `code_offset`, `local_count`, `flags` |
+| ✅ | `SigRow` | `ret_type_id`, `param_count`, `call_conv`, `param_type_start` |
+| ✅ | `GlobalRow` | `name_str`, `type_id`, `flags`, `init_const_id` |
+| ✅ | `FunctionRow` | `method_id`, `code_offset`, `code_size`, `stack_max` |
+| ✅ | `ImportRow` | `module_name_str`, `symbol_name_str`, `sig_id`, `flags` |
+| ✅ | `ExportRow` | `symbol_name_str`, `func_id`, `flags`, `reserved` |
+| ✅ | `DebugHeader` | `file_count`, `line_count`, `sym_count`, `reserved` |
+| ✅ | `DebugFileRow` | `file_name_str`, `file_hash` |
+| ✅ | `DebugLineRow` | `method_id`, `code_offset`, `file_id`, `line`, `column` |
+| ✅ | `DebugSymRow` | `kind`, `owner_id`, `symbol_id`, `name_str` |
+| ☐ | planned | module/data/capability/type-extension rows |
+
+## SBC constants, imports, and debug contracts
+
+| Status | Area | Binary contract |
+|:---:|---|---|
+| ✅ | const strings | length-delimited bytes inside const pool; loader checks payload bounds |
+| ✅ | numeric constants | encoded as typed payloads where lowering emits const-pool entries |
+| ☐ | bytes/data constants | planned typed blob rows, referenced by `ConstBytes`, `ConstData`, `LoadDataRef` |
+| ✅ | imports | `ImportRow` names module/symbol strings and signature id; method/function metadata marks import callability |
+| ✅ | debug lines | debug section rows map method/code offset to file/line/column |
+| ☐ | source spans | planned span ranges for richer diagnostics/debugger support |
+
+## SBC versioning and diagnostics
+
+| Status | Area | Contract |
+|:---:|---|---|
+| ✅ | magic | `SBC0` / `0x30434253` |
+| ✅ | version | current binary version `0x0001` |
+| ✅ | endian | loader validates header endian marker |
+| ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
+| ☐ | opcode metadata version | planned independent opcode/typed-family compatibility marker |
+| ☐ | diagnostic codes | planned stable byte loader/verifier diagnostic code table |
+
 ## Opcodes
 
 Opcodes are defined in `Byte/include/opcode.h` with metadata in `Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.
