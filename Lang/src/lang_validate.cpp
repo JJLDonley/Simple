@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckPrimitiveCastArgType;
 using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
@@ -3141,19 +3142,7 @@ bool CheckExpr(const Expr& expr,
             if (error && error->empty()) *error = cast_target + " cast expects scalar argument";
             return false;
           }
-          if (arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
-            if (error) *error = cast_target + " cast expects scalar argument";
-            return false;
-          }
-          if (cast_target == "string") {
-            if (!IsNumericTypeName(arg_type.name) && !IsBoolTypeName(arg_type.name)) {
-              if (error) *error = "string cast expects numeric or bool argument";
-              return false;
-            }
-          } else if (IsStringTypeName(arg_type.name) && !(cast_target == "i32" || cast_target == "f64")) {
-            if (error) *error = cast_target + " cast from string is unsupported";
-            return false;
-          }
+          if (!CheckPrimitiveCastArgType(cast_target, arg_type, error)) return false;
         }
       }
       {

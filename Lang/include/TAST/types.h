@@ -35,5 +35,8 @@ bool IsNumericTypeName(const std::string& name);
 bool IsListMethodName(const std::string& name);
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type);
 bool IsLenCompatibleType(const Simple::Lang::AST::TypeRef& type);
+bool CheckPrimitiveCastArgType(const std::string& cast_target,
+                               const Simple::Lang::AST::TypeRef& arg_type,
+                               std::string* error);
 
 } // namespace Simple::Lang::TAST
