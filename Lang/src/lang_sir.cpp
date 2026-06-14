@@ -131,8 +131,8 @@ bool EmitExpr(EmitState& st,
               std::string* error);
 
 bool IsIntegralType(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64";
 }
 
 bool IsIntegerLiteralExpr(const Expr& expr) {
@@ -2638,10 +2638,6 @@ bool EmitExpr(EmitState& st,
       const TypeRef* use_type = expected ? expected : &literal_type;
       if (!IsSupportedType(*use_type) || use_type->name == "void") {
         if (error) *error = "literal type not supported in SIR emission";
-        return false;
-      }
-      if ((use_type->name == "i128" || use_type->name == "u128")) {
-        if (error) *error = "i128/u128 const not supported in SIR";
         return false;
       }
       return EmitConstForType(st, *use_type, expr, error);

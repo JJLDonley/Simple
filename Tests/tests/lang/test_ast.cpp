@@ -223,7 +223,7 @@ bool LangAstNormalizesCallMemberIndexShapes() {
 bool LangAstTypeCoverage() {
   const char* src =
       "a : i8; b : u8; c : i16; d : u16; e : i32; f : u32; g : i64; h : u64; "
-      "i : i128; j : u128; k : f32; l : f64; m : bool; n : char; o : string; "
+      "i : f32; j : f64; k : bool; l : char; m : string; "
       "arr : i32{2}; list : i32[]; grid : i32[][]; "
       "proc : fn i32 (); proc2 :: fn bool (a : i32, b : f64);";
   Simple::Lang::Program program;
@@ -235,10 +235,10 @@ bool LangAstTypeCoverage() {
     vars.emplace(decl.var.name, &decl.var);
   }
   const char* primitives[] = {
-    "i8","u8","i16","u16","i32","u32","i64","u64","i128","u128","f32","f64","bool","char","string"
+    "i8","u8","i16","u16","i32","u32","i64","u64","f32","f64","bool","char","string"
   };
   const char* names[] = {
-    "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o"
+    "a","b","c","d","e","f","g","h","i","j","k","l","m"
   };
   for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
     auto it = vars.find(names[i]);

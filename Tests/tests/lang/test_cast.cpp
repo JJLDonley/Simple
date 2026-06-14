@@ -93,8 +93,6 @@ bool LangParsesTypeLiterals() {
   if (type.name != "i16") return false;
   if (!Simple::Lang::ParseTypeFromString("i64", &type, &error)) return false;
   if (type.name != "i64") return false;
-  if (!Simple::Lang::ParseTypeFromString("i128", &type, &error)) return false;
-  if (type.name != "i128") return false;
   if (!Simple::Lang::ParseTypeFromString("u8", &type, &error)) return false;
   if (type.name != "u8") return false;
   if (!Simple::Lang::ParseTypeFromString("u16", &type, &error)) return false;
@@ -103,8 +101,6 @@ bool LangParsesTypeLiterals() {
   if (type.name != "u32") return false;
   if (!Simple::Lang::ParseTypeFromString("u64", &type, &error)) return false;
   if (type.name != "u64") return false;
-  if (!Simple::Lang::ParseTypeFromString("u128", &type, &error)) return false;
-  if (type.name != "u128") return false;
   if (!Simple::Lang::ParseTypeFromString("f32", &type, &error)) return false;
   if (type.name != "f32") return false;
   if (!Simple::Lang::ParseTypeFromString("f64", &type, &error)) return false;

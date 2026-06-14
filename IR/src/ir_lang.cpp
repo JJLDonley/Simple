@@ -773,12 +773,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   if (!add_builtin("i8", Simple::Byte::TypeKind::I8, 1)) return false;
   if (!add_builtin("i16", Simple::Byte::TypeKind::I16, 2)) return false;
   if (!add_builtin("i64", Simple::Byte::TypeKind::I64, 8)) return false;
-  if (!add_builtin("i128", Simple::Byte::TypeKind::I128, 16)) return false;
   if (!add_builtin("u8", Simple::Byte::TypeKind::U8, 1)) return false;
   if (!add_builtin("u16", Simple::Byte::TypeKind::U16, 2)) return false;
   if (!add_builtin("u32", Simple::Byte::TypeKind::U32, 4)) return false;
   if (!add_builtin("u64", Simple::Byte::TypeKind::U64, 8)) return false;
-  if (!add_builtin("u128", Simple::Byte::TypeKind::U128, 16)) return false;
   if (!add_builtin("f32", Simple::Byte::TypeKind::F32, 4)) return false;
   if (!add_builtin("f64", Simple::Byte::TypeKind::F64, 8)) return false;
   if (!add_builtin("bool", Simple::Byte::TypeKind::Bool, 1)) return false;
@@ -796,12 +794,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "i16") { *out_kind = Simple::Byte::TypeKind::I16; return true; }
     if (kind == "i32") { *out_kind = Simple::Byte::TypeKind::I32; return true; }
     if (kind == "i64") { *out_kind = Simple::Byte::TypeKind::I64; return true; }
-    if (kind == "i128") { *out_kind = Simple::Byte::TypeKind::I128; return true; }
     if (kind == "u8") { *out_kind = Simple::Byte::TypeKind::U8; return true; }
     if (kind == "u16") { *out_kind = Simple::Byte::TypeKind::U16; return true; }
     if (kind == "u32") { *out_kind = Simple::Byte::TypeKind::U32; return true; }
     if (kind == "u64") { *out_kind = Simple::Byte::TypeKind::U64; return true; }
-    if (kind == "u128") { *out_kind = Simple::Byte::TypeKind::U128; return true; }
     if (kind == "f32") { *out_kind = Simple::Byte::TypeKind::F32; return true; }
     if (kind == "f64") { *out_kind = Simple::Byte::TypeKind::F64; return true; }
     if (kind == "bool") { *out_kind = Simple::Byte::TypeKind::Bool; return true; }
@@ -836,9 +832,6 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       case Simple::Byte::TypeKind::U64:
       case Simple::Byte::TypeKind::F64:
         return 8;
-      case Simple::Byte::TypeKind::I128:
-      case Simple::Byte::TypeKind::U128:
-        return 16;
       case Simple::Byte::TypeKind::Ref:
       case Simple::Byte::TypeKind::String:
         return 4;
@@ -885,11 +878,6 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
          kind == Simple::Byte::TypeKind::F64) &&
         size != 8) {
       if (error) *error = "type size mismatch for 64-bit: " + type.name;
-      return false;
-    }
-    if ((kind == Simple::Byte::TypeKind::I128 || kind == Simple::Byte::TypeKind::U128) &&
-        size != 16) {
-      if (error) *error = "type size mismatch for 128-bit: " + type.name;
       return false;
     }
     if ((kind == Simple::Byte::TypeKind::Ref || kind == Simple::Byte::TypeKind::String) &&

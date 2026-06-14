@@ -103,8 +103,8 @@ enum class TypeUse : uint8_t {
 };
 
 const std::unordered_set<std::string> kPrimitiveTypes = {
-  "i8", "i16", "i32", "i64", "i128",
-  "u8", "u16", "u32", "u64", "u128",
+  "i8", "i16", "i32", "i64",
+  "u8", "u16", "u32", "u64",
   "f32", "f64",
   "bool", "char", "string",
 };
@@ -1226,8 +1226,8 @@ bool IsFloatLiteralExpr(const Expr& expr) {
 }
 
 bool IsIntegerScalarTypeName(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128";
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64";
 }
 
 bool IsFloatScalarTypeName(const std::string& name) {
@@ -3427,8 +3427,8 @@ bool CheckStmt(const Stmt& stmt,
 }
 
 bool IsIntegerTypeName(const std::string& name) {
-  return name == "i8" || name == "i16" || name == "i32" || name == "i64" || name == "i128" ||
-         name == "u8" || name == "u16" || name == "u32" || name == "u64" || name == "u128" ||
+  return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
+         name == "u8" || name == "u16" || name == "u32" || name == "u64" ||
          name == "char";
 }
 

@@ -1930,8 +1930,8 @@ bool IsOperatorToken(Simple::Lang::TokenKind kind) {
 
 bool IsPrimitiveTypeName(const std::string& name) {
   static const std::unordered_map<std::string, int> kTypeNames = {
-      {"i8", 1},   {"i16", 1},  {"i32", 1},  {"i64", 1},  {"i128", 1},
-      {"u8", 1},   {"u16", 1},  {"u32", 1},  {"u64", 1},  {"u128", 1},
+      {"i8", 1},   {"i16", 1},  {"i32", 1},  {"i64", 1},
+      {"u8", 1},   {"u16", 1},  {"u32", 1},  {"u64", 1},
       {"f32", 1},  {"f64", 1},  {"bool", 1}, {"char", 1}, {"string", 1},
       {"void", 1},
   };
