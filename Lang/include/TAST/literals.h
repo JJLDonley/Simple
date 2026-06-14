@@ -18,6 +18,8 @@ bool CheckFormatPlaceholderCount(const std::string& fmt,
 bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
                                          size_t field_count,
                                          std::string* error);
+bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
+                                              std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

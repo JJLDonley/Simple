@@ -127,6 +127,7 @@ using TAST::CheckCallTypeArgCount;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
+using TAST::CheckArtifactLiteralDuplicateNamedFields;
 using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
@@ -2156,13 +2157,9 @@ bool ValidateArtifactLiteral(const Expr& expr,
   if (!artifact) return true;
   const size_t field_count = artifact->fields.size();
   if (!CheckArtifactLiteralPositionalCount(expr, field_count, error)) return false;
+  if (!CheckArtifactLiteralDuplicateNamedFields(expr, error)) return false;
   std::unordered_set<std::string> seen;
-  for (const auto& name : expr.field_names) {
-    if (!seen.insert(name).second) {
-      if (error) *error = "duplicate named field in artifact literal: " + name;
-      return false;
-    }
-  }
+  for (const auto& name : expr.field_names) seen.insert(name);
   for (size_t i = 0; i < expr.children.size(); ++i) {
     if (i >= field_count) break;
     const auto& field = artifact->fields[i];

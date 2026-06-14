@@ -2,6 +2,8 @@
 
 #include "TAST/types.h"
 
+#include <unordered_set>
+
 namespace Simple::Lang::TAST {
 
 bool CountFormatPlaceholders(const std::string& fmt,
@@ -49,6 +51,18 @@ bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
   if (expr.children.size() > field_count) {
     if (error) *error = "too many positional values in artifact literal";
     return false;
+  }
+  return true;
+}
+
+bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
+                                              std::string* error) {
+  std::unordered_set<std::string> seen;
+  for (const auto& name : expr.field_names) {
+    if (!seen.insert(name).second) {
+      if (error) *error = "duplicate named field in artifact literal: " + name;
+      return false;
+    }
   }
   return true;
 }

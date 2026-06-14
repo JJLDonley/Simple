@@ -448,7 +448,14 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   artifact_values.children.resize(2);
   if (!Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 2, &shape_error)) return false;
   if (Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 1, &shape_error)) return false;
-  return shape_error.find("too many positional values in artifact literal") != std::string::npos;
+  if (shape_error.find("too many positional values in artifact literal") == std::string::npos) return false;
+  Simple::Lang::AST::Expr duplicate_fields;
+  duplicate_fields.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
+  duplicate_fields.field_names = {"x", "x"};
+  if (Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
+  if (shape_error.find("duplicate named field in artifact literal: x") == std::string::npos) return false;
+  duplicate_fields.field_names = {"x", "y"};
+  return Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error);
 }
 
 bool LangTastLiteralTypingUsesExpectedType() {
