@@ -48,6 +48,21 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
+bool VmJitFailureUsesNamedOperandHelpers() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const size_t jit_fail = text.find("auto jit_fail = [");
+  if (jit_fail == std::string::npos) return false;
+  const size_t loop = text.find("while (pc < end_pc)", jit_fail);
+  if (loop == std::string::npos) return false;
+  const std::string body = text.substr(jit_fail, loop - jit_fail);
+  return body.find("auto read_u32 = [") == std::string::npos &&
+         body.find("auto read_i32 = [") == std::string::npos &&
+         body.find("ReadU32Operand(module.code") != std::string::npos &&
+         body.find("ReadI32Operand(module.code") != std::string::npos;
+}
+
 bool VmTrapFormattingUsesNamedHelpers() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
@@ -140,6 +155,7 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
+  {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_uses_named_helpers", VmTrapFormattingUsesNamedHelpers},
   {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
