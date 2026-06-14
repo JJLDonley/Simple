@@ -17,6 +17,28 @@ const std::unordered_set<std::string> kPrimitiveTypes = {
 
 } // namespace
 
+Simple::Lang::AST::TypeRef MakeSimpleType(const std::string& name) {
+  Simple::Lang::AST::TypeRef out;
+  out.name = name;
+  out.pointer_depth = 0;
+  out.type_args.clear();
+  out.dims.clear();
+  out.is_proc = false;
+  out.proc_params.clear();
+  out.proc_return.reset();
+  return out;
+}
+
+Simple::Lang::AST::TypeRef MakeListType(const std::string& name) {
+  Simple::Lang::AST::TypeRef out = MakeSimpleType(name);
+  Simple::Lang::AST::TypeDim dim;
+  dim.is_list = true;
+  dim.has_size = false;
+  dim.size = 0;
+  out.dims.push_back(dim);
+  return out;
+}
+
 bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
                   Simple::Lang::AST::TypeRef* out) {
   if (!out) return false;
@@ -58,6 +80,15 @@ bool CloneTypeVector(const std::vector<Simple::Lang::AST::TypeRef>& src,
     if (!CloneTypeRef(item, &copy)) return false;
     out->push_back(std::move(copy));
   }
+  return true;
+}
+
+bool CloneElementType(const Simple::Lang::AST::TypeRef& container,
+                      Simple::Lang::AST::TypeRef* out) {
+  if (!out) return false;
+  if (container.dims.empty()) return false;
+  if (!CloneTypeRef(container, out)) return false;
+  out->dims.erase(out->dims.begin());
   return true;
 }
 

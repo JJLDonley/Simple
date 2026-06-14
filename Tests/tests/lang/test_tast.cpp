@@ -22,6 +22,17 @@ namespace Simple::VM::Tests {
 namespace {
 
 bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
+  const Simple::Lang::AST::TypeRef simple_i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  if (simple_i32.name != "i32" || simple_i32.pointer_depth != 0 || simple_i32.is_proc || !simple_i32.dims.empty()) {
+    return false;
+  }
+  const Simple::Lang::AST::TypeRef list_i32 = Simple::Lang::TAST::MakeListType("i32");
+  if (list_i32.name != "i32" || list_i32.dims.size() != 1 || !list_i32.dims[0].is_list) return false;
+  Simple::Lang::AST::TypeRef list_element;
+  if (!Simple::Lang::TAST::CloneElementType(list_i32, &list_element)) return false;
+  if (list_element.name != "i32" || !list_element.dims.empty()) return false;
+  if (Simple::Lang::TAST::CloneElementType(simple_i32, &list_element)) return false;
+
   Simple::Lang::AST::TypeRef proc;
   proc.is_proc = true;
   proc.proc_return = std::make_unique<Simple::Lang::AST::TypeRef>();

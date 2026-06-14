@@ -7,10 +7,14 @@
 
 namespace Simple::Lang::TAST {
 
+Simple::Lang::AST::TypeRef MakeSimpleType(const std::string& name);
+Simple::Lang::AST::TypeRef MakeListType(const std::string& name);
 bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
                   Simple::Lang::AST::TypeRef* out);
 bool CloneTypeVector(const std::vector<Simple::Lang::AST::TypeRef>& src,
                      std::vector<Simple::Lang::AST::TypeRef>* out);
+bool CloneElementType(const Simple::Lang::AST::TypeRef& container,
+                      Simple::Lang::AST::TypeRef* out);
 bool TypeDimsEqual(const std::vector<Simple::Lang::AST::TypeDim>& a,
                    const std::vector<Simple::Lang::AST::TypeDim>& b);
 bool TypeArgsEqual(const std::vector<Simple::Lang::AST::TypeRef>& a,

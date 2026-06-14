@@ -116,6 +116,7 @@ using TAST::CheckCompoundAssignOp;
 using TAST::CheckFunctionCallArgs;
 using TAST::CheckProcTypeArgs;
 using TAST::CountFormatPlaceholders;
+using TAST::CloneElementType;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
@@ -133,6 +134,8 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
+using TAST::MakeListType;
+using TAST::MakeSimpleType;
 using TAST::RequireScalar;
 using TAST::SubstituteTypeParams;
 using TAST::TypeDimsEqual;
@@ -461,36 +464,6 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
     }
     return false;
   }
-  return true;
-}
-
-TypeRef MakeSimpleType(const std::string& name) {
-  TypeRef out;
-  out.name = name;
-  out.pointer_depth = 0;
-  out.type_args.clear();
-  out.dims.clear();
-  out.is_proc = false;
-  out.proc_params.clear();
-  out.proc_return.reset();
-  return out;
-}
-
-TypeRef MakeListType(const std::string& name) {
-  TypeRef out = MakeSimpleType(name);
-  TypeDim dim;
-  dim.is_list = true;
-  dim.has_size = false;
-  dim.size = 0;
-  out.dims.push_back(dim);
-  return out;
-}
-
-bool CloneElementType(const TypeRef& container, TypeRef* out) {
-  if (!out) return false;
-  if (container.dims.empty()) return false;
-  if (!CloneTypeRef(container, out)) return false;
-  out->dims.erase(out->dims.begin());
   return true;
 }
 
