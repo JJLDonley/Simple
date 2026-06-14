@@ -24,7 +24,7 @@
 #include "TAST/types.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
-#include "lang_lexer.h"
+#include "Lexer/lexer.h"
 #include "ir_lang.h"
 #include "ir_compiler.h"
 #include "simple_runner.h"

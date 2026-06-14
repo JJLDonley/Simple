@@ -15,10 +15,10 @@
 #include <utility>
 #include <iostream>
 
-#include "lang_lexer.h"
+#include "Lexer/lexer.h"
 #include "CAST/parser.h"
 #include "lang_reserved.h"
-#include "lang_token.h"
+#include "Lexer/token.h"
 #include "TAST/type_checker.h"
 
 namespace Simple::LSP {

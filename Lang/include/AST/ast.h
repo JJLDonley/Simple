@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "lang_token.h"
+#include "Lexer/token.h"
 
 namespace Simple::Lang {
 

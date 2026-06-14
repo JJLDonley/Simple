@@ -320,7 +320,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 ## Lang Architecture
 
 - [ ] Replace facade-only Lang split with real implementation modules:
-  - [ ] `Lexer`
+  - [x] `Lexer`
   - [x] `CAST`
   - [ ] `AST`
   - [ ] `RAST`
