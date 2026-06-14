@@ -66,9 +66,11 @@ Constant-pool strings are decoded through the loader helper `ReadConstPoolString
 
 Opcodes are defined in `Byte/include/opcode.h` with metadata in `Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.
 
-The tables below are the full opcode plan grouped by related operation family. Implemented rows have assigned byte values from `OpCode`; incomplete rows reserve scalar operations in the public plan but still need opcode values, verifier metadata, emitter support, and VM dispatch.
+The tables below are the full robust typed opcode plan grouped by operation family. Implemented rows have assigned byte values from `OpCode`; incomplete rows reserve typed operations in the public plan but still need opcode values, verifier metadata, emitter support, and VM dispatch.
 
 `Operands` is the number of immediate bytes following the opcode byte. `Pops` and `Pushes` are the static stack-effect metadata used by the verifier; call-family opcodes carry dynamic arity in their operands/signatures, so their static stack effect is recorded as `0/0`.
+
+`<T>` means a typed opcode family over the relevant scalar/reference payload set instead of listing every scalar spelling. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
 
 ### Control and frame
 
@@ -100,9 +102,9 @@ Operand-stack manipulation.
 | ✅ | `0x13` | `Swap` | 0 | 2 | 2 |
 | ✅ | `0x14` | `Rot` | 0 | 3 | 3 |
 
-### Constants
+### Constants and data
 
-Immediate constants and constant-pool references.
+Immediate constants, constant-pool references, and planned typed data/blob constants.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -122,10 +124,13 @@ Immediate constants and constant-pool references.
 | ✅ | `0x25` | `ConstChar` | 2 | 0 | 1 |
 | ✅ | `0x26` | `ConstString` | 4 | 0 | 1 |
 | ✅ | `0x27` | `ConstNull` | 0 | 0 | 1 |
+| ☐ | `TBD` | `ConstBytes` | 4 | 0 | 1 |
+| ☐ | `TBD` | `ConstData` | 4 | 0 | 1 |
+| ☐ | `TBD` | `LoadDataRef` | 4 | 0 | 1 |
 
-### Locals, globals, and upvalues
+### Locals, globals, upvalues, and module init
 
-Slot access for function locals, globals, and captured values.
+Slot access plus planned typed module/global initialization operations.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -135,10 +140,13 @@ Slot access for function locals, globals, and captured values.
 | ✅ | `0x33` | `StoreGlobal` | 4 | 1 | 0 |
 | ✅ | `0x34` | `LoadUpvalue` | 4 | 0 | 1 |
 | ✅ | `0x35` | `StoreUpvalue` | 4 | 1 | 0 |
+| ☐ | `TBD` | `InitGlobal` | 4 | 0 | 0 |
+| ☐ | `TBD` | `InitModule` | 4 | 0 | 0 |
+| ☐ | `TBD` | `EnsureModuleInit` | 4 | 0 | 0 |
 
 ### Arithmetic
 
-Binary arithmetic operations. Missing scalar rows are part of the opcode plan but are not assigned opcode values yet.
+Binary arithmetic. `<T>` covers all numeric scalar types: `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64` where the operation is valid.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -170,40 +178,15 @@ Binary arithmetic operations. Missing scalar rows are part of the opcode plan bu
 | ✅ | `0xE8` | `MulU64` | 0 | 2 | 1 |
 | ✅ | `0xE9` | `DivU64` | 0 | 2 | 1 |
 | ✅ | `0xEA` | `ModU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AddU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `SubU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `MulU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `DivU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ModU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Add<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Sub<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Mul<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Div<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Mod<T>` | 0 | 2 | 1 |
 
 ### Increment and decrement
 
-Unary increment/decrement operations.
+Unary increment/decrement. `<T>` covers numeric scalar types where inc/dec is valid.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -227,14 +210,12 @@ Unary increment/decrement operations.
 | ✅ | `0x97` | `DecU8` | 0 | 1 | 1 |
 | ✅ | `0x98` | `IncU16` | 0 | 1 | 1 |
 | ✅ | `0x99` | `DecU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `IncI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `DecI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `IncU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `DecU128` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Inc<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Dec<T>` | 0 | 1 | 1 |
 
 ### Negation
 
-Unary numeric negation operations.
+Unary numeric negation. `<T>` covers signed integer and floating scalar types; unsigned negation remains a policy decision.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -248,12 +229,11 @@ Unary numeric negation operations.
 | ✅ | `0x9D` | `NegU16` | 0 | 1 | 1 |
 | ✅ | `0x9E` | `NegU32` | 0 | 1 | 1 |
 | ✅ | `0x9F` | `NegU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `NegI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `NegU128` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Neg<T>` | 0 | 1 | 1 |
 
 ### Comparisons
 
-Equality and ordering comparisons.
+Equality and ordering comparisons. `<T>` covers all comparable scalar types, plus refs/strings where specified by type metadata.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -293,50 +273,12 @@ Equality and ordering comparisons.
 | ✅ | `0xF4` | `CmpLeU64` | 0 | 2 | 1 |
 | ✅ | `0xF5` | `CmpGtU64` | 0 | 2 | 1 |
 | ✅ | `0xF6` | `CmpGeU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLtChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLeChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGtChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGeChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEqBool` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNeBool` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpEq<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpNe<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpLt<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpLe<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpGt<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CmpGe<T>` | 0 | 2 | 1 |
 
 ### Boolean logic
 
@@ -350,7 +292,7 @@ Boolean logical operations.
 
 ### Bitwise and shifts
 
-Bitwise and shift operations. Unsigned/small/128-bit rows marked incomplete need dedicated opcode values and semantics.
+Bitwise and shift operations. `<T>` covers integer scalar types only.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -364,50 +306,15 @@ Bitwise and shift operations. Unsigned/small/128-bit rows marked incomplete need
 | ✅ | `0xF9` | `XorI32` | 0 | 2 | 1 |
 | ✅ | `0xFA` | `ShlI32` | 0 | 2 | 1 |
 | ✅ | `0xFB` | `ShrI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AndI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `OrI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `XorI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShlI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ShrI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `And<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Or<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Xor<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Shl<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `Shr<T>` | 0 | 2 | 1 |
 
 ### Calls
 
-Direct, indirect, tail, and runtime call-check operations.
+Direct, indirect, tail, import/native, method, and virtual call forms. Typed calls reference signature metadata.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -417,10 +324,12 @@ Direct, indirect, tail, and runtime call-check operations.
 | ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
 | ☐ | `TBD` | `CallImport` | 5 | 0 | 0 |
 | ☐ | `TBD` | `CallNative` | 5 | 0 | 0 |
+| ☐ | `TBD` | `CallMethod` | 5 | 0 | 0 |
+| ☐ | `TBD` | `CallVirtual` | 5 | 0 | 0 |
 
 ### Conversions
 
-Scalar conversion operations.
+Scalar conversions. `<From,To>` covers explicit typed conversion pairs. Checked variants trap on invalid/narrowing overflow.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -432,58 +341,8 @@ Scalar conversion operations.
 | ✅ | `0x7B` | `ConvF64ToI32` | 0 | 1 | 1 |
 | ✅ | `0x7C` | `ConvF32ToF64` | 0 | 1 | 1 |
 | ✅ | `0x7D` | `ConvF64ToF32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI8ToI16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI8ToI32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI8ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI8ToI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI16ToI8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI16ToI32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI16ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI16ToI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI32ToI8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI32ToI16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI32ToI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToI8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToI16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI128ToI8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI128ToI16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI128ToI32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI128ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU8ToU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU8ToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU8ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU8ToU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU16ToU8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU16ToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU16ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU16ToU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToU8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToU8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU128ToU8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU128ToU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU128ToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU128ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI32ToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToI32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToF32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvI64ToF64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToF32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU64ToF64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvF32ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvF64ToI64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvF32ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvF64ToU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvCharToU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ConvU32ToChar` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Conv<From,To>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `CheckedConv<From,To>` | 0 | 1 | 1 |
 
 ### Debug, profiling, native, and system runtime
 
@@ -496,10 +355,14 @@ Line/profile markers plus VM runtime/native escape hatches.
 | ✅ | `0x82` | `ProfileEnd` | 4 | 0 | 0 |
 | ✅ | `0x90` | `Intrinsic` | 4 | 0 | 0 |
 | ✅ | `0x91` | `SysCall` | 4 | 0 | 0 |
+| ☐ | `TBD` | `Span` | 16 | 0 | 0 |
+| ☐ | `TBD` | `TraceEnter` | 4 | 0 | 0 |
+| ☐ | `TBD` | `TraceLeave` | 4 | 0 | 0 |
+| ☐ | `TBD` | `StackTrace` | 0 | 0 | 1 |
 
 ### Objects, closures, refs, and fields
 
-Heap object, closure, reference, and field operations.
+Heap object, closure, reference, field, object lifecycle, and typed reference operations.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -514,10 +377,18 @@ Heap object, closure, reference, and field operations.
 | ☐ | `TBD` | `CaptureLocal` | 4 | 0 | 1 |
 | ☐ | `TBD` | `CaptureRef` | 4 | 0 | 1 |
 | ☐ | `TBD` | `CloseUpvalue` | 4 | 0 | 0 |
+| ☐ | `TBD` | `InitObject` | 4 | 1 | 1 |
+| ☐ | `TBD` | `DropObject` | 0 | 1 | 0 |
+| ☐ | `TBD` | `CloneObject` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ObjectEq` | 0 | 2 | 1 |
+| ☐ | `TBD` | `InstanceOf<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `CastRef<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `CheckedCastRef<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `LoadVTable` | 0 | 1 | 1 |
 
 ### Arrays
 
-Fixed-size array allocation and element access.
+Fixed-size array allocation and element access. `<T>` covers every scalar payload plus `ref`.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -537,42 +408,15 @@ Fixed-size array allocation and element access.
 | ✅ | `0xBD` | `NewArrayRef` | 8 | 0 | 1 |
 | ✅ | `0xBE` | `ArrayGetRef` | 0 | 2 | 1 |
 | ✅ | `0xBF` | `ArraySetRef` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayI8` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetI8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayI16` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetI16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayI128` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetI128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayU8` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetU8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayU16` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetU16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayU32` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetU32` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayU64` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetU64` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayU128` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetU128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayBool` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetBool` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetBool` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArrayChar` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGetChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySetChar` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ArrayCopy` | 0 | 5 | 0 |
-| ☐ | `TBD` | `ArrayFill` | 0 | 3 | 0 |
+| ☐ | `TBD` | `NewArray<T>` | 8 | 0 | 1 |
+| ☐ | `TBD` | `ArrayGet<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `ArraySet<T>` | 0 | 3 | 0 |
+| ☐ | `TBD` | `ArrayCopy<T>` | 0 | 5 | 0 |
+| ☐ | `TBD` | `ArrayFill<T>` | 0 | 3 | 0 |
 
 ### Lists
 
-Growable list allocation and element operations.
+Growable list allocation and element operations. `<T>` covers every scalar payload plus `ref`.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -613,76 +457,13 @@ Growable list allocation and element operations.
 | ✅ | `0xDD` | `ListPopI64` | 0 | 1 | 1 |
 | ✅ | `0xDE` | `ListInsertI64` | 0 | 3 | 0 |
 | ✅ | `0xDF` | `ListRemoveI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListI8` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetI8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushI8` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopI8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertI8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListI16` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetI16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushI16` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopI16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertI16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListI128` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetI128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushI128` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertI128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListU8` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetU8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushU8` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopU8` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertU8` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListU16` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetU16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushU16` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertU16` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListU32` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetU32` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushU32` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopU32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertU32` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListU64` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetU64` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushU64` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertU64` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListU128` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetU128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushU128` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopU128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertU128` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListBool` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetBool` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetBool` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushBool` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopBool` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertBool` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveBool` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewListChar` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGetChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSetChar` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPushChar` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPopChar` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsertChar` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemoveChar` | 0 | 2 | 1 |
+| ☐ | `TBD` | `NewList<T>` | 8 | 0 | 1 |
+| ☐ | `TBD` | `ListGet<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `ListSet<T>` | 0 | 3 | 0 |
+| ☐ | `TBD` | `ListPush<T>` | 0 | 2 | 0 |
+| ☐ | `TBD` | `ListPop<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ListInsert<T>` | 0 | 3 | 0 |
+| ☐ | `TBD` | `ListRemove<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ListReserve` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ListResize` | 0 | 3 | 0 |
 
@@ -705,15 +486,15 @@ String-specific operations.
 
 ### Pointer and memory
 
-Pointer/address operations. These are planned for explicit pointer lowering instead of hiding pointer behavior behind integers or refs.
+Explicit pointer/address and raw memory operations. `<T>` load/store rows are typed by pointee/value type.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
 | ☐ | `TBD` | `AddressOfLocal` | 4 | 0 | 1 |
 | ☐ | `TBD` | `AddressOfGlobal` | 4 | 0 | 1 |
 | ☐ | `TBD` | `AddressOfField` | 4 | 1 | 1 |
-| ☐ | `TBD` | `LoadPtr` | 0 | 1 | 1 |
-| ☐ | `TBD` | `StorePtr` | 0 | 2 | 0 |
+| ☐ | `TBD` | `LoadPtr<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `StorePtr<T>` | 0 | 2 | 0 |
 | ☐ | `TBD` | `PtrAdd` | 0 | 2 | 1 |
 | ☐ | `TBD` | `PtrOffset` | 0 | 2 | 1 |
 | ☐ | `TBD` | `PtrEq` | 0 | 2 | 1 |
@@ -721,97 +502,70 @@ Pointer/address operations. These are planned for explicit pointer lowering inst
 | ☐ | `TBD` | `PtrIsNull` | 0 | 1 | 1 |
 | ☐ | `TBD` | `PtrCheckNull` | 0 | 1 | 1 |
 | ☐ | `TBD` | `PtrCheckBounds` | 0 | 3 | 1 |
+| ☐ | `TBD` | `MemCopy` | 0 | 3 | 0 |
+| ☐ | `TBD` | `MemMove` | 0 | 3 | 0 |
+| ☐ | `TBD` | `MemSet` | 0 | 3 | 0 |
+| ☐ | `TBD` | `MemCompare` | 0 | 3 | 1 |
 
 ### Checked operations
 
-Checked operations trap on overflow, invalid conversion, divide-by-zero, or out-of-bounds conditions instead of relying on unchecked opcode behavior.
+Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeric scalar types valid for the operation.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `CheckedAddI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModI8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModI16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModI128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModU8` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModU16` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModU32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedAddU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSubU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMulU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDivU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedModU128` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedArrayGet` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedArraySet` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedListGet` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedListSet` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedStringGetChar` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedStringSlice` | 0 | TBD | TBD |
-| ☐ | `TBD` | `CheckedConvert` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedAdd<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSub<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMul<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDiv<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMod<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedArrayGet<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedArraySet<T>` | 0 | 3 | 0 |
+| ☐ | `TBD` | `CheckedListGet<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedListSet<T>` | 0 | 3 | 0 |
+| ☐ | `TBD` | `CheckedStringGetChar` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedStringSlice` | 0 | 3 | 1 |
+| ☐ | `TBD` | `CheckedNull` | 0 | 1 | 1 |
+| ☐ | `TBD` | `CheckedBounds` | 0 | 3 | 1 |
 
 ### Enums, variants, and errors
 
-Enum/variant/result/error operations. Plain integer-like enums can continue to lower to scalar ops; these rows reserve richer tagged/payload behavior.
+Enum/variant/result/error operations. Plain integer-like enums may still lower to scalar ops.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
 | ☐ | `TBD` | `EnumTag` | 0 | 1 | 1 |
-| ☐ | `TBD` | `EnumPayload` | 4 | 1 | 1 |
-| ☐ | `TBD` | `EnumMake` | 4 | 1 | 1 |
+| ☐ | `TBD` | `EnumPayload<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `EnumMake<T>` | 4 | 1 | 1 |
 | ☐ | `TBD` | `VariantTag` | 0 | 1 | 1 |
-| ☐ | `TBD` | `VariantPayload` | 4 | 1 | 1 |
-| ☐ | `TBD` | `VariantMake` | 4 | 1 | 1 |
-| ☐ | `TBD` | `ResultOk` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ResultErr` | 0 | 1 | 1 |
+| ☐ | `TBD` | `VariantPayload<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `VariantMake<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `ResultOk<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultErr<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ResultIsOk` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ResultIsErr` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ResultUnwrap` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultUnwrap<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ResultPropagateErr` | 0 | 1 | 1 |
 | ☐ | `TBD` | `Throw` | 0 | 1 | 0 |
 | ☐ | `TBD` | `Catch` | 4 | 0 | 0 |
 | ☐ | `TBD` | `Finally` | 4 | 0 | 0 |
 | ☐ | `TBD` | `Panic` | 0 | 1 | 0 |
 
+### Range and iterators
+
+Typed range/iterator bytecodes for loop lowering when not expanded into scalar loop code.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `RangeNew<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `RangeNewStep<T>` | 0 | 3 | 1 |
+| ☐ | `TBD` | `RangeNext<T>` | 0 | 1 | 2 |
+| ☐ | `TBD` | `IteratorNext<T>` | 0 | 1 | 2 |
+| ☐ | `TBD` | `IteratorHasNext` | 0 | 1 | 1 |
+| ☐ | `TBD` | `IteratorValue<T>` | 0 | 1 | 1 |
+
 ### Concurrency and atomics
 
-Thread/job/channel/atomic bytecodes. These are planned only if concurrency moves below native library calls into VM bytecode.
+Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types when concurrency moves below native library calls.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -819,19 +573,37 @@ Thread/job/channel/atomic bytecodes. These are planned only if concurrency moves
 | ☐ | `TBD` | `Join` | 0 | 1 | 1 |
 | ☐ | `TBD` | `Detach` | 0 | 1 | 0 |
 | ☐ | `TBD` | `Await` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ChannelSend` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ChannelRecv` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ChannelTryRecv` | 0 | 1 | 2 |
-| ☐ | `TBD` | `AtomicLoad` | 0 | 1 | 1 |
-| ☐ | `TBD` | `AtomicStore` | 0 | 2 | 0 |
-| ☐ | `TBD` | `AtomicAdd` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AtomicSub` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AtomicCompareExchange` | 0 | 3 | 1 |
+| ☐ | `TBD` | `Yield` | 0 | 0 | 0 |
+| ☐ | `TBD` | `Resume` | 0 | 1 | 0 |
+| ☐ | `TBD` | `Suspend` | 0 | 0 | 1 |
+| ☐ | `TBD` | `MakeFuture` | 4 | 0 | 1 |
+| ☐ | `TBD` | `PollFuture` | 0 | 1 | 2 |
+| ☐ | `TBD` | `ChannelSend<T>` | 0 | 2 | 0 |
+| ☐ | `TBD` | `ChannelRecv<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ChannelTryRecv<T>` | 0 | 1 | 2 |
+| ☐ | `TBD` | `AtomicLoad<T>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `AtomicStore<T>` | 0 | 2 | 0 |
+| ☐ | `TBD` | `AtomicAdd<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `AtomicSub<T>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `AtomicCompareExchange<T>` | 0 | 3 | 1 |
 | ☐ | `TBD` | `Fence` | 0 | 0 | 0 |
+
+### Locks and monitors
+
+Monitor/lock operations for VM-managed synchronization if needed.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `Lock` | 0 | 1 | 0 |
+| ☐ | `TBD` | `Unlock` | 0 | 1 | 0 |
+| ☐ | `TBD` | `TryLock` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Wait` | 0 | 1 | 0 |
+| ☐ | `TBD` | `Notify` | 0 | 1 | 0 |
+| ☐ | `TBD` | `NotifyAll` | 0 | 1 | 0 |
 
 ### GC and runtime barriers
 
-GC/runtime coordination opcodes. The current VM can perform safepoints and tracing without explicit opcodes, but these rows reserve bytecode-level barriers if needed.
+GC/runtime coordination opcodes. The current VM can perform safepoints and tracing without explicit opcodes, but these reserve bytecode-level barriers if needed.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -843,31 +615,46 @@ GC/runtime coordination opcodes. The current VM can perform safepoints and traci
 | ☐ | `TBD` | `UnpinRef` | 0 | 1 | 0 |
 | ☐ | `TBD` | `KeepAlive` | 0 | 1 | 0 |
 
-### Debug and introspection
+### JIT and deoptimization
 
-Richer debug/introspection opcodes beyond the current `Line` marker and metadata tables.
+JIT patching, guards, and deoptimization hooks for a typed optimizing backend.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `Span` | 16 | 0 | 0 |
-| ☐ | `TBD` | `TraceEnter` | 4 | 0 | 0 |
-| ☐ | `TBD` | `TraceLeave` | 4 | 0 | 0 |
-| ☐ | `TBD` | `StackTrace` | 0 | 0 | 1 |
+| ☐ | `TBD` | `Deopt` | 4 | 0 | 0 |
+| ☐ | `TBD` | `Patchpoint` | 4 | 0 | 0 |
+| ☐ | `TBD` | `InlineCache` | 4 | 0 | 0 |
+| ☐ | `TBD` | `GuardType<T>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `GuardBounds` | 0 | 3 | 1 |
+| ☐ | `TBD` | `GuardNotNull` | 0 | 1 | 1 |
+
+### Capabilities and sandboxing
+
+Optional capability/security checks for restricted runtimes.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `CheckCapability` | 4 | 0 | 0 |
+| ☐ | `TBD` | `EnterSandbox` | 4 | 0 | 0 |
+| ☐ | `TBD` | `ExitSandbox` | 0 | 0 | 0 |
 
 ### SIMD and vectors
 
-Reserved vector/SIMD opcode space. These are not part of the current VM execution contract.
+Reserved vector/SIMD opcode space. `<T,N>` is element type plus lane count.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `VecAddF32x4` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecSubF32x4` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecMulF32x4` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecDivF32x4` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecLoad` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecStore` | 0 | 2 | 0 |
-| ☐ | `TBD` | `VecSplat` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecExtract` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecLoad<T,N>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `VecStore<T,N>` | 0 | 2 | 0 |
+| ☐ | `TBD` | `VecSplat<T,N>` | 0 | 1 | 1 |
+| ☐ | `TBD` | `VecExtract<T,N>` | 4 | 1 | 1 |
+| ☐ | `TBD` | `VecAdd<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecSub<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecMul<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecDiv<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecAnd<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecOr<T,N>` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecXor<T,N>` | 0 | 2 | 1 |
 
 ## Loader contract
 
