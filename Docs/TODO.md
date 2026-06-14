@@ -253,14 +253,16 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [x] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
 - [x] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
 
-### SRP Code Review Checks
+### SRP Completion / Regression Checks
 
-- [ ] VM review gate: adding code to `VM/src/vm.cpp` requires written justification.
-- [ ] Language review gate: adding code to `Lang/src/lang_validate.cpp` requires written justification.
-- [ ] Native runtime review gate: native code must have metadata/signature tests.
-- [ ] GC review gate: GC code must use layout/ref maps rather than guesses.
-- [ ] Language phase review gate: new semantic logic must identify whether it belongs to RAST or TAST.
-- [ ] Test review gate: new tests must live in the correct subsystem after test split.
+These checks exist to confirm the SRP refactor is actually finished correctly and does not regress into new monoliths, shims, or mixed-ownership code.
+
+- [ ] `VM/src/vm.cpp` remains only the VM orchestration/API surface; opcode dispatch, native calls, GC, JIT, traps, globals, frames, heap helpers, and runtime limits stay in owned modules.
+- [ ] `Lang/src/lang_validate.cpp` does not grow new phase ownership; new semantic logic is implemented in the owning `RAST` or `TAST` module and called through a phase API.
+- [ ] Native runtime additions use the metadata registry and include metadata/signature tests; no ad-hoc native dispatch lists or forwarding glue are reintroduced.
+- [ ] GC code traces refs from declared layouts, stack maps, globals, and native handle roots; no heuristic ref guessing is added.
+- [ ] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
+- [ ] New tests are placed in the owning subsystem/phase file (`lang/`, `vm/`, `cli/`, etc.); `Tests/tests/test_lang.cpp` should only keep broad integration/runtime coverage until the remaining split is completed.
 
 ## High Priority: Layered Native Library Model
 
