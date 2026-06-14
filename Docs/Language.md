@@ -10,6 +10,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Compilation pipeline](#compilation-pipeline)
 - [Lexical rules](#lexical-rules)
 - [Program structure and entry points](#program-structure-and-entry-points)
+- [File/package headers](#filepackage-headers)
 - [Declarations](#declarations)
 - [Mutability](#mutability)
 - [Types](#types)
@@ -169,6 +170,50 @@ Entry behavior:
 - Top-level `return` is invalid.
 - A `main : void ()` function is valid; a missing explicit return is valid for `void`.
 
+## File/package headers
+
+A file may start with a package header:
+
+```simple
+package Tools.Widget
+```
+
+The package header gives the file an import-index name. It does **not** declare a runtime namespace object and it does **not** wrap the declarations that follow it.
+
+```simple
+package Tools.Widget
+
+widgetValue : i32 () {
+  return 42
+}
+```
+
+Another file can import that package name:
+
+```simple
+import Tools.Widget
+
+main : i32 () {
+  return widgetValue()
+}
+```
+
+Rules:
+
+- The header keyword is `package`.
+- The package name is an identifier path, for example `Main`, `Lib`, or `Tools.Widget`.
+- The header should appear before imports/declarations/statements.
+- Only import indexing uses the package name; ordinary language lookup still uses declarations, imports, modules, and `using`.
+- Old `module Name` file headers are intentionally rejected to avoid confusion with `Name :: Module { ... }` declarations.
+
+Use `Name :: Module { ... }` only when you want a language module/namespace value:
+
+```simple
+Math :: Module {
+  one : i32 () { return 1 }
+}
+```
+
 ## Declarations
 
 ### Variables
@@ -207,20 +252,6 @@ name : ReturnType (params...) { body }
 ```
 
 The marker before the return type also carries return mutability facts used by validation.
-
-### Package headers
-
-A package header gives a file an import-index name without declaring a runtime namespace object:
-
-```simple
-package Tools.Widget
-
-main : i32 () {
-  return 0
-}
-```
-
-This replaces the older/confusing `module HeaderName` form. Use `Name :: Module { ... }` when you actually want a language module/namespace value.
 
 ### Top-level declarations with `::`
 

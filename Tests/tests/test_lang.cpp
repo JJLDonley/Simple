@@ -3169,7 +3169,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
   } docs[] = {
       {"Docs/Language.md", "## Table of contents", "skip` is the loop-continue statement"},
       {"Docs/Language.md", "x : i32 = 1", "limit :: i32 = 10"},
-      {"Docs/Language.md", "package Tools.Widget", "Point :: Artifact"},
+      {"Docs/Language.md", "## File/package headers", "Old `module Name` file headers are intentionally rejected"},
       {"Docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},
