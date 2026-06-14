@@ -31,6 +31,10 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   return true;
 }
 
+bool IsIoPrintName(const std::string& name) {
+  return name == "print" || name == "println";
+}
+
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
   std::string native_module;
   if (NativeModuleNameForReserved(canonical_module, &native_module) &&

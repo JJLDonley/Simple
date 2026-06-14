@@ -8,6 +8,7 @@
 namespace Simple::Lang::RAST {
 
 bool NativeModuleNameForReserved(const std::string& canonical_module, std::string* out);
+bool IsIoPrintName(const std::string& name);
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member);
 std::string NormalizeDlMemberName(const std::string& name);
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out);

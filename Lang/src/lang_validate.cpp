@@ -10,6 +10,7 @@
 #include "lang_reserved.h"
 #include "native/registry.h"
 #include "RAST/member_resolution.h"
+#include "RAST/reserved_resolution.h"
 #include "TAST/calls.h"
 #include "TAST/control_flow.h"
 #include "TAST/expressions.h"
@@ -105,7 +106,10 @@ using RAST::FindArtifactField;
 using RAST::FindArtifactMethod;
 using RAST::FindModuleFunc;
 using RAST::FindModuleVar;
+using RAST::GetModuleNameFromExpr;
 using RAST::IsArtifactMemberName;
+using RAST::IsIoPrintName;
+using RAST::NormalizeDlMemberName;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
@@ -136,11 +140,9 @@ using TAST::TypeEquals;
 using TAST::TypesCompatibleForExpr;
 using TAST::UnifyTypeParams;
 
-bool IsIoPrintName(const std::string& name);
 bool ResolveReservedModuleName(const ValidateContext& ctx,
                                const std::string& name,
                                std::string* out);
-bool GetModuleNameFromExpr(const Expr& base, std::string* out);
 
 bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
   if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
@@ -178,35 +180,6 @@ bool ResolveReservedModuleName(const ValidateContext& ctx,
   return false;
 }
 
-bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
-  if (!out) return false;
-  if (base.kind == ExprKind::Identifier) {
-    *out = base.text;
-    return true;
-  }
-  if (base.kind == ExprKind::Member && base.op == "." && !base.children.empty()) {
-    const Expr& root = base.children[0];
-    if (root.kind == ExprKind::Identifier && root.text == "System") {
-      *out = root.text + "." + base.text;
-      return true;
-    }
-  }
-  return false;
-}
-
-std::string NormalizeCoreDlMember(const std::string& name) {
-  if (name == "Open") return "open";
-  if (name == "Sym") return "sym";
-  if (name == "Close") return "close";
-  if (name == "LastError") return "last_error";
-  if (name == "CallI32") return "call_i32";
-  if (name == "CallI64") return "call_i64";
-  if (name == "CallF32") return "call_f32";
-  if (name == "CallF64") return "call_f64";
-  if (name == "CallStr0") return "call_str0";
-  return name;
-}
-
 bool IsCoreDlOpenCallExpr(const Expr& expr, const ValidateContext& ctx) {
   if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
   const Expr& callee = expr.children[0];
@@ -216,7 +189,7 @@ bool IsCoreDlOpenCallExpr(const Expr& expr, const ValidateContext& ctx) {
   if (!IsReservedModuleEnabled(ctx, module_name)) return false;
   std::string resolved;
   if (!ResolveReservedModuleName(ctx, module_name, &resolved)) return false;
-  return resolved == "DL" && NormalizeCoreDlMember(callee.text) == "open";
+  return resolved == "DL" && NormalizeDlMemberName(callee.text) == "open";
 }
 
 bool GetDlOpenManifestModule(const Expr& expr,
@@ -1131,10 +1104,6 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   return TryGetNativeReservedModuleCallTarget(resolved, member, out);
 }
 
-bool IsIoPrintName(const std::string& name) {
-  return name == "print" || name == "println";
-}
-
 bool InferTypeArgsFromCall(const std::vector<TypeRef>& param_types,
                            const std::vector<Expr>& call_args,
                            const std::unordered_set<std::string>& type_params,
@@ -1872,7 +1841,7 @@ bool CheckCallTarget(const Expr& callee,
             const bool is_System_dl_open =
                 ResolveReservedModuleName(ctx, module_name, &resolved_module) &&
                 resolved_module == "DL" &&
-                NormalizeCoreDlMember(callee.text) == "open";
+                NormalizeDlMemberName(callee.text) == "open";
             if (!is_System_dl_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
@@ -2395,7 +2364,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
           return true;
         }
       }
-      if (mod == "DL" && NormalizeCoreDlMember(name) == "open") {
+      if (mod == "DL" && NormalizeDlMemberName(name) == "open") {
         if (call_expr.args.size() != 1 && call_expr.args.size() != 2) {
           if (error) *error = "DL.open expects (string) or (string, manifest)";
           return false;

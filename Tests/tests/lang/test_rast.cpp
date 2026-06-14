@@ -251,6 +251,9 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   std::string native_module;
   return Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
          native_module == "System.fs" &&
+         Simple::Lang::RAST::IsIoPrintName("print") &&
+         Simple::Lang::RAST::IsIoPrintName("println") &&
+         !Simple::Lang::RAST::IsIoPrintName("write") &&
          Simple::Lang::RAST::IsReservedModuleFunction("FS", "open") &&
          Simple::Lang::RAST::IsReservedModuleFunction("Json", "parse") &&
          Simple::Lang::RAST::NormalizeDlMemberName("Open") == "open";
