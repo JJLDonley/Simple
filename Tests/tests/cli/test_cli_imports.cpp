@@ -34,6 +34,26 @@ bool CliAcceptsPackageHeaderInCheckCommand() {
   return ok;
 }
 
+bool CliLocalUsingImportDoesNotReachValidator() {
+  namespace fs = std::filesystem;
+  const fs::path dir = fs::temp_directory_path() / "simple_local_using_import_case";
+  std::error_code ec;
+  fs::remove_all(dir, ec);
+  fs::create_directories(dir, ec);
+  if (ec) return false;
+  {
+    std::ofstream lib(dir / "lib.simple");
+    lib << "package Lib\nFoo :: artifact { x : i32 }\n";
+  }
+  {
+    std::ofstream main(dir / "main.simple");
+    main << "package Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
+  }
+  const bool ok = RunCliCommand("bin/svm check " + (dir / "main.simple").string());
+  fs::remove_all(dir, ec);
+  return ok;
+}
+
 bool CliSplitImportsNoCliLspDuplicateImportWrappers() {
   const char* paths[] = {"CLI/src/main.cpp", "LSP/src/lsp_server.cpp"};
   for (const char* path : paths) {
@@ -187,6 +207,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 
 const TestCase kCliImportsTests[] = {
   {"cli_accepts_package_header_in_check_command", CliAcceptsPackageHeaderInCheckCommand},
+  {"cli_local_using_import_does_not_reach_validator", CliLocalUsingImportDoesNotReachValidator},
   {"cli_split_imports_no_cli_lsp_duplicate_import_wrappers", CliSplitImportsNoCliLspDuplicateImportWrappers},
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},

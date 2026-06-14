@@ -23,7 +23,7 @@ bool RunCliContractCommand(const std::string& command) {
 
 std::string RunCliContractCaptureStderr(const std::string& command, int* exit_code) {
   const auto path = CliContractTempPath("simple_cli_contract_stderr.txt");
-  const int rc = std::system((command + " 2> " + path.string()).c_str());
+  const int rc = std::system((command + " 1>/dev/null 2> " + path.string()).c_str());
   if (exit_code) *exit_code = rc == -1 ? -1 : WEXITSTATUS(rc);
   std::ifstream in(path);
   std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -61,6 +61,25 @@ bool CliSimpleRejectsSir() {
   return RunCliContractExpectFail("bin/simple run Tests/sir/fib_iter.sir");
 }
 
+bool CliSvmRunSimple() {
+  return RunCliContractCommand("bin/svm run Tests/simple/hello.simple");
+}
+
+bool CliExitCodeContract() {
+  int exit_code = -1;
+  RunCliContractCaptureStderr("bin/svm --version", &exit_code);
+  if (exit_code != 0) return false;
+
+  RunCliContractCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
+  if (exit_code != 0) return false;
+
+  RunCliContractCaptureStderr("bin/svm run Tests/simple/add_fn.simple", &exit_code);
+  if (exit_code != 42) return false;
+
+  RunCliContractCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  return exit_code == 1;
+}
+
 bool CliSplitContractDetectsToolModesAndCommands() {
   const auto simple = Simple::CLI::DetectToolMode("simple");
   const auto svm = Simple::CLI::DetectToolMode("svm");
@@ -85,6 +104,8 @@ const TestCase kCliContractTests[] = {
   {"cli_simple_rejects_compile_command", CliSimpleRejectsCompileCommand},
   {"cli_simple_rejects_check_command", CliSimpleRejectsCheckCommand},
   {"cli_simple_rejects_sir", CliSimpleRejectsSir},
+  {"cli_svm_run_simple", CliSvmRunSimple},
+  {"cli_exit_code_contract", CliExitCodeContract},
   {"cli_split_contract_detects_tool_modes_and_commands", CliSplitContractDetectsToolModesAndCommands},
   {"cli_split_contract_classifies_input_extensions", CliSplitContractClassifiesInputExtensions},
 };

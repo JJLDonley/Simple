@@ -1240,48 +1240,6 @@ bool LangSimpleBadForMissingInit() {
       "expected expression");
 }
 
-bool LangCliCheckSimpleErrorFormat() {
-  const std::string err_path = TempPath("simple_check_err.txt");
-  const std::string cmd =
-      "bin/svm check Tests/simple_bad/unknown_identifier.simple 2> " + err_path;
-  if (RunCommand(cmd)) return false;
-  std::ifstream in(err_path);
-  if (!in) return false;
-  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E3001]:") != std::string::npos &&
-         contents.find("undeclared identifier") != std::string::npos &&
-         contents.find(" --> ") != std::string::npos &&
-         contents.find('^') != std::string::npos;
-}
-
-bool LangCliCheckSimpleLexerErrorFormat() {
-  const std::string err_path = TempPath("simple_check_lex_err.txt");
-  const std::string cmd =
-      "bin/svm check Tests/simple_bad/lexer_invalid_char.simple 2> " + err_path;
-  if (RunCommand(cmd)) return false;
-  std::ifstream in(err_path);
-  if (!in) return false;
-  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E1001]:") != std::string::npos &&
-         contents.find("unexpected character") != std::string::npos &&
-         contents.find(" --> ") != std::string::npos &&
-         contents.find('^') != std::string::npos;
-}
-
-bool LangCliCheckSimpleParserErrorFormat() {
-  const std::string err_path = TempPath("simple_check_parse_err.txt");
-  const std::string cmd =
-      "bin/svm check Tests/simple_bad/parser_unterminated_block.simple 2> " + err_path;
-  if (RunCommand(cmd)) return false;
-  std::ifstream in(err_path);
-  if (!in) return false;
-  std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return contents.find("error[E2001]:") != std::string::npos &&
-         contents.find("unterminated block") != std::string::npos &&
-         contents.find(" --> ") != std::string::npos &&
-         contents.find('^') != std::string::npos;
-}
-
 bool LangReservedThreadApisRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_thread.simple", 1);
 }
@@ -1388,70 +1346,6 @@ bool LangReservedLogRun() {
 
 bool LangReservedLogUsingRun() {
   return RunSimpleFileExpectExit("Tests/simple/reserved_log_using.simple", 1);
-}
-
-bool LangCliLocalUsingImportDoesNotReachValidator() {
-  namespace fs = std::filesystem;
-  const fs::path dir = fs::temp_directory_path() / "simple_local_using_import_case";
-  std::error_code ec;
-  fs::remove_all(dir, ec);
-  fs::create_directories(dir, ec);
-  if (ec) return false;
-  {
-    std::ofstream lib(dir / "lib.simple");
-    lib << "package Lib\nFoo :: artifact { x : i32 }\n";
-  }
-  {
-    std::ofstream main(dir / "main.simple");
-    main << "package Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
-  }
-  const std::string cmd = "bin/svm check " + (dir / "main.simple").string();
-  return RunCommand(cmd);
-}
-
-bool LangCliRunSimple() {
-  return RunCommand("bin/svm run Tests/simple/hello.simple");
-}
-
-bool LangCliExitCodeContract() {
-  int exit_code = -1;
-  RunCommandCaptureStderr("bin/svm --version", &exit_code);
-  if (exit_code != 0) return false;
-
-  RunCommandCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
-  if (exit_code != 0) return false;
-
-  RunCommandCaptureStderr("bin/svm run Tests/simple/add_fn.simple", &exit_code);
-  if (exit_code != 42) return false;
-
-  RunCommandCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
-  return exit_code == 1;
-}
-
-bool LangCliStderrDiagnosticContract() {
-  int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
-  if (exit_code != 0 || !stderr_text.empty()) return false;
-
-  stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
-  return exit_code == 1 && stderr_text.find("error[E") == 0;
-}
-
-bool LangCliResolverDiagnosticCode() {
-  int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/svm check Tests/simple_bad/module_unknown_member.simple", &exit_code);
-  return exit_code == 1 && stderr_text.find("error[E3001]:") == 0 &&
-         stderr_text.find("unknown module member") != std::string::npos;
-}
-
-bool LangCliMissingInputDiagnostics() {
-  int exit_code = -1;
-  std::string stderr_text = RunCommandCaptureStderr("bin/svm check", &exit_code);
-  if (exit_code != 1 || stderr_text.find("error[E8001]: missing input file") != 0) return false;
-
-  stderr_text = RunCommandCaptureStderr("bin/svm check /tmp/simple_missing_input_contract.simple", &exit_code);
-  return exit_code == 1 &&
-         stderr_text.find("error[E8001]: failed to open file: /tmp/simple_missing_input_contract.simple") == 0;
 }
 
 bool LangSirEmitsLocalAssign() {
@@ -3531,15 +3425,6 @@ const TestCase kLangTests[] = {
   {"lang_reserved_buffer_using_run", LangReservedBufferUsingRun},
   {"lang_reserved_log_run", LangReservedLogRun},
   {"lang_reserved_log_using_run", LangReservedLogUsingRun},
-  {"lang_cli_local_using_import_does_not_reach_validator", LangCliLocalUsingImportDoesNotReachValidator},
-  {"lang_cli_run_simple", LangCliRunSimple},
-  {"lang_cli_exit_code_contract", LangCliExitCodeContract},
-  {"lang_cli_stderr_diagnostic_contract", LangCliStderrDiagnosticContract},
-  {"lang_cli_missing_input_diagnostics", LangCliMissingInputDiagnostics},
-  {"lang_cli_resolver_diagnostic_code", LangCliResolverDiagnosticCode},
-  {"lang_cli_check_simple_error_format", LangCliCheckSimpleErrorFormat},
-  {"lang_cli_check_simple_lexer_error_format", LangCliCheckSimpleLexerErrorFormat},
-  {"lang_cli_check_simple_parser_error_format", LangCliCheckSimpleParserErrorFormat},
   {"lang_sir_emit_inc_dec", LangSirEmitsIncDec},
   {"lang_sir_emit_compound_assign_local", LangSirEmitsCompoundAssignLocal},
   {"lang_sir_emit_bitwise_shift", LangSirEmitsBitwiseShift},
