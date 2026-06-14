@@ -442,7 +442,13 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   Simple::Lang::AST::Expr named_artifact;
   named_artifact.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
   named_artifact.field_names.push_back("x");
-  return !Simple::Lang::TAST::IsPositionalBraceLiteralExpr(named_artifact);
+  if (Simple::Lang::TAST::IsPositionalBraceLiteralExpr(named_artifact)) return false;
+  Simple::Lang::AST::Expr artifact_values;
+  artifact_values.kind = Simple::Lang::AST::ExprKind::ArtifactLiteral;
+  artifact_values.children.resize(2);
+  if (!Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 2, &shape_error)) return false;
+  if (Simple::Lang::TAST::CheckArtifactLiteralPositionalCount(artifact_values, 1, &shape_error)) return false;
+  return shape_error.find("too many positional values in artifact literal") != std::string::npos;
 }
 
 bool LangTastLiteralTypingUsesExpectedType() {

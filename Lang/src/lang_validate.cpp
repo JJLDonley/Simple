@@ -127,6 +127,7 @@ using TAST::CheckCallTypeArgCount;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
+using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
@@ -2154,10 +2155,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
                              std::string* error) {
   if (!artifact) return true;
   const size_t field_count = artifact->fields.size();
-  if (expr.children.size() > field_count) {
-    if (error) *error = "too many positional values in artifact literal";
-    return false;
-  }
+  if (!CheckArtifactLiteralPositionalCount(expr, field_count, error)) return false;
   std::unordered_set<std::string> seen;
   for (const auto& name : expr.field_names) {
     if (!seen.insert(name).second) {

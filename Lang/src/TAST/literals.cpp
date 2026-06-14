@@ -43,6 +43,16 @@ bool CheckFormatPlaceholderCount(const std::string& fmt,
   return true;
 }
 
+bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
+                                         size_t field_count,
+                                         std::string* error) {
+  if (expr.children.size() > field_count) {
+    if (error) *error = "too many positional values in artifact literal";
+    return false;
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;
