@@ -172,10 +172,11 @@ Relevant docs:
 
 - `Docs/TODO.md`
 - `Docs/CLI.md`
-- `Docs/StdLib.md`
 - `Docs/VM.md`
-- `Docs/Compatibility.md`
 - `Docs/Language.md`
+- `Docs/Byte.md`
+- `Docs/IR.md`
+- `Docs/JIT.md`
 
 TODO entries must be actionable.
 

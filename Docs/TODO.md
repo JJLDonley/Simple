@@ -4,7 +4,7 @@ This list tracks work needed to improve feature independence, compiler structure
 
 ## Highest Priority: SRP / Module Boundary Refactors
 
-These refactors must happen before large new feature work. The current risk is that the project is feature-rich, but several central files absorb too much behavior. `standards.md` is the mandatory coding standard for this work.
+These refactors must happen before large new feature work. The current risk is that the project is feature-rich, but several central files absorb too much behavior. `Docs/Standards.md` is the mandatory coding standard for this work.
 
 Primary monoliths/offenders:
 
@@ -580,4 +580,4 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] SBC version
   - [x] runtime ABI version
   - [x] stdlib module version
-- [ ] Decide whether `Docs/Sprint.md` keeps historical obsolete commands as-is or gains an obsolete-command note.
+- [x] Remove obsolete sprint log from the active docs set.

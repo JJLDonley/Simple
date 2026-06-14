@@ -103,4 +103,4 @@ The VM still performs defensive runtime checks, but verified modules are the int
 
 ## Compatibility
 
-Format compatibility is tracked in `Docs/Compatibility.md`. Major format changes require a version bump. Additive metadata should preserve old-reader failure behavior rather than being misread silently.
+Format compatibility is part of this bytecode contract. Major format changes require a version bump. Additive metadata should preserve old-reader failure behavior rather than being misread silently.

@@ -75,7 +75,7 @@ Builds an output artifact. In `simplevm` compatibility mode the default output s
 
 ### `lsp`
 
-Starts the JSON-RPC language server over stdio. See `Docs/LSP.md`.
+Starts the JSON-RPC language server over stdio.
 
 ## Diagnostics
 

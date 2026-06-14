@@ -72,7 +72,7 @@ Strings are stored as VM string payloads and converted at API boundaries. Lists 
 
 ## Imports and native runtime
 
-Language imports map to VM runtime modules. `System.*` names are canonical. The standard-library surface is documented in `Docs/StdLib.md`.
+Language imports map to VM runtime modules. `System.*` names are canonical. The language-facing standard-library surface is documented in `Docs/Language.md`.
 
 Native modules include time, filesystem/path/env/OS helpers, logging, buffers, JSON, channels, random values, and threads where implemented by tests.
 

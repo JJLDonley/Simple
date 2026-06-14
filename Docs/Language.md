@@ -23,7 +23,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Modules](#modules)
 - [Enums](#enums)
 - [Imports and `using`](#imports-and-using)
-- [Reserved/System modules](#reservedsystem-modules)
+- [Reserved/System modules and standard library](#reservedsystem-modules-and-standard-library)
 - [Functions, procedure types, and function literals](#functions-procedure-types-and-function-literals)
 - [Extern declarations and DL ABI](#extern-declarations-and-dl-abi)
 - [Pointers and member access](#pointers-and-member-access)
@@ -539,7 +539,7 @@ main : void () {
 }
 ```
 
-Formatting and standard-library function details are documented in `Docs/StdLib.md`.
+Formatting and standard-library calls are part of the standard library surface summarized below.
 
 ## Artifacts
 
@@ -643,7 +643,7 @@ main : i32 () {
 
 CLI import resolution handles project-root imports, relative imports, module-map entries, reserved imports, missing imports, ambiguous imports, and cycle detection. Generated `simple.modules` files are build artifacts.
 
-## Reserved/System modules
+## Reserved/System modules and standard library
 
 `System.*` is canonical for standard-library modules. Reserved compatibility imports are mapped by the compiler/runtime. Covered modules include:
 
@@ -655,7 +655,57 @@ System.env System.path System.random System.thread System.channel
 System.buffer System.json System.log
 ```
 
-See `Docs/StdLib.md` for function-level APIs.
+The standard library is part of the language-facing runtime surface. Reserved imports map onto native-backed runtime modules; no implicit ABI coercion is performed. If a module/member is not listed here or covered by tests, treat it as unsupported.
+
+### Import mapping
+
+| Import | Runtime namespace |
+|---|---|
+| `Math` / `System.math` | `System.math` |
+| `IO` / `System.io` | `System.io` |
+| `Time` / `System.time` | `System.time` |
+| `File` / `FS` / `System.fs` | `System.fs` |
+| `DL` / `System.dl` | `System.dl` |
+| `OS` / `System.os` | `System.os` |
+| `Env` / `System.env` | `System.env` |
+| `Path` / `System.path` | `System.path` |
+| `Random` / `System.random` | `System.random` |
+| `Thread` / `System.thread` | `System.thread` |
+| `Log` / `System.log` | `System.log` |
+| `Buffer` / `System.buffer` | `System.buffer` |
+| `Json` / `System.json` | `System.json` |
+| `Channel` / `System.channel` | `System.channel` |
+
+### Core modules
+
+| Module | Examples / members |
+|---|---|
+| `Math` | `abs`, `min`, `max`, `sqrt`, `PI` |
+| `IO` | `print`, `println`, `buffer_new`, `buffer_len`, `buffer_fill`, `buffer_copy` |
+| `Time` | `mono_ns`, `wall_ns`, `formatWallNs` in using-style tests |
+| `FS` / `File` | file descriptors, `read`, `write`, `close`, `readBytes`, `writeBytes`, `listDir` |
+| `OS` | args, env, cwd, sleep/time/platform constants |
+| `Env` | environment helpers covered by reserved env fixtures |
+| `Path` | path helpers covered by reserved path fixtures |
+| `Random` | random helpers covered by reserved random fixtures |
+| `Thread` | thread helpers covered by reserved thread fixtures |
+| `Log` | `log`, `info`, `warn`, `error`, `setLevel`, `setFile` |
+| `Buffer` | `new`, `len`, `readU16LE`, `readU32LE`, `writeU16LE`, `writeU32LE`, `slice`, `copy` |
+| `Json` | `parse`, `stringify`, `free` |
+| `Channel` | typed channel creation plus `send*`, `trySend*`, `recv*`, `tryRecv*`, `pending*`, `close` |
+| `DL` | `open`, `sym`, `close`, `last_error`, `supported`; also `DL.Open(path, ffi)` fixture style |
+
+`using ModuleName` exposes module members for unqualified calls where that module supports it:
+
+```simple
+import Buffer
+using Buffer
+
+main : i32 () {
+  b : i32[] = new(4)
+  return len(b)
+}
+```
 
 ## Functions, procedure types, and function literals
 

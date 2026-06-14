@@ -3174,7 +3174,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
       {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},
       {"Docs/CLI.md", "## Table of contents", "## Input types"},
-      {"Docs/LSP.md", "## Table of contents", "stdio JSON-RPC"},
+      {"Docs/Standards.md", "# Simple Project Coding Standards", "## 10. Documentation Required"},
   };
   for (const auto& doc : docs) {
     std::ifstream in(doc.path);
