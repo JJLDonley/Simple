@@ -1,5 +1,6 @@
 #include "test_utils.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -13,6 +14,25 @@
 
 namespace Simple::VM::Tests {
 namespace {
+
+std::filesystem::path CliTempPath(const std::string& name) {
+  return std::filesystem::temp_directory_path() / name;
+}
+
+bool RunCliCommand(const std::string& command) {
+  return std::system(command.c_str()) == 0;
+}
+
+bool CliAcceptsPackageHeaderInCheckCommand() {
+  const auto path = CliTempPath("simple_cli_package_header.simple");
+  {
+    std::ofstream out(path);
+    out << "package main\n\nmain : i32 () { return 0 }\n";
+  }
+  const bool ok = RunCliCommand("bin/svm check " + path.string());
+  std::filesystem::remove(path);
+  return ok;
+}
 
 bool CliSplitImportsNoCliLspDuplicateImportWrappers() {
   const char* paths[] = {"CLI/src/main.cpp", "LSP/src/lsp_server.cpp"};
@@ -166,6 +186,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 }
 
 const TestCase kCliImportsTests[] = {
+  {"cli_accepts_package_header_in_check_command", CliAcceptsPackageHeaderInCheckCommand},
   {"cli_split_imports_no_cli_lsp_duplicate_import_wrappers", CliSplitImportsNoCliLspDuplicateImportWrappers},
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
