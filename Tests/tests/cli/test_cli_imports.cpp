@@ -41,6 +41,25 @@ bool CliSplitImportsBuildSharedModuleIndex() {
   return ok && modules.find("Tools.Widget") != modules.end();
 }
 
+bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_load_imports_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "lib.simple");
+    out << "module Load.Lib\nloaded : i32 () { return 2 }";
+  }
+  const auto entry = dir / "main.simple";
+  {
+    std::ofstream out(entry);
+    out << "import Load.Lib\nmain : i32 () { return loaded() }";
+  }
+  Simple::Lang::Program program;
+  std::string error;
+  const bool ok = Simple::Lang::RAST::LoadProgramWithImports(entry, &program, &error);
+  std::filesystem::remove_all(dir);
+  return ok && program.decls.size() == 2;
+}
+
 bool CliSplitImportsAppendProgramWithSharedLoader() {
   const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_loader_test";
   std::filesystem::create_directories(dir);
@@ -122,6 +141,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 const TestCase kCliImportsTests[] = {
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
+  {"cli_split_imports_load_program_with_shared_entry_point", CliSplitImportsLoadProgramWithSharedEntryPoint},
   {"cli_split_imports_append_program_with_shared_loader", CliSplitImportsAppendProgramWithSharedLoader},
   {"cli_split_imports_resolve_shared_module_import", CliSplitImportsResolveSharedModuleImport},
   {"cli_split_imports_write_shared_auto_module_map", CliSplitImportsWriteSharedAutoModuleMap},

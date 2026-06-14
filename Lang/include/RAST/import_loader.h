@@ -9,6 +9,11 @@
 
 namespace Simple::Lang::RAST {
 
+std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path);
+bool LoadProgramWithImports(const std::filesystem::path& entry_path,
+                            Program* out,
+                            std::string* error);
+
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
                                    const ImportPathIndex& project_index,
                                    const ImportPathIndex& module_index,

@@ -53,52 +53,15 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
   return true;
 }
 
-std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
-  fs::path root = fs::weakly_canonical(entry.parent_path(), ec);
-  if (!ec && !root.empty()) return root;
-  ec.clear();
-  root = fs::absolute(entry.parent_path(), ec);
-  if (!ec && !root.empty()) return root;
-  return fs::current_path();
-}
-
-bool LoadSimpleProgramWithImports(const std::string& entry_path,
-                                  Simple::Lang::Program* out,
-                                  std::string* error) {
-  if (!out) return false;
-  out->decls.clear();
-  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
-  std::unordered_map<std::string, std::vector<std::filesystem::path>> project_index;
-  if (!Simple::Lang::RAST::BuildSimpleFileIndex(project_root, &project_index)) {
-    if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
-    return false;
-  }
-  std::unordered_map<std::string, std::vector<std::filesystem::path>> module_index;
-  if (!Simple::Lang::RAST::BuildModuleIndex(project_root, project_index, &module_index)) {
-    if (error) *error = "failed to build module index under project root: " + project_root.string();
-    return false;
-  }
-  if (!Simple::Lang::RAST::WriteAutoModuleMapIfMissing(project_root, module_index)) {
-    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
-    return false;
-  }
-  std::unordered_set<std::string> visiting;
-  std::unordered_set<std::string> visited;
-  return Simple::Lang::RAST::AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
-}
-
 bool ValidateSimpleFile(const std::string& path, std::string* error) {
   Simple::Lang::Program program;
-  if (!LoadSimpleProgramWithImports(path, &program, error)) return false;
+  if (!Simple::Lang::RAST::LoadProgramWithImports(path, &program, error)) return false;
   return Simple::Lang::ValidateProgram(program, error);
 }
 
 bool EmitSirFromSimpleFile(const std::string& path, std::string* out, std::string* error) {
   Simple::Lang::Program program;
-  if (!LoadSimpleProgramWithImports(path, &program, error)) return false;
+  if (!Simple::Lang::RAST::LoadProgramWithImports(path, &program, error)) return false;
   return Simple::Lang::EmitSir(program, out, error);
 }
 

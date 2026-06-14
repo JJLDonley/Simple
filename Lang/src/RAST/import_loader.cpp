@@ -26,6 +26,44 @@ bool ReadFileText(const std::string& path, std::string* out, std::string* error)
 
 } // namespace
 
+std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entry_path) {
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path entry = entry_path.is_absolute() ? entry_path : (fs::current_path() / entry_path);
+  fs::path root = fs::weakly_canonical(entry.parent_path(), ec);
+  if (!ec && !root.empty()) return root;
+  ec.clear();
+  root = fs::absolute(entry.parent_path(), ec);
+  if (!ec && !root.empty()) return root;
+  return fs::current_path();
+}
+
+bool LoadProgramWithImports(const std::filesystem::path& entry_path,
+                            Program* out,
+                            std::string* error) {
+  if (!out) return false;
+  out->decls.clear();
+  out->top_level_stmts.clear();
+  const std::filesystem::path project_root = ResolveImportProjectRoot(entry_path);
+  ImportPathIndex project_index;
+  if (!BuildSimpleFileIndex(project_root, &project_index)) {
+    if (error) *error = "failed to enumerate .simple files under project root: " + project_root.string();
+    return false;
+  }
+  ImportPathIndex module_index;
+  if (!BuildModuleIndex(project_root, project_index, &module_index)) {
+    if (error) *error = "failed to build module index under project root: " + project_root.string();
+    return false;
+  }
+  if (!WriteAutoModuleMapIfMissing(project_root, module_index)) {
+    if (error) *error = "failed to write simple.modules under project root: " + project_root.string();
+    return false;
+  }
+  std::unordered_set<std::string> visiting;
+  std::unordered_set<std::string> visited;
+  return AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
+}
+
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
                                    const ImportPathIndex& project_index,
                                    const ImportPathIndex& module_index,
