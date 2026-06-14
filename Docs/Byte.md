@@ -415,6 +415,8 @@ Direct, indirect, tail, and runtime call-check operations.
 | ✅ | `0x71` | `CallIndirect` | 5 | 0 | 0 |
 | ✅ | `0x72` | `TailCall` | 5 | 0 | 0 |
 | ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
+| ☐ | `TBD` | `CallImport` | 5 | 0 | 0 |
+| ☐ | `TBD` | `CallNative` | 5 | 0 | 0 |
 
 ### Conversions
 
@@ -509,6 +511,9 @@ Heap object, closure, reference, and field operations.
 | ✅ | `0xA5` | `RefEq` | 0 | 2 | 1 |
 | ✅ | `0xA6` | `RefNe` | 0 | 2 | 1 |
 | ✅ | `0xA7` | `TypeOf` | 0 | 1 | 1 |
+| ☐ | `TBD` | `CaptureLocal` | 4 | 0 | 1 |
+| ☐ | `TBD` | `CaptureRef` | 4 | 0 | 1 |
+| ☐ | `TBD` | `CloseUpvalue` | 4 | 0 | 0 |
 
 ### Arrays
 
@@ -562,6 +567,8 @@ Fixed-size array allocation and element access.
 | ☐ | `TBD` | `NewArrayChar` | 8 | 0 | 1 |
 | ☐ | `TBD` | `ArrayGetChar` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ArraySetChar` | 0 | 3 | 0 |
+| ☐ | `TBD` | `ArrayCopy` | 0 | 5 | 0 |
+| ☐ | `TBD` | `ArrayFill` | 0 | 3 | 0 |
 
 ### Lists
 
@@ -676,6 +683,8 @@ Growable list allocation and element operations.
 | ☐ | `TBD` | `ListPopChar` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ListInsertChar` | 0 | 3 | 0 |
 | ☐ | `TBD` | `ListRemoveChar` | 0 | 2 | 1 |
+| ☐ | `TBD` | `ListReserve` | 0 | 2 | 0 |
+| ☐ | `TBD` | `ListResize` | 0 | 3 | 0 |
 
 ### Strings
 
@@ -687,6 +696,178 @@ String-specific operations.
 | ✅ | `0xD1` | `StringConcat` | 0 | 2 | 1 |
 | ✅ | `0xD2` | `StringGetChar` | 0 | 2 | 1 |
 | ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
+| ☐ | `TBD` | `StringEq` | 0 | 2 | 1 |
+| ☐ | `TBD` | `StringNe` | 0 | 2 | 1 |
+| ☐ | `TBD` | `StringCompare` | 0 | 2 | 1 |
+| ☐ | `TBD` | `StringFind` | 0 | 2 | 1 |
+| ☐ | `TBD` | `StringToBytes` | 0 | 1 | 1 |
+| ☐ | `TBD` | `BytesToString` | 0 | 1 | 1 |
+
+### Pointer and memory
+
+Pointer/address operations. These are planned for explicit pointer lowering instead of hiding pointer behavior behind integers or refs.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `AddressOfLocal` | 4 | 0 | 1 |
+| ☐ | `TBD` | `AddressOfGlobal` | 4 | 0 | 1 |
+| ☐ | `TBD` | `AddressOfField` | 4 | 1 | 1 |
+| ☐ | `TBD` | `LoadPtr` | 0 | 1 | 1 |
+| ☐ | `TBD` | `StorePtr` | 0 | 2 | 0 |
+| ☐ | `TBD` | `PtrAdd` | 0 | 2 | 1 |
+| ☐ | `TBD` | `PtrOffset` | 0 | 2 | 1 |
+| ☐ | `TBD` | `PtrEq` | 0 | 2 | 1 |
+| ☐ | `TBD` | `PtrNe` | 0 | 2 | 1 |
+| ☐ | `TBD` | `PtrIsNull` | 0 | 1 | 1 |
+| ☐ | `TBD` | `PtrCheckNull` | 0 | 1 | 1 |
+| ☐ | `TBD` | `PtrCheckBounds` | 0 | 3 | 1 |
+
+### Checked operations
+
+Checked operations trap on overflow, invalid conversion, divide-by-zero, or out-of-bounds conditions instead of relying on unchecked opcode behavior.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `CheckedAddI8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubI8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulI8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivI8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModI8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddI16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubI16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulI16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivI16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModI16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddI32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubI32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulI32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivI32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModI32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddI64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubI64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulI64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivI64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModI64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModI128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddU8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubU8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulU8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivU8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModU8` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddU16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubU16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulU16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivU16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModU16` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddU32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubU32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulU32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivU32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModU32` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddU64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubU64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulU64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivU64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModU64` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedAddU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedSubU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedMulU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedDivU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedModU128` | 0 | 2 | 1 |
+| ☐ | `TBD` | `CheckedArrayGet` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedArraySet` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedListGet` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedListSet` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedStringGetChar` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedStringSlice` | 0 | TBD | TBD |
+| ☐ | `TBD` | `CheckedConvert` | 0 | TBD | TBD |
+
+### Enums, variants, and errors
+
+Enum/variant/result/error operations. Plain integer-like enums can continue to lower to scalar ops; these rows reserve richer tagged/payload behavior.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `EnumTag` | 0 | 1 | 1 |
+| ☐ | `TBD` | `EnumPayload` | 4 | 1 | 1 |
+| ☐ | `TBD` | `EnumMake` | 4 | 1 | 1 |
+| ☐ | `TBD` | `VariantTag` | 0 | 1 | 1 |
+| ☐ | `TBD` | `VariantPayload` | 4 | 1 | 1 |
+| ☐ | `TBD` | `VariantMake` | 4 | 1 | 1 |
+| ☐ | `TBD` | `ResultOk` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultErr` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultIsOk` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultIsErr` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultUnwrap` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ResultPropagateErr` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Throw` | 0 | 1 | 0 |
+| ☐ | `TBD` | `Catch` | 4 | 0 | 0 |
+| ☐ | `TBD` | `Finally` | 4 | 0 | 0 |
+| ☐ | `TBD` | `Panic` | 0 | 1 | 0 |
+
+### Concurrency and atomics
+
+Thread/job/channel/atomic bytecodes. These are planned only if concurrency moves below native library calls into VM bytecode.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `Spawn` | 4 | 0 | 1 |
+| ☐ | `TBD` | `Join` | 0 | 1 | 1 |
+| ☐ | `TBD` | `Detach` | 0 | 1 | 0 |
+| ☐ | `TBD` | `Await` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ChannelSend` | 0 | 2 | 0 |
+| ☐ | `TBD` | `ChannelRecv` | 0 | 1 | 1 |
+| ☐ | `TBD` | `ChannelTryRecv` | 0 | 1 | 2 |
+| ☐ | `TBD` | `AtomicLoad` | 0 | 1 | 1 |
+| ☐ | `TBD` | `AtomicStore` | 0 | 2 | 0 |
+| ☐ | `TBD` | `AtomicAdd` | 0 | 2 | 1 |
+| ☐ | `TBD` | `AtomicSub` | 0 | 2 | 1 |
+| ☐ | `TBD` | `AtomicCompareExchange` | 0 | 3 | 1 |
+| ☐ | `TBD` | `Fence` | 0 | 0 | 0 |
+
+### GC and runtime barriers
+
+GC/runtime coordination opcodes. The current VM can perform safepoints and tracing without explicit opcodes, but these rows reserve bytecode-level barriers if needed.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `Safepoint` | 0 | 0 | 0 |
+| ☐ | `TBD` | `AllocCheckpoint` | 0 | 0 | 0 |
+| ☐ | `TBD` | `WriteBarrier` | 0 | 2 | 0 |
+| ☐ | `TBD` | `ReadBarrier` | 0 | 1 | 1 |
+| ☐ | `TBD` | `PinRef` | 0 | 1 | 1 |
+| ☐ | `TBD` | `UnpinRef` | 0 | 1 | 0 |
+| ☐ | `TBD` | `KeepAlive` | 0 | 1 | 0 |
+
+### Debug and introspection
+
+Richer debug/introspection opcodes beyond the current `Line` marker and metadata tables.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `Span` | 16 | 0 | 0 |
+| ☐ | `TBD` | `TraceEnter` | 4 | 0 | 0 |
+| ☐ | `TBD` | `TraceLeave` | 4 | 0 | 0 |
+| ☐ | `TBD` | `StackTrace` | 0 | 0 | 1 |
+
+### SIMD and vectors
+
+Reserved vector/SIMD opcode space. These are not part of the current VM execution contract.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ☐ | `TBD` | `VecAddF32x4` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecSubF32x4` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecMulF32x4` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecDivF32x4` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecLoad` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecStore` | 0 | 2 | 0 |
+| ☐ | `TBD` | `VecSplat` | 0 | 2 | 1 |
+| ☐ | `TBD` | `VecExtract` | 0 | 2 | 1 |
 
 ## Loader contract
 
