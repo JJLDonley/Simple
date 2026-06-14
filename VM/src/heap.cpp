@@ -64,6 +64,28 @@ bool EnsureListCapacity(HeapObject* obj, uint32_t min_capacity, std::size_t elem
   return true;
 }
 
+std::u16string AsciiToU16(const std::string& text) {
+  std::u16string out;
+  out.reserve(text.size());
+  for (unsigned char c : text) {
+    out.push_back(static_cast<char16_t>(c));
+  }
+  return out;
+}
+
+std::string U16ToAscii(const std::u16string& text) {
+  std::string out;
+  out.reserve(text.size());
+  for (char16_t c : text) {
+    if (c <= 0x7Fu) {
+      out.push_back(static_cast<char>(c));
+    } else {
+      out.push_back('?');
+    }
+  }
+  return out;
+}
+
 uint32_t CreateString(Heap& heap, const std::u16string& text) {
   uint32_t length = static_cast<uint32_t>(text.size());
   uint32_t size = static_cast<uint32_t>(HeapLayout::StringPayloadSize(length));

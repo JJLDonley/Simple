@@ -18,18 +18,22 @@ bool VmHeapOwnsPayloadAndStringHelpers() {
   const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
   const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
   return header_text.find("uint32_t ReadU32Payload(") != std::string::npos &&
+         header_text.find("std::u16string AsciiToU16(") != std::string::npos &&
          header_text.find("uint32_t CreateString(") != std::string::npos &&
          source_text.find("uint32_t ReadU32Payload(") != std::string::npos &&
+         source_text.find("std::u16string AsciiToU16(") != std::string::npos &&
          source_text.find("std::u16string ReadString(") != std::string::npos &&
          vm_text.find("uint32_t ReadU32Payload(") == std::string::npos &&
+         vm_text.find("std::u16string AsciiToU16(") == std::string::npos &&
          vm_text.find("uint32_t CreateString(Heap&") == std::string::npos;
 }
 
 bool VmHeapStringHelpersRoundTripText() {
   Simple::VM::Heap heap;
-  const uint32_t handle = Simple::VM::CreateString(heap, u"abc");
+  const uint32_t handle = Simple::VM::CreateString(heap, Simple::VM::AsciiToU16("abc"));
   const Simple::VM::HeapObject* object = heap.Get(handle);
-  return object && Simple::VM::ReadString(object) == u"abc";
+  return object && Simple::VM::ReadString(object) == u"abc" &&
+         Simple::VM::U16ToAscii(Simple::VM::ReadString(object)) == "abc";
 }
 
 bool VmSplitHeapAllocatesAndReusesHandles() {

@@ -75,8 +75,6 @@ using Simple::VM::Interpreter::TrapContextGuard;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
 inline Slot PackRef(uint32_t handle);
-std::u16string AsciiToU16(const std::string& text);
-std::string U16ToAscii(const std::u16string& text);
 
 inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
   if (allow_void && kind == TypeKind::Unspecified) return true;
@@ -1094,28 +1092,6 @@ std::string ReadConstPoolString(const SbcModule& module, uint32_t offset) {
     char c = static_cast<char>(module.const_pool[pos]);
     if (c == '\0') break;
     out.push_back(c);
-  }
-  return out;
-}
-
-std::u16string AsciiToU16(const std::string& text) {
-  std::u16string out;
-  out.reserve(text.size());
-  for (unsigned char c : text) {
-    out.push_back(static_cast<char16_t>(c));
-  }
-  return out;
-}
-
-std::string U16ToAscii(const std::u16string& text) {
-  std::string out;
-  out.reserve(text.size());
-  for (char16_t c : text) {
-    if (c <= 0x7Fu) {
-      out.push_back(static_cast<char>(c));
-    } else {
-      out.push_back('?');
-    }
   }
   return out;
 }

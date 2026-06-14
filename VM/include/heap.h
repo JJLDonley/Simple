@@ -94,6 +94,8 @@ void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t valu
 void WriteU64Payload(std::vector<uint8_t>& payload, size_t offset, uint64_t value);
 void WriteU16Payload(std::vector<uint8_t>& payload, size_t offset, uint16_t value);
 bool EnsureListCapacity(HeapObject* obj, uint32_t min_capacity, size_t elem_size);
+std::u16string AsciiToU16(const std::string& text);
+std::string U16ToAscii(const std::u16string& text);
 uint32_t CreateString(Heap& heap, const std::u16string& text);
 std::u16string ReadString(const HeapObject* obj);
 

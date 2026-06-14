@@ -11,13 +11,6 @@ inline Slot PackRef(uint32_t handle) {
   return static_cast<uint64_t>(handle);
 }
 
-std::u16string AsciiToU16(const std::string& text) {
-  std::u16string out;
-  out.reserve(text.size());
-  for (unsigned char c : text) out.push_back(static_cast<char16_t>(c));
-  return out;
-}
-
 bool IsI32LikeImportType(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;
   switch (kind) {
@@ -116,7 +109,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   if (spec->result_type == Simple::Byte::TypeKind::String) {
     *out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
                    ? PackRef(kNullRef)
-                   : PackRef(Simple::VM::CreateString(*runtime.heap, AsciiToU16(result.string_value)));
+                   : PackRef(Simple::VM::CreateString(*runtime.heap, Simple::VM::AsciiToU16(result.string_value)));
   } else if (result.has_value) {
     *out_ret = result.value;
   }
