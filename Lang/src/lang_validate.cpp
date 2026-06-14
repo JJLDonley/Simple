@@ -147,6 +147,7 @@ using TAST::CheckIoPrintFormatTemplateArg;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckSingleArgCallCount;
+using TAST::CheckSwitchExprShape;
 using TAST::CheckTypesCompatibleForExpr;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
@@ -2698,15 +2699,8 @@ bool AnalyzeSwitchExpr(const Expr& expr,
                        const TypeRef* expected_return,
                        bool return_is_void,
                        int loop_depth) {
-  if (expr.kind != ExprKind::Switch || expr.children.empty()) {
-    if (error) *error = "invalid switch expression";
-    return false;
-  }
+  if (!CheckSwitchExprShape(expr, error)) return false;
   if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
-  if (expr.switch_branches.empty()) {
-    if (error) *error = "switch requires at least one branch";
-    return false;
-  }
   const std::unordered_set<std::string> empty_type_params;
   const auto& branch_type_params = type_params ? *type_params : empty_type_params;
   size_t default_count = 0;

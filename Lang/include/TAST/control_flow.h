@@ -23,6 +23,7 @@ bool CheckFunctionReturnFlow(const Simple::Lang::AST::FuncDecl& fn,
                              std::string* error);
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error);
+bool CheckSwitchExprShape(const Simple::Lang::AST::Expr& expr, std::string* error);
 bool GetSwitchBranchValueExpr(const Simple::Lang::AST::SwitchBranch& branch,
                               bool require_explicit_return,
                               const Simple::Lang::AST::Expr** out_expr,

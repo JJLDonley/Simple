@@ -71,6 +71,18 @@ bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
   return true;
 }
 
+bool CheckSwitchExprShape(const Simple::Lang::AST::Expr& expr, std::string* error) {
+  if (expr.kind != Simple::Lang::AST::ExprKind::Switch || expr.children.empty()) {
+    if (error) *error = "invalid switch expression";
+    return false;
+  }
+  if (expr.switch_branches.empty()) {
+    if (error) *error = "switch requires at least one branch";
+    return false;
+  }
+  return true;
+}
+
 bool GetSwitchBranchValueExpr(const Simple::Lang::AST::SwitchBranch& branch,
                               bool require_explicit_return,
                               const Simple::Lang::AST::Expr** out_expr,

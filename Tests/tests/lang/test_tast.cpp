@@ -557,6 +557,16 @@ bool LangTastControlFlowExtractsSwitchBranchValues() {
   if (Simple::Lang::TAST::CheckConditionType(bool_type, &error)) return false;
   if (error.find("condition must be bool") == std::string::npos) return false;
 
+  Simple::Lang::AST::Expr switch_expr;
+  switch_expr.kind = Simple::Lang::AST::ExprKind::Switch;
+  if (Simple::Lang::TAST::CheckSwitchExprShape(switch_expr, &error)) return false;
+  if (error.find("invalid switch expression") == std::string::npos) return false;
+  switch_expr.children.push_back(Simple::Lang::AST::Expr{});
+  if (Simple::Lang::TAST::CheckSwitchExprShape(switch_expr, &error)) return false;
+  if (error.find("switch requires at least one branch") == std::string::npos) return false;
+  switch_expr.switch_branches.push_back(Simple::Lang::AST::SwitchBranch{});
+  if (!Simple::Lang::TAST::CheckSwitchExprShape(switch_expr, &error)) return false;
+
   if (!Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, false, &value, &error)) return false;
   if (value != &branch.value) return false;
   if (Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, true, &value, &error)) return false;
