@@ -151,6 +151,14 @@ bool GetAtCastTargetName(const std::string& name, std::string* out_target) {
   return true;
 }
 
+bool CheckPrimitiveCastSyntaxName(const std::string& name, std::string* error) {
+  if (IsPrimitiveCastName(name)) {
+    if (error) *error = "primitive cast syntax requires '@': use @" + name + "(value)";
+    return false;
+  }
+  return true;
+}
+
 bool IsIntegerScalarTypeName(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64";

@@ -131,6 +131,7 @@ using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckPrimitiveCastArgType;
+using TAST::CheckPrimitiveCastSyntaxName;
 using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
@@ -1326,10 +1327,7 @@ bool CheckCallTarget(const Expr& callee,
     return true;
   }
   if (callee.kind == ExprKind::Identifier) {
-    if (IsPrimitiveCastName(callee.text)) {
-      if (error) *error = "primitive cast syntax requires '@': use @" + callee.text + "(value)";
-      return false;
-    }
+    if (!CheckPrimitiveCastSyntaxName(callee.text, error)) return false;
     auto fn_it = ctx.functions.find(callee.text);
     if (fn_it != ctx.functions.end()) {
       return CheckFunctionCallArgs(fn_it->second, arg_count, error);
@@ -3079,13 +3077,7 @@ bool CheckExpr(const Expr& expr,
       if (expr.children[0].kind == ExprKind::Identifier) {
         std::string cast_target;
         const bool is_at_cast = GetAtCastTargetName(expr.children[0].text, &cast_target);
-        if (!is_at_cast && IsPrimitiveCastName(expr.children[0].text)) {
-          if (error) {
-            *error = "primitive cast syntax requires '@': use @" +
-                     expr.children[0].text + "(value)";
-          }
-          return false;
-        }
+        if (!is_at_cast && !CheckPrimitiveCastSyntaxName(expr.children[0].text, error)) return false;
         if (is_at_cast) {
           if (!CheckSingleArgCallCount(cast_target, expr.args.size(), error)) return false;
           TypeRef arg_type;

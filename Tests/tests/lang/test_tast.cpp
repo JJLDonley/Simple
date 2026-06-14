@@ -71,6 +71,7 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   proc_type.is_proc = true;
 
   std::string cast_target;
+  std::string cast_error;
   auto string_type = Simple::Lang::TAST::MakeSimpleType("string");
 
   return Simple::Lang::TAST::IsLenCompatibleType(string_type) &&
@@ -91,6 +92,9 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsListMethodName("missing") &&
          Simple::Lang::TAST::GetAtCastTargetName("@f64", &cast_target) &&
          cast_target == "f64" &&
+         !Simple::Lang::TAST::CheckPrimitiveCastSyntaxName("i32", &cast_error) &&
+         cast_error.find("primitive cast syntax requires '@': use @i32(value)") != std::string::npos &&
+         Simple::Lang::TAST::CheckPrimitiveCastSyntaxName("make", &cast_error) &&
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 

@@ -25,6 +25,7 @@ bool IsPlainTypeRef(const Simple::Lang::AST::TypeRef& type);
 bool IsPrimitiveTypeName(const std::string& name);
 bool IsPrimitiveCastName(const std::string& name);
 bool GetAtCastTargetName(const std::string& name, std::string* out_target);
+bool CheckPrimitiveCastSyntaxName(const std::string& name, std::string* error);
 bool IsIntegerScalarTypeName(const std::string& name);
 bool IsIntegerTypeName(const std::string& name);
 bool IsFloatScalarTypeName(const std::string& name);
