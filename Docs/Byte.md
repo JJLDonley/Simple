@@ -66,9 +66,13 @@ Constant-pool strings are decoded through the loader helper `ReadConstPoolString
 
 Opcodes are defined in `Byte/include/opcode.h` with metadata in `Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.
 
-The table below is the full opcode plan. Implemented rows have assigned byte values from `OpCode`; incomplete rows reserve the scalar operation in the public plan but still need opcode values, verifier metadata, emitter support, and VM dispatch.
+The tables below are the full opcode plan grouped by related operation family. Implemented rows have assigned byte values from `OpCode`; incomplete rows reserve scalar operations in the public plan but still need opcode values, verifier metadata, emitter support, and VM dispatch.
 
 `Operands` is the number of immediate bytes following the opcode byte. `Pops` and `Pushes` are the static stack-effect metadata used by the verifier; call-family opcodes carry dynamic arity in their operands/signatures, so their static stack effect is recorded as `0/0`.
+
+### Control and frame
+
+Program control, branches, traps, and frame enter/leave markers.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -80,11 +84,28 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ✅ | `0x05` | `JmpTrue` | 4 | 1 | 0 |
 | ✅ | `0x06` | `JmpFalse` | 4 | 1 | 0 |
 | ✅ | `0x07` | `JmpTable` | 8 | 1 | 0 |
+| ✅ | `0x73` | `Ret` | 0 | 0 | 0 |
+| ✅ | `0x74` | `Enter` | 2 | 0 | 0 |
+| ✅ | `0x75` | `Leave` | 0 | 0 | 0 |
+
+### Stack
+
+Operand-stack manipulation.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
 | ✅ | `0x10` | `Pop` | 0 | 1 | 0 |
 | ✅ | `0x11` | `Dup` | 0 | 1 | 2 |
 | ✅ | `0x12` | `Dup2` | 0 | 2 | 4 |
 | ✅ | `0x13` | `Swap` | 0 | 2 | 2 |
 | ✅ | `0x14` | `Rot` | 0 | 3 | 3 |
+
+### Constants
+
+Immediate constants and constant-pool references.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
 | ✅ | `0x18` | `ConstI8` | 1 | 0 | 1 |
 | ✅ | `0x19` | `ConstI16` | 2 | 0 | 1 |
 | ✅ | `0x1A` | `ConstI32` | 4 | 0 | 1 |
@@ -101,19 +122,26 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ✅ | `0x25` | `ConstChar` | 2 | 0 | 1 |
 | ✅ | `0x26` | `ConstString` | 4 | 0 | 1 |
 | ✅ | `0x27` | `ConstNull` | 0 | 0 | 1 |
+
+### Locals, globals, and upvalues
+
+Slot access for function locals, globals, and captured values.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
 | ✅ | `0x30` | `LoadLocal` | 4 | 0 | 1 |
 | ✅ | `0x31` | `StoreLocal` | 4 | 1 | 0 |
 | ✅ | `0x32` | `LoadGlobal` | 4 | 0 | 1 |
 | ✅ | `0x33` | `StoreGlobal` | 4 | 1 | 0 |
 | ✅ | `0x34` | `LoadUpvalue` | 4 | 0 | 1 |
 | ✅ | `0x35` | `StoreUpvalue` | 4 | 1 | 0 |
-| ✅ | `0x36` | `NewListRef` | 8 | 0 | 1 |
-| ✅ | `0x37` | `ListGetRef` | 0 | 2 | 1 |
-| ✅ | `0x38` | `ListSetRef` | 0 | 3 | 0 |
-| ✅ | `0x39` | `ListPushRef` | 0 | 2 | 0 |
-| ✅ | `0x3A` | `ListPopRef` | 0 | 1 | 1 |
-| ✅ | `0x3B` | `ListInsertRef` | 0 | 3 | 0 |
-| ✅ | `0x3C` | `ListRemoveRef` | 0 | 2 | 1 |
+
+### Arithmetic
+
+Binary arithmetic operations. Missing scalar rows are part of the opcode plan but are not assigned opcode values yet.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
 | ✅ | `0x40` | `AddI32` | 0 | 2 | 1 |
 | ✅ | `0x41` | `SubI32` | 0 | 2 | 1 |
 | ✅ | `0x42` | `MulI32` | 0 | 2 | 1 |
@@ -130,148 +158,8 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ✅ | `0x4D` | `DivF32` | 0 | 2 | 1 |
 | ✅ | `0x4E` | `AddF64` | 0 | 2 | 1 |
 | ✅ | `0x4F` | `SubF64` | 0 | 2 | 1 |
-| ✅ | `0x50` | `CmpEqI32` | 0 | 2 | 1 |
-| ✅ | `0x51` | `CmpLtI32` | 0 | 2 | 1 |
-| ✅ | `0x52` | `CmpNeI32` | 0 | 2 | 1 |
-| ✅ | `0x53` | `CmpLeI32` | 0 | 2 | 1 |
-| ✅ | `0x54` | `CmpGtI32` | 0 | 2 | 1 |
-| ✅ | `0x55` | `CmpGeI32` | 0 | 2 | 1 |
-| ✅ | `0x56` | `CmpEqI64` | 0 | 2 | 1 |
-| ✅ | `0x57` | `CmpNeI64` | 0 | 2 | 1 |
-| ✅ | `0x58` | `CmpLtI64` | 0 | 2 | 1 |
-| ✅ | `0x59` | `CmpLeI64` | 0 | 2 | 1 |
-| ✅ | `0x5A` | `CmpGtI64` | 0 | 2 | 1 |
-| ✅ | `0x5B` | `CmpGeI64` | 0 | 2 | 1 |
 | ✅ | `0x5C` | `MulF64` | 0 | 2 | 1 |
 | ✅ | `0x5D` | `DivF64` | 0 | 2 | 1 |
-| ✅ | `0x5E` | `NegI32` | 0 | 1 | 1 |
-| ✅ | `0x5F` | `NegI64` | 0 | 1 | 1 |
-| ✅ | `0x60` | `BoolNot` | 0 | 1 | 1 |
-| ✅ | `0x61` | `BoolAnd` | 0 | 2 | 1 |
-| ✅ | `0x62` | `BoolOr` | 0 | 2 | 1 |
-| ✅ | `0x63` | `CmpEqF32` | 0 | 2 | 1 |
-| ✅ | `0x64` | `CmpNeF32` | 0 | 2 | 1 |
-| ✅ | `0x65` | `CmpLtF32` | 0 | 2 | 1 |
-| ✅ | `0x66` | `CmpLeF32` | 0 | 2 | 1 |
-| ✅ | `0x67` | `CmpGtF32` | 0 | 2 | 1 |
-| ✅ | `0x68` | `CmpGeF32` | 0 | 2 | 1 |
-| ✅ | `0x69` | `CmpEqF64` | 0 | 2 | 1 |
-| ✅ | `0x6A` | `CmpNeF64` | 0 | 2 | 1 |
-| ✅ | `0x6B` | `CmpLtF64` | 0 | 2 | 1 |
-| ✅ | `0x6C` | `CmpLeF64` | 0 | 2 | 1 |
-| ✅ | `0x6D` | `CmpGtF64` | 0 | 2 | 1 |
-| ✅ | `0x6E` | `CmpGeF64` | 0 | 2 | 1 |
-| ✅ | `0x70` | `Call` | 5 | 0 | 0 |
-| ✅ | `0x71` | `CallIndirect` | 5 | 0 | 0 |
-| ✅ | `0x72` | `TailCall` | 5 | 0 | 0 |
-| ✅ | `0x73` | `Ret` | 0 | 0 | 0 |
-| ✅ | `0x74` | `Enter` | 2 | 0 | 0 |
-| ✅ | `0x75` | `Leave` | 0 | 0 | 0 |
-| ✅ | `0x76` | `ConvI32ToI64` | 0 | 1 | 1 |
-| ✅ | `0x77` | `ConvI64ToI32` | 0 | 1 | 1 |
-| ✅ | `0x78` | `ConvI32ToF32` | 0 | 1 | 1 |
-| ✅ | `0x79` | `ConvI32ToF64` | 0 | 1 | 1 |
-| ✅ | `0x7A` | `ConvF32ToI32` | 0 | 1 | 1 |
-| ✅ | `0x7B` | `ConvF64ToI32` | 0 | 1 | 1 |
-| ✅ | `0x7C` | `ConvF32ToF64` | 0 | 1 | 1 |
-| ✅ | `0x7D` | `ConvF64ToF32` | 0 | 1 | 1 |
-| ✅ | `0x7E` | `NegF32` | 0 | 1 | 1 |
-| ✅ | `0x7F` | `NegF64` | 0 | 1 | 1 |
-| ✅ | `0x80` | `Line` | 8 | 0 | 0 |
-| ✅ | `0x81` | `ProfileStart` | 4 | 0 | 0 |
-| ✅ | `0x82` | `ProfileEnd` | 4 | 0 | 0 |
-| ✅ | `0x83` | `IncI32` | 0 | 1 | 1 |
-| ✅ | `0x84` | `DecI32` | 0 | 1 | 1 |
-| ✅ | `0x85` | `IncI64` | 0 | 1 | 1 |
-| ✅ | `0x86` | `DecI64` | 0 | 1 | 1 |
-| ✅ | `0x87` | `IncF32` | 0 | 1 | 1 |
-| ✅ | `0x88` | `DecF32` | 0 | 1 | 1 |
-| ✅ | `0x89` | `IncF64` | 0 | 1 | 1 |
-| ✅ | `0x8A` | `DecF64` | 0 | 1 | 1 |
-| ✅ | `0x8B` | `IncU32` | 0 | 1 | 1 |
-| ✅ | `0x8C` | `DecU32` | 0 | 1 | 1 |
-| ✅ | `0x8D` | `IncU64` | 0 | 1 | 1 |
-| ✅ | `0x8E` | `DecU64` | 0 | 1 | 1 |
-| ✅ | `0x90` | `Intrinsic` | 4 | 0 | 0 |
-| ✅ | `0x91` | `SysCall` | 4 | 0 | 0 |
-| ✅ | `0x92` | `IncI8` | 0 | 1 | 1 |
-| ✅ | `0x93` | `DecI8` | 0 | 1 | 1 |
-| ✅ | `0x94` | `IncI16` | 0 | 1 | 1 |
-| ✅ | `0x95` | `DecI16` | 0 | 1 | 1 |
-| ✅ | `0x96` | `IncU8` | 0 | 1 | 1 |
-| ✅ | `0x97` | `DecU8` | 0 | 1 | 1 |
-| ✅ | `0x98` | `IncU16` | 0 | 1 | 1 |
-| ✅ | `0x99` | `DecU16` | 0 | 1 | 1 |
-| ✅ | `0x9A` | `NegI8` | 0 | 1 | 1 |
-| ✅ | `0x9B` | `NegI16` | 0 | 1 | 1 |
-| ✅ | `0x9C` | `NegU8` | 0 | 1 | 1 |
-| ✅ | `0x9D` | `NegU16` | 0 | 1 | 1 |
-| ✅ | `0x9E` | `NegU32` | 0 | 1 | 1 |
-| ✅ | `0x9F` | `NegU64` | 0 | 1 | 1 |
-| ✅ | `0xA0` | `NewObject` | 4 | 0 | 1 |
-| ✅ | `0xA1` | `NewClosure` | 5 | 0 | 1 |
-| ✅ | `0xA2` | `LoadField` | 4 | 1 | 1 |
-| ✅ | `0xA3` | `StoreField` | 4 | 2 | 0 |
-| ✅ | `0xA4` | `IsNull` | 0 | 1 | 1 |
-| ✅ | `0xA5` | `RefEq` | 0 | 2 | 1 |
-| ✅ | `0xA6` | `RefNe` | 0 | 2 | 1 |
-| ✅ | `0xA7` | `TypeOf` | 0 | 1 | 1 |
-| ✅ | `0xA8` | `NewListF64` | 8 | 0 | 1 |
-| ✅ | `0xA9` | `ListGetF64` | 0 | 2 | 1 |
-| ✅ | `0xAA` | `ListSetF64` | 0 | 3 | 0 |
-| ✅ | `0xAB` | `ListPushF64` | 0 | 2 | 0 |
-| ✅ | `0xAC` | `ListPopF64` | 0 | 1 | 1 |
-| ✅ | `0xAD` | `ListInsertF64` | 0 | 3 | 0 |
-| ✅ | `0xAE` | `ListRemoveF64` | 0 | 2 | 1 |
-| ✅ | `0xB0` | `NewArray` | 8 | 0 | 1 |
-| ✅ | `0xB1` | `ArrayLen` | 0 | 1 | 1 |
-| ✅ | `0xB2` | `ArrayGetI32` | 0 | 2 | 1 |
-| ✅ | `0xB3` | `ArraySetI32` | 0 | 3 | 0 |
-| ✅ | `0xB4` | `NewArrayI64` | 8 | 0 | 1 |
-| ✅ | `0xB5` | `ArrayGetI64` | 0 | 2 | 1 |
-| ✅ | `0xB6` | `ArraySetI64` | 0 | 3 | 0 |
-| ✅ | `0xB7` | `NewArrayF32` | 8 | 0 | 1 |
-| ✅ | `0xB8` | `ArrayGetF32` | 0 | 2 | 1 |
-| ✅ | `0xB9` | `ArraySetF32` | 0 | 3 | 0 |
-| ✅ | `0xBA` | `NewArrayF64` | 8 | 0 | 1 |
-| ✅ | `0xBB` | `ArrayGetF64` | 0 | 2 | 1 |
-| ✅ | `0xBC` | `ArraySetF64` | 0 | 3 | 0 |
-| ✅ | `0xBD` | `NewArrayRef` | 8 | 0 | 1 |
-| ✅ | `0xBE` | `ArrayGetRef` | 0 | 2 | 1 |
-| ✅ | `0xBF` | `ArraySetRef` | 0 | 3 | 0 |
-| ✅ | `0xC0` | `NewList` | 8 | 0 | 1 |
-| ✅ | `0xC1` | `ListLen` | 0 | 1 | 1 |
-| ✅ | `0xC2` | `ListGetI32` | 0 | 2 | 1 |
-| ✅ | `0xC3` | `ListSetI32` | 0 | 3 | 0 |
-| ✅ | `0xC4` | `ListPushI32` | 0 | 2 | 0 |
-| ✅ | `0xC5` | `ListPopI32` | 0 | 1 | 1 |
-| ✅ | `0xC6` | `ListInsertI32` | 0 | 3 | 0 |
-| ✅ | `0xC7` | `ListRemoveI32` | 0 | 2 | 1 |
-| ✅ | `0xC8` | `ListClear` | 0 | 1 | 0 |
-| ✅ | `0xC9` | `NewListF32` | 8 | 0 | 1 |
-| ✅ | `0xCA` | `ListGetF32` | 0 | 2 | 1 |
-| ✅ | `0xCB` | `ListSetF32` | 0 | 3 | 0 |
-| ✅ | `0xCC` | `ListPushF32` | 0 | 2 | 0 |
-| ✅ | `0xCD` | `ListPopF32` | 0 | 1 | 1 |
-| ✅ | `0xCE` | `ListInsertF32` | 0 | 3 | 0 |
-| ✅ | `0xCF` | `ListRemoveF32` | 0 | 2 | 1 |
-| ✅ | `0xD0` | `StringLen` | 0 | 1 | 1 |
-| ✅ | `0xD1` | `StringConcat` | 0 | 2 | 1 |
-| ✅ | `0xD2` | `StringGetChar` | 0 | 2 | 1 |
-| ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
-| ✅ | `0xD4` | `AndI64` | 0 | 2 | 1 |
-| ✅ | `0xD5` | `OrI64` | 0 | 2 | 1 |
-| ✅ | `0xD6` | `XorI64` | 0 | 2 | 1 |
-| ✅ | `0xD7` | `ShlI64` | 0 | 2 | 1 |
-| ✅ | `0xD8` | `ShrI64` | 0 | 2 | 1 |
-| ✅ | `0xD9` | `NewListI64` | 8 | 0 | 1 |
-| ✅ | `0xDA` | `ListGetI64` | 0 | 2 | 1 |
-| ✅ | `0xDB` | `ListSetI64` | 0 | 3 | 0 |
-| ✅ | `0xDC` | `ListPushI64` | 0 | 2 | 0 |
-| ✅ | `0xDD` | `ListPopI64` | 0 | 1 | 1 |
-| ✅ | `0xDE` | `ListInsertI64` | 0 | 3 | 0 |
-| ✅ | `0xDF` | `ListRemoveI64` | 0 | 2 | 1 |
-| ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
 | ✅ | `0xE1` | `AddU32` | 0 | 2 | 1 |
 | ✅ | `0xE2` | `SubU32` | 0 | 2 | 1 |
 | ✅ | `0xE3` | `MulU32` | 0 | 2 | 1 |
@@ -282,23 +170,6 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ✅ | `0xE8` | `MulU64` | 0 | 2 | 1 |
 | ✅ | `0xE9` | `DivU64` | 0 | 2 | 1 |
 | ✅ | `0xEA` | `ModU64` | 0 | 2 | 1 |
-| ✅ | `0xEB` | `CmpEqU32` | 0 | 2 | 1 |
-| ✅ | `0xEC` | `CmpNeU32` | 0 | 2 | 1 |
-| ✅ | `0xED` | `CmpLtU32` | 0 | 2 | 1 |
-| ✅ | `0xEE` | `CmpLeU32` | 0 | 2 | 1 |
-| ✅ | `0xEF` | `CmpGtU32` | 0 | 2 | 1 |
-| ✅ | `0xF0` | `CmpGeU32` | 0 | 2 | 1 |
-| ✅ | `0xF1` | `CmpEqU64` | 0 | 2 | 1 |
-| ✅ | `0xF2` | `CmpNeU64` | 0 | 2 | 1 |
-| ✅ | `0xF3` | `CmpLtU64` | 0 | 2 | 1 |
-| ✅ | `0xF4` | `CmpLeU64` | 0 | 2 | 1 |
-| ✅ | `0xF5` | `CmpGtU64` | 0 | 2 | 1 |
-| ✅ | `0xF6` | `CmpGeU64` | 0 | 2 | 1 |
-| ✅ | `0xF7` | `AndI32` | 0 | 2 | 1 |
-| ✅ | `0xF8` | `OrI32` | 0 | 2 | 1 |
-| ✅ | `0xF9` | `XorI32` | 0 | 2 | 1 |
-| ✅ | `0xFA` | `ShlI32` | 0 | 2 | 1 |
-| ✅ | `0xFB` | `ShrI32` | 0 | 2 | 1 |
 | ☐ | `TBD` | `AddI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `SubI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `MulI8` | 0 | 2 | 1 |
@@ -329,12 +200,99 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `MulU128` | 0 | 2 | 1 |
 | ☐ | `TBD` | `DivU128` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ModU128` | 0 | 2 | 1 |
+
+### Increment and decrement
+
+Unary increment/decrement operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x83` | `IncI32` | 0 | 1 | 1 |
+| ✅ | `0x84` | `DecI32` | 0 | 1 | 1 |
+| ✅ | `0x85` | `IncI64` | 0 | 1 | 1 |
+| ✅ | `0x86` | `DecI64` | 0 | 1 | 1 |
+| ✅ | `0x87` | `IncF32` | 0 | 1 | 1 |
+| ✅ | `0x88` | `DecF32` | 0 | 1 | 1 |
+| ✅ | `0x89` | `IncF64` | 0 | 1 | 1 |
+| ✅ | `0x8A` | `DecF64` | 0 | 1 | 1 |
+| ✅ | `0x8B` | `IncU32` | 0 | 1 | 1 |
+| ✅ | `0x8C` | `DecU32` | 0 | 1 | 1 |
+| ✅ | `0x8D` | `IncU64` | 0 | 1 | 1 |
+| ✅ | `0x8E` | `DecU64` | 0 | 1 | 1 |
+| ✅ | `0x92` | `IncI8` | 0 | 1 | 1 |
+| ✅ | `0x93` | `DecI8` | 0 | 1 | 1 |
+| ✅ | `0x94` | `IncI16` | 0 | 1 | 1 |
+| ✅ | `0x95` | `DecI16` | 0 | 1 | 1 |
+| ✅ | `0x96` | `IncU8` | 0 | 1 | 1 |
+| ✅ | `0x97` | `DecU8` | 0 | 1 | 1 |
+| ✅ | `0x98` | `IncU16` | 0 | 1 | 1 |
+| ✅ | `0x99` | `DecU16` | 0 | 1 | 1 |
 | ☐ | `TBD` | `IncI128` | 0 | 1 | 1 |
 | ☐ | `TBD` | `DecI128` | 0 | 1 | 1 |
-| ☐ | `TBD` | `NegI128` | 0 | 1 | 1 |
 | ☐ | `TBD` | `IncU128` | 0 | 1 | 1 |
 | ☐ | `TBD` | `DecU128` | 0 | 1 | 1 |
+
+### Negation
+
+Unary numeric negation operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x5E` | `NegI32` | 0 | 1 | 1 |
+| ✅ | `0x5F` | `NegI64` | 0 | 1 | 1 |
+| ✅ | `0x7E` | `NegF32` | 0 | 1 | 1 |
+| ✅ | `0x7F` | `NegF64` | 0 | 1 | 1 |
+| ✅ | `0x9A` | `NegI8` | 0 | 1 | 1 |
+| ✅ | `0x9B` | `NegI16` | 0 | 1 | 1 |
+| ✅ | `0x9C` | `NegU8` | 0 | 1 | 1 |
+| ✅ | `0x9D` | `NegU16` | 0 | 1 | 1 |
+| ✅ | `0x9E` | `NegU32` | 0 | 1 | 1 |
+| ✅ | `0x9F` | `NegU64` | 0 | 1 | 1 |
+| ☐ | `TBD` | `NegI128` | 0 | 1 | 1 |
 | ☐ | `TBD` | `NegU128` | 0 | 1 | 1 |
+
+### Comparisons
+
+Equality and ordering comparisons.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x50` | `CmpEqI32` | 0 | 2 | 1 |
+| ✅ | `0x51` | `CmpLtI32` | 0 | 2 | 1 |
+| ✅ | `0x52` | `CmpNeI32` | 0 | 2 | 1 |
+| ✅ | `0x53` | `CmpLeI32` | 0 | 2 | 1 |
+| ✅ | `0x54` | `CmpGtI32` | 0 | 2 | 1 |
+| ✅ | `0x55` | `CmpGeI32` | 0 | 2 | 1 |
+| ✅ | `0x56` | `CmpEqI64` | 0 | 2 | 1 |
+| ✅ | `0x57` | `CmpNeI64` | 0 | 2 | 1 |
+| ✅ | `0x58` | `CmpLtI64` | 0 | 2 | 1 |
+| ✅ | `0x59` | `CmpLeI64` | 0 | 2 | 1 |
+| ✅ | `0x5A` | `CmpGtI64` | 0 | 2 | 1 |
+| ✅ | `0x5B` | `CmpGeI64` | 0 | 2 | 1 |
+| ✅ | `0x63` | `CmpEqF32` | 0 | 2 | 1 |
+| ✅ | `0x64` | `CmpNeF32` | 0 | 2 | 1 |
+| ✅ | `0x65` | `CmpLtF32` | 0 | 2 | 1 |
+| ✅ | `0x66` | `CmpLeF32` | 0 | 2 | 1 |
+| ✅ | `0x67` | `CmpGtF32` | 0 | 2 | 1 |
+| ✅ | `0x68` | `CmpGeF32` | 0 | 2 | 1 |
+| ✅ | `0x69` | `CmpEqF64` | 0 | 2 | 1 |
+| ✅ | `0x6A` | `CmpNeF64` | 0 | 2 | 1 |
+| ✅ | `0x6B` | `CmpLtF64` | 0 | 2 | 1 |
+| ✅ | `0x6C` | `CmpLeF64` | 0 | 2 | 1 |
+| ✅ | `0x6D` | `CmpGtF64` | 0 | 2 | 1 |
+| ✅ | `0x6E` | `CmpGeF64` | 0 | 2 | 1 |
+| ✅ | `0xEB` | `CmpEqU32` | 0 | 2 | 1 |
+| ✅ | `0xEC` | `CmpNeU32` | 0 | 2 | 1 |
+| ✅ | `0xED` | `CmpLtU32` | 0 | 2 | 1 |
+| ✅ | `0xEE` | `CmpLeU32` | 0 | 2 | 1 |
+| ✅ | `0xEF` | `CmpGtU32` | 0 | 2 | 1 |
+| ✅ | `0xF0` | `CmpGeU32` | 0 | 2 | 1 |
+| ✅ | `0xF1` | `CmpEqU64` | 0 | 2 | 1 |
+| ✅ | `0xF2` | `CmpNeU64` | 0 | 2 | 1 |
+| ✅ | `0xF3` | `CmpLtU64` | 0 | 2 | 1 |
+| ✅ | `0xF4` | `CmpLeU64` | 0 | 2 | 1 |
+| ✅ | `0xF5` | `CmpGtU64` | 0 | 2 | 1 |
+| ✅ | `0xF6` | `CmpGeU64` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CmpEqI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CmpNeI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CmpLtI8` | 0 | 2 | 1 |
@@ -379,6 +337,33 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `CmpGeChar` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CmpEqBool` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CmpNeBool` | 0 | 2 | 1 |
+
+### Boolean logic
+
+Boolean logical operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x60` | `BoolNot` | 0 | 1 | 1 |
+| ✅ | `0x61` | `BoolAnd` | 0 | 2 | 1 |
+| ✅ | `0x62` | `BoolOr` | 0 | 2 | 1 |
+
+### Bitwise and shifts
+
+Bitwise and shift operations. Unsigned/small/128-bit rows marked incomplete need dedicated opcode values and semantics.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0xD4` | `AndI64` | 0 | 2 | 1 |
+| ✅ | `0xD5` | `OrI64` | 0 | 2 | 1 |
+| ✅ | `0xD6` | `XorI64` | 0 | 2 | 1 |
+| ✅ | `0xD7` | `ShlI64` | 0 | 2 | 1 |
+| ✅ | `0xD8` | `ShrI64` | 0 | 2 | 1 |
+| ✅ | `0xF7` | `AndI32` | 0 | 2 | 1 |
+| ✅ | `0xF8` | `OrI32` | 0 | 2 | 1 |
+| ✅ | `0xF9` | `XorI32` | 0 | 2 | 1 |
+| ✅ | `0xFA` | `ShlI32` | 0 | 2 | 1 |
+| ✅ | `0xFB` | `ShrI32` | 0 | 2 | 1 |
 | ☐ | `TBD` | `AndU8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `OrU8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `XorU8` | 0 | 2 | 1 |
@@ -419,6 +404,32 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `XorI128` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ShlI128` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ShrI128` | 0 | 2 | 1 |
+
+### Calls
+
+Direct, indirect, tail, and runtime call-check operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x70` | `Call` | 5 | 0 | 0 |
+| ✅ | `0x71` | `CallIndirect` | 5 | 0 | 0 |
+| ✅ | `0x72` | `TailCall` | 5 | 0 | 0 |
+| ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
+
+### Conversions
+
+Scalar conversion operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x76` | `ConvI32ToI64` | 0 | 1 | 1 |
+| ✅ | `0x77` | `ConvI64ToI32` | 0 | 1 | 1 |
+| ✅ | `0x78` | `ConvI32ToF32` | 0 | 1 | 1 |
+| ✅ | `0x79` | `ConvI32ToF64` | 0 | 1 | 1 |
+| ✅ | `0x7A` | `ConvF32ToI32` | 0 | 1 | 1 |
+| ✅ | `0x7B` | `ConvF64ToI32` | 0 | 1 | 1 |
+| ✅ | `0x7C` | `ConvF32ToF64` | 0 | 1 | 1 |
+| ✅ | `0x7D` | `ConvF64ToF32` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ConvI8ToI16` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ConvI8ToI32` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ConvI8ToI64` | 0 | 1 | 1 |
@@ -471,6 +482,56 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `ConvF64ToU64` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ConvCharToU32` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ConvU32ToChar` | 0 | 1 | 1 |
+
+### Debug, profiling, native, and system runtime
+
+Line/profile markers plus VM runtime/native escape hatches.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x80` | `Line` | 8 | 0 | 0 |
+| ✅ | `0x81` | `ProfileStart` | 4 | 0 | 0 |
+| ✅ | `0x82` | `ProfileEnd` | 4 | 0 | 0 |
+| ✅ | `0x90` | `Intrinsic` | 4 | 0 | 0 |
+| ✅ | `0x91` | `SysCall` | 4 | 0 | 0 |
+
+### Objects, closures, refs, and fields
+
+Heap object, closure, reference, and field operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0xA0` | `NewObject` | 4 | 0 | 1 |
+| ✅ | `0xA1` | `NewClosure` | 5 | 0 | 1 |
+| ✅ | `0xA2` | `LoadField` | 4 | 1 | 1 |
+| ✅ | `0xA3` | `StoreField` | 4 | 2 | 0 |
+| ✅ | `0xA4` | `IsNull` | 0 | 1 | 1 |
+| ✅ | `0xA5` | `RefEq` | 0 | 2 | 1 |
+| ✅ | `0xA6` | `RefNe` | 0 | 2 | 1 |
+| ✅ | `0xA7` | `TypeOf` | 0 | 1 | 1 |
+
+### Arrays
+
+Fixed-size array allocation and element access.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0xB0` | `NewArray` | 8 | 0 | 1 |
+| ✅ | `0xB1` | `ArrayLen` | 0 | 1 | 1 |
+| ✅ | `0xB2` | `ArrayGetI32` | 0 | 2 | 1 |
+| ✅ | `0xB3` | `ArraySetI32` | 0 | 3 | 0 |
+| ✅ | `0xB4` | `NewArrayI64` | 8 | 0 | 1 |
+| ✅ | `0xB5` | `ArrayGetI64` | 0 | 2 | 1 |
+| ✅ | `0xB6` | `ArraySetI64` | 0 | 3 | 0 |
+| ✅ | `0xB7` | `NewArrayF32` | 8 | 0 | 1 |
+| ✅ | `0xB8` | `ArrayGetF32` | 0 | 2 | 1 |
+| ✅ | `0xB9` | `ArraySetF32` | 0 | 3 | 0 |
+| ✅ | `0xBA` | `NewArrayF64` | 8 | 0 | 1 |
+| ✅ | `0xBB` | `ArrayGetF64` | 0 | 2 | 1 |
+| ✅ | `0xBC` | `ArraySetF64` | 0 | 3 | 0 |
+| ✅ | `0xBD` | `NewArrayRef` | 8 | 0 | 1 |
+| ✅ | `0xBE` | `ArrayGetRef` | 0 | 2 | 1 |
+| ✅ | `0xBF` | `ArraySetRef` | 0 | 3 | 0 |
 | ☐ | `TBD` | `NewArrayI8` | 8 | 0 | 1 |
 | ☐ | `TBD` | `ArrayGetI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ArraySetI8` | 0 | 3 | 0 |
@@ -501,6 +562,50 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `NewArrayChar` | 8 | 0 | 1 |
 | ☐ | `TBD` | `ArrayGetChar` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ArraySetChar` | 0 | 3 | 0 |
+
+### Lists
+
+Growable list allocation and element operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0x36` | `NewListRef` | 8 | 0 | 1 |
+| ✅ | `0x37` | `ListGetRef` | 0 | 2 | 1 |
+| ✅ | `0x38` | `ListSetRef` | 0 | 3 | 0 |
+| ✅ | `0x39` | `ListPushRef` | 0 | 2 | 0 |
+| ✅ | `0x3A` | `ListPopRef` | 0 | 1 | 1 |
+| ✅ | `0x3B` | `ListInsertRef` | 0 | 3 | 0 |
+| ✅ | `0x3C` | `ListRemoveRef` | 0 | 2 | 1 |
+| ✅ | `0xA8` | `NewListF64` | 8 | 0 | 1 |
+| ✅ | `0xA9` | `ListGetF64` | 0 | 2 | 1 |
+| ✅ | `0xAA` | `ListSetF64` | 0 | 3 | 0 |
+| ✅ | `0xAB` | `ListPushF64` | 0 | 2 | 0 |
+| ✅ | `0xAC` | `ListPopF64` | 0 | 1 | 1 |
+| ✅ | `0xAD` | `ListInsertF64` | 0 | 3 | 0 |
+| ✅ | `0xAE` | `ListRemoveF64` | 0 | 2 | 1 |
+| ✅ | `0xC0` | `NewList` | 8 | 0 | 1 |
+| ✅ | `0xC1` | `ListLen` | 0 | 1 | 1 |
+| ✅ | `0xC2` | `ListGetI32` | 0 | 2 | 1 |
+| ✅ | `0xC3` | `ListSetI32` | 0 | 3 | 0 |
+| ✅ | `0xC4` | `ListPushI32` | 0 | 2 | 0 |
+| ✅ | `0xC5` | `ListPopI32` | 0 | 1 | 1 |
+| ✅ | `0xC6` | `ListInsertI32` | 0 | 3 | 0 |
+| ✅ | `0xC7` | `ListRemoveI32` | 0 | 2 | 1 |
+| ✅ | `0xC8` | `ListClear` | 0 | 1 | 0 |
+| ✅ | `0xC9` | `NewListF32` | 8 | 0 | 1 |
+| ✅ | `0xCA` | `ListGetF32` | 0 | 2 | 1 |
+| ✅ | `0xCB` | `ListSetF32` | 0 | 3 | 0 |
+| ✅ | `0xCC` | `ListPushF32` | 0 | 2 | 0 |
+| ✅ | `0xCD` | `ListPopF32` | 0 | 1 | 1 |
+| ✅ | `0xCE` | `ListInsertF32` | 0 | 3 | 0 |
+| ✅ | `0xCF` | `ListRemoveF32` | 0 | 2 | 1 |
+| ✅ | `0xD9` | `NewListI64` | 8 | 0 | 1 |
+| ✅ | `0xDA` | `ListGetI64` | 0 | 2 | 1 |
+| ✅ | `0xDB` | `ListSetI64` | 0 | 3 | 0 |
+| ✅ | `0xDC` | `ListPushI64` | 0 | 2 | 0 |
+| ✅ | `0xDD` | `ListPopI64` | 0 | 1 | 1 |
+| ✅ | `0xDE` | `ListInsertI64` | 0 | 3 | 0 |
+| ✅ | `0xDF` | `ListRemoveI64` | 0 | 2 | 1 |
 | ☐ | `TBD` | `NewListI8` | 8 | 0 | 1 |
 | ☐ | `TBD` | `ListGetI8` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ListSetI8` | 0 | 3 | 0 |
@@ -571,6 +676,17 @@ The table below is the full opcode plan. Implemented rows have assigned byte val
 | ☐ | `TBD` | `ListPopChar` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ListInsertChar` | 0 | 3 | 0 |
 | ☐ | `TBD` | `ListRemoveChar` | 0 | 2 | 1 |
+
+### Strings
+
+String-specific operations.
+
+| Status | Value | Name | Operands | Pops | Pushes |
+|:---:|---:|---|---:|---:|---:|
+| ✅ | `0xD0` | `StringLen` | 0 | 1 | 1 |
+| ✅ | `0xD1` | `StringConcat` | 0 | 2 | 1 |
+| ✅ | `0xD2` | `StringGetChar` | 0 | 2 | 1 |
+| ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
 
 ## Loader contract
 
