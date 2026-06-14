@@ -2172,10 +2172,9 @@ bool ValidateArtifactLiteral(const Expr& expr,
     if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {
       TypeRef expected;
       if (!SubstituteTypeParams(field.type, type_mapping, &expected)) return false;
-      if (!TypesCompatibleForExpr(expected, value_type, expr.children[i])) {
-        if (error) *error = "artifact field type mismatch: " + field.name;
-        return false;
-      }
+      if (!CheckTypesCompatibleForExpr(expected, value_type, expr.children[i],
+                                       "artifact field type mismatch: " + field.name,
+                                       error)) return false;
     }
   }
   if (!expr.field_names.empty()) {
@@ -2196,10 +2195,9 @@ bool ValidateArtifactLiteral(const Expr& expr,
       if (InferExprType(expr.field_values[i], ctx, scopes, current_artifact, &value_type)) {
         TypeRef expected;
         if (!SubstituteTypeParams(it->second->type, type_mapping, &expected)) return false;
-        if (!TypesCompatibleForExpr(expected, value_type, expr.field_values[i])) {
-          if (error) *error = "artifact field type mismatch: " + name;
-          return false;
-        }
+        if (!CheckTypesCompatibleForExpr(expected, value_type, expr.field_values[i],
+                                         "artifact field type mismatch: " + name,
+                                         error)) return false;
       }
     }
   }
@@ -2769,10 +2767,8 @@ bool AnalyzeSwitchExpr(const Expr& expr,
         if (!CloneTypeRef(value_type, &common)) return false;
         has_type = true;
       } else {
-        if (!TypesCompatibleForExpr(common, value_type, *value_expr)) {
-          if (error) *error = "switch branch type mismatch";
-          return false;
-        }
+        if (!CheckTypesCompatibleForExpr(common, value_type, *value_expr,
+                                         "switch branch type mismatch", error)) return false;
       }
     }
   }
