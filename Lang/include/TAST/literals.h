@@ -13,6 +13,11 @@ bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
 
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected);
+bool IsLiteralCompatibleWithScalarType(const Simple::Lang::AST::Expr& expr,
+                                       const Simple::Lang::AST::TypeRef& expected);
+bool TypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
+                            const Simple::Lang::AST::TypeRef& actual,
+                            const Simple::Lang::AST::Expr& expr);
 bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr);
 bool IsPositionalBraceLiteralExpr(const Simple::Lang::AST::Expr& expr);
 

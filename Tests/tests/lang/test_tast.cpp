@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
 #include <memory>
+#include <vector>
 
 #include "AST/lower_cast.h"
 #include "CAST/parser.h"
@@ -33,6 +34,9 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   if (!clone.is_proc || !clone.proc_return || clone.proc_return->name != "bool") return false;
   if (clone.proc_params.size() != 1 || clone.proc_params[0].name != "i32") return false;
   if (!Simple::Lang::TAST::TypeEquals(proc, clone)) return false;
+  std::vector<Simple::Lang::AST::TypeRef> cloned_params;
+  if (!Simple::Lang::TAST::CloneTypeVector(proc.proc_params, &cloned_params)) return false;
+  if (cloned_params.size() != 1 || cloned_params[0].name != "i32") return false;
 
   Simple::Lang::AST::TypeRef fixed_array;
   fixed_array.name = "i32";
@@ -113,6 +117,32 @@ bool LangTastCheckerRejectsTypeMismatch() {
   return error.find("initializer type mismatch") != std::string::npos;
 }
 
+
+bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {
+  Simple::Lang::AST::TypeRef expected_array;
+  expected_array.name = "i32";
+  expected_array.dims.push_back({false, false, 0});
+  Simple::Lang::AST::TypeRef actual_array;
+  actual_array.name = "i32";
+  actual_array.dims.push_back({false, true, 3});
+  Simple::Lang::AST::Expr brace;
+  brace.kind = Simple::Lang::AST::ExprKind::ArrayLiteral;
+  if (!Simple::Lang::TAST::TypesCompatibleForExpr(expected_array, actual_array, brace)) return false;
+
+  Simple::Lang::AST::TypeRef expected_scalar;
+  expected_scalar.name = "i64";
+  Simple::Lang::AST::TypeRef actual_scalar;
+  actual_scalar.name = "i32";
+  Simple::Lang::AST::Expr literal;
+  literal.kind = Simple::Lang::AST::ExprKind::Literal;
+  literal.literal_kind = Simple::Lang::AST::LiteralKind::Integer;
+  literal.text = "1";
+  if (!Simple::Lang::TAST::IsLiteralCompatibleWithScalarType(literal, expected_scalar)) return false;
+  if (!Simple::Lang::TAST::TypesCompatibleForExpr(expected_scalar, actual_scalar, literal)) return false;
+
+  expected_scalar.name = "bool";
+  return !Simple::Lang::TAST::TypesCompatibleForExpr(expected_scalar, actual_scalar, literal);
+}
 
 bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   Simple::Lang::AST::Expr list;
@@ -306,6 +336,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
+  {"lang_tast_literal_compatibility_accepts_flexible_array_and_scalar_literals", LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals},
   {"lang_tast_literal_helpers_classify_brace_and_list_shapes", LangTastLiteralHelpersClassifyBraceAndListShapes},
   {"lang_tast_literal_typing_uses_expected_type", LangTastLiteralTypingUsesExpectedType},
   {"lang_tast_literal_typing_rejects_invalid_expected_type", LangTastLiteralTypingRejectsInvalidExpectedType},

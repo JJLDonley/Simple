@@ -48,6 +48,19 @@ bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
   return true;
 }
 
+bool CloneTypeVector(const std::vector<Simple::Lang::AST::TypeRef>& src,
+                     std::vector<Simple::Lang::AST::TypeRef>* out) {
+  if (!out) return false;
+  out->clear();
+  out->reserve(src.size());
+  for (const auto& item : src) {
+    Simple::Lang::AST::TypeRef copy;
+    if (!CloneTypeRef(item, &copy)) return false;
+    out->push_back(std::move(copy));
+  }
+  return true;
+}
+
 bool TypeDimsEqual(const std::vector<Simple::Lang::AST::TypeDim>& a,
                    const std::vector<Simple::Lang::AST::TypeDim>& b) {
   if (a.size() != b.size()) return false;

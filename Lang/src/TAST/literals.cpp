@@ -22,6 +22,48 @@ bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
   return false;
 }
 
+bool IsLiteralCompatibleWithScalarType(const Simple::Lang::AST::Expr& expr,
+                                       const Simple::Lang::AST::TypeRef& expected) {
+  if (!IsScalarType(expected)) return false;
+  if (expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer &&
+      IsIntegerScalarTypeName(expected.name)) {
+    return true;
+  }
+  if (expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float &&
+      IsFloatScalarTypeName(expected.name)) {
+    return true;
+  }
+  return false;
+}
+
+bool TypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
+                            const Simple::Lang::AST::TypeRef& actual,
+                            const Simple::Lang::AST::Expr& expr) {
+  if (TypeEquals(expected, actual)) return true;
+  if (expected.pointer_depth == 0 && actual.pointer_depth == 0 &&
+      !expected.is_proc && !actual.is_proc &&
+      expected.name == actual.name &&
+      TypeArgsEqual(expected.type_args, actual.type_args) &&
+      expected.dims.size() == actual.dims.size()) {
+    bool dims_ok = true;
+    for (size_t i = 0; i < expected.dims.size(); ++i) {
+      if (expected.dims[i].is_list != actual.dims[i].is_list) {
+        dims_ok = false;
+        break;
+      }
+      if (expected.dims[i].is_list) continue;
+      if (!expected.dims[i].has_size) continue;
+      if (!actual.dims[i].has_size || expected.dims[i].size != actual.dims[i].size) {
+        dims_ok = false;
+        break;
+      }
+    }
+    if (dims_ok) return true;
+  }
+  return actual.pointer_depth == 0 && !actual.is_proc && actual.type_args.empty() &&
+         actual.dims.empty() && IsLiteralCompatibleWithScalarType(expr, expected);
+}
+
 bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr) {
   return expr.kind == ExprKind::ListLiteral;
 }

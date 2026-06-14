@@ -59,7 +59,6 @@ bool InferExprType(const Expr& expr,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                    const ArtifactDecl* current_artifact,
                    TypeRef* out);
-bool IsIntegerLiteralExpr(const Expr& expr);
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -98,12 +97,12 @@ enum class TypeUse : uint8_t {
 };
 
 using TAST::CloneTypeRef;
+using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::IsBoolTypeName;
-using TAST::IsFloatScalarTypeName;
 using TAST::IsFloatTypeName;
-using TAST::IsIntegerScalarTypeName;
 using TAST::IsIntegerTypeName;
+using TAST::IsLiteralCompatibleWithScalarType;
 using TAST::IsListLiteralExpr;
 using TAST::IsNumericTypeName;
 using TAST::IsPositionalBraceLiteralExpr;
@@ -111,9 +110,9 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
-using TAST::TypeArgsEqual;
 using TAST::TypeDimsEqual;
 using TAST::TypeEquals;
+using TAST::TypesCompatibleForExpr;
 
 bool IsIoPrintName(const std::string& name);
 bool ResolveReservedModuleName(const ValidateContext& ctx,
@@ -1135,66 +1134,6 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
 
 bool IsIoPrintName(const std::string& name) {
   return name == "print" || name == "println";
-}
-
-bool CloneTypeVector(const std::vector<TypeRef>& src, std::vector<TypeRef>* out) {
-  if (!out) return false;
-  out->clear();
-  out->reserve(src.size());
-  for (const auto& item : src) {
-    TypeRef copy;
-    if (!CloneTypeRef(item, &copy)) return false;
-    out->push_back(std::move(copy));
-  }
-  return true;
-}
-
-bool IsIntegerLiteralExpr(const Expr& expr) {
-  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Integer;
-}
-
-bool IsFloatLiteralExpr(const Expr& expr) {
-  return expr.kind == ExprKind::Literal && expr.literal_kind == LiteralKind::Float;
-}
-
-bool IsLiteralCompatibleWithScalarType(const Expr& expr, const TypeRef& expected) {
-  if (expected.pointer_depth != 0 || expected.is_proc || !expected.type_args.empty() ||
-      !expected.dims.empty()) {
-    return false;
-  }
-  if (IsIntegerLiteralExpr(expr) && IsIntegerScalarTypeName(expected.name)) return true;
-  if (IsFloatLiteralExpr(expr) && IsFloatScalarTypeName(expected.name)) return true;
-  return false;
-}
-
-bool TypesCompatibleForExpr(const TypeRef& expected, const TypeRef& actual, const Expr& expr) {
-  if (TypeEquals(expected, actual)) return true;
-  if (expected.pointer_depth == 0 && actual.pointer_depth == 0 &&
-      !expected.is_proc && !actual.is_proc &&
-      expected.name == actual.name &&
-      TypeArgsEqual(expected.type_args, actual.type_args) &&
-      expected.dims.size() == actual.dims.size()) {
-    bool dims_ok = true;
-    for (size_t i = 0; i < expected.dims.size(); ++i) {
-      if (expected.dims[i].is_list != actual.dims[i].is_list) {
-        dims_ok = false;
-        break;
-      }
-      if (expected.dims[i].is_list) continue;
-      if (!expected.dims[i].has_size) continue; // '{}' accepts any static length
-      if (!actual.dims[i].has_size || expected.dims[i].size != actual.dims[i].size) {
-        dims_ok = false;
-        break;
-      }
-    }
-    if (dims_ok) return true;
-  }
-  if (actual.pointer_depth == 0 && !actual.is_proc && actual.type_args.empty() &&
-      actual.dims.empty() &&
-      IsLiteralCompatibleWithScalarType(expr, expected)) {
-    return true;
-  }
-  return false;
 }
 
 bool ApplyTypeSubstitution(TypeRef* type,

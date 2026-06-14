@@ -9,6 +9,8 @@ namespace Simple::Lang::TAST {
 
 bool CloneTypeRef(const Simple::Lang::AST::TypeRef& src,
                   Simple::Lang::AST::TypeRef* out);
+bool CloneTypeVector(const std::vector<Simple::Lang::AST::TypeRef>& src,
+                     std::vector<Simple::Lang::AST::TypeRef>* out);
 bool TypeDimsEqual(const std::vector<Simple::Lang::AST::TypeDim>& a,
                    const std::vector<Simple::Lang::AST::TypeDim>& b);
 bool TypeArgsEqual(const std::vector<Simple::Lang::AST::TypeRef>& a,
