@@ -255,14 +255,22 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 
 ### SRP Completion / Regression Checks
 
-These checks exist to confirm the SRP refactor is actually finished correctly and does not regress into new monoliths, shims, or mixed-ownership code.
+These checks close the SRP effort only when they are true in the tree. Do not mark these complete just because the first extraction pass landed.
 
-- [ ] `VM/src/vm.cpp` remains only the VM orchestration/API surface; opcode dispatch, native calls, GC, JIT, traps, globals, frames, heap helpers, and runtime limits stay in owned modules.
-- [ ] `Lang/src/lang_validate.cpp` does not grow new phase ownership; new semantic logic is implemented in the owning `RAST` or `TAST` module and called through a phase API.
-- [ ] Native runtime additions use the metadata registry and include metadata/signature tests; no ad-hoc native dispatch lists or forwarding glue are reintroduced.
-- [ ] GC code traces refs from declared layouts, stack maps, globals, and native handle roots; no heuristic ref guessing is added.
+- [ ] `VM/src/vm.cpp` is orchestration/API only.
+  - Current status: not closed; `ExecuteModule` still owns the main opcode `switch` and substantial instruction behavior.
+  - Finish by moving opcode-family execution into owned interpreter/runtime modules, leaving `vm.cpp` to wire verification, state construction, execution entry, and result return.
+- [ ] `Lang/src/lang_validate.cpp` is not a semantic monolith.
+  - Current status: not closed; it still owns broad `InferExprType`, call checking, statement checking, type checking, and validation context behavior.
+  - Finish by moving remaining name/member work to `RAST` and type/control/ABI/literal/expression work to `TAST`, with `lang_validate.cpp` reduced to a thin public entry point or removed if the TAST API can own it directly.
+- [x] Native runtime additions use the metadata registry and include metadata/signature tests; no ad-hoc native dispatch lists or forwarding glue are reintroduced.
+- [x] Current GC tracing uses declared roots/stack maps/globals rather than heuristic ref guessing.
+  - Future native-handle roots belong to the layered native resource-registry work.
 - [ ] Lang phase APIs are direct owner APIs, not facade-only wrappers or compatibility shims.
-- [ ] New tests are placed in the owning subsystem/phase file (`lang/`, `vm/`, `cli/`, etc.); `Tests/tests/test_lang.cpp` should only keep broad integration/runtime coverage until the remaining split is completed.
+  - Current status: mostly closed, but verify/remove remaining alias-style phase exports such as CAST namespace re-exports before marking complete.
+- [ ] Tests are split by owning subsystem/phase.
+  - Current status: not closed; `Tests/tests/test_lang.cpp` still contains broad validation/runtime/CLI integration coverage.
+  - Finish by moving remaining unit/phase coverage into `Tests/tests/lang/`, VM coverage into `Tests/tests/vm/`, CLI coverage into `Tests/tests/cli/`, and leaving only true end-to-end language integration in `test_lang.cpp`.
 
 ## High Priority: Layered Native Library Model
 
