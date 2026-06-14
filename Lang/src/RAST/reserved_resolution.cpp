@@ -305,6 +305,23 @@ bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
   return resolved == "DL" && NormalizeDlMemberName(callee.text) == "open";
 }
 
+bool GetDlOpenManifestModule(
+    const Simple::Lang::AST::Expr& expr,
+    const std::unordered_set<std::string>& reserved_imports,
+    const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+    const std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>>& externs_by_module,
+    std::string* out_module) {
+  if (!out_module) return false;
+  if (!IsCoreDlOpenCallExpr(expr, reserved_imports, reserved_import_aliases)) return false;
+  if (expr.args.size() != 2) return false;
+  if (expr.args[1].kind != Simple::Lang::AST::ExprKind::Identifier) return false;
+  const std::string& module = expr.args[1].text;
+  auto mod_it = externs_by_module.find(module);
+  if (mod_it == externs_by_module.end() || mod_it->second.empty()) return false;
+  *out_module = module;
+  return true;
+}
+
 bool GetDlOpenManifestModule(const ResolvedProgram* program,
                              const Simple::Lang::AST::Expr& expr,
                              std::string* out_module) {

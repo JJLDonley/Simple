@@ -30,6 +30,12 @@ bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
 bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
                           const std::unordered_set<std::string>& reserved_imports,
                           const std::unordered_map<std::string, std::string>& reserved_import_aliases);
+bool GetDlOpenManifestModule(
+    const Simple::Lang::AST::Expr& expr,
+    const std::unordered_set<std::string>& reserved_imports,
+    const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+    const std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>>& externs_by_module,
+    std::string* out_module);
 std::string NormalizeDlMemberName(const std::string& name);
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out);
 bool GetDlOpenManifestModule(const ResolvedProgram* program,

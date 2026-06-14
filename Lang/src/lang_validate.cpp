@@ -178,22 +178,14 @@ bool ResolveReservedModuleName(const ValidateContext& ctx,
   return RAST::ResolveReservedModuleName(ctx.reserved_imports, ctx.reserved_import_aliases, name, out);
 }
 
-bool IsCoreDlOpenCallExpr(const Expr& expr, const ValidateContext& ctx) {
-  return RAST::IsCoreDlOpenCallExpr(expr, ctx.reserved_imports, ctx.reserved_import_aliases);
-}
-
 bool GetDlOpenManifestModule(const Expr& expr,
                              const ValidateContext& ctx,
                              std::string* out_module) {
-  if (!out_module) return false;
-  if (!IsCoreDlOpenCallExpr(expr, ctx)) return false;
-  if (expr.args.size() != 2) return false;
-  if (expr.args[1].kind != ExprKind::Identifier) return false;
-  const std::string& module = expr.args[1].text;
-  auto mod_it = ctx.externs_by_module.find(module);
-  if (mod_it == ctx.externs_by_module.end() || mod_it->second.empty()) return false;
-  *out_module = module;
-  return true;
+  return RAST::GetDlOpenManifestModule(expr,
+                                       ctx.reserved_imports,
+                                       ctx.reserved_import_aliases,
+                                       ctx.externs_by_module,
+                                       out_module);
 }
 
 bool ResolveDlModuleForIdentifier(

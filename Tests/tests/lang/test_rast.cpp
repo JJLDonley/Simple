@@ -311,9 +311,27 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   reserved_aliases["Dyn"] = "DL";
   const bool recognizes_dl_open = Simple::Lang::RAST::IsCoreDlOpenCallExpr(
       dl_call, reserved_imports, reserved_aliases);
+  Simple::Lang::AST::ExternDecl manifest_ext;
+  manifest_ext.module = "ffi";
+  manifest_ext.name = "add";
+  std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>> externs_by_module;
+  externs_by_module["ffi"]["add"] = &manifest_ext;
+  Simple::Lang::AST::Expr path_arg;
+  path_arg.kind = Simple::Lang::AST::ExprKind::Literal;
+  Simple::Lang::AST::Expr manifest_arg;
+  manifest_arg.kind = Simple::Lang::AST::ExprKind::Identifier;
+  manifest_arg.text = "ffi";
+  dl_call.args.push_back(path_arg);
+  dl_call.args.push_back(manifest_arg);
+  std::string manifest_module;
+  const bool extracts_manifest = Simple::Lang::RAST::GetDlOpenManifestModule(
+      dl_call, reserved_imports, reserved_aliases, externs_by_module, &manifest_module) &&
+      manifest_module == "ffi";
   dl_call.children[0].text = "Sym";
   const bool rejects_dl_sym = !Simple::Lang::RAST::IsCoreDlOpenCallExpr(
-      dl_call, reserved_imports, reserved_aliases);
+      dl_call, reserved_imports, reserved_aliases) &&
+      !Simple::Lang::RAST::GetDlOpenManifestModule(
+          dl_call, reserved_imports, reserved_aliases, externs_by_module, &manifest_module);
   const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
                             reserved_var_type.name == "f64";
   const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
@@ -324,6 +342,7 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
          recognizes_io_print &&
          rejects_non_print &&
          recognizes_dl_open &&
+         extracts_manifest &&
          rejects_dl_sym &&
          math_pi_type &&
          os_flag_type &&
