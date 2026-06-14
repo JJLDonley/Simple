@@ -326,4 +326,9 @@ bool CanCompileMethod(const Simple::Byte::SbcModule& module,
 
 }
 
+bool CompilePredicate::operator()(size_t func_index) const {
+  if (!module || !verify_result || !compile_stack) return false;
+  return CanCompileMethod(*module, *verify_result, have_meta, func_index, *compile_stack);
+}
+
 } // namespace Simple::VM::Jit

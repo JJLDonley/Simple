@@ -151,8 +151,11 @@ bool VmJitCompilePolicyLivesInJitModule() {
   const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
   const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
   return header_text.find("CanCompileMethod(") != std::string::npos &&
+         header_text.find("struct CompilePredicate") != std::string::npos &&
          source_text.find("bool CanCompileMethod(") != std::string::npos &&
+         source_text.find("CompilePredicate::operator()") != std::string::npos &&
          vm_text.find("auto can_compile = [") == std::string::npos &&
+         vm_text.find("auto can_compile_func = [") == std::string::npos &&
          vm_text.find("auto note_ref_op = [") == std::string::npos;
 }
 

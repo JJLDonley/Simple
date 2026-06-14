@@ -147,9 +147,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
   Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
   std::vector<uint8_t> compile_stack(module.functions.size(), 0);
-  auto can_compile_func = [&](size_t func_index) -> bool {
-    return Simple::VM::Jit::CanCompileMethod(module, vr, have_meta, func_index, compile_stack);
-  };
+  Simple::VM::Jit::CompilePredicate can_compile_func;
+  can_compile_func.module = &module;
+  can_compile_func.verify_result = &vr;
+  can_compile_func.have_meta = have_meta;
+  can_compile_func.compile_stack = &compile_stack;
   Simple::VM::Jit::TierUpdater update_tier;
   update_tier.enable_jit = enable_jit;
   update_tier.tier0_threshold = jit_tier0_threshold;
