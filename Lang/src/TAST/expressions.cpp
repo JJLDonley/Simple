@@ -4,6 +4,12 @@
 
 namespace Simple::Lang::TAST {
 
+bool IsAddressableExpr(const Expr& expr) {
+  return expr.kind == Simple::Lang::AST::ExprKind::Identifier ||
+         expr.kind == Simple::Lang::AST::ExprKind::Member ||
+         expr.kind == Simple::Lang::AST::ExprKind::Index;
+}
+
 bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
   if (!IsScalarType(type)) {
     if (error) *error = "operator '" + op + "' requires scalar operands";

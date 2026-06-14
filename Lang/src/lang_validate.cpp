@@ -110,6 +110,7 @@ using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::IsBoolTypeName;
+using TAST::IsAddressableExpr;
 using TAST::IsAssignOp;
 using TAST::IsFloatTypeName;
 using TAST::IsIntegerTypeName;
@@ -1632,13 +1633,6 @@ bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
     return false;
   }
   return true;
-}
-
-bool IsAddressableExpr(const Expr& expr) {
-  if (expr.kind == ExprKind::Identifier) return true;
-  if (expr.kind == ExprKind::Member) return true;
-  if (expr.kind == ExprKind::Index) return true;
-  return false;
 }
 
 bool IsMutableStorageExpr(const Expr& expr,

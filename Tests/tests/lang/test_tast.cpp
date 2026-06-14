@@ -254,6 +254,13 @@ bool LangTastControlFlowTracksReturnsAndBreaks() {
 
 
 bool LangTastExpressionOperatorsValidateScalarAndCompoundAssign() {
+  Simple::Lang::AST::Expr identifier;
+  identifier.kind = Simple::Lang::AST::ExprKind::Identifier;
+  if (!Simple::Lang::TAST::IsAddressableExpr(identifier)) return false;
+  Simple::Lang::AST::Expr call_expr;
+  call_expr.kind = Simple::Lang::AST::ExprKind::Call;
+  if (Simple::Lang::TAST::IsAddressableExpr(call_expr)) return false;
+
   Simple::Lang::AST::TypeRef i32;
   i32.name = "i32";
   Simple::Lang::AST::TypeRef bool_type;
