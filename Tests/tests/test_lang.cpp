@@ -2201,11 +2201,11 @@ bool LangCliLocalUsingImportDoesNotReachValidator() {
   if (ec) return false;
   {
     std::ofstream lib(dir / "lib.simple");
-    lib << "module Lib\nFoo :: artifact { x : i32 }\n";
+    lib << "package Lib\nFoo :: artifact { x : i32 }\n";
   }
   {
     std::ofstream main(dir / "main.simple");
-    main << "module Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
+    main << "package Main\nimport Lib\nusing Lib\nmain : i32 () { f : Foo = { 7 }; return f.x }\n";
   }
   const std::string cmd = "bin/svm check " + (dir / "main.simple").string();
   return RunCommand(cmd);
@@ -3169,7 +3169,7 @@ bool DocsCanonicalPagesDescribeBehavior() {
   } docs[] = {
       {"Docs/Language.md", "## Table of contents", "skip` is the loop-continue statement"},
       {"Docs/Language.md", "x : i32 = 1", "limit :: i32 = 10"},
-      {"Docs/Language.md", "Point :: Artifact", "@i32(a)"},
+      {"Docs/Language.md", "package Tools.Widget", "Point :: Artifact"},
       {"Docs/Byte.md", "## Table of contents", "## Verifier contract"},
       {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
       {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},

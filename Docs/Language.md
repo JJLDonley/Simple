@@ -60,6 +60,7 @@ Important syntax facts:
 
 - `name : Type` declares a **mutable** binding.
 - `name :: Type` declares an **immutable** binding.
+- `package Name` declares the file/package header used by import indexing.
 - `Name :: Artifact`, `Name :: Module`, and `Name :: Enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
@@ -90,7 +91,7 @@ Most keywords are lowercase:
 
 ```txt
 while for break skip return if else default switch fn self
-import using extern as true false
+package import using extern as true false
 ```
 
 The declaration-kind keywords accept the capitalized forms used by existing fixtures:
@@ -100,6 +101,8 @@ artifact Artifact
 enum     Enum
 module   Module
 ```
+
+Use `package` for file/package headers. Use `Name :: Module { ... }` for in-language namespace objects.
 
 ### Operators and punctuation
 
@@ -144,9 +147,10 @@ main : i32 () {
 
 ## Program structure and entry points
 
-A file may contain imports, extern declarations, top-level declarations, and top-level script statements.
+A file may start with an optional package header and may then contain imports, extern declarations, top-level declarations, and top-level script statements.
 
 ```simple
+package Examples.Math
 import Math
 
 square : i32 (x : i32) {
@@ -203,6 +207,20 @@ name : ReturnType (params...) { body }
 ```
 
 The marker before the return type also carries return mutability facts used by validation.
+
+### Package headers
+
+A package header gives a file an import-index name without declaring a runtime namespace object:
+
+```simple
+package Tools.Widget
+
+main : i32 () {
+  return 0
+}
+```
+
+This replaces the older/confusing `module HeaderName` form. Use `Name :: Module { ... }` when you actually want a language module/namespace value.
 
 ### Top-level declarations with `::`
 

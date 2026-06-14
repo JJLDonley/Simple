@@ -17,7 +17,7 @@ bool LspUsesSharedRastSourceImportLoader() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "dep.simple");
-    out << "module Lsp.Dep\ndep : i32 () { return 3 }";
+    out << "package Lsp.Dep\ndep : i32 () { return 3 }";
   }
   const auto entry = dir / "open.simple";
   Simple::Lang::Program program;

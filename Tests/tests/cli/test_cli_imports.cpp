@@ -48,7 +48,7 @@ bool CliSplitImportsBuildSharedModuleIndex() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "widget.simple");
-    out << "module Tools.Widget\nmain : i32 () { return 0 }";
+    out << "package Tools.Widget\nmain : i32 () { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex files;
   Simple::Lang::RAST::ImportPathIndex modules;
@@ -63,7 +63,7 @@ bool CliSplitImportsLoadProgramWithSharedEntryPoint() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
-    out << "module Load.Lib\nloaded : i32 () { return 2 }";
+    out << "package Load.Lib\nloaded : i32 () { return 2 }";
   }
   const auto entry = dir / "main.simple";
   {
@@ -82,7 +82,7 @@ bool CliSplitImportsAppendProgramWithSharedLoader() {
   std::filesystem::create_directories(dir);
   {
     std::ofstream out(dir / "lib.simple");
-    out << "module Lib\nvalue : i32 () { return 1 }";
+    out << "package Lib\nvalue : i32 () { return 1 }";
   }
   const auto entry = dir / "main.simple";
   {
@@ -109,7 +109,7 @@ bool CliSplitImportsResolveSharedModuleImport() {
   const auto file = dir / "widget.simple";
   {
     std::ofstream out(file);
-    out << "module Resolve.Widget\nmain : i32 () { return 0 }";
+    out << "package Resolve.Widget\nmain : i32 () { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex files;
   Simple::Lang::RAST::ImportPathIndex modules;
@@ -129,7 +129,7 @@ bool CliSplitImportsWriteSharedAutoModuleMap() {
   const auto file = dir / "thing.simple";
   {
     std::ofstream out(file);
-    out << "module Auto.Thing\nmain : i32 () { return 0 }";
+    out << "package Auto.Thing\nmain : i32 () { return 0 }";
   }
   Simple::Lang::RAST::ImportPathIndex modules;
   modules["Auto.Thing"].push_back(file);
@@ -144,6 +144,16 @@ bool CliSplitImportsParseSharedModuleMapLines() {
   Simple::Lang::RAST::ModuleMapEntry entry;
   return Simple::Lang::RAST::ParseModuleMapLine("Math = \"lib/math.simple\" // comment", &entry) &&
          entry.name == "Math" && entry.path == "lib/math.simple";
+}
+
+bool CliSplitImportsExtractsPackageHeaderOnly() {
+  std::string name;
+  if (!Simple::Lang::RAST::ExtractModuleHeaderName("package Tools.Widget\nmain : i32 () { return 0 }", &name)) {
+    return false;
+  }
+  if (name != "Tools.Widget") return false;
+  name.clear();
+  return !Simple::Lang::RAST::ExtractModuleHeaderName("module Tools.Widget\nmain : i32 () { return 0 }", &name);
 }
 
 bool CliSplitImportsNormalizesSimplePaths() {
@@ -164,6 +174,7 @@ const TestCase kCliImportsTests[] = {
   {"cli_split_imports_resolve_shared_module_import", CliSplitImportsResolveSharedModuleImport},
   {"cli_split_imports_write_shared_auto_module_map", CliSplitImportsWriteSharedAutoModuleMap},
   {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},
+  {"cli_split_imports_extracts_package_header_only", CliSplitImportsExtractsPackageHeaderOnly},
   {"cli_split_imports_normalizes_simple_paths", CliSplitImportsNormalizesSimplePaths},
 };
 

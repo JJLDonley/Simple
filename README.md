@@ -40,6 +40,7 @@ Key syntax:
 
 - `name : Type` declares a mutable binding.
 - `name :: Type` declares an immutable binding or a top-level kind declaration.
+- `package Name` declares a file/package header for import indexing.
 - `Thing :: Artifact`, `Thing :: Module`, and `Thing :: Enum` define language objects.
 - `skip` is loop-continue.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
