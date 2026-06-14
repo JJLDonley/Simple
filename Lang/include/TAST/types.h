@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,18 @@ bool IsStringTypeName(const std::string& name);
 bool IsNumericTypeName(const std::string& name);
 bool IsListMethodName(const std::string& name);
 bool IsScalarType(const Simple::Lang::AST::TypeRef& type);
+bool CheckKnownTypeName(const Simple::Lang::AST::TypeRef& type,
+                        bool is_primitive,
+                        bool is_type_param,
+                        bool is_user_type,
+                        std::string* error);
+bool CheckVoidTypeArgs(const Simple::Lang::AST::TypeRef& type, std::string* error);
+bool CheckTypeArgumentRules(const Simple::Lang::AST::TypeRef& type,
+                            bool is_primitive,
+                            bool is_type_param,
+                            bool is_enum_type,
+                            const size_t* expected_artifact_type_args,
+                            std::string* error);
 bool IsLenCompatibleType(const Simple::Lang::AST::TypeRef& type);
 bool CheckPrimitiveCastArgType(const std::string& cast_target,
                                const Simple::Lang::AST::TypeRef& arg_type,

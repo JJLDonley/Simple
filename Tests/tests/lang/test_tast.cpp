@@ -73,6 +73,28 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   std::string cast_target;
   std::string cast_error;
   auto string_type = Simple::Lang::TAST::MakeSimpleType("string");
+  std::string type_error;
+  if (Simple::Lang::TAST::CheckKnownTypeName(Simple::Lang::TAST::MakeSimpleType("Missing"),
+                                            false,
+                                            false,
+                                            false,
+                                            &type_error)) {
+    return false;
+  }
+  if (type_error.find("unknown type: Missing") == std::string::npos) return false;
+  auto void_type = Simple::Lang::TAST::MakeSimpleType("void");
+  void_type.type_args.push_back(scalar_i32);
+  if (Simple::Lang::TAST::CheckVoidTypeArgs(void_type, &type_error)) return false;
+  if (type_error.find("void cannot have type arguments") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckTypeArgumentRules(generic_box, false, false, true, nullptr, &type_error)) return false;
+  if (type_error.find("enum type cannot have type arguments: Box") == std::string::npos) return false;
+  const size_t expected_type_args = 2;
+  if (Simple::Lang::TAST::CheckTypeArgumentRules(generic_box, false, false, false, &expected_type_args, &type_error)) return false;
+  if (type_error.find("generic type argument count mismatch for Box") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckTypeArgumentRules(generic_box, true, false, false, nullptr, &type_error)) return false;
+  if (type_error.find("primitive type cannot have type arguments: Box") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckTypeArgumentRules(generic_box, false, true, false, nullptr, &type_error)) return false;
+  if (type_error.find("type parameter cannot have type arguments: Box") == std::string::npos) return false;
 
   return Simple::Lang::TAST::IsLenCompatibleType(string_type) &&
          Simple::Lang::TAST::IsLenCompatibleType(scalar_list_i32) &&

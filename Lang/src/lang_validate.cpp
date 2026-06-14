@@ -156,9 +156,12 @@ using TAST::CheckSingleArgCallCount;
 using TAST::CheckSwitchExprShape;
 using TAST::CheckTopLevelStmtAllowsReturn;
 using TAST::CheckTypesCompatibleForExpr;
+using TAST::CheckKnownTypeName;
 using TAST::CheckProcTypeArgs;
+using TAST::CheckTypeArgumentRules;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CheckUniqueNamedMember;
+using TAST::CheckVoidTypeArgs;
 using TAST::CheckUniqueParamName;
 using TAST::CollectTypeParams;
 using TAST::CollectTypeParamsMerged;
@@ -849,8 +852,7 @@ bool CheckTypeRef(const TypeRef& type,
     if (!CloneTypeRef(type, &pointee)) return false;
     pointee.pointer_depth -= 1;
     if (pointee.pointer_depth == 0 && pointee.name == "void") {
-      if (!pointee.type_args.empty()) {
-        if (error) *error = "void cannot have type arguments";
+      if (!CheckVoidTypeArgs(pointee, error)) {
         PrefixErrorLocation(type.line, type.column, error);
         return false;
       }
@@ -876,8 +878,7 @@ bool CheckTypeRef(const TypeRef& type,
       PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
-    if (!type.type_args.empty()) {
-      if (error) *error = "void cannot have type arguments";
+    if (!CheckVoidTypeArgs(type, error)) {
       PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
@@ -894,8 +895,7 @@ bool CheckTypeRef(const TypeRef& type,
     return false;
   }
 
-  if (!is_primitive && !is_type_param && !is_user_type) {
-    if (error) *error = "unknown type: " + type.name;
+  if (!CheckKnownTypeName(type, is_primitive, is_type_param, is_user_type, error)) {
     PrefixErrorLocation(type.line, type.column, error);
     return false;
   }
@@ -911,34 +911,27 @@ bool CheckTypeRef(const TypeRef& type,
       PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
-    if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) {
-      if (!type.type_args.empty()) {
-        if (error) *error = "enum type cannot have type arguments: " + type.name;
-        PrefixErrorLocation(type.line, type.column, error);
-        return false;
-      }
-    }
     auto art_it = ctx.artifact_generics.find(type.name);
-    if (art_it != ctx.artifact_generics.end()) {
-      const size_t expected = art_it->second;
-      if (type.type_args.size() != expected) {
-        if (error) {
-          *error = "generic type argument count mismatch for " + type.name;
-        }
-        PrefixErrorLocation(type.line, type.column, error);
-        return false;
-      }
+    const size_t* expected_artifact_type_args =
+        art_it != ctx.artifact_generics.end() ? &art_it->second : nullptr;
+    if (!CheckTypeArgumentRules(type,
+                                is_primitive,
+                                is_type_param,
+                                ctx.enum_types.find(type.name) != ctx.enum_types.end(),
+                                expected_artifact_type_args,
+                                error)) {
+      PrefixErrorLocation(type.line, type.column, error);
+      return false;
     }
   }
 
   if (!type.type_args.empty()) {
-    if (is_primitive) {
-      if (error) *error = "primitive type cannot have type arguments: " + type.name;
-      PrefixErrorLocation(type.line, type.column, error);
-      return false;
-    }
-    if (is_type_param) {
-      if (error) *error = "type parameter cannot have type arguments: " + type.name;
+    if (!CheckTypeArgumentRules(type,
+                                is_primitive,
+                                is_type_param,
+                                false,
+                                nullptr,
+                                error)) {
       PrefixErrorLocation(type.line, type.column, error);
       return false;
     }
