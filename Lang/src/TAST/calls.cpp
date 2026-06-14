@@ -128,6 +128,31 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
   return true;
 }
 
+bool CheckReservedTimeCallArgTypes(const std::string& member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  if (member == "mono_ns" || member == "wall_ns") {
+    if (!args.empty()) {
+      if (error) *error = "Time." + member + " expects no arguments";
+      return false;
+    }
+    return true;
+  }
+  if (member == "formatWallNs") {
+    if (args.size() != 1) {
+      if (error) *error = "Time.formatWallNs expects (i64)";
+      return false;
+    }
+    const TypeRef& ns = args[0];
+    if (ns.name != "i64" || !ns.dims.empty()) {
+      if (error) *error = "Time.formatWallNs expects (i64)";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error) {

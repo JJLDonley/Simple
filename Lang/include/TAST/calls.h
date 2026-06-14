@@ -19,6 +19,9 @@ bool CheckCallTypeArgCount(size_t type_param_count,
 bool CheckReservedMathCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error);
+bool CheckReservedTimeCallArgTypes(const std::string& member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error);
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error);

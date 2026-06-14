@@ -86,6 +86,20 @@ bool LangTastCallsCheckReservedMathArgTypes() {
   return error.find("Math.min expects two numeric arguments of the same type") != std::string::npos;
 }
 
+bool LangTastCallsCheckReservedTimeArgTypes() {
+  std::string error;
+  std::vector<Simple::Lang::AST::TypeRef> no_args;
+  if (!Simple::Lang::TAST::CheckReservedTimeCallArgTypes("mono_ns", no_args, &error)) return false;
+  std::vector<Simple::Lang::AST::TypeRef> args = {Simple::Lang::TAST::MakeSimpleType("i32")};
+  if (Simple::Lang::TAST::CheckReservedTimeCallArgTypes("wall_ns", args, &error)) return false;
+  if (error.find("Time.wall_ns expects no arguments") == std::string::npos) return false;
+  args[0] = Simple::Lang::TAST::MakeSimpleType("i64");
+  if (!Simple::Lang::TAST::CheckReservedTimeCallArgTypes("formatWallNs", args, &error)) return false;
+  args[0] = Simple::Lang::TAST::MakeSimpleType("string");
+  if (Simple::Lang::TAST::CheckReservedTimeCallArgTypes("formatWallNs", args, &error)) return false;
+  return error.find("Time.formatWallNs expects (i64)") != std::string::npos;
+}
+
 bool LangTastCallsCheckTypeArgCounts() {
   std::string error;
   if (!Simple::Lang::TAST::CheckCallTypeArgCount(2, 2, &error)) return false;
@@ -602,6 +616,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_tast_calls_check_reserved_math_arg_types", LangTastCallsCheckReservedMathArgTypes},
+  {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},

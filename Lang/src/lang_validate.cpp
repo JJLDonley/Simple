@@ -129,6 +129,7 @@ using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckReservedMathCallArgTypes;
+using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -1915,26 +1916,14 @@ bool CheckCallArgTypes(const Expr& call_expr,
         }
       }
       if (mod == "Time") {
-        if (name == "mono_ns" || name == "wall_ns") {
-          if (!call_expr.args.empty()) {
-            if (error) *error = "Time." + name + " expects no arguments";
-            return false;
-          }
-          return true;
+        std::vector<TypeRef> arg_types;
+        arg_types.reserve(call_expr.args.size());
+        for (size_t i = 0; i < call_expr.args.size(); ++i) {
+          TypeRef arg;
+          if (!infer_arg(i, &arg)) return true;
+          arg_types.push_back(std::move(arg));
         }
-        if (name == "formatWallNs") {
-          if (call_expr.args.size() != 1) {
-            if (error) *error = "Time.formatWallNs expects (i64)";
-            return false;
-          }
-          TypeRef ns;
-          if (!infer_arg(0, &ns)) return true;
-          if (ns.name != "i64" || !ns.dims.empty()) {
-            if (error) *error = "Time.formatWallNs expects (i64)";
-            return false;
-          }
-          return true;
-        }
+        return CheckReservedTimeCallArgTypes(name, arg_types, error);
       }
       if (mod == "DL" && NormalizeDlMemberName(name) == "open") {
         if (call_expr.args.size() != 1 && call_expr.args.size() != 2) {
