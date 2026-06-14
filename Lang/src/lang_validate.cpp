@@ -138,6 +138,7 @@ using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::GetSwitchBranchValueExpr;
+using TAST::InferLiteralType;
 using TAST::IsBoolTypeName;
 using TAST::IsAddressableExpr;
 using TAST::IsAssignOp;
@@ -919,17 +920,7 @@ bool InferExprType(const Expr& expr,
   if (!out) return false;
   switch (expr.kind) {
     case ExprKind::Literal:
-      out->is_proc = false;
-      out->type_args.clear();
-      out->dims.clear();
-      switch (expr.literal_kind) {
-        case LiteralKind::Integer: out->name = "i32"; break;
-        case LiteralKind::Float: out->name = "f64"; break;
-        case LiteralKind::String: out->name = "string"; break;
-        case LiteralKind::Char: out->name = "char"; break;
-        case LiteralKind::Bool: out->name = "bool"; break;
-      }
-      return true;
+      return InferLiteralType(expr, nullptr, out, nullptr);
     case ExprKind::FormatString:
       out->name = "string";
       out->type_args.clear();

@@ -257,7 +257,9 @@ bool LangTastLiteralTypingUsesExpectedType() {
   Simple::Lang::AST::TypeRef actual;
   std::string error;
   if (!Simple::Lang::TAST::InferLiteralType(expr, &expected, &actual, &error)) return false;
-  return actual.name == "u64";
+  if (actual.name != "u64") return false;
+  if (!Simple::Lang::TAST::InferLiteralType(expr, nullptr, &actual, &error)) return false;
+  return actual.name == "i32";
 }
 
 
