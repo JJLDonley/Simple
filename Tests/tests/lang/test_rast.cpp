@@ -437,6 +437,15 @@ bool LangRastImportGraphResolvesReservedAliases() {
          !Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "Missing", &canonical);
 }
 
+bool LangRastImportGraphChecksUsingPriorImport() {
+  std::unordered_map<std::string, std::string> aliases;
+  aliases["FS"] = "FileSystem";
+  std::string error;
+  if (!Simple::Lang::RAST::CheckUsingImportHasPriorAlias("FS", aliases, &error)) return false;
+  if (Simple::Lang::RAST::CheckUsingImportHasPriorAlias("Time", aliases, &error)) return false;
+  return error.find("using requires prior import: Time") != std::string::npos;
+}
+
 
 
 const TestCase kLangRastTests[] = {
@@ -448,6 +457,7 @@ const TestCase kLangRastTests[] = {
   {"lang_rast_allows_type_invalid_programs", LangRastAllowsTypeInvalidPrograms},
   {"lang_rast_declaration_resolution_finds_decl_symbols", LangRastDeclarationResolutionFindsDeclSymbols},
   {"lang_rast_import_graph_resolves_reserved_aliases", LangRastImportGraphResolvesReservedAliases},
+  {"lang_rast_import_graph_checks_using_prior_import", LangRastImportGraphChecksUsingPriorImport},
   {"lang_rast_resolver_collects_qualified_symbols", LangRastResolverCollectsQualifiedSymbols},
   {"lang_rast_resolver_rejects_duplicate_qualified_symbols", LangRastResolverRejectsDuplicateQualifiedSymbols},
   {"lang_rast_resolver_collects_callable_scopes", LangRastResolverCollectsCallableScopes},

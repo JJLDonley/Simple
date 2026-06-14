@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "AST/ast.h"
@@ -17,5 +18,9 @@ std::vector<ResolvedImport> ResolveReservedImports(const Simple::Lang::AST::Prog
 bool ResolveReservedImportAlias(const Simple::Lang::AST::Program* program,
                                 const std::string& alias,
                                 std::string* canonical);
+
+bool CheckUsingImportHasPriorAlias(const std::string& path,
+                                   const std::unordered_map<std::string, std::string>& aliases,
+                                   std::string* error);
 
 } // namespace Simple::Lang::RAST

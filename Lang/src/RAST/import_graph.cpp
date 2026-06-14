@@ -35,4 +35,14 @@ bool ResolveReservedImportAlias(const Simple::Lang::AST::Program* program,
   return false;
 }
 
+bool CheckUsingImportHasPriorAlias(const std::string& path,
+                                   const std::unordered_map<std::string, std::string>& aliases,
+                                   std::string* error) {
+  if (aliases.find(path) == aliases.end()) {
+    if (error) *error = "using requires prior import: " + path;
+    return false;
+  }
+  return true;
+}
+
 } // namespace Simple::Lang::RAST

@@ -9,6 +9,7 @@
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "native/registry.h"
+#include "RAST/import_graph.h"
 #include "RAST/member_resolution.h"
 #include "RAST/reserved_resolution.h"
 #include "TAST/abi.h"
@@ -132,6 +133,7 @@ using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
 using TAST::CheckArtifactLiteralKnownField;
 using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckArtifactLiteralRequiredField;
+using RAST::CheckUsingImportHasPriorAlias;
 using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckEnumMemberValue;
@@ -3340,11 +3342,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Import:
       {
         if (decl.import_decl.is_using) {
-          const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
-          if (alias_it == ctx.reserved_import_aliases.end()) {
-            if (error) *error = "using requires prior import: " + decl.import_decl.path;
+          if (!CheckUsingImportHasPriorAlias(decl.import_decl.path,
+                                             ctx.reserved_import_aliases,
+                                             error)) {
             return false;
           }
+          const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
           ctx.reserved_imports.insert(alias_it->second);
           ctx.using_reserved_modules.insert(alias_it->second);
           break;
