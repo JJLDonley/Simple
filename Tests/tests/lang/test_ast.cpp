@@ -1,5 +1,10 @@
 #include "test_utils.h"
 
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <string>
+
 #include "AST/lower_cast.h"
 #include "CAST/cast.h"
 #include "CAST/parser.h"
@@ -24,8 +29,31 @@ bool LangSplitAstLowersCastProgram() {
          decl.func.body[1].kind == Simple::Lang::StmtKind::Return;
 }
 
+bool LangAstLegacyHeaderRemoved() {
+  const std::string legacy_header = std::string("lang_") + "ast.h";
+  if (std::filesystem::exists(std::filesystem::path("Lang/include") / legacy_header)) return false;
+  const std::filesystem::path root = ".";
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+    if (!entry.is_regular_file()) continue;
+    const auto path = entry.path();
+    const std::string path_text = path.string();
+    if (path_text.find("./build/") == 0 || path_text.find("build/") == 0 ||
+        path_text.find("./.git/") == 0 || path_text.find(".git/") == 0) {
+      continue;
+    }
+    const std::string ext = path.extension().string();
+    if (ext != ".h" && ext != ".cpp") continue;
+    std::ifstream in(path);
+    std::ostringstream buffer;
+    buffer << in.rdbuf();
+    if (buffer.str().find(legacy_header) != std::string::npos) return false;
+  }
+  return true;
+}
+
 const TestCase kLangAstTests[] = {
   {"lang_split_ast_lowers_cast_program", LangSplitAstLowersCastProgram},
+  {"lang_ast_legacy_header_removed", LangAstLegacyHeaderRemoved},
 };
 
 const TestSection kLangAstSections[] = {

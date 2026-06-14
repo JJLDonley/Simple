@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RAST/import_index.h"
-#include "lang_ast.h"
+#include "AST/ast.h"
 
 #include <filesystem>
 #include <string>

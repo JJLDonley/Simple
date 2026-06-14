@@ -6,7 +6,7 @@
 #include <string>
 
 #include "Diagnostics/diagnostic.h"
-#include "lang_ast.h"
+#include "AST/ast.h"
 
 namespace Simple::Lang {
 

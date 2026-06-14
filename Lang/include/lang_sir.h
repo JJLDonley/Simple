@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "lang_ast.h"
+#include "AST/ast.h"
 #include "simple_api.h"
 
 namespace Simple::Lang {

@@ -2,12 +2,12 @@
 
 // Phase-0 CAST facade.
 //
-// The current parser still produces Simple::Lang::Program from lang_ast.h.
+// The current parser still produces the shared Simple::Lang::Program tree.
 // During the staged split this header is the canonical include point for the
 // concrete parser tree. The concrete and normalized trees are aliases until
 // the parser and AST normalizer are separated.
 
-#include "lang_ast.h"
+#include "AST/ast.h"
 
 namespace Simple::Lang::CAST {
 

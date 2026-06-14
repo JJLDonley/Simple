@@ -245,7 +245,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 ### SRP Phase 8: No-Shim / No-Facade End State
 
 - [ ] Remove legacy `lang_*.h` compatibility facades after callers move to phase headers:
-  - [ ] remove `lang_ast.h`
+  - [x] remove `lang_ast.h`
   - [ ] remove `lang_parser.h`
   - [ ] remove `lang_validate.h`
   - [ ] remove `lang_sir.h`
@@ -340,7 +340,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] Add initial `TAST -> IRB -> IRE` bridge.
 - [ ] Update `CMakeLists.txt` as source files move into phase directories.
 - [ ] Remove legacy include facades after migration:
-  - [ ] remove `lang_ast.h`
+  - [x] remove `lang_ast.h`
   - [ ] remove `lang_parser.h`
   - [ ] remove `lang_validate.h`
   - [ ] remove `lang_sir.h`

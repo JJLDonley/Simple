@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "lang_ast.h"
+#include "AST/ast.h"
 #include "lang_token.h"
 
 namespace Simple::Lang {
