@@ -132,6 +132,7 @@ using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
 using TAST::CheckArtifactLiteralKnownField;
 using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckArtifactLiteralRequiredField;
+using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
@@ -2320,16 +2321,7 @@ bool CheckStmt(const Stmt& stmt,
                                              error)) {
             return false;
           }
-        } else if (have_target &&
-                   ((!target_type.dims.empty() &&
-                     target_type.dims.front().is_list &&
-                     IsPositionalBraceLiteralExpr(stmt.expr)) ||
-                    (!target_type.dims.empty() &&
-                     !target_type.dims.front().is_list &&
-                     IsListLiteralExpr(stmt.expr)) ||
-                    (target_type.dims.empty() &&
-                     IsListLiteralExpr(stmt.expr)))) {
-          if (error) *error = "array/list literal requires array or list type";
+        } else if (have_target && !CheckArrayListLiteralTargetShape(target_type, stmt.expr, error)) {
           return false;
         }
       }
@@ -2648,14 +2640,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
                                        error)) {
       return false;
     }
-  } else if ((!var.type.dims.empty() &&
-              var.type.dims.front().is_list &&
-              IsPositionalBraceLiteralExpr(var.init_expr)) ||
-             (!var.type.dims.empty() &&
-              !var.type.dims.front().is_list &&
-              IsListLiteralExpr(var.init_expr)) ||
-             (var.type.dims.empty() && IsListLiteralExpr(var.init_expr))) {
-    if (error) *error = "array/list literal requires array or list type";
+  } else if (!CheckArrayListLiteralTargetShape(var.type, var.init_expr, error)) {
     return false;
   }
   TypeRef init_type;
@@ -2703,8 +2688,7 @@ bool ValidateVarInitExpr(const VarDecl& var,
         return false;
       }
     }
-  } else if (var.type.dims.empty() && IsListLiteralExpr(var.init_expr)) {
-    if (error) *error = "array/list literal requires array or list type";
+  } else if (!CheckArrayListLiteralTargetShape(var.type, var.init_expr, error)) {
     return false;
   }
   return true;
@@ -3002,16 +2986,7 @@ bool CheckExpr(const Expr& expr,
                                              error)) {
             return false;
           }
-        } else if (have_target &&
-                   ((!target_type.dims.empty() &&
-                     target_type.dims.front().is_list &&
-                     IsPositionalBraceLiteralExpr(expr.children[1])) ||
-                    (!target_type.dims.empty() &&
-                     !target_type.dims.front().is_list &&
-                     IsListLiteralExpr(expr.children[1])) ||
-                    (target_type.dims.empty() &&
-                     IsListLiteralExpr(expr.children[1])))) {
-          if (error) *error = "array/list literal requires array or list type";
+        } else if (have_target && !CheckArrayListLiteralTargetShape(target_type, expr.children[1], error)) {
           return false;
         }
         if (have_target && have_value &&

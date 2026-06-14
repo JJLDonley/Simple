@@ -98,6 +98,21 @@ bool CheckArtifactLiteralRequiredField(const std::string& field_name,
   return true;
 }
 
+bool CheckArrayListLiteralTargetShape(const Simple::Lang::AST::TypeRef& target_type,
+                                      const Simple::Lang::AST::Expr& literal_expr,
+                                      std::string* error) {
+  const bool mismatch = (!target_type.dims.empty() && target_type.dims.front().is_list &&
+                         IsPositionalBraceLiteralExpr(literal_expr)) ||
+                        (!target_type.dims.empty() && !target_type.dims.front().is_list &&
+                         IsListLiteralExpr(literal_expr)) ||
+                        (target_type.dims.empty() && IsListLiteralExpr(literal_expr));
+  if (mismatch) {
+    if (error) *error = "array/list literal requires array or list type";
+    return false;
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;

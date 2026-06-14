@@ -31,6 +31,9 @@ bool CheckArtifactLiteralRequiredField(const std::string& field_name,
                                        bool has_init_expr,
                                        const std::unordered_set<std::string>& seen,
                                        std::string* error);
+bool CheckArrayListLiteralTargetShape(const Simple::Lang::AST::TypeRef& target_type,
+                                      const Simple::Lang::AST::Expr& literal_expr,
+                                      std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

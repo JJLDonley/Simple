@@ -466,7 +466,19 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("x", false, seen_fields, &shape_error)) return false;
   if (!Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", true, seen_fields, &shape_error)) return false;
   if (Simple::Lang::TAST::CheckArtifactLiteralRequiredField("z", false, seen_fields, &shape_error)) return false;
-  return shape_error.find("missing artifact field: z") != std::string::npos;
+  if (shape_error.find("missing artifact field: z") == std::string::npos) return false;
+  Simple::Lang::AST::TypeRef scalar_target;
+  scalar_target.name = "i32";
+  if (Simple::Lang::TAST::CheckArrayListLiteralTargetShape(scalar_target, list, &shape_error)) return false;
+  if (shape_error.find("array/list literal requires array or list type") == std::string::npos) return false;
+  Simple::Lang::AST::TypeRef list_target;
+  list_target.name = "i32";
+  list_target.dims.push_back(Simple::Lang::AST::TypeDim{true, false, 0});
+  if (Simple::Lang::TAST::CheckArrayListLiteralTargetShape(list_target, array, &shape_error)) return false;
+  Simple::Lang::AST::TypeRef array_target;
+  array_target.name = "i32";
+  array_target.dims.push_back(Simple::Lang::AST::TypeDim{false, false, 0});
+  return Simple::Lang::TAST::CheckArrayListLiteralTargetShape(array_target, array, &shape_error);
 }
 
 bool LangTastLiteralTypingUsesExpectedType() {
