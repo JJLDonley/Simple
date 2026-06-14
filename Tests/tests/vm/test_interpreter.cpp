@@ -190,18 +190,19 @@ bool VmValuePackingHelpersLiveInRuntimeModule() {
          vm_text.find("float BitsToF32(") == std::string::npos;
 }
 
-bool VmImportDispatcherUsesNamedFunction() {
+bool VmImportDispatcherLivesInRuntimeModule() {
   std::ifstream vm("VM/src/vm.cpp");
-  std::ifstream header("Byte/include/sbc_loader.h");
-  std::ifstream source("Byte/src/sbc_loader.cpp");
+  std::ifstream header("VM/include/runtime/import_dispatch.h");
+  std::ifstream source("VM/src/runtime/import_dispatch.cpp");
   if (!vm || !header || !source) return false;
   const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
   const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
   const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
-  return vm_text.find("bool DispatchImportCallByName(") != std::string::npos &&
+  return vm_text.find("bool DispatchImportCallByName(") == std::string::npos &&
          vm_text.find("std::string ReadConstPoolString(") == std::string::npos &&
          vm_text.find("auto handle_import_call = [") == std::string::npos &&
-         header_text.find("ReadConstPoolString(") != std::string::npos &&
+         header_text.find("DispatchImportCallByName(") != std::string::npos &&
+         source_text.find("bool DispatchImportCallByName(") != std::string::npos &&
          source_text.find("ReadConstPoolString(") != std::string::npos;
 }
 
@@ -288,7 +289,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
   {"vm_value_packing_helpers_live_in_runtime_module", VmValuePackingHelpersLiveInRuntimeModule},
-  {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
+  {"vm_import_dispatcher_lives_in_runtime_module", VmImportDispatcherLivesInRuntimeModule},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
   {"vm_boundary_types_are_explicit", VmBoundaryTypesAreExplicit},
   {"vm_split_interpreter_stack_and_frames", VmSplitInterpreterStackAndFrames},

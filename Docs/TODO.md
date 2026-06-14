@@ -58,7 +58,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `InterpreterState`
   - [x] `RootTraceContext`
 - [ ] Replace and move real subsystem lambdas/helpers out of `vm.cpp` into owned modules.
-  - [x] Replace import-call dispatch lambda with `DispatchImportCallByName`.
+  - [x] Move import-call dispatch into `VM/src/runtime/import_dispatch.cpp`.
   - [x] Move trap-formatting helpers into `VM/src/interpreter/traps.cpp`.
   - [x] Move JIT/trap operand-reader helpers into `VM/src/interpreter/traps.cpp`.
   - [x] Move execution-result finalizer into `VM/src/runtime/execution_stats.cpp`.
