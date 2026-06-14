@@ -283,6 +283,13 @@ bool LangTastControlFlowExtractsSwitchBranchValues() {
   branch.value.kind = Simple::Lang::AST::ExprKind::Literal;
   const Simple::Lang::AST::Expr* value = nullptr;
   std::string error;
+  Simple::Lang::AST::TypeRef bool_type;
+  bool_type.name = "bool";
+  if (!Simple::Lang::TAST::CheckConditionType(bool_type, &error)) return false;
+  bool_type.name = "i32";
+  if (Simple::Lang::TAST::CheckConditionType(bool_type, &error)) return false;
+  if (error.find("condition must be bool") == std::string::npos) return false;
+
   if (!Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, false, &value, &error)) return false;
   if (value != &branch.value) return false;
   if (Simple::Lang::TAST::GetSwitchBranchValueExpr(branch, true, &value, &error)) return false;

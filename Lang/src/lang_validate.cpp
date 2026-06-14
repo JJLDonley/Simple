@@ -118,6 +118,7 @@ using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
+using TAST::CheckConditionType;
 using TAST::CheckFunctionCallArgs;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
@@ -3130,10 +3131,7 @@ bool CheckBoolCondition(const Expr& expr,
                         std::string* error) {
   TypeRef cond_type;
   if (InferExprType(expr, ctx, scopes, current_artifact, &cond_type)) {
-    if (cond_type.pointer_depth != 0 || !IsBoolTypeName(cond_type.name)) {
-      if (error) *error = "condition must be bool";
-      return false;
-    }
+    return CheckConditionType(cond_type, error);
   }
   return true;
 }

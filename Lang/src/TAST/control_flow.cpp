@@ -1,5 +1,7 @@
 #include "TAST/control_flow.h"
 
+#include "TAST/types.h"
+
 namespace Simple::Lang::TAST {
 namespace {
 
@@ -49,6 +51,15 @@ bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
   if (!requires_return || flow.always_returns) return true;
   if (error) *error = "not all paths return a value";
   return false;
+}
+
+bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
+                        std::string* error) {
+  if (type.pointer_depth != 0 || !IsBoolTypeName(type.name)) {
+    if (error) *error = "condition must be bool";
+    return false;
+  }
+  return true;
 }
 
 bool GetSwitchBranchValueExpr(const Simple::Lang::AST::SwitchBranch& branch,
