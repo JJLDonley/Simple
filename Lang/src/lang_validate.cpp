@@ -153,6 +153,7 @@ using TAST::CheckTopLevelStmtAllowsReturn;
 using TAST::CheckTypesCompatibleForExpr;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
+using TAST::CheckUniqueParamName;
 using TAST::CollectTypeParams;
 using TAST::CollectTypeParamsMerged;
 using TAST::CloneElementType;
@@ -3298,10 +3299,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
   const bool return_is_void = fn.return_type.name == "void";
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
-    if (!param_names.insert(param.name).second) {
-      if (error) *error = "duplicate parameter name: " + param.name;
-      return false;
-    }
+    if (!CheckUniqueParamName(param.name, &param_names, "duplicate parameter name: ", error)) return false;
     if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
     LocalInfo info;
     info.mutability = param.mutability;
@@ -3469,10 +3467,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
             return false;
           }
           for (const auto& param : decl.ext.params) {
-            if (!param_names.insert(param.name).second) {
-              if (error) *error = "duplicate extern parameter name: " + param.name;
-              return false;
-            }
+            if (!CheckUniqueParamName(param.name, &param_names, "duplicate extern parameter name: ", error)) return false;
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
             if (!IsSupportedDlAbiType(param.type, ctx.enum_types, ctx.artifacts, false)) {
               if (error) *error = "extern ABI parameter type is not supported";

@@ -84,6 +84,18 @@ bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error
   return true;
 }
 
+bool CheckUniqueParamName(const std::string& name,
+                          std::unordered_set<std::string>* seen,
+                          const std::string& error_prefix,
+                          std::string* error) {
+  if (!seen) return false;
+  if (!seen->insert(name).second) {
+    if (error) *error = error_prefix + name;
+    return false;
+  }
+  return true;
+}
+
 bool CheckCallTypeArgCount(size_t type_param_count,
                            size_t explicit_type_arg_count,
                            std::string* error) {

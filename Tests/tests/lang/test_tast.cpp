@@ -146,6 +146,14 @@ bool LangTastCallsCheckIoPrintFormatTemplateArg() {
   return error.find("IO.print format call expects string literal as first argument") != std::string::npos;
 }
 
+bool LangTastCallsCheckUniqueParamName() {
+  std::string error;
+  std::unordered_set<std::string> seen;
+  if (!Simple::Lang::TAST::CheckUniqueParamName("x", &seen, "duplicate parameter name: ", &error)) return false;
+  if (Simple::Lang::TAST::CheckUniqueParamName("x", &seen, "duplicate parameter name: ", &error)) return false;
+  return error.find("duplicate parameter name: x") != std::string::npos;
+}
+
 bool LangTastCallsCheckSingleArgCallCount() {
   std::string error;
   if (!Simple::Lang::TAST::CheckSingleArgCallCount("len", 1, &error)) return false;
@@ -905,6 +913,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_primitive_cast_arg_type_rules", LangTastPrimitiveCastArgTypeRules},
   {"lang_tast_calls_extract_call_callee", LangTastCallsExtractCallCallee},
   {"lang_tast_calls_check_io_print_format_template_arg", LangTastCallsCheckIoPrintFormatTemplateArg},
+  {"lang_tast_calls_check_unique_param_name", LangTastCallsCheckUniqueParamName},
   {"lang_tast_calls_check_single_arg_call_count", LangTastCallsCheckSingleArgCallCount},
   {"lang_tast_calls_check_format_and_print_arg_types", LangTastCallsCheckFormatAndPrintArgTypes},
   {"lang_tast_calls_check_scalar_arg_types", LangTastCallsCheckScalarArgTypes},
