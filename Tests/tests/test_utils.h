@@ -54,6 +54,7 @@ bool RunExpectTrap(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectTrapNoVerify(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectVerifyFail(const std::vector<uint8_t>& module_bytes, const char* name);
 bool RunExpectExit(const std::vector<uint8_t>& module_bytes, int32_t expected);
+bool RunSirTextExpectExit(const std::string& sir, int32_t expected);
 
 TestResult RunSection(const TestSection& section);
 TestResult RunAllSections(const TestSection* sections, size_t count);

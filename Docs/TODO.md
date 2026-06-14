@@ -553,7 +553,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] `test_ast.cpp`
   - [x] `test_rast.cpp`
   - [x] `test_tast.cpp`
-  - [ ] `test_irb.cpp`
+  - [x] `test_irb.cpp`
   - [ ] `test_ire.cpp`
   - [ ] `test_lang_integration.cpp`
 - [ ] Add combinatorial feature-independence matrix tests:

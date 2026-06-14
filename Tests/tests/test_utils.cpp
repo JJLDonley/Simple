@@ -6,6 +6,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "ir_compiler.h"
+#include "ir_lang.h"
 #include "opcode.h"
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
@@ -255,6 +257,17 @@ bool RunExpectExit(const std::vector<uint8_t>& module_bytes, int32_t expected) {
     return false;
   }
   return true;
+}
+
+bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
+  Simple::IR::Text::IrTextModule text;
+  std::string error;
+  if (!Simple::IR::Text::ParseIrTextModule(sir, &text, &error)) return false;
+  Simple::IR::IrModule module;
+  if (!Simple::IR::Text::LowerIrTextToModule(text, &module, &error)) return false;
+  std::vector<uint8_t> sbc;
+  if (!Simple::IR::CompileToSbc(module, &sbc, &error)) return false;
+  return RunExpectExit(sbc, expected);
 }
 
 TestResult RunSection(const TestSection& section) {
