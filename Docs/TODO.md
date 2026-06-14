@@ -93,7 +93,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
 - [x] Use native metadata for stdlib documentation generation.
   - [x] Add native metadata Markdown generator for stdlib API snapshots.
   - [x] Test generated stdlib docs include every registered native function.
-- [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.
+- [x] Remove native stdlib forwarding glue once metadata dispatch is complete.
 - [x] Native functions must use named handlers such as `FsReadText`, `ChannelPendingI32`, and `JsonParse`.
 
 ### SRP Phase 3: Language Validation Split
@@ -236,7 +236,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [ ] remove `lang_validate.h`
   - [ ] remove `lang_sir.h`
 - [ ] Remove facade-only Lang phase modules; each phase must own real implementation.
-- [ ] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
+- [x] Remove native stdlib forwarding glue once binding metadata dispatch is in place.
 - [x] Remove CLI/LSP/test duplicate import wrappers once shared import graph is adopted.
 - [ ] Add tests/checks that fail if removed legacy headers/facades are reintroduced.
 

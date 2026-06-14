@@ -16,8 +16,26 @@ bool VmRuntimeDispatchesRegisteredNativesByMetadataFirst() {
   if (!in) return false;
   const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   const size_t dispatch = text.find("DispatchNativeMetadataImport(native_registry");
-  const size_t legacy = text.find("if (mod == \"System.os\")");
-  return dispatch != std::string::npos && legacy != std::string::npos && dispatch < legacy;
+  const size_t dl_call = text.find("if (mod == \"System.dl\")");
+  return dispatch != std::string::npos && dl_call != std::string::npos && dispatch < dl_call;
+}
+
+bool VmRuntimeHasNoNativeStdlibForwardingGlue() {
+  std::ifstream in("VM/src/vm.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  const char* forbidden[] = {
+      "if (mod == \"System.os\")",
+      "if (mod == \"System.fs\")",
+      "if (mod == \"System.channel\")",
+      "if (mod == \"System.json\")",
+      "if (mod == \"System.buffer\")",
+      "if (mod == \"System.log\")",
+  };
+  for (const char* item : forbidden) {
+    if (text.find(item) != std::string::npos) return false;
+  }
+  return true;
 }
 
 bool VmNativeRegistryUsesNamedMetadataHandlers() {
@@ -49,6 +67,7 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
 
 const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_dispatches_registered_natives_by_metadata_first", VmRuntimeDispatchesRegisteredNativesByMetadataFirst},
+  {"vm_runtime_has_no_native_stdlib_forwarding_glue", VmRuntimeHasNoNativeStdlibForwardingGlue},
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
 };
