@@ -2940,8 +2940,7 @@ bool CheckExpr(const Expr& expr,
           if (error && error->empty()) *error = "format expects scalar arguments";
           return false;
         }
-        if (arg_type.pointer_depth != 0 ||
-            arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+        if (!IsScalarType(arg_type)) {
           if (error) *error = "format expects scalar arguments";
           return false;
         }
@@ -3053,8 +3052,7 @@ bool CheckExpr(const Expr& expr,
             if (error && error->empty()) *error = "IO.print expects scalar argument";
             return false;
           }
-          if (arg_type.pointer_depth != 0 ||
-              arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+          if (!IsScalarType(arg_type)) {
             if (error) *error = "IO.print expects scalar argument";
             return false;
           }
@@ -3090,8 +3088,7 @@ bool CheckExpr(const Expr& expr,
               if (error && error->empty()) *error = "IO.print format expects scalar arguments";
               return false;
             }
-            if (arg_type.pointer_depth != 0 ||
-                arg_type.is_proc || !arg_type.type_args.empty() || !arg_type.dims.empty()) {
+            if (!IsScalarType(arg_type)) {
               if (error) *error = "IO.print format expects scalar arguments";
               return false;
             }

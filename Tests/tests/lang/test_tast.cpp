@@ -60,8 +60,23 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
   other_array.dims[0].size = 8;
   if (Simple::Lang::TAST::TypeEquals(fixed_array, other_array)) return false;
 
+  auto scalar_i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  auto pointer_i32 = scalar_i32;
+  pointer_i32.pointer_depth = 1;
+  auto generic_box = Simple::Lang::TAST::MakeSimpleType("Box");
+  generic_box.type_args.push_back(scalar_i32);
+  auto scalar_list_i32 = scalar_i32;
+  scalar_list_i32.dims.push_back(Simple::Lang::AST::TypeDim{true, false, 0});
+  auto proc_type = scalar_i32;
+  proc_type.is_proc = true;
+
   std::string cast_target;
-  return Simple::Lang::TAST::IsIntegerScalarTypeName("u64") &&
+  return Simple::Lang::TAST::IsScalarType(scalar_i32) &&
+         !Simple::Lang::TAST::IsScalarType(pointer_i32) &&
+         !Simple::Lang::TAST::IsScalarType(generic_box) &&
+         !Simple::Lang::TAST::IsScalarType(scalar_list_i32) &&
+         !Simple::Lang::TAST::IsScalarType(proc_type) &&
+         Simple::Lang::TAST::IsIntegerScalarTypeName("u64") &&
          Simple::Lang::TAST::IsFloatTypeName("f32") &&
          Simple::Lang::TAST::IsNumericTypeName("char") &&
          Simple::Lang::TAST::IsBoolTypeName("bool") &&
