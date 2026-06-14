@@ -8,6 +8,9 @@ This page is the canonical language reference for the syntax and behavior covere
 
 - [Quick example](#quick-example)
 - [Compilation pipeline](#compilation-pipeline)
+- [Status markers](#status-markers)
+- [Formal grammar overview](#formal-grammar-overview)
+- [Full language syntax tables](#full-language-syntax-tables)
 - [Lexical rules](#lexical-rules)
 - [Program structure and entry points](#program-structure-and-entry-points)
 - [File/package headers](#filepackage-headers)
@@ -83,6 +86,246 @@ Important syntax facts:
 ```
 
 The interpreter is the runtime correctness baseline. Language validation rejects unsupported syntax/semantics before SIR emission where possible.
+
+## Status markers
+
+Language syntax tables use the same status style as the IR and Byte references:
+
+| Status | Meaning |
+|:---:|---|
+| ✅ | Implemented and covered by parser/validator/runtime tests or fixtures. |
+| ◐ | Partially implemented; supported in the common path but with documented restrictions. |
+| ☐ | Planned or reserved language surface; not accepted as stable syntax yet. |
+| ❌ | Intentionally rejected syntax/semantic form. |
+
+`Phase` identifies the compiler stage that owns the rule:
+
+| Phase | Owns |
+|---|---|
+| Lexer | tokens, comments, literals, keywords |
+| CAST | concrete parse shape and syntax errors |
+| AST | normalized source tree |
+| RAST | names, imports, modules, members |
+| TAST | types, mutability, control-flow, ABI rules |
+| IRB/IRE | structured lowering and SIR emission |
+| Runtime | behavior checked only during VM execution |
+
+## Formal grammar overview
+
+This is the high-level grammar contract for accepted source. Details are refined by the syntax tables below.
+
+```ebnf
+program        = [ package-decl ] { import-decl | using-decl | extern-decl | top-decl | stmt } ;
+package-decl   = "package" qualified-name ;
+import-decl    = "import" qualified-name [ "as" ident ] ;
+using-decl     = "using" qualified-name ;
+extern-decl    = "extern" [ qualified-name ] function-signature ;
+top-decl       = var-decl | func-decl | artifact-decl | module-decl | enum-decl ;
+
+var-decl       = ident (":" | "::") type [ "=" expr ] ;
+func-decl      = ident ":" type "(" [ params ] ")" block ;
+artifact-decl  = ident "::" ("Artifact" | "artifact") "{" { field-decl | func-decl } "}" ;
+module-decl    = ident "::" ("Module" | "module") "{" { top-decl } "}" ;
+enum-decl      = ident "::" ("Enum" | "enum") "{" enum-member { enum-member } "}" ;
+
+stmt           = var-decl | assign-stmt | expr-stmt | if-stmt | switch-stmt | while-stmt | for-stmt |
+                 break-stmt | skip-stmt | return-stmt | block ;
+block          = "{" { stmt } "}" ;
+
+expr           = literal | ident | member-expr | index-expr | call-expr | cast-expr | unary-expr |
+                 binary-expr | assignment-expr | fn-literal | artifact-literal | list-literal |
+                 switch-expr ;
+type           = primitive-type | named-type | array-type | list-type | proc-type | pointer-type |
+                 generic-type ;
+```
+
+## Full language syntax tables
+
+### Lexical tokens
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | identifier | Lexer | Names start with a letter or `_`, followed by alnum/underscore. |
+| ✅ | integer literal | Lexer/TAST | Decimal, hex `0x`, and binary `0b` forms where integer parsing is used. |
+| ✅ | float literal | Lexer/TAST | Context typed as `f32`/`f64`; rejected where no float context exists. |
+| ✅ | string literal | Lexer | Double-quoted with escapes. |
+| ✅ | char literal | Lexer | Single-quoted char/escape. |
+| ✅ | comment | Lexer | Comments are ignored. |
+| ✅ | semicolon | CAST | Explicit statement separator. |
+| ✅ | newline/block boundary | CAST | Statement separator where unambiguous. |
+| ❌ | invalid escape | Lexer | Rejected with lexer diagnostic. |
+| ❌ | unknown character | Lexer | Rejected before parsing. |
+
+### Keywords and reserved words
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `package` | CAST/RAST | File/package header. |
+| ✅ | `import` | RAST | Imports another package/module source. |
+| ✅ | `using` | RAST | Brings reserved/native module members into lookup. |
+| ✅ | `extern` | RAST/TAST | Declares external/native callable. |
+| ✅ | `while`, `for`, `break`, `skip`, `return` | CAST/TAST | Loop/control statements. |
+| ✅ | `if`, `else`, `switch`, `default` | CAST/TAST | Branching constructs. |
+| ✅ | `fn` | CAST/TAST | Procedure type/literal marker. |
+| ✅ | `self` | RAST/TAST | Artifact method receiver. |
+| ✅ | `true`, `false` | CAST/TAST | Boolean literals. |
+| ✅ | `Artifact`, `artifact` | CAST/TAST | Artifact declaration kind. |
+| ✅ | `Module`, `module` | CAST/RAST | Module declaration kind. |
+| ✅ | `Enum`, `enum` | CAST/TAST | Enum declaration kind. |
+| ❌ | keyword as identifier | CAST | Rejected except where keyword is expected syntax. |
+
+### Operators and punctuation
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `:` | CAST/TAST | Mutable declaration marker or type separator. |
+| ✅ | `::` | CAST/TAST | Immutable declaration marker / top-level kind declaration marker. |
+| ✅ | `=` | TAST | Assignment/initializer. |
+| ✅ | `+ - * / %` | TAST | Numeric arithmetic. |
+| ✅ | `++ --` | TAST/IRE | Inc/dec on supported numeric lvalues. |
+| ✅ | `& | ^ << >>` | TAST | Integer bitwise and shifts. |
+| ✅ | `== != < <= > >=` | TAST | Equality/order comparisons over supported types. |
+| ✅ | `&& || !` | TAST | Boolean logic. |
+| ✅ | `+= -= *= /= %= &= |= ^= <<= >>=` | TAST/IRE | Compound assignment. |
+| ✅ | `.` | RAST/TAST | Module/member/field access. |
+| ✅ | `->` | TAST | Pointer member access where pointer semantics are supported. |
+| ✅ | `..` | TAST/IRE | Range form used by `for`. |
+| ✅ | `|>` | CAST/TAST | Pipe expression where supported. |
+| ✅ | `@` | TAST | Primitive cast syntax. |
+| ✅ | `( ) { } [ ] , ;` | CAST | Grouping, blocks, indexing/literals, separators. |
+| ❌ | primitive call cast like `i32(x)` | TAST | Rejected; use `@i32(x)`. |
+
+### Declarations
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `name : Type` | TAST | Mutable binding with default init if no initializer. |
+| ✅ | `name : Type = expr` | TAST | Mutable binding with typed initializer. |
+| ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
+| ✅ | `name : Ret (params) block` | TAST | Function declaration. |
+| ✅ | `Name :: Artifact { ... }` | TAST | Artifact type declaration. |
+| ✅ | `Name :: Module { ... }` | RAST/TAST | Namespace/module declaration. |
+| ✅ | `Name :: Enum { ... }` | TAST | Enum declaration. |
+| ✅ | top-level executable statement | AST/IRE | Normalized into implicit script entry. |
+| ❌ | assign to immutable binding | TAST | Rejected. |
+| ❌ | duplicate/conflicting declaration | RAST/TAST | Rejected by symbol/member resolution. |
+
+### Types
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `void` | TAST | No result type. |
+| ✅ | `bool` | TAST | Boolean. |
+| ✅ | `char` | TAST | Character scalar. |
+| ✅ | `string` | TAST | String reference/value. |
+| ✅ | `i8 i16 i32 i64` | TAST | Signed integers. |
+| ✅ | `u8 u16 u32 u64` | TAST | Unsigned integers. |
+| ✅ | `f32 f64` | TAST | Floating point. |
+| ✅ | `Name` | RAST/TAST | Artifact, enum, module member type, or imported type. |
+| ✅ | `T{N}` | TAST | Fixed-size array. |
+| ✅ | `T[]` | TAST | Growable list. |
+| ✅ | `T[][]`, `T{N}[]`, etc. | TAST | Nested arrays/lists where supported by lowering/runtime. |
+| ✅ | `fn Ret (params)` | TAST | Procedure/function value type. |
+| ✅ | `T*`, `T**` | TAST | Pointer type surface for supported ABI/member paths. |
+| ◐ | `Name<T, ...>` | CAST/TAST | Generic type syntax is parsed; semantics are limited to supported compiler paths. |
+| ❌ | `i128`, `u128` | CAST/TAST | Not part of the language surface. |
+| ❌ | module value as type | RAST/TAST | Rejected. |
+
+### Literals
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `123`, `0x7B`, `0b1010` | TAST | Integer literal, context typed. |
+| ✅ | `1.0`, `3.14` | TAST | Float literal, context typed. |
+| ✅ | `true`, `false` | TAST | Bool literal. |
+| ✅ | `'A'`, `'\x41'` | Lexer/TAST | Char literal. |
+| ✅ | `"text"`, `"A\x42"` | Lexer/TAST | String literal. |
+| ✅ | `[a, b, c]` | TAST/IRE | List literal in typed context. |
+| ✅ | `{ .x = 1, .y = 2 }` | TAST/IRE | Named artifact literal in typed context. |
+| ✅ | `{ 1, 2 }` | TAST/IRE | Positional artifact/array literal where target type disambiguates. |
+| ❌ | malformed escape/string/char | Lexer | Rejected. |
+| ❌ | literal outside supported target type | TAST/IRE | Rejected. |
+
+### Expressions
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | `name` | RAST/TAST | Identifier lookup. |
+| ✅ | `a.b` | RAST/TAST | Module/member/field access. |
+| ✅ | `a->b` | TAST | Pointer member access for supported pointer types. |
+| ✅ | `f(a, b)` | TAST | Function/procedure/native call. |
+| ✅ | `x[i]` | TAST | Array/list/string index where supported. |
+| ✅ | `@Type(expr)` | TAST/IRE | Primitive cast. |
+| ✅ | unary `-`, `!`, `++`, `--` | TAST/IRE | Unary numeric/bool/lvalue ops. |
+| ✅ | binary arithmetic/compare/logical/bitwise | TAST/IRE | Type-checked operator expression. |
+| ✅ | assignment expression | TAST/IRE | Assignment or compound assignment to lvalue. |
+| ✅ | function literal | TAST/IRE | `fn` literal in typed context. |
+| ✅ | switch expression | TAST/IRE | Branch expression with compatible result type. |
+| ❌ | bool/char arithmetic | TAST | Rejected. |
+| ❌ | char-vs-int comparison | TAST | Rejected. |
+| ❌ | indexing non-container | TAST | Rejected. |
+| ❌ | non-integer index | TAST | Rejected. |
+
+### Statements and control flow
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | expression statement | TAST/IRE | Evaluates expression, discards value if needed. |
+| ✅ | block `{ ... }` | CAST/TAST | Scoped statement list. |
+| ✅ | `if cond { ... } else { ... }` | TAST/IRE | Conditional branch. |
+| ✅ | `switch expr { ... }` | TAST/IRE | Switch statement/expression. |
+| ✅ | `while cond { ... }` | TAST/IRE | Loop. |
+| ✅ | `for i : i32 = start .. end { ... }` | TAST/IRE | Range loop. |
+| ✅ | `break` | TAST/IRE | Exit loop/switch context. |
+| ✅ | `skip` | TAST/IRE | Continue loop. |
+| ✅ | `return [expr]` | TAST/IRE | Function return. |
+| ✅ | implicit main fallback | AST/IRE | Top-level script/main fallback behavior. |
+| ❌ | `break`/`skip` outside valid context | TAST | Rejected. |
+| ❌ | missing return where required | TAST | Rejected unless implicit/default path applies. |
+
+### Artifacts, modules, enums, imports, externs
+
+| Status | Syntax | Phase | Meaning / rule |
+|:---:|---|---|---|
+| ✅ | artifact fields | RAST/TAST | Typed fields with layout metadata. |
+| ✅ | artifact methods | RAST/TAST | Methods with `self`. |
+| ✅ | module members | RAST/TAST | Namespaced vars/functions/types. |
+| ✅ | enum members | TAST/IRE | Enum values lower as supported integer-like values. |
+| ✅ | `import Package.Name` | RAST | Import source/package. |
+| ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
+| ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
+| ✅ | `DL.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
+| ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Enum.Member`. |
+| ❌ | unknown module/member/import | RAST/TAST | Rejected. |
+| ❌ | unsupported extern ABI type | TAST | Rejected. |
+
+### Reserved/System modules
+
+| Status | Module | Surface |
+|:---:|---|---|
+| ✅ | `IO` | print/println/format style output paths. |
+| ✅ | `Math` | math constants/functions covered by fixtures. |
+| ✅ | `Time` | time APIs covered by fixtures. |
+| ✅ | `Random` | random APIs covered by fixtures. |
+| ✅ | `Thread` | thread APIs covered by fixtures. |
+| ✅ | `Channel` | typed channel creation plus send/recv/pending/close variants. |
+| ✅ | `Env`, `OS`, `Path`, `FS`, `File` | environment, OS args, path, filesystem/file APIs. |
+| ✅ | `JSON`, `Buffer`, `Log`, `DL` | JSON/buffer/log/dynamic-library APIs. |
+| ❌ | unknown reserved member | RAST/TAST | Rejected. |
+
+### Diagnostics and rejection classes
+
+| Status | Class | Phase | Examples |
+|:---:|---|---|---|
+| ✅ | lexical error | Lexer | invalid char/escape/string. |
+| ✅ | parse error | CAST | malformed declarations/blocks/types. |
+| ✅ | name error | RAST | unknown identifier/member/import/module. |
+| ✅ | type error | TAST | mismatched assignment/call/operator types. |
+| ✅ | mutability error | TAST | assign immutable binding/field/global. |
+| ✅ | control-flow error | TAST | invalid break/skip/return path. |
+| ✅ | ABI error | TAST/IRE | unsupported extern/DL type/layout. |
+| ✅ | lowering error | IRE/IR | unsupported validated construct or backend path. |
+| ✅ | runtime trap | Runtime | bounds, null/native/runtime failures. |
 
 ## Lexical rules
 
