@@ -3,6 +3,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
+
+#include "sbc_types.h"
 
 namespace Simple::VM::Interpreter {
 
@@ -18,6 +21,13 @@ struct FrameState {
 };
 
 FrameState MakeFrame(size_t func_index, size_t return_pc, size_t stack_base, uint32_t closure_ref);
+size_t AllocateLocalSlots(std::vector<uint64_t>& locals_arena, uint16_t count);
+FrameState BuildFrame(const Simple::Byte::SbcModule& module,
+                      std::vector<uint64_t>& locals_arena,
+                      size_t func_index,
+                      size_t return_pc,
+                      size_t stack_base,
+                      uint32_t closure_ref);
 
 } // namespace Simple::VM::Interpreter
 

@@ -79,20 +79,27 @@ bool VmGcStackMapCollectionLivesInGcModule() {
          vm_text.find("auto maybe_collect = [") == std::string::npos;
 }
 
-bool VmFrameSetupUsesNamedHelper() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("FrameState BuildInterpreterFrame(") != std::string::npos &&
-         text.find("auto setup_frame = [") == std::string::npos;
+bool VmFrameSetupLivesInInterpreterModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/interpreter/frames.h");
+  std::ifstream source("VM/src/interpreter/frames.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("FrameState BuildFrame(") != std::string::npos &&
+         source_text.find("FrameState BuildFrame(") != std::string::npos &&
+         source_text.find("size_t AllocateLocalSlots(") != std::string::npos &&
+         vm_text.find("BuildInterpreterFrame(") == std::string::npos &&
+         vm_text.find("size_t AllocateLocalSlots(") == std::string::npos &&
+         vm_text.find("auto setup_frame = [") == std::string::npos;
 }
 
-bool VmRuntimeLimitAndLocalAllocationUseNamedHelpers() {
+bool VmRuntimeLimitUsesNamedHelper() {
   std::ifstream in("VM/src/vm.cpp");
   if (!in) return false;
   const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
   return text.find("bool CheckRuntimeSequenceLimit(") != std::string::npos &&
-         text.find("size_t AllocateLocalSlots(") != std::string::npos &&
          text.find("auto check_sequence_limit = [") == std::string::npos &&
          text.find("auto alloc_locals = [") == std::string::npos;
 }
@@ -224,8 +231,8 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
   {"vm_jit_tier_updates_live_in_jit_module", VmJitTierUpdatesLiveInJitModule},
   {"vm_gc_stack_map_collection_lives_in_gc_module", VmGcStackMapCollectionLivesInGcModule},
-  {"vm_frame_setup_uses_named_helper", VmFrameSetupUsesNamedHelper},
-  {"vm_runtime_limit_and_local_allocation_use_named_helpers", VmRuntimeLimitAndLocalAllocationUseNamedHelpers},
+  {"vm_frame_setup_lives_in_interpreter_module", VmFrameSetupLivesInInterpreterModule},
+  {"vm_runtime_limit_uses_named_helper", VmRuntimeLimitUsesNamedHelper},
   {"vm_constant_and_global_lookups_use_named_helpers", VmConstantAndGlobalLookupsUseNamedHelpers},
   {"vm_execution_stats_use_named_helper", VmExecutionStatsUseNamedHelper},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},

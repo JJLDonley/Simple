@@ -57,14 +57,14 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `FrameState`
   - [x] `InterpreterState`
   - [x] `RootTraceContext`
-- [ ] Replace real subsystem lambdas in `vm.cpp` with named functions/types.
+- [ ] Replace and move real subsystem lambdas/helpers out of `vm.cpp` into owned modules.
   - [x] Replace import-call dispatch lambda with `DispatchImportCallByName`.
   - [x] Replace trap-formatting helper lambdas with named helpers.
   - [x] Replace JIT failure operand-reader lambdas with named helpers.
   - [x] Replace execution-result finalizer lambda with `AttachExecutionStats`.
   - [x] Replace constant-string/global lookup lambdas with named helpers.
   - [x] Replace runtime-limit/local allocation lambdas with named helpers.
-  - [x] Replace interpreter frame setup lambda with `BuildInterpreterFrame`.
+  - [x] Move interpreter frame setup/local allocation helpers into `VM/src/interpreter/frames.cpp`.
   - [x] Move GC stack-map collection helpers into `VM/src/gc/stack_map_collection.cpp`.
   - [x] Move JIT tier-update helper into `VM/src/jit/tier_updater.cpp`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
