@@ -856,6 +856,15 @@ bool LangTastMutabilityChecksAssignments() {
 
 
 bool LangTastCheckAssignmentValidatesShape() {
+  std::string program_error;
+  Simple::Lang::AST::Program empty_program;
+  if (Simple::Lang::TAST::CheckProgramHasDeclarationsOrTopLevelStatements(empty_program, &program_error)) return false;
+  if (program_error.find("program has no declarations or top-level statements") == std::string::npos) return false;
+  Simple::Lang::AST::Stmt top_stmt;
+  top_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  empty_program.top_level_stmts.push_back(top_stmt);
+  if (!Simple::Lang::TAST::CheckProgramHasDeclarationsOrTopLevelStatements(empty_program, &program_error)) return false;
+
   if (!Simple::Lang::TAST::IsAssignOp("=")) return false;
   if (!Simple::Lang::TAST::IsAssignOp("<<=")) return false;
   if (Simple::Lang::TAST::IsAssignOp("==")) return false;

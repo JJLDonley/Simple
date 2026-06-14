@@ -8,6 +8,15 @@ bool IsAssignOp(const std::string& op) {
          op == ">>=";
 }
 
+bool CheckProgramHasDeclarationsOrTopLevelStatements(const Simple::Lang::AST::Program& program,
+                                                     std::string* error) {
+  if (program.decls.empty() && program.top_level_stmts.empty()) {
+    if (error) *error = "program has no declarations or top-level statements";
+    return false;
+  }
+  return true;
+}
+
 bool CheckEnumMemberValue(const Simple::Lang::AST::EnumMember& member, std::string* error) {
   if (!member.has_value) {
     if (error) *error = "enum member requires explicit value: " + member.name;

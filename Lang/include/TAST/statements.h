@@ -8,6 +8,8 @@
 namespace Simple::Lang::TAST {
 
 bool IsAssignOp(const std::string& op);
+bool CheckProgramHasDeclarationsOrTopLevelStatements(const Simple::Lang::AST::Program& program,
+                                                     std::string* error);
 bool CheckEnumMemberValue(const Simple::Lang::AST::EnumMember& member, std::string* error);
 bool CheckUniqueNamedMember(const std::string& name,
                             std::unordered_set<std::string>* seen,

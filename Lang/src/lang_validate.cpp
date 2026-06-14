@@ -141,6 +141,7 @@ using TAST::CheckReturnStmtValuePresence;
 using TAST::CheckPrimitiveCastArgType;
 using TAST::CheckAssignTargetSelfName;
 using TAST::CheckPrimitiveCastSyntaxName;
+using TAST::CheckProgramHasDeclarationsOrTopLevelStatements;
 using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
@@ -3330,10 +3331,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
   ValidateContext ctx;
   std::vector<std::unordered_map<std::string, LocalInfo>> empty_scopes;
   empty_scopes.emplace_back();
-  if (program.decls.empty() && program.top_level_stmts.empty()) {
-    if (error) *error = "program has no declarations or top-level statements";
-    return false;
-  }
+  if (!CheckProgramHasDeclarationsOrTopLevelStatements(program, error)) return false;
   for (const auto& decl : program.decls) {
     const std::string* name_ptr = nullptr;
     switch (decl.kind) {
