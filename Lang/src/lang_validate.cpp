@@ -135,6 +135,7 @@ using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckIoPrintCallArgTypes;
+using TAST::CheckIoPrintFormatTemplateArg;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckSingleArgCallCount;
@@ -3044,11 +3045,7 @@ bool CheckExpr(const Expr& expr,
           std::vector<TypeRef> arg_types = {arg_type};
           if (!CheckIoPrintCallArgTypes(arg_types, error)) return false;
         } else {
-          if (!(expr.args[0].kind == ExprKind::Literal &&
-                expr.args[0].literal_kind == LiteralKind::String)) {
-            if (error) *error = "IO.print format call expects string literal as first argument";
-            return false;
-          }
+          if (!CheckIoPrintFormatTemplateArg(expr.args[0], error)) return false;
           const size_t value_count = expr.args.size() - 1;
           if (!CheckFormatPlaceholderCount(expr.args[0].text, value_count, "IO.print format", error)) {
             return false;

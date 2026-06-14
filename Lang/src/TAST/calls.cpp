@@ -179,6 +179,14 @@ bool CheckIoPrintCallArgTypes(const std::vector<TypeRef>& args, std::string* err
   return true;
 }
 
+bool CheckIoPrintFormatTemplateArg(const Expr& expr, std::string* error) {
+  if (expr.kind != ExprKind::Literal || expr.literal_kind != LiteralKind::String) {
+    if (error) *error = "IO.print format call expects string literal as first argument";
+    return false;
+  }
+  return true;
+}
+
 bool CheckSingleArgCallCount(const std::string& name, size_t arg_count, std::string* error) {
   if (arg_count != 1) {
     if (error) {
