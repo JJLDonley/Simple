@@ -122,6 +122,7 @@ using TAST::CheckCompoundAssignOp;
 using TAST::CheckConditionType;
 using TAST::CheckDlDynamicSignature;
 using TAST::CheckFunctionCallArgs;
+using TAST::CheckCallTypeArgCount;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
@@ -2061,19 +2062,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
   }
   CallTargetInfo info;
   if (!GetCallTargetInfo(callee, ctx, scopes, current_artifact, &info, error)) return true;
-  if (!info.type_params.empty() && !call_expr.type_args.empty()) {
-    if (call_expr.type_args.size() != info.type_params.size()) {
-      if (error) {
-        *error = "generic type argument count mismatch: expected " +
-                 std::to_string(info.type_params.size()) + ", got " +
-                 std::to_string(call_expr.type_args.size());
-      }
-      return false;
-    }
-  } else if (info.type_params.empty() && !call_expr.type_args.empty()) {
-    if (error) *error = "non-generic call cannot take type arguments";
-    return false;
-  }
+  if (!CheckCallTypeArgCount(info.type_params.size(), call_expr.type_args.size(), error)) return false;
 
   std::unordered_map<std::string, TypeRef> mapping;
   if (!info.type_params.empty()) {

@@ -74,6 +74,23 @@ bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error
   return true;
 }
 
+bool CheckCallTypeArgCount(size_t type_param_count,
+                           size_t explicit_type_arg_count,
+                           std::string* error) {
+  if (type_param_count > 0 && explicit_type_arg_count > 0 && explicit_type_arg_count != type_param_count) {
+    if (error) {
+      *error = "generic type argument count mismatch: expected " +
+               std::to_string(type_param_count) + ", got " + std::to_string(explicit_type_arg_count);
+    }
+    return false;
+  }
+  if (type_param_count == 0 && explicit_type_arg_count > 0) {
+    if (error) *error = "non-generic call cannot take type arguments";
+    return false;
+  }
+  return true;
+}
+
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error) {

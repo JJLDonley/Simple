@@ -74,6 +74,16 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastCallsCheckTypeArgCounts() {
+  std::string error;
+  if (!Simple::Lang::TAST::CheckCallTypeArgCount(2, 2, &error)) return false;
+  if (!Simple::Lang::TAST::CheckCallTypeArgCount(2, 0, &error)) return false;
+  if (Simple::Lang::TAST::CheckCallTypeArgCount(2, 1, &error)) return false;
+  if (error.find("generic type argument count mismatch") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckCallTypeArgCount(0, 1, &error)) return false;
+  return error.find("non-generic call cannot take type arguments") != std::string::npos;
+}
+
 bool LangTastFnLiteralChecksTargetProcedureShape() {
   Simple::Lang::AST::Expr fn;
   fn.kind = Simple::Lang::AST::ExprKind::FnLiteral;
@@ -562,6 +572,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
