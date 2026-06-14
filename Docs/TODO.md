@@ -200,7 +200,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] `Tests/tests/cli/test_cli_diagnostics.cpp`
   - [x] `Tests/tests/cli/test_cli_build.cpp`
   - [x] `Tests/tests/cli/test_cli_imports.cpp`
-- [ ] Migration order:
+- [x] Migration order:
   - [x] heap/gc tests first
   - [x] lexer/parser tests second
   - [x] CLI tests third
