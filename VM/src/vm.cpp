@@ -1514,6 +1514,60 @@ Simple::VM::Interpreter::FrameState BuildInterpreterFrame(const SbcModule& modul
   return frame;
 }
 
+const Simple::Byte::StackMap* FindVerifiedStackMap(const Simple::Byte::VerifyResult& verify_result,
+                                                    size_t func_index,
+                                                    size_t pc_value) {
+  if (func_index >= verify_result.methods.size()) return nullptr;
+  const auto& maps = verify_result.methods[func_index].stack_maps;
+  for (const auto& map : maps) {
+    if (map.pc == pc_value) return &map;
+  }
+  return nullptr;
+}
+
+void MaybeCollectWithStackMap(bool have_meta,
+                              size_t op_counter,
+                              size_t pc,
+                              const Simple::Byte::VerifyResult& verify_result,
+                              Heap& heap,
+                              const std::vector<Slot>& globals,
+                              const std::vector<Slot>& stack,
+                              const std::vector<Simple::VM::Interpreter::FrameState>& call_stack,
+                              const Simple::VM::Interpreter::FrameState& current,
+                              const std::vector<Slot>& locals_arena) {
+  if (!have_meta) return;
+  if (op_counter % 1000 != 0) return;
+  const Simple::Byte::StackMap* stack_map = FindVerifiedStackMap(verify_result, current.func_index, pc);
+  if (!stack_map) return;
+  heap.ResetMarks();
+  std::vector<Simple::VM::Gc::RootTraceFrame> root_call_stack;
+  root_call_stack.reserve(call_stack.size());
+  for (const auto& frame : call_stack) {
+    if (frame.func_index >= verify_result.methods.size()) continue;
+    root_call_stack.push_back({frame.locals_base, frame.locals_count,
+                               &verify_result.methods[frame.func_index].locals_ref_bits});
+  }
+  Simple::VM::Gc::RootTraceFrame root_current{};
+  const Simple::VM::Gc::RootTraceFrame* current_root = nullptr;
+  if (current.func_index < verify_result.methods.size()) {
+    root_current = {current.locals_base, current.locals_count,
+                    &verify_result.methods[current.func_index].locals_ref_bits};
+    current_root = &root_current;
+  }
+  Simple::VM::Gc::RootTraceContext root_context;
+  root_context.heap = &heap;
+  root_context.globals = &globals;
+  root_context.global_ref_bits = &verify_result.globals_ref_bits;
+  root_context.stack = &stack;
+  root_context.stack_ref_bits = &stack_map->ref_bits;
+  root_context.stack_height = stack_map->stack_height;
+  root_context.call_stack = &root_call_stack;
+  root_context.current = current_root;
+  root_context.locals_arena = &locals_arena;
+  Simple::VM::Gc::TraceRoots(root_context);
+  heap.Sweep();
+}
+
 ExecResult AttachExecutionStats(ExecResult result,
                                 const std::vector<JitTier>& jit_tiers,
                                 const std::vector<uint32_t>& call_counts,
@@ -3521,53 +3575,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   size_t end = func_start + module.functions[entry_func_index].code_size;
 
   size_t op_counter = 0;
-  auto find_stack_map = [&](size_t func_index, size_t pc_value) -> const Simple::Byte::StackMap* {
-    if (!have_meta || func_index >= vr.methods.size()) return nullptr;
-    const auto& maps = vr.methods[func_index].stack_maps;
-    for (const auto& map : maps) {
-      if (map.pc == pc_value) return &map;
-    }
-    return nullptr;
-  };
-  auto maybe_collect = [&]() {
-    if (!have_meta) return;
-    if (op_counter % 1000 != 0) return;
-    const Simple::Byte::StackMap* stack_map = find_stack_map(current.func_index, pc);
-    if (!stack_map) return;
-    heap.ResetMarks();
-    std::vector<Simple::VM::Gc::RootTraceFrame> root_call_stack;
-    root_call_stack.reserve(call_stack.size());
-    for (const auto& f : call_stack) {
-      if (f.func_index >= vr.methods.size()) continue;
-      root_call_stack.push_back({f.locals_base, f.locals_count,
-                                 &vr.methods[f.func_index].locals_ref_bits});
-    }
-    Simple::VM::Gc::RootTraceFrame root_current{};
-    const Simple::VM::Gc::RootTraceFrame* current_root = nullptr;
-    if (current.func_index < vr.methods.size()) {
-      root_current = {current.locals_base, current.locals_count,
-                      &vr.methods[current.func_index].locals_ref_bits};
-      current_root = &root_current;
-    }
-    Simple::VM::Gc::RootTraceContext root_context;
-    root_context.heap = &heap;
-    root_context.globals = &globals;
-    root_context.global_ref_bits = &vr.globals_ref_bits;
-    root_context.stack = &stack;
-    root_context.stack_ref_bits = &stack_map->ref_bits;
-    root_context.stack_height = stack_map->stack_height;
-    root_context.call_stack = &root_call_stack;
-    root_context.current = current_root;
-    root_context.locals_arena = &locals_arena;
-    Simple::VM::Gc::TraceRoots(root_context);
-    heap.Sweep();
-  };
 
   while (pc < module.code.size()) {
     trap_ctx.pc = pc;
     trap_ctx.func_start = func_start;
     ++op_counter;
-    maybe_collect();
+    MaybeCollectWithStackMap(have_meta, op_counter, pc, vr, heap, globals, stack, call_stack, current, locals_arena);
     if (pc >= end) {
       if (call_stack.empty()) {
         ExecResult done;
