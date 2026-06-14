@@ -56,7 +56,7 @@ Build internals, tests, static libraries, and shared libraries stay under `build
 
 ## Install
 
-Install `svm` and `simple` onto your PATH after building.
+The install scripts build locally first, install `svm` and `simple` into a global/user binary directory, then add that directory to your user PATH when needed.
 
 Linux/macOS default install location is `/usr/local/bin`:
 
@@ -70,6 +70,8 @@ Override the prefix if desired:
 PREFIX="$HOME/.local" ./install.sh
 ```
 
+If the script updates your shell profile, restart the terminal or source the printed PATH command.
+
 Windows default install location is `%LocalAppData%\Simple\bin`:
 
 ```bat
@@ -82,6 +84,8 @@ Override it with:
 set SIMPLE_INSTALL_DIR=C:\Tools\Simple\bin
 install.bat
 ```
+
+Open a new terminal after install so Windows picks up the updated user PATH.
 
 After install, use `svm` directly:
 
