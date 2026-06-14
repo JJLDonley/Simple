@@ -74,6 +74,28 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastCallsCheckReservedIoBufferArgTypes() {
+  std::string error;
+  auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  auto i32_buffer = i32;
+  i32_buffer.dims.push_back(Simple::Lang::AST::TypeDim{});
+  std::vector<Simple::Lang::AST::TypeRef> args = {i32};
+  if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_new", args, &error)) return false;
+  args[0] = Simple::Lang::TAST::MakeSimpleType("string");
+  if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_new", args, &error)) return false;
+  if (error.find("IO.buffer_new expects (i32)") == std::string::npos) return false;
+  args = {i32_buffer, i32, i32};
+  if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_fill", args, &error)) return false;
+  args = {i32_buffer, Simple::Lang::TAST::MakeSimpleType("string"), i32};
+  if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_fill", args, &error)) return false;
+  if (error.find("IO.buffer_fill expects (i32[], i32, i32)") == std::string::npos) return false;
+  args = {i32_buffer, i32_buffer, i32};
+  if (!Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_copy", args, &error)) return false;
+  args = {i32_buffer, i32, i32};
+  if (Simple::Lang::TAST::CheckReservedIoBufferCallArgTypes("buffer_copy", args, &error)) return false;
+  return error.find("IO.buffer_copy expects (i32[], i32[], i32)") != std::string::npos;
+}
+
 bool LangTastCallsCheckReservedMathArgTypes() {
   std::string error;
   std::vector<Simple::Lang::AST::TypeRef> args = {Simple::Lang::TAST::MakeSimpleType("i32")};
@@ -615,6 +637,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_calls_check_reserved_io_buffer_arg_types", LangTastCallsCheckReservedIoBufferArgTypes},
   {"lang_tast_calls_check_reserved_math_arg_types", LangTastCallsCheckReservedMathArgTypes},
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},

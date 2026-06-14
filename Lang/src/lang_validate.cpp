@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckProcTypeArgs;
@@ -1855,8 +1856,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return InferExprType(call_expr.args[index], ctx, scopes, current_artifact, out_type);
       };
       auto is_i32_buffer = [&](const TypeRef& t) -> bool {
-        return t.name == "i32" && !t.is_proc && t.type_args.empty() &&
-               t.dims.size() == 1;
+        return t.name == "i32" && !t.is_proc && t.type_args.empty() && t.dims.size() == 1;
       };
       if (mod == "Math") {
         std::vector<TypeRef> arg_types;
@@ -1869,51 +1869,14 @@ bool CheckCallArgTypes(const Expr& call_expr,
         return CheckReservedMathCallArgTypes(name, arg_types, error);
       }
       if (mod == "IO") {
-        if (name == "buffer_new") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef len;
-          if (!infer_arg(0, &len)) return true;
-          if (len.name != "i32" || !len.dims.empty()) {
-            if (error) *error = "IO.buffer_new expects (i32)";
-            return false;
-          }
-          return true;
+        std::vector<TypeRef> arg_types;
+        arg_types.reserve(call_expr.args.size());
+        for (size_t i = 0; i < call_expr.args.size(); ++i) {
+          TypeRef arg;
+          if (!infer_arg(i, &arg)) return true;
+          arg_types.push_back(std::move(arg));
         }
-        if (name == "buffer_len") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef buf;
-          if (!infer_arg(0, &buf)) return true;
-          if (!is_i32_buffer(buf)) {
-            if (error) *error = "IO.buffer_len expects (i32[])";
-            return false;
-          }
-          return true;
-        }
-        if (name == "buffer_fill") {
-          if (call_expr.args.size() != 3) return true;
-          TypeRef buf;
-          TypeRef value;
-          TypeRef count;
-          if (!infer_arg(0, &buf) || !infer_arg(1, &value) || !infer_arg(2, &count)) return true;
-          if (!is_i32_buffer(buf) || value.name != "i32" || !value.dims.empty() ||
-              count.name != "i32" || !count.dims.empty()) {
-            if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
-            return false;
-          }
-          return true;
-        }
-        if (name == "buffer_copy") {
-          if (call_expr.args.size() != 3) return true;
-          TypeRef dst;
-          TypeRef src;
-          TypeRef count;
-          if (!infer_arg(0, &dst) || !infer_arg(1, &src) || !infer_arg(2, &count)) return true;
-          if (!is_i32_buffer(dst) || !is_i32_buffer(src) || count.name != "i32" || !count.dims.empty()) {
-            if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
-            return false;
-          }
-          return true;
-        }
+        return CheckReservedIoBufferCallArgTypes(name, arg_types, error);
       }
       if (mod == "Time") {
         std::vector<TypeRef> arg_types;

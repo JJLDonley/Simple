@@ -35,6 +35,10 @@ bool LooksLikeFnLiteralStart(const std::vector<Token>& tokens, size_t index) {
   return false;
 }
 
+bool IsI32BufferType(const TypeRef& type) {
+  return type.name == "i32" && !type.is_proc && type.type_args.empty() && type.dims.size() == 1;
+}
+
 bool ContainsNestedFnLiteralTokens(const std::vector<Token>& tokens) {
   for (size_t i = 0; i + 1 < tokens.size(); ++i) {
     if ((tokens[i].kind == TokenKind::Assign || tokens[i].kind == TokenKind::KwReturn ||
@@ -121,6 +125,52 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
     };
     if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
       if (error) *error = "Math." + member + " expects two numeric arguments of the same type";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
+bool CheckReservedIoBufferCallArgTypes(const std::string& member,
+                                       const std::vector<TypeRef>& args,
+                                       std::string* error) {
+  if (member == "buffer_new") {
+    if (args.size() != 1) return true;
+    const TypeRef& len = args[0];
+    if (len.name != "i32" || !len.dims.empty()) {
+      if (error) *error = "IO.buffer_new expects (i32)";
+      return false;
+    }
+    return true;
+  }
+  if (member == "buffer_len") {
+    if (args.size() != 1) return true;
+    if (!IsI32BufferType(args[0])) {
+      if (error) *error = "IO.buffer_len expects (i32[])";
+      return false;
+    }
+    return true;
+  }
+  if (member == "buffer_fill") {
+    if (args.size() != 3) return true;
+    const TypeRef& buf = args[0];
+    const TypeRef& value = args[1];
+    const TypeRef& count = args[2];
+    if (!IsI32BufferType(buf) || value.name != "i32" || !value.dims.empty() ||
+        count.name != "i32" || !count.dims.empty()) {
+      if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
+      return false;
+    }
+    return true;
+  }
+  if (member == "buffer_copy") {
+    if (args.size() != 3) return true;
+    const TypeRef& dst = args[0];
+    const TypeRef& src = args[1];
+    const TypeRef& count = args[2];
+    if (!IsI32BufferType(dst) || !IsI32BufferType(src) || count.name != "i32" || !count.dims.empty()) {
+      if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
       return false;
     }
     return true;
