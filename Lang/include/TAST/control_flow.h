@@ -19,6 +19,8 @@ Flow AnalyzeBlockFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts);
 bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
                      bool requires_return,
                      std::string* error);
+bool CheckFunctionReturnFlow(const Simple::Lang::AST::FuncDecl& fn,
+                             std::string* error);
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error);
 bool GetSwitchBranchValueExpr(const Simple::Lang::AST::SwitchBranch& branch,

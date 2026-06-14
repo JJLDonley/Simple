@@ -53,6 +53,15 @@ bool CheckReturnFlow(const std::vector<Simple::Lang::AST::Stmt>& stmts,
   return false;
 }
 
+bool CheckFunctionReturnFlow(const Simple::Lang::AST::FuncDecl& fn,
+                             std::string* error) {
+  const bool return_is_void = fn.return_type.name == "void";
+  const bool is_main = fn.name == "main" && fn.return_type.name == "i32";
+  if (return_is_void || is_main || AnalyzeBlockFlow(fn.body).always_returns) return true;
+  if (error) *error = "non-void function does not return on all paths";
+  return false;
+}
+
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error) {
   if (type.pointer_depth != 0 || !IsBoolTypeName(type.name)) {

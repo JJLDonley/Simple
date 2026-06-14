@@ -125,6 +125,7 @@ using TAST::CheckFunctionCallArgs;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
+using TAST::CheckFunctionReturnFlow;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -1212,7 +1213,6 @@ bool CheckBoolCondition(const Expr& expr,
                         const ArtifactDecl* current_artifact,
                         std::string* error);
 
-bool StmtsReturn(const std::vector<Stmt>& stmts);
 
 const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                            const std::string& name) {
@@ -3560,10 +3560,6 @@ bool CheckExpr(const Expr& expr,
   return true;
 }
 
-bool StmtsReturn(const std::vector<Stmt>& stmts) {
-  return Simple::Lang::TAST::AnalyzeBlockFlow(stmts).always_returns;
-}
-
 bool CheckFunctionBody(const FuncDecl& fn,
                        const ValidateContext& ctx,
                        const std::unordered_set<std::string>& type_params,
@@ -3573,7 +3569,6 @@ bool CheckFunctionBody(const FuncDecl& fn,
   scopes.emplace_back();
   std::unordered_set<std::string> param_names;
   const bool return_is_void = fn.return_type.name == "void";
-  const bool is_main = (fn.name == "main" && fn.return_type.name == "i32");
   if (!CheckTypeRef(fn.return_type, ctx, type_params, TypeUse::Return, error)) return false;
   for (const auto& param : fn.params) {
     if (!param_names.insert(param.name).second) {
@@ -3599,11 +3594,7 @@ bool CheckFunctionBody(const FuncDecl& fn,
       return false;
     }
   }
-  if (!return_is_void && !StmtsReturn(fn.body) && !is_main) {
-    if (error) *error = "non-void function does not return on all paths";
-    return false;
-  }
-  return true;
+  return CheckFunctionReturnFlow(fn, error);
 }
 
 } // namespace

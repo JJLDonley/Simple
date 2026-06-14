@@ -322,6 +322,20 @@ bool LangTastControlFlowExtractsSwitchBranchValues() {
   return error.find("block must end with a return value") != std::string::npos;
 }
 
+bool LangTastControlFlowChecksFunctionReturns() {
+  Simple::Lang::AST::FuncDecl fn;
+  fn.name = "needs_return";
+  fn.return_type = Simple::Lang::TAST::MakeSimpleType("i32");
+  std::string error;
+  if (Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error)) return false;
+  if (error.find("non-void function does not return on all paths") == std::string::npos) return false;
+  fn.name = "main";
+  if (!Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error)) return false;
+  fn.name = "void_fn";
+  fn.return_type = Simple::Lang::TAST::MakeSimpleType("void");
+  return Simple::Lang::TAST::CheckFunctionReturnFlow(fn, &error);
+}
+
 bool LangTastControlFlowTracksReturnsAndBreaks() {
   const char* src =
       "main : i32 () {\n"
@@ -560,6 +574,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},
   {"lang_tast_checker_rejects_type_mismatch", LangTastCheckerRejectsTypeMismatch},
   {"lang_tast_control_flow_extracts_switch_branch_values", LangTastControlFlowExtractsSwitchBranchValues},
+  {"lang_tast_control_flow_checks_function_returns", LangTastControlFlowChecksFunctionReturns},
   {"lang_tast_control_flow_tracks_returns_and_breaks", LangTastControlFlowTracksReturnsAndBreaks},
   {"lang_tast_check_return_flow_rejects_fallthrough", LangTastCheckReturnFlowRejectsFallthrough},
   {"lang_tast_format_string_counts_placeholders", LangTastFormatStringCountsPlaceholders},
