@@ -6,10 +6,28 @@
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "RAST/resolver.h"
+#include "lang_sir.h"
 #include "TAST/type_checker.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool LangDlImportsEmitSystemNamespace() {
+  std::string sir;
+  std::string error;
+  const char* source = R"simple(
+import DL
+
+main :: i32 () {
+  h : i64 = DL.open("libc.so.6")
+  return 0
+}
+)simple";
+  if (!Simple::Lang::EmitSirFromString(source, &sir, &error)) return false;
+  return sir.find(" System.dl open ") != std::string::npos &&
+         sir.find("core.dl") == std::string::npos &&
+         sir.find("import core.") == std::string::npos;
+}
 
 bool LangSplitIreEmitsSirModule() {
   Simple::Lang::CAST::Program cast_program;
@@ -32,6 +50,7 @@ bool LangSplitIreEmitsSirModule() {
 }
 
 const TestCase kLangIreTests[] = {
+  {"lang_dl_imports_emit_system_namespace", LangDlImportsEmitSystemNamespace},
   {"lang_split_ire_emits_sir_module", LangSplitIreEmitsSirModule},
 };
 

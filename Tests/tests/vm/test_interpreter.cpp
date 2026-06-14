@@ -63,14 +63,20 @@ bool VmJitTierUpdatesLiveInJitModule() {
          vm_text.find("auto update_tier = [") == std::string::npos;
 }
 
-bool VmGcStackMapCollectionUsesNamedHelpers() {
-  std::ifstream in("VM/src/vm.cpp");
-  if (!in) return false;
-  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-  return text.find("FindVerifiedStackMap(") != std::string::npos &&
-         text.find("MaybeCollectWithStackMap(") != std::string::npos &&
-         text.find("auto find_stack_map = [") == std::string::npos &&
-         text.find("auto maybe_collect = [") == std::string::npos;
+bool VmGcStackMapCollectionLivesInGcModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/gc/stack_map_collection.h");
+  std::ifstream source("VM/src/gc/stack_map_collection.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("MaybeCollectWithStackMap(") != std::string::npos &&
+         source_text.find("FindVerifiedStackMap(") != std::string::npos &&
+         vm_text.find("const Simple::Byte::StackMap* FindVerifiedStackMap(") == std::string::npos &&
+         vm_text.find("void MaybeCollectWithStackMap(") == std::string::npos &&
+         vm_text.find("auto find_stack_map = [") == std::string::npos &&
+         vm_text.find("auto maybe_collect = [") == std::string::npos;
 }
 
 bool VmFrameSetupUsesNamedHelper() {
@@ -217,7 +223,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
   {"vm_jit_tier_updates_live_in_jit_module", VmJitTierUpdatesLiveInJitModule},
-  {"vm_gc_stack_map_collection_uses_named_helpers", VmGcStackMapCollectionUsesNamedHelpers},
+  {"vm_gc_stack_map_collection_lives_in_gc_module", VmGcStackMapCollectionLivesInGcModule},
   {"vm_frame_setup_uses_named_helper", VmFrameSetupUsesNamedHelper},
   {"vm_runtime_limit_and_local_allocation_use_named_helpers", VmRuntimeLimitAndLocalAllocationUseNamedHelpers},
   {"vm_constant_and_global_lookups_use_named_helpers", VmConstantAndGlobalLookupsUseNamedHelpers},
