@@ -66,9 +66,15 @@ Constant-pool strings are decoded through the loader helper `ReadConstPoolString
 
 Opcodes are defined in `Byte/include/opcode.h` with metadata in `Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.
 
-The tables below are the full robust typed opcode plan grouped by operation family. Implemented rows have assigned byte values from `OpCode`; incomplete rows reserve typed operations in the public plan but still need opcode values, verifier metadata, emitter support, and VM dispatch.
+The tables below are the full robust typed opcode plan grouped by operation family. Concrete scalar families are collapsed into `<T>` rows; assigned implementation opcodes are listed underneath as compact `Code | T` maps instead of duplicating a concrete row and a generic row.
 
 `Operands` is the number of immediate bytes following the opcode byte. `Pops` and `Pushes` are the static stack-effect metadata used by the verifier; call-family opcodes carry dynamic arity in their operands/signatures, so their static stack effect is recorded as `0/0`.
+
+Status values:
+
+- `✅`: fully implemented concrete opcode.
+- `◐`: typed family is partially implemented for the listed `Code | T` mappings.
+- `☐`: planned opcode family with no assigned opcode yet.
 
 `<T>` means a typed opcode family over the relevant scalar/reference payload set instead of listing every scalar spelling. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
 
@@ -146,139 +152,213 @@ Slot access plus planned typed module/global initialization operations.
 
 ### Arithmetic
 
-Binary arithmetic. `<T>` covers all numeric scalar types: `i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64` where the operation is valid.
+Binary arithmetic. `<T>` covers every valid numeric scalar type.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x40` | `AddI32` | 0 | 2 | 1 |
-| ✅ | `0x41` | `SubI32` | 0 | 2 | 1 |
-| ✅ | `0x42` | `MulI32` | 0 | 2 | 1 |
-| ✅ | `0x43` | `DivI32` | 0 | 2 | 1 |
-| ✅ | `0x44` | `ModI32` | 0 | 2 | 1 |
-| ✅ | `0x45` | `AddI64` | 0 | 2 | 1 |
-| ✅ | `0x46` | `SubI64` | 0 | 2 | 1 |
-| ✅ | `0x47` | `MulI64` | 0 | 2 | 1 |
-| ✅ | `0x48` | `DivI64` | 0 | 2 | 1 |
-| ✅ | `0x49` | `ModI64` | 0 | 2 | 1 |
-| ✅ | `0x4A` | `AddF32` | 0 | 2 | 1 |
-| ✅ | `0x4B` | `SubF32` | 0 | 2 | 1 |
-| ✅ | `0x4C` | `MulF32` | 0 | 2 | 1 |
-| ✅ | `0x4D` | `DivF32` | 0 | 2 | 1 |
-| ✅ | `0x4E` | `AddF64` | 0 | 2 | 1 |
-| ✅ | `0x4F` | `SubF64` | 0 | 2 | 1 |
-| ✅ | `0x5C` | `MulF64` | 0 | 2 | 1 |
-| ✅ | `0x5D` | `DivF64` | 0 | 2 | 1 |
-| ✅ | `0xE1` | `AddU32` | 0 | 2 | 1 |
-| ✅ | `0xE2` | `SubU32` | 0 | 2 | 1 |
-| ✅ | `0xE3` | `MulU32` | 0 | 2 | 1 |
-| ✅ | `0xE4` | `DivU32` | 0 | 2 | 1 |
-| ✅ | `0xE5` | `ModU32` | 0 | 2 | 1 |
-| ✅ | `0xE6` | `AddU64` | 0 | 2 | 1 |
-| ✅ | `0xE7` | `SubU64` | 0 | 2 | 1 |
-| ✅ | `0xE8` | `MulU64` | 0 | 2 | 1 |
-| ✅ | `0xE9` | `DivU64` | 0 | 2 | 1 |
-| ✅ | `0xEA` | `ModU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Add<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Sub<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Mul<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Div<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Mod<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Add<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Sub<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Mul<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Div<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Mod<T>` | 0 | 2 | 1 |
+
+Add<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x40` | `I32` |
+| `0x45` | `I64` |
+| `0x4A` | `F32` |
+| `0x4E` | `F64` |
+| `0xE1` | `U32` |
+| `0xE6` | `U64` |
+
+Sub<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x41` | `I32` |
+| `0x46` | `I64` |
+| `0x4B` | `F32` |
+| `0x4F` | `F64` |
+| `0xE2` | `U32` |
+| `0xE7` | `U64` |
+
+Mul<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x42` | `I32` |
+| `0x47` | `I64` |
+| `0x4C` | `F32` |
+| `0x5C` | `F64` |
+| `0xE3` | `U32` |
+| `0xE8` | `U64` |
+
+Div<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x43` | `I32` |
+| `0x48` | `I64` |
+| `0x4D` | `F32` |
+| `0x5D` | `F64` |
+| `0xE4` | `U32` |
+| `0xE9` | `U64` |
+
+Mod<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x44` | `I32` |
+| `0x49` | `I64` |
+| `0xE5` | `U32` |
+| `0xEA` | `U64` |
+
 
 ### Increment and decrement
 
-Unary increment/decrement. `<T>` covers numeric scalar types where inc/dec is valid.
+Unary increment/decrement over valid numeric scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x83` | `IncI32` | 0 | 1 | 1 |
-| ✅ | `0x84` | `DecI32` | 0 | 1 | 1 |
-| ✅ | `0x85` | `IncI64` | 0 | 1 | 1 |
-| ✅ | `0x86` | `DecI64` | 0 | 1 | 1 |
-| ✅ | `0x87` | `IncF32` | 0 | 1 | 1 |
-| ✅ | `0x88` | `DecF32` | 0 | 1 | 1 |
-| ✅ | `0x89` | `IncF64` | 0 | 1 | 1 |
-| ✅ | `0x8A` | `DecF64` | 0 | 1 | 1 |
-| ✅ | `0x8B` | `IncU32` | 0 | 1 | 1 |
-| ✅ | `0x8C` | `DecU32` | 0 | 1 | 1 |
-| ✅ | `0x8D` | `IncU64` | 0 | 1 | 1 |
-| ✅ | `0x8E` | `DecU64` | 0 | 1 | 1 |
-| ✅ | `0x92` | `IncI8` | 0 | 1 | 1 |
-| ✅ | `0x93` | `DecI8` | 0 | 1 | 1 |
-| ✅ | `0x94` | `IncI16` | 0 | 1 | 1 |
-| ✅ | `0x95` | `DecI16` | 0 | 1 | 1 |
-| ✅ | `0x96` | `IncU8` | 0 | 1 | 1 |
-| ✅ | `0x97` | `DecU8` | 0 | 1 | 1 |
-| ✅ | `0x98` | `IncU16` | 0 | 1 | 1 |
-| ✅ | `0x99` | `DecU16` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Inc<T>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Dec<T>` | 0 | 1 | 1 |
+| ◐ | `typed` | `Inc<T>` | 0 | 1 | 1 |
+| ◐ | `typed` | `Dec<T>` | 0 | 1 | 1 |
+
+Inc<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x92` | `I8` |
+| `0x94` | `I16` |
+| `0x83` | `I32` |
+| `0x85` | `I64` |
+| `0x96` | `U8` |
+| `0x98` | `U16` |
+| `0x8B` | `U32` |
+| `0x8D` | `U64` |
+| `0x87` | `F32` |
+| `0x89` | `F64` |
+
+Dec<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x93` | `I8` |
+| `0x95` | `I16` |
+| `0x84` | `I32` |
+| `0x86` | `I64` |
+| `0x97` | `U8` |
+| `0x99` | `U16` |
+| `0x8C` | `U32` |
+| `0x8E` | `U64` |
+| `0x88` | `F32` |
+| `0x8A` | `F64` |
+
 
 ### Negation
 
-Unary numeric negation. `<T>` covers signed integer and floating scalar types; unsigned negation remains a policy decision.
+Unary numeric negation over valid numeric scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x5E` | `NegI32` | 0 | 1 | 1 |
-| ✅ | `0x5F` | `NegI64` | 0 | 1 | 1 |
-| ✅ | `0x7E` | `NegF32` | 0 | 1 | 1 |
-| ✅ | `0x7F` | `NegF64` | 0 | 1 | 1 |
-| ✅ | `0x9A` | `NegI8` | 0 | 1 | 1 |
-| ✅ | `0x9B` | `NegI16` | 0 | 1 | 1 |
-| ✅ | `0x9C` | `NegU8` | 0 | 1 | 1 |
-| ✅ | `0x9D` | `NegU16` | 0 | 1 | 1 |
-| ✅ | `0x9E` | `NegU32` | 0 | 1 | 1 |
-| ✅ | `0x9F` | `NegU64` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Neg<T>` | 0 | 1 | 1 |
+| ◐ | `typed` | `Neg<T>` | 0 | 1 | 1 |
+
+Neg<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x9A` | `I8` |
+| `0x9B` | `I16` |
+| `0x5E` | `I32` |
+| `0x5F` | `I64` |
+| `0x9C` | `U8` |
+| `0x9D` | `U16` |
+| `0x9E` | `U32` |
+| `0x9F` | `U64` |
+| `0x7E` | `F32` |
+| `0x7F` | `F64` |
+
 
 ### Comparisons
 
-Equality and ordering comparisons. `<T>` covers all comparable scalar types, plus refs/strings where specified by type metadata.
+Equality and ordering comparisons over comparable typed values.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x50` | `CmpEqI32` | 0 | 2 | 1 |
-| ✅ | `0x51` | `CmpLtI32` | 0 | 2 | 1 |
-| ✅ | `0x52` | `CmpNeI32` | 0 | 2 | 1 |
-| ✅ | `0x53` | `CmpLeI32` | 0 | 2 | 1 |
-| ✅ | `0x54` | `CmpGtI32` | 0 | 2 | 1 |
-| ✅ | `0x55` | `CmpGeI32` | 0 | 2 | 1 |
-| ✅ | `0x56` | `CmpEqI64` | 0 | 2 | 1 |
-| ✅ | `0x57` | `CmpNeI64` | 0 | 2 | 1 |
-| ✅ | `0x58` | `CmpLtI64` | 0 | 2 | 1 |
-| ✅ | `0x59` | `CmpLeI64` | 0 | 2 | 1 |
-| ✅ | `0x5A` | `CmpGtI64` | 0 | 2 | 1 |
-| ✅ | `0x5B` | `CmpGeI64` | 0 | 2 | 1 |
-| ✅ | `0x63` | `CmpEqF32` | 0 | 2 | 1 |
-| ✅ | `0x64` | `CmpNeF32` | 0 | 2 | 1 |
-| ✅ | `0x65` | `CmpLtF32` | 0 | 2 | 1 |
-| ✅ | `0x66` | `CmpLeF32` | 0 | 2 | 1 |
-| ✅ | `0x67` | `CmpGtF32` | 0 | 2 | 1 |
-| ✅ | `0x68` | `CmpGeF32` | 0 | 2 | 1 |
-| ✅ | `0x69` | `CmpEqF64` | 0 | 2 | 1 |
-| ✅ | `0x6A` | `CmpNeF64` | 0 | 2 | 1 |
-| ✅ | `0x6B` | `CmpLtF64` | 0 | 2 | 1 |
-| ✅ | `0x6C` | `CmpLeF64` | 0 | 2 | 1 |
-| ✅ | `0x6D` | `CmpGtF64` | 0 | 2 | 1 |
-| ✅ | `0x6E` | `CmpGeF64` | 0 | 2 | 1 |
-| ✅ | `0xEB` | `CmpEqU32` | 0 | 2 | 1 |
-| ✅ | `0xEC` | `CmpNeU32` | 0 | 2 | 1 |
-| ✅ | `0xED` | `CmpLtU32` | 0 | 2 | 1 |
-| ✅ | `0xEE` | `CmpLeU32` | 0 | 2 | 1 |
-| ✅ | `0xEF` | `CmpGtU32` | 0 | 2 | 1 |
-| ✅ | `0xF0` | `CmpGeU32` | 0 | 2 | 1 |
-| ✅ | `0xF1` | `CmpEqU64` | 0 | 2 | 1 |
-| ✅ | `0xF2` | `CmpNeU64` | 0 | 2 | 1 |
-| ✅ | `0xF3` | `CmpLtU64` | 0 | 2 | 1 |
-| ✅ | `0xF4` | `CmpLeU64` | 0 | 2 | 1 |
-| ✅ | `0xF5` | `CmpGtU64` | 0 | 2 | 1 |
-| ✅ | `0xF6` | `CmpGeU64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpEq<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpNe<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLt<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpLe<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGt<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CmpGe<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpEq<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpNe<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpLt<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpLe<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpGt<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `CmpGe<T>` | 0 | 2 | 1 |
+
+CmpEq<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x50` | `I32` |
+| `0x56` | `I64` |
+| `0x63` | `F32` |
+| `0x69` | `F64` |
+| `0xEB` | `U32` |
+| `0xF1` | `U64` |
+
+CmpNe<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x52` | `I32` |
+| `0x57` | `I64` |
+| `0x64` | `F32` |
+| `0x6A` | `F64` |
+| `0xEC` | `U32` |
+| `0xF2` | `U64` |
+
+CmpLt<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x51` | `I32` |
+| `0x58` | `I64` |
+| `0x65` | `F32` |
+| `0x6B` | `F64` |
+| `0xED` | `U32` |
+| `0xF3` | `U64` |
+
+CmpLe<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x53` | `I32` |
+| `0x59` | `I64` |
+| `0x66` | `F32` |
+| `0x6C` | `F64` |
+| `0xEE` | `U32` |
+| `0xF4` | `U64` |
+
+CmpGt<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x54` | `I32` |
+| `0x5A` | `I64` |
+| `0x67` | `F32` |
+| `0x6D` | `F64` |
+| `0xEF` | `U32` |
+| `0xF5` | `U64` |
+
+CmpGe<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x55` | `I32` |
+| `0x5B` | `I64` |
+| `0x68` | `F32` |
+| `0x6E` | `F64` |
+| `0xF0` | `U32` |
+| `0xF6` | `U64` |
+
 
 ### Boolean logic
 
@@ -292,25 +372,51 @@ Boolean logical operations.
 
 ### Bitwise and shifts
 
-Bitwise and shift operations. `<T>` covers integer scalar types only.
+Bitwise and shift operations over integer scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0xD4` | `AndI64` | 0 | 2 | 1 |
-| ✅ | `0xD5` | `OrI64` | 0 | 2 | 1 |
-| ✅ | `0xD6` | `XorI64` | 0 | 2 | 1 |
-| ✅ | `0xD7` | `ShlI64` | 0 | 2 | 1 |
-| ✅ | `0xD8` | `ShrI64` | 0 | 2 | 1 |
-| ✅ | `0xF7` | `AndI32` | 0 | 2 | 1 |
-| ✅ | `0xF8` | `OrI32` | 0 | 2 | 1 |
-| ✅ | `0xF9` | `XorI32` | 0 | 2 | 1 |
-| ✅ | `0xFA` | `ShlI32` | 0 | 2 | 1 |
-| ✅ | `0xFB` | `ShrI32` | 0 | 2 | 1 |
-| ☐ | `TBD` | `And<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Or<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Xor<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Shl<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `Shr<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `And<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Or<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Xor<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Shl<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `Shr<T>` | 0 | 2 | 1 |
+
+And<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xF7` | `I32` |
+| `0xD4` | `I64` |
+
+Or<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xF8` | `I32` |
+| `0xD5` | `I64` |
+
+Xor<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xF9` | `I32` |
+| `0xD6` | `I64` |
+
+Shl<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xFA` | `I32` |
+| `0xD7` | `I64` |
+
+Shr<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xFB` | `I32` |
+| `0xD8` | `I64` |
+
 
 ### Calls
 
@@ -333,16 +439,22 @@ Scalar conversions. `<From,To>` covers explicit typed conversion pairs. Checked 
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x76` | `ConvI32ToI64` | 0 | 1 | 1 |
-| ✅ | `0x77` | `ConvI64ToI32` | 0 | 1 | 1 |
-| ✅ | `0x78` | `ConvI32ToF32` | 0 | 1 | 1 |
-| ✅ | `0x79` | `ConvI32ToF64` | 0 | 1 | 1 |
-| ✅ | `0x7A` | `ConvF32ToI32` | 0 | 1 | 1 |
-| ✅ | `0x7B` | `ConvF64ToI32` | 0 | 1 | 1 |
-| ✅ | `0x7C` | `ConvF32ToF64` | 0 | 1 | 1 |
-| ✅ | `0x7D` | `ConvF64ToF32` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Conv<From,To>` | 0 | 1 | 1 |
+| ◐ | `typed` | `Conv<From,To>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `CheckedConv<From,To>` | 0 | 1 | 1 |
+
+Conv<From,To> codes:
+
+| Code | T |
+|---:|---|
+| `0x76` | `I32 -> I64` |
+| `0x77` | `I64 -> I32` |
+| `0x78` | `I32 -> F32` |
+| `0x79` | `I32 -> F64` |
+| `0x7A` | `F32 -> I32` |
+| `0x7B` | `F64 -> I32` |
+| `0x7C` | `F32 -> F64` |
+| `0x7D` | `F64 -> F32` |
+
 
 ### Debug, profiling, native, and system runtime
 
@@ -392,27 +504,42 @@ Fixed-size array allocation and element access. `<T>` covers every scalar payloa
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0xB0` | `NewArray` | 8 | 0 | 1 |
-| ✅ | `0xB1` | `ArrayLen` | 0 | 1 | 1 |
-| ✅ | `0xB2` | `ArrayGetI32` | 0 | 2 | 1 |
-| ✅ | `0xB3` | `ArraySetI32` | 0 | 3 | 0 |
-| ✅ | `0xB4` | `NewArrayI64` | 8 | 0 | 1 |
-| ✅ | `0xB5` | `ArrayGetI64` | 0 | 2 | 1 |
-| ✅ | `0xB6` | `ArraySetI64` | 0 | 3 | 0 |
-| ✅ | `0xB7` | `NewArrayF32` | 8 | 0 | 1 |
-| ✅ | `0xB8` | `ArrayGetF32` | 0 | 2 | 1 |
-| ✅ | `0xB9` | `ArraySetF32` | 0 | 3 | 0 |
-| ✅ | `0xBA` | `NewArrayF64` | 8 | 0 | 1 |
-| ✅ | `0xBB` | `ArrayGetF64` | 0 | 2 | 1 |
-| ✅ | `0xBC` | `ArraySetF64` | 0 | 3 | 0 |
-| ✅ | `0xBD` | `NewArrayRef` | 8 | 0 | 1 |
-| ✅ | `0xBE` | `ArrayGetRef` | 0 | 2 | 1 |
-| ✅ | `0xBF` | `ArraySetRef` | 0 | 3 | 0 |
-| ☐ | `TBD` | `NewArray<T>` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ArrayGet<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ArraySet<T>` | 0 | 3 | 0 |
+| ◐ | `typed` | `NewArray<T>` | 8 | 0 | 1 |
+| ◐ | `typed` | `ArrayGet<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `ArraySet<T>` | 0 | 3 | 0 |
 | ☐ | `TBD` | `ArrayCopy<T>` | 0 | 5 | 0 |
 | ☐ | `TBD` | `ArrayFill<T>` | 0 | 3 | 0 |
+
+NewArray<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xB0` | `generic` |
+| `0xB4` | `I64` |
+| `0xB7` | `F32` |
+| `0xBA` | `F64` |
+| `0xBD` | `Ref` |
+
+ArrayGet<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xB2` | `I32` |
+| `0xB5` | `I64` |
+| `0xB8` | `F32` |
+| `0xBB` | `F64` |
+| `0xBE` | `Ref` |
+
+ArraySet<T> codes:
+
+| Code | T |
+|---:|---|
+| `0xB3` | `I32` |
+| `0xB6` | `I64` |
+| `0xB9` | `F32` |
+| `0xBC` | `F64` |
+| `0xBF` | `Ref` |
+
 
 ### Lists
 
@@ -420,52 +547,88 @@ Growable list allocation and element operations. `<T>` covers every scalar paylo
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | `0x36` | `NewListRef` | 8 | 0 | 1 |
-| ✅ | `0x37` | `ListGetRef` | 0 | 2 | 1 |
-| ✅ | `0x38` | `ListSetRef` | 0 | 3 | 0 |
-| ✅ | `0x39` | `ListPushRef` | 0 | 2 | 0 |
-| ✅ | `0x3A` | `ListPopRef` | 0 | 1 | 1 |
-| ✅ | `0x3B` | `ListInsertRef` | 0 | 3 | 0 |
-| ✅ | `0x3C` | `ListRemoveRef` | 0 | 2 | 1 |
-| ✅ | `0xA8` | `NewListF64` | 8 | 0 | 1 |
-| ✅ | `0xA9` | `ListGetF64` | 0 | 2 | 1 |
-| ✅ | `0xAA` | `ListSetF64` | 0 | 3 | 0 |
-| ✅ | `0xAB` | `ListPushF64` | 0 | 2 | 0 |
-| ✅ | `0xAC` | `ListPopF64` | 0 | 1 | 1 |
-| ✅ | `0xAD` | `ListInsertF64` | 0 | 3 | 0 |
-| ✅ | `0xAE` | `ListRemoveF64` | 0 | 2 | 1 |
-| ✅ | `0xC0` | `NewList` | 8 | 0 | 1 |
+| ◐ | `typed` | `NewList<T>` | 8 | 0 | 1 |
+| ◐ | `typed` | `ListGet<T>` | 0 | 2 | 1 |
+| ◐ | `typed` | `ListSet<T>` | 0 | 3 | 0 |
+| ◐ | `typed` | `ListPush<T>` | 0 | 2 | 0 |
+| ◐ | `typed` | `ListPop<T>` | 0 | 1 | 1 |
+| ◐ | `typed` | `ListInsert<T>` | 0 | 3 | 0 |
+| ◐ | `typed` | `ListRemove<T>` | 0 | 2 | 1 |
 | ✅ | `0xC1` | `ListLen` | 0 | 1 | 1 |
-| ✅ | `0xC2` | `ListGetI32` | 0 | 2 | 1 |
-| ✅ | `0xC3` | `ListSetI32` | 0 | 3 | 0 |
-| ✅ | `0xC4` | `ListPushI32` | 0 | 2 | 0 |
-| ✅ | `0xC5` | `ListPopI32` | 0 | 1 | 1 |
-| ✅ | `0xC6` | `ListInsertI32` | 0 | 3 | 0 |
-| ✅ | `0xC7` | `ListRemoveI32` | 0 | 2 | 1 |
 | ✅ | `0xC8` | `ListClear` | 0 | 1 | 0 |
-| ✅ | `0xC9` | `NewListF32` | 8 | 0 | 1 |
-| ✅ | `0xCA` | `ListGetF32` | 0 | 2 | 1 |
-| ✅ | `0xCB` | `ListSetF32` | 0 | 3 | 0 |
-| ✅ | `0xCC` | `ListPushF32` | 0 | 2 | 0 |
-| ✅ | `0xCD` | `ListPopF32` | 0 | 1 | 1 |
-| ✅ | `0xCE` | `ListInsertF32` | 0 | 3 | 0 |
-| ✅ | `0xCF` | `ListRemoveF32` | 0 | 2 | 1 |
-| ✅ | `0xD9` | `NewListI64` | 8 | 0 | 1 |
-| ✅ | `0xDA` | `ListGetI64` | 0 | 2 | 1 |
-| ✅ | `0xDB` | `ListSetI64` | 0 | 3 | 0 |
-| ✅ | `0xDC` | `ListPushI64` | 0 | 2 | 0 |
-| ✅ | `0xDD` | `ListPopI64` | 0 | 1 | 1 |
-| ✅ | `0xDE` | `ListInsertI64` | 0 | 3 | 0 |
-| ✅ | `0xDF` | `ListRemoveI64` | 0 | 2 | 1 |
-| ☐ | `TBD` | `NewList<T>` | 8 | 0 | 1 |
-| ☐ | `TBD` | `ListGet<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `ListSet<T>` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListPush<T>` | 0 | 2 | 0 |
-| ☐ | `TBD` | `ListPop<T>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ListInsert<T>` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ListRemove<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `ListReserve` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ListResize` | 0 | 3 | 0 |
+
+NewList<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x36` | `Ref` |
+| `0xA8` | `F64` |
+| `0xC0` | `generic` |
+| `0xC9` | `F32` |
+| `0xD9` | `I64` |
+
+ListGet<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x37` | `Ref` |
+| `0xA9` | `F64` |
+| `0xC2` | `I32` |
+| `0xCA` | `F32` |
+| `0xDA` | `I64` |
+
+ListSet<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x38` | `Ref` |
+| `0xAA` | `F64` |
+| `0xC3` | `I32` |
+| `0xCB` | `F32` |
+| `0xDB` | `I64` |
+
+ListPush<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x39` | `Ref` |
+| `0xAB` | `F64` |
+| `0xC4` | `I32` |
+| `0xCC` | `F32` |
+| `0xDC` | `I64` |
+
+ListPop<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x3A` | `Ref` |
+| `0xAC` | `F64` |
+| `0xC5` | `I32` |
+| `0xCD` | `F32` |
+| `0xDD` | `I64` |
+
+ListInsert<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x3B` | `Ref` |
+| `0xAD` | `F64` |
+| `0xC6` | `I32` |
+| `0xCE` | `F32` |
+| `0xDE` | `I64` |
+
+ListRemove<T> codes:
+
+| Code | T |
+|---:|---|
+| `0x3C` | `Ref` |
+| `0xAE` | `F64` |
+| `0xC7` | `I32` |
+| `0xCF` | `F32` |
+| `0xDF` | `I64` |
+
 
 ### Strings
 
@@ -603,7 +766,7 @@ Monitor/lock operations for VM-managed synchronization if needed.
 
 ### GC and runtime barriers
 
-GC/runtime coordination opcodes. The current VM can perform safepoints and tracing without explicit opcodes, but these reserve bytecode-level barriers if needed.
+GC/runtime coordination opcodes.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
