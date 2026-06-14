@@ -9,6 +9,16 @@
 namespace Simple::Lang::TAST {
 
 template <typename LocalInfo>
+const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
+                           const std::string& name) {
+  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+    auto found = it->find(name);
+    if (found != it->end()) return &found->second;
+  }
+  return nullptr;
+}
+
+template <typename LocalInfo>
 bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
               const std::string& name,
               const LocalInfo& info,

@@ -95,9 +95,6 @@ bool GetCallTargetInfo(const Expr& callee,
                        const ArtifactDecl* current_artifact,
                        CallTargetInfo* out,
                        std::string* error);
-const LocalInfo* FindLocal(
-    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-    const std::string& name);
 
 enum class TypeUse : uint8_t {
   Value,
@@ -119,6 +116,7 @@ using RAST::ReservedModuleMembers;
 using RAST::UnknownMemberErrorWithSuggestion;
 using TAST::AddLocal;
 using TAST::ApplyTypeSubstitution;
+using TAST::FindLocal;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::BuildExplicitTypeArgMap;
 using TAST::CheckCompoundAssignOp;
@@ -913,9 +911,6 @@ bool CheckTypeRef(const TypeRef& type,
   return true;
 }
 
-const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                           const std::string& name);
-
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -1217,15 +1212,6 @@ bool CheckBoolCondition(const Expr& expr,
                         const ArtifactDecl* current_artifact,
                         std::string* error);
 
-
-const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-                           const std::string& name) {
-  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-    auto found = it->find(name);
-    if (found != it->end()) return &found->second;
-  }
-  return nullptr;
-}
 
 bool IsMutableStorageExpr(const Expr& expr,
                           const ValidateContext& ctx,

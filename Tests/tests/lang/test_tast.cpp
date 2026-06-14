@@ -521,6 +521,8 @@ bool LangTastMutabilityChecksAssignments() {
   std::string error;
   if (!Simple::Lang::TAST::AddLocal(scopes, "x", 1, &error)) return false;
   if (scopes.size() != 1 || scopes[0]["x"] != 1) return false;
+  if (!Simple::Lang::TAST::FindLocal(scopes, "x") || *Simple::Lang::TAST::FindLocal(scopes, "x") != 1) return false;
+  if (Simple::Lang::TAST::FindLocal(scopes, "missing")) return false;
   if (Simple::Lang::TAST::AddLocal(scopes, "x", 2, &error)) return false;
   if (error.find("duplicate local declaration: x") == std::string::npos) return false;
 
