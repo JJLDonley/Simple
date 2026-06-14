@@ -132,12 +132,47 @@ bool CheckReservedMathCallArgTypes(const std::string& member,
   return true;
 }
 
+bool IsFormatArgTypeName(const std::string& name) {
+  return IsNumericTypeName(name) || IsBoolTypeName(name) || name == "string";
+}
+
+bool IsIoPrintArgTypeName(const std::string& name) {
+  return IsNumericTypeName(name) || IsBoolTypeName(name) || name == "char" || name == "string";
+}
+
 bool CheckScalarCallArgTypes(const std::vector<TypeRef>& args,
                              const std::string& error_message,
                              std::string* error) {
   for (const auto& arg : args) {
     if (!IsScalarType(arg)) {
       if (error) *error = error_message;
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CheckFormatCallArgTypes(const std::vector<TypeRef>& args, std::string* error) {
+  if (!CheckScalarCallArgTypes(args, "format expects scalar arguments", error)) return false;
+  for (const auto& arg : args) {
+    if (!IsFormatArgTypeName(arg.name)) {
+      if (error) *error = "format supports numeric, bool, or string";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool CheckIoPrintCallArgTypes(const std::vector<TypeRef>& args, std::string* error) {
+  if (!CheckScalarCallArgTypes(args,
+                               args.size() == 1 ? "IO.print expects scalar argument"
+                                                : "IO.print format expects scalar arguments",
+                               error)) {
+    return false;
+  }
+  for (const auto& arg : args) {
+    if (!IsIoPrintArgTypeName(arg.name)) {
+      if (error) *error = "IO.print supports numeric, bool, char, or string";
       return false;
     }
   }

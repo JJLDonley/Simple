@@ -127,14 +127,15 @@ using TAST::CheckCallTypeArgCount;
 using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
+using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckPrimitiveCastArgType;
 using TAST::CheckReservedDlOpenArgTypes;
 using TAST::CheckReservedFileCallArgTypes;
 using TAST::CheckReservedIoBufferCallArgTypes;
+using TAST::CheckIoPrintCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
-using TAST::CheckScalarCallArgTypes;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -2947,16 +2948,7 @@ bool CheckExpr(const Expr& expr,
         }
         arg_types.push_back(std::move(arg_type));
       }
-      if (!CheckScalarCallArgTypes(arg_types, "format expects scalar arguments", error)) return false;
-      for (const auto& arg_type : arg_types) {
-        if (!(IsNumericTypeName(arg_type.name) ||
-              IsBoolTypeName(arg_type.name) ||
-              arg_type.name == "string")) {
-          if (error) *error = "format supports numeric, bool, or string";
-          return false;
-        }
-      }
-      return true;
+      return CheckFormatCallArgTypes(arg_types, error);
     }
     case ExprKind::Unary:
       if (!CheckExpr(expr.children[0], ctx, scopes, current_artifact, error)) return false;
@@ -3058,14 +3050,7 @@ bool CheckExpr(const Expr& expr,
             return false;
           }
           std::vector<TypeRef> arg_types = {arg_type};
-          if (!CheckScalarCallArgTypes(arg_types, "IO.print expects scalar argument", error)) return false;
-          if (!(IsNumericTypeName(arg_type.name) ||
-                IsBoolTypeName(arg_type.name) ||
-                arg_type.name == "char" ||
-                arg_type.name == "string")) {
-            if (error) *error = "IO.print supports numeric, bool, char, or string";
-            return false;
-          }
+          if (!CheckIoPrintCallArgTypes(arg_types, error)) return false;
         } else {
           if (!(expr.args[0].kind == ExprKind::Literal &&
                 expr.args[0].literal_kind == LiteralKind::String)) {
@@ -3095,16 +3080,7 @@ bool CheckExpr(const Expr& expr,
             }
             arg_types.push_back(std::move(arg_type));
           }
-          if (!CheckScalarCallArgTypes(arg_types, "IO.print format expects scalar arguments", error)) return false;
-          for (const auto& arg_type : arg_types) {
-            if (!(IsNumericTypeName(arg_type.name) ||
-                  IsBoolTypeName(arg_type.name) ||
-                  arg_type.name == "char" ||
-                  arg_type.name == "string")) {
-              if (error) *error = "IO.print supports numeric, bool, char, or string";
-              return false;
-            }
-          }
+          if (!CheckIoPrintCallArgTypes(arg_types, error)) return false;
         }
       }
       if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "len") {

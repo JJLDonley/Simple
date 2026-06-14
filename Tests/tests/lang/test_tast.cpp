@@ -110,6 +110,28 @@ bool LangTastPrimitiveCastArgTypeRules() {
   return error.find("i32 cast expects scalar argument") != std::string::npos;
 }
 
+bool LangTastCallsCheckFormatAndPrintArgTypes() {
+  std::string error;
+  auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
+  auto char_type = Simple::Lang::TAST::MakeSimpleType("char");
+  auto artifact = Simple::Lang::TAST::MakeSimpleType("Point");
+  auto list_i32 = i32;
+  list_i32.dims.push_back(Simple::Lang::AST::TypeDim{true, false, 0});
+  std::vector<Simple::Lang::AST::TypeRef> args = {i32, Simple::Lang::TAST::MakeSimpleType("string")};
+  if (!Simple::Lang::TAST::CheckFormatCallArgTypes(args, &error)) return false;
+  args = {artifact};
+  if (Simple::Lang::TAST::CheckFormatCallArgTypes(args, &error)) return false;
+  if (error.find("format supports numeric, bool, or string") == std::string::npos) return false;
+  args = {list_i32};
+  if (Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
+  if (error.find("IO.print expects scalar argument") == std::string::npos) return false;
+  args = {char_type};
+  if (!Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
+  args = {artifact};
+  if (Simple::Lang::TAST::CheckIoPrintCallArgTypes(args, &error)) return false;
+  return error.find("IO.print supports numeric, bool, char, or string") != std::string::npos;
+}
+
 bool LangTastCallsCheckScalarArgTypes() {
   std::string error;
   auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
@@ -721,6 +743,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_tast_primitive_cast_arg_type_rules", LangTastPrimitiveCastArgTypeRules},
+  {"lang_tast_calls_check_format_and_print_arg_types", LangTastCallsCheckFormatAndPrintArgTypes},
   {"lang_tast_calls_check_scalar_arg_types", LangTastCallsCheckScalarArgTypes},
   {"lang_tast_calls_check_reserved_dl_open_arg_types", LangTastCallsCheckReservedDlOpenArgTypes},
   {"lang_tast_calls_check_reserved_file_arg_types", LangTastCallsCheckReservedFileArgTypes},
