@@ -134,6 +134,7 @@ using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckArtifactLiteralRequiredField;
 using TAST::CheckArrayListLiteralTargetShape;
 using TAST::CheckFormatCallArgTypes;
+using TAST::CheckEnumMemberValue;
 using TAST::CheckFormatPlaceholderCount;
 using TAST::CheckFunctionReturnFlow;
 using TAST::CheckReturnStmtValuePresence;
@@ -153,6 +154,7 @@ using TAST::CheckTopLevelStmtAllowsReturn;
 using TAST::CheckTypesCompatibleForExpr;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
+using TAST::CheckUniqueNamedMember;
 using TAST::CheckUniqueParamName;
 using TAST::CollectTypeParams;
 using TAST::CollectTypeParamsMerged;
@@ -3375,14 +3377,8 @@ bool ValidateProgram(const Program& program, std::string* error) {
         {
           std::unordered_set<std::string> local_members;
           for (const auto& member : decl.enm.members) {
-            if (!member.has_value) {
-              if (error) *error = "enum member requires explicit value: " + member.name;
-              return false;
-            }
-            if (!local_members.insert(member.name).second) {
-              if (error) *error = "duplicate enum member: " + member.name;
-              return false;
-            }
+            if (!CheckEnumMemberValue(member, error)) return false;
+            if (!CheckUniqueNamedMember(member.name, &local_members, "duplicate enum member: ", error)) return false;
             ctx.enum_members.insert(member.name);
           }
           ctx.enum_members_by_type[decl.enm.name] = std::move(local_members);

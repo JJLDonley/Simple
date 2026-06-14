@@ -859,6 +859,17 @@ bool LangTastCheckAssignmentValidatesShape() {
   if (!Simple::Lang::TAST::IsAssignOp("=")) return false;
   if (!Simple::Lang::TAST::IsAssignOp("<<=")) return false;
   if (Simple::Lang::TAST::IsAssignOp("==")) return false;
+  std::string member_error;
+  Simple::Lang::AST::EnumMember enum_member;
+  enum_member.name = "A";
+  if (Simple::Lang::TAST::CheckEnumMemberValue(enum_member, &member_error)) return false;
+  if (member_error.find("enum member requires explicit value: A") == std::string::npos) return false;
+  enum_member.has_value = true;
+  if (!Simple::Lang::TAST::CheckEnumMemberValue(enum_member, &member_error)) return false;
+  std::unordered_set<std::string> seen_members;
+  if (!Simple::Lang::TAST::CheckUniqueNamedMember("A", &seen_members, "duplicate enum member: ", &member_error)) return false;
+  if (Simple::Lang::TAST::CheckUniqueNamedMember("A", &seen_members, "duplicate enum member: ", &member_error)) return false;
+  if (member_error.find("duplicate enum member: A") == std::string::npos) return false;
 
   Simple::Lang::AST::Stmt assign;
   assign.kind = Simple::Lang::AST::StmtKind::Assign;
