@@ -122,6 +122,7 @@ using TAST::CheckCompoundAssignOp;
 using TAST::CheckConditionType;
 using TAST::CheckDlDynamicSignature;
 using TAST::CheckFunctionCallArgs;
+using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckProcTypeArgs;
@@ -1226,11 +1227,6 @@ bool CheckExpr(const Expr& expr,
                const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                const ArtifactDecl* current_artifact,
                std::string* error);
-
-bool CheckArrayLiteralShape(const Expr& expr,
-                            const std::vector<TypeDim>& dims,
-                            size_t dim_index,
-                            std::string* error);
 
 bool CheckArrayLiteralElementTypes(const Expr& expr,
                                    const ValidateContext& ctx,
@@ -2717,30 +2713,6 @@ bool CheckStmt(const Stmt& stmt,
         return false;
       }
       return true;
-  }
-  return true;
-}
-
-bool CheckArrayLiteralShape(const Expr& expr,
-                            const std::vector<TypeDim>& dims,
-                            size_t dim_index,
-                            std::string* error) {
-  if (dim_index >= dims.size()) return true;
-  const TypeDim& dim = dims[dim_index];
-  if (!dim.has_size) return true;
-
-  if (!IsPositionalBraceLiteralExpr(expr)) {
-    if (error) *error = "array literal size does not match fixed dimensions";
-    return false;
-  }
-  if (expr.children.size() != dim.size) {
-    if (error) *error = "array literal size does not match fixed dimensions";
-    return false;
-  }
-  if (dim_index + 1 < dims.size()) {
-    for (const auto& child : expr.children) {
-      if (!CheckArrayLiteralShape(child, dims, dim_index + 1, error)) return false;
-    }
   }
   return true;
 }

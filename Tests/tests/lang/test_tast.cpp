@@ -206,6 +206,18 @@ bool LangTastLiteralCompatibilityAcceptsFlexibleArrayAndScalarLiterals() {
 }
 
 bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
+  Simple::Lang::AST::Expr fixed_array;
+  fixed_array.kind = Simple::Lang::AST::ExprKind::ArrayLiteral;
+  fixed_array.children.resize(2);
+  fixed_array.children[0].kind = Simple::Lang::AST::ExprKind::Literal;
+  fixed_array.children[1].kind = Simple::Lang::AST::ExprKind::Literal;
+  std::vector<Simple::Lang::AST::TypeDim> fixed_dims = {{false, true, 2}};
+  std::string shape_error;
+  if (!Simple::Lang::TAST::CheckArrayLiteralShape(fixed_array, fixed_dims, 0, &shape_error)) return false;
+  fixed_dims[0].size = 3;
+  if (Simple::Lang::TAST::CheckArrayLiteralShape(fixed_array, fixed_dims, 0, &shape_error)) return false;
+  if (shape_error.find("array literal size does not match fixed dimensions") == std::string::npos) return false;
+
   Simple::Lang::AST::Expr list;
   list.kind = Simple::Lang::AST::ExprKind::ListLiteral;
   if (!Simple::Lang::TAST::IsListLiteralExpr(list)) return false;

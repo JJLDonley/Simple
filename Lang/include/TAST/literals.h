@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include "AST/ast.h"
 
@@ -23,6 +24,10 @@ bool TypesCompatibleForExpr(const Simple::Lang::AST::TypeRef& expected,
                             const Simple::Lang::AST::TypeRef& actual,
                             const Simple::Lang::AST::Expr& expr);
 bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr);
+bool CheckArrayLiteralShape(const Simple::Lang::AST::Expr& expr,
+                            const std::vector<Simple::Lang::AST::TypeDim>& dims,
+                            size_t dim_index,
+                            std::string* error);
 bool IsPositionalBraceLiteralExpr(const Simple::Lang::AST::Expr& expr);
 
 } // namespace Simple::Lang::TAST

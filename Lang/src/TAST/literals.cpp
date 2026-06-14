@@ -91,6 +91,30 @@ bool IsListLiteralExpr(const Simple::Lang::AST::Expr& expr) {
   return expr.kind == ExprKind::ListLiteral;
 }
 
+bool CheckArrayLiteralShape(const Simple::Lang::AST::Expr& expr,
+                            const std::vector<Simple::Lang::AST::TypeDim>& dims,
+                            size_t dim_index,
+                            std::string* error) {
+  if (dim_index >= dims.size()) return true;
+  const Simple::Lang::AST::TypeDim& dim = dims[dim_index];
+  if (!dim.has_size) return true;
+
+  if (!IsPositionalBraceLiteralExpr(expr)) {
+    if (error) *error = "array literal size does not match fixed dimensions";
+    return false;
+  }
+  if (expr.children.size() != dim.size) {
+    if (error) *error = "array literal size does not match fixed dimensions";
+    return false;
+  }
+  if (dim_index + 1 < dims.size()) {
+    for (const auto& child : expr.children) {
+      if (!CheckArrayLiteralShape(child, dims, dim_index + 1, error)) return false;
+    }
+  }
+  return true;
+}
+
 bool IsPositionalBraceLiteralExpr(const Simple::Lang::AST::Expr& expr) {
   if (expr.kind == ExprKind::ArrayLiteral) return true;
   if (expr.kind != ExprKind::ArtifactLiteral) return false;
