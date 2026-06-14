@@ -1437,6 +1437,15 @@ bool LangCliCheckSimple() {
   return RunCommand("bin/svm check Tests/simple/hello.simple");
 }
 
+bool LangCliCheckPackageHeaderSimple() {
+  const std::string path = TempPath("package_header.simple");
+  {
+    std::ofstream out(path);
+    out << "package main\n\nmain : i32 () { return 0 }\n";
+  }
+  return RunCommand("bin/svm check " + path);
+}
+
 bool LangCliCheckSir() {
   return RunCommand("bin/svm check Tests/sir/fib_iter.sir");
 }
@@ -3666,6 +3675,7 @@ const TestCase kLangTests[] = {
   {"lang_cli_emit_ir", LangCliEmitIr},
   {"lang_cli_emit_sbc", LangCliEmitSbc},
   {"lang_cli_check_simple", LangCliCheckSimple},
+  {"lang_cli_check_package_header_simple", LangCliCheckPackageHeaderSimple},
   {"lang_cli_check_sir", LangCliCheckSir},
   {"lang_cli_check_sbc", LangCliCheckSbc},
   {"lang_cli_build_simple", LangCliBuildSimple},
