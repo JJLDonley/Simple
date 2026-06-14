@@ -272,6 +272,23 @@ bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out
   return false;
 }
 
+bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
+                       const std::unordered_set<std::string>& reserved_imports,
+                       const std::unordered_map<std::string, std::string>& reserved_import_aliases) {
+  if (callee.kind != Simple::Lang::AST::ExprKind::Member || callee.op != "." || callee.children.empty()) {
+    return false;
+  }
+  if (!IsIoPrintName(callee.text)) return false;
+  if (callee.children[0].kind == Simple::Lang::AST::ExprKind::Identifier && callee.children[0].text == "IO") {
+    return true;
+  }
+  std::string module_name;
+  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
+  std::string resolved;
+  return ResolveReservedModuleName(reserved_imports, reserved_import_aliases, module_name, &resolved) &&
+         resolved == "IO";
+}
+
 bool GetDlOpenManifestModule(const ResolvedProgram* program,
                              const Simple::Lang::AST::Expr& expr,
                              std::string* out_module) {

@@ -282,6 +282,21 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
       reserved_imports, reserved_aliases, "DL", &resolved_reserved) && resolved_reserved == "DL";
   const bool enables_reserved_alias = Simple::Lang::RAST::IsReservedModuleEnabled(
       reserved_imports, reserved_aliases, "Files");
+  Simple::Lang::AST::Expr io_base;
+  io_base.kind = Simple::Lang::AST::ExprKind::Identifier;
+  io_base.text = "Printer";
+  Simple::Lang::AST::Expr io_print;
+  io_print.kind = Simple::Lang::AST::ExprKind::Member;
+  io_print.op = ".";
+  io_print.text = "println";
+  io_print.children.push_back(io_base);
+  reserved_imports.insert("IO");
+  reserved_aliases["Printer"] = "IO";
+  const bool recognizes_io_print = Simple::Lang::RAST::IsIoPrintCallExpr(
+      io_print, reserved_imports, reserved_aliases);
+  io_print.text = "write";
+  const bool rejects_non_print = !Simple::Lang::RAST::IsIoPrintCallExpr(
+      io_print, reserved_imports, reserved_aliases);
   const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
                             reserved_var_type.name == "f64";
   const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
@@ -289,6 +304,8 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   return resolves_reserved_alias &&
          resolves_reserved_direct &&
          enables_reserved_alias &&
+         recognizes_io_print &&
+         rejects_non_print &&
          math_pi_type &&
          os_flag_type &&
          !Simple::Lang::RAST::GetReservedModuleVarType("Math", "missing", &reserved_var_type) &&

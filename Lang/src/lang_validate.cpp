@@ -165,13 +165,7 @@ bool ResolveReservedModuleName(const ValidateContext& ctx,
                                std::string* out);
 
 bool IsIoPrintCallExpr(const Expr& callee, const ValidateContext& ctx) {
-  if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
-  if (!IsIoPrintName(callee.text)) return false;
-  if (callee.children[0].kind == ExprKind::Identifier && callee.children[0].text == "IO") return true;
-  std::string module_name;
-  if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
-  std::string resolved;
-  return ResolveReservedModuleName(ctx, module_name, &resolved) && resolved == "IO";
+  return RAST::IsIoPrintCallExpr(callee, ctx.reserved_imports, ctx.reserved_import_aliases);
 }
 
 bool IsReservedModuleEnabled(const ValidateContext& ctx, const std::string& name) {

@@ -24,6 +24,9 @@ bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_i
                                const std::unordered_map<std::string, std::string>& reserved_import_aliases,
                                const std::string& name,
                                std::string* out);
+bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
+                       const std::unordered_set<std::string>& reserved_imports,
+                       const std::unordered_map<std::string, std::string>& reserved_import_aliases);
 std::string NormalizeDlMemberName(const std::string& name);
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out);
 bool GetDlOpenManifestModule(const ResolvedProgram* program,
