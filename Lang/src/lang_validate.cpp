@@ -152,6 +152,7 @@ using TAST::GetSwitchBranchValueExpr;
 using TAST::InferLiteralType;
 using TAST::IsBuiltinValueIdentifierName;
 using TAST::IsBoolTypeName;
+using TAST::IsCallExpr;
 using TAST::IsAddressableExpr;
 using TAST::IsAddressOfExpr;
 using TAST::IsAssignOp;
@@ -1851,8 +1852,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                        const ArtifactDecl* current_artifact,
                        std::string* error) {
-  if (call_expr.kind != ExprKind::Call || call_expr.children.empty()) return true;
-  const Expr& callee = call_expr.children[0];
+  const Expr* call_callee = nullptr;
+  if (!IsCallExpr(call_expr, &call_callee)) return true;
+  const Expr& callee = *call_callee;
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
     std::string module_name;
@@ -2020,9 +2022,10 @@ bool CheckAssignmentTarget(const Expr& target,
       }
       return true;
     }
-    if (expr.kind == ExprKind::Call) {
+    const Expr* call_callee = nullptr;
+    if (IsCallExpr(expr, &call_callee)) {
       CallTargetInfo info;
-      if (!GetCallTargetInfo(expr.children[0], ctx, scopes, current_artifact, &info, nullptr)) return true;
+      if (!GetCallTargetInfo(*call_callee, ctx, scopes, current_artifact, &info, nullptr)) return true;
       return info.return_mutability == Mutability::Mutable;
     }
     if (expr.kind == ExprKind::Index) {

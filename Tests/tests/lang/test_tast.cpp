@@ -118,6 +118,18 @@ bool LangTastPrimitiveCastArgTypeRules() {
   return error.find("i32 cast expects scalar argument") != std::string::npos;
 }
 
+bool LangTastCallsExtractCallCallee() {
+  Simple::Lang::AST::Expr callee;
+  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
+  callee.text = "f";
+  Simple::Lang::AST::Expr call;
+  call.kind = Simple::Lang::AST::ExprKind::Call;
+  call.children.push_back(callee);
+  const Simple::Lang::AST::Expr* extracted = nullptr;
+  if (!Simple::Lang::TAST::IsCallExpr(call, &extracted) || !extracted || extracted->text != "f") return false;
+  return !Simple::Lang::TAST::IsCallExpr(callee, nullptr);
+}
+
 bool LangTastCallsCheckIoPrintFormatTemplateArg() {
   std::string error;
   Simple::Lang::AST::Expr string_literal;
@@ -800,6 +812,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_tast_primitive_cast_arg_type_rules", LangTastPrimitiveCastArgTypeRules},
+  {"lang_tast_calls_extract_call_callee", LangTastCallsExtractCallCallee},
   {"lang_tast_calls_check_io_print_format_template_arg", LangTastCallsCheckIoPrintFormatTemplateArg},
   {"lang_tast_calls_check_single_arg_call_count", LangTastCallsCheckSingleArgCallCount},
   {"lang_tast_calls_check_format_and_print_arg_types", LangTastCallsCheckFormatAndPrintArgTypes},

@@ -52,6 +52,12 @@ bool ContainsNestedFnLiteralTokens(const std::vector<Token>& tokens) {
 
 } // namespace
 
+bool IsCallExpr(const Expr& expr, const Expr** out_callee) {
+  if (expr.kind != ExprKind::Call || expr.children.empty()) return false;
+  if (out_callee) *out_callee = &expr.children[0];
+  return true;
+}
+
 bool CheckFunctionCallArgs(const Simple::Lang::AST::FuncDecl* fn,
                            size_t arg_count,
                            std::string* error) {
