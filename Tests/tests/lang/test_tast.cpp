@@ -73,6 +73,33 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastFnLiteralChecksTargetProcedureShape() {
+  Simple::Lang::AST::Expr fn;
+  fn.kind = Simple::Lang::AST::ExprKind::FnLiteral;
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "x";
+  param.type.name = "i32";
+  fn.fn_params.push_back(param);
+
+  Simple::Lang::AST::TypeRef target;
+  target.is_proc = true;
+  target.proc_params.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  target.proc_return = std::make_unique<Simple::Lang::AST::TypeRef>(Simple::Lang::TAST::MakeSimpleType("void"));
+
+  std::string error;
+  if (!Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
+  target.proc_params[0].name = "i64";
+  if (Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
+  if (error.find("parameter type mismatch") == std::string::npos) return false;
+  target.proc_params[0].name = "i32";
+  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::KwReturn, "return", 0, 0});
+  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::LParen, "(", 0, 0});
+  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::RParen, ")", 0, 0});
+  fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::LBrace, "{", 0, 0});
+  if (Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
+  return error.find("nested fn literals are not supported") != std::string::npos;
+}
+
 bool LangSplitTastAbiAndGenericsSmoke() {
   std::unordered_set<std::string> collected;
   std::string generic_error;
@@ -443,6 +470,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},

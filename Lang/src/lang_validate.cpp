@@ -119,6 +119,7 @@ using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
 using TAST::CheckFunctionCallArgs;
 using TAST::CheckBinaryOpTypeRules;
+using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -1068,9 +1069,6 @@ bool CheckTypeRef(const TypeRef& type,
 
 const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                            const std::string& name);
-bool CheckFnLiteralAgainstType(const Expr& fn_expr,
-                               const TypeRef& target_type,
-                               std::string* error);
 
 bool InferExprType(const Expr& expr,
                    const ValidateContext& ctx,
@@ -3219,75 +3217,6 @@ bool CheckBinaryOpTypes(const Expr& expr,
   if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return true;
 
   return CheckBinaryOpTypeRules(expr.op, lhs, rhs, expr.children[0], expr.children[1], error);
-}
-
-bool LooksLikeFnLiteralStart(const std::vector<Token>& tokens, size_t index) {
-  if (index >= tokens.size() || tokens[index].kind != TokenKind::LParen) return false;
-  ++index;
-  if (index < tokens.size() && tokens[index].kind == TokenKind::RParen) {
-    ++index;
-    return index < tokens.size() && tokens[index].kind == TokenKind::LBrace;
-  }
-  bool expect_name = true;
-  while (index < tokens.size()) {
-    if (expect_name) {
-      if (tokens[index].kind != TokenKind::Identifier) return false;
-      expect_name = false;
-      ++index;
-      continue;
-    }
-    if (tokens[index].kind == TokenKind::Comma) {
-      expect_name = true;
-      ++index;
-      continue;
-    }
-    if (tokens[index].kind == TokenKind::RParen) {
-      ++index;
-      return index < tokens.size() && tokens[index].kind == TokenKind::LBrace;
-    }
-    return false;
-  }
-  return false;
-}
-
-bool ContainsNestedFnLiteralTokens(const std::vector<Token>& tokens) {
-  for (size_t i = 0; i + 1 < tokens.size(); ++i) {
-    if ((tokens[i].kind == TokenKind::Assign || tokens[i].kind == TokenKind::KwReturn ||
-         tokens[i].kind == TokenKind::Comma || tokens[i].kind == TokenKind::LBracket) &&
-        LooksLikeFnLiteralStart(tokens, i + 1)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool CheckFnLiteralAgainstType(const Expr& fn_expr,
-                               const TypeRef& target_type,
-                               std::string* error) {
-  if (!target_type.is_proc) {
-    if (error) *error = "fn literal requires procedure type";
-    return false;
-  }
-  if (fn_expr.fn_params.size() != target_type.proc_params.size()) {
-    if (error) {
-      *error = "fn literal parameter count mismatch: expected " +
-               std::to_string(target_type.proc_params.size()) + ", got " +
-               std::to_string(fn_expr.fn_params.size());
-    }
-    return false;
-  }
-  for (size_t i = 0; i < fn_expr.fn_params.size(); ++i) {
-    if (fn_expr.fn_params[i].type.name.empty()) continue;
-    if (!TypeEquals(fn_expr.fn_params[i].type, target_type.proc_params[i])) {
-      if (error) *error = "fn literal parameter type mismatch";
-      return false;
-    }
-  }
-  if (ContainsNestedFnLiteralTokens(fn_expr.fn_body_tokens)) {
-    if (error) *error = "nested fn literals are not supported";
-    return false;
-  }
-  return true;
 }
 
 bool CheckExpr(const Expr& expr,
