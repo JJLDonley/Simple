@@ -455,7 +455,11 @@ bool LangTastLiteralHelpersClassifyBraceAndListShapes() {
   if (Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
   if (shape_error.find("duplicate named field in artifact literal: x") == std::string::npos) return false;
   duplicate_fields.field_names = {"x", "y"};
-  return Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error);
+  if (!Simple::Lang::TAST::CheckArtifactLiteralDuplicateNamedFields(duplicate_fields, &shape_error)) return false;
+  std::unordered_set<std::string> seen_fields = {"x"};
+  if (Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("x", seen_fields, &shape_error)) return false;
+  if (shape_error.find("field specified twice in artifact literal: x") == std::string::npos) return false;
+  return Simple::Lang::TAST::CheckArtifactLiteralFieldSpecifiedOnce("y", seen_fields, &shape_error);
 }
 
 bool LangTastLiteralTypingUsesExpectedType() {

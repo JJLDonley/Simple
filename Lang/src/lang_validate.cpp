@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckArtifactLiteralDuplicateNamedFields;
+using TAST::CheckArtifactLiteralFieldSpecifiedOnce;
 using TAST::CheckArtifactLiteralPositionalCount;
 using TAST::CheckFormatCallArgTypes;
 using TAST::CheckFormatPlaceholderCount;
@@ -2163,10 +2164,7 @@ bool ValidateArtifactLiteral(const Expr& expr,
   for (size_t i = 0; i < expr.children.size(); ++i) {
     if (i >= field_count) break;
     const auto& field = artifact->fields[i];
-    if (seen.find(field.name) != seen.end()) {
-      if (error) *error = "field specified twice in artifact literal: " + field.name;
-      return false;
-    }
+    if (!CheckArtifactLiteralFieldSpecifiedOnce(field.name, seen, error)) return false;
     seen.insert(field.name);
     TypeRef value_type;
     if (InferExprType(expr.children[i], ctx, scopes, current_artifact, &value_type)) {

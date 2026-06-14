@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "AST/ast.h"
@@ -20,6 +21,9 @@ bool CheckArtifactLiteralPositionalCount(const Simple::Lang::AST::Expr& expr,
                                          std::string* error);
 bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& expr,
                                               std::string* error);
+bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
+                                            const std::unordered_set<std::string>& seen,
+                                            std::string* error);
 bool InferLiteralType(const Simple::Lang::AST::Expr& expr,
                       const Simple::Lang::AST::TypeRef* expected,
                       Simple::Lang::AST::TypeRef* out,

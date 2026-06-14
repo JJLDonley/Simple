@@ -67,6 +67,16 @@ bool CheckArtifactLiteralDuplicateNamedFields(const Simple::Lang::AST::Expr& exp
   return true;
 }
 
+bool CheckArtifactLiteralFieldSpecifiedOnce(const std::string& field_name,
+                                            const std::unordered_set<std::string>& seen,
+                                            std::string* error) {
+  if (seen.find(field_name) != seen.end()) {
+    if (error) *error = "field specified twice in artifact literal: " + field_name;
+    return false;
+  }
+  return true;
+}
+
 bool IsLiteralCompatibleWithType(const Simple::Lang::AST::Expr& expr,
                                  const Simple::Lang::AST::TypeRef& expected) {
   if (expr.kind != ExprKind::Literal || !IsScalarType(expected)) return false;
