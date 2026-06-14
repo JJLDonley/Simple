@@ -253,6 +253,27 @@ bool LangTastControlFlowTracksReturnsAndBreaks() {
 }
 
 
+bool LangTastExpressionOperatorsValidateScalarAndCompoundAssign() {
+  Simple::Lang::AST::TypeRef i32;
+  i32.name = "i32";
+  Simple::Lang::AST::TypeRef bool_type;
+  bool_type.name = "bool";
+  Simple::Lang::AST::TypeRef string_type;
+  string_type.name = "string";
+  Simple::Lang::AST::TypeRef list_type;
+  list_type.name = "i32";
+  list_type.dims.push_back({true, false, 0});
+
+  std::string error;
+  if (!Simple::Lang::TAST::RequireScalar(i32, "+", &error)) return false;
+  if (Simple::Lang::TAST::RequireScalar(list_type, "+", &error)) return false;
+  if (error.find("requires scalar operands") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckCompoundAssignOp("+", i32, i32, &error)) return false;
+  if (!Simple::Lang::TAST::CheckCompoundAssignOp("&&", bool_type, bool_type, &error)) return false;
+  if (Simple::Lang::TAST::CheckCompoundAssignOp("==", string_type, string_type, &error)) return false;
+  return error.find("does not support string operands") != std::string::npos;
+}
+
 bool LangTastCheckExpressionShapeValidatesIdentifiers() {
   Simple::Lang::AST::Expr ident;
   ident.kind = Simple::Lang::AST::ExprKind::Identifier;
@@ -389,6 +410,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},
   {"lang_tast_mutability_checks_assignments", LangTastMutabilityChecksAssignments},
   {"lang_tast_check_assignment_validates_shape", LangTastCheckAssignmentValidatesShape},
+  {"lang_tast_expression_operators_validate_scalar_and_compound_assign", LangTastExpressionOperatorsValidateScalarAndCompoundAssign},
   {"lang_tast_check_expression_shape_validates_identifiers", LangTastCheckExpressionShapeValidatesIdentifiers},
   {"lang_tast_check_call_expression_validates_shape", LangTastCheckCallExpressionValidatesShape},
   {"lang_tast_checker_accepts_resolved_program", LangTastCheckerAcceptsResolvedProgram},

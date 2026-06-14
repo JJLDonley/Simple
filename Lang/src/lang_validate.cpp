@@ -11,6 +11,7 @@
 #include "native/registry.h"
 #include "TAST/calls.h"
 #include "TAST/control_flow.h"
+#include "TAST/expressions.h"
 #include "TAST/generics.h"
 #include "TAST/literals.h"
 #include "TAST/types.h"
@@ -100,6 +101,7 @@ enum class TypeUse : uint8_t {
 
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
+using TAST::CheckCompoundAssignOp;
 using TAST::CheckFunctionCallArgs;
 using TAST::CheckProcTypeArgs;
 using TAST::CountFormatPlaceholders;
@@ -117,6 +119,7 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
+using TAST::RequireScalar;
 using TAST::SubstituteTypeParams;
 using TAST::TypeDimsEqual;
 using TAST::TypeEquals;
@@ -1260,10 +1263,6 @@ const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
 const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
 const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
 const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name);
-bool CheckCompoundAssignOp(const std::string& op,
-                           const TypeRef& lhs,
-                           const TypeRef& rhs,
-                           std::string* error);
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error);
@@ -3484,14 +3483,6 @@ bool CheckBoolCondition(const Expr& expr,
   return true;
 }
 
-bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
-  if (!IsScalarType(type)) {
-    if (error) *error = "operator '" + op + "' requires scalar operands";
-    return false;
-  }
-  return true;
-}
-
 bool CheckUnaryOpTypes(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -3599,65 +3590,6 @@ bool CheckBinaryOpTypes(const Expr& expr,
     return true;
   }
 
-  return true;
-}
-
-bool CheckCompoundAssignOp(const std::string& op,
-                           const TypeRef& lhs,
-                           const TypeRef& rhs,
-                           std::string* error) {
-  if (!RequireScalar(lhs, op, error)) return false;
-  if (!RequireScalar(rhs, op, error)) return false;
-  if (!TypeEquals(lhs, rhs)) {
-    if (error) *error = "assignment type mismatch";
-    return false;
-  }
-  if (op == "&&" || op == "||") {
-    if (!IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires bool operands";
-      return false;
-    }
-    return true;
-  }
-  if (op == "==" || op == "!=") {
-    if (IsStringTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' does not support string operands";
-      return false;
-    }
-    if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
-      return false;
-    }
-    return true;
-  }
-  if (op == "<" || op == "<=" || op == ">" || op == ">=") {
-    if (!IsNumericTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric operands";
-      return false;
-    }
-    return true;
-  }
-  if (op == "+" || op == "-" || op == "*" || op == "/") {
-    if (!IsNumericTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric operands";
-      return false;
-    }
-    return true;
-  }
-  if (op == "%") {
-    if (!IsIntegerTypeName(lhs.name)) {
-      if (error) *error = "operator '%' requires integer operands";
-      return false;
-    }
-    return true;
-  }
-  if (op == "<<" || op == ">>" || op == "&" || op == "|" || op == "^") {
-    if (!IsIntegerTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires integer operands";
-      return false;
-    }
-    return true;
-  }
   return true;
 }
 
