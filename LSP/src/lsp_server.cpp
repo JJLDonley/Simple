@@ -121,40 +121,6 @@ std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entr
   return fs::current_path();
 }
 
-bool ExtractModuleHeaderName(const std::string& text, std::string* out) {
-  if (!out) return false;
-  size_t start = 0;
-  while (start <= text.size()) {
-    size_t end = text.find('\n', start);
-    if (end == std::string::npos) end = text.size();
-    std::string line = text.substr(start, end - start);
-    const size_t comment = line.find("//");
-    if (comment != std::string::npos) line = line.substr(0, comment);
-    size_t first = line.find_first_not_of(" \t\r");
-    if (first == std::string::npos) {
-      if (end == text.size()) break;
-      start = end + 1;
-      continue;
-    }
-    if (line.compare(first, 6, "module") != 0 ||
-        (first + 6 < line.size() && !std::isspace(static_cast<unsigned char>(line[first + 6])))) {
-      return false;
-    }
-    size_t pos = first + 6;
-    while (pos < line.size() && std::isspace(static_cast<unsigned char>(line[pos]))) ++pos;
-    size_t name_end = pos;
-    while (name_end < line.size()) {
-      const char c = line[name_end];
-      if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '.')) break;
-      ++name_end;
-    }
-    if (name_end == pos) return false;
-    *out = line.substr(pos, name_end - pos);
-    return true;
-  }
-  return false;
-}
-
 bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
                           std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
   return Simple::Lang::RAST::BuildSimpleFileIndex(project_root, out);
@@ -163,78 +129,62 @@ bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
 bool BuildModuleIndex(const std::filesystem::path& project_root,
                       const std::unordered_map<std::string, std::vector<std::filesystem::path>>& file_index,
                       std::unordered_map<std::string, std::vector<std::filesystem::path>>* out) {
+  return Simple::Lang::RAST::BuildModuleIndex(project_root, file_index, out);
+}
+bool ResolveProjectRootImportPath(
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& index,
+    const std::string& import_path,
+    std::filesystem::path* out,
+    std::string* error) {
   if (!out) return false;
-  out->clear();
-  namespace fs = std::filesystem;
-  for (const auto& [_, paths] : file_index) {
-    for (const auto& path : paths) {
-      std::string text;
-      std::string ignored_error;
-      if (!ReadFileText(path.string(), &text, &ignored_error)) continue;
-      std::string module_name;
-      if (ExtractModuleHeaderName(text, &module_name)) {
-        (*out)[module_name].push_back(path);
-      } else {
-        const std::string stem = path.stem().string();
-        if (!stem.empty()) {
-          (*out)[stem].push_back(path);
-          std::string capitalized = stem;
-          capitalized[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(capitalized[0])));
-          if (capitalized != stem) (*out)[capitalized].push_back(path);
-        }
-      }
-    }
+  const std::string target = import_path.size() >= 7 &&
+                                     import_path.rfind(".simple") == import_path.size() - 7
+                                 ? import_path
+                                 : import_path + ".simple";
+  auto it = index.find(target);
+  if (it == index.end() || it->second.empty()) {
+    if (error) *error = "import not found in project root: " + import_path;
+    return false;
   }
-  const fs::path map_path = project_root / "simple.modules";
-  std::ifstream map_in(map_path);
-  if (map_in) {
-    std::string line;
-    while (std::getline(map_in, line)) {
-      Simple::Lang::RAST::ModuleMapEntry entry;
-      if (!Simple::Lang::RAST::ParseModuleMapLine(line, &entry)) continue;
-      fs::path path = fs::path(entry.path).is_absolute() ? fs::path(entry.path) : (project_root / entry.path);
-      if (!path.has_extension()) path += ".simple";
-      std::error_code ec;
-      (*out)[entry.name].push_back(fs::weakly_canonical(path, ec));
-      if (ec) {
-        ec.clear();
-        (*out)[entry.name].push_back(fs::absolute(path));
-      }
-    }
+  if (it->second.size() > 1) {
+    if (error) *error = "ambiguous import path: " + import_path;
+    return false;
   }
+  *out = it->second.front();
   return true;
 }
 
-bool WriteAutoModuleMapIfMissing(
-    const std::filesystem::path& project_root,
-    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index) {
-  namespace fs = std::filesystem;
-  const fs::path map_path = project_root / "simple.modules";
-  if (fs::exists(map_path)) return true;
-  std::vector<std::pair<std::string, fs::path>> entries;
-  for (const auto& [name, paths] : module_index) {
-    std::vector<fs::path> unique;
-    std::unordered_set<std::string> seen;
-    for (const auto& path : paths) {
-      if (seen.insert(path.string()).second) unique.push_back(path);
-    }
-    if (unique.size() != 1) continue;
-    entries.push_back({name, unique.front()});
-  }
-  if (entries.empty()) return true;
-  std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
-    return a.first < b.first;
-  });
-  std::ofstream out(map_path);
+bool ResolveModuleMapImportPath(const std::filesystem::path& base_dir,
+                                const std::string& import_path,
+                                std::filesystem::path* out) {
   if (!out) return false;
-  out << "// Auto-generated by simplevm. Maps module names to .simple files.\n";
-  for (const auto& [name, path] : entries) {
-    std::error_code ec;
-    fs::path rel = fs::relative(path, project_root, ec);
-    if (ec || rel.empty()) rel = path;
-    out << name << "=\"" << rel.generic_string() << "\"\n";
+  namespace fs = std::filesystem;
+  std::error_code ec;
+  fs::path cursor = fs::weakly_canonical(base_dir, ec);
+  if (ec || cursor.empty()) cursor = fs::absolute(base_dir);
+  while (!cursor.empty()) {
+    const fs::path map_path = cursor / "simple.modules";
+    std::ifstream map_in(map_path);
+    if (map_in) {
+      std::string line;
+      while (std::getline(map_in, line)) {
+        Simple::Lang::RAST::ModuleMapEntry entry;
+        if (!Simple::Lang::RAST::ParseModuleMapLine(line, &entry)) continue;
+        if (entry.name != import_path) continue;
+        fs::path path = fs::path(entry.path).is_absolute() ? fs::path(entry.path) : (cursor / entry.path);
+        if (!path.has_extension()) path += ".simple";
+        *out = fs::weakly_canonical(path, ec);
+        if (ec) {
+          ec.clear();
+          *out = fs::absolute(path);
+        }
+        return true;
+      }
+    }
+    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
+    cursor = cursor.parent_path();
   }
-  return true;
+  return false;
 }
 
 bool ResolveModuleImportPath(
@@ -256,60 +206,6 @@ bool ResolveModuleImportPath(
     return false;
   }
   *out = unique.front();
-  return true;
-}
-
-bool ResolveModuleMapImportPath(const std::filesystem::path& base_dir,
-                                const std::string& import_path,
-                                std::filesystem::path* out) {
-  if (!out) return false;
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path cursor = fs::weakly_canonical(base_dir, ec);
-  if (ec || cursor.empty()) cursor = fs::absolute(base_dir);
-  while (!cursor.empty()) {
-    std::ifstream map_in(cursor / "simple.modules");
-    if (map_in) {
-      std::string line;
-      while (std::getline(map_in, line)) {
-        Simple::Lang::RAST::ModuleMapEntry entry;
-        if (!Simple::Lang::RAST::ParseModuleMapLine(line, &entry) || entry.name != import_path) continue;
-        fs::path path = fs::path(entry.path).is_absolute() ? fs::path(entry.path) : (cursor / entry.path);
-        if (!path.has_extension()) path += ".simple";
-        *out = fs::weakly_canonical(path, ec);
-        if (ec) {
-          ec.clear();
-          *out = fs::absolute(path);
-        }
-        return true;
-      }
-    }
-    if (!cursor.has_parent_path() || cursor.parent_path() == cursor) break;
-    cursor = cursor.parent_path();
-  }
-  return false;
-}
-
-bool ResolveProjectRootImportPath(
-    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& index,
-    const std::string& import_path,
-    std::filesystem::path* out,
-    std::string* error) {
-  if (!out) return false;
-  const std::string target = import_path.size() >= 7 &&
-                                     import_path.rfind(".simple") == import_path.size() - 7
-                                 ? import_path
-                                 : import_path + ".simple";
-  auto it = index.find(target);
-  if (it == index.end() || it->second.empty()) {
-    if (error) *error = "import not found in project root: " + import_path;
-    return false;
-  }
-  if (it->second.size() > 1) {
-    if (error) *error = "ambiguous import path: " + import_path;
-    return false;
-  }
-  *out = it->second.front();
   return true;
 }
 
@@ -370,6 +266,38 @@ bool ResolveLocalImportPath(
   }
   if (error) *error = "import file not found: " + import_path;
   return false;
+}
+
+bool WriteAutoModuleMapIfMissing(
+    const std::filesystem::path& project_root,
+    const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index) {
+  namespace fs = std::filesystem;
+  const fs::path map_path = project_root / "simple.modules";
+  if (fs::exists(map_path)) return true;
+  std::vector<std::pair<std::string, std::filesystem::path>> entries;
+  for (const auto& [name, paths] : module_index) {
+    std::vector<std::filesystem::path> unique;
+    std::unordered_set<std::string> seen;
+    for (const auto& path : paths) {
+      if (seen.insert(path.string()).second) unique.push_back(path);
+    }
+    if (unique.size() != 1) continue;
+    entries.push_back({name, unique.front()});
+  }
+  if (entries.empty()) return true;
+  std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+    return a.first < b.first;
+  });
+  std::ofstream out(map_path);
+  if (!out) return false;
+  out << "// Auto-generated by simplevm. Maps module names to .simple files.\n";
+  for (const auto& [name, path] : entries) {
+    std::error_code ec;
+    fs::path rel = fs::relative(path, project_root, ec);
+    if (ec || rel.empty()) rel = path;
+    out << name << "=\"" << rel.generic_string() << "\"\n";
+  }
+  return true;
 }
 
 bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,

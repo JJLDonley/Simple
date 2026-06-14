@@ -23,6 +23,21 @@ bool CliSplitImportsBuildSharedSimpleFileIndex() {
   return ok && index.find("Thing.simple") != index.end() && index["Thing.simple"].size() == 1;
 }
 
+bool CliSplitImportsBuildSharedModuleIndex() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_module_index_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "widget.simple");
+    out << "module Tools.Widget\nmain : i32 () { return 0 }";
+  }
+  Simple::Lang::RAST::ImportPathIndex files;
+  Simple::Lang::RAST::ImportPathIndex modules;
+  const bool ok = Simple::Lang::RAST::BuildSimpleFileIndex(dir, &files) &&
+                  Simple::Lang::RAST::BuildModuleIndex(dir, files, &modules);
+  std::filesystem::remove_all(dir);
+  return ok && modules.find("Tools.Widget") != modules.end();
+}
+
 bool CliSplitImportsParseSharedModuleMapLines() {
   Simple::Lang::RAST::ModuleMapEntry entry;
   return Simple::Lang::RAST::ParseModuleMapLine("Math = \"lib/math.simple\" // comment", &entry) &&
@@ -40,6 +55,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 
 const TestCase kCliImportsTests[] = {
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
+  {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
   {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},
   {"cli_split_imports_normalizes_simple_paths", CliSplitImportsNormalizesSimplePaths},
 };
