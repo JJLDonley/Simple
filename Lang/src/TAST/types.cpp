@@ -163,6 +163,10 @@ bool IsBuiltinValueIdentifierName(const std::string& name) {
   return name == "len" || IsPrimitiveCastName(name) || GetAtCastTargetName(name, nullptr);
 }
 
+bool IsBuiltinCallIdentifierName(const std::string& name) {
+  return name == "len" || GetAtCastTargetName(name, nullptr);
+}
+
 bool IsIntegerScalarTypeName(const std::string& name) {
   return name == "i8" || name == "i16" || name == "i32" || name == "i64" ||
          name == "u8" || name == "u16" || name == "u32" || name == "u64";

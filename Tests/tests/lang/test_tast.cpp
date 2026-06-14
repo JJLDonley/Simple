@@ -99,6 +99,10 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          Simple::Lang::TAST::IsBuiltinValueIdentifierName("i32") &&
          Simple::Lang::TAST::IsBuiltinValueIdentifierName("@f64") &&
          !Simple::Lang::TAST::IsBuiltinValueIdentifierName("make") &&
+         Simple::Lang::TAST::IsBuiltinCallIdentifierName("len") &&
+         Simple::Lang::TAST::IsBuiltinCallIdentifierName("@f64") &&
+         !Simple::Lang::TAST::IsBuiltinCallIdentifierName("i32") &&
+         !Simple::Lang::TAST::IsBuiltinCallIdentifierName("make") &&
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 

@@ -150,6 +150,7 @@ using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
 using TAST::GetSwitchBranchValueExpr;
 using TAST::InferLiteralType;
+using TAST::IsBuiltinCallIdentifierName;
 using TAST::IsBuiltinValueIdentifierName;
 using TAST::IsBoolTypeName;
 using TAST::IsCallExpr;
@@ -3100,8 +3101,7 @@ bool CheckExpr(const Expr& expr,
         }
         if (!IsIoPrintCallExpr(expr.children[0], ctx) && !is_using_io_print &&
             !(expr.children[0].kind == ExprKind::Identifier &&
-              (expr.children[0].text == "len" ||
-               GetAtCastTargetName(expr.children[0].text, nullptr)))) {
+              IsBuiltinCallIdentifierName(expr.children[0].text))) {
           if (!CheckCallArgTypes(expr, ctx, scopes, current_artifact, error)) return false;
         }
       }

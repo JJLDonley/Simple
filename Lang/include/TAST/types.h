@@ -27,6 +27,7 @@ bool IsPrimitiveCastName(const std::string& name);
 bool GetAtCastTargetName(const std::string& name, std::string* out_target);
 bool CheckPrimitiveCastSyntaxName(const std::string& name, std::string* error);
 bool IsBuiltinValueIdentifierName(const std::string& name);
+bool IsBuiltinCallIdentifierName(const std::string& name);
 bool IsIntegerScalarTypeName(const std::string& name);
 bool IsIntegerTypeName(const std::string& name);
 bool IsFloatScalarTypeName(const std::string& name);
