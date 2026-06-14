@@ -1,4 +1,5 @@
 #include "test_utils.h"
+#include "simple_runner.h"
 
 #include <cstdint>
 #include <vector>
@@ -24,8 +25,13 @@ bool VmSplitGcTracesGlobalRoots() {
          Simple::VM::Gc::IsNullRef(Simple::VM::HeapLayout::kNullRef);
 }
 
+bool VmGcTracesSwitchLoopLocalRefs() {
+  return RunSimpleFile("Tests/simple/gc_switch_loop_ref_lifetimes.simple", true) == 0;
+}
+
 const TestCase kVmGcTests[] = {
   {"vm_split_gc_traces_global_roots", VmSplitGcTracesGlobalRoots},
+  {"vm_gc_traces_switch_loop_local_refs", VmGcTracesSwitchLoopLocalRefs},
 };
 
 const TestSection kVmGcSections[] = {
