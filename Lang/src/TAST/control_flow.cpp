@@ -76,6 +76,15 @@ bool CheckReturnStmtValuePresence(const Simple::Lang::AST::Stmt& stmt,
   return true;
 }
 
+bool CheckTopLevelStmtAllowsReturn(const Simple::Lang::AST::Stmt& stmt,
+                                   std::string* error) {
+  if (stmt.kind == Simple::Lang::AST::StmtKind::Return) {
+    if (error) *error = "top-level return is not allowed";
+    return false;
+  }
+  return true;
+}
+
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error) {
   if (type.pointer_depth != 0 || !IsBoolTypeName(type.name)) {

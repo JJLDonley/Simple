@@ -605,7 +605,12 @@ bool LangTastControlFlowChecksFunctionReturns() {
   if (error.find("void function cannot return a value") == std::string::npos) return false;
   ret.has_return_expr = false;
   if (Simple::Lang::TAST::CheckReturnStmtValuePresence(ret, false, &error)) return false;
-  return error.find("non-void function must return a value") != std::string::npos;
+  if (error.find("non-void function must return a value") == std::string::npos) return false;
+  if (Simple::Lang::TAST::CheckTopLevelStmtAllowsReturn(ret, &error)) return false;
+  if (error.find("top-level return is not allowed") == std::string::npos) return false;
+  Simple::Lang::AST::Stmt expr_stmt;
+  expr_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  return Simple::Lang::TAST::CheckTopLevelStmtAllowsReturn(expr_stmt, &error);
 }
 
 bool LangTastControlFlowTracksReturnsAndBreaks() {

@@ -24,6 +24,8 @@ bool CheckFunctionReturnFlow(const Simple::Lang::AST::FuncDecl& fn,
 bool CheckReturnStmtValuePresence(const Simple::Lang::AST::Stmt& stmt,
                                   bool return_is_void,
                                   std::string* error);
+bool CheckTopLevelStmtAllowsReturn(const Simple::Lang::AST::Stmt& stmt,
+                                   std::string* error);
 bool CheckConditionType(const Simple::Lang::AST::TypeRef& type,
                         std::string* error);
 bool CheckSwitchExprShape(const Simple::Lang::AST::Expr& expr, std::string* error);

@@ -149,6 +149,7 @@ using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
 using TAST::CheckSingleArgCallCount;
 using TAST::CheckSwitchExprShape;
+using TAST::CheckTopLevelStmtAllowsReturn;
 using TAST::CheckTypesCompatibleForExpr;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
@@ -3435,10 +3436,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
     TypeRef script_return;
     script_return.name = "i32";
     for (const auto& stmt : program.top_level_stmts) {
-      if (stmt.kind == StmtKind::Return) {
-        if (error) *error = "top-level return is not allowed";
-        return false;
-      }
+      if (!CheckTopLevelStmtAllowsReturn(stmt, error)) return false;
       if (!CheckStmt(stmt,
                      ctx,
                      type_params,
