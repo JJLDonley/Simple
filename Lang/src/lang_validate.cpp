@@ -109,6 +109,7 @@ using RAST::FindModuleVar;
 using RAST::GetModuleNameFromExpr;
 using RAST::IsArtifactMemberName;
 using RAST::IsIoPrintName;
+using RAST::NativeModuleNameForReserved;
 using RAST::NormalizeDlMemberName;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
@@ -302,23 +303,6 @@ size_t EditDistance(const std::string& a, const std::string& b) {
     prev.swap(cur);
   }
   return prev[b.size()];
-}
-
-bool NativeModuleNameForReserved(const std::string& resolved, std::string* out) {
-  if (!out) return false;
-  if (resolved == "IO") *out = "System.io";
-  else if (resolved == "DL") *out = "System.dl";
-  else if (resolved == "OS") *out = "System.os";
-  else if (resolved == "Thread") *out = "System.thread";
-  else if (resolved == "Random") *out = "System.random";
-  else if (resolved == "Env") *out = "System.env";
-  else if (resolved == "Path") *out = "System.path";
-  else if (resolved == "FS") *out = "System.fs";
-  else if (resolved == "Json") *out = "System.json";
-  else if (resolved == "Buffer") *out = "System.buffer";
-  else if (resolved == "Log") *out = "System.log";
-  else return false;
-  return true;
 }
 
 void AddNativeReservedMembers(const std::string& resolved, std::vector<std::string>* out) {
