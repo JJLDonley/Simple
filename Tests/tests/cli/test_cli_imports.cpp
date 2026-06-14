@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 
 #include "RAST/import_index.h"
 #include "RAST/import_paths.h"
@@ -38,6 +39,23 @@ bool CliSplitImportsBuildSharedModuleIndex() {
   return ok && modules.find("Tools.Widget") != modules.end();
 }
 
+bool CliSplitImportsWriteSharedAutoModuleMap() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_auto_module_map_test";
+  std::filesystem::create_directories(dir);
+  const auto file = dir / "thing.simple";
+  {
+    std::ofstream out(file);
+    out << "module Auto.Thing\nmain : i32 () { return 0 }";
+  }
+  Simple::Lang::RAST::ImportPathIndex modules;
+  modules["Auto.Thing"].push_back(file);
+  const bool ok = Simple::Lang::RAST::WriteAutoModuleMapIfMissing(dir, modules);
+  std::ifstream in(dir / "simple.modules");
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  std::filesystem::remove_all(dir);
+  return ok && text.find("Auto.Thing=\"thing.simple\"") != std::string::npos;
+}
+
 bool CliSplitImportsParseSharedModuleMapLines() {
   Simple::Lang::RAST::ModuleMapEntry entry;
   return Simple::Lang::RAST::ParseModuleMapLine("Math = \"lib/math.simple\" // comment", &entry) &&
@@ -56,6 +74,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 const TestCase kCliImportsTests[] = {
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
+  {"cli_split_imports_write_shared_auto_module_map", CliSplitImportsWriteSharedAutoModuleMap},
   {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},
   {"cli_split_imports_normalizes_simple_paths", CliSplitImportsNormalizesSimplePaths},
 };

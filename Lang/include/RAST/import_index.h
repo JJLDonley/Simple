@@ -15,5 +15,7 @@ bool BuildSimpleFileIndex(const std::filesystem::path& project_root,
 bool BuildModuleIndex(const std::filesystem::path& project_root,
                       const ImportPathIndex& file_index,
                       ImportPathIndex* out);
+bool WriteAutoModuleMapIfMissing(const std::filesystem::path& project_root,
+                                 const ImportPathIndex& module_index);
 
 } // namespace Simple::Lang::RAST
