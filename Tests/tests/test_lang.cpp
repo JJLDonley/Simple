@@ -111,15 +111,6 @@ std::string TempPath(const std::string& name) {
   return (fs::temp_directory_path() / name).string();
 }
 
-bool ExpectTokenKinds(const std::vector<Simple::Lang::Token>& tokens,
-                      const std::vector<Simple::Lang::TokenKind>& kinds) {
-  if (tokens.size() < kinds.size()) return false;
-  for (size_t i = 0; i < kinds.size(); ++i) {
-    if (tokens[i].kind != kinds[i]) return false;
-  }
-  return true;
-}
-
 bool RunSirTextExpectExit(const std::string& sir, int32_t expected) {
   Simple::IR::Text::IrTextModule text;
   std::string error;
@@ -142,25 +133,6 @@ bool LangSirEmitsReturnI32() {
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
-}
-
-bool LangLexerModuleTokenizesSwitchArrow() {
-  Simple::Lang::Lexer lexer("switch (node->value) { default => return 1 }");
-  if (!lexer.Lex()) return false;
-  return ExpectTokenKinds(lexer.Tokens(), {
-      Simple::Lang::TokenKind::KwSwitch,
-      Simple::Lang::TokenKind::LParen,
-      Simple::Lang::TokenKind::Identifier,
-      Simple::Lang::TokenKind::Arrow,
-      Simple::Lang::TokenKind::Identifier,
-      Simple::Lang::TokenKind::RParen,
-      Simple::Lang::TokenKind::LBrace,
-      Simple::Lang::TokenKind::KwDefault,
-      Simple::Lang::TokenKind::FatArrow,
-      Simple::Lang::TokenKind::KwReturn,
-      Simple::Lang::TokenKind::Integer,
-      Simple::Lang::TokenKind::RBrace,
-  });
 }
 
 bool LangIrbIrePipelineEmitsRunnableSir() {
@@ -2059,105 +2031,6 @@ bool LangSirEmitsFnLiteralCall() {
   return RunSirTextExpectExit(sir, 42);
 }
 
-bool LangLexesKeywordsAndOps() {
-  const char* src = "fn main :: void() { return; }";
-  Simple::Lang::Lexer lex(src);
-  if (!lex.Lex()) return false;
-  const auto& toks = lex.Tokens();
-  std::vector<Simple::Lang::TokenKind> kinds = {
-    Simple::Lang::TokenKind::KwFn,
-    Simple::Lang::TokenKind::Identifier,
-    Simple::Lang::TokenKind::DoubleColon,
-    Simple::Lang::TokenKind::Identifier,
-    Simple::Lang::TokenKind::LParen,
-    Simple::Lang::TokenKind::RParen,
-    Simple::Lang::TokenKind::LBrace,
-    Simple::Lang::TokenKind::KwReturn,
-    Simple::Lang::TokenKind::Semicolon,
-    Simple::Lang::TokenKind::RBrace,
-  };
-  return ExpectTokenKinds(toks, kinds);
-}
-
-bool LangLexesRangeOp() {
-  const char* src = "0..10";
-  Simple::Lang::Lexer lex(src);
-  if (!lex.Lex()) return false;
-  const auto& toks = lex.Tokens();
-  std::vector<Simple::Lang::TokenKind> kinds = {
-    Simple::Lang::TokenKind::Integer,
-    Simple::Lang::TokenKind::DotDot,
-    Simple::Lang::TokenKind::Integer,
-  };
-  return ExpectTokenKinds(toks, kinds);
-}
-
-bool LangLexesSwitchArrow() {
-  const char* src = "switch(x){ default => return 1 }";
-  Simple::Lang::Lexer lex(src);
-  if (!lex.Lex()) return false;
-  const auto& toks = lex.Tokens();
-  std::vector<Simple::Lang::TokenKind> kinds = {
-    Simple::Lang::TokenKind::KwSwitch,
-    Simple::Lang::TokenKind::LParen,
-    Simple::Lang::TokenKind::Identifier,
-    Simple::Lang::TokenKind::RParen,
-    Simple::Lang::TokenKind::LBrace,
-    Simple::Lang::TokenKind::KwDefault,
-    Simple::Lang::TokenKind::FatArrow,
-    Simple::Lang::TokenKind::KwReturn,
-    Simple::Lang::TokenKind::Integer,
-    Simple::Lang::TokenKind::RBrace,
-  };
-  return ExpectTokenKinds(toks, kinds);
-}
-
-bool LangLexesLiterals() {
-  const char* src = "x : i32 = 42; h : i32 = 0x2A; b : i32 = 0b1010; y : f32 = 3.5; s : string = \"hi\\n\"; c : char = '\\n';";
-  Simple::Lang::Lexer lex(src);
-  if (!lex.Lex()) return false;
-  const auto& toks = lex.Tokens();
-  bool saw_int = false;
-  bool saw_hex = false;
-  bool saw_bin = false;
-  bool saw_float = false;
-  bool saw_string = false;
-  bool saw_char = false;
-  for (const auto& tok : toks) {
-    if (tok.kind == Simple::Lang::TokenKind::Integer) saw_int = true;
-    if (tok.kind == Simple::Lang::TokenKind::Integer && tok.text == "0x2A") saw_hex = true;
-    if (tok.kind == Simple::Lang::TokenKind::Integer && tok.text == "0b1010") saw_bin = true;
-    if (tok.kind == Simple::Lang::TokenKind::Float) saw_float = true;
-    if (tok.kind == Simple::Lang::TokenKind::String) saw_string = true;
-    if (tok.kind == Simple::Lang::TokenKind::Char) saw_char = true;
-  }
-  return saw_int && saw_hex && saw_bin && saw_float && saw_string && saw_char;
-}
-
-bool LangLexRejectsInvalidHex() {
-  const char* src = "x : i32 = 0xZZ;";
-  Simple::Lang::Lexer lex(src);
-  return !lex.Lex();
-}
-
-bool LangLexRejectsInvalidBinary() {
-  const char* src = "x : i32 = 0b2;";
-  Simple::Lang::Lexer lex(src);
-  return !lex.Lex();
-}
-
-bool LangLexRejectsInvalidStringEscape() {
-  const char* src = "x : string = \"hi\\q\";";
-  Simple::Lang::Lexer lex(src);
-  return !lex.Lex();
-}
-
-bool LangLexRejectsInvalidCharEscape() {
-  const char* src = "x : char = '\\q';";
-  Simple::Lang::Lexer lex(src);
-  return !lex.Lex();
-}
-
 bool LangValidateSystemImportMixedCaseOk() {
   const char* src =
       "import IO\n"
@@ -3749,14 +3622,6 @@ bool LangValidateModuloFloatMismatch() {
 }
 
 const TestCase kLangTests[] = {
-  {"lang_lex_keywords_ops", LangLexesKeywordsAndOps},
-  {"lang_lex_range_op", LangLexesRangeOp},
-  {"lang_lex_switch_arrow", LangLexesSwitchArrow},
-  {"lang_lex_literals", LangLexesLiterals},
-  {"lang_lex_reject_invalid_hex", LangLexRejectsInvalidHex},
-  {"lang_lex_reject_invalid_binary", LangLexRejectsInvalidBinary},
-  {"lang_lex_reject_invalid_string_escape", LangLexRejectsInvalidStringEscape},
-  {"lang_lex_reject_invalid_char_escape", LangLexRejectsInvalidCharEscape},
   {"lang_validate_system_import_mixed_case_ok", LangValidateSystemImportMixedCaseOk},
   {"lang_validate_system_import_implicit_lower_alias", LangValidateSystemImportImplicitLowerAlias},
   {"docs_canonical_pages_describe_behavior", DocsCanonicalPagesDescribeBehavior},
@@ -3787,7 +3652,6 @@ const TestCase kLangTests[] = {
   {"lang_validate_switch_multiple_default_rejected", LangValidateSwitchMultipleDefaultRejected},
   {"lang_validate_proc_return_proc_ok", LangValidateProcReturnProcOk},
   {"lang_sir_emit_return_i32", LangSirEmitsReturnI32},
-  {"lang_lexer_module_tokenizes_switch_arrow", LangLexerModuleTokenizesSwitchArrow},
   {"lang_irb_ire_pipeline_emits_runnable_sir", LangIrbIrePipelineEmitsRunnableSir},
   {"lang_irb_structured_ir_skeleton_stores_module_shape", LangIrbStructuredIrSkeletonStoresModuleShape},
   {"lang_irb_collects_allocation_metadata", LangIrbCollectsAllocationMetadata},

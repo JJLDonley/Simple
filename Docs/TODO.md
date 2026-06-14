@@ -548,7 +548,7 @@ All Simple standard/core library modules should be implemented as native C++ run
 ## Tests
 
 - [ ] Split large test files by compiler phase:
-  - [ ] `test_lexer.cpp`
+  - [x] `test_lexer.cpp`
   - [x] `test_cast.cpp`
   - [x] `test_ast.cpp`
   - [x] `test_rast.cpp`
