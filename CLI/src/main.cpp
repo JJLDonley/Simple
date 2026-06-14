@@ -29,6 +29,7 @@
 #include "command_dispatch.h"
 #include "diagnostic_render.h"
 #include "RAST/import_index.h"
+#include "RAST/import_loader.h"
 #include "RAST/import_paths.h"
 #include "import_contract.h"
 
@@ -64,73 +65,6 @@ std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entr
   return fs::current_path();
 }
 
-bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
-                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
-                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
-                                   Simple::Lang::Program* out,
-                                   std::unordered_set<std::string>* visiting,
-                                   std::unordered_set<std::string>* visited,
-                                   std::string* error) {
-  if (!out || !visiting || !visited) return false;
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path canon = fs::weakly_canonical(file_path, ec);
-  if (ec || canon.empty()) canon = fs::absolute(file_path);
-  const std::string key = canon.string();
-  if (visited->find(key) != visited->end()) return true;
-  if (!visiting->insert(key).second) {
-    if (error) *error = "cyclic import detected: " + key;
-    return false;
-  }
-
-  std::string text;
-  if (!ReadFileText(key, &text, error)) {
-    visiting->erase(key);
-    return false;
-  }
-  Simple::Lang::Program program;
-  std::string parse_error;
-  if (!Simple::Lang::ParseProgramFromString(text, &program, &parse_error)) {
-    if (error) *error = key + ": " + parse_error;
-    visiting->erase(key);
-    return false;
-  }
-
-  const fs::path base_dir = canon.parent_path();
-  for (const auto& decl : program.decls) {
-    if (decl.kind != Simple::Lang::DeclKind::Import) continue;
-    if (decl.import_decl.is_using) continue;
-    if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
-    fs::path import_file;
-    if (!Simple::Lang::RAST::ResolveLocalImportPath(base_dir, project_index, module_index, decl.import_decl.path, &import_file, error)) {
-      visiting->erase(key);
-      return false;
-    }
-    if (!AppendProgramWithLocalImports(import_file, project_index, module_index, out, visiting, visited, error)) {
-      visiting->erase(key);
-      return false;
-    }
-  }
-
-  for (auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::DeclKind::ModuleHeader) {
-      continue;
-    }
-    if (decl.kind == Simple::Lang::DeclKind::Import &&
-        !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
-      continue;
-    }
-    out->decls.push_back(std::move(decl));
-  }
-  for (auto& stmt : program.top_level_stmts) {
-    out->top_level_stmts.push_back(std::move(stmt));
-  }
-
-  visiting->erase(key);
-  visited->insert(key);
-  return true;
-}
-
 bool LoadSimpleProgramWithImports(const std::string& entry_path,
                                   Simple::Lang::Program* out,
                                   std::string* error) {
@@ -153,7 +87,7 @@ bool LoadSimpleProgramWithImports(const std::string& entry_path,
   }
   std::unordered_set<std::string> visiting;
   std::unordered_set<std::string> visited;
-  return AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
+  return Simple::Lang::RAST::AppendProgramWithLocalImports(entry_path, project_index, module_index, out, &visiting, &visited, error);
 }
 
 bool ValidateSimpleFile(const std::string& path, std::string* error) {

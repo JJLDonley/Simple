@@ -3,8 +3,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <unordered_set>
 
 #include "RAST/import_index.h"
+#include "RAST/import_loader.h"
 #include "RAST/import_paths.h"
 #include "import_contract.h"
 
@@ -37,6 +39,32 @@ bool CliSplitImportsBuildSharedModuleIndex() {
                   Simple::Lang::RAST::BuildModuleIndex(dir, files, &modules);
   std::filesystem::remove_all(dir);
   return ok && modules.find("Tools.Widget") != modules.end();
+}
+
+bool CliSplitImportsAppendProgramWithSharedLoader() {
+  const auto dir = std::filesystem::temp_directory_path() / "simple_cli_import_loader_test";
+  std::filesystem::create_directories(dir);
+  {
+    std::ofstream out(dir / "lib.simple");
+    out << "module Lib\nvalue : i32 () { return 1 }";
+  }
+  const auto entry = dir / "main.simple";
+  {
+    std::ofstream out(entry);
+    out << "import Lib\nmain : i32 () { return value() }";
+  }
+  Simple::Lang::RAST::ImportPathIndex files;
+  Simple::Lang::RAST::ImportPathIndex modules;
+  Simple::Lang::Program program;
+  std::unordered_set<std::string> visiting;
+  std::unordered_set<std::string> visited;
+  std::string error;
+  const bool ok = Simple::Lang::RAST::BuildSimpleFileIndex(dir, &files) &&
+                  Simple::Lang::RAST::BuildModuleIndex(dir, files, &modules) &&
+                  Simple::Lang::RAST::AppendProgramWithLocalImports(
+                      entry, files, modules, &program, &visiting, &visited, &error);
+  std::filesystem::remove_all(dir);
+  return ok && program.decls.size() == 2;
 }
 
 bool CliSplitImportsResolveSharedModuleImport() {
@@ -94,6 +122,7 @@ bool CliSplitImportsNormalizesSimplePaths() {
 const TestCase kCliImportsTests[] = {
   {"cli_split_imports_build_shared_simple_file_index", CliSplitImportsBuildSharedSimpleFileIndex},
   {"cli_split_imports_build_shared_module_index", CliSplitImportsBuildSharedModuleIndex},
+  {"cli_split_imports_append_program_with_shared_loader", CliSplitImportsAppendProgramWithSharedLoader},
   {"cli_split_imports_resolve_shared_module_import", CliSplitImportsResolveSharedModuleImport},
   {"cli_split_imports_write_shared_auto_module_map", CliSplitImportsWriteSharedAutoModuleMap},
   {"cli_split_imports_parse_shared_module_map_lines", CliSplitImportsParseSharedModuleMapLines},

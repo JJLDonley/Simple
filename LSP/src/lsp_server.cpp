@@ -1,6 +1,7 @@
 #include "lsp_server.h"
 #include "diagnostic_bridge.h"
 #include "RAST/import_index.h"
+#include "RAST/import_loader.h"
 #include "RAST/import_paths.h"
 
 #include <cctype>
@@ -31,19 +32,6 @@ std::string TrimCopy(const std::string& input) {
   size_t end = input.size();
   while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) --end;
   return input.substr(start, end - start);
-}
-
-bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
-  if (!out) return false;
-  std::ifstream in(path);
-  if (!in) {
-    if (error) *error = "failed to open file";
-    return false;
-  }
-  std::ostringstream buffer;
-  buffer << in.rdbuf();
-  *out = buffer.str();
-  return true;
 }
 
 bool DecodeHexNibble(char c, uint8_t* out) {
@@ -121,77 +109,6 @@ std::filesystem::path ResolveImportProjectRoot(const std::filesystem::path& entr
   return fs::current_path();
 }
 
-bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
-                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& project_index,
-                                   const std::unordered_map<std::string, std::vector<std::filesystem::path>>& module_index,
-                                   Simple::Lang::Program* out,
-                                   std::unordered_set<std::string>* visiting,
-                                   std::unordered_set<std::string>* visited,
-                                   std::string* error,
-                                   const std::string* override_text = nullptr) {
-  if (!out || !visiting || !visited) return false;
-  namespace fs = std::filesystem;
-  std::error_code ec;
-  fs::path canon = fs::weakly_canonical(file_path, ec);
-  if (ec || canon.empty()) canon = fs::absolute(file_path);
-  const std::string key = canon.string();
-  if (visited->find(key) != visited->end()) return true;
-  if (!visiting->insert(key).second) {
-    if (error) *error = "cyclic import detected: " + key;
-    return false;
-  }
-
-  std::string text;
-  if (override_text) {
-    text = *override_text;
-  } else if (!ReadFileText(key, &text, error)) {
-    visiting->erase(key);
-    return false;
-  }
-
-  Simple::Lang::Program program;
-  std::string parse_error;
-  if (!Simple::Lang::ParseProgramFromString(text, &program, &parse_error)) {
-    if (error) *error = key + ": " + parse_error;
-    visiting->erase(key);
-    return false;
-  }
-
-  const fs::path base_dir = canon.parent_path();
-  for (const auto& decl : program.decls) {
-    if (decl.kind != Simple::Lang::DeclKind::Import) continue;
-    if (decl.import_decl.is_using) continue;
-    if (Simple::Lang::IsReservedImportPath(decl.import_decl.path)) continue;
-    fs::path import_file;
-    if (!Simple::Lang::RAST::ResolveLocalImportPath(base_dir, project_index, module_index, decl.import_decl.path, &import_file, error)) {
-      visiting->erase(key);
-      return false;
-    }
-    if (!AppendProgramWithLocalImports(import_file, project_index, module_index, out, visiting, visited, error)) {
-      visiting->erase(key);
-      return false;
-    }
-  }
-
-  for (auto& decl : program.decls) {
-    if (decl.kind == Simple::Lang::DeclKind::ModuleHeader) {
-      continue;
-    }
-    if (decl.kind == Simple::Lang::DeclKind::Import &&
-        !Simple::Lang::IsReservedImportPath(decl.import_decl.path)) {
-      continue;
-    }
-    out->decls.push_back(std::move(decl));
-  }
-  for (auto& stmt : program.top_level_stmts) {
-    out->top_level_stmts.push_back(std::move(stmt));
-  }
-
-  visiting->erase(key);
-  visited->insert(key);
-  return true;
-}
-
 bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& source_text, std::string* error) {
   std::string entry_path;
   if (!FileUriToPath(uri, &entry_path)) {
@@ -234,14 +151,14 @@ bool ValidateProgramFromUriAndText(const std::string& uri, const std::string& so
   program.decls.clear();
   std::unordered_set<std::string> visiting;
   std::unordered_set<std::string> visited;
-  if (!AppendProgramWithLocalImports(entry_path,
-                                     project_index,
-                                     module_index,
-                                     &program,
-                                     &visiting,
-                                     &visited,
-                                     error,
-                                     &source_text)) {
+  if (!Simple::Lang::RAST::AppendProgramWithLocalImports(entry_path,
+                                                               project_index,
+                                                               module_index,
+                                                               &program,
+                                                               &visiting,
+                                                               &visited,
+                                                               error,
+                                                               &source_text)) {
     return false;
   }
   return Simple::Lang::ValidateProgram(program, error);
