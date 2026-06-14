@@ -94,7 +94,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Add native metadata Markdown generator for stdlib API snapshots.
   - [x] Test generated stdlib docs include every registered native function.
 - [ ] Remove native stdlib forwarding glue once metadata dispatch is complete.
-- [ ] Native functions must use named handlers such as `FsReadText`, `ChannelPendingI32`, and `JsonParse`.
+- [x] Native functions must use named handlers such as `FsReadText`, `ChannelPendingI32`, and `JsonParse`.
 
 ### SRP Phase 3: Language Validation Split
 

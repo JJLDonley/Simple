@@ -1,12 +1,32 @@
 #include "test_utils.h"
 
 #include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <sstream>
 #include <string>
 
 #include "native/fs.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool VmNativeRegistryUsesNamedMetadataHandlers() {
+  std::ifstream in("VM/src/native/registry.cpp");
+  if (!in) return false;
+  const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  if (text.find("FsReadText") == std::string::npos) return false;
+  if (text.find("ChannelPendingI32") == std::string::npos) return false;
+  if (text.find("JsonParse") == std::string::npos) return false;
+  std::istringstream lines(text);
+  std::string line;
+  while (std::getline(lines, line)) {
+    if (line.find("MakeSpec(") != std::string::npos && line.find('[') != std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
 
 bool VmSplitNativeFsWritesReadsAndRemovesText() {
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "simple_vm_native_fs_split_test.txt";
@@ -19,6 +39,7 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
 }
 
 const TestCase kVmNativeFsTests[] = {
+  {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
 };
 
