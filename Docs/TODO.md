@@ -64,6 +64,7 @@ End-state rule: this refactor must not leave permanent shims, compatibility faca
   - [x] Replace execution-result finalizer lambda with `AttachExecutionStats`.
   - [x] Replace constant-string/global lookup lambdas with named helpers.
   - [x] Replace runtime-limit/local allocation lambdas with named helpers.
+  - [x] Replace interpreter frame setup lambda with `BuildInterpreterFrame`.
 - [x] Interpreter module owns only opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps.
 - [x] Interpreter module must not own native stdlib implementation, DL/FFI internals, JSON parser, channel registries, or platform FS code.
 

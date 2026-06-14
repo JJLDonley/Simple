@@ -1494,6 +1494,26 @@ size_t AllocateLocalSlots(std::vector<Slot>& locals_arena, uint16_t count) {
   return base;
 }
 
+Simple::VM::Interpreter::FrameState BuildInterpreterFrame(const SbcModule& module,
+                                                          std::vector<Slot>& locals_arena,
+                                                          size_t func_index,
+                                                          size_t return_pc,
+                                                          size_t stack_base,
+                                                          uint32_t closure_ref) {
+  Simple::VM::Interpreter::FrameState frame = Simple::VM::Interpreter::MakeFrame(
+      func_index, return_pc, stack_base, closure_ref);
+  const uint32_t method_id = module.functions[func_index].method_id;
+  if (method_id >= module.methods.size()) {
+    frame.locals_base = 0;
+    frame.locals_count = 0;
+    return frame;
+  }
+  const uint16_t local_count = module.methods[method_id].local_count;
+  frame.locals_count = local_count;
+  frame.locals_base = AllocateLocalSlots(locals_arena, local_count);
+  return frame;
+}
+
 ExecResult AttachExecutionStats(ExecResult result,
                                 const std::vector<JitTier>& jit_tiers,
                                 const std::vector<uint32_t>& call_counts,
@@ -3486,25 +3506,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Simple::VM::Interpreter::FrameState>& call_stack = interpreter_state.call_stack;
   std::vector<Slot>& call_args = interpreter_state.call_args;
 
-  auto setup_frame = [&](size_t func_index, size_t return_pc, size_t stack_base,
-                         uint32_t closure_ref) -> Simple::VM::Interpreter::FrameState {
-    update_tier(func_index);
-    Simple::VM::Interpreter::FrameState frame = Simple::VM::Interpreter::MakeFrame(
-        func_index, return_pc, stack_base, closure_ref);
-    uint32_t method_id = module.functions[func_index].method_id;
-    if (method_id >= module.methods.size()) {
-      frame.locals_base = 0;
-      frame.locals_count = 0;
-      return frame;
-    }
-    uint16_t local_count = module.methods[method_id].local_count;
-    frame.locals_count = local_count;
-    frame.locals_base = AllocateLocalSlots(locals_arena, local_count);
-    return frame;
-  };
 
   size_t func_start = module.functions[entry_func_index].code_offset;
-  Simple::VM::Interpreter::FrameState current = setup_frame(entry_func_index, 0, 0, kNullRef);
+  update_tier(entry_func_index);
+  Simple::VM::Interpreter::FrameState current = BuildInterpreterFrame(module, locals_arena, entry_func_index, 0, 0, kNullRef);
   TrapContext trap_ctx;
   trap_ctx.current = &current;
   trap_ctx.call_stack = &call_stack;
@@ -5615,7 +5620,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);
-        current = setup_frame(func_id, pc, stack.size(), kNullRef);
+        update_tier(func_id);
+        current = BuildInterpreterFrame(module, locals_arena, func_id, pc, stack.size(), kNullRef);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }
@@ -5706,7 +5712,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);
-        current = setup_frame(static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
+        update_tier(static_cast<size_t>(func_index));
+        current = BuildInterpreterFrame(module, locals_arena, static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }
@@ -5798,7 +5805,8 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         size_t stack_base = current.stack_base;
         locals_arena.resize(current.locals_base);
         stack.resize(stack_base);
-        current = setup_frame(func_id, return_pc, stack_base, kNullRef);
+        update_tier(func_id);
+        current = BuildInterpreterFrame(module, locals_arena, func_id, return_pc, stack_base, kNullRef);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
         }
