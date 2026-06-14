@@ -176,6 +176,20 @@ bool VmTrapFormattingLivesInInterpreterModule() {
          vm_text.find("auto get_method_name = [") == std::string::npos;
 }
 
+bool VmValuePackingHelpersLiveInRuntimeModule() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/runtime/values.h");
+  if (!vm || !header) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  return header_text.find("inline Slot PackI32(") != std::string::npos &&
+         header_text.find("inline Slot PackRef(") != std::string::npos &&
+         header_text.find("inline float BitsToF32(") != std::string::npos &&
+         vm_text.find("inline Slot PackI32(") == std::string::npos &&
+         vm_text.find("inline Slot PackRef(") == std::string::npos &&
+         vm_text.find("float BitsToF32(") == std::string::npos;
+}
+
 bool VmImportDispatcherUsesNamedFunction() {
   std::ifstream vm("VM/src/vm.cpp");
   std::ifstream header("Byte/include/sbc_loader.h");
@@ -273,6 +287,7 @@ const TestCase kVmInterpreterTests[] = {
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
   {"vm_jit_failure_uses_named_operand_helpers", VmJitFailureUsesNamedOperandHelpers},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
+  {"vm_value_packing_helpers_live_in_runtime_module", VmValuePackingHelpersLiveInRuntimeModule},
   {"vm_import_dispatcher_uses_named_function", VmImportDispatcherUsesNamedFunction},
   {"vm_runtime_split_modules_exist", VmRuntimeSplitModulesExist},
   {"vm_boundary_types_are_explicit", VmBoundaryTypesAreExplicit},

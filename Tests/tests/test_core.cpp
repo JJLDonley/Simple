@@ -38,6 +38,7 @@
 #include "sbc_verifier.h"
 #include "scratch_arena.h"
 #include "runtime/runtime_limits.h"
+#include "runtime/values.h"
 #include "simple_api.h"
 #include "vm.h"
 #include "ffi/dl_runtime.h"
@@ -24361,6 +24362,17 @@ bool RunJmpTableEmptyTest() {
   return true;
 }
 
+bool RunRuntimeValuePackingHelpersTest() {
+  using namespace Simple::VM::Runtime;
+  if (UnpackI32(PackI32(-7)) != -7) return false;
+  if (UnpackI64(PackI64(-99)) != -99) return false;
+  if (UnpackRef(PackRef(123)) != 123) return false;
+  if (!IsNullRef(PackRef(Simple::VM::HeapLayout::kNullRef))) return false;
+  const float f = BitsToF32(F32ToBits(3.5f));
+  const double d = BitsToF64(F64ToBits(7.25));
+  return f == 3.5f && d == 7.25;
+}
+
 bool RunByteConstPoolStringHelperTest() {
   Simple::Byte::SbcModule module;
   module.const_pool = {'x', 'y', 'z', 0, 'a'};
@@ -24371,6 +24383,7 @@ bool RunByteConstPoolStringHelperTest() {
 }
 
 static const TestCase kCoreTests[] = {
+  {"runtime_value_packing_helpers", RunRuntimeValuePackingHelpersTest},
   {"byte_const_pool_string_helper", RunByteConstPoolStringHelperTest},
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
   {"native_buffer_module", RunNativeBufferModuleTest},

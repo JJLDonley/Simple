@@ -52,6 +52,7 @@
 #include "sbc_loader.h"
 #include "runtime/execution_stats.h"
 #include "runtime/runtime_limits.h"
+#include "runtime/values.h"
 
 namespace Simple::VM {
 namespace {
@@ -73,9 +74,23 @@ using Simple::VM::Interpreter::ReadU32Operand;
 using Simple::VM::Interpreter::Trap;
 using Simple::VM::Interpreter::TrapContext;
 using Simple::VM::Interpreter::TrapContextGuard;
+using Simple::VM::Runtime::BitsToF32;
+using Simple::VM::Runtime::BitsToF64;
+using Simple::VM::Runtime::F32ToBits;
+using Simple::VM::Runtime::F64ToBits;
+using Simple::VM::Runtime::IsNullRef;
+using Simple::VM::Runtime::PackF32Bits;
+using Simple::VM::Runtime::PackF64Bits;
+using Simple::VM::Runtime::PackI32;
+using Simple::VM::Runtime::PackI64;
+using Simple::VM::Runtime::PackRef;
+using Simple::VM::Runtime::UnpackI32;
+using Simple::VM::Runtime::UnpackI64;
+using Simple::VM::Runtime::UnpackRef;
+using Simple::VM::Runtime::UnpackU32Bits;
+using Simple::VM::Runtime::UnpackU64Bits;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
-inline Slot PackRef(uint32_t handle);
 
 inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
   if (allow_void && kind == TypeKind::Unspecified) return true;
@@ -97,76 +112,6 @@ inline bool IsDlCallScalarKind(TypeKind kind, bool allow_void) {
     default:
       return false;
   }
-}
-
-float BitsToF32(uint32_t bits) {
-  uint32_t v = bits;
-  float out = 0.0f;
-  std::memcpy(&out, &v, sizeof(out));
-  return out;
-}
-
-double BitsToF64(uint64_t bits) {
-  uint64_t v = bits;
-  double out = 0.0;
-  std::memcpy(&out, &v, sizeof(out));
-  return out;
-}
-
-uint32_t F32ToBits(float value) {
-  uint32_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
-
-uint64_t F64ToBits(double value) {
-  uint64_t bits = 0;
-  std::memcpy(&bits, &value, sizeof(bits));
-  return bits;
-}
-
-inline Slot PackI32(int32_t value) {
-  return static_cast<uint32_t>(value);
-}
-
-inline int32_t UnpackI32(Slot value) {
-  return static_cast<int32_t>(static_cast<uint32_t>(value));
-}
-
-inline Slot PackI64(int64_t value) {
-  return static_cast<uint64_t>(value);
-}
-
-inline int64_t UnpackI64(Slot value) {
-  return static_cast<int64_t>(value);
-}
-
-inline uint32_t UnpackU32Bits(Slot value) {
-  return static_cast<uint32_t>(value);
-}
-
-inline uint64_t UnpackU64Bits(Slot value) {
-  return static_cast<uint64_t>(value);
-}
-
-inline Slot PackF32Bits(uint32_t bits) {
-  return static_cast<uint64_t>(bits);
-}
-
-inline Slot PackF64Bits(uint64_t bits) {
-  return bits;
-}
-
-inline Slot PackRef(uint32_t handle) {
-  return static_cast<uint64_t>(handle);
-}
-
-inline uint32_t UnpackRef(Slot value) {
-  return static_cast<uint32_t>(value);
-}
-
-inline bool IsNullRef(Slot value) {
-  return UnpackRef(value) == kNullRef;
 }
 
 template <typename T>
