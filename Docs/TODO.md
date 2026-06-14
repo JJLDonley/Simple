@@ -345,7 +345,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] remove `lang_validate.h`
   - [x] remove `lang_sir.h`
   - [x] update all project includes to phase headers
-  - [ ] delete compatibility tests that only exist to preserve legacy facades
+  - [x] delete compatibility tests that only exist to preserve legacy facades
 
 ## Validator / Semantic Analysis
 
