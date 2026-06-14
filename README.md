@@ -9,16 +9,16 @@ The project is both a language implementation and a VM/toolchain playground: it 
 ## Contents
 
 - [Why Simple?](#why-simple)
-- [Quick start](#quick-start)
+- [Build from source](#build-from-source)
+- [Install](#install)
+- [Tests](#tests)
 - [Hello world](#hello-world)
 - [Language taste](#language-taste)
 - [CLI overview](#cli-overview)
 - [Build outputs](#build-outputs)
 - [Compiler pipeline](#compiler-pipeline)
 - [Repository map](#repository-map)
-- [Tests](#tests)
 - [Documentation](#documentation)
-- [Current focus](#current-focus)
 
 ## Why Simple?
 
@@ -31,39 +31,69 @@ Simple is designed around a few practical goals:
 - **Embeddable execution** through generated runtime stubs.
 - **Tooling-first development** with a CLI, LSP server, and a large test suite.
 
-## Quick start
+## Build from source
 
-Build the compiler/runtime tools:
+Linux/macOS:
 
 ```bash
 ./build.sh
 ```
 
-On Windows:
+Windows:
 
 ```bat
 build.bat
 ```
 
-Run a fixture:
+The scripts build the compiler/runtime tools and place the developer binaries in `bin/`:
 
-```bash
-./bin/svm run Tests/simple/hello.simple
+```txt
+bin/svm      compiler/tooling/runtime CLI
+bin/simple   runtime stub only; not a compiler
 ```
 
-Check a source file without running it:
+Build internals, tests, static libraries, and shared libraries stay under `build/bin/`.
+
+## Install
+
+Install `svm` and `simple` onto your PATH after building.
+
+Linux/macOS default install location is `/usr/local/bin`:
 
 ```bash
-./bin/svm check Tests/simple/point_sum.simple
+./install.sh
 ```
 
-Emit bytecode:
+Override the prefix if desired:
 
 ```bash
-./bin/svm emit -sbc Tests/simple/hello.simple --out hello.sbc
+PREFIX="$HOME/.local" ./install.sh
 ```
 
-Run tests:
+Windows default install location is `%LocalAppData%\Simple\bin`:
+
+```bat
+install.bat
+```
+
+Override it with:
+
+```bat
+set SIMPLE_INSTALL_DIR=C:\Tools\Simple\bin
+install.bat
+```
+
+After install, use `svm` directly:
+
+```bash
+svm run Tests/simple/hello.simple
+svm check Tests/simple/point_sum.simple
+svm emit -sbc Tests/simple/hello.simple --out hello.sbc
+```
+
+`simple` is reserved for generated/embedded runtime stubs and is not a compiler command.
+
+## Tests
 
 ```bash
 cmake --build build --target simplevm_tests -j2
@@ -84,7 +114,7 @@ main : i32 () {
 Run it:
 
 ```bash
-./bin/svm run hello.simple
+svm run hello.simple
 ```
 
 ## Language taste
@@ -210,13 +240,13 @@ See [Docs/Language.md](Docs/Language.md) for the full language reference.
 `svm` is the compiler/tooling/runtime command:
 
 ```bash
-./bin/svm run <file.simple|file.sir|module.sbc>
-./bin/svm check <file.simple|file.sir|module.sbc>
-./bin/svm build <file.simple|file.sir> --out <program|program.sbc>
-./bin/svm compile <file.simple|file.sir> --out <program|program.sbc>
-./bin/svm emit -ir <file.simple> --out <file.sir>
-./bin/svm emit -sbc <file.simple|file.sir> --out <file.sbc>
-./bin/svm lsp
+svm run <file.simple|file.sir|module.sbc>
+svm check <file.simple|file.sir|module.sbc>
+svm build <file.simple|file.sir> --out <program|program.sbc>
+svm compile <file.simple|file.sir> --out <program|program.sbc>
+svm emit -ir <file.simple> --out <file.sir>
+svm emit -sbc <file.simple|file.sir> --out <file.sbc>
+svm lsp
 ```
 
 `simple` is not a compiler. It is the runtime-stub executable name used for embedded SBC payloads.
@@ -260,26 +290,6 @@ The interpreter is the correctness baseline. The JIT is optional scaffolding for
 | LSP/editor support | `LSP/`, `Editor/` | via `svm lsp` |
 | Tests and fixtures | `Tests/` | see [Tests](#tests) |
 
-## Tests
-
-Run the full C++ test binary:
-
-```bash
-cmake --build build --target simplevm_tests -j2
-./build/bin/simplevm_tests
-```
-
-The suite covers:
-
-- language parsing, resolution, type checking, mutability, imports, and SIR emission
-- IR lowering and SBC emission
-- bytecode loading and verification
-- VM interpreter behavior and traps
-- heap, GC, native modules, FFI/DL, runtime limits
-- CLI behavior
-- LSP behavior
-- JIT tiering and compiled-runner behavior
-
 ## Documentation
 
 Active docs are intentionally small and focused:
@@ -293,12 +303,3 @@ Active docs are intentionally small and focused:
 - [Docs/TODO.md](Docs/TODO.md) — active work list
 - [Docs/Standards.md](Docs/Standards.md) — coding standards
 
-## Current focus
-
-Current cleanup/refactor focus is tracked in [Docs/TODO.md](Docs/TODO.md). Major themes include:
-
-- keeping docs accurate and consolidated
-- reducing monolithic test/source files
-- keeping VM and language phase boundaries clean
-- making `svm` the single compiler/tooling entry point
-- keeping `simple` as a real runtime stub, not a compiler alias
