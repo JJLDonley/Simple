@@ -325,13 +325,22 @@ bool LangTastCheckAssignmentValidatesShape() {
 
 
 bool LangTastCheckCallExpressionValidatesShape() {
+  Simple::Lang::AST::TypeRef proc;
+  proc.is_proc = true;
+  Simple::Lang::AST::TypeRef param;
+  param.name = "i32";
+  proc.proc_params.push_back(param);
+  std::string error;
+  if (!Simple::Lang::TAST::CheckProcTypeArgs(&proc, 1, &error)) return false;
+  if (Simple::Lang::TAST::CheckProcTypeArgs(&proc, 2, &error)) return false;
+  if (error.find("call argument count mismatch") == std::string::npos) return false;
+
   Simple::Lang::AST::Expr call;
   call.kind = Simple::Lang::AST::ExprKind::Call;
   Simple::Lang::AST::Expr callee;
   callee.kind = Simple::Lang::AST::ExprKind::Identifier;
   callee.text = "f";
   call.children.push_back(callee);
-  std::string error;
   if (!Simple::Lang::TAST::CheckCallExpression(call, &error)) return false;
   Simple::Lang::AST::Expr literal;
   literal.kind = Simple::Lang::AST::ExprKind::Literal;

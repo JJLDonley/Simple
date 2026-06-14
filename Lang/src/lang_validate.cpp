@@ -9,6 +9,7 @@
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "native/registry.h"
+#include "TAST/calls.h"
 #include "TAST/control_flow.h"
 #include "TAST/generics.h"
 #include "TAST/literals.h"
@@ -99,6 +100,7 @@ enum class TypeUse : uint8_t {
 
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
+using TAST::CheckProcTypeArgs;
 using TAST::CloneTypeRef;
 using TAST::CloneTypeVector;
 using TAST::GetAtCastTargetName;
@@ -1851,18 +1853,6 @@ bool CheckCallArgs(const FuncDecl* fn, size_t arg_count, std::string* error) {
     if (error) {
       *error = "call argument count mismatch for " + fn->name + ": expected " +
                std::to_string(fn->params.size()) + ", got " + std::to_string(arg_count);
-    }
-    return false;
-  }
-  return true;
-}
-
-bool CheckProcTypeArgs(const TypeRef* type, size_t arg_count, std::string* error) {
-  if (!type || !type->is_proc) return false;
-  if (type->proc_params.size() != arg_count) {
-    if (error) {
-      *error = "call argument count mismatch: expected " +
-               std::to_string(type->proc_params.size()) + ", got " + std::to_string(arg_count);
     }
     return false;
   }
