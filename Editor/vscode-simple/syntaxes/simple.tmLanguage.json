@@ -30,6 +30,14 @@
     "imports": {
       "patterns": [
         {
+          "name": "meta.package.simple",
+          "match": "\\b(package)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.simple" },
+            "2": { "name": "entity.name.namespace.simple" }
+          }
+        },
+        {
           "name": "meta.import.quoted.simple",
           "match": "\\b(import)\\s+(\")([^\"]+)(\")(?:\\s+(as)\\s+([A-Za-z_][A-Za-z0-9_]*))?",
           "captures": {
@@ -127,7 +135,7 @@
         },
         {
           "name": "keyword.declaration.simple",
-          "match": "\\b(?:fn|callback|import|extern|module|Module|artifact|Artifact|enum|Enum|as)\\b"
+          "match": "\\b(?:fn|callback|package|import|extern|module|Module|artifact|Artifact|enum|Enum|as)\\b"
         },
         {
           "name": "constant.language.simple",

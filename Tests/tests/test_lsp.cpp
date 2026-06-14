@@ -757,6 +757,7 @@ bool LspCompletionReturnsItems() {
          out_contents.find("\"id\":4") != std::string::npos &&
          out_contents.find("\"items\"") != std::string::npos &&
          out_contents.find("\"fn\"") != std::string::npos &&
+         out_contents.find("\"package\"") != std::string::npos &&
          out_contents.find("IO.println") != std::string::npos;
 }
 
@@ -1427,6 +1428,41 @@ bool LspSemanticTokensReturnsData() {
          out_contents.find("\"data\"") != std::string::npos &&
          out_contents.find("\"result\":{\"data\":[") != std::string::npos &&
          out_contents.find("\"result\":{\"data\":[]}") == std::string::npos;
+}
+
+bool LspSemanticTokensClassifyPackageKeyword() {
+  const std::string in_path = TempPath("simple_lsp_tokens_package_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_package_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_package_err.txt");
+  const std::string uri = "file:///workspace/tokens_package.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"package Main\\nmain : i32 () { return 0; }\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":69,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  const std::string cmd = LspPipeCommand(in_path, out_path, err_path);
+  if (!RunCommand(cmd)) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  if (!err_contents.empty() || out_contents.find("\"id\":69") == std::string::npos) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  for (const auto& entry : entries) {
+    if (entry.line == 0 && entry.col == 0 && entry.len == 7 && entry.type == 0) return true;
+  }
+  return false;
 }
 
 bool LspSemanticTokensMarkFunctionDeclarations() {
@@ -2642,7 +2678,7 @@ bool LspRenameRejectsReservedKeyword() {
   const std::string rename_req =
       "{\"jsonrpc\":\"2.0\",\"id\":25,\"method\":\"textDocument/rename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
-      "\"newName\":\"return\"}}";
+      "\"newName\":\"package\"}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -3190,6 +3226,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_System_dl_open_overloads", LspSignatureHelpForCoreDlOpenOverloads},
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
+  {"lsp_semantic_tokens_classify_package_keyword", LspSemanticTokensClassifyPackageKeyword},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",
    LspSemanticTokensDebugEnvDoesNotBreakResponse},
