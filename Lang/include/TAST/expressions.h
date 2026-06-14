@@ -10,6 +10,10 @@ bool IsAddressableExpr(const Expr& expr);
 bool IsMemberAccessExpr(const Expr& expr,
                         const Expr** out_base = nullptr,
                         bool* out_is_pointer_access = nullptr);
+bool IsUnaryExpr(const Expr& expr, const Expr** out_operand = nullptr);
+bool IsBinaryExpr(const Expr& expr,
+                  const Expr** out_lhs = nullptr,
+                  const Expr** out_rhs = nullptr);
 bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error);
 bool CheckCompoundAssignOp(const std::string& op,
                            const TypeRef& lhs,

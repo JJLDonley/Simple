@@ -151,6 +151,7 @@ using TAST::GetAtCastTargetName;
 using TAST::GetSwitchBranchValueExpr;
 using TAST::InferLiteralType;
 using TAST::IsBuiltinCallIdentifierName;
+using TAST::IsBinaryExpr;
 using TAST::IsBuiltinValueIdentifierName;
 using TAST::IsBoolTypeName;
 using TAST::IsCallExpr;
@@ -172,6 +173,7 @@ using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
 using TAST::IsSupportedDlAbiType;
+using TAST::IsUnaryExpr;
 using TAST::MakeListType;
 using TAST::MakeSimpleType;
 using TAST::NativeTypeToLangType;
@@ -1102,9 +1104,10 @@ bool InferExprType(const Expr& expr,
       return CloneTypeRef(result, out);
     }
     case ExprKind::Unary: {
-      if (expr.children.empty()) return false;
+      const Expr* operand_expr = nullptr;
+      if (!IsUnaryExpr(expr, &operand_expr)) return false;
       TypeRef operand;
-      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return false;
+      if (!InferExprType(*operand_expr, ctx, scopes, current_artifact, &operand)) return false;
       const std::string op = expr.op.rfind("post", 0) == 0 ? expr.op.substr(4) : expr.op;
       if (op == "&") {
         TypeRef result = operand;
@@ -1130,20 +1133,22 @@ bool InferExprType(const Expr& expr,
       return false;
     }
     case ExprKind::Binary: {
-      if (expr.children.size() < 2) return false;
+      const Expr* lhs_expr = nullptr;
+      const Expr* rhs_expr = nullptr;
+      if (!IsBinaryExpr(expr, &lhs_expr, &rhs_expr)) return false;
       TypeRef lhs;
       TypeRef rhs;
-      if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &lhs)) return false;
-      if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return false;
+      if (!InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs)) return false;
+      if (!InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs)) return false;
       if (!IsScalarType(lhs) || !IsScalarType(rhs)) return false;
 
       TypeRef common;
       if (TypeEquals(lhs, rhs)) {
         if (!CloneTypeRef(lhs, &common)) return false;
       } else {
-        if (IsLiteralCompatibleWithScalarType(expr.children[0], rhs)) {
+        if (IsLiteralCompatibleWithScalarType(*lhs_expr, rhs)) {
           if (!CloneTypeRef(rhs, &common)) return false;
-        } else if (IsLiteralCompatibleWithScalarType(expr.children[1], lhs)) {
+        } else if (IsLiteralCompatibleWithScalarType(*rhs_expr, lhs)) {
           if (!CloneTypeRef(lhs, &common)) return false;
         } else {
           return false;
@@ -2839,10 +2844,12 @@ bool CheckUnaryOpTypes(const Expr& expr,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                        const ArtifactDecl* current_artifact,
                        std::string* error) {
+  const Expr* operand_expr = nullptr;
+  if (!IsUnaryExpr(expr, &operand_expr)) return true;
   TypeRef operand;
-  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &operand)) return true;
+  if (!InferExprType(*operand_expr, ctx, scopes, current_artifact, &operand)) return true;
 
-  return CheckUnaryOpTypeRules(expr.op, operand, expr.children[0], error);
+  return CheckUnaryOpTypeRules(expr.op, operand, *operand_expr, error);
 }
 
 bool CheckBinaryOpTypes(const Expr& expr,
@@ -2850,12 +2857,15 @@ bool CheckBinaryOpTypes(const Expr& expr,
                         const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                         const ArtifactDecl* current_artifact,
                         std::string* error) {
+  const Expr* lhs_expr = nullptr;
+  const Expr* rhs_expr = nullptr;
+  if (!IsBinaryExpr(expr, &lhs_expr, &rhs_expr)) return true;
   TypeRef lhs;
   TypeRef rhs;
-  if (!InferExprType(expr.children[0], ctx, scopes, current_artifact, &lhs)) return true;
-  if (!InferExprType(expr.children[1], ctx, scopes, current_artifact, &rhs)) return true;
+  if (!InferExprType(*lhs_expr, ctx, scopes, current_artifact, &lhs)) return true;
+  if (!InferExprType(*rhs_expr, ctx, scopes, current_artifact, &rhs)) return true;
 
-  return CheckBinaryOpTypeRules(expr.op, lhs, rhs, expr.children[0], expr.children[1], error);
+  return CheckBinaryOpTypeRules(expr.op, lhs, rhs, *lhs_expr, *rhs_expr, error);
 }
 
 bool CheckExpr(const Expr& expr,

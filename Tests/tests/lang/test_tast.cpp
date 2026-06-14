@@ -588,6 +588,20 @@ bool LangTastExpressionOperatorsValidateScalarAndCompoundAssign() {
   if (!member_base || member_base->kind != Simple::Lang::AST::ExprKind::Identifier || !pointer_access) return false;
   member_expr.op = "+";
   if (Simple::Lang::TAST::IsMemberAccessExpr(member_expr, nullptr, nullptr)) return false;
+  Simple::Lang::AST::Expr unary_expr;
+  unary_expr.kind = Simple::Lang::AST::ExprKind::Unary;
+  unary_expr.children.push_back(identifier);
+  const Simple::Lang::AST::Expr* unary_operand = nullptr;
+  if (!Simple::Lang::TAST::IsUnaryExpr(unary_expr, &unary_operand) || unary_operand != &unary_expr.children[0]) return false;
+  Simple::Lang::AST::Expr binary_expr;
+  binary_expr.kind = Simple::Lang::AST::ExprKind::Binary;
+  binary_expr.children.push_back(identifier);
+  binary_expr.children.push_back(identifier);
+  const Simple::Lang::AST::Expr* lhs_expr = nullptr;
+  const Simple::Lang::AST::Expr* rhs_expr = nullptr;
+  if (!Simple::Lang::TAST::IsBinaryExpr(binary_expr, &lhs_expr, &rhs_expr)) return false;
+  if (lhs_expr != &binary_expr.children[0] || rhs_expr != &binary_expr.children[1]) return false;
+  if (Simple::Lang::TAST::IsBinaryExpr(unary_expr, nullptr, nullptr)) return false;
 
   Simple::Lang::AST::TypeRef i32;
   i32.name = "i32";

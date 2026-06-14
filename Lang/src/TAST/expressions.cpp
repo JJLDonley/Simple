@@ -23,6 +23,21 @@ bool IsMemberAccessExpr(const Expr& expr,
   return true;
 }
 
+bool IsUnaryExpr(const Expr& expr, const Expr** out_operand) {
+  if (expr.kind != Simple::Lang::AST::ExprKind::Unary || expr.children.empty()) return false;
+  if (out_operand) *out_operand = &expr.children[0];
+  return true;
+}
+
+bool IsBinaryExpr(const Expr& expr,
+                  const Expr** out_lhs,
+                  const Expr** out_rhs) {
+  if (expr.kind != Simple::Lang::AST::ExprKind::Binary || expr.children.size() < 2) return false;
+  if (out_lhs) *out_lhs = &expr.children[0];
+  if (out_rhs) *out_rhs = &expr.children[1];
+  return true;
+}
+
 bool RequireScalar(const TypeRef& type, const std::string& op, std::string* error) {
   if (!IsScalarType(type)) {
     if (error) *error = "operator '" + op + "' requires scalar operands";
