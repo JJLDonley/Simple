@@ -4,8 +4,6 @@
 
 namespace Simple::VM {
 
-namespace {
-
 uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, std::size_t offset) {
   return static_cast<uint32_t>(payload[offset]) |
          (static_cast<uint32_t>(payload[offset + 1]) << 8) |
@@ -13,7 +11,82 @@ uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, std::size_t offset)
          (static_cast<uint32_t>(payload[offset + 3]) << 24);
 }
 
-} // namespace
+uint64_t ReadU64Payload(const std::vector<uint8_t>& payload, std::size_t offset) {
+  return static_cast<uint64_t>(payload[offset]) |
+         (static_cast<uint64_t>(payload[offset + 1]) << 8) |
+         (static_cast<uint64_t>(payload[offset + 2]) << 16) |
+         (static_cast<uint64_t>(payload[offset + 3]) << 24) |
+         (static_cast<uint64_t>(payload[offset + 4]) << 32) |
+         (static_cast<uint64_t>(payload[offset + 5]) << 40) |
+         (static_cast<uint64_t>(payload[offset + 6]) << 48) |
+         (static_cast<uint64_t>(payload[offset + 7]) << 56);
+}
+
+uint16_t ReadU16Payload(const std::vector<uint8_t>& payload, std::size_t offset) {
+  return static_cast<uint16_t>(payload[offset]) |
+         (static_cast<uint16_t>(payload[offset + 1]) << 8);
+}
+
+void WriteU32Payload(std::vector<uint8_t>& payload, std::size_t offset, uint32_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+}
+
+void WriteU64Payload(std::vector<uint8_t>& payload, std::size_t offset, uint64_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+  payload[offset + 4] = static_cast<uint8_t>((value >> 32) & 0xFF);
+  payload[offset + 5] = static_cast<uint8_t>((value >> 40) & 0xFF);
+  payload[offset + 6] = static_cast<uint8_t>((value >> 48) & 0xFF);
+  payload[offset + 7] = static_cast<uint8_t>((value >> 56) & 0xFF);
+}
+
+void WriteU16Payload(std::vector<uint8_t>& payload, std::size_t offset, uint16_t value) {
+  payload[offset + 0] = static_cast<uint8_t>(value & 0xFF);
+  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+}
+
+bool EnsureListCapacity(HeapObject* obj, uint32_t min_capacity, std::size_t elem_size) {
+  if (!obj) return false;
+  uint32_t capacity = ReadU32Payload(obj->payload, HeapLayout::kListCapacityOffset);
+  if (capacity >= min_capacity) return true;
+  uint32_t new_capacity = capacity ? capacity : 1u;
+  while (new_capacity < min_capacity) {
+    new_capacity = (new_capacity < (1u << 31)) ? (new_capacity * 2u) : min_capacity;
+  }
+  const std::size_t new_size = HeapLayout::ListPayloadSize(new_capacity, static_cast<uint32_t>(elem_size));
+  obj->payload.resize(new_size);
+  WriteU32Payload(obj->payload, HeapLayout::kListCapacityOffset, new_capacity);
+  return true;
+}
+
+uint32_t CreateString(Heap& heap, const std::u16string& text) {
+  uint32_t length = static_cast<uint32_t>(text.size());
+  uint32_t size = static_cast<uint32_t>(HeapLayout::StringPayloadSize(length));
+  uint32_t handle = heap.Allocate(ObjectKind::String, 0, size);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return HeapLayout::kNullRef;
+  WriteU32Payload(obj->payload, HeapLayout::kStringLengthOffset, length);
+  for (uint32_t i = 0; i < length; ++i) {
+    WriteU16Payload(obj->payload, HeapLayout::StringCodeUnitOffset(i), text[i]);
+  }
+  return handle;
+}
+
+std::u16string ReadString(const HeapObject* obj) {
+  if (!obj || obj->header.kind != ObjectKind::String) return {};
+  uint32_t length = ReadU32Payload(obj->payload, HeapLayout::kStringLengthOffset);
+  std::u16string out;
+  out.resize(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    out[i] = static_cast<char16_t>(ReadU16Payload(obj->payload, HeapLayout::StringCodeUnitOffset(i)));
+  }
+  return out;
+}
 
 void Heap::SetLimits(uint32_t max_objects, uint64_t max_bytes) {
   max_objects_ = max_objects;

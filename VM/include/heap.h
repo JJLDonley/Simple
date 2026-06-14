@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace Simple::VM {
@@ -83,6 +84,18 @@ constexpr bool IsRefKind(ObjectKind kind) {
 }
 
 } // namespace HeapLayout
+
+class Heap;
+
+uint32_t ReadU32Payload(const std::vector<uint8_t>& payload, size_t offset);
+uint64_t ReadU64Payload(const std::vector<uint8_t>& payload, size_t offset);
+uint16_t ReadU16Payload(const std::vector<uint8_t>& payload, size_t offset);
+void WriteU32Payload(std::vector<uint8_t>& payload, size_t offset, uint32_t value);
+void WriteU64Payload(std::vector<uint8_t>& payload, size_t offset, uint64_t value);
+void WriteU16Payload(std::vector<uint8_t>& payload, size_t offset, uint16_t value);
+bool EnsureListCapacity(HeapObject* obj, uint32_t min_capacity, size_t elem_size);
+uint32_t CreateString(Heap& heap, const std::u16string& text);
+std::u16string ReadString(const HeapObject* obj);
 
 class Heap {
  public:

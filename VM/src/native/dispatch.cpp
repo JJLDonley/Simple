@@ -18,31 +18,6 @@ std::u16string AsciiToU16(const std::string& text) {
   return out;
 }
 
-void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value) {
-  if (offset + sizeof(value) > payload.size()) return;
-  payload[offset + 0] = static_cast<uint8_t>(value & 0xFFu);
-  payload[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFFu);
-  payload[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFFu);
-  payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFFu);
-}
-
-uint32_t CreateString(Heap& heap, const std::u16string& text) {
-  const uint32_t len = static_cast<uint32_t>(text.size());
-  const uint32_t handle = heap.Allocate(ObjectKind::String, 0,
-                                        static_cast<uint32_t>(HeapLayout::StringPayloadSize(len)));
-  HeapObject* obj = heap.Get(handle);
-  if (!obj) return kNullRef;
-  WriteU32(obj->payload, HeapLayout::kStringLengthOffset, len);
-  for (uint32_t i = 0; i < len; ++i) {
-    const uint16_t cu = static_cast<uint16_t>(text[i]);
-    const size_t off = HeapLayout::StringCodeUnitOffset(i);
-    if (off + 1 >= obj->payload.size()) break;
-    obj->payload[off] = static_cast<uint8_t>(cu & 0xFFu);
-    obj->payload[off + 1] = static_cast<uint8_t>((cu >> 8) & 0xFFu);
-  }
-  return handle;
-}
-
 bool IsI32LikeImportType(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;
   switch (kind) {
@@ -141,7 +116,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   if (spec->result_type == Simple::Byte::TypeKind::String) {
     *out_ret = result.string_value.empty() && result.value == PackRef(kNullRef)
                    ? PackRef(kNullRef)
-                   : PackRef(CreateString(*runtime.heap, AsciiToU16(result.string_value)));
+                   : PackRef(Simple::VM::CreateString(*runtime.heap, AsciiToU16(result.string_value)));
   } else if (result.has_value) {
     *out_ret = result.value;
   }

@@ -1,9 +1,36 @@
 #include "test_utils.h"
 
+#include <fstream>
+#include <iterator>
+#include <string>
+
 #include "heap.h"
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool VmHeapOwnsPayloadAndStringHelpers() {
+  std::ifstream vm("VM/src/vm.cpp");
+  std::ifstream header("VM/include/heap.h");
+  std::ifstream source("VM/src/heap.cpp");
+  if (!vm || !header || !source) return false;
+  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
+  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
+  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
+  return header_text.find("uint32_t ReadU32Payload(") != std::string::npos &&
+         header_text.find("uint32_t CreateString(") != std::string::npos &&
+         source_text.find("uint32_t ReadU32Payload(") != std::string::npos &&
+         source_text.find("std::u16string ReadString(") != std::string::npos &&
+         vm_text.find("uint32_t ReadU32Payload(") == std::string::npos &&
+         vm_text.find("uint32_t CreateString(Heap&") == std::string::npos;
+}
+
+bool VmHeapStringHelpersRoundTripText() {
+  Simple::VM::Heap heap;
+  const uint32_t handle = Simple::VM::CreateString(heap, u"abc");
+  const Simple::VM::HeapObject* object = heap.Get(handle);
+  return object && Simple::VM::ReadString(object) == u"abc";
+}
 
 bool VmSplitHeapAllocatesAndReusesHandles() {
   Simple::VM::Heap heap;
@@ -20,6 +47,8 @@ bool VmSplitHeapAllocatesAndReusesHandles() {
 }
 
 const TestCase kVmHeapTests[] = {
+  {"vm_heap_owns_payload_and_string_helpers", VmHeapOwnsPayloadAndStringHelpers},
+  {"vm_heap_string_helpers_round_trip_text", VmHeapStringHelpersRoundTripText},
   {"vm_split_heap_allocates_and_reuses_handles", VmSplitHeapAllocatesAndReusesHandles},
 };
 
