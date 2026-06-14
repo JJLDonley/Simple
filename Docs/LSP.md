@@ -2,6 +2,17 @@
 
 The Simple language server provides editor features for `.simple` source files over stdio JSON-RPC.
 
+## Table of contents
+
+- [Starting the server](#starting-the-server)
+- [Supported editor features](#supported-editor-features)
+- [Diagnostics](#diagnostics)
+- [Workspace model](#workspace-model)
+- [Completion and signature help](#completion-and-signature-help)
+- [Semantic tokens and highlighting](#semantic-tokens-and-highlighting)
+- [Not supported yet](#not-supported-yet)
+- [Tests](#tests)
+
 ## Starting the server
 
 ```txt

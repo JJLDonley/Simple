@@ -2,6 +2,17 @@
 
 The Simple JIT is an optional execution path layered on top of the VM. The interpreter remains the correctness baseline.
 
+## Table of contents
+
+- [Status](#status)
+- [Enabling JIT](#enabling-jit)
+- [Tiering](#tiering)
+- [Eligibility](#eligibility)
+- [Compiled runner](#compiled-runner)
+- [Failure reporting](#failure-reporting)
+- [Correctness rule](#correctness-rule)
+- [Tests](#tests)
+
 ## Status
 
 The current JIT is a tiering and compiled-runner scaffold, not a full native-code compiler. It tracks hot functions, classifies eligibility, executes a supported compiled subset, and falls back or reports safe failures for unsupported paths.

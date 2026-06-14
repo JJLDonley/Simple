@@ -2,6 +2,19 @@
 
 SBC is the binary bytecode format executed by the Simple VM.
 
+## Table of contents
+
+- [Pipeline position](#pipeline-position)
+- [File format overview](#file-format-overview)
+- [Header](#header)
+- [Sections](#sections)
+- [Types and signatures](#types-and-signatures)
+- [Constants and strings](#constants-and-strings)
+- [Opcodes](#opcodes)
+- [Loader contract](#loader-contract)
+- [Verifier contract](#verifier-contract)
+- [Compatibility](#compatibility)
+
 ## Pipeline position
 
 ```txt

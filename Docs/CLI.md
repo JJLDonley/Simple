@@ -2,6 +2,17 @@
 
 The Simple command line tools compile, check, emit, build, run, and serve language tooling for Simple programs.
 
+## Table of contents
+
+- [Tool names](#tool-names)
+- [Common options](#common-options)
+- [Commands](#commands)
+- [Input types](#input-types)
+- [Command behavior](#command-behavior)
+- [Diagnostics](#diagnostics)
+- [Imports in CLI workflows](#imports-in-cli-workflows)
+- [Build scripts](#build-scripts)
+
 ## Tool names
 
 The same command implementation supports different compatibility modes by executable name:

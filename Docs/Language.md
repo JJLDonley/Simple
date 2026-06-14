@@ -1,59 +1,194 @@
-# Simple Language
+# Simple Language Reference
 
-Simple is a strict, statically typed language that compiles `.simple` source to SIR and then to SBC bytecode.
+Simple is a strict, statically typed language that compiles `.simple` source to SIR text and then to SBC bytecode for the Simple VM.
 
-This document describes the language as exercised by the current parser, validator, fixtures, and tests.
+This page is the canonical language reference for the syntax and behavior covered by the current parser, validator, fixtures, and tests.
+
+## Table of contents
+
+- [Quick example](#quick-example)
+- [Compilation pipeline](#compilation-pipeline)
+- [Lexical rules](#lexical-rules)
+- [Program structure and entry points](#program-structure-and-entry-points)
+- [Declarations](#declarations)
+- [Mutability](#mutability)
+- [Types](#types)
+- [Literals](#literals)
+- [Expressions](#expressions)
+- [Casts](#casts)
+- [Statements and control flow](#statements-and-control-flow)
+- [Arrays and lists](#arrays-and-lists)
+- [Strings and formatting](#strings-and-formatting)
+- [Artifacts](#artifacts)
+- [Modules](#modules)
+- [Enums](#enums)
+- [Imports and `using`](#imports-and-using)
+- [Reserved/System modules](#reservedsystem-modules)
+- [Functions, procedure types, and function literals](#functions-procedure-types-and-function-literals)
+- [Extern declarations and DL ABI](#extern-declarations-and-dl-abi)
+- [Pointers and member access](#pointers-and-member-access)
+- [Diagnostics](#diagnostics)
+- [Known limitations](#known-limitations)
+- [Compatibility APIs](#compatibility-apis)
+
+## Quick example
+
+```simple
+import IO
+
+Point :: Artifact {
+  x : i32
+  y : i32
+
+  sum : i32 () {
+    return self.x + self.y
+  }
+}
+
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+
+main : i32 () {
+  p : Point = { .x = 3, .y = 4 }
+  IO.println("sum={}", p.sum())
+  return add(p.x, p.y)
+}
+```
+
+Important syntax facts:
+
+- `name : Type` declares a **mutable** binding.
+- `name :: Type` declares an **immutable** binding.
+- `Name :: Artifact`, `Name :: Module`, and `Name :: Enum` declare top-level kinds.
+- `skip` is the loop-continue statement.
+- Primitive casts use `@Type(value)`, for example `@i32(x)`.
 
 ## Compilation pipeline
 
 ```txt
 .simple source
-  -> tokens
-  -> parsed program
+  -> Lexer tokens
+  -> CAST parser tree
   -> normalized AST
-  -> resolved names/imports
-  -> typed program
-  -> SIR text
-  -> SBC bytecode
+  -> RAST name/import/member resolution
+  -> TAST type, mutability, control-flow, and ABI checks
+  -> IRB language IR
+  -> IRE SIR text
+  -> IR/SBC compiler
+  -> Byte loader/verifier
+  -> VM
 ```
 
-Compatibility entry points include `ParseProgramFromString`, `ValidateProgramFromString`, `ValidateProgramFromStringDiagnostic`, `EmitSirFromString`, and `EmitSir`.
+The interpreter is the runtime correctness baseline. Language validation rejects unsupported syntax/semantics before SIR emission where possible.
 
-## Program structure
+## Lexical rules
 
-A source file contains imports plus declarations and/or script statements.
+### Keywords
+
+Most keywords are lowercase:
+
+```txt
+while for break skip return if else default switch fn self
+import using extern as true false
+```
+
+The declaration-kind keywords accept the capitalized forms used by existing fixtures:
+
+```txt
+artifact Artifact
+enum     Enum
+module   Module
+```
+
+### Operators and punctuation
+
+Supported punctuation/operators include:
+
+```txt
+( ) { } [ ] , . -> => .. ; : :: =
++ - * / % ++ --
+& | ^ << >>
+== != < <= > >= && || !
++= -= *= /= %= &= |= ^= <<= >>= |>
+@
+```
+
+Semicolons are accepted as statement terminators. Newlines/block boundaries can also terminate statements where the parser can disambiguate them.
+
+### Comments and whitespace
+
+Whitespace separates tokens. Comments are ignored by the lexer. Same-line multiple statements require semicolons:
 
 ```simple
-import System.io
+main : i32 () { x : i32 = 1; y : i32 = 2; return x + y; }
+```
 
+### Numeric literals
+
+Integer literals support decimal, hex (`0x10`), and binary (`0b1010`) forms where integer parsing is used, including fixed-size array dimensions.
+
+Floating literals are context-typed as `f32` or `f64` by expected type.
+
+### String and character escapes
+
+Strings and chars support normal escapes and hex escapes. Invalid escapes are rejected by lexer tests.
+
+```simple
 main : i32 () {
-  System.io.println("hello")
+  c : char = '\x41'
+  s : string = "A\x42"
   return 0
 }
 ```
 
-Top-level executable statements are collected into an implicit script entry. If there are no top-level script statements and `main` exists, `main` is used as entry. Top-level `return` is invalid.
+## Program structure and entry points
 
-## Declarations and mutability
-
-Variables and functions use name-first syntax.
-
-Mutable declarations use `:`:
+A file may contain imports, extern declarations, top-level declarations, and top-level script statements.
 
 ```simple
-x : i32 = 1
-x = x + 1
+import Math
+
+square : i32 (x : i32) {
+  return x * x
+}
+
+main : i32 () {
+  return square(7)
+}
 ```
 
-Immutable declarations use `::`:
+Entry behavior:
+
+- If top-level executable statements exist, they are normalized into an implicit script entry.
+- If no top-level executable statements exist and `main` exists, `main` is used as the entry.
+- Top-level `return` is invalid.
+- A `main : void ()` function is valid; a missing explicit return is valid for `void`.
+
+## Declarations
+
+### Variables
+
+Mutable variable:
 
 ```simple
-answer :: i32 = 42
+count : i32 = 0
+count += 1
 ```
 
-Assigning to an immutable local, parameter, field, module variable, return value, or immutable pointer base is rejected.
+Immutable variable:
 
-Functions use the same marker before the return type:
+```simple
+limit :: i32 = 10
+```
+
+A variable declaration may omit an initializer; it is zero/default-initialized when the type supports that path.
+
+```simple
+x : i32
+```
+
+### Functions
 
 ```simple
 add : i32 (a : i32, b : i32) {
@@ -61,86 +196,357 @@ add : i32 (a : i32, b : i32) {
 }
 ```
 
-Parameters also use `:` for mutable and `::` for immutable parameter bindings.
+Function declarations use name-first syntax:
+
+```txt
+name : ReturnType (params...) { body }
+```
+
+The marker before the return type also carries return mutability facts used by validation.
+
+### Top-level declarations with `::`
+
+`::` introduces immutable top-level values and declaration kinds:
+
+```simple
+Pi :: f64 = 3.141592
+Point :: Artifact { x : i32; y : i32 }
+Math :: Module { one : i32 () { return 1 } }
+Color :: Enum { Red = 1, Green = 2 }
+```
+
+## Mutability
+
+Mutability is part of declarations and parameters:
+
+```simple
+main : i32 () {
+  x : i32 = 1    // mutable
+  y :: i32 = 2   // immutable
+  x = x + 1      // ok
+  return x + y
+}
+```
+
+The validator rejects writes to immutable values:
+
+- immutable locals
+- immutable parameters
+- immutable fields
+- immutable module variables
+- immutable return values
+- fields/indexes reached through an immutable base
+- increment/decrement on immutable values
+- writes through immutable pointer-like values
+
+Parameters follow the same marker rule:
+
+```simple
+use : i32 (x : i32, y :: i32) {
+  x = x + 1   // ok
+  return x + y
+}
+```
 
 ## Types
 
-Primitive types accepted by the type parser include:
+### Primitive types
 
-- `i8`, `i16`, `i32`, `i64`, `i128`
-- `u8`, `u16`, `u32`, `u64`, `u128`
-- `f32`, `f64`
-- `bool`, `char`, `string`, `void`
+The type parser accepts:
 
-Composite type forms include:
+```txt
+i8 i16 i32 i64 i128
+u8 u16 u32 u64 u128
+f32 f64
+bool char string void
+```
+
+Some parsed types may still be rejected by later compiler/runtime layers if the backend or ABI path does not support them.
+
+### Fixed arrays
+
+Fixed arrays use braces after the element type:
 
 ```simple
-i32{10}      // fixed array size syntax
-i32[]        // list syntax
-i32[][]      // nested lists
+values : i32{3} = {1, 2, 3}
+empty : i32{0} = {}
+grid : i32{2}{2} = {{1, 2}, {3, 4}}
+hexSized : i32{0x10}
+binSized : i32{0b1010}
+```
+
+### Lists
+
+Lists use `[]` after the element type and list literals use brackets:
+
+```simple
+items : i32[] = [1, 2, 3]
+nested : i32[][] = [[1, 2], [3, 4]]
+empty : i32[] = []
+```
+
+### Generic type syntax
+
+The parser accepts generic type syntax:
+
+```simple
 Map<string, i32>
+```
+
+Generic emission/runtime support is intentionally limited; tests reject unsupported generic emission and specialization paths.
+
+### Procedure types
+
+```simple
+fn i32 ()
+fn bool (i32, string)
+fn i32 (a : i32, b : i32)
+```
+
+Procedure values are supported in local variables, parameters, switch expressions, and artifact members where covered by tests. Procedure values are rejected at extern ABI boundaries and in unsupported generic/list/array contexts.
+
+### Pointer types
+
+```simple
 i32*
 void**
-fn bool (i32, string)
-fn i32 ()
 ```
 
-Not every parsed type is fully supported by every runtime/ABI path; unsupported runtime paths are rejected later by validation or VM checks.
+Pointer member access uses `->`. Pointer mutability is validated so immutable pointees cannot be mutated through aliases.
 
-## Casts
+## Literals
 
-Primitive casts require the `@` form:
+Supported literal categories:
 
 ```simple
-a : i8 = 1
-b : i8 = 2
-return add(@i32(a), @i32(b))
+42                 // integer
+1.5                // float
+true false         // bool
+'a' '\x41'         // char
+"text" "A\x42"    // string
+{1, 2, 3}          // fixed array literal
+[1, 2, 3]          // list literal
+{ .x = 1, .y = 2 } // named artifact literal
 ```
 
-Using primitive type names as normal calls for casts is rejected; tests expect diagnostics such as “primitive cast syntax requires '@'”.
+Artifact literals may also be positional where the target type makes field order clear:
 
-String conversions are also expressed with `@string(value)` where supported by validation/runtime tests.
+```simple
+p : Point = { 3, 4 }
+```
 
 ## Expressions
 
-Implemented expression forms include:
+Expression forms include:
 
-- identifiers and literals
-- unary and binary operators
-- calls and generic calls
-- member access with `.` and pointer member access with `->`
-- indexing
-- array/list literals
-- artifact literals with named fields
+- identifiers
+- literals
+- unary operators
+- binary operators
+- calls
+- member access (`.`)
+- pointer member access (`->`)
+- indexing (`value[index]`)
+- array/list/artifact literals
 - function literals
 - switch expressions
 - format strings
 
-Assignment operators include `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, and `>>=`. Increment/decrement are validated against mutability.
+Examples:
+
+```simple
+values : i32[] = [4, 5, 6]
+third : i32 = values[2]
+
+p : Point = { .x = 3, .y = 4 }
+s : i32 = p.sum()
+```
+
+Arithmetic and comparison are type-checked. Examples rejected by tests include bool arithmetic, char arithmetic, char-vs-int comparison, non-integer indexes, indexing non-containers, out-of-bounds constant indexes, and mismatched list/array element types.
+
+## Casts
+
+Primitive casts require the `@` prefix:
+
+```simple
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+
+main : i32 () {
+  a : i8 = 40
+  b : i8 = 2
+  return add(@i32(a), @i32(b))
+}
+```
+
+String conversions use the same syntax where supported:
+
+```simple
+main : string () {
+  x : i32 = 42
+  return @string(x)
+}
+```
+
+Using primitive type names as normal functions for casts is rejected. The expected diagnostic contains “primitive cast syntax requires '@'”.
 
 ## Statements and control flow
 
-Supported statements include:
+### Return
 
-- variable declarations
-- expression statements
-- assignment statements
-- `return`
-- `if` / `else`
-- `while`
-- `for` range forms
-- `break`
-- `skip`
-- switch expression blocks
+```simple
+main : i32 () {
+  return 0
+}
+```
 
-`skip` is the loop-continue statement.
+Non-void functions must return on all required paths. `void` functions may fall through.
+
+### If / else
+
+```simple
+main : i32 () {
+  x : i32 = 7
+  if (x > 5) {
+    return 1
+  } else {
+    return 0
+  }
+}
+```
+
+Nested `if`/`else` chains are normalized and checked for return flow.
+
+### While
+
+```simple
+main : i32 () {
+  i : i32 = 0
+  sum : i32 = 0
+  while (i < 10) {
+    i += 1
+    if (i == 5) { skip }
+    if (i == 8) { break }
+    sum += i
+  }
+  return sum
+}
+```
+
+`break` and `skip` are valid only inside loops.
+
+### For
+
+Three-part `for` loops are supported:
+
+```simple
+main : i32 () {
+  total : i32 = 0
+  for (i : i32 = 1; i <= 5; i += 1) {
+    total += i
+  }
+  return total
+}
+```
+
+Existing-loop-variable form is also supported:
+
+```simple
+i : i32 = 1
+for (i; i <= 10; i += 1) {
+  // ...
+}
+```
+
+The step expression may use assignment or increment/decrement:
+
+```simple
+for (i : i32 = 0; i < 10; i++) { skip }
+for (i : i32 = 0; i < 10; i = i + 1) { skip }
+for (i : i32 = 0; i < 10; i += 2) { skip }
+```
+
+Malformed ranges/headers are rejected by parser tests.
+
+### Switch expressions
+
+Switch expressions use `=>` branches and `default`:
+
+```simple
+main : i32 () {
+  x : i32 = 1
+  return switch (x) {
+    x > 0 => { local : i32 = 10; return local }
+    default => return 0
+  }
+}
+```
+
+Switch branch locals are scoped to the branch. Validation checks branch shapes and result compatibility.
+
+## Arrays and lists
+
+Fixed arrays:
+
+```simple
+values : i32{3} = {1, 2, 3}
+values[1] = 9
+return values[1]
+```
+
+Lists:
+
+```simple
+items : i32[] = []
+items.push(10)
+items.push(20)
+return items.len()
+```
+
+The global `len(value)` helper is supported for strings, arrays, and lists where tests cover it.
+
+List methods covered by fixtures include:
+
+```simple
+items.len()
+items.push(value)
+items.pop()
+items.insert(index, value)
+items.remove(index)
+items.clear()
+```
+
+## Strings and formatting
+
+Strings are first-class heap values:
+
+```simple
+main : i32 () {
+  s : string = "hello"
+  return len(s)
+}
+```
+
+IO formatting validates placeholder calls. Examples use standard-library printing:
+
+```simple
+import IO
+
+main : void () {
+  IO.print("answer={}", 42)
+  IO.println(" done")
+}
+```
+
+Formatting and standard-library function details are documented in `Docs/StdLib.md`.
 
 ## Artifacts
 
-Artifacts are declared with `:: artifact`:
+Artifacts are record-like declarations with fields and methods:
 
 ```simple
-Point :: artifact {
+Point :: Artifact {
   x : i32
   y : i32
 
@@ -150,45 +556,223 @@ Point :: artifact {
 }
 ```
 
-Artifact member access inside methods uses `self`. Tests reject unqualified artifact field access when `self` is required.
-
-Artifacts support named initialization where covered by fixtures/tests.
-
-## Modules, imports, and using
-
-Modules are declared with `:: module`. Imports bring modules/files into scope. `System.*` is the canonical standard-library namespace.
-
-Reserved compatibility imports include names such as `Math`, `IO`, `Time`, `File`, `DL`, `OS`, `FS`, `Log`, `Buffer`, `Json`, and `Channel`; these map to runtime modules documented in `Docs/StdLib.md`.
-
-`using` is supported for imported/reserved modules where tests cover it.
-
-## Enums and switch
-
-Enums are declared with `:: enum`. Switch expressions use `=>` branches and a `default` branch where needed:
+Construction:
 
 ```simple
-return switch (value) {
-  value > 0 => { tmp : i32 = 1; return tmp }
-  default => return 0
+p1 : Point = { 3, 4 }
+p2 : Point = { .y = 4, .x = 3 }
+```
+
+Inside artifact methods, fields must be accessed through `self` unless a local binding intentionally shadows a name. Tests reject unqualified artifact-member access such as `return x` when `self.x` is required.
+
+Artifact methods may mutate mutable fields:
+
+```simple
+Counter :: Artifact {
+  value : i32
+
+  inc : void () {
+    self.value += 1
+  }
 }
 ```
 
-Validation checks branch shapes and result compatibility.
+Artifact ABI flattening is used for supported extern/DL cases. Recursive artifact ABI is rejected.
 
-## Procedure values and function literals
+## Modules
 
-Procedure types use `fn`:
+Modules group variables and functions under a namespace:
 
 ```simple
-fn i32 (i32, i32)
+Math :: Module {
+  base :: i32 = 2
+
+  add : i32 (a : i32, b : i32) {
+    return a + b
+  }
+}
+
+main : i32 () {
+  return Math.add(Math.base, 3)
+}
 ```
 
-Typed function literals are supported where the parser/type checker can infer or receive the procedure type. Direct inline invocation of an anonymous function literal remains unsupported.
+Unknown module members, using modules as types, and assigning to immutable module variables are rejected.
 
-## Extern and dynamic-library metadata
+## Enums
 
-`extern` declarations describe ABI contracts for host or dynamic-library calls. Validation checks declared shapes before runtime. The VM rejects unsupported ABI shapes such as recursive artifact ABI for DL calls.
+Enums use `:: Enum` and require qualified access:
+
+```simple
+Color :: Enum {
+  Red = 1,
+  Green = 2
+}
+
+main : i32 () {
+  return Color.Green
+}
+```
+
+Tests reject unqualified enum variants (`Green` instead of `Color.Green`), unknown enum members, and using the enum type itself as a value.
+
+## Imports and `using`
+
+Imports accept quoted paths, unquoted module paths, and aliases:
+
+```simple
+import "raylib"
+import "raylib" as Ray
+import IO
+import FS as FileSystem
+import System.io
+```
+
+`using` imports members into unqualified call scope:
+
+```simple
+import Channel
+using Channel
+
+main : i32 () {
+  ch : i64 = newI32()
+  sendI32(ch, 9)
+  return recvI32(ch)
+}
+```
+
+CLI import resolution handles project-root imports, relative imports, module-map entries, reserved imports, missing imports, ambiguous imports, and cycle detection. Generated `simple.modules` files are build artifacts.
+
+## Reserved/System modules
+
+`System.*` is canonical for standard-library modules. Reserved compatibility imports are mapped by the compiler/runtime. Covered modules include:
+
+```txt
+Math IO Time File DL OS FS Log Buffer Json Channel
+Env Path Random Thread
+System.math System.io System.time System.fs System.dl System.os
+System.env System.path System.random System.thread System.channel
+System.buffer System.json System.log
+```
+
+See `Docs/StdLib.md` for function-level APIs.
+
+## Functions, procedure types, and function literals
+
+Procedure values use `fn` types:
+
+```simple
+main : i32 () {
+  f : fn i32 (a : i32, b : i32) = (a, b) { return a + b }
+  return f(40, 2)
+}
+```
+
+Procedure variables and procedure parameters are validated by tests. Function literals can appear in supported typed contexts, including call arguments where the receiving type is known.
+
+Unsupported/rejected procedure cases include:
+
+- closure captures in current procedure literal emission
+- nested closure forms that require unsupported capture behavior
+- procedure values at extern ABI boundaries
+- procedure values inside unsupported list/array/generic emission paths
+- direct inline invocation of an anonymous function literal
+
+## Extern declarations and DL ABI
+
+Extern declarations describe imported host or dynamic-library functions:
+
+```simple
+extern puts : i32 (s : string)
+extern Ray.InitWindow : void (w : i32, h : i32)
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+```
+
+Extern names may be module-qualified. Calls are checked for argument count and type compatibility.
+
+Dynamic-library usage is exposed through `DL` / `System.dl` runtime APIs. Example shape from fixtures:
+
+```simple
+import DL
+
+extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
+
+lib :: i64 = DL.Open("Tests/ffi/libsimpleffi.so", ffi)
+
+main : i32 () {
+  return ffi.simple_add_i32(40, 2)
+}
+```
+
+ABI restrictions are strict. Unsupported ABI types and recursive artifact ABI are rejected.
+
+## Pointers and member access
+
+Pointer types use `*` suffixes:
+
+```simple
+i32*
+void**
+```
+
+Pointer member access uses `->`:
+
+```simple
+node->value
+```
+
+The validator tracks mutability through pointer-like access and rejects mutation through immutable values.
 
 ## Diagnostics
 
-Language diagnostics carry a code, phase, source span, message, and optional help text. CLI and LSP render the same diagnostics for terminal and editor clients.
+Compiler diagnostics include:
+
+- a stable error code where available
+- compiler phase (`RAST`, `TAST`, etc.)
+- source line/column
+- message
+- optional help text
+
+CLI renders diagnostics as terminal output. LSP converts the same diagnostic information into editor diagnostics.
+
+Common rejected cases covered by tests include:
+
+- unknown identifiers/types/members
+- duplicate qualified symbols
+- type mismatches
+- missing returns
+- invalid loop control outside loops
+- invalid imports
+- invalid casts without `@`
+- invalid ABI shapes
+- immutable assignment
+- bad array/list/index usage
+- malformed lexer/parser input
+
+## Known limitations
+
+Current tests intentionally reject or limit:
+
+- full generic function/artifact emission
+- generic specialization naming/emission paths
+- closure capture for procedure literals
+- procedure values at extern boundaries
+- procedure values in unsupported containers/generic contexts
+- recursive artifact ABI for extern/DL
+- direct inline invocation of anonymous function literals
+- using modules/functions as types or enum types as values
+
+## Compatibility APIs
+
+Embedders can use the compatibility APIs:
+
+```cpp
+ParseProgramFromString(source, &program, &error);
+ValidateProgramFromString(source, &error);
+ValidateProgramFromStringDiagnostic(source, &diagnostic);
+EmitSirFromString(source, &sir, &error);
+EmitSir(program, &sir, &error);
+ParseTypeFromString(type_text, &type, &error);
+```
+
+New compiler implementation code should use the phase APIs (`CAST`, `AST`, `RAST`, `TAST`, `IRB`, `IRE`) directly, while public compatibility APIs remain available for current embedders.

@@ -2,6 +2,21 @@
 
 The Simple VM executes verified SBC modules and provides the runtime services used by compiled programs.
 
+## Table of contents
+
+- [Execution API](#execution-api)
+- [Execution model](#execution-model)
+- [Values and slots](#values-and-slots)
+- [Frames and calls](#frames-and-calls)
+- [Heap objects](#heap-objects)
+- [Runtime limits](#runtime-limits)
+- [Imports and native runtime](#imports-and-native-runtime)
+- [Dynamic libraries / FFI](#dynamic-libraries--ffi)
+- [Intrinsics and syscalls](#intrinsics-and-syscalls)
+- [Errors and traps](#errors-and-traps)
+- [Garbage collection and roots](#garbage-collection-and-roots)
+- [JIT relationship](#jit-relationship)
+
 ## Execution API
 
 ```cpp

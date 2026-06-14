@@ -3167,12 +3167,14 @@ bool DocsCanonicalPagesDescribeBehavior() {
     const char* required_a;
     const char* required_b;
   } docs[] = {
-      {"Docs/Language.md", "x : i32 = 1", "answer :: i32 = 42"},
-      {"Docs/Byte.md", "SBC is the binary bytecode format", "## Verifier contract"},
-      {"Docs/VM.md", "The interpreter is the correctness baseline", "## Dynamic libraries / FFI"},
-      {"Docs/JIT.md", "The current JIT is a tiering", "## Correctness rule"},
-      {"Docs/CLI.md", "## Commands", "## Input types"},
-      {"Docs/LSP.md", "stdio JSON-RPC", "## Supported editor features"},
+      {"Docs/Language.md", "## Table of contents", "skip` is the loop-continue statement"},
+      {"Docs/Language.md", "x : i32 = 1", "limit :: i32 = 10"},
+      {"Docs/Language.md", "Point :: Artifact", "@i32(a)"},
+      {"Docs/Byte.md", "## Table of contents", "## Verifier contract"},
+      {"Docs/VM.md", "## Table of contents", "## Dynamic libraries / FFI"},
+      {"Docs/JIT.md", "## Table of contents", "## Correctness rule"},
+      {"Docs/CLI.md", "## Table of contents", "## Input types"},
+      {"Docs/LSP.md", "## Table of contents", "stdio JSON-RPC"},
   };
   for (const auto& doc : docs) {
     std::ifstream in(doc.path);
