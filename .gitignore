@@ -9,3 +9,5 @@
 /Tests/extra/
 /raylib
 /scripts
+
+*.modules
