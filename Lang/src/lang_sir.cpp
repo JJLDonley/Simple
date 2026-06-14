@@ -5707,6 +5707,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
 } // namespace
 
+namespace IRE {
+
 bool EmitSir(const Program& program, std::string* out, std::string* error) {
   std::string validate_error;
   if (!ValidateProgram(program, &validate_error)) {
@@ -5726,4 +5728,5 @@ bool EmitSirFromString(const std::string& text, std::string* out, std::string* e
   return EmitSir(program, out, error);
 }
 
+} // namespace IRE
 } // namespace Simple::Lang

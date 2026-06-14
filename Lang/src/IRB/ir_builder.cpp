@@ -211,7 +211,7 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   }
   out->ir = {};
   out->sir_text.clear();
-  if (!Simple::Lang::EmitSir(*typed.resolved->program, &out->sir_text, error)) return false;
+  if (!Simple::Lang::IRE::EmitSir(*typed.resolved->program, &out->sir_text, error)) return false;
   PopulateSirLines(out->sir_text, &out->sir_lines);
   PopulateAllocationsFromSir(out->sir_text, &out->ir);
   PopulateArtifactLayouts(*typed.resolved->program, &out->ir);

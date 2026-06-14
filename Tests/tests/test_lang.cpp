@@ -140,7 +140,7 @@ bool LangSirEmitsReturnI32() {
   const char* src = "main : i32 () { return 40 + 2; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -761,7 +761,7 @@ bool LangIrbIreKeepsSirOutputStable() {
   std::string direct_sir;
   std::string pipeline_sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &direct_sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &direct_sir, &error)) return false;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &cast_program, &error)) return false;
   if (!Simple::Lang::AST::LowerCastProgram(cast_program, &ast_program, &error)) return false;
   if (!Simple::Lang::RAST::ResolveProgram(ast_program, &resolved, &error)) return false;
@@ -877,7 +877,7 @@ bool LangNestedArtifactMethodSwitchIfChainRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -923,7 +923,7 @@ bool LangNestedSwitchBranchBlockLocalRuntime() {
       "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -952,7 +952,7 @@ bool LangNestedSwitchBranchPreservesLoopContextRuntime() {
       "main : i32 () { b : Box = { 2 }; return b.score(); }\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -973,7 +973,7 @@ bool LangNestedSwitchBranchSiblingLocalsRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -991,7 +991,7 @@ bool LangNestedIfSiblingLocalsRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -1005,7 +1005,7 @@ bool LangConditionalReturnMainImplicitFallbackRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -1022,7 +1022,7 @@ bool LangIfChainAllBranchesReturnNoFallbackRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -1041,7 +1041,7 @@ bool LangSwitchExprStmtBranchLocalRuntime() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) {
     std::cerr << error << "\n";
     return false;
   }
@@ -1055,7 +1055,7 @@ bool LangSirTopLevelScriptExecutes() {
       "x = x + 1;\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   if (sir.find("entry __script_entry") == std::string::npos) return false;
   return RunSirTextExpectExit(sir, 0);
 }
@@ -1066,7 +1066,7 @@ bool LangSirMainOverridesTopLevel() {
       "main : i32 () { return 7; }\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   if (sir.find("entry main") == std::string::npos) return false;
   if (sir.find("entry __script_entry") != std::string::npos) return false;
   return RunSirTextExpectExit(sir, 7);
@@ -1086,7 +1086,7 @@ bool LangTopLevelIoPrintlnArithmetic() {
       "IO.println(10 + 20 + 60 / 3);\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 0);
 }
 
@@ -1296,7 +1296,7 @@ bool LangStressEnumAsTypeRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 1);
 }
 
@@ -1327,7 +1327,7 @@ bool LangStressArtifactMethodMutationRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -1381,7 +1381,7 @@ bool LangStressProcedureSwitchExprRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -1394,7 +1394,7 @@ bool LangStressProcedureMemberCallRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -1407,7 +1407,7 @@ bool LangStressProcedureClosureCaptureRejected() {
       "}";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("unknown local 'x'") != std::string::npos;
 }
 
@@ -1454,7 +1454,7 @@ bool LangStressProcedureGenericEmissionRejected() {
       "}";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("generic functions not supported") != std::string::npos;
 }
 
@@ -1464,7 +1464,7 @@ bool LangGenericFunctionEmissionRejected() {
       "main : i32 () { return id<i32>(42) }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("generic functions not supported") != std::string::npos;
 }
 
@@ -1474,7 +1474,7 @@ bool LangGenericArtifactEmissionRejected() {
       "main : i32 () { b : Box<i32> = { 42 }; return b.v }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("unsupported type for local 'b'") != std::string::npos;
 }
 
@@ -1494,7 +1494,7 @@ bool LangGenericTypeArgInferenceEmissionRejected() {
       "main : i32 () { return id(42) }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("generic functions not supported") != std::string::npos;
 }
 
@@ -1504,7 +1504,7 @@ bool LangGenericSpecializationNamingRejected() {
       "main : i32 () { a : i32 = id<i32>(1); b : bool = id<bool>(true); return a }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("generic functions not supported") != std::string::npos;
 }
 
@@ -1514,7 +1514,7 @@ bool LangGenericDuplicateSpecializationRejected() {
       "main : i32 () { a : i32 = id<i32>(1); b : i32 = id<i32>(2); return a + b }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("generic functions not supported") != std::string::npos;
 }
 
@@ -1560,7 +1560,7 @@ bool LangStressEnumArtifactProcedureCompositionRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -2279,7 +2279,7 @@ bool LangSirEmitsLocalAssign() {
   const char* src = "main : i32 () { x : i32 = 1; x = x + 2; return x; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 
@@ -2287,7 +2287,7 @@ bool LangSirEmitsIfElse() {
   const char* src = "main : i32 () { x : i32 = 1; if (x == 1) { return 7; } else { return 9; } }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2296,7 +2296,7 @@ bool LangSirEmitsWhileLoop() {
       "main : i32 () { i : i32 = 0; sum : i32 = 0; while (i < 5) { sum = sum + i; i = i + 1; } return sum; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 10);
 }
 
@@ -2306,7 +2306,7 @@ bool LangSirEmitsFunctionCall() {
       "main : i32 () { return add(20, 22); }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -2315,7 +2315,7 @@ bool LangSirEmitsIoPrintString() {
       "main : i32 () { IO.print(\"hi\"); return 1; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 1);
 }
 
@@ -2324,7 +2324,7 @@ bool LangSirEmitsIoPrintI32() {
       "main : i32 () { IO.print(42); return 2; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 2);
 }
 
@@ -2333,7 +2333,7 @@ bool LangSirEmitsIoPrintNewline() {
       "main : i32 () { IO.print(\"hello\\n\"); return 3; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 
@@ -2342,7 +2342,7 @@ bool LangSirEmitsIoPrintFormat() {
       "main : i32 () { x : i32 = 7; IO.println(\"value={}\", x); return x; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2354,7 +2354,7 @@ bool LangSirEmitsExternAbiFlatten() {
       "main : void () { rt : RT = { .id = 1, .tex = { .id = 2, .width = 3 } }; ffi.Use(rt); }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return sir.find("type __abi_RT") != std::string::npos;
 }
 
@@ -2363,7 +2363,7 @@ bool LangSirImplicitMainReturn() {
       "main : i32 () { IO.print(\"hi\") }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 0);
 }
 
@@ -2417,7 +2417,7 @@ bool LangSirEmitsIncDec() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2431,7 +2431,7 @@ bool LangSirEmitsCompoundAssignLocal() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 16);
 }
 
@@ -2444,7 +2444,7 @@ bool LangSirEmitsBitwiseShift() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 9);
 }
 
@@ -2457,7 +2457,7 @@ bool LangSirEmitsIndexCompoundAssign() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2471,7 +2471,7 @@ bool LangSirEmitsMemberCompoundAssign() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 
@@ -2485,7 +2485,7 @@ bool LangSirEmitsIndexIncDec() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2500,7 +2500,7 @@ bool LangSirEmitsMemberIncDec() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2508,7 +2508,7 @@ bool LangSirEmitsArrayLiteralIndex() {
   const char* src = "main : i32 () { values : i32{3} = {1, 2, 3}; return values[1]; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 2);
 }
 
@@ -2516,7 +2516,7 @@ bool LangSirEmitsArrayAssign() {
   const char* src = "main : i32 () { values : i32{2} = {1, 2}; values[1] = 7; return values[1]; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2524,7 +2524,7 @@ bool LangSirEmitsListLiteralIndex() {
   const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; return values[2]; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 
@@ -2532,7 +2532,7 @@ bool LangSirEmitsListAssign() {
   const char* src = "main : i32 () { values : i32[] = [1, 2, 3]; values[0] = 9; return values[0]; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 9);
 }
 
@@ -2540,7 +2540,7 @@ bool LangSirEmitsLen() {
   const char* src = "main : i32 () { values : i32[] = [1, 2, 3, 4]; return len(values); }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 4);
 }
 
@@ -2550,7 +2550,7 @@ bool LangSirEmitsArtifactLiteralAndMember() {
       "main : i32 () { p : Point = { 1, 2 }; return p.x + p.y; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 
@@ -2560,7 +2560,7 @@ bool LangSirEmitsArtifactMemberAssign() {
       "main : i32 () { p : Point = { 1, 2 }; p.y = 7; return p.y; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -2570,7 +2570,7 @@ bool LangSirEmitsEnumValue() {
       "main : i32 () { return Color.Green; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 2);
 }
 
@@ -2582,7 +2582,7 @@ bool LangSirEmitsFnLiteralCall() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -3452,7 +3452,7 @@ bool LangPointerStorageEmissionRejected() {
   const char* src = "main : i32 () { x : i32 = 1; p : i32* = &x; return 0 }";
   std::string sir;
   std::string error;
-  if (Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return error.find("unsupported unary operator '&'") != std::string::npos;
 }
 
@@ -3493,7 +3493,7 @@ bool LangValidateArtifactDefaultFieldOk() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 4);
 }
 
@@ -3503,7 +3503,7 @@ bool LangValidateModuleDefaultFieldOk() {
       "main : i32 () { return Config.width + Config.height; }";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 30);
 }
 
@@ -3541,7 +3541,7 @@ bool LangValidateProcReturnProcOk() {
       "}\n";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 5);
 }
 
@@ -4332,7 +4332,7 @@ bool LangSirEmitsFnShorthandAssignAndCall() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 42);
 }
 
@@ -4359,7 +4359,7 @@ bool LangSirEmitsFnParamWithFnArgCall() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 0);
 }
 
@@ -4728,7 +4728,7 @@ bool LangSwitchAssignRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 10);
 }
 
@@ -4740,7 +4740,7 @@ bool LangSwitchExprRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 7);
 }
 
@@ -4753,7 +4753,7 @@ bool LangSwitchBlockBranchRuntime() {
       "}";
   std::string sir;
   std::string error;
-  if (!Simple::Lang::EmitSirFromString(src, &sir, &error)) return false;
+  if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
   return RunSirTextExpectExit(sir, 3);
 }
 

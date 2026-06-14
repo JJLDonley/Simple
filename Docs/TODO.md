@@ -326,7 +326,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [ ] `RAST`
   - [ ] `TAST`
   - [ ] `IRB`
-  - [ ] `IRE`
+  - [x] `IRE`
 - [x] Move lexer implementation into `Lang/src/Lexer`.
 - [x] Move parser implementation into `Lang/src/CAST`.
 - [ ] Add real `CAST -> AST` normalization pass.
@@ -480,7 +480,7 @@ All Simple standard/core library modules should be implemented as native C++ run
   - [x] list
   - [x] artifact
   - [x] closure
-- [ ] Harden GC root tracing with stress tests for:
+- [x] Harden GC root tracing with stress tests for:
   - [x] nested lists of strings
   - [x] arrays of artifacts
   - [x] closures capturing refs

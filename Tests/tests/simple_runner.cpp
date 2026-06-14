@@ -85,7 +85,7 @@ bool CompileSimpleToSbc(const std::string& source,
                         std::vector<uint8_t>* out,
                         std::string* error) {
   std::string sir;
-  if (!Simple::Lang::EmitSirFromString(source, &sir, error)) {
+  if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, error)) {
     if (error) *error = "simple compile failed (" + name + "): " + *error;
     return false;
   }

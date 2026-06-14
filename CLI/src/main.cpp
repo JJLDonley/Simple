@@ -60,7 +60,7 @@ bool ValidateSimpleFile(const std::string& path, std::string* error) {
 bool EmitSirFromSimpleFile(const std::string& path, std::string* out, std::string* error) {
   Simple::Lang::Program program;
   if (!Simple::Lang::RAST::LoadProgramWithImports(path, &program, error)) return false;
-  return Simple::Lang::EmitSir(program, out, error);
+  return Simple::Lang::IRE::EmitSir(program, out, error);
 }
 
 bool CompileSirToSbc(const std::string& text,
