@@ -8,6 +8,42 @@
 
 namespace Simple::Lang::RAST {
 
+const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name) {
+  if (!module) return nullptr;
+  for (const auto& var : module->variables) {
+    if (var.name == name) return &var;
+  }
+  return nullptr;
+}
+
+const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name) {
+  if (!module) return nullptr;
+  for (const auto& fn : module->functions) {
+    if (fn.name == name) return &fn;
+  }
+  return nullptr;
+}
+
+const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name) {
+  if (!artifact) return nullptr;
+  for (const auto& field : artifact->fields) {
+    if (field.name == name) return &field;
+  }
+  return nullptr;
+}
+
+const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name) {
+  if (!artifact) return nullptr;
+  for (const auto& method : artifact->methods) {
+    if (method.name == name) return &method;
+  }
+  return nullptr;
+}
+
+bool IsArtifactMemberName(const ArtifactDecl* artifact, const std::string& name) {
+  return FindArtifactField(artifact, name) || FindArtifactMethod(artifact, name);
+}
+
 MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_kind) {
   switch (symbol_kind) {
     case SymbolKind::ModuleVariable:

@@ -9,6 +9,7 @@
 #include "CAST/parser.h"
 #include "lang_reserved.h"
 #include "native/registry.h"
+#include "RAST/member_resolution.h"
 #include "TAST/calls.h"
 #include "TAST/control_flow.h"
 #include "TAST/expressions.h"
@@ -100,6 +101,11 @@ enum class TypeUse : uint8_t {
   Return,
 };
 
+using RAST::FindArtifactField;
+using RAST::FindArtifactMethod;
+using RAST::FindModuleFunc;
+using RAST::FindModuleVar;
+using RAST::IsArtifactMemberName;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
@@ -1262,10 +1268,6 @@ bool CheckTypeRef(const TypeRef& type,
 
 const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                            const std::string& name);
-const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
-const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
-const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
-const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name);
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error);
@@ -1727,45 +1729,6 @@ bool GetPointerImmutabilityFromExpr(const Expr& expr,
     }
   }
   return true;
-}
-
-const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name) {
-  if (!module) return nullptr;
-  for (const auto& var : module->variables) {
-    if (var.name == name) return &var;
-  }
-  return nullptr;
-}
-
-const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name) {
-  if (!artifact) return nullptr;
-  for (const auto& field : artifact->fields) {
-    if (field.name == name) return &field;
-  }
-  return nullptr;
-}
-
-const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name) {
-  if (!artifact) return nullptr;
-  for (const auto& method : artifact->methods) {
-    if (method.name == name) return &method;
-  }
-  return nullptr;
-}
-
-bool IsArtifactMemberName(const ArtifactDecl* artifact, const std::string& name) {
-  if (!artifact) return false;
-  if (FindArtifactField(artifact, name)) return true;
-  if (FindArtifactMethod(artifact, name)) return true;
-  return false;
-}
-
-const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name) {
-  if (!module) return nullptr;
-  for (const auto& fn : module->functions) {
-    if (fn.name == name) return &fn;
-  }
-  return nullptr;
 }
 
 bool CheckCallTarget(const Expr& callee,

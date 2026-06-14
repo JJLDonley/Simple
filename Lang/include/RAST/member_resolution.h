@@ -4,6 +4,12 @@
 
 namespace Simple::Lang::RAST {
 
+const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
+const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
+const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
+const FuncDecl* FindArtifactMethod(const ArtifactDecl* artifact, const std::string& name);
+bool IsArtifactMemberName(const ArtifactDecl* artifact, const std::string& name);
+
 MemberRefKind ClassifyMemberRefKind(MemberRefKind fallback, SymbolKind symbol_kind);
 void AddResolvedMemberRef(ResolvedProgram* program,
                           MemberRefKind kind,

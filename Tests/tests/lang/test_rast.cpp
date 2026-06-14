@@ -198,6 +198,34 @@ bool LangRastResolverDisambiguatesMemberRefs() {
 }
 
 
+bool LangRastMemberLookupFindsDeclMembers() {
+  Simple::Lang::AST::ModuleDecl module;
+  module.name = "Math";
+  Simple::Lang::AST::VarDecl module_var;
+  module_var.name = "answer";
+  module.variables.push_back(module_var);
+  Simple::Lang::AST::FuncDecl module_fn;
+  module_fn.name = "add";
+  module.functions.push_back(module_fn);
+
+  Simple::Lang::AST::ArtifactDecl artifact;
+  artifact.name = "Point";
+  Simple::Lang::AST::VarDecl field;
+  field.name = "x";
+  artifact.fields.push_back(field);
+  Simple::Lang::AST::FuncDecl method;
+  method.name = "move";
+  artifact.methods.push_back(method);
+
+  return Simple::Lang::RAST::FindModuleVar(&module, "answer") == &module.variables[0] &&
+         Simple::Lang::RAST::FindModuleFunc(&module, "add") == &module.functions[0] &&
+         Simple::Lang::RAST::FindArtifactField(&artifact, "x") == &artifact.fields[0] &&
+         Simple::Lang::RAST::FindArtifactMethod(&artifact, "move") == &artifact.methods[0] &&
+         Simple::Lang::RAST::IsArtifactMemberName(&artifact, "x") &&
+         Simple::Lang::RAST::IsArtifactMemberName(&artifact, "move") &&
+         !Simple::Lang::RAST::IsArtifactMemberName(&artifact, "missing");
+}
+
 bool LangRastMemberResolutionRecordsMemberRefs() {
   Simple::Lang::RAST::ResolvedProgram program;
   Simple::Lang::RAST::AddResolvedMemberRef(&program,
@@ -309,6 +337,7 @@ bool LangRastImportGraphResolvesReservedAliases() {
 
 const TestCase kLangRastTests[] = {
   {"lang_split_rast_resolves_function_symbol", LangSplitRastResolvesFunctionSymbol},
+  {"lang_rast_member_lookup_finds_decl_members", LangRastMemberLookupFindsDeclMembers},
   {"lang_rast_member_resolution_records_member_refs", LangRastMemberResolutionRecordsMemberRefs},
   {"lang_rast_reserved_resolution_uses_native_metadata", LangRastReservedResolutionUsesNativeMetadata},
   {"lang_rast_symbol_table_adds_and_rejects_duplicates", LangRastSymbolTableAddsAndRejectsDuplicates},
