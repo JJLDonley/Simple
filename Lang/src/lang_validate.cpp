@@ -17,6 +17,7 @@
 #include "TAST/expressions.h"
 #include "TAST/generics.h"
 #include "TAST/literals.h"
+#include "TAST/mutability.h"
 #include "TAST/statements.h"
 #include "TAST/types.h"
 
@@ -116,6 +117,7 @@ using RAST::NativeModuleNameForReserved;
 using RAST::NormalizeDlMemberName;
 using RAST::ReservedModuleMembers;
 using RAST::UnknownMemberErrorWithSuggestion;
+using TAST::AddLocal;
 using TAST::ApplyTypeSubstitution;
 using TAST::BuildArtifactTypeParamMap;
 using TAST::CheckCompoundAssignOp;
@@ -1222,19 +1224,6 @@ const LocalInfo* FindLocal(const std::vector<std::unordered_map<std::string, Loc
     if (found != it->end()) return &found->second;
   }
   return nullptr;
-}
-
-bool AddLocal(std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
-              const std::string& name,
-              const LocalInfo& info,
-              std::string* error) {
-  if (scopes.empty()) scopes.emplace_back();
-  auto& current = scopes.back();
-  if (!current.emplace(name, info).second) {
-    if (error) *error = "duplicate local declaration: " + name;
-    return false;
-  }
-  return true;
 }
 
 bool IsMutableStorageExpr(const Expr& expr,

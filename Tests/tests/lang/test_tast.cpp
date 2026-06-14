@@ -510,7 +510,13 @@ bool LangTastSubstituteGenericTypesRewritesNestedArgs() {
 
 
 bool LangTastMutabilityChecksAssignments() {
+  std::vector<std::unordered_map<std::string, int>> scopes;
   std::string error;
+  if (!Simple::Lang::TAST::AddLocal(scopes, "x", 1, &error)) return false;
+  if (scopes.size() != 1 || scopes[0]["x"] != 1) return false;
+  if (Simple::Lang::TAST::AddLocal(scopes, "x", 2, &error)) return false;
+  if (error.find("duplicate local declaration: x") == std::string::npos) return false;
+
   if (!Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Mutable, &error)) return false;
   if (Simple::Lang::TAST::CheckMutableAssignment(Simple::Lang::Mutability::Immutable, &error)) return false;
   return error.find("cannot assign to immutable value") != std::string::npos;
