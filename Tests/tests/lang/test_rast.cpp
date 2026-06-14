@@ -217,7 +217,14 @@ bool LangRastMemberLookupFindsDeclMembers() {
   method.name = "move";
   artifact.methods.push_back(method);
 
-  return Simple::Lang::RAST::FindModuleVar(&module, "answer") == &module.variables[0] &&
+  const auto module_members = Simple::Lang::RAST::ModuleMembers(&module);
+  const bool saw_module_var = !module_members.empty() && module_members[0] == "answer";
+  const bool saw_module_func = module_members.size() == 2 && module_members[1] == "add";
+
+  return saw_module_var &&
+         saw_module_func &&
+         Simple::Lang::RAST::ModuleMembers(nullptr).empty() &&
+         Simple::Lang::RAST::FindModuleVar(&module, "answer") == &module.variables[0] &&
          Simple::Lang::RAST::FindModuleFunc(&module, "add") == &module.functions[0] &&
          Simple::Lang::RAST::FindArtifactField(&artifact, "x") == &artifact.fields[0] &&
          Simple::Lang::RAST::FindArtifactMethod(&artifact, "move") == &artifact.methods[0] &&

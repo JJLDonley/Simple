@@ -8,6 +8,15 @@
 
 namespace Simple::Lang::RAST {
 
+std::vector<std::string> ModuleMembers(const ModuleDecl* module) {
+  std::vector<std::string> out;
+  if (!module) return out;
+  out.reserve(module->variables.size() + module->functions.size());
+  for (const auto& var : module->variables) out.push_back(var.name);
+  for (const auto& fn : module->functions) out.push_back(fn.name);
+  return out;
+}
+
 const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name) {
   if (!module) return nullptr;
   for (const auto& var : module->variables) {

@@ -109,6 +109,7 @@ using RAST::FindModuleVar;
 using RAST::GetModuleNameFromExpr;
 using RAST::IsArtifactMemberName;
 using RAST::IsIoPrintName;
+using RAST::ModuleMembers;
 using RAST::NativeModuleNameForReserved;
 using RAST::NormalizeDlMemberName;
 using RAST::ReservedModuleMembers;
@@ -304,15 +305,6 @@ size_t EditDistance(const std::string& a, const std::string& b) {
     prev.swap(cur);
   }
   return prev[b.size()];
-}
-
-std::vector<std::string> ModuleMembers(const ModuleDecl* module) {
-  std::vector<std::string> out;
-  if (!module) return out;
-  out.reserve(module->variables.size() + module->functions.size());
-  for (const auto& v : module->variables) out.push_back(v.name);
-  for (const auto& f : module->functions) out.push_back(f.name);
-  return out;
 }
 
 std::string UnknownMemberErrorWithSuggestion(const std::string& module_name,

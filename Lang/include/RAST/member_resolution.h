@@ -2,8 +2,11 @@
 
 #include "RAST/rast.h"
 
+#include <vector>
+
 namespace Simple::Lang::RAST {
 
+std::vector<std::string> ModuleMembers(const ModuleDecl* module);
 const VarDecl* FindModuleVar(const ModuleDecl* module, const std::string& name);
 const FuncDecl* FindModuleFunc(const ModuleDecl* module, const std::string& name);
 const VarDecl* FindArtifactField(const ArtifactDecl* artifact, const std::string& name);
