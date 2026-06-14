@@ -74,6 +74,18 @@ bool LangTastTypeUtilitiesClassifyAndCloneTypes() {
          !Simple::Lang::TAST::IsPrimitiveTypeName("Box");
 }
 
+bool LangTastCallsCheckReservedMathArgTypes() {
+  std::string error;
+  std::vector<Simple::Lang::AST::TypeRef> args = {Simple::Lang::TAST::MakeSimpleType("i32")};
+  if (!Simple::Lang::TAST::CheckReservedMathCallArgTypes("abs", args, &error)) return false;
+  args[0] = Simple::Lang::TAST::MakeSimpleType("f64");
+  if (Simple::Lang::TAST::CheckReservedMathCallArgTypes("abs", args, &error)) return false;
+  if (error.find("Math.abs expects i32 or i64 argument") == std::string::npos) return false;
+  args = {Simple::Lang::TAST::MakeSimpleType("f32"), Simple::Lang::TAST::MakeSimpleType("f64")};
+  if (Simple::Lang::TAST::CheckReservedMathCallArgTypes("min", args, &error)) return false;
+  return error.find("Math.min expects two numeric arguments of the same type") != std::string::npos;
+}
+
 bool LangTastCallsCheckTypeArgCounts() {
   std::string error;
   if (!Simple::Lang::TAST::CheckCallTypeArgCount(2, 2, &error)) return false;
@@ -589,6 +601,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
+  {"lang_tast_calls_check_reserved_math_arg_types", LangTastCallsCheckReservedMathArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},

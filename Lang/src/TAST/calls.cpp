@@ -91,6 +91,43 @@ bool CheckCallTypeArgCount(size_t type_param_count,
   return true;
 }
 
+bool CheckReservedMathCallArgTypes(const std::string& member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  if (member == "abs") {
+    if (args.size() != 1) return true;
+    const TypeRef& arg = args[0];
+    if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
+      if (error) *error = "Math.abs expects i32 or i64 argument";
+      return false;
+    }
+    return true;
+  }
+  if (member == "sqrt") {
+    if (args.size() != 1) return true;
+    const TypeRef& arg = args[0];
+    if ((arg.name != "f32" && arg.name != "f64") || !arg.dims.empty() || arg.is_proc) {
+      if (error) *error = "Math.sqrt expects f32 or f64 argument";
+      return false;
+    }
+    return true;
+  }
+  if (member == "min" || member == "max") {
+    if (args.size() != 2) return true;
+    const TypeRef& a = args[0];
+    const TypeRef& b = args[1];
+    auto allowed = [](const TypeRef& t) {
+      return t.name == "i32" || t.name == "i64" || t.name == "f32" || t.name == "f64";
+    };
+    if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
+      if (error) *error = "Math." + member + " expects two numeric arguments of the same type";
+      return false;
+    }
+    return true;
+  }
+  return true;
+}
+
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
                                const TypeRef& target_type,
                                std::string* error) {

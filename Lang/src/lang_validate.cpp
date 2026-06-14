@@ -128,6 +128,7 @@ using TAST::CheckArrayLiteralShape;
 using TAST::CheckBinaryOpTypeRules;
 using TAST::CheckFnLiteralAgainstType;
 using TAST::CheckFunctionReturnFlow;
+using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -1857,40 +1858,14 @@ bool CheckCallArgTypes(const Expr& call_expr,
                t.dims.size() == 1;
       };
       if (mod == "Math") {
-        if (name == "abs") {
-          if (call_expr.args.size() != 1) return true;
+        std::vector<TypeRef> arg_types;
+        arg_types.reserve(call_expr.args.size());
+        for (size_t i = 0; i < call_expr.args.size(); ++i) {
           TypeRef arg;
-          if (!infer_arg(0, &arg)) return true;
-          if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
-            if (error) *error = "Math.abs expects i32 or i64 argument";
-            return false;
-          }
-          return true;
+          if (!infer_arg(i, &arg)) return true;
+          arg_types.push_back(std::move(arg));
         }
-        if (name == "sqrt") {
-          if (call_expr.args.size() != 1) return true;
-          TypeRef arg;
-          if (!infer_arg(0, &arg)) return true;
-          if ((arg.name != "f32" && arg.name != "f64") || !arg.dims.empty() || arg.is_proc) {
-            if (error) *error = "Math.sqrt expects f32 or f64 argument";
-            return false;
-          }
-          return true;
-        }
-        if (name == "min" || name == "max") {
-          if (call_expr.args.size() != 2) return true;
-          TypeRef a;
-          TypeRef b;
-          if (!infer_arg(0, &a) || !infer_arg(1, &b)) return true;
-          auto allowed = [&](const TypeRef& t) {
-            return t.name == "i32" || t.name == "i64" || t.name == "f32" || t.name == "f64";
-          };
-          if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
-            if (error) *error = "Math." + name + " expects two numeric arguments of the same type";
-            return false;
-          }
-          return true;
-        }
+        return CheckReservedMathCallArgTypes(name, arg_types, error);
       }
       if (mod == "IO") {
         if (name == "buffer_new") {
