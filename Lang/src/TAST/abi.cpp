@@ -12,7 +12,62 @@ bool IsAbiScalar(const std::string& name) {
          name == "string";
 }
 
+bool IsSupportedDlAbiArtifact(
+    const std::string& name,
+    const std::unordered_set<std::string>& enum_types,
+    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    std::unordered_set<std::string>* visiting) {
+  if (!visiting || !visiting->insert(name).second) return false;
+  auto it = artifacts.find(name);
+  if (it == artifacts.end()) {
+    visiting->erase(name);
+    return false;
+  }
+  const Simple::Lang::AST::ArtifactDecl* artifact = it->second;
+  if (!artifact) {
+    visiting->erase(name);
+    return false;
+  }
+  for (const auto& field : artifact->fields) {
+    if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
+      visiting->erase(name);
+      return false;
+    }
+    if (field.type.pointer_depth > 0) continue;
+    if (IsAbiScalar(field.type.name)) continue;
+    if (enum_types.find(field.type.name) != enum_types.end()) continue;
+    if (artifacts.find(field.type.name) != artifacts.end()) {
+      if (!IsSupportedDlAbiArtifact(field.type.name, enum_types, artifacts, visiting)) {
+        visiting->erase(name);
+        return false;
+      }
+      continue;
+    }
+    visiting->erase(name);
+    return false;
+  }
+  visiting->erase(name);
+  return true;
+}
+
 } // namespace
+
+bool IsSupportedDlAbiType(
+    const Simple::Lang::AST::TypeRef& type,
+    const std::unordered_set<std::string>& enum_types,
+    const std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*>& artifacts,
+    bool allow_void) {
+  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
+  if (type.pointer_depth > 0) return true;
+  if (allow_void && type.name == "void") return true;
+  if (IsAbiScalar(type.name)) return true;
+  if (enum_types.find(type.name) != enum_types.end()) return true;
+  if (artifacts.find(type.name) != artifacts.end()) {
+    std::unordered_set<std::string> visiting;
+    return IsSupportedDlAbiArtifact(type.name, enum_types, artifacts, &visiting);
+  }
+  return false;
+}
 
 bool NativeTypeToLangType(Simple::Byte::TypeKind kind,
                           Simple::Lang::AST::TypeRef* out) {

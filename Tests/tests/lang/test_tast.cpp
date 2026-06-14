@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -394,7 +395,23 @@ bool LangTastCheckAbiShapeRejectsGenericTypes() {
   if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::I64, &mapped)) return false;
   if (mapped.name != "i64" || !mapped.dims.empty()) return false;
   if (!Simple::Lang::TAST::NativeTypeToLangType(Simple::Byte::TypeKind::Ref, &mapped)) return false;
-  return mapped.name == "i32" && mapped.dims.size() == 1 && mapped.dims[0].is_list;
+  if (mapped.name != "i32" || mapped.dims.size() != 1 || !mapped.dims[0].is_list) return false;
+
+  std::unordered_set<std::string> enum_types = {"Mode"};
+  std::unordered_map<std::string, const Simple::Lang::AST::ArtifactDecl*> artifacts;
+  Simple::Lang::AST::ArtifactDecl point;
+  point.name = "Point";
+  Simple::Lang::AST::VarDecl x;
+  x.name = "x";
+  x.type = Simple::Lang::TAST::MakeSimpleType("i32");
+  point.fields.push_back(x);
+  artifacts[point.name] = &point;
+  Simple::Lang::AST::TypeRef point_type = Simple::Lang::TAST::MakeSimpleType("Point");
+  if (!Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false)) return false;
+  Simple::Lang::AST::TypeRef enum_type = Simple::Lang::TAST::MakeSimpleType("Mode");
+  if (!Simple::Lang::TAST::IsSupportedDlAbiType(enum_type, enum_types, artifacts, false)) return false;
+  point.fields[0].type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  return !Simple::Lang::TAST::IsSupportedDlAbiType(point_type, enum_types, artifacts, false);
 }
 
 

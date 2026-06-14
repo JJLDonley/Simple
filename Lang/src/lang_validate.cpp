@@ -146,6 +146,7 @@ using TAST::IsPrimitiveCastName;
 using TAST::IsPrimitiveTypeName;
 using TAST::IsScalarType;
 using TAST::IsStringTypeName;
+using TAST::IsSupportedDlAbiType;
 using TAST::MakeListType;
 using TAST::MakeSimpleType;
 using TAST::NativeTypeToLangType;
@@ -245,65 +246,10 @@ bool ResolveDlModuleForIdentifier(
   return false;
 }
 
-bool IsSupportedDlAbiType(const TypeRef& type,
-                          const ValidateContext& ctx,
-                          bool allow_void) {
-  if (type.is_proc || !type.type_args.empty() || !type.dims.empty()) return false;
-  if (type.pointer_depth > 0) return true;
-  if (allow_void && type.name == "void") return true;
-  if (type.name == "i8" || type.name == "i16" || type.name == "i32" || type.name == "i64" ||
-      type.name == "u8" || type.name == "u16" || type.name == "u32" || type.name == "u64" ||
-      type.name == "f32" || type.name == "f64" || type.name == "bool" || type.name == "char" ||
-      type.name == "string") {
-    return true;
-  }
-  if (ctx.enum_types.find(type.name) != ctx.enum_types.end()) return true;
-  if (ctx.artifacts.find(type.name) != ctx.artifacts.end()) {
-    std::unordered_set<std::string> visiting;
-    std::function<bool(const std::string&)> check_struct = [&](const std::string& name) -> bool {
-      if (!visiting.insert(name).second) return false;
-      auto it = ctx.artifacts.find(name);
-      if (it == ctx.artifacts.end()) {
-        visiting.erase(name);
-        return false;
-      }
-      const ArtifactDecl* art = it->second;
-      for (const auto& field : art->fields) {
-        if (field.type.is_proc || !field.type.type_args.empty() || !field.type.dims.empty()) {
-          visiting.erase(name);
-          return false;
-        }
-        if (field.type.pointer_depth > 0) continue;
-        if (field.type.name == "i8" || field.type.name == "i16" || field.type.name == "i32" ||
-            field.type.name == "i64" || field.type.name == "u8" || field.type.name == "u16" ||
-            field.type.name == "u32" || field.type.name == "u64" || field.type.name == "f32" ||
-            field.type.name == "f64" || field.type.name == "bool" || field.type.name == "char" ||
-            field.type.name == "string") {
-          continue;
-        }
-        if (ctx.enum_types.find(field.type.name) != ctx.enum_types.end()) continue;
-        if (ctx.artifacts.find(field.type.name) != ctx.artifacts.end()) {
-          if (!check_struct(field.type.name)) {
-            visiting.erase(name);
-            return false;
-          }
-          continue;
-        }
-        visiting.erase(name);
-        return false;
-      }
-      visiting.erase(name);
-      return true;
-    };
-    return check_struct(type.name);
-  }
-  return false;
-}
-
 bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
                                    const ValidateContext& ctx,
                                    std::string* error) {
-  if (!IsSupportedDlAbiType(ext.return_type, ctx, true)) {
+  if (!IsSupportedDlAbiType(ext.return_type, ctx.enum_types, ctx.artifacts, true)) {
     if (error) {
       *error = "dynamic DL return type for '" + ext.module + "." + ext.name +
                "' is not ABI-supported";
@@ -311,7 +257,7 @@ bool IsSupportedDlDynamicSignature(const ExternDecl& ext,
     return false;
   }
   for (const auto& p : ext.params) {
-    if (!IsSupportedDlAbiType(p.type, ctx, false)) {
+    if (!IsSupportedDlAbiType(p.type, ctx.enum_types, ctx.artifacts, false)) {
       if (error) {
         *error = "dynamic DL parameter type for '" + ext.module + "." + ext.name +
                  "' is not ABI-supported";
@@ -3909,7 +3855,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
           std::unordered_set<std::string> param_names;
           std::unordered_set<std::string> type_params;
           if (!CheckTypeRef(decl.ext.return_type, ctx, type_params, TypeUse::Return, error)) return false;
-          if (!IsSupportedDlAbiType(decl.ext.return_type, ctx, true)) {
+          if (!IsSupportedDlAbiType(decl.ext.return_type, ctx.enum_types, ctx.artifacts, true)) {
             if (error) *error = "extern ABI return type is not supported";
             return false;
           }
@@ -3919,7 +3865,7 @@ bool ValidateProgram(const Program& program, std::string* error) {
               return false;
             }
             if (!CheckTypeRef(param.type, ctx, type_params, TypeUse::Value, error)) return false;
-            if (!IsSupportedDlAbiType(param.type, ctx, false)) {
+            if (!IsSupportedDlAbiType(param.type, ctx.enum_types, ctx.artifacts, false)) {
               if (error) *error = "extern ABI parameter type is not supported";
               return false;
             }
