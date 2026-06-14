@@ -110,6 +110,13 @@ bool LangTastPrimitiveCastArgTypeRules() {
   return error.find("i32 cast expects scalar argument") != std::string::npos;
 }
 
+bool LangTastCallsCheckSingleArgCallCount() {
+  std::string error;
+  if (!Simple::Lang::TAST::CheckSingleArgCallCount("len", 1, &error)) return false;
+  if (Simple::Lang::TAST::CheckSingleArgCallCount("len", 2, &error)) return false;
+  return error.find("call argument count mismatch for len: expected 1, got 2") != std::string::npos;
+}
+
 bool LangTastCallsCheckFormatAndPrintArgTypes() {
   std::string error;
   auto i32 = Simple::Lang::TAST::MakeSimpleType("i32");
@@ -743,6 +750,7 @@ bool LangTastCheckCallExpressionValidatesShape() {
 const TestCase kLangTastTests[] = {
   {"lang_tast_type_utilities_classify_and_clone_types", LangTastTypeUtilitiesClassifyAndCloneTypes},
   {"lang_tast_primitive_cast_arg_type_rules", LangTastPrimitiveCastArgTypeRules},
+  {"lang_tast_calls_check_single_arg_call_count", LangTastCallsCheckSingleArgCallCount},
   {"lang_tast_calls_check_format_and_print_arg_types", LangTastCallsCheckFormatAndPrintArgTypes},
   {"lang_tast_calls_check_scalar_arg_types", LangTastCallsCheckScalarArgTypes},
   {"lang_tast_calls_check_reserved_dl_open_arg_types", LangTastCallsCheckReservedDlOpenArgTypes},

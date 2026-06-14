@@ -179,6 +179,17 @@ bool CheckIoPrintCallArgTypes(const std::vector<TypeRef>& args, std::string* err
   return true;
 }
 
+bool CheckSingleArgCallCount(const std::string& name, size_t arg_count, std::string* error) {
+  if (arg_count != 1) {
+    if (error) {
+      *error = "call argument count mismatch for " + name + ": expected 1, got " +
+               std::to_string(arg_count);
+    }
+    return false;
+  }
+  return true;
+}
+
 bool CheckReservedDlOpenArgTypes(const std::vector<TypeRef>& args,
                                  std::string* error) {
   if (args.size() != 1 && args.size() != 2) {

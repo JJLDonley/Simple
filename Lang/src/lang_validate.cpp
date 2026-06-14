@@ -136,6 +136,7 @@ using TAST::CheckReservedIoBufferCallArgTypes;
 using TAST::CheckIoPrintCallArgTypes;
 using TAST::CheckReservedMathCallArgTypes;
 using TAST::CheckReservedTimeCallArgTypes;
+using TAST::CheckSingleArgCallCount;
 using TAST::CheckProcTypeArgs;
 using TAST::CheckUnaryOpTypeRules;
 using TAST::CollectTypeParams;
@@ -3084,11 +3085,7 @@ bool CheckExpr(const Expr& expr,
         }
       }
       if (expr.children[0].kind == ExprKind::Identifier && expr.children[0].text == "len") {
-        if (expr.args.size() != 1) {
-          if (error) *error = "call argument count mismatch for len: expected 1, got " +
-                              std::to_string(expr.args.size());
-          return false;
-        }
+        if (!CheckSingleArgCallCount("len", expr.args.size(), error)) return false;
         TypeRef arg_type;
         if (InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
           if (!IsLenCompatibleType(arg_type)) {
@@ -3111,11 +3108,7 @@ bool CheckExpr(const Expr& expr,
           return false;
         }
         if (is_at_cast) {
-          if (expr.args.size() != 1) {
-            if (error) *error = "call argument count mismatch for " + cast_target + ": expected 1, got " +
-                                std::to_string(expr.args.size());
-            return false;
-          }
+          if (!CheckSingleArgCallCount(cast_target, expr.args.size(), error)) return false;
           TypeRef arg_type;
           if (!InferExprType(expr.args[0], ctx, scopes, current_artifact, &arg_type)) {
             if (error && error->empty()) *error = cast_target + " cast expects scalar argument";
