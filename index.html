@@ -172,12 +172,6 @@ main : i32 () {
           <p class="subtitle tagline">Simple like C. Statically typed. General purpose.</p>
           <p>Simple compiles <code>.simple</code> source into SIR, then SBC bytecode, then runs on the Simple VM. The language is designed for explicit types, direct control flow, readable compiler output, and native-backed programs.</p>
 
-          <div class="status-legend" aria-label="Implementation status legend">
-            <span class="status implemented">Implemented</span><span>Available in the current compiler/runtime.</span>
-            <span class="status partial">Partial</span><span>Exists, but is incomplete or compatibility-shaped.</span>
-            <span class="status planned">Planned</span><span>Roadmap/API design, not current stable behavior.</span>
-          </div>
-
           <pre><code class="language-simple">import IO
 
 main : i32 () {
@@ -190,10 +184,10 @@ main : i32 () {
               <tr><th>Layer</th><th>Status</th><th>Purpose</th></tr>
             </thead>
             <tbody>
-              <tr><td>Language</td><td><span class="status implemented">Implemented</span></td><td>Strict typed source syntax for programs and scripts.</td></tr>
-              <tr><td>SIR</td><td><span class="status partial">Partial</span></td><td>Readable intermediate representation used to inspect lowering.</td></tr>
-              <tr><td>SBC</td><td><span class="status partial">Partial</span></td><td>Compact bytecode format loaded and verified by the runtime.</td></tr>
-              <tr><td>VM</td><td><span class="status partial">Partial</span></td><td>Execution engine, heap, native dispatch, traps, and runtime limits.</td></tr>
+              <tr><td>Language</td><td>Implemented</td><td>Strict typed source syntax for programs and scripts.</td></tr>
+              <tr><td>SIR</td><td>Partial</td><td>Readable intermediate representation used to inspect lowering.</td></tr>
+              <tr><td>SBC</td><td>Partial</td><td>Compact bytecode format loaded and verified by the runtime.</td></tr>
+              <tr><td>VM</td><td>Partial</td><td>Execution engine, heap, native dispatch, traps, and runtime limits.</td></tr>
             </tbody>
           </table>
         </section>
@@ -214,7 +208,8 @@ main : i32 () {
         </section>
 
         <section id="installation" class="doc-section" data-title="Installation">
-          <h2>Installation <span class="status implemented">Implemented</span></h2>
+          <h2>Installation</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Simple currently builds from source. The developer CLI is <code>svm</code>. The <code>simple</code> executable is a runtime stub for generated/embedded programs.</p>
 
           <h3>Build</h3>
@@ -241,7 +236,8 @@ PREFIX="$HOME/.local" ./install.sh</code></pre>
         </section>
 
         <section id="getting-started" class="doc-section" data-title="Getting started">
-          <h2>Getting started <span class="status implemented">Implemented</span></h2>
+          <h2>Getting started</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Create <code>hello.simple</code>:</p>
 
           <pre><code class="language-simple">import IO
@@ -271,7 +267,8 @@ IO.println("sum={}", add(2, 3))</code></pre>
         </section>
 
         <section id="program-structure" class="doc-section" data-title="Program structure">
-          <h2>Program structure <span class="status implemented">Implemented</span></h2>
+          <h2>Program structure</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>A Simple file contains imports, declarations, and optionally top-level statements. Top-level statements execute in source order through an implicit script entry.</p>
 
           <pre><code class="language-simple">module app.main
@@ -298,7 +295,8 @@ main : i32 () {
         </section>
 
         <section id="declarations" class="doc-section" data-title="Declarations">
-          <h2>Declarations <span class="status implemented">Implemented</span></h2>
+          <h2>Declarations</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Simple separates mutability from type. <code>:</code> declares mutable bindings. <code>::</code> declares immutable bindings and named top-level constructs.</p>
 
           <pre><code class="language-simple">count : i32 = 1
@@ -318,7 +316,8 @@ log : void (message : string) {
         </section>
 
         <section id="types" class="doc-section" data-title="Types">
-          <h2>Types <span class="status partial">Partial</span></h2>
+          <h2>Types</h2>
+          <p class="section-status">Status: Partial</p>
           <p>Types are explicit in declarations, function parameters, returns, arrays, lists, artifacts, and native-facing APIs.</p>
 
           <h3>Primitive types</h3>
@@ -336,7 +335,7 @@ log : void (message : string) {
 
           <h3>Named and procedure types</h3>
           <pre><code class="language-simple">Point :: artifact { x : i32; y : i32 }
-Color :: enum { Red = 1, Green = 2 }
+Color :: enum { Red, Green }
 
 p : Point = { .x = 3, .y = 4 }
 c : Color = Color.Green
@@ -344,7 +343,8 @@ op : i32 (i32, i32) = add</code></pre>
         </section>
 
         <section id="literals" class="doc-section" data-title="Literals">
-          <h2>Literals <span class="status implemented">Implemented</span></h2>
+          <h2>Literals</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Literals are checked against the expected type where needed.</p>
 
           <pre><code class="language-simple">b :: bool = true
@@ -360,7 +360,8 @@ point : Point = { .x = 1, .y = 2 }</code></pre>
         </section>
 
         <section id="expressions" class="doc-section" data-title="Expressions">
-          <h2>Expressions <span class="status implemented">Implemented</span></h2>
+          <h2>Expressions</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Arithmetic, comparison, assignment, calls, member access, casts, and indexing are type checked.</p>
 
           <pre><code class="language-simple">x : i32 = 10
@@ -375,7 +376,8 @@ result : i32 = add(x, y)</code></pre>
         </section>
 
         <section id="control-flow" class="doc-section" data-title="Control flow">
-          <h2>Control flow <span class="status implemented">Implemented</span></h2>
+          <h2>Control flow</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Blocks create scopes. <code>if</code>, loops, <code>break</code>, <code>skip</code>, <code>return</code>, and switch-style forms are checked by the validator.</p>
 
           <pre><code class="language-simple">total : i32 = 0
@@ -393,7 +395,8 @@ while (total > 20) {
         </section>
 
         <section id="arrays-lists" class="doc-section" data-title="Arrays and lists">
-          <h2>Arrays and lists <span class="status partial">Partial</span></h2>
+          <h2>Arrays and lists</h2>
+          <p class="section-status">Status: Partial</p>
           <p>Fixed arrays use <code>T{N}</code>. Growable lists use <code>T[]</code>. Indexes must be integers and element types must match.</p>
 
           <pre><code class="language-simple">fixed : i32{3} = {1, 2, 3}
@@ -405,7 +408,8 @@ count : i32 = len(items)</code></pre>
         </section>
 
         <section id="artifacts" class="doc-section" data-title="Artifacts">
-          <h2>Artifacts <span class="status implemented">Implemented</span></h2>
+          <h2>Artifacts</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Artifacts define structured data with optional methods. Fields define layout. Methods define behavior and do not change ABI layout.</p>
 
           <pre><code class="language-simple">Counter :: artifact {
@@ -428,20 +432,22 @@ IO.println("{}", c.get())</code></pre>
         </section>
 
         <section id="enums" class="doc-section" data-title="Enums">
-          <h2>Enums <span class="status implemented">Implemented</span></h2>
-          <p>Enum variants are scoped under the enum type. Use qualified access.</p>
+          <h2>Enums</h2>
+          <p class="section-status">Status: Implemented</p>
+          <p>Enum variants are scoped under the enum type. Use qualified access. Explicit numeric values are optional.</p>
 
           <pre><code class="language-simple">Color :: enum {
-  Red = 1
-  Green = 2
-  Blue = 3
+  Red
+  Green
+  Blue
 }
 
 favorite : Color = Color.Green</code></pre>
         </section>
 
         <section id="namespaces" class="doc-section" data-title="Namespaces">
-          <h2>Namespaces <span class="status implemented">Implemented</span></h2>
+          <h2>Namespaces</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>Namespaces group related declarations. They are useful for constants, utility functions, domain APIs, and organized module surfaces.</p>
 
           <pre><code class="language-simple">Maths :: namespace {
@@ -458,7 +464,8 @@ value : i32 = Maths.add(2, 3)</code></pre>
         </section>
 
         <section id="modules-imports" class="doc-section" data-title="Modules and imports">
-          <h2>Modules and imports <span class="status partial">Partial</span></h2>
+          <h2>Modules and imports</h2>
+          <p class="section-status">Status: Partial</p>
           <p>Simple supports reserved runtime modules and named module imports resolved by the project/module index. Imports should not depend on quoted relative source-file paths. Import resolution handles project-root modules, module-map entries, missing imports, ambiguity, and cycles.</p>
 
           <pre><code class="language-simple">import IO
@@ -477,7 +484,8 @@ import Math</code></pre>
         </section>
 
         <section id="ffi" class="doc-section" data-title="FFI and extern">
-          <h2>FFI and extern <span class="status partial">Partial</span></h2>
+          <h2>FFI and extern</h2>
+          <p class="section-status">Status: Partial</p>
           <p>Simple exposes native interop through strict <code>extern</code> declarations and dynamic-library runtime APIs. Extern signatures are checked; unsupported ABI shapes are rejected instead of guessed.</p>
 
           <pre><code class="language-simple">import DL
@@ -507,7 +515,8 @@ raylib.CloseWindow()</code></pre>
         </section>
 
         <section id="native-library" class="doc-section" data-title="Native library">
-          <h2>Native library: System | Standard <span class="status planned">Planned</span></h2>
+          <h2>Native library: System | Standard</h2>
+          <p class="section-status">Status: Planned</p>
           <p>Simple has a robust native library direction for both low-level and high-level coding. The model is layered so high-level convenience does not bypass low-level ownership, capabilities, or resource safety.</p>
 
           <h3>Layer model</h3>
@@ -525,10 +534,10 @@ raylib.CloseWindow()</code></pre>
           <table>
             <thead><tr><th>Type</th><th>Status</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><code>System.Handle&lt;T&gt;</code></td><td><span class="status planned">Planned</span></td><td>Typed opaque native resource handle. Resource kind is preserved and checked before use.</td></tr>
-              <tr><td><code>Result&lt;T&gt;</code></td><td><span class="status planned">Planned</span></td><td>Expected success/failure result. Used for IO, OS, network, FFI, and native operations.</td></tr>
-              <tr><td><code>Option&lt;T&gt;</code></td><td><span class="status planned">Planned</span></td><td>Presence/absence or ready/not-ready state without sentinel values.</td></tr>
-              <tr><td><code>Promise&lt;T&gt;</code></td><td><span class="status planned">Planned</span></td><td>Planned async result carrier. <code>await()</code> returns <code>Result&lt;T&gt;</code>; <code>poll()</code> returns <code>Option&lt;Result&lt;T&gt;&gt;</code>.</td></tr>
+              <tr><td><code>System.Handle&lt;T&gt;</code></td><td>Planned</td><td>Typed opaque native resource handle. Resource kind is preserved and checked before use.</td></tr>
+              <tr><td><code>Result&lt;T&gt;</code></td><td>Planned</td><td>Expected success/failure result. Used for IO, OS, network, FFI, and native operations.</td></tr>
+              <tr><td><code>Option&lt;T&gt;</code></td><td>Planned</td><td>Presence/absence or ready/not-ready state without sentinel values.</td></tr>
+              <tr><td><code>Promise&lt;T&gt;</code></td><td>Planned</td><td>Planned async result carrier. <code>await()</code> returns <code>Result&lt;T&gt;</code>; <code>poll()</code> returns <code>Option&lt;Result&lt;T&gt;&gt;</code>.</td></tr>
             </tbody>
           </table>
 
@@ -537,24 +546,24 @@ raylib.CloseWindow()</code></pre>
           <table>
             <thead><tr><th>Area</th><th>Status</th><th>Purpose</th></tr></thead>
             <tbody>
-              <tr><td><code>System.FS</code></td><td><span class="status partial">Partial</span></td><td>Open, close, read, write, seek, stat, list directories, create/remove/copy/rename files.</td></tr>
-              <tr><td><code>System.Path</code></td><td><span class="status partial">Partial</span></td><td>Join, normalize, absolute/relative paths, basename, dirname, extension, separators.</td></tr>
-              <tr><td><code>System.Buffer</code></td><td><span class="status partial">Partial</span></td><td>Native buffer handles, allocation, close, length, slicing, copying, and bounds-checked access.</td></tr>
-              <tr><td><code>System.Bytes</code></td><td><span class="status planned">Planned</span></td><td>Heap-owned byte sequences, byte/string conversion, endian reads/writes, and safe byte operations.</td></tr>
-              <tr><td><code>System.Net</code></td><td><span class="status planned">Planned</span></td><td>TCP/UDP sockets, listeners, connect, listen, accept, send, receive, close.</td></tr>
-              <tr><td><code>System.HTTP</code></td><td><span class="status planned">Planned</span></td><td>HTTP client requests, HTTP server handles, request parsing, response writing, limits, and timeouts.</td></tr>
-              <tr><td><code>System.HTTPS</code></td><td><span class="status planned">Planned</span></td><td>TLS configuration, HTTPS clients, HTTPS server handles, certificate loading, and verification diagnostics.</td></tr>
-              <tr><td><code>System.Terminal</code></td><td><span class="status planned">Planned</span></td><td>Raw mode, alternate screen, cursor control, terminal size, styles, key/mouse/resize events, cleanup on exit.</td></tr>
-              <tr><td><code>System.Process</code></td><td><span class="status planned">Planned</span></td><td>Process spawn, wait, kill, stdin/stdout/stderr handling, and process capability checks.</td></tr>
-              <tr><td><code>System.Thread</code></td><td><span class="status partial">Partial</span></td><td>OS thread handles, sleep, yield, hardware concurrency, and thread-related runtime operations.</td></tr>
-              <tr><td><code>System.Job</code></td><td><span class="status planned">Planned</span></td><td>VM job handles, spawn, join, detach, cancellation, and structured result propagation.</td></tr>
-              <tr><td><code>System.Channel</code></td><td><span class="status partial">Partial</span></td><td>Channel handles, send, trySend, receive, tryReceive, pending, close, and blocked-operation wakeup.</td></tr>
-              <tr><td><code>System.Time</code></td><td><span class="status partial">Partial</span></td><td>Wall clock, monotonic clock, timer handles, sleep, and duration/time conversion support.</td></tr>
-              <tr><td><code>System.Random</code></td><td><span class="status partial">Partial</span></td><td>Seeded random generator handles and random numeric values.</td></tr>
-              <tr><td><code>System.Json</code></td><td><span class="status partial">Partial</span></td><td>JSON parse, stringify, object/array accessors, typed getters, and JSON value handles.</td></tr>
-              <tr><td><code>System.Log</code></td><td><span class="status partial">Partial</span></td><td>Log levels, structured messages, runtime sinks, file sinks, and logger resource cleanup.</td></tr>
-              <tr><td><code>System.FFI</code></td><td><span class="status planned">Planned</span></td><td>Foreign function interface, dynamic libraries, symbols, strict ABI signatures.</td></tr>
-              <tr><td><code>System.ASM</code></td><td><span class="status planned">Planned</span></td><td>C/DynASM native-code units, object generation, symbol lookup, stub embedding, AOT linking.</td></tr>
+              <tr><td><code>System.FS</code></td><td>Partial</td><td>Open, close, read, write, seek, stat, list directories, create/remove/copy/rename files.</td></tr>
+              <tr><td><code>System.Path</code></td><td>Partial</td><td>Join, normalize, absolute/relative paths, basename, dirname, extension, separators.</td></tr>
+              <tr><td><code>System.Buffer</code></td><td>Partial</td><td>Native buffer handles, allocation, close, length, slicing, copying, and bounds-checked access.</td></tr>
+              <tr><td><code>System.Bytes</code></td><td>Planned</td><td>Heap-owned byte sequences, byte/string conversion, endian reads/writes, and safe byte operations.</td></tr>
+              <tr><td><code>System.Net</code></td><td>Planned</td><td>TCP/UDP sockets, listeners, connect, listen, accept, send, receive, close.</td></tr>
+              <tr><td><code>System.HTTP</code></td><td>Planned</td><td>HTTP client requests, HTTP server handles, request parsing, response writing, limits, and timeouts.</td></tr>
+              <tr><td><code>System.HTTPS</code></td><td>Planned</td><td>TLS configuration, HTTPS clients, HTTPS server handles, certificate loading, and verification diagnostics.</td></tr>
+              <tr><td><code>System.Terminal</code></td><td>Planned</td><td>Raw mode, alternate screen, cursor control, terminal size, styles, key/mouse/resize events, cleanup on exit.</td></tr>
+              <tr><td><code>System.Process</code></td><td>Planned</td><td>Process spawn, wait, kill, stdin/stdout/stderr handling, and process capability checks.</td></tr>
+              <tr><td><code>System.Thread</code></td><td>Partial</td><td>OS thread handles, sleep, yield, hardware concurrency, and thread-related runtime operations.</td></tr>
+              <tr><td><code>System.Job</code></td><td>Planned</td><td>VM job handles, spawn, join, detach, cancellation, and structured result propagation.</td></tr>
+              <tr><td><code>System.Channel</code></td><td>Partial</td><td>Channel handles, send, trySend, receive, tryReceive, pending, close, and blocked-operation wakeup.</td></tr>
+              <tr><td><code>System.Time</code></td><td>Partial</td><td>Wall clock, monotonic clock, timer handles, sleep, and duration/time conversion support.</td></tr>
+              <tr><td><code>System.Random</code></td><td>Partial</td><td>Seeded random generator handles and random numeric values.</td></tr>
+              <tr><td><code>System.Json</code></td><td>Partial</td><td>JSON parse, stringify, object/array accessors, typed getters, and JSON value handles.</td></tr>
+              <tr><td><code>System.Log</code></td><td>Partial</td><td>Log levels, structured messages, runtime sinks, file sinks, and logger resource cleanup.</td></tr>
+              <tr><td><code>System.FFI</code></td><td>Planned</td><td>Foreign function interface, dynamic libraries, symbols, strict ABI signatures.</td></tr>
+              <tr><td><code>System.ASM</code></td><td>Planned</td><td>C/DynASM native-code units, object generation, symbol lookup, stub embedding, AOT linking.</td></tr>
             </tbody>
           </table>
 
@@ -563,19 +572,19 @@ raylib.CloseWindow()</code></pre>
           <table>
             <thead><tr><th>Module</th><th>Status</th><th>Alias</th><th>High-level shape</th></tr></thead>
             <tbody>
-              <tr><td><code>Standard.FS</code></td><td><span class="status planned">Planned</span></td><td><code>FS</code></td><td><code>readText</code>, <code>writeText</code>, <code>readBytes</code>, <code>copy</code>, <code>move</code>, <code>walk</code>.</td></tr>
-              <tr><td><code>Standard.Path</code></td><td><span class="status planned">Planned</span></td><td><code>Path</code></td><td>Path joining, normalization, basename, dirname, extension, and platform separators.</td></tr>
-              <tr><td><code>Standard.Bytes</code></td><td><span class="status planned">Planned</span></td><td><code>Bytes</code></td><td>Byte construction, UTF-8 conversion, slices, copying, and encoding helpers.</td></tr>
-              <tr><td><code>Standard.Json</code></td><td><span class="status planned">Planned</span></td><td><code>Json</code></td><td><code>parse</code>, <code>stringify</code>, object/array builders, typed getters, and defaults.</td></tr>
-              <tr><td><code>Standard.HTTP</code></td><td><span class="status planned">Planned</span></td><td><code>HTTP</code></td><td><code>get</code>, <code>post</code>, <code>serve</code>, request/response helpers, async client APIs.</td></tr>
-              <tr><td><code>Standard.HTTPS</code></td><td><span class="status planned">Planned</span></td><td><code>HTTPS</code></td><td>TLS-backed server/client helpers with secure defaults and clear certificate diagnostics.</td></tr>
-              <tr><td><code>Standard.Console</code></td><td><span class="status planned">Planned</span></td><td><code>Console</code></td><td>Write, writeLine, readLine, clear, colors, and key helpers.</td></tr>
-              <tr><td><code>Standard.Terminal</code></td><td><span class="status planned">Planned</span></td><td><code>Terminal</code></td><td>Raw mode, alternate screen helpers, event pump, cursor, screen primitives, and cleanup helpers.</td></tr>
-              <tr><td><code>Standard.Process</code></td><td><span class="status planned">Planned</span></td><td><code>Process</code></td><td>Run commands, collect exit code/stdout/stderr, and async process execution.</td></tr>
-              <tr><td><code>Standard.Time</code></td><td><span class="status planned">Planned</span></td><td><code>Time</code></td><td>Current time, monotonic time, sleep, timers, and duration helpers.</td></tr>
-              <tr><td><code>Standard.Random</code></td><td><span class="status planned">Planned</span></td><td><code>Random</code></td><td>Random integers, ranges, floating-point values, and seeded RNG wrappers.</td></tr>
-              <tr><td><code>Standard.Log</code></td><td><span class="status planned">Planned</span></td><td><code>Log</code></td><td>Simple logging helpers, levels, structured fields, and high-level sinks.</td></tr>
-              <tr><td><code>Standard.Promise</code></td><td><span class="status planned">Planned</span></td><td><code>Promise</code></td><td><code>run</code>, <code>await</code>, <code>poll</code>, <code>cancel</code>, <code>isDone</code>.</td></tr>
+              <tr><td><code>Standard.FS</code></td><td>Planned</td><td><code>FS</code></td><td><code>readText</code>, <code>writeText</code>, <code>readBytes</code>, <code>copy</code>, <code>move</code>, <code>walk</code>.</td></tr>
+              <tr><td><code>Standard.Path</code></td><td>Planned</td><td><code>Path</code></td><td>Path joining, normalization, basename, dirname, extension, and platform separators.</td></tr>
+              <tr><td><code>Standard.Bytes</code></td><td>Planned</td><td><code>Bytes</code></td><td>Byte construction, UTF-8 conversion, slices, copying, and encoding helpers.</td></tr>
+              <tr><td><code>Standard.Json</code></td><td>Planned</td><td><code>Json</code></td><td><code>parse</code>, <code>stringify</code>, object/array builders, typed getters, and defaults.</td></tr>
+              <tr><td><code>Standard.HTTP</code></td><td>Planned</td><td><code>HTTP</code></td><td><code>get</code>, <code>post</code>, <code>serve</code>, request/response helpers, async client APIs.</td></tr>
+              <tr><td><code>Standard.HTTPS</code></td><td>Planned</td><td><code>HTTPS</code></td><td>TLS-backed server/client helpers with secure defaults and clear certificate diagnostics.</td></tr>
+              <tr><td><code>Standard.Console</code></td><td>Planned</td><td><code>Console</code></td><td>Write, writeLine, readLine, clear, colors, and key helpers.</td></tr>
+              <tr><td><code>Standard.Terminal</code></td><td>Planned</td><td><code>Terminal</code></td><td>Raw mode, alternate screen helpers, event pump, cursor, screen primitives, and cleanup helpers.</td></tr>
+              <tr><td><code>Standard.Process</code></td><td>Planned</td><td><code>Process</code></td><td>Run commands, collect exit code/stdout/stderr, and async process execution.</td></tr>
+              <tr><td><code>Standard.Time</code></td><td>Planned</td><td><code>Time</code></td><td>Current time, monotonic time, sleep, timers, and duration helpers.</td></tr>
+              <tr><td><code>Standard.Random</code></td><td>Planned</td><td><code>Random</code></td><td>Random integers, ranges, floating-point values, and seeded RNG wrappers.</td></tr>
+              <tr><td><code>Standard.Log</code></td><td>Planned</td><td><code>Log</code></td><td>Simple logging helpers, levels, structured fields, and high-level sinks.</td></tr>
+              <tr><td><code>Standard.Promise</code></td><td>Planned</td><td><code>Promise</code></td><td><code>run</code>, <code>await</code>, <code>poll</code>, <code>cancel</code>, <code>isDone</code>.</td></tr>
             </tbody>
           </table>
 
@@ -594,7 +603,8 @@ ready : Option&lt;Result&lt;HTTPResponse&gt;&gt; = page.poll()</code></pre>
 
 
         <section id="toolchain" class="doc-section" data-title="Toolchain">
-          <h2>Toolchain <span class="status implemented">Implemented</span></h2>
+          <h2>Toolchain</h2>
+          <p class="section-status">Status: Implemented</p>
           <p>The core toolchain is:</p>
 
           <ol class="pipeline-list">
@@ -610,19 +620,20 @@ svm run main.simple</code></pre>
         </section>
 
         <section id="runtime" class="doc-section" data-title="Runtime">
-          <h2>Runtime <span class="status partial">Partial</span></h2>
+          <h2>Runtime</h2>
+          <p class="section-status">Status: Partial</p>
           <p>The Simple runtime is the execution environment behind SBC bytecode. It loads bytecode, verifies structure, executes instructions, manages VM-owned values, and provides native-backed runtime modules.</p>
 
           <h3>Runtime responsibilities</h3>
           <table>
             <thead><tr><th>Area</th><th>Status</th><th>Responsibility</th></tr></thead>
             <tbody>
-              <tr><td>Loader</td><td><span class="status implemented">Implemented</span></td><td>Reads SBC files, validates headers, sections, bytecode version, and entry metadata.</td></tr>
-              <tr><td>Verifier</td><td><span class="status partial">Partial</span></td><td>Rejects malformed bytecode before execution. Planned work extends this to result/option/promise and typed handle metadata.</td></tr>
-              <tr><td>Interpreter</td><td><span class="status implemented">Implemented</span></td><td>Executes VM instructions, manages call frames, locals, globals, traps, and runtime limits.</td></tr>
-              <tr><td>Heap and GC</td><td><span class="status partial">Partial</span></td><td>Owns heap values such as strings, arrays, lists, artifacts, and runtime objects. Stack maps and declared roots keep references alive.</td></tr>
-              <tr><td>Native dispatch</td><td><span class="status partial">Partial</span></td><td>Connects language/runtime calls to native modules such as IO, FS, JSON, buffers, channels, time, random, logging, and dynamic loading.</td></tr>
-              <tr><td>Runtime limits</td><td><span class="status partial">Partial</span></td><td>Tracks execution constraints so runaway programs can be limited by the VM.</td></tr>
+              <tr><td>Loader</td><td>Implemented</td><td>Reads SBC files, validates headers, sections, bytecode version, and entry metadata.</td></tr>
+              <tr><td>Verifier</td><td>Partial</td><td>Rejects malformed bytecode before execution. Planned work extends this to result/option/promise and typed handle metadata.</td></tr>
+              <tr><td>Interpreter</td><td>Implemented</td><td>Executes VM instructions, manages call frames, locals, globals, traps, and runtime limits.</td></tr>
+              <tr><td>Heap and GC</td><td>Partial</td><td>Owns heap values such as strings, arrays, lists, artifacts, and runtime objects. Stack maps and declared roots keep references alive.</td></tr>
+              <tr><td>Native dispatch</td><td>Partial</td><td>Connects language/runtime calls to native modules such as IO, FS, JSON, buffers, channels, time, random, logging, and dynamic loading.</td></tr>
+              <tr><td>Runtime limits</td><td>Partial</td><td>Tracks execution constraints so runaway programs can be limited by the VM.</td></tr>
             </tbody>
           </table>
 
@@ -643,7 +654,8 @@ svm run main.simple</code></pre>
         </section>
 
         <section id="timeline" class="doc-section" data-title="Timeline">
-          <h2>Timeline <span class="status planned">Planned</span></h2>
+          <h2>Timeline</h2>
+          <p class="section-status">Status: Planned</p>
           <p>The current project priority is native-library architecture and the compiler/runtime prerequisites needed to support it. Broad cleanup work is lower priority unless it directly supports native-library implementation.</p>
 
           <h3>Current order of work</h3>
