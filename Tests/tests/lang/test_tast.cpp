@@ -715,14 +715,15 @@ bool LangTastExpressionOperatorsValidateScalarAndCompoundAssign() {
   if (error.find("requires scalar operands") == std::string::npos) return false;
   if (!Simple::Lang::TAST::CheckCompoundAssignOp("+", i32, i32, &error)) return false;
   if (!Simple::Lang::TAST::CheckCompoundAssignOp("&&", bool_type, bool_type, &error)) return false;
-  if (Simple::Lang::TAST::CheckCompoundAssignOp("==", string_type, string_type, &error)) return false;
-  if (error.find("does not support string operands") == std::string::npos) return false;
+  if (!Simple::Lang::TAST::CheckCompoundAssignOp("==", string_type, string_type, &error)) return false;
   if (!Simple::Lang::TAST::CheckUnaryOpTypeRules("!", bool_type, identifier, &error)) return false;
   if (Simple::Lang::TAST::CheckUnaryOpTypeRules("&", i32, call_expr, &error)) return false;
   if (error.find("address-of requires assignable expression") == std::string::npos) return false;
   if (!Simple::Lang::TAST::CheckBinaryOpTypeRules("+", i32, i32, identifier, identifier, &error)) return false;
-  if (Simple::Lang::TAST::CheckBinaryOpTypeRules("==", string_type, string_type, identifier, identifier, &error)) return false;
-  return error.find("does not support string operands") != std::string::npos;
+  if (!Simple::Lang::TAST::CheckBinaryOpTypeRules("==", string_type, string_type, identifier, identifier, &error)) return false;
+  if (!Simple::Lang::TAST::CheckBinaryOpTypeRules("!=", string_type, string_type, identifier, identifier, &error)) return false;
+  if (Simple::Lang::TAST::CheckBinaryOpTypeRules("<", string_type, string_type, identifier, identifier, &error)) return false;
+  return error.find("requires numeric operands") != std::string::npos;
 }
 
 bool LangTastCheckExpressionShapeValidatesIdentifiers() {

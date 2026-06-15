@@ -208,6 +208,8 @@ enum class OpCode : uint8_t {
   StringConcat = 0xD1,
   StringGetChar = 0xD2,
   StringSlice = 0xD3,
+  StringEq = 0xFC,
+  StringNe = 0xFD,
 
   CallCheck = 0xE0,
   AddU32 = 0xE1,

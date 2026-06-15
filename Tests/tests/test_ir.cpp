@@ -4702,6 +4702,48 @@ bool RunIrTextStringConcatTest() {
   return RunExpectExit(module, 3);
 }
 
+bool RunIrTextStringEqNeTest() {
+  std::vector<uint8_t> const_pool;
+  uint32_t left_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
+  uint32_t left_id = 0;
+  AppendConstString(const_pool, left_off, &left_id);
+  uint32_t bang_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "!"));
+  uint32_t bang_id = 0;
+  AppendConstString(const_pool, bang_off, &bang_id);
+  uint32_t whole_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi!"));
+  uint32_t whole_id = 0;
+  AppendConstString(const_pool, whole_off, &whole_id);
+  uint32_t other_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "bye"));
+  uint32_t other_id = 0;
+  AppendConstString(const_pool, other_off, &other_id);
+
+  std::string text = "func main locals=0 stack=16\n";
+  text += "  enter 0\n";
+  text += "  const string " + std::to_string(left_id) + "\n";
+  text += "  const string " + std::to_string(bang_id) + "\n";
+  text += "  string.concat\n";
+  text += "  const string " + std::to_string(whole_id) + "\n";
+  text += "  string.eq\n";
+  text += "  jmp.false bad\n";
+  text += "  const string " + std::to_string(whole_id) + "\n";
+  text += "  const string " + std::to_string(other_id) + "\n";
+  text += "  string.ne\n";
+  text += "  jmp.false bad\n";
+  text += "  const i32 7\n";
+  text += "  jmp done\n";
+  text += "bad:\n";
+  text += "  const i32 1\n";
+  text += "done:\n";
+  text += "  ret\n";
+  text += "end\n";
+  text += "entry main\n";
+
+  auto module = BuildIrTextModuleWithTables(text, "ir_text_string_eq_ne",
+                                            {}, {}, std::move(const_pool));
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
 bool RunIrTextStringGetCharTest() {
   std::vector<uint8_t> const_pool;
   uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "abc"));
@@ -7465,6 +7507,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_closure_upvalue", RunIrTextClosureUpvalueTest},
   {"ir_text_bad_newclosure", RunIrTextBadNewClosureTest},
   {"ir_text_string_concat", RunIrTextStringConcatTest},
+  {"ir_text_string_eq_ne", RunIrTextStringEqNeTest},
   {"ir_text_string_get_char", RunIrTextStringGetCharTest},
   {"ir_text_string_slice", RunIrTextStringSliceTest},
   {"ir_text_array_i64", RunIrTextArrayI64Test},

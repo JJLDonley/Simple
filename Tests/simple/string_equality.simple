@@ -1,0 +1,12 @@
+main : i32 () {
+  a : string = "linux"
+  b : string = "linux"
+  c : string = "windows"
+
+  if (!(a == b)) { return 1 }
+  if (a != b) { return 2 }
+  if (!(a != c)) { return 3 }
+  if (a == c) { return 4 }
+  if ("macos" == "macos") { return 0 }
+  return 5
+}

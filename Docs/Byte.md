@@ -729,6 +729,8 @@ String-specific operations.
 |:---:|---:|---|---:|---:|---:|
 | ✅ | `0xD0` | `StringLen` | 0 | 1 | 1 |
 | ✅ | `0xD1` | `StringConcat` | 0 | 2 | 1 |
+| ✅ | `0xFC` | `StringEq` | 0 | 2 | 1 |
+| ✅ | `0xFD` | `StringNe` | 0 | 2 | 1 |
 | ✅ | `0xD2` | `StringGetChar` | 0 | 2 | 1 |
 | ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
 | ☐ | `TBD` | `StringEq` | 0 | 2 | 1 |

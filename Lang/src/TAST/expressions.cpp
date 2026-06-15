@@ -65,11 +65,10 @@ bool CheckCompoundAssignOp(const std::string& op,
   }
   if (op == "==" || op == "!=") {
     if (IsStringTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' does not support string operands";
-      return false;
+      return true;
     }
     if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
+      if (error) *error = "operator '" + op + "' requires numeric, bool, or string operands";
       return false;
     }
     return true;
@@ -160,11 +159,10 @@ bool CheckBinaryOpTypeRules(const std::string& op,
   }
   if (op == "==" || op == "!=") {
     if (IsStringTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' does not support string operands";
-      return false;
+      return true;
     }
     if (!IsNumericTypeName(lhs.name) && !IsBoolTypeName(lhs.name)) {
-      if (error) *error = "operator '" + op + "' requires numeric or bool operands";
+      if (error) *error = "operator '" + op + "' requires numeric, bool, or string operands";
       return false;
     }
     return true;

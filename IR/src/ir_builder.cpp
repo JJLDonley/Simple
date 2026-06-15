@@ -405,6 +405,14 @@ void IrBuilder::EmitStringConcat() {
   EmitOp(OpCode::StringConcat);
 }
 
+void IrBuilder::EmitStringEq() {
+  EmitOp(OpCode::StringEq);
+}
+
+void IrBuilder::EmitStringNe() {
+  EmitOp(OpCode::StringNe);
+}
+
 void IrBuilder::EmitStringGetChar() {
   EmitOp(OpCode::StringGetChar);
 }

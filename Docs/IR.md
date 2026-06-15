@@ -819,8 +819,8 @@ String-specific operations.
 | ✅ | `0xD1` | `string.concat` | `none` | `StringConcat` |  |
 | ✅ | `0xD2` | `string.get.char` | `none` | `StringGetChar` |  |
 | ✅ | `0xD3` | `string.slice` | `none` | `StringSlice` |  |
-| ☐ | `TBD` | `string.eq` | `none` | `StringEq` | planned |
-| ☐ | `TBD` | `string.ne` | `none` | `StringNe` | planned |
+| ✅ | `0xFC` | `string.eq` | `none` | `StringEq` |  |
+| ✅ | `0xFD` | `string.ne` | `none` | `StringNe` |  |
 | ☐ | `TBD` | `string.compare` | `none` | `StringCompare` | planned |
 | ☐ | `TBD` | `string.find` | `none` | `StringFind` | planned |
 | ☐ | `TBD` | `string.to.bytes` | `none` | `StringToBytes` | planned |

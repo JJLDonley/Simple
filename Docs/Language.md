@@ -811,12 +811,13 @@ items.clear()
 
 ## Strings and formatting
 
-Strings are first-class heap values:
+Strings are first-class heap values. `==` and `!=` compare string contents:
 
 ```simple
 main : i32 () {
   s : string = "hello"
-  return len(s)
+  if (s == "hello") { return len(s) }
+  return 0
 }
 ```
 

@@ -1688,6 +1688,17 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::Ref);
           break;
         }
+        case OpCode::StringEq:
+        case OpCode::StringNe: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Ref, "STRING_COMPARE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::Ref, "STRING_COMPARE type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
         case OpCode::StringGetChar: {
           ValType idx = pop_type();
           ValType str = pop_type();

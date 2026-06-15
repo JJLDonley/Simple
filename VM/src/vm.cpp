@@ -1297,6 +1297,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         Push(stack, PackRef(handle));
         break;
       }
+      case OpCode::StringEq:
+      case OpCode::StringNe: {
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        if (IsNullRef(a) || IsNullRef(b)) return Trap("STRING_COMPARE on non-ref");
+        HeapObject* obj_a = heap.Get(UnpackRef(a));
+        HeapObject* obj_b = heap.Get(UnpackRef(b));
+        if (!obj_a || !obj_b || obj_a->header.kind != ObjectKind::String || obj_b->header.kind != ObjectKind::String) {
+          return Trap("STRING_COMPARE on non-string");
+        }
+        bool out = ReadString(obj_a) == ReadString(obj_b);
+        if (opcode == static_cast<uint8_t>(OpCode::StringNe)) out = !out;
+        Push(stack, PackI32(out ? 1 : 0));
+        break;
+      }
       case OpCode::StringGetChar: {
         Slot idx_val = Pop(stack);
         Slot v = Pop(stack);

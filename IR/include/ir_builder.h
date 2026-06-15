@@ -103,6 +103,8 @@ class IrBuilder {
   void EmitTypeOf();
   void EmitStringLen();
   void EmitStringConcat();
+  void EmitStringEq();
+  void EmitStringNe();
   void EmitStringGetChar();
   void EmitStringSlice();
   void EmitLoadLocal(uint32_t index);

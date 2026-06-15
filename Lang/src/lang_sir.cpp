@@ -2469,6 +2469,10 @@ bool EmitBinary(EmitState& st,
   PopStack(st, 1);
   if (expr.op == "==" || expr.op == "!=" || expr.op == "<" || expr.op == "<=" ||
       expr.op == ">" || expr.op == ">=") {
+    if (type.name == "string" && (expr.op == "==" || expr.op == "!=")) {
+      (*st.out) << (expr.op == "==" ? "  string.eq\n" : "  string.ne\n");
+      return true;
+    }
     const char* op_type = NormalizeNumericOpType(type.name);
     if (!op_type) {
       if (error) *error = "unsupported operand type for '" + expr.op + "'";

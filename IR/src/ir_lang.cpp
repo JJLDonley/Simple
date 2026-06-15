@@ -2527,6 +2527,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStringConcat();
         continue;
       }
+      if (op == "string.eq") {
+        builder.EmitStringEq();
+        continue;
+      }
+      if (op == "string.ne") {
+        builder.EmitStringNe();
+        continue;
+      }
       if (op == "string.get.char") {
         builder.EmitStringGetChar();
         continue;

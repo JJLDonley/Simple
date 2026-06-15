@@ -16815,7 +16815,8 @@ bool RunOpcodeOperandWidthMetadataTest() {
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Enter), &width) || width != 2) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &width) || width != 5) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &width) || width != 8) return false;
-  return !Simple::Byte::GetOperandWidth(0xFC, &width);
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &width) || width != 0) return false;
+  return !Simple::Byte::GetOperandWidth(0xFE, &width);
 }
 
 bool RunOpcodeStackEffectMetadataTest() {
@@ -16826,7 +16827,8 @@ bool RunOpcodeStackEffectMetadataTest() {
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::Pop), &pops, &pushes) || pops != 1 || pushes != 0) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::Dup2), &pops, &pushes) || pops != 2 || pushes != 4) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &pops, &pushes) || pops != 1 || pushes != 0) return false;
-  return !Simple::Byte::GetStackEffect(0xFC, &pops, &pushes);
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &pops, &pushes) || pops != 2 || pushes != 1) return false;
+  return !Simple::Byte::GetStackEffect(0xFE, &pops, &pushes);
 }
 
 bool RunOpcodeTypeRuleMetadataTest() {
@@ -16839,7 +16841,8 @@ bool RunOpcodeTypeRuleMetadataTest() {
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::LoadField), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &rule) || rule != Simple::Byte::OpTypeRule::Control) return false;
-  return !Simple::Byte::GetOpTypeRule(0xFC, &rule);
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
+  return !Simple::Byte::GetOpTypeRule(0xFE, &rule);
 }
 
 bool RunOpcodeControlFlowMetadataTest() {
@@ -16850,7 +16853,8 @@ bool RunOpcodeControlFlowMetadataTest() {
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &flow) || flow != Simple::Byte::OpControlFlow::TableJump) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Ret), &flow) || flow != Simple::Byte::OpControlFlow::Return) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Trap), &flow) || flow != Simple::Byte::OpControlFlow::Terminal) return false;
-  return !Simple::Byte::GetOpControlFlow(0xFC, &flow);
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
+  return !Simple::Byte::GetOpControlFlow(0xFE, &flow);
 }
 
 bool RunOpcodeVerifierRuleMetadataTest() {
@@ -16861,7 +16865,8 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayGetI32), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Jmp), &rule) || rule != Simple::Byte::OpVerifierRule::Control) return false;
-  return !Simple::Byte::GetOpVerifierRule(0xFC, &rule);
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
+  return !Simple::Byte::GetOpVerifierRule(0xFE, &rule);
 }
 
 bool RunOpcodeVmDispatchMetadataTest() {
@@ -16876,7 +16881,8 @@ bool RunOpcodeVmDispatchMetadataTest() {
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayGetI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Intrinsic), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Runtime) return false;
-  return !Simple::Byte::GetOpVmDispatch(0xFC, &dispatch);
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
+  return !Simple::Byte::GetOpVmDispatch(0xFE, &dispatch);
 }
 
 bool RunOpcodeMetadataVerifierVmComparisonTest() {
