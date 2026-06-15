@@ -304,6 +304,6 @@ Active docs are intentionally small and focused:
 - [Docs/Byte.md](Docs/Byte.md) — SBC bytecode, loader, verifier
 - [Docs/CLI.md](Docs/CLI.md) — `svm` and `simple` behavior
 - [Docs/JIT.md](Docs/JIT.md) — optional JIT/tiering behavior
-- [Docs/TODO.md](Docs/TODO.md) — active work list
+- [Docs/Timeline.md](Docs/Timeline.md) — active roadmap and work timeline
 - [Docs/Standards.md](Docs/Standards.md) — coding standards
 

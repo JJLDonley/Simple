@@ -170,7 +170,7 @@ Update documentation when behavior changes affect users, embedders, or compatibi
 
 Relevant docs:
 
-- `Docs/TODO.md`
+- `Docs/Timeline.md`
 - `Docs/CLI.md`
 - `Docs/VM.md`
 - `Docs/Language.md`
@@ -178,7 +178,7 @@ Relevant docs:
 - `Docs/IR.md`
 - `Docs/JIT.md`
 
-TODO entries must be actionable.
+Timeline entries must be actionable.
 
 ## 11. Compatibility
 
@@ -201,5 +201,5 @@ Before committing:
 - No unnecessary growth in known monoliths.
 - Public behavior is tested.
 - Diagnostics are stable and useful.
-- Docs/TODOs are updated when needed.
+- Docs timeline entries are updated when needed.
 - Full test suite passes.
