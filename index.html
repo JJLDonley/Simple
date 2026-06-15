@@ -3,526 +3,666 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Simple | Language, IR, and Bytecode VM</title>
-  <meta name="description" content="Simple is a strict language and runtime stack: Simple Lang -> Simple IR -> SBC -> VM." />
+  <title>Simple Language Documentation</title>
+  <meta name="description" content="Documentation for Simple, a C-like strict typed general-purpose language with quick scripting and a robust native library." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;650;750&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script>
+    document.documentElement.dataset.theme = localStorage.getItem('simple-theme') || 'system';
+  </script>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="bg-grid" aria-hidden="true"></div>
-
-  <header class="hero wrap">
-    <p class="eyebrow">Simple Project</p>
-    <div class="hero-row">
-      <div class="hero-text">
-        <div class="header-logo">
-          <div class="header-text">
-            <h1>Simple Lang,</h1>
-            <h1>Simple IR,</h1> 
-            <h1>Simple VM</h1>
-          </div>
-          <div class="logo-block">
-            <div class="logo-wrap">
-              <img class="logo" src="SimpleLogo.png" alt="Simple logo" />
-            </div>
-          </div>
-        </div>
-        <p class="lead">A strict language and runtime stack focused on predictable behavior, explicit boundaries, and an inspectable pipeline.</p>
-        <div class="cta-row">
-          <a class="btn solid" href="#quick-start">Get Started</a>
-          <a class="btn ghost" href="#core-ideas">Language Core Ideas</a>
-          <a class="btn ghost" href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">Downloads</a>
-        </div>
-      </div>
+  <header class="app-header">
+    <a class="app-brand" href="#landing">
+      <img src="SimpleLogo.png" alt="Simple logo" />
+      <span>Simple</span>
+    </a>
+    <div class="app-header-right">
+      <nav class="app-tabs" aria-label="Main pages">
+        <a href="#landing" data-page-link="landing">Landing</a>
+        <a href="#playground" data-page-link="playground">Playground</a>
+        <a href="#overview" data-page-link="docs">Docs</a>
+      </nav>
+      <label class="theme-picker">
+        <span>Theme</span>
+        <select id="theme-select" aria-label="Theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
     </div>
   </header>
 
-  <main class="wrap">
-    <section class="panel" id="why-simple">
-      <h2>Why Simple Exists</h2>
-      <p>Simple is built around one clear execution story: source code lowers to a readable intermediate form, then to bytecode, then executes in a verified VM. The point is not clever syntax tricks. The point is control: deterministic behavior, clear failure modes, and an architecture you can embed and reason about.</p>
-      <div class="pillars">
-        <article class="card">
-          <h3>Strict by default</h3>
-          <p>Types are explicit and validated early. You get fewer hidden conversions and clearer diagnostics.</p>
-        </article>
-        <article class="card">
-          <h3>Pipeline visibility</h3>
-          <p>You can inspect SIR and SBC artifacts directly, making compiler/runtime debugging practical.</p>
-        </article>
-        <article class="card">
-          <h3>Embeddable runtime</h3>
-          <p>The VM is designed as a host boundary for app scripting, tools, and sandboxed execution.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel" id="supported">
-      <h2>Supported Surface</h2>
-      <div class="two-col">
+  <section id="landing-page" class="page landing-page">
+    <div class="landing-inner">
+      <div class="hero-line landing-hero logo-first">
+        <img class="hero-logo" src="SimpleLogo.png" alt="Simple logo" />
         <div>
-          <h3>Language</h3>
-          <p>Strict typing, explicit mutability, artifacts, enums, modules, and script-style top-level execution.</p>
-        </div>
-        <div>
-          <h3>Pipeline</h3>
-          <p>.simple -> SIR -> SBC -> VM execution with loader/verifier gates and deterministic diagnostics.</p>
-        </div>
-        <div>
-          <h3>Runtime</h3>
-          <p>Interpreter execution, heap/GC, arrays/lists/strings, and core system module dispatch.</p>
-        </div>
-        <div>
-          <h3>Interop</h3>
-          <p>DL-based C/C++ interop with strict extern signatures and ABI marshalling.</p>
+          <p class="eyebrow">Simple Programming Language</p>
+          <h1>Simple</h1>
         </div>
       </div>
-    </section>
 
-    <section class="panel" id="docs">
-      <h2>Authoritative Docs</h2>
-      <div class="pillars">
-        <article class="card">
-          <h3>Language</h3>
-          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/Lang.md" target="_blank" rel="noopener noreferrer">Docs/Lang.md</a> - syntax, semantics, and validation.</p>
-        </article>
-        <article class="card">
-          <h3>StdLib</h3>
-          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/StdLib.md" target="_blank" rel="noopener noreferrer">Docs/StdLib.md</a> - reserved imports and APIs.</p>
-        </article>
-        <article class="card">
-          <h3>IR + Bytecode</h3>
-          <p><a href="https://github.com/JJLDonley/Simple/blob/main/Docs/IR.md" target="_blank" rel="noopener noreferrer">Docs/IR.md</a> and <a href="https://github.com/JJLDonley/Simple/blob/main/Docs/Byte.md" target="_blank" rel="noopener noreferrer">Docs/Byte.md</a>.</p>
-        </article>
+      <p class="subtitle tagline">Simple like C. Statically typed. General purpose.</p>
+      <p class="landing-lead">Simple compiles source into SIR, then SBC bytecode, then runs on the Simple VM. It is built around explicit types, direct control flow, readable compiler output, and a robust native library for low-level and high-level coding.</p>
+
+      <div class="example-header">
+        <label for="example-select">Example</label>
+        <select id="example-select">
+          <option value="toolScript">Tool script</option>
+          <option value="artifactModel">Artifact model</option>
+          <option value="namespaceApi">Namespace API</option>
+          <option value="moduleSurface">Module surface</option>
+          <option value="typedCollections">Typed collections</option>
+          <option value="ffiBinding">FFI binding</option>
+          <option value="systemFs">System FS pattern</option>
+          <option value="httpServer">HTTP server pattern</option>
+          <option value="terminalLoop">Terminal event loop</option>
+          <option value="asyncFlow">Async result flow</option>
+        </select>
       </div>
-    </section>
+      <pre class="example-code"><code id="hero-example" class="language-simple">import IO
+import FS
 
-    <section class="panel" id="core-ideas">
-      <h2>Simple Lang: Core Ideas</h2>
-      <div class="tabs" data-default="tab-decl">
-        <div class="tab-bar" role="tablist" aria-label="Simple core ideas">
-          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-decl" id="btn-decl" data-target="tab-decl">Declarations</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-mutable" id="btn-mutable" data-target="tab-mutable">Mutability</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-script" id="btn-script" data-target="tab-script">Scripting</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-data" id="btn-data" data-target="tab-data">Data Model</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-system" id="btn-system" data-target="tab-system">System</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-interop" id="btn-interop" data-target="tab-interop">Interop</button>
+main : i32 () {
+  path :: string = "build.log"
+  exists : bool = FS.exists(path)
+
+  if (exists) {
+    IO.println("{} exists", path)
+    return 0
+  }
+
+  IO.println("{} missing", path)
+  return 1
+}</code></pre>
+
+      <div class="landing-actions">
+        <a class="repo-link" href="#overview">Read the docs</a>
+        <a class="repo-link" href="#playground">Open playground</a>
+        <a class="repo-link" href="https://github.com/JJLDonley/Simple" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="playground-page" class="page playground-page" hidden>
+    <div class="landing-inner">
+      <p class="eyebrow">Playground</p>
+      <h1>Playground</h1>
+      <p class="subtitle">Under construction.</p>
+      <p>The browser playground will eventually let people edit Simple code, compile to SIR/SBC, and run examples in-browser.</p>
+      <pre><code class="language-simple">// under construction
+// planned: edit Simple code, compile to SIR/SBC, and run examples in-browser</code></pre>
+    </div>
+  </section>
+
+  <div id="docs-page" class="app-shell page" hidden>
+    <aside class="doc-sidebar" aria-label="Documentation navigation">
+      <a class="brand" href="#overview" data-route="overview">
+        <img src="SimpleLogo.png" alt="Simple logo" />
+        <span>Simple</span>
+      </a>
+
+      <label class="search-label" for="doc-search">Search</label>
+      <input id="doc-search" class="search" type="search" placeholder="Search docs..." autocomplete="off" />
+
+      <nav class="doc-nav">
+        <p>Introduction</p>
+        <a href="#overview" data-route="overview">Overview</a>
+        <a href="#why-simple" data-route="why-simple">Why Simple</a>
+        <a href="#installation" data-route="installation">Installation</a>
+        <a href="#getting-started" data-route="getting-started">Getting started</a>
+
+        <p>Language</p>
+        <a href="#program-structure" data-route="program-structure">Program structure</a>
+        <a href="#declarations" data-route="declarations">Declarations</a>
+        <a href="#types" data-route="types">Types</a>
+        <a href="#literals" data-route="literals">Literals</a>
+        <a href="#expressions" data-route="expressions">Expressions</a>
+        <a href="#control-flow" data-route="control-flow">Control flow</a>
+        <a href="#arrays-lists" data-route="arrays-lists">Arrays and lists</a>
+        <a href="#artifacts" data-route="artifacts">Artifacts</a>
+        <a href="#enums" data-route="enums">Enums</a>
+        <a href="#namespaces" data-route="namespaces">Namespaces</a>
+        <a href="#modules-imports" data-route="modules-imports">Modules and imports</a>
+        <a href="#ffi" data-route="ffi">FFI and extern</a>
+
+        <p>Library</p>
+        <a href="#native-library" data-route="native-library">Native library</a>
+
+        <p>Runtime</p>
+        <a href="#toolchain" data-route="toolchain">Toolchain</a>
+        <a href="#runtime" data-route="runtime">Runtime</a>
+        <a href="#timeline" data-route="timeline">Timeline</a>
+        <a href="#status" data-route="status">Status</a>
+      </nav>
+
+      <a class="repo-link" href="https://github.com/JJLDonley/Simple" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+    </aside>
+
+    <main class="doc-main">
+      <header class="doc-topbar">
+        <div class="doc-topbar-left">
+          <button class="menu-button" type="button" aria-label="Toggle navigation">☰</button>
+          <span id="current-section">Overview</span>
         </div>
+        <label class="theme-picker doc-theme-picker">
+          <span>Theme</span>
+          <select id="doc-theme-select" aria-label="Theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+      </header>
 
-        <article class="tab-panel active" id="tab-decl" role="tabpanel" aria-labelledby="btn-decl">
-          <h3>Declarations are explicit</h3>
-          <p>Variables, parameters, and returns are typed. Type mismatches fail at validation.</p>
-          <pre><code>count : i32 = 42
-label :: string = "ready"
+      <article class="doc-content">
+        <section id="overview" class="doc-section" data-title="Overview">
+          <div class="hero-line logo-first">
+            <img class="hero-logo" src="SimpleLogo.png" alt="Simple logo" />
+            <div>
+              <p class="eyebrow">Simple Language Documentation</p>
+              <h1>Simple</h1>
+            </div>
+          </div>
+
+          <p class="subtitle tagline">Simple like C. Statically typed. General purpose.</p>
+          <p>Simple compiles <code>.simple</code> source into SIR, then SBC bytecode, then runs on the Simple VM. The language is designed for explicit types, direct control flow, readable compiler output, and native-backed programs.</p>
+
+          <pre><code class="language-simple">import IO
+
+main : i32 () {
+  IO.println("hello from Simple")
+  return 0
+}</code></pre>
+
+          <table>
+            <thead>
+              <tr><th>Layer</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Language</td><td>Strict typed source syntax for programs and scripts.</td></tr>
+              <tr><td>SIR</td><td>Readable intermediate representation used to inspect lowering.</td></tr>
+              <tr><td>SBC</td><td>Compact bytecode format loaded and verified by the runtime.</td></tr>
+              <tr><td>VM</td><td>Execution engine, heap, native dispatch, traps, and runtime limits.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="why-simple" class="doc-section" data-title="Why Simple">
+          <h2>Why Simple</h2>
+          <p>Simple came about from wanting a C-like, strictly typed general-purpose language that still has quick and easy scripting capability.</p>
+          <p>Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.</p>
+
+          <h3>Design goals</h3>
+          <ul>
+            <li><strong>General-purpose programming:</strong> useful for tools, applications, scripts, and native-backed programs.</li>
+            <li><strong>C-like directness:</strong> functions, blocks, direct control flow, explicit declarations.</li>
+            <li><strong>Strict typing:</strong> reject type mistakes before execution.</li>
+            <li><strong>Quick scripting:</strong> top-level statements are valid when a full application structure is unnecessary.</li>
+            <li><strong>Robust native library:</strong> low-level <code>System.*</code> and high-level <code>Standard.*</code> APIs.</li>
+          </ul>
+        </section>
+
+        <section id="installation" class="doc-section" data-title="Installation">
+          <h2>Installation</h2>
+          <p>Simple currently builds from source. The developer CLI is <code>svm</code>. The <code>simple</code> executable is a runtime stub for generated/embedded programs.</p>
+
+          <h3>Build</h3>
+          <pre><code class="language-bash"># Linux / macOS
+./build.sh
+
+# Windows
+build.bat</code></pre>
+
+          <h3>Install</h3>
+          <pre><code class="language-bash"># Linux / macOS
+./install.sh
+
+# custom prefix
+PREFIX="$HOME/.local" ./install.sh</code></pre>
+
+          <table>
+            <thead><tr><th>Binary</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td><code>svm</code></td><td>Compiler, checker, emitter, runner, build tooling.</td></tr>
+              <tr><td><code>simple</code></td><td>Runtime stub only; not the compiler command.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="getting-started" class="doc-section" data-title="Getting started">
+          <h2>Getting started</h2>
+          <p>Create <code>hello.simple</code>:</p>
+
+          <pre><code class="language-simple">import IO
+
+main : i32 () {
+  IO.println("hello from Simple")
+  return 0
+}</code></pre>
+
+          <p>Run, check, or emit bytecode:</p>
+
+          <pre><code class="language-bash">svm run hello.simple
+svm check hello.simple
+svm emit -sbc hello.simple --out hello.sbc</code></pre>
+
+          <p>Top-level statements are also valid for script-style files:</p>
+
+          <pre><code class="language-simple">import IO
+
+IO.println("script start")
 
 add : i32 (a : i32, b : i32) {
   return a + b
-}</code></pre>
-          <p class="muted">Strict typing is enforced across variables, parameters, and returns.</p>
-        </article>
+}
 
-        <article class="tab-panel" id="tab-mutable" role="tabpanel" aria-labelledby="btn-mutable" hidden>
-          <h3>Mutability is explicit</h3>
-          <p><code>:</code> is mutable. <code>::</code> is immutable.</p>
-          <pre><code>x : i32 = 10
+IO.println("sum={}", add(2, 3))</code></pre>
+        </section>
+
+        <section id="program-structure" class="doc-section" data-title="Program structure">
+          <h2>Program structure</h2>
+          <p>A Simple file contains imports, declarations, and optionally top-level statements. Top-level statements execute in source order through an implicit script entry.</p>
+
+          <pre><code class="language-simple">module app.main
+
+import IO
+import Math
+
+version :: string = "0.1"
+
+main : i32 () {
+  IO.println(version)
+  return 0
+}</code></pre>
+
+          <table>
+            <thead><tr><th>Construct</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>module name</code></td><td>Optional file/module header used by import indexing.</td></tr>
+              <tr><td><code>import IO</code></td><td>Reserved/runtime module import.</td></tr>
+              <tr><td><code>import Math</code></td><td>Module import resolved by the project/module index.</td></tr>
+              <tr><td><code>main : i32 ()</code></td><td>Explicit entry point when no top-level script body is used.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="declarations" class="doc-section" data-title="Declarations">
+          <h2>Declarations</h2>
+          <p>Simple separates mutability from type. <code>:</code> declares mutable bindings. <code>::</code> declares immutable bindings and named top-level constructs.</p>
+
+          <pre><code class="language-simple">count : i32 = 1
 name :: string = "Simple"
 
-x = x + 1        # ok
-name = "Next"    # compile error</code></pre>
-          <p class="muted">The same rules apply to artifact fields.</p>
-        </article>
+count = count + 1
+// name = "Other" // rejected: immutable</code></pre>
 
-        <article class="tab-panel" id="tab-script" role="tabpanel" aria-labelledby="btn-script" hidden>
-          <h3>Script-style top level</h3>
-          <p>Top-level statements execute in source order via implicit <code>__script_entry</code>. Function declarations do not execute implicitly.</p>
-          <pre><code>import io
-io.println("boot")
-
-sum : i32 (a : i32, b : i32) {
+          <h3>Functions</h3>
+          <pre><code class="language-simple">add : i32 (a : i32, b : i32) {
   return a + b
 }
 
-io.println(sum(2, 3))</code></pre>
-          <p class="muted">An explicit <code>main</code> is used only when no top-level statements exist.</p>
-        </article>
+log : void (message : string) {
+  IO.println(message)
+}</code></pre>
+        </section>
 
-        <article class="tab-panel" id="tab-data" role="tabpanel" aria-labelledby="btn-data" hidden>
-          <h3>Artifact, Enum, and Module</h3>
-          <p>Artifact defines structured layouts with fields and optional methods. Enum is scoped and strongly typed. Module exposes constants.</p>
-          <pre><code>Status :: Enum { Idle = 0, Running = 1 }
+        <section id="types" class="doc-section" data-title="Types">
+          <h2>Types</h2>
+          <p>Types are explicit in declarations, function parameters, returns, arrays, lists, artifacts, and native-facing APIs.</p>
 
-Player :: Artifact {
-  hp : i32
-  damage : void (amount : i32) { self.hp -= amount }
+          <h3>Primitive types</h3>
+          <table>
+            <thead><tr><th>Group</th><th>Types</th></tr></thead>
+            <tbody>
+              <tr><td>Unit</td><td><code>void</code></td></tr>
+              <tr><td>Boolean</td><td><code>bool</code></td></tr>
+              <tr><td>Text</td><td><code>char</code>, <code>string</code></td></tr>
+              <tr><td>Signed integers</td><td><code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code></td></tr>
+              <tr><td>Unsigned integers</td><td><code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code></td></tr>
+              <tr><td>Floating point</td><td><code>f32</code>, <code>f64</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Named and procedure types</h3>
+          <pre><code class="language-simple">Point :: artifact { x : i32; y : i32 }
+Color :: enum { Red = 1, Green = 2 }
+
+p : Point = { .x = 3, .y = 4 }
+c : Color = Color.Green
+op : i32 (i32, i32) = add</code></pre>
+        </section>
+
+        <section id="literals" class="doc-section" data-title="Literals">
+          <h2>Literals</h2>
+          <p>Literals are checked against the expected type where needed.</p>
+
+          <pre><code class="language-simple">b :: bool = true
+letter :: char = 'x'
+name :: string = "Simple"
+decimal :: i32 = 42
+hex :: i32 = 0x10
+binary :: i32 = 0b1010
+ratio :: f64 = 3.14
+array :: i32{3} = {1, 2, 3}
+list :: i32[] = [1, 2, 3]
+point : Point = { .x = 1, .y = 2 }</code></pre>
+        </section>
+
+        <section id="expressions" class="doc-section" data-title="Expressions">
+          <h2>Expressions</h2>
+          <p>Arithmetic, comparison, assignment, calls, member access, casts, and indexing are type checked.</p>
+
+          <pre><code class="language-simple">x : i32 = 10
+y : i32 = 20
+sum : i32 = x + y
+same : bool = x == y
+narrow : i32 = @i32(3.0)
+first : i32 = values[0]
+result : i32 = add(x, y)</code></pre>
+
+          <p>Invalid operations such as boolean arithmetic, non-integer indexes, unknown members, incompatible assignment, and unsupported casts are rejected during validation.</p>
+        </section>
+
+        <section id="control-flow" class="doc-section" data-title="Control flow">
+          <h2>Control flow</h2>
+          <p>Blocks create scopes. <code>if</code>, loops, <code>break</code>, <code>skip</code>, <code>return</code>, and switch-style forms are checked by the validator.</p>
+
+          <pre><code class="language-simple">total : i32 = 0
+
+for (i : i32 = 0; i < 10; i = i + 1) {
+  if (i == 5) {
+    skip
+  }
+  total = total + i
 }
 
-Config :: Module {
-  MAX_PLAYERS :: i32 = 16
+while (total > 20) {
+  total = total - 1
 }</code></pre>
-          <p class="muted">These map cleanly through validation and IR lowering.</p>
-        </article>
+        </section>
 
-        <article class="tab-panel" id="tab-system" role="tabpanel" aria-labelledby="btn-system" hidden>
-          <h3>System modules are reserved</h3>
-          <p>Reserved modules use keyword-style paths. Local modules use quoted paths.</p>
-          <pre><code>import io
-import dl
-import fs
+        <section id="arrays-lists" class="doc-section" data-title="Arrays and lists">
+          <h2>Arrays and lists</h2>
+          <p>Fixed arrays use <code>T{N}</code>. Growable lists use <code>T[]</code>. Indexes must be integers and element types must match.</p>
 
-import "raylib"
-import "./raylib.simple"</code></pre>
-          <p class="muted">Reserved imports map to runtime namespaces defined in <code>Docs/StdLib.md</code>.</p>
-        </article>
+          <pre><code class="language-simple">fixed : i32{3} = {1, 2, 3}
+items : i32[] = [1, 2, 3]
 
-        <article class="tab-panel" id="tab-interop" role="tabpanel" aria-labelledby="btn-interop" hidden>
-          <h3>Interop is first-class</h3>
-          <p><code>extern</code> declares native signatures, and <code>DL</code> handles ABI marshaling.</p>
-          <pre><code>import dl
-import io
+fixedFirst : i32 = fixed[0]
+items[1] = 9
+count : i32 = len(items)</code></pre>
+        </section>
 
-extern raylib.InitWindow : void (w: i32, h: i32, title: string)
+        <section id="artifacts" class="doc-section" data-title="Artifacts">
+          <h2>Artifacts</h2>
+          <p>Artifacts define structured data with optional methods. Fields define layout. Methods define behavior and do not change ABI layout.</p>
+
+          <pre><code class="language-simple">Counter :: artifact {
+  value : i32
+
+  inc : void () {
+    self.value = self.value + 1
+  }
+
+  get : i32 () {
+    return self.value
+  }
+}
+
+c : Counter = { .value = 0 }
+c.inc()
+IO.println("{}", c.get())</code></pre>
+
+          <p>Inside methods, artifact fields are accessed through <code>self</code>.</p>
+        </section>
+
+        <section id="enums" class="doc-section" data-title="Enums">
+          <h2>Enums</h2>
+          <p>Enum variants are scoped under the enum type. Use qualified access.</p>
+
+          <pre><code class="language-simple">Color :: enum {
+  Red = 1
+  Green = 2
+  Blue = 3
+}
+
+favorite : Color = Color.Green</code></pre>
+        </section>
+
+        <section id="namespaces" class="doc-section" data-title="Namespaces">
+          <h2>Namespaces</h2>
+          <p>Namespaces group related declarations. They are useful for constants, utility functions, domain APIs, and organized module surfaces.</p>
+
+          <pre><code class="language-simple">Maths :: namespace {
+  PI :: f64 = 3.14159
+
+  add : i32 (a : i32, b : i32) {
+    return a + b
+  }
+}
+
+value : i32 = Maths.add(2, 3)</code></pre>
+
+          <p>Namespace members are accessed through the namespace name. This keeps APIs grouped while preserving Simple's direct function/data model.</p>
+        </section>
+
+        <section id="modules-imports" class="doc-section" data-title="Modules and imports">
+          <h2>Modules and imports</h2>
+          <p>Simple supports reserved runtime modules and named module imports resolved by the project/module index. Imports should not depend on quoted relative source-file paths. Import resolution handles project-root modules, module-map entries, missing imports, ambiguity, and cycles.</p>
+
+          <pre><code class="language-simple">import IO
+import FS
+import System.io
+import Math</code></pre>
+
+          <table>
+            <thead><tr><th>Import form</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>import IO</code></td><td>Reserved runtime module import.</td></tr>
+              <tr><td><code>import System.io</code></td><td>Canonical system module path where supported.</td></tr>
+              <tr><td><code>import Math</code></td><td>Named project module import resolved by module indexing.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="ffi" class="doc-section" data-title="FFI and extern">
+          <h2>FFI and extern</h2>
+          <p>Simple exposes native interop through strict <code>extern</code> declarations and dynamic-library runtime APIs. Extern signatures are checked; unsupported ABI shapes are rejected instead of guessed.</p>
+
+          <pre><code class="language-simple">import DL
+import IO
+
+extern raylib.InitWindow : void (w : i32, h : i32, title : string)
 extern raylib.CloseWindow : void ()
 
-lib: i64 = dl.open("raylib.dll", raylib)
+lib : i64 = DL.open("libraylib.so", raylib)
 if (lib == 0) {
-  io.println("raylib load failed: {}", dl.last_error())
-}</code></pre>
-          <p class="muted">Signatures are strict; unsupported ABI shapes are rejected.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel" id="pipeline">
-      <h2>Compilation + Execution Pipeline</h2>
-      <div class="pipeline">
-        <div class="stage"><strong>.simple</strong><span>Source program</span></div>
-        <div class="arrow">-></div>
-        <div class="stage"><strong>.sir</strong><span>Typed/intermediate form</span></div>
-        <div class="arrow">-></div>
-        <div class="stage"><strong>.sbc</strong><span>Bytecode artifact</span></div>
-        <div class="arrow">-></div>
-        <div class="stage"><strong>VM</strong><span>Verified execution</span></div>
-      </div>
-      <pre><code># compile + run source
-simple run Tests/simple/hello.simple
-
-# inspect IR
-simple emit -ir Tests/simple/math.simple --out math.sir
-
-# build bytecode artifact
-simple emit -sbc Tests/simple/math.simple --out math.sbc
-
-# execute bytecode directly
-simplevm run math.sbc</code></pre>
-    </section>
-
-    <section class="panel" id="layer-explorer">
-      <h2>Simple | SIR | SBC Explorer</h2>
-      <p>Compare the same intent across source, IR, and bytecode layers.</p>
-      <div class="tabs" data-default="tab-simple">
-        <div class="tab-bar" role="tablist" aria-label="Simple stack layers">
-          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-simple" id="btn-simple" data-target="tab-simple">Simple</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-sir" id="btn-sir" data-target="tab-sir">SIR</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-sbc" id="btn-sbc" data-target="tab-sbc">SBC</button>
-        </div>
-
-      <article class="tab-panel active" id="tab-simple" role="tabpanel" aria-labelledby="btn-simple">
-        <h3>Simple Lang Source</h3>
-        <p>High-level typed source with explicit mutability/import boundaries.</p>
-        <pre><code>import io
-
-sum: i32 (a: i32, b: i32) {
-  return a + b
+  IO.println("raylib load failed: {}", DL.last_error())
 }
 
-total: i32 = sum(10, 32)
-io.println("total={}", total)</code></pre>
-      </article>
-
-      <article class="tab-panel" id="tab-sir" role="tabpanel" aria-labelledby="btn-sir" hidden>
-        <h3>SIR Instruction Layer</h3>
-        <p>Typed intermediate instructions that are easy to inspect and validate.</p>
-        <pre><code>; representative SIR
-fn sum(a:i32, b:i32) -> i32 {
-  %0 = add.i32 a, b
-  ret %0
-}
-
-fn __script_entry() -> i32 {
-  %1 = const.i32 10
-  %2 = const.i32 32
-  %3 = call sum(%1, %2)
-  call core.io.println_fmt("total={}", %3)
-  ret 0
-}</code></pre>
-        <p class="muted">Common IR codes: <code>const.*</code>, <code>add.i32</code>, <code>call</code>, <code>jmp</code>, <code>ret</code>, <code>load.local</code>, <code>store.local</code>.</p>
-      </article>
-
-      <article class="tab-panel" id="tab-sbc" role="tabpanel" aria-labelledby="btn-sbc" hidden>
-        <h3>SBC + VM Opcode Layer</h3>
-        <p>Verified bytecode instructions executed by the VM interpreter/JIT path.</p>
-        <pre><code>; representative SBC opcodes
-CONST_I32   10
-CONST_I32   32
-CALL        sum
-STORE_LOCAL 0
-LOAD_LOCAL  0
-IMPORT_CALL core.io.println_fmt
-RET_I32     0</code></pre>
-        <p class="muted">Frequently used VM opcodes: <code>CONST_I32</code>, <code>ADD_I32</code>, <code>SUB_I32</code>, <code>MUL_I32</code>, <code>DIV_I32</code>, <code>CALL</code>, <code>CALL_INDIRECT</code>, <code>JMP</code>, <code>JMP_TRUE</code>, <code>JMP_FALSE</code>, <code>RET</code>.</p>
-      </article>
-      </div>
-    </section>
-
-    <section class="panel" id="vm-architecture">
-      <h2>VM Architecture</h2>
-      <p>The VM is split into explicit subsystems so behavior remains auditable and testable.</p>
-      <div class="vm-grid">
-        <article class="vm-item">
-          <h3>Loader</h3>
-          <p>Parses SBC sections, metadata, constants, and signatures into a runtime module representation.</p>
-        </article>
-        <article class="vm-item">
-          <h3>Verifier</h3>
-          <p>Rejects malformed bytecode and invalid type/control-flow combinations before any execution starts.</p>
-        </article>
-        <article class="vm-item">
-          <h3>Interpreter</h3>
-          <p>Executes opcodes with strict checks and deterministic semantics. Traps are explicit and testable.</p>
-        </article>
-        <article class="vm-item">
-          <h3>System Boundary</h3>
-          <p>System modules expose controlled host services for IO, files, math, OS, and dynamic loading.</p>
-        </article>
-        <article class="vm-item">
-          <h3>Embedding Interface</h3>
-          <p>Host apps can compile/load/run modules and control runtime lifecycle for plugin or script scenarios.</p>
-        </article>
-        <article class="vm-item">
-          <h3>JIT Path (in progress)</h3>
-          <p>Tiering exists; optimization is ongoing. Baseline correctness and coverage still take priority.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel" id="stdlib">
-      <h2>System Libraries and Responsibility Split</h2>
-      <p>Simple keeps system features modular to avoid overlap and make dependency intent explicit.</p>
-      <div class="tabs" data-default="tab-lib-io">
-        <div class="tab-bar" role="tablist" aria-label="System libraries">
-          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-lib-io" id="btn-lib-io" data-target="tab-lib-io">System.io</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-lib-file" id="btn-lib-file" data-target="tab-lib-file">System.file</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-lib-math" id="btn-lib-math" data-target="tab-lib-math">System.math / time</button>
-          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-lib-osdl" id="btn-lib-osdl" data-target="tab-lib-osdl">System.os / dl</button>
-        </div>
-
-        <article class="tab-panel active" id="tab-lib-io" role="tabpanel" aria-labelledby="btn-lib-io">
-          <table class="api-table">
-            <thead>
-              <tr><th>Function</th><th>Purpose</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>buffer_new(length)</code></td><td>Create a new i32 buffer/list of requested length.</td></tr>
-              <tr><td><code>buffer_len(buffer)</code></td><td>Return current buffer length.</td></tr>
-              <tr><td><code>buffer_fill(buffer, value, count)</code></td><td>Fill up to <code>count</code> slots with <code>value</code>; returns written count.</td></tr>
-              <tr><td><code>buffer_copy(dst, src, count)</code></td><td>Copy up to <code>count</code> elements from source to destination.</td></tr>
-              <tr><td><code>print(value)</code> / <code>println(value)</code></td><td>Stream output for scalar/format-based text emission.</td></tr>
-            </tbody>
-          </table>
-        </article>
-
-        <article class="tab-panel" id="tab-lib-file" role="tabpanel" aria-labelledby="btn-lib-file" hidden>
-          <table class="api-table">
-            <thead>
-              <tr><th>Function</th><th>Purpose</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>open(path, mode)</code></td><td>Open file and return handle/id for follow-up operations.</td></tr>
-              <tr><td><code>read(handle, buffer, count)</code></td><td>Read bytes/values into provided buffer; returns read count.</td></tr>
-              <tr><td><code>write(handle, buffer, count)</code></td><td>Write bytes/values from buffer; returns written count.</td></tr>
-              <tr><td><code>close(handle)</code></td><td>Close file handle and release underlying resource.</td></tr>
-            </tbody>
-          </table>
-        </article>
-
-        <article class="tab-panel" id="tab-lib-math" role="tabpanel" aria-labelledby="btn-lib-math" hidden>
-          <table class="api-table">
-            <thead>
-              <tr><th>Function</th><th>Purpose</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>sqrt(x)</code></td><td>Square root for numeric values.</td></tr>
-              <tr><td><code>abs(x)</code></td><td>Absolute value helper.</td></tr>
-              <tr><td><code>pow(x, y)</code></td><td>Power/exponent helper.</td></tr>
-              <tr><td><code>now()</code></td><td>Retrieve current time/tick value for timing logic.</td></tr>
-            </tbody>
-          </table>
-        </article>
-
-        <article class="tab-panel" id="tab-lib-osdl" role="tabpanel" aria-labelledby="btn-lib-osdl" hidden>
-          <table class="api-table">
-            <thead>
-              <tr><th>Function / Value</th><th>Purpose</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>supported</code> / <code>has_dl</code></td><td>Capability flags for dynamic loading support.</td></tr>
-              <tr><td><code>is_linux</code> / <code>is_macos</code> / <code>is_windows</code></td><td>Platform feature flags for branching behavior safely.</td></tr>
-              <tr><td><code>open(path)</code></td><td>Open dynamic library and return handle.</td></tr>
-              <tr><td><code>sym(handle, name)</code></td><td>Resolve symbol pointer from a dynamic library.</td></tr>
-              <tr><td><code>close(handle)</code></td><td>Close dynamic library handle.</td></tr>
-              <tr><td><code>last_error()</code></td><td>Return diagnostic message from latest DL operation.</td></tr>
-            </tbody>
-          </table>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel" id="cli">
-      <h2>CLI Quick Reference</h2>
-      <div class="two-col">
-        <div>
-          <h3>Commands</h3>
-          <p><code>run</code>, <code>check</code>, <code>build</code>, <code>compile</code>, <code>emit</code>, <code>lsp</code></p>
-        </div>
-        <div>
-          <h3>Inputs</h3>
-          <p><code>.simple</code>, <code>.sir</code>, <code>.sbc</code> (VM path)</p>
-        </div>
-        <div>
-          <h3>Version</h3>
-          <p><code>simple --version</code>, <code>simple -v</code>, <code>simple version</code></p>
-        </div>
-        <div>
-          <h3>Build Scripts</h3>
-          <p><code>./build_linux</code>, <code>./build_macos</code>, <code>./build_windows</code></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="interop">
-      <h2>Interop With C/C++</h2>
-      <p>Use <code>extern</code> to declare native symbols and call them through <code>DL</code>.</p>
-      <pre><code>import dl
-import io
-
-extern raylib.InitWindow : void (w: i32, h: i32, title: string)
-extern raylib.CloseWindow : void ()
-
-lib: i64 = dl.open("raylib.dll", raylib)
-if (lib == 0) {
-  io.println("raylib load failed: {}", dl.last_error())
-}
-
-raylib.InitWindow(800, 450, "Simple + raylib")
+raylib.InitWindow(800, 600, "Simple")
 raylib.CloseWindow()</code></pre>
-    </section>
 
-    <section class="panel" id="examples">
-      <h2>Practical Examples</h2>
-      <div class="examples-grid">
-        <article class="example">
-          <h3>Script-style execution</h3>
-          <p>Top-level statements execute in order.</p>
-          <pre><code>import io
-io.println("hello")
-io.println(10 + 20)</code></pre>
-        </article>
-        <article class="example">
-          <h3>Structured data + behavior</h3>
-          <p>Artifacts give explicit member layout and typed access.</p>
-          <pre><code>Point :: Artifact { x: i32 y: i32 }
+          <h3>ABI rules</h3>
+          <ul>
+            <li>Extern declarations require explicit parameter and return types.</li>
+            <li>Procedure values are rejected at extern ABI boundaries.</li>
+            <li>Unsupported ABI types are rejected during validation.</li>
+            <li>Recursive artifact ABI is rejected.</li>
+            <li>Artifacts are treated as structs for ABI layout: fields define layout; methods do not.</li>
+          </ul>
 
-sum: i32 (p: Point) {
-  return p.x + p.y
-}</code></pre>
-        </article>
-        <article class="example">
-          <h3>Inspect then run</h3>
-          <p>Use the same program through each stage of the stack.</p>
-          <pre><code>simple emit -ir app.simple --out app.sir
-simple emit -sbc app.simple --out app.sbc
-simplevm run app.sbc</code></pre>
-        </article>
-      </div>
-    </section>
+          <p>The native-library roadmap renames the low-level foreign-function surface to <code>System.FFI</code>. Existing compatibility modules may still appear as <code>DL</code> or <code>System.dl</code> while the runtime evolves.</p>
+        </section>
 
-    <section class="panel" id="quick-start">
-      <h2>Quick Start</h2>
-      <pre><code>git clone https://github.com/JJLDonley/Simple
-cd Simple
-./build.sh --suite all
-./bin/simple run Tests/simple/hello.simple</code></pre>
-      <p class="muted">Releases: <a href="https://github.com/JJLDonley/Simple/releases" target="_blank" rel="noopener noreferrer">github.com/JJLDonley/Simple/releases</a></p>
-    </section>
-  </main>
+        <section id="native-library" class="doc-section" data-title="Native library">
+          <h2>Native library: System | Standard</h2>
+          <p>Simple has a robust native library direction for both low-level and high-level coding. The model is layered so high-level convenience does not bypass low-level ownership, capabilities, or resource safety.</p>
 
-  <footer class="wrap footer">
-    <p>Simple Project • Language + IR + VM • <a href="https://github.com/JJLDonley/Simple" target="_blank" rel="noopener noreferrer">Source</a></p>
-  </footer>
-  <script>
-    (function() {
-      document.querySelectorAll(".tabs").forEach(function(group) {
-        var buttons = group.querySelectorAll(".tab-btn");
-        var panels = group.querySelectorAll(".tab-panel");
-        function selectTab(targetId) {
-          buttons.forEach(function(btn) {
-            var on = btn.getAttribute("data-target") === targetId;
-            btn.classList.toggle("active", on);
-            btn.setAttribute("aria-selected", on ? "true" : "false");
-          });
-          panels.forEach(function(panel) {
-            var on = panel.id === targetId;
-            panel.classList.toggle("active", on);
-            panel.hidden = !on;
-          });
-        }
-        buttons.forEach(function(btn) {
-          btn.addEventListener("click", function() {
-            selectTab(btn.getAttribute("data-target"));
-          });
-        });
-        selectTab(group.getAttribute("data-default"));
-      });
+          <h3>Layer model</h3>
+          <table>
+            <thead><tr><th>Layer</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>VM Native Core</td><td>Internal resource registry, native dispatch metadata, handle validation, cleanup, and capability checks.</td></tr>
+              <tr><td><code>System.*</code></td><td>Low-level explicit APIs close to host/runtime behavior.</td></tr>
+              <tr><td><code>Standard.*</code></td><td>High-level APIs built over <code>System.*</code> for normal application code.</td></tr>
+              <tr><td>Aliases</td><td>The Standard library provides short aliases such as <code>FS</code>, <code>HTTP</code>, <code>HTTPS</code>, <code>Console</code>, and <code>Terminal</code> for quick, simple imports.</td></tr>
+            </tbody>
+          </table>
 
-      function escHtml(s) {
-        return s
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-      }
+          <h3>Core native-facing types</h3>
+          <table>
+            <thead><tr><th>Type</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>System.Handle&lt;T&gt;</code></td><td>Typed opaque native resource handle. Resource kind is preserved and checked before use.</td></tr>
+              <tr><td><code>Result&lt;T&gt;</code></td><td>Expected success/failure result. Used for IO, OS, network, FFI, and native operations.</td></tr>
+              <tr><td><code>Option&lt;T&gt;</code></td><td>Presence/absence or ready/not-ready state without sentinel values.</td></tr>
+              <tr><td><code>Promise&lt;T&gt;</code></td><td>Planned async result carrier. <code>await()</code> returns <code>Result&lt;T&gt;</code>; <code>poll()</code> returns <code>Option&lt;Result&lt;T&gt;&gt;</code>.</td></tr>
+            </tbody>
+          </table>
 
-      function highlightSimpleCode(raw) {
-        var text = escHtml(raw);
-        var placeholders = [];
-        function take(re, cls) {
-          text = text.replace(re, function(m) {
-            var id = placeholders.length;
-            placeholders.push('<span class="' + cls + '">' + m + "</span>");
-            return "__TOK_" + id + "__";
-          });
-        }
+          <h3>System modules</h3>
+          <p><code>System.*</code> is explicit and close to host/runtime behavior. It exposes typed handles, explicit cleanup, capability checks, blocking behavior, and explicit error values.</p>
+          <table>
+            <thead><tr><th>Area</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>System.FS</code></td><td>Open, close, read, write, seek, stat, list directories, create/remove/copy/rename files.</td></tr>
+              <tr><td><code>System.Path</code></td><td>Join, normalize, absolute/relative paths, basename, dirname, extension, separators.</td></tr>
+              <tr><td><code>System.Buffer</code></td><td>Native buffer handles, allocation, close, length, slicing, copying, and bounds-checked access.</td></tr>
+              <tr><td><code>System.Bytes</code></td><td>Heap-owned byte sequences, byte/string conversion, endian reads/writes, and safe byte operations.</td></tr>
+              <tr><td><code>System.Net</code></td><td>TCP/UDP sockets, listeners, connect, listen, accept, send, receive, close.</td></tr>
+              <tr><td><code>System.HTTP</code></td><td>HTTP client requests, HTTP server handles, request parsing, response writing, limits, and timeouts.</td></tr>
+              <tr><td><code>System.HTTPS</code></td><td>TLS configuration, HTTPS clients, HTTPS server handles, certificate loading, and verification diagnostics.</td></tr>
+              <tr><td><code>System.Terminal</code></td><td>Raw mode, alternate screen, cursor control, terminal size, styles, key/mouse/resize events, cleanup on exit.</td></tr>
+              <tr><td><code>System.Process</code></td><td>Process spawn, wait, kill, stdin/stdout/stderr handling, and process capability checks.</td></tr>
+              <tr><td><code>System.Thread</code></td><td>OS thread handles, sleep, yield, hardware concurrency, and thread-related runtime operations.</td></tr>
+              <tr><td><code>System.Job</code></td><td>VM job handles, spawn, join, detach, cancellation, and structured result propagation.</td></tr>
+              <tr><td><code>System.Channel</code></td><td>Channel handles, send, trySend, receive, tryReceive, pending, close, and blocked-operation wakeup.</td></tr>
+              <tr><td><code>System.Time</code></td><td>Wall clock, monotonic clock, timer handles, sleep, and duration/time conversion support.</td></tr>
+              <tr><td><code>System.Random</code></td><td>Seeded random generator handles and random numeric values.</td></tr>
+              <tr><td><code>System.Json</code></td><td>JSON parse, stringify, object/array accessors, typed getters, and JSON value handles.</td></tr>
+              <tr><td><code>System.Log</code></td><td>Log levels, structured messages, runtime sinks, file sinks, and logger resource cleanup.</td></tr>
+              <tr><td><code>System.FFI</code></td><td>Foreign function interface, dynamic libraries, symbols, strict ABI signatures.</td></tr>
+              <tr><td><code>System.ASM</code></td><td>C/DynASM native-code units, object generation, symbol lookup, stub embedding, AOT linking.</td></tr>
+            </tbody>
+          </table>
 
-        take(/"(?:[^"\\]|\\.)*"/g, "tok-str");
-        take(/(?:^|\s)(#.*)$/gm, "tok-cmt");
-        take(/(?:^|\s)(;.*)$/gm, "tok-cmt");
-        take(/\b(?:\d+\.\d+|\d+)\b/g, "tok-num");
-        take(/\b(?:artifact|enum|module|Artifact|Enum|Module)\b/g, "tok-kw-strong");
-        take(/\b(?:import|extern|if|else|return|fn|call|void)\b/g, "tok-kw");
-        take(/\b(?:i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|string|char)\b/g, "tok-type");
-        take(/\b(?:CONST_I32|ADD_I32|SUB_I32|MUL_I32|DIV_I32|CALL|CALL_INDIRECT|JMP|JMP_TRUE|JMP_FALSE|RET|RET_I32|STORE_LOCAL|LOAD_LOCAL|IMPORT_CALL)\b/g, "tok-op");
-        take(/\b(?:dl|io|raylib|core\.io|ffi)\b/g, "tok-fn");
+          <h3>Standard modules</h3>
+          <p><code>Standard.*</code> provides higher-level APIs over <code>System.*</code>. These APIs reduce ceremony while keeping ownership and failure explicit.</p>
+          <table>
+            <thead><tr><th>Module</th><th>Alias</th><th>High-level shape</th></tr></thead>
+            <tbody>
+              <tr><td><code>Standard.FS</code></td><td><code>FS</code></td><td><code>readText</code>, <code>writeText</code>, <code>readBytes</code>, <code>copy</code>, <code>move</code>, <code>walk</code>.</td></tr>
+              <tr><td><code>Standard.Path</code></td><td><code>Path</code></td><td>Path joining, normalization, basename, dirname, extension, and platform separators.</td></tr>
+              <tr><td><code>Standard.Bytes</code></td><td><code>Bytes</code></td><td>Byte construction, UTF-8 conversion, slices, copying, and encoding helpers.</td></tr>
+              <tr><td><code>Standard.Json</code></td><td><code>Json</code></td><td><code>parse</code>, <code>stringify</code>, object/array builders, typed getters, and defaults.</td></tr>
+              <tr><td><code>Standard.HTTP</code></td><td><code>HTTP</code></td><td><code>get</code>, <code>post</code>, <code>serve</code>, request/response helpers, async client APIs.</td></tr>
+              <tr><td><code>Standard.HTTPS</code></td><td><code>HTTPS</code></td><td>TLS-backed server/client helpers with secure defaults and clear certificate diagnostics.</td></tr>
+              <tr><td><code>Standard.Console</code></td><td><code>Console</code></td><td>Write, writeLine, readLine, clear, colors, and key helpers.</td></tr>
+              <tr><td><code>Standard.Terminal</code></td><td><code>Terminal</code></td><td>Raw mode, alternate screen helpers, event pump, cursor, screen primitives, and cleanup helpers.</td></tr>
+              <tr><td><code>Standard.Process</code></td><td><code>Process</code></td><td>Run commands, collect exit code/stdout/stderr, and async process execution.</td></tr>
+              <tr><td><code>Standard.Time</code></td><td><code>Time</code></td><td>Current time, monotonic time, sleep, timers, and duration helpers.</td></tr>
+              <tr><td><code>Standard.Random</code></td><td><code>Random</code></td><td>Random integers, ranges, floating-point values, and seeded RNG wrappers.</td></tr>
+              <tr><td><code>Standard.Log</code></td><td><code>Log</code></td><td>Simple logging helpers, levels, structured fields, and high-level sinks.</td></tr>
+              <tr><td><code>Standard.Promise</code></td><td><code>Promise</code></td><td><code>run</code>, <code>await</code>, <code>poll</code>, <code>cancel</code>, <code>isDone</code>.</td></tr>
+            </tbody>
+          </table>
 
-        return text.replace(/__TOK_(\d+)__/g, function(_, i) {
-          return placeholders[Number(i)];
-        });
-      }
+          <h3>API conventions</h3>
+          <ul>
+            <li>Sync native APIs return <code>Result&lt;T&gt;</code> or <code>Option&lt;T&gt;</code> for expected failures and absence.</li>
+            <li>Async APIs live under lowercase <code>.async</code>, for example <code>HTTP.async.get(...)</code>.</li>
+            <li>Wrong handle kind, stale handle, invalid API contract, and VM invariants trap.</li>
+            <li>Standard aliases are short import names for high-level APIs; they do not bypass <code>System.*</code> ownership or capability checks.</li>
+          </ul>
 
-      document.querySelectorAll("pre code").forEach(function(block) {
-        block.innerHTML = highlightSimpleCode(block.textContent || "");
-      });
-    })();
-  </script>
+          <pre><code class="language-simple">file : Result&lt;System.FS.FileHandle&gt; = System.FS.open("data.txt", mode)
+page : Promise&lt;HTTPResponse&gt; = HTTP.async.get("https://example.com")
+ready : Option&lt;Result&lt;HTTPResponse&gt;&gt; = page.poll()</code></pre>
+        </section>
+
+
+        <section id="toolchain" class="doc-section" data-title="Toolchain">
+          <h2>Toolchain</h2>
+          <p>The core toolchain is:</p>
+
+          <ol class="pipeline-list">
+            <li><strong>Language</strong><span><code>.simple</code> source.</span></li>
+            <li><strong>SIR</strong><span>Readable intermediate representation.</span></li>
+            <li><strong>SBC</strong><span>Bytecode artifact.</span></li>
+            <li><strong>VM</strong><span>Verified execution.</span></li>
+          </ol>
+
+          <pre><code class="language-bash">svm emit -ir main.simple --out main.sir
+svm emit -sbc main.simple --out main.sbc
+svm run main.simple</code></pre>
+        </section>
+
+        <section id="runtime" class="doc-section" data-title="Runtime">
+          <h2>Runtime</h2>
+          <p>The Simple runtime is the execution environment behind SBC bytecode. It loads bytecode, verifies structure, executes instructions, manages VM-owned values, and provides native-backed runtime modules.</p>
+
+          <h3>Runtime responsibilities</h3>
+          <table>
+            <thead><tr><th>Area</th><th>Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td>Loader</td><td>Reads SBC files, validates headers, sections, bytecode version, and entry metadata.</td></tr>
+              <tr><td>Verifier</td><td>Rejects malformed bytecode before execution. Planned work extends this to result/option/promise and typed handle metadata.</td></tr>
+              <tr><td>Interpreter</td><td>Executes VM instructions, manages call frames, locals, globals, traps, and runtime limits.</td></tr>
+              <tr><td>Heap and GC</td><td>Owns heap values such as strings, arrays, lists, artifacts, and runtime objects. Stack maps and declared roots keep references alive.</td></tr>
+              <tr><td>Native dispatch</td><td>Connects language/runtime calls to native modules such as IO, FS, JSON, buffers, channels, time, random, logging, and dynamic loading.</td></tr>
+              <tr><td>Runtime limits</td><td>Tracks execution constraints so runaway programs can be limited by the VM.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Execution model</h3>
+          <ol>
+            <li><code>svm</code> compiles or loads a program.</li>
+            <li>The loader reads SBC metadata and bytecode sections.</li>
+            <li>The verifier rejects unsupported or malformed bytecode.</li>
+            <li>The interpreter executes verified instructions.</li>
+            <li>Native calls cross through runtime dispatch instead of direct unchecked host access.</li>
+          </ol>
+
+          <h3>Values and traps</h3>
+          <p>Expected runtime and OS failures should return values such as <code>Result&lt;T&gt;</code> or <code>Option&lt;T&gt;</code>. Traps are reserved for invalid API contracts, wrong handle kind, stale handles, bytecode violations, and VM invariants.</p>
+
+          <h3>Generated stubs</h3>
+          <p>The <code>simple</code> binary is a runtime stub. It is intended for generated or embedded SBC payloads. Compiler and tooling behavior belongs to <code>svm</code>.</p>
+        </section>
+
+        <section id="timeline" class="doc-section" data-title="Timeline">
+          <h2>Timeline</h2>
+          <p>The current project priority is native-library architecture and the compiler/runtime prerequisites needed to support it. Broad cleanup work is lower priority unless it directly supports native-library implementation.</p>
+
+          <h3>Current order of work</h3>
+          <ol class="timeline-list">
+            <li><strong>Compiler / IR / bytecode prerequisites</strong><span>Add built-in <code>System.Handle&lt;T&gt;</code>, <code>Result&lt;T&gt;</code>, <code>Option&lt;T&gt;</code>, <code>Promise&lt;T&gt;</code>, and preserve their metadata through SIR/SBC.</span></li>
+            <li><strong>Native ABI contract</strong><span>Define exact ABI behavior for scalars, artifacts-as-structs, strings, bytes, handles, results, options, promises, and native calls.</span></li>
+            <li><strong>VM Native Core</strong><span>Implement resource registry, native metadata, handle generation checks, cleanup behavior, and capability policy.</span></li>
+            <li><strong>Low-level <code>System.*</code></strong><span>Build explicit host/runtime APIs for FS, path, buffers, FFI, ASM, threads/jobs/channels, net, HTTP, terminal, process, env, time, random, log, and JSON.</span></li>
+            <li><strong>High-level <code>Standard.*</code></strong><span>Add high-level library APIs and short aliases such as <code>FS</code>, <code>HTTP</code>, <code>HTTPS</code>, <code>Console</code>, and <code>Terminal</code> for quick, simple imports.</span></li>
+            <li><strong>Docs and tests</strong><span>Generate API docs, capability tables, lifecycle tables, platform availability, native tests, CLI integration tests, and cross-platform checks.</span></li>
+          </ol>
+
+          <h3>Lower priority backlog</h3>
+          <p>SRP cleanup, AOT/JIT follow-up, packaging, and broad internal refactors remain important, but they should not displace native-library prerequisites unless the work directly supports the native roadmap.</p>
+        </section>
+
+        <section id="status" class="doc-section" data-title="Status">
+          <h2>Status</h2>
+          <p>Simple is in active development. Current surface includes parser, resolver, type checker, imports, artifacts, enums, arrays, lists, strings, SIR/SBC emission, loader/verifier, VM execution, native modules, CLI, LSP, and JIT scaffolding.</p>
+          <p>Current tool version: <code>v0.4.0</code>.</p>
+        </section>
+      </article>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
