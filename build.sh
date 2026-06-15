@@ -6,6 +6,15 @@ BUILD_DIR="$ROOT_DIR/build"
 CONFIG="${CONFIG:-Release}"
 JOBS="${JOBS:-2}"
 
+CACHE_FILE="$BUILD_DIR/CMakeCache.txt"
+if [[ -f "$CACHE_FILE" ]]; then
+  cached_source="$(grep '^CMAKE_HOME_DIRECTORY:INTERNAL=' "$CACHE_FILE" 2>/dev/null | cut -d= -f2- || true)"
+  if [[ -n "$cached_source" && "$cached_source" != "$ROOT_DIR" ]]; then
+    echo "Removing stale CMake cache from previous source path: $cached_source"
+    rm -rf "$BUILD_DIR"
+  fi
+fi
+
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$CONFIG"
 cmake --build "$BUILD_DIR" --target simplevm_runtime_static --parallel "$JOBS"
 cmake --build "$BUILD_DIR" --target simplevm_runtime_shared --parallel "$JOBS"

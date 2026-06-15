@@ -59,6 +59,15 @@ DIST_DIR="$ROOT_DIR/dist"
 STAGE_DIR="$DIST_DIR/simple-${VERSION}-${TARGET}"
 PKG_PATH="$DIST_DIR/simple-${VERSION}-${TARGET}.tar.gz"
 BIN_OUT="$BUILD_DIR/bin"
+CACHE_FILE="$BUILD_DIR/CMakeCache.txt"
+
+if [[ -f "$CACHE_FILE" ]]; then
+  cached_source="$(grep '^CMAKE_HOME_DIRECTORY:INTERNAL=' "$CACHE_FILE" 2>/dev/null | cut -d= -f2- || true)"
+  if [[ -n "$cached_source" && "$cached_source" != "$ROOT_DIR" ]]; then
+    echo "Removing stale CMake cache from previous source path: $cached_source"
+    rm -rf "$BUILD_DIR"
+  fi
+fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
   if [[ "${#CMAKE_ARGS[@]}" -gt 0 ]]; then
