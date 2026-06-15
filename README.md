@@ -1,37 +1,61 @@
 # Simple
 
-Simple is a statically typed systems-style programming language that compiles to a compact bytecode format and runs on the Simple VM.
+<p align="center">
+  <strong>Simple like C. Statically typed. General purpose.</strong>
+</p>
 
-The project is both a language implementation and a VM/toolchain playground: it includes the parser, resolver, type checker, SIR/IR lowering, SBC bytecode loader/verifier, interpreter runtime, native standard-library bindings, CLI, LSP server, and JIT scaffolding.
+<p align="center">
+  <a href="Docs/Language.md">Language</a> ·
+  <a href="Docs/Timeline.md">Timeline</a> ·
+  <a href="Docs/IR.md">SIR</a> ·
+  <a href="Docs/Byte.md">SBC</a> ·
+  <a href="Docs/VM.md">VM</a> ·
+  <a href="https://github.com/JJLDonley/Simple/releases">Releases</a>
+</p>
 
-> Status: active development. The language is feature-rich enough for fixtures, runtime tests, imports, native modules, artifacts, lists, arrays, and dynamic-library experiments, but the docs and APIs should still be treated as evolving.
+Simple is a C-like, statically typed, general-purpose programming language with quick scripting capability. It compiles `.simple` source to SIR, then SBC bytecode, then runs on the Simple VM.
+
+The project includes the language front-end, resolver, type checker, SIR/IR lowering, SBC loader/verifier, interpreter runtime, native modules, CLI, LSP server, and JIT scaffolding.
+
+> Status: active development. Simple is usable for fixtures, tests, imports, artifacts, arrays/lists, native modules, and dynamic-library experiments. Syntax and APIs are still evolving while the native-library architecture settles.
+
+---
 
 ## Contents
 
-- [Why Simple?](#why-simple)
-- [Build from source](#build-from-source)
-- [Install](#install)
-- [Tests](#tests)
-- [Hello world](#hello-world)
+- [Why Simple](#why-simple)
+- [Install / build](#install--build)
+- [Getting started](#getting-started)
 - [Language taste](#language-taste)
-- [CLI overview](#cli-overview)
-- [Build outputs](#build-outputs)
-- [Compiler pipeline](#compiler-pipeline)
+- [Toolchain](#toolchain)
+- [Runtime](#runtime)
+- [Library direction](#library-direction)
+- [CLI](#cli)
+- [Tests](#tests)
 - [Repository map](#repository-map)
 - [Documentation](#documentation)
 
-## Why Simple?
+---
 
-Simple is designed around a few practical goals:
+## Why Simple
 
-- **Readable typed syntax** with explicit declarations and direct control flow.
-- **Clear compilation stages** from source to IR to bytecode.
-- **A verified bytecode runtime** with defensive loading and verification.
-- **Native runtime modules** for real programs: IO, FS, paths, env, JSON, buffers, channels, random, time, logging, dynamic loading, and more.
-- **Embeddable execution** through generated runtime stubs.
-- **Tooling-first development** with a CLI, LSP server, and a large test suite.
+Simple came about from wanting a C-like, statically typed, general-purpose language that still has quick and easy scripting capability.
 
-## Build from source
+Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.
+
+| Goal | What it means |
+|---|---|
+| **General purpose** | Build tools, scripts, applications, native-backed programs, and VM-hosted code. |
+| **Static typing** | Variables, parameters, returns, arrays, lists, artifacts, enums, and native signatures are checked before execution. |
+| **Quick scripting** | Top-level statements let small programs stay small. |
+| **Readable pipeline** | `Language → SIR → SBC → VM` is inspectable. |
+| **Native library focus** | Low-level `System.*` and high-level `Standard.*` APIs are the current roadmap priority. |
+
+---
+
+## Install / build
+
+### Build from source
 
 Linux/macOS:
 
@@ -45,47 +69,41 @@ Windows:
 build.bat
 ```
 
-The scripts build the compiler/runtime tools and place the developer binaries in `bin/`:
+Build output:
 
 ```txt
 bin/svm      compiler/tooling/runtime CLI
 bin/simple   runtime stub only; not a compiler
 ```
 
-Build internals, tests, static libraries, and shared libraries stay under `build/bin/`.
+Build internals, tests, static libraries, and shared libraries live under `build/bin/`.
 
-## Install
+### Install
 
-The install scripts build locally first, install `svm` and `simple` into a global/user binary directory, then add that directory to your user PATH when needed.
-
-Linux/macOS default install location is `/usr/local/bin`:
+Linux/macOS:
 
 ```bash
 ./install.sh
 ```
 
-Override the prefix if desired:
+Custom prefix:
 
 ```bash
 PREFIX="$HOME/.local" ./install.sh
 ```
 
-If the script updates your shell profile, restart the terminal or source the printed PATH command.
-
-Windows default install location is `%LocalAppData%\Simple\bin`:
+Windows:
 
 ```bat
 install.bat
 ```
 
-Override it with:
+Custom Windows install directory:
 
 ```bat
 set SIMPLE_INSTALL_DIR=C:\Tools\Simple\bin
 install.bat
 ```
-
-Open a new terminal after install so Windows picks up the updated user PATH.
 
 After install, use `svm` directly:
 
@@ -97,14 +115,11 @@ svm emit -sbc Tests/simple/hello.simple --out hello.sbc
 
 `simple` is reserved for generated/embedded runtime stubs and is not a compiler command.
 
-## Tests
+---
 
-```bash
-cmake --build build --target simplevm_tests -j2
-./build/bin/simplevm_tests
-```
+## Getting started
 
-## Hello world
+Create `hello.simple`:
 
 ```simple
 import IO
@@ -121,69 +136,90 @@ Run it:
 svm run hello.simple
 ```
 
-## Language taste
+Check without running:
 
-### Declarations and mutability
-
-```simple
-main : i32 () {
-  count : i32 = 1      // mutable
-  limit :: i32 = 10    // immutable
-
-  count += 1
-  return count + limit
-}
+```bash
+svm check hello.simple
 ```
 
-### File/module headers
+Emit bytecode:
 
-`module` names a file for import indexing. It does not create a runtime namespace.
+```bash
+svm emit -sbc hello.simple --out hello.sbc
+```
+
+Top-level statements are also valid for script-style programs:
 
 ```simple
-module Tools.Math
+import IO
+
+IO.println("script start")
 
 add : i32 (a : i32, b : i32) {
   return a + b
 }
+
+IO.println("sum={}", add(2, 3))
 ```
 
-Import it from another file:
+---
+
+## Language taste
+
+### Declarations and mutability
+
+`:` declares mutable bindings. `::` declares immutable bindings or named top-level constructs.
 
 ```simple
-import Tools.Math
+count : i32 = 1
+limit :: i32 = 10
 
-main : i32 () {
-  return add(40, 2)
+count = count + 1
+```
+
+### Functions
+
+```simple
+add : i32 (a : i32, b : i32) {
+  return a + b
+}
+
+log : void (message : string) {
+  IO.println(message)
 }
 ```
 
 ### Artifacts
 
-Artifacts are record-like types with fields and methods.
+Artifacts define structured data with optional methods. Fields define layout. Methods define behavior.
 
 ```simple
-Point :: artifact {
-  x : i32
-  y : i32
+Counter :: artifact {
+  value : i32
 
-  sum : i32 () {
-    return self.x + self.y
+  inc : void () {
+    self.value = self.value + 1
+  }
+
+  get : i32 () {
+    return self.value
   }
 }
 
 main : i32 () {
-  p : Point = { .x = 3, .y = 4 }
-  return p.sum()
+  c : Counter = { .value = 0 }
+  c.inc()
+  return c.get()
 }
 ```
 
-### Modules
+### Namespaces
 
-Modules are language namespace objects. They are separate from `module` headers.
+Namespaces group related declarations.
 
 ```simple
-Math :: namespace {
-  two :: i32 = 2
+Maths :: namespace {
+  PI :: f64 = 3.14159
 
   add : i32 (a : i32, b : i32) {
     return a + b
@@ -191,24 +227,34 @@ Math :: namespace {
 }
 
 main : i32 () {
-  return Math.add(Math.two, 40)
+  return Maths.add(40, 2)
 }
 ```
 
-### Lists, arrays, loops
+### Enums
+
+Enum members are scoped under the enum type.
 
 ```simple
-main : i32 () {
-  values : i32[] = [1, 2, 3]
-  values.push(4)
-
-  total : i32 = 0
-  for (i : i32 = 0; i < values.len(); i += 1) {
-    total += values[i]
-  }
-
-  return total
+Color :: enum {
+  Red = 1
+  Green = 2
+  Blue = 3
 }
+
+favorite : Color = Color.Green
+```
+
+### Arrays and lists
+
+Fixed arrays use `T{N}`. Growable lists use `T[]`.
+
+```simple
+fixed : i32{3} = {1, 2, 3}
+items : i32[] = [1, 2, 3]
+
+items[1] = 9
+count : i32 = len(items)
 ```
 
 ### Casts
@@ -218,28 +264,139 @@ Primitive casts use `@Type(value)`:
 ```simple
 a : i8 = 40
 b : i8 = 2
-return @i32(a) + @i32(b)
+sum : i32 = @i32(a) + @i32(b)
 ```
 
-### Standard library imports
+### Modules and imports
 
-`System.*` is canonical. Compatibility imports such as `IO`, `Math`, `FS`, `DL`, `Json`, `Buffer`, and `Channel` are also supported.
+`module` names a file/module for import indexing. Named imports are resolved through the project/module index.
 
 ```simple
-import FS
-import Json
+module Tools.Math
 
-main : i32 () {
-  text : string = FS.readText("data.json")
-  handle : i64 = Json.parse(text)
-  Json.free(handle)
-  return 0
+add : i32 (a : i32, b : i32) {
+  return a + b
 }
 ```
 
-See [Docs/Language.md](Docs/Language.md) for the full language reference.
+Use it from another file:
 
-## CLI overview
+```simple
+import Tools.Math
+
+main : i32 () {
+  return add(40, 2)
+}
+```
+
+### FFI and extern
+
+Native interop uses strict `extern` declarations. Unsupported ABI shapes are rejected instead of guessed.
+
+```simple
+import DL
+import IO
+
+extern raylib.InitWindow : void (w : i32, h : i32, title : string)
+extern raylib.CloseWindow : void ()
+
+lib : i64 = DL.open("libraylib.so", raylib)
+if (lib == 0) {
+  IO.println("raylib load failed: {}", DL.last_error())
+  return 1
+}
+
+raylib.InitWindow(800, 600, "Simple")
+raylib.CloseWindow()
+```
+
+---
+
+## Toolchain
+
+```txt
+Language → SIR → SBC → VM
+```
+
+| Layer | Role |
+|---|---|
+| **Language** | `.simple` source, parser, resolver, type checker. |
+| **SIR** | Readable intermediate representation for inspecting compiler lowering. |
+| **SBC** | Compact bytecode artifact with loader/verifier checks. |
+| **VM** | Verified execution, heap, native dispatch, traps, limits. |
+
+Common inspection commands:
+
+```bash
+svm emit -ir main.simple --out main.sir
+svm emit -sbc main.simple --out main.sbc
+svm run main.simple
+```
+
+---
+
+## Runtime
+
+The Simple runtime loads SBC bytecode, verifies structure, executes instructions, manages VM-owned values, and provides native-backed runtime modules.
+
+| Runtime area | Responsibility |
+|---|---|
+| Loader | Reads SBC headers, sections, bytecode version, and entry metadata. |
+| Verifier | Rejects unsupported or malformed bytecode before execution. |
+| Interpreter | Executes instructions, call frames, locals, globals, traps, and runtime limits. |
+| Heap / GC | Owns strings, arrays, lists, artifacts, and runtime objects. |
+| Native dispatch | Connects runtime calls to native modules through checked boundaries. |
+
+Expected runtime/OS failures should become values such as `Result<T>` or `Option<T>` as the native library evolves. Traps remain for invalid contracts, stale/wrong handles, bytecode violations, and VM invariants.
+
+---
+
+## Library direction
+
+Simple’s native library roadmap is layered:
+
+| Layer | Role |
+|---|---|
+| VM Native Core | Resource registry, handle validation, metadata, cleanup, capability policy. |
+| `System.*` | Low-level APIs close to host/runtime behavior. |
+| `Standard.*` | High-level APIs built over `System.*`. |
+| Aliases | Short Standard-library imports such as `FS`, `HTTP`, `HTTPS`, `Console`, `Terminal`. |
+
+### Core native-facing types
+
+| Type | Purpose |
+|---|---|
+| `System.Handle<T>` | Typed opaque native resource handle. |
+| `Result<T>` | Expected success/failure result. |
+| `Option<T>` | Presence/absence or ready/not-ready value. |
+| `Promise<T>` | Planned async result carrier. |
+
+### Planned `System.*` modules
+
+| Module | Purpose |
+|---|---|
+| `System.FS` | Files, directories, file handles, read/write/seek/stat/list/copy/remove. |
+| `System.Path` | Join, normalize, absolute/relative paths, basename, dirname, extension. |
+| `System.Buffer` | Native buffer handles, slicing, copying, bounds-checked access. |
+| `System.Bytes` | Heap-owned byte sequences and byte/string conversion. |
+| `System.Net` | TCP/UDP sockets, listeners, connect/listen/accept/send/receive/close. |
+| `System.HTTP` | HTTP clients, server handles, request/response IO, limits, timeouts. |
+| `System.HTTPS` | TLS-backed clients/servers, cert loading, verification diagnostics. |
+| `System.Terminal` | Raw mode, alternate screen, cursor, style, key/mouse/resize events. |
+| `System.Process` | Spawn, wait, kill, stdio, capability checks. |
+| `System.Thread` | OS thread handles and thread-related runtime operations. |
+| `System.Job` | VM jobs, spawn/join/detach/cancel, result propagation. |
+| `System.Channel` | Send/receive/try operations, pending, close, wakeup behavior. |
+| `System.Time` | Wall/monotonic clocks, timers, sleep, durations. |
+| `System.Random` | Seeded random generators and random numeric values. |
+| `System.Json` | Parse, stringify, typed accessors, JSON value handles. |
+| `System.Log` | Levels, structured messages, runtime/file sinks. |
+| `System.FFI` | Foreign function interface, dynamic libraries, symbols, strict ABI. |
+| `System.ASM` | C/DynASM native-code units, object generation, stub/AOT linking. |
+
+---
+
+## CLI
 
 `svm` is the compiler/tooling/runtime command:
 
@@ -253,33 +410,18 @@ svm emit -sbc <file.simple|file.sir> --out <file.sbc>
 svm lsp
 ```
 
-`simple` is not a compiler. It is the runtime-stub executable name used for embedded SBC payloads.
+`simple` is the runtime-stub executable name used for embedded SBC payloads.
 
-## Build outputs
+---
 
-The root `bin/` directory is intentionally small:
+## Tests
 
-```txt
-bin/svm      compiler/tooling/runtime CLI
-bin/simple   runtime stub only; not a compiler
+```bash
+cmake --build build --target simplevm_tests -j2
+./build/bin/simplevm_tests
 ```
 
-Build internals, tests, static libraries, and shared libraries live under `build/bin/`.
-
-## Compiler pipeline
-
-```txt
-.simple source
-  -> Lang lexer/parser
-  -> AST / RAST / TAST
-  -> SIR text
-  -> IR lowering
-  -> SBC bytecode
-  -> Byte loader/verifier
-  -> VM interpreter or optional JIT path
-```
-
-The interpreter is the correctness baseline. The JIT is optional scaffolding for tiering and compiled-runner experiments.
+---
 
 ## Repository map
 
@@ -291,19 +433,26 @@ The interpreter is the correctness baseline. The JIT is optional scaffolding for
 | VM runtime | `VM/` | [Docs/VM.md](Docs/VM.md) |
 | JIT scaffolding | `VM/include/jit/`, `VM/src/jit/` | [Docs/JIT.md](Docs/JIT.md) |
 | CLI and build stubs | `CLI/` | [Docs/CLI.md](Docs/CLI.md) |
-| LSP/editor support | `LSP/`, `Editor/` | via `svm lsp` |
-| Tests and fixtures | `Tests/` | see [Tests](#tests) |
+| LSP/editor support | `LSP/`, `Editor/` | `svm lsp` |
+| Tests and fixtures | `Tests/` | [Tests](#tests) |
+
+---
 
 ## Documentation
 
-Active docs are intentionally small and focused:
+| Doc | Contents |
+|---|---|
+| [Docs/Language.md](Docs/Language.md) | Syntax, semantics, imports, artifacts, enums, FFI. |
+| [Docs/VM.md](Docs/VM.md) | Runtime, heap, imports, ABI, execution model. |
+| [Docs/IR.md](Docs/IR.md) | SIR/IR contract. |
+| [Docs/Byte.md](Docs/Byte.md) | SBC bytecode, loader, verifier. |
+| [Docs/CLI.md](Docs/CLI.md) | `svm` and `simple` behavior. |
+| [Docs/JIT.md](Docs/JIT.md) | Optional JIT/tiering behavior. |
+| [Docs/Timeline.md](Docs/Timeline.md) | Native-library roadmap and lower-priority backlog. |
+| [Docs/Standards.md](Docs/Standards.md) | Project coding standards. |
 
-- [Docs/Language.md](Docs/Language.md) — language syntax, semantics, imports, stdlib surface
-- [Docs/VM.md](Docs/VM.md) — runtime, heap, imports, ABI, execution model
-- [Docs/IR.md](Docs/IR.md) — SIR/IR contract
-- [Docs/Byte.md](Docs/Byte.md) — SBC bytecode, loader, verifier
-- [Docs/CLI.md](Docs/CLI.md) — `svm` and `simple` behavior
-- [Docs/JIT.md](Docs/JIT.md) — optional JIT/tiering behavior
-- [Docs/Timeline.md](Docs/Timeline.md) — active roadmap and work timeline
-- [Docs/Standards.md](Docs/Standards.md) — coding standards
+---
 
+## Version
+
+Current tool version: `v0.4.0`.
