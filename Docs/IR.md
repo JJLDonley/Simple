@@ -212,8 +212,8 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | `import` | module, symbol, signature, flags | creates import row and callable method metadata |
 | ✅ | `intrinsic` | name/id | callable through `intrinsic <id>` instruction |
 | ✅ | `syscall` | name/id | callable through `syscall <id>` instruction |
-| ☐ | `call.import` | import ref, argc, signature | planned explicit import-call instruction |
-| ☐ | `call.native` | native ref, argc, signature | planned explicit native-call instruction |
+| ✅ | `call.import` | import ref, argc, signature | explicit import-call instruction |
+| ✅ | `call.native` | native ref, argc, signature | explicit native-call instruction |
 
 All import/native calls must be signature checked by lowering and again by bytecode verification where metadata is available.
 
@@ -612,8 +612,8 @@ Direct, indirect, tail, import/native, method, and virtual calls.
 | ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
 | ✅ | `0xFE` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | metadata-native import call |
 | ✅ | `0xFF` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | metadata-native import call |
-| ☐ | `TBD` | `call.method <method> <argc>` | `method id/name, argc` | `CallMethod` | planned |
-| ☐ | `TBD` | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallVirtual` | planned |
+| ✅ | pseudo | `call.method <method> <argc>` | `method id/name, argc` | `Call` | direct method-call alias |
+| ✅ | pseudo | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallIndirect` | virtual-call alias |
 
 ### Conversions
 

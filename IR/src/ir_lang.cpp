@@ -2761,7 +2761,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitJmpTable(cases, def);
         continue;
       }
-      if (op == "call" || op == "call.import" || op == "call.native") {
+      if (op == "call" || op == "call.method" || op == "call.import" || op == "call.native") {
         if (args.size() != 2) {
           return fail(op + " expects func_id arg_count");
         }
@@ -2776,15 +2776,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         else builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
         continue;
       }
-      if (op == "call.indirect") {
+      if (op == "call.indirect" || op == "call.virtual") {
         if (args.size() != 2) {
-          return fail("call.indirect expects sig_id arg_count");
+          return fail(op + " expects sig_id arg_count");
         }
         uint32_t sig_id = 0;
         uint64_t arg_count = 0;
         if (!resolve_sig_id(args[0], &sig_id) || !ParseUint(args[1], &arg_count) ||
             !FitsUnsigned<uint8_t>(arg_count)) {
-          return fail("call.indirect expects numeric args");
+          return fail(op + " expects numeric args");
         }
         builder.EmitCallIndirect(sig_id, static_cast<uint8_t>(arg_count));
         continue;

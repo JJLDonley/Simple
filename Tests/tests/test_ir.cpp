@@ -7701,6 +7701,57 @@ bool RunIrTextCallArgsTest() {
   return RunExpectExit(module, 9);
 }
 
+bool RunIrTextCallMethodAliasTest() {
+  const char* text =
+      "func answer locals=0 stack=4 sig=0\n"
+      "  enter 0\n"
+      "  const i32 42\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=4 sig=1\n"
+      "  enter 0\n"
+      "  call.method answer 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::Byte::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 0;
+  Simple::Byte::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_method_alias", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCallVirtualAliasTest() {
+  const char* text =
+      "func callee locals=0 stack=4 sig=0\n"
+      "  enter 0\n"
+      "  const i32 11\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=1 stack=8 sig=1\n"
+      "  enter 1\n"
+      "  newclosure callee 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  call.virtual 0 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::Byte::sbc::SigSpec sig0;
+  sig0.ret_type_id = 0;
+  sig0.param_count = 0;
+  Simple::Byte::sbc::SigSpec sig1;
+  sig1.ret_type_id = 0;
+  sig1.param_count = 0;
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_virtual_alias", {sig0, sig1});
+  if (module.empty()) return false;
+  return RunExpectExit(module, 11);
+}
+
 bool RunIrTextCallImportNativeAliasTest() {
   const char* text =
       "sigs:\n"
@@ -8642,6 +8693,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_resize_shrink", RunIrTextListResizeShrinkTest},
   {"ir_text_list_resize_negative_trap", RunIrTextListResizeNegativeTrapTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
+  {"ir_text_call_method_alias", RunIrTextCallMethodAliasTest},
+  {"ir_text_call_virtual_alias", RunIrTextCallVirtualAliasTest},
   {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
   {"ir_text_call_native_opcodes", RunIrTextCallNativeOpcodesTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
