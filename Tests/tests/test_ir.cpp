@@ -5837,6 +5837,33 @@ bool RunIrTextConvChainTest() {
   return RunExpectExit(module, 7);
 }
 
+bool RunIrTextCheckedConvAliasTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 12\n"
+      "  checked.conv i32 f64\n"
+      "  checked.conv.f64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_conv_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextCheckedConvBadTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 12\n"
+      "  checked.conv i32 Nope\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_checked_conv_bad");
+}
+
 bool RunIrTextBitwiseI32Test() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -8568,6 +8595,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_insert_remove_ref", RunIrTextListInsertRemoveRefTest},
   {"ir_text_list_insert_remove_f64", RunIrTextListInsertRemoveF64Test},
   {"ir_text_conv_chain", RunIrTextConvChainTest},
+  {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
+  {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_bitwise_i32", RunIrTextBitwiseI32Test},
   {"ir_text_bitwise_i64", RunIrTextBitwiseI64Test},
   {"ir_text_shift_i32", RunIrTextShiftI32Test},

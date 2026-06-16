@@ -1887,11 +1887,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           args.erase(args.begin());
           return true;
         }
-        if (op == "conv") {
+        if (op == "conv" || op == "checked.conv") {
           if (args.size() != 2 || !is_type_name(Lower(args[0])) || !is_type_name(Lower(args[1]))) return false;
           op = "conv." + Lower(args[0]) + "." + Lower(args[1]);
           args.clear();
           return true;
+        }
+        if (op.rfind("checked.conv.", 0) == 0) {
+          op = "conv." + op.substr(13);
+          return args.empty();
         }
         if (take_one_type({"add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
                            "and", "or", "xor", "shl", "shr",

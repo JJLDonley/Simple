@@ -622,7 +622,7 @@ Scalar conversions.
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ◐ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | partially implemented typed family |
-| ☐ | `TBD` | `checked.conv.<From>.<To>` | `none` | `CheckedConv<From,To>` | planned |
+| ✅ | pseudo | `checked.conv.<From>.<To>` | `none` | `Conv<From,To>` | checked-conversion alias for supported scalar conversions |
 
 conv.<From>.<To> codes:
 
