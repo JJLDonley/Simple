@@ -188,6 +188,42 @@ bool ParseSigLine(const std::string& line, IrTextSig* out, std::string* error) {
   return true;
 }
 
+void AppendIrConstBlob(std::vector<uint8_t>& pool, uint32_t kind, const std::vector<uint8_t>& blob, uint32_t* out_const_id) {
+  uint32_t const_id = static_cast<uint32_t>(pool.size());
+  Simple::Byte::sbc::AppendU32(pool, kind);
+  uint32_t payload_offset = static_cast<uint32_t>(pool.size() + 4);
+  Simple::Byte::sbc::AppendU32(pool, payload_offset);
+  Simple::Byte::sbc::AppendU32(pool, static_cast<uint32_t>(blob.size()));
+  pool.insert(pool.end(), blob.begin(), blob.end());
+  if (out_const_id) *out_const_id = const_id;
+}
+
+bool ParseHexBlob(const std::string& text, std::vector<uint8_t>* out) {
+  if (!out) return false;
+  out->clear();
+  std::string s = text;
+  if (s.rfind("hex:", 0) == 0) s = s.substr(4);
+  auto hex = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+    return -1;
+  };
+  int high = -1;
+  for (char c : s) {
+    if (std::isspace(static_cast<unsigned char>(c)) || c == '_' || c == ',') continue;
+    int v = hex(c);
+    if (v < 0) return false;
+    if (high < 0) {
+      high = v;
+    } else {
+      out->push_back(static_cast<uint8_t>((high << 4) | v));
+      high = -1;
+    }
+  }
+  return high < 0;
+}
+
 bool ParseConstLine(const std::string& line, IrTextConst* out, std::string* error) {
   if (!out) return false;
   std::vector<std::string> tokens = SplitTokens(line);
@@ -1267,6 +1303,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   std::unordered_map<std::string, uint32_t> const_string_ids;
   std::unordered_map<std::string, uint32_t> const_f32_ids;
   std::unordered_map<std::string, uint32_t> const_f64_ids;
+  std::unordered_map<std::string, uint32_t> const_bytes_ids;
+  std::unordered_map<std::string, uint32_t> const_data_ids;
   for (const auto& c : text.consts) {
     if (const_map.find(c.name) != const_map.end()) {
       if (error) *error = "duplicate const name: " + c.name;
@@ -1276,7 +1314,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind != "i8" && kind != "i16" && kind != "i32" && kind != "i64" &&
         kind != "u8" && kind != "u16" && kind != "u32" && kind != "u64" &&
         kind != "f32" && kind != "f64" && kind != "bool" && kind != "char" &&
-        kind != "string") {
+        kind != "string" && kind != "bytes" && kind != "data") {
       if (error) *error = "unsupported const kind: " + c.kind;
       return false;
     }
@@ -1299,6 +1337,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return false;
       }
       const_f64_ids[c.name] = append_const_f64(parsed);
+    } else if (kind == "bytes") {
+      std::vector<uint8_t> blob(c.value.begin(), c.value.end());
+      uint32_t const_id = 0;
+      AppendIrConstBlob(const_pool, 7, blob, &const_id);
+      const_bytes_ids[c.name] = const_id;
+    } else if (kind == "data") {
+      std::vector<uint8_t> blob;
+      if (!ParseHexBlob(c.value, &blob)) {
+        if (error) *error = "const.data parse failed: " + c.name;
+        return false;
+      }
+      uint32_t const_id = 0;
+      AppendIrConstBlob(const_pool, 8, blob, &const_id);
+      const_data_ids[c.name] = const_id;
     }
     const_map[c.name] = c;
   }

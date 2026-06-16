@@ -4790,6 +4790,62 @@ bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextBytesDataConstRowsTest() {
+  const char* text =
+      "consts:\n"
+      "  const raw bytes \"A\\x00Z\"\n"
+      "  const blob data hex:0102_03ff\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 6\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::IR::Text::IrTextModule parsed;
+  std::string error;
+  if (!Simple::IR::Text::ParseIrTextModule(text, &parsed, &error)) return false;
+  Simple::IR::IrModule module;
+  if (!Simple::IR::Text::LowerIrTextToModule(parsed, &module, &error)) return false;
+  size_t first = 0;
+  while (first + 4 <= module.const_pool.size() &&
+         Simple::Byte::sbc::ReadU32At(module.const_pool, first) != 7) {
+    ++first;
+  }
+  if (first + 12 > module.const_pool.size()) return false;
+  uint32_t kind0 = Simple::Byte::sbc::ReadU32At(module.const_pool, first);
+  uint32_t payload0 = Simple::Byte::sbc::ReadU32At(module.const_pool, first + 4);
+  uint32_t len0 = Simple::Byte::sbc::ReadU32At(module.const_pool, payload0);
+  if (kind0 != 7 || len0 != 3 || module.const_pool[payload0 + 4] != 'A' ||
+      module.const_pool[payload0 + 5] != 0 || module.const_pool[payload0 + 6] != 'Z') {
+    return false;
+  }
+  uint32_t second = payload0 + 4 + len0;
+  uint32_t kind1 = Simple::Byte::sbc::ReadU32At(module.const_pool, second);
+  uint32_t payload1 = Simple::Byte::sbc::ReadU32At(module.const_pool, second + 4);
+  uint32_t len1 = Simple::Byte::sbc::ReadU32At(module.const_pool, payload1);
+  if (kind1 != 8 || len1 != 4 || module.const_pool[payload1 + 4] != 1 ||
+      module.const_pool[payload1 + 5] != 2 || module.const_pool[payload1 + 6] != 3 ||
+      module.const_pool[payload1 + 7] != 0xff) {
+    return false;
+  }
+  std::vector<uint8_t> bytes;
+  if (!Simple::IR::CompileToSbc(module, &bytes, &error)) return false;
+  return RunExpectExit(bytes, 6);
+}
+
+bool RunIrTextDataConstBadHexTest() {
+  const char* text =
+      "consts:\n"
+      "  const blob data hex:010\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_data_const_bad_hex");
+}
+
 bool RunIrTextBadConstNameTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -8307,6 +8363,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_primitive_type_after_artifact", RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest},
+  {"ir_text_bytes_data_const_rows", RunIrTextBytesDataConstRowsTest},
+  {"ir_text_data_const_bad_hex", RunIrTextDataConstBadHexTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},

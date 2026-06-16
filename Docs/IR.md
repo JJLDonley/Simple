@@ -201,8 +201,8 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 |:---:|---|---|---|---|
 | ✅ | string | `const <name> string "..."` | kind + payload offset + byte length + bytes | decoded by `ReadConstPoolString` |
 | ✅ | numeric | `const <name> <scalar> <value>` | scalar payload where supported by lowerer | also available as immediate const instructions |
-| ☐ | bytes | `const <name> bytes "..."` | planned length-delimited bytes | pairs with `const.bytes` |
-| ☐ | data | `const <name> data <blob>` | planned typed data blob | pairs with `const.data` / `load.dataref` |
+| ✅ | bytes | `const <name> bytes "..."` | length-delimited raw bytes const-pool row (`kind=7`) | accepts string escapes |
+| ✅ | data | `const <name> data hex:<blob>` | length-delimited typed data blob const-pool row (`kind=8`) | accepts hex with `_`, `,`, and whitespace separators |
 | ☐ | array literal | `const <name> array<T> [...]` | planned typed aggregate const | may lower to data blob |
 
 ## Import ABI contract

@@ -568,6 +568,12 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       ReadU32At(module.const_pool, payload + 4, &count);
       return blob_len == 4 + count * 4;
     }
+    if (kind == 7 || kind == 8) {
+      if (payload + 4 > module.const_pool.size()) return false;
+      uint32_t blob_len = 0;
+      ReadU32At(module.const_pool, payload, &blob_len);
+      return payload + 4 + blob_len <= module.const_pool.size();
+    }
     return false;
   };
   auto read_name = [&](uint32_t offset) -> std::string {
