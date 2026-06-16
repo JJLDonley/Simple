@@ -379,6 +379,44 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI64(a % b));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedAddU32: {
+              uint32_t b = UnpackU32Bits(Pop(stack));
+              uint32_t a = UnpackU32Bits(Pop(stack));
+              uint32_t r = 0;
+              if (__builtin_add_overflow(a, b, &r)) return Trap("CHECKED_ADD_U32 overflow");
+              Push(stack, static_cast<uint64_t>(r));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedSubU32: {
+              uint32_t b = UnpackU32Bits(Pop(stack));
+              uint32_t a = UnpackU32Bits(Pop(stack));
+              uint32_t r = 0;
+              if (__builtin_sub_overflow(a, b, &r)) return Trap("CHECKED_SUB_U32 overflow");
+              Push(stack, static_cast<uint64_t>(r));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedMulU32: {
+              uint32_t b = UnpackU32Bits(Pop(stack));
+              uint32_t a = UnpackU32Bits(Pop(stack));
+              uint32_t r = 0;
+              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_U32 overflow");
+              Push(stack, static_cast<uint64_t>(r));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedDivU32: {
+              uint32_t b = UnpackU32Bits(Pop(stack));
+              uint32_t a = UnpackU32Bits(Pop(stack));
+              if (b == 0) return Trap("CHECKED_DIV_U32 divide by zero");
+              Push(stack, static_cast<uint64_t>(a / b));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedModU32: {
+              uint32_t b = UnpackU32Bits(Pop(stack));
+              uint32_t a = UnpackU32Bits(Pop(stack));
+              if (b == 0) return Trap("CHECKED_MOD_U32 divide by zero");
+              Push(stack, static_cast<uint64_t>(a % b));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

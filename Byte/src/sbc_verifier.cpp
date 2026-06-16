@@ -536,6 +536,21 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CheckedAddU32:
+          case Simple::Byte::ExtendedOpCode::CheckedSubU32:
+          case Simple::Byte::ExtendedOpCode::CheckedMulU32:
+          case Simple::Byte::ExtendedOpCode::CheckedDivU32:
+          case Simple::Byte::ExtendedOpCode::CheckedModU32: {
+            ValType b = pop_type();
+            ValType a = pop_type();
+            VerifyResult r1 = check_type(a, ValType::U32, "CHECKED_U32 type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(b, ValType::U32, "CHECKED_U32 type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::U32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

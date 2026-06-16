@@ -6618,6 +6618,57 @@ bool RunIrTextCheckedArithmeticAddI64Test() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArithmeticU32Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const u32 80\n"
+      "  const u32 5\n"
+      "  checked.add.u32\n"
+      "  const u32 3\n"
+      "  checked.sub.u32\n"
+      "  const u32 2\n"
+      "  checked.mul.u32\n"
+      "  const u32 4\n"
+      "  checked.div.u32\n"
+      "  const u32 42\n"
+      "  checked.mod.u32\n"
+      "  pop\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_u32");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCheckedArithmeticU32TrapTest() {
+  const char* add_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const u32 4294967295\n"
+      "  const u32 1\n"
+      "  checked.add.u32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto add_module = BuildIrTextModule(add_text, "ir_text_checked_add_u32_trap");
+  if (add_module.empty() || !RunExpectTrap(add_module, "ir_text_checked_add_u32_trap")) return false;
+  const char* div_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const u32 1\n"
+      "  const u32 0\n"
+      "  checked.div.u32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto div_module = BuildIrTextModule(div_text, "ir_text_checked_div_u32_trap");
+  if (div_module.empty()) return false;
+  return RunExpectTrap(div_module, "ir_text_checked_div_u32_trap");
+}
+
 bool RunIrTextCheckedArithmeticDivModI64Test() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -9689,6 +9740,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
   {"ir_text_checked_arithmetic_add_i64", RunIrTextCheckedArithmeticAddI64Test},
+  {"ir_text_checked_arithmetic_u32", RunIrTextCheckedArithmeticU32Test},
+  {"ir_text_checked_arithmetic_u32_trap", RunIrTextCheckedArithmeticU32TrapTest},
   {"ir_text_checked_arithmetic_add_i64_overflow_trap", RunIrTextCheckedArithmeticAddI64OverflowTrapTest},
   {"ir_text_checked_arithmetic_div_mod_i64", RunIrTextCheckedArithmeticDivModI64Test},
   {"ir_text_checked_arithmetic_div_mod_i64_trap", RunIrTextCheckedArithmeticDivModI64TrapTest},

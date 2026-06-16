@@ -858,14 +858,19 @@ Checked arithmetic, bounds, null, and conversions.
 |:---:|---:|---|---|---|---|
 | ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.add.i64` | `none` | `Ext.CheckedAddI64` | traps on signed i64 overflow |
+| ✅ | extended | `checked.add.u32` | `none` | `Ext.CheckedAddU32` | traps on unsigned u32 overflow |
 | ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.sub.i64` | `none` | `Ext.CheckedSubI64` | traps on signed i64 overflow |
+| ✅ | extended | `checked.sub.u32` | `none` | `Ext.CheckedSubU32` | traps on unsigned u32 overflow |
 | ✅ | extended | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.mul.i64` | `none` | `Ext.CheckedMulI64` | traps on signed i64 overflow |
+| ✅ | extended | `checked.mul.u32` | `none` | `Ext.CheckedMulU32` | traps on unsigned u32 overflow |
 | ✅ | extended | `checked.div.i32` | `none` | `Ext.CheckedDivI32` | traps on divide-by-zero and signed i32 overflow |
 | ✅ | extended | `checked.div.i64` | `none` | `Ext.CheckedDivI64` | traps on divide-by-zero and signed i64 overflow |
+| ✅ | extended | `checked.div.u32` | `none` | `Ext.CheckedDivU32` | traps on divide-by-zero |
 | ✅ | extended | `checked.mod.i32` | `none` | `Ext.CheckedModI32` | traps on divide-by-zero and signed i32 overflow |
 | ✅ | extended | `checked.mod.i64` | `none` | `Ext.CheckedModI64` | traps on divide-by-zero and signed i64 overflow |
+| ✅ | extended | `checked.mod.u32` | `none` | `Ext.CheckedModU32` | traps on divide-by-zero |
 | ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.array.set.<T>` | `none` | `ArraySet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |

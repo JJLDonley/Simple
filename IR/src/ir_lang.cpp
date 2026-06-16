@@ -2561,12 +2561,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedAddI64);
         continue;
       }
+      if (op == "checked.add.u32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedAddU32);
+        continue;
+      }
       if (op == "checked.sub.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedSubI32);
         continue;
       }
       if (op == "checked.sub.i64") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedSubI64);
+        continue;
+      }
+      if (op == "checked.sub.u32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedSubU32);
         continue;
       }
       if (op == "checked.mul.i32") {
@@ -2577,6 +2585,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedMulI64);
         continue;
       }
+      if (op == "checked.mul.u32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedMulU32);
+        continue;
+      }
       if (op == "checked.div.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedDivI32);
         continue;
@@ -2585,12 +2597,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedDivI64);
         continue;
       }
+      if (op == "checked.div.u32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedDivU32);
+        continue;
+      }
       if (op == "checked.mod.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedModI32);
         continue;
       }
       if (op == "checked.mod.i64") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedModI64);
+        continue;
+      }
+      if (op == "checked.mod.u32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedModU32);
         continue;
       }
       if (op.rfind("checked.div.", 0) == 0 || op.rfind("checked.mod.", 0) == 0) {
