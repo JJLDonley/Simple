@@ -111,6 +111,9 @@ struct IrTextDebugSymbol {
 
 struct IrTextModule {
   std::string module_name;
+  bool has_version = false;
+  uint32_t version_major = 0;
+  uint32_t version_minor = 0;
   std::vector<IrTextType> types;
   std::vector<IrTextSig> sigs;
   std::vector<IrTextConst> consts;

@@ -279,6 +279,9 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     return false;
   }
   out->module_name.clear();
+  out->has_version = false;
+  out->version_major = 0;
+  out->version_minor = 0;
   out->functions.clear();
   out->types.clear();
   out->sigs.clear();
@@ -315,6 +318,36 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     line_no++;
     std::string line = Trim(StripComment(raw));
     if (line.empty()) continue;
+
+    if (line.rfind("sir version ", 0) == 0) {
+      if (current) {
+        if (error) *error = "sir version inside function at line " + std::to_string(line_no);
+        return false;
+      }
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() != 3) {
+        if (error) *error = "sir version expects major.minor at line " + std::to_string(line_no);
+        return false;
+      }
+      size_t dot = tokens[2].find('.');
+      if (dot == std::string::npos) {
+        if (error) *error = "sir version expects major.minor at line " + std::to_string(line_no);
+        return false;
+      }
+      uint64_t major = 0;
+      uint64_t minor = 0;
+      if (!ParseUint(tokens[2].substr(0, dot), &major) ||
+          !ParseUint(tokens[2].substr(dot + 1), &minor) ||
+          !FitsUnsigned<uint32_t>(major) || !FitsUnsigned<uint32_t>(minor)) {
+        if (error) *error = "sir version invalid at line " + std::to_string(line_no);
+        return false;
+      }
+      out->has_version = true;
+      out->version_major = static_cast<uint32_t>(major);
+      out->version_minor = static_cast<uint32_t>(minor);
+      section = Section::None;
+      continue;
+    }
 
     if (line.rfind("module ", 0) == 0) {
       if (current) {
@@ -860,6 +893,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   out->capabilities_bytes.clear();
   out->debug_bytes.clear();
   out->entry_method_id = text.entry_index;
+  if (text.has_version && (text.version_major != 1 || text.version_minor != 0)) {
+    if (error) *error = "unsupported SIR version: " + std::to_string(text.version_major) + "." + std::to_string(text.version_minor);
+    return false;
+  }
 
   std::vector<uint8_t> const_pool;
   auto add_name = [&](const std::string& name) -> uint32_t {

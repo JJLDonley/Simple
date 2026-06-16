@@ -4343,6 +4343,32 @@ bool RunIrTextDuplicateExportFailsTest() {
   return RunIrTextExpectFail(text, "ir_text_duplicate_export_fails");
 }
 
+bool RunIrTextSirVersionDirectiveTest() {
+  const char* text =
+      "sir version 1.0\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 10\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_sir_version_directive");
+  if (bytes.empty()) return false;
+  return RunExpectExit(bytes, 10);
+}
+
+bool RunIrTextSirVersionUnsupportedTest() {
+  const char* text =
+      "sir version 2.0\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_sir_version_unsupported");
+}
+
 bool RunIrTextModuleMetadataSectionTest() {
   const char* text =
       "module sample\n"
@@ -8215,6 +8241,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_compound_metadata_types", RunIrTextCompoundMetadataTypesTest},
   {"ir_text_debug_section", RunIrTextDebugSectionTest},
   {"ir_text_debug_unknown_file_fails", RunIrTextDebugUnknownFileFailsTest},
+  {"ir_text_sir_version_directive", RunIrTextSirVersionDirectiveTest},
+  {"ir_text_sir_version_unsupported", RunIrTextSirVersionUnsupportedTest},
   {"ir_text_exports_section", RunIrTextExportsSectionTest},
   {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},

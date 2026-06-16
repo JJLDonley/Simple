@@ -128,7 +128,7 @@ blank         = { whitespace } ;
 | ☐ | function | `upvalue <name> <type> <slot>` | Planned named/typed upvalue slot declaration. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
-| ☐ | module | `sir version <major>.<minor>` | Planned explicit SIR version directive. | SBC version/metadata |
+| ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `1.0`. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
 | ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
@@ -254,7 +254,7 @@ Textual SIR is the stable inspection/lowering format. `IRB` is the structured la
 |:---:|---|---|
 | ✅ | current parser | unknown sections/opcodes/types are hard errors |
 | ✅ | current lowering | duplicate labels, unresolved labels, invalid references are hard errors |
-| ☐ | SIR version | planned `sir version <major>.<minor>` directive |
+| ✅ | SIR version | `sir version <major>.<minor>` directive validates supported SIR text version |
 | ☐ | compatibility | planned explicit syntax/version compatibility policy |
 | ☐ | diagnostic codes | planned stable `E5xxx` IR/lowering diagnostic code table |
 | ☐ | fixtures | planned archived SIR compatibility fixtures |
