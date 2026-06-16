@@ -5131,6 +5131,78 @@ bool RunIrTextUpvalueTypeBadNameTest() {
   return RunIrTextExpectFail(text, "ir_text_upvalue_type_bad_name");
 }
 
+bool RunIrTextCaptureAliasesTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func callee locals=0 stack=6 sig=main_sig\n"
+      "  upvalue captured ref 0\n"
+      "  enter 0\n"
+      "  close.upvalue captured\n"
+      "  ldupv captured\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=1 stack=8 sig=main_sig\n"
+      "  local obj ref 0\n"
+      "  enter 1\n"
+      "  init.object Obj\n"
+      "  stloc obj\n"
+      "  capture.local obj\n"
+      "  newclosure callee 1\n"
+      "  call.indirect main_sig 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_capture_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCaptureRefAliasTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "func main locals=1 stack=4\n"
+      "  local obj ref 0\n"
+      "  enter 1\n"
+      "  init.object Obj\n"
+      "  stloc obj\n"
+      "  capture.ref obj\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_capture_ref_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCaptureAliasBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  capture.local missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_capture_alias_bad");
+}
+
 bool RunIrTextSyscallNameFailTest() {
   const char* text =
       "imports:\n"
@@ -8707,6 +8779,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_explicit_local_decl", RunIrTextExplicitLocalDeclTest},
   {"ir_text_explicit_local_slot_oob", RunIrTextExplicitLocalSlotOobTest},
   {"ir_text_explicit_upvalue_decl", RunIrTextExplicitUpvalueDeclTest},
+  {"ir_text_capture_aliases", RunIrTextCaptureAliasesTest},
+  {"ir_text_capture_ref_alias", RunIrTextCaptureRefAliasTest},
+  {"ir_text_capture_alias_bad", RunIrTextCaptureAliasBadTest},
   {"ir_text_local_type_bad_name", RunIrTextLocalTypeBadNameTest},
   {"ir_text_upvalue_type_bad_name", RunIrTextUpvalueTypeBadNameTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},

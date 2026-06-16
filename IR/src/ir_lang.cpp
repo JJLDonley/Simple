@@ -2882,10 +2882,18 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConvF64ToF32();
         continue;
       }
-      if (op == "ldloc" || op == "load.local") {
+      if (op == "ldloc" || op == "load.local" || op == "capture.local") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
-          return fail("ldloc expects index");
+          return fail(op + " expects index");
+        }
+        builder.EmitLoadLocal(index);
+        continue;
+      }
+      if (op == "capture.ref") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
+          return fail("capture.ref expects local index");
         }
         builder.EmitLoadLocal(index);
         continue;
@@ -3307,6 +3315,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail("stupv expects index");
         }
         builder.EmitStoreUpvalue(index);
+        continue;
+      }
+      if (op == "close.upvalue") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_upvalue(fn, args[0], &index)) {
+          return fail("close.upvalue expects index");
+        }
         continue;
       }
 

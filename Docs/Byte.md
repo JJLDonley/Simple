@@ -577,9 +577,9 @@ Heap object, closure, reference, field, object lifecycle, and typed reference op
 | ✅ | `0xA5` | `RefEq` | 0 | 2 | 1 |
 | ✅ | `0xA6` | `RefNe` | 0 | 2 | 1 |
 | ✅ | `0xA7` | `TypeOf` | 0 | 1 | 1 |
-| ☐ | `TBD` | `CaptureLocal` | 4 | 0 | 1 |
-| ☐ | `TBD` | `CaptureRef` | 4 | 0 | 1 |
-| ☐ | `TBD` | `CloseUpvalue` | 4 | 0 | 0 |
+| ✅ | pseudo | `CaptureLocal` | 4 | 0 | 1 |
+| ✅ | pseudo | `CaptureRef` | 4 | 0 | 1 |
+| ✅ | pseudo | `CloseUpvalue` | 4 | 0 | 0 |
 | ✅ | pseudo | `InitObject` | 4 | 1 | 1 |
 | ✅ | `0x2D` | `DropObject` | 0 | 1 | 0 |
 | ✅ | `0x2E` | `CloneObject` | 0 | 1 | 1 |
