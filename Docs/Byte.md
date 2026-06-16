@@ -774,12 +774,12 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ✅ | pseudo | `CheckedMul<T>` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedDiv<T>` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedMod<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedArrayGet<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedArraySet<T>` | 0 | 3 | 0 |
-| ☐ | `TBD` | `CheckedListGet<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedListSet<T>` | 0 | 3 | 0 |
-| ☐ | `TBD` | `CheckedStringGetChar` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedStringSlice` | 0 | 3 | 1 |
+| ✅ | pseudo | `CheckedArrayGet<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedArraySet<T>` | 0 | 3 | 0 |
+| ✅ | pseudo | `CheckedListGet<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedListSet<T>` | 0 | 3 | 0 |
+| ✅ | pseudo | `CheckedStringGetChar` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedStringSlice` | 0 | 3 | 1 |
 | ✅ | `0x2B` | `CheckedNull` | 0 | 1 | 1 |
 | ✅ | `0x2C` | `CheckedBounds` | 0 | 3 | 1 |
 

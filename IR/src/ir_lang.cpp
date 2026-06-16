@@ -1914,6 +1914,33 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             return true;
           }
         }
+        const std::vector<std::string> checked_aggregate = {"array.get", "array.set", "list.get", "list.set"};
+        for (const auto& name : checked_aggregate) {
+          std::string checked_name = "checked." + name;
+          if (op == checked_name) {
+            if (args.size() != 1 || !is_type_name(Lower(args[0]))) return false;
+            op = name + "." + Lower(args[0]);
+            args.clear();
+            return true;
+          }
+          std::string checked_prefix = checked_name + ".";
+          if (op.rfind(checked_prefix, 0) == 0) {
+            std::string type = Lower(op.substr(checked_prefix.size()));
+            if (!is_type_name(type) || !args.empty()) return false;
+            op = name + "." + type;
+            return true;
+          }
+        }
+        if (op == "checked.string.get.char") {
+          if (!args.empty()) return false;
+          op = "string.get.char";
+          return true;
+        }
+        if (op == "checked.string.slice") {
+          if (!args.empty()) return false;
+          op = "string.slice";
+          return true;
+        }
         if (take_one_type({"add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
                            "and", "or", "xor", "shl", "shr",
                            "cmp.eq", "cmp.ne", "cmp.lt", "cmp.le", "cmp.gt", "cmp.ge",

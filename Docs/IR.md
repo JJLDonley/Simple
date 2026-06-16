@@ -861,12 +861,12 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | pseudo | `checked.mul.<T>` | `none` | `Mul<T>` | checked-arithmetic alias for supported scalar types |
 | ✅ | pseudo | `checked.div.<T>` | `none` | `Div<T>` | checked-arithmetic alias for supported scalar types |
 | ✅ | pseudo | `checked.mod.<T>` | `none` | `Mod<T>` | checked-arithmetic alias for supported scalar types |
-| ☐ | `TBD` | `checked.array.get.<T>` | `none` | `CheckedArrayGet<T>` | planned |
-| ☐ | `TBD` | `checked.array.set.<T>` | `none` | `CheckedArraySet<T>` | planned |
-| ☐ | `TBD` | `checked.list.get.<T>` | `none` | `CheckedListGet<T>` | planned |
-| ☐ | `TBD` | `checked.list.set.<T>` | `none` | `CheckedListSet<T>` | planned |
-| ☐ | `TBD` | `checked.string.get.char` | `none` | `CheckedStringGetChar` | planned |
-| ☐ | `TBD` | `checked.string.slice` | `none` | `CheckedStringSlice` | planned |
+| ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |
+| ✅ | pseudo | `checked.array.set.<T>` | `none` | `ArraySet<T>` | checked aggregate alias for supported element types |
+| ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |
+| ✅ | pseudo | `checked.list.set.<T>` | `none` | `ListSet<T>` | checked aggregate alias for supported element types |
+| ✅ | pseudo | `checked.string.get.char` | `none` | `StringGetChar` | checked string alias |
+| ✅ | pseudo | `checked.string.slice` | `none` | `StringSlice` | checked string alias |
 | ✅ | `0x2B` | `checked.null` | `none` | `CheckedNull` |  |
 | ✅ | `0x2C` | `checked.bounds` | `none` | `CheckedBounds` | pops value, index, length; pushes value |
 
