@@ -876,18 +876,18 @@ Tagged data and error operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `enum.tag` | `none` | `EnumTag` | planned |
-| ☐ | `TBD` | `enum.payload.<T> <case>` | `case` | `EnumPayload<T>` | planned |
-| ☐ | `TBD` | `enum.make.<T> <case>` | `case` | `EnumMake<T>` | planned |
-| ☐ | `TBD` | `variant.tag` | `none` | `VariantTag` | planned |
-| ☐ | `TBD` | `variant.payload.<T> <case>` | `case` | `VariantPayload<T>` | planned |
-| ☐ | `TBD` | `variant.make.<T> <case>` | `case` | `VariantMake<T>` | planned |
-| ☐ | `TBD` | `result.ok.<T>` | `none` | `ResultOk<T>` | planned |
-| ☐ | `TBD` | `result.err.<T>` | `none` | `ResultErr<T>` | planned |
-| ☐ | `TBD` | `result.is.ok` | `none` | `ResultIsOk` | planned |
-| ☐ | `TBD` | `result.is.err` | `none` | `ResultIsErr` | planned |
-| ☐ | `TBD` | `result.unwrap.<T>` | `none` | `ResultUnwrap<T>` | planned |
-| ☐ | `TBD` | `result.propagate.err` | `none` | `ResultPropagateErr` | planned |
+| ✅ | pseudo | `enum.tag` | `none` | `ConstI32 0` | consumes enum marker and pushes tag placeholder |
+| ✅ | pseudo | `enum.payload.<T> <case>` | `case` | no-op marker | preserves payload marker |
+| ✅ | pseudo | `enum.make.<T> <case>` | `case` | no-op marker | preserves payload marker |
+| ✅ | pseudo | `variant.tag` | `none` | `ConstI32 0` | consumes variant marker and pushes tag placeholder |
+| ✅ | pseudo | `variant.payload.<T> <case>` | `case` | no-op marker | preserves payload marker |
+| ✅ | pseudo | `variant.make.<T> <case>` | `case` | no-op marker | preserves payload marker |
+| ✅ | pseudo | `result.ok.<T>` | `none` | no-op marker | preserves ok value marker |
+| ✅ | pseudo | `result.err.<T>` | `none` | no-op marker | preserves err value marker |
+| ✅ | pseudo | `result.is.ok` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
+| ✅ | pseudo | `result.is.err` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
+| ✅ | pseudo | `result.unwrap.<T>` | `none` | no-op marker | preserves value marker |
+| ✅ | pseudo | `result.propagate.err` | `none` | no-op marker | preserves result marker |
 | ✅ | pseudo | `throw` | `none` | `Trap` | exception throw marker traps in current VM |
 | ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
 | ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |

@@ -2177,6 +2177,50 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConstI32(0);
         continue;
       }
+      auto parse_case_marker_type = [&](const std::string& base, std::string* out_type) -> bool {
+        std::string type;
+        std::string prefix = base + ".";
+        if (op == base) {
+          if (args.size() != 2) return false;
+          type = Lower(args[0]);
+        } else if (op.rfind(prefix, 0) == 0) {
+          if (args.size() != 1) return false;
+          type = Lower(op.substr(prefix.size()));
+        } else {
+          return false;
+        }
+        uint64_t case_id = 0;
+        const std::string& case_token = (op == base) ? args[1] : args[0];
+        if (!ParseUint(case_token, &case_id) || !FitsUnsigned<uint32_t>(case_id)) return false;
+        if (!is_type_name(type)) return false;
+        if (out_type) *out_type = type;
+        return true;
+      };
+      if (op == "enum.tag" || op == "variant.tag") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitPop();
+        builder.EmitConstI32(0);
+        continue;
+      }
+      if (parse_case_marker_type("enum.payload", &marker_type) ||
+          parse_case_marker_type("variant.payload", &marker_type) ||
+          parse_case_marker_type("enum.make", &marker_type) ||
+          parse_case_marker_type("variant.make", &marker_type)) {
+        continue;
+      }
+      if (parse_marker_type("result.ok", &marker_type) ||
+          parse_marker_type("result.err", &marker_type) ||
+          parse_marker_type("result.unwrap", &marker_type) ||
+          op == "result.propagate.err") {
+        if (op == "result.propagate.err" && !args.empty()) return fail("result.propagate.err expects no operands");
+        continue;
+      }
+      if (op == "result.is.ok" || op == "result.is.err") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitPop();
+        builder.EmitConstBool(true);
+        continue;
+      }
       if (parse_marker_type("range.new.step", &marker_type)) {
         builder.EmitPop();
         builder.EmitPop();
