@@ -854,6 +854,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "ref") { *out_kind = Simple::Byte::TypeKind::Ref; return true; }
     if (kind == "void") { *out_kind = Simple::Byte::TypeKind::Void; return true; }
     if (kind == "never") { *out_kind = Simple::Byte::TypeKind::Never; return true; }
+    if (kind == "ptr") { *out_kind = Simple::Byte::TypeKind::Ptr; return true; }
+    if (kind == "array") { *out_kind = Simple::Byte::TypeKind::Array; return true; }
+    if (kind == "list") { *out_kind = Simple::Byte::TypeKind::List; return true; }
+    if (kind == "function" || kind == "fn") { *out_kind = Simple::Byte::TypeKind::Function; return true; }
+    if (kind == "result") { *out_kind = Simple::Byte::TypeKind::Result; return true; }
+    if (kind == "option") { *out_kind = Simple::Byte::TypeKind::Option; return true; }
+    if (kind == "vector" || kind == "vec") { *out_kind = Simple::Byte::TypeKind::Vector; return true; }
     if (kind == "artifact" || kind == "object" || kind == "struct" || kind == "unspecified") {
       *out_kind = Simple::Byte::TypeKind::Unspecified;
       *out_flags = 1;
@@ -888,6 +895,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       case Simple::Byte::TypeKind::Void:
       case Simple::Byte::TypeKind::Never:
         return 0;
+      case Simple::Byte::TypeKind::Ptr:
+      case Simple::Byte::TypeKind::Array:
+      case Simple::Byte::TypeKind::List:
+      case Simple::Byte::TypeKind::Function:
+        return types[type_id].size == 0 ? 4 : types[type_id].size;
+      case Simple::Byte::TypeKind::Result:
+      case Simple::Byte::TypeKind::Option:
+      case Simple::Byte::TypeKind::Vector:
+        return types[type_id].size;
       case Simple::Byte::TypeKind::Unspecified:
       default:
         return types[type_id].size;
@@ -940,6 +956,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     }
     if ((kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Never) && size != 0) {
       if (error) *error = "type size mismatch for void/never: " + type.name;
+      return false;
+    }
+    if ((kind == Simple::Byte::TypeKind::Ptr || kind == Simple::Byte::TypeKind::Array ||
+         kind == Simple::Byte::TypeKind::List || kind == Simple::Byte::TypeKind::Function) &&
+        !(size == 0 || size == 4 || size == 8)) {
+      if (error) *error = "type size mismatch for reference-like metadata: " + type.name;
       return false;
     }
     if (!add_type(type.name, kind, flags, size)) return false;

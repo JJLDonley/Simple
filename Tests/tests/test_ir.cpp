@@ -4235,6 +4235,46 @@ bool RunIrTextVoidNeverTypesTest() {
   return saw_void && saw_never && RunExpectExit(bytes, 0);
 }
 
+bool RunIrTextCompoundMetadataTypesTest() {
+  const char* text =
+      "types:\n"
+      "  type P kind=ptr size=8\n"
+      "  type A kind=array size=4\n"
+      "  type L kind=list size=4\n"
+      "  type F kind=function size=4\n"
+      "  type R kind=result size=8\n"
+      "  type O kind=option size=4\n"
+      "  type V kind=vector size=16\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 7\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_compound_metadata_types");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  bool saw_ptr = false;
+  bool saw_array = false;
+  bool saw_list = false;
+  bool saw_function = false;
+  bool saw_result = false;
+  bool saw_option = false;
+  bool saw_vector = false;
+  for (const auto& type : load.module.types) {
+    saw_ptr = saw_ptr || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Ptr);
+    saw_array = saw_array || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Array);
+    saw_list = saw_list || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::List);
+    saw_function = saw_function || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Function);
+    saw_result = saw_result || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Result);
+    saw_option = saw_option || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Option);
+    saw_vector = saw_vector || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Vector);
+  }
+  return saw_ptr && saw_array && saw_list && saw_function && saw_result && saw_option && saw_vector &&
+         RunExpectExit(bytes, 7);
+}
+
 bool RunIrTextModuleMetadataSectionTest() {
   const char* text =
       "module sample\n"
@@ -8104,6 +8144,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
   {"ir_compile_raw_metadata_sections", RunIrCompileRawMetadataSectionsTest},
   {"ir_text_void_never_types", RunIrTextVoidNeverTypesTest},
+  {"ir_text_compound_metadata_types", RunIrTextCompoundMetadataTypesTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},

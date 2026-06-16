@@ -156,13 +156,13 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | object type name | `Ref` or object row kind | declared | resolved by `types:` rows |
 | ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
 | ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
-| ☐ | `ptr<T>` | TBD | word | planned typed pointer |
-| ☐ | `array<T>` | TBD | ref | planned first-class aggregate type syntax |
-| ☐ | `list<T>` | TBD | ref | planned first-class aggregate type syntax |
-| ☐ | `fn<sig>` | TBD | ref | planned typed function/closure ref |
-| ☐ | `result<T,E>` | TBD | ref/value | planned result type |
-| ☐ | `option<T>` | TBD | ref/value | planned optional type |
-| ☐ | `vec<T,N>` | TBD | vector | planned SIMD/vector type |
+| ✅ | `ptr<T>` | `Ptr` / `19` | word | typed pointer metadata via `kind=ptr` |
+| ✅ | `array<T>` | `Array` / `20` | ref | aggregate metadata via `kind=array` |
+| ✅ | `list<T>` | `List` / `21` | ref | aggregate metadata via `kind=list` |
+| ✅ | `fn<sig>` | `Function` / `22` | ref | typed function/closure ref metadata via `kind=function` |
+| ✅ | `result<T,E>` | `Result` / `23` | ref/value | result metadata via `kind=result` |
+| ✅ | `option<T>` | `Option` / `24` | ref/value | optional metadata via `kind=option` |
+| ✅ | `vec<T,N>` | `Vector` / `25` | vector | SIMD/vector metadata via `kind=vector` |
 
 ## Operand and literal grammar
 

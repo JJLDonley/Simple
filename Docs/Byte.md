@@ -104,13 +104,13 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `16` | `String` | `string` | string reference |
 | ✅ | `17` | `Void` | `void` | no-result signature/metadata type |
 | ✅ | `18` | `Never` | `never` | non-returning metadata type |
-| ☐ | TBD | `Ptr` | `ptr<T>` | planned typed pointer |
-| ☐ | TBD | `Array` | `array<T>` | planned aggregate metadata |
-| ☐ | TBD | `List` | `list<T>` | planned aggregate metadata |
-| ☐ | TBD | `Function` | `fn<sig>` | planned typed function ref |
-| ☐ | TBD | `Result` | `result<T,E>` | planned tagged result |
-| ☐ | TBD | `Option` | `option<T>` | planned optional value |
-| ☐ | TBD | `Vector` | `vec<T,N>` | planned SIMD/vector type |
+| ✅ | `19` | `Ptr` | `ptr<T>` | typed pointer metadata |
+| ✅ | `20` | `Array` | `array<T>` | aggregate metadata |
+| ✅ | `21` | `List` | `list<T>` | aggregate metadata |
+| ✅ | `22` | `Function` | `fn<sig>` | typed function ref metadata |
+| ✅ | `23` | `Result` | `result<T,E>` | tagged result metadata |
+| ✅ | `24` | `Option` | `option<T>` | optional value metadata |
+| ✅ | `25` | `Vector` | `vec<T,N>` | SIMD/vector metadata |
 
 ## Binary row schemas
 

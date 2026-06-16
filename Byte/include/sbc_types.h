@@ -67,6 +67,13 @@ enum class TypeKind : uint8_t {
   String = 16,
   Void = 17,
   Never = 18,
+  Ptr = 19,
+  Array = 20,
+  List = 21,
+  Function = 22,
+  Result = 23,
+  Option = 24,
+  Vector = 25,
 };
 
 struct DebugHeader {
