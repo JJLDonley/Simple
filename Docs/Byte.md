@@ -141,7 +141,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | bytes/data constants | typed blob const-pool rows (`kind=7` bytes, `kind=8` data), reserved for `ConstBytes`, `ConstData`, `LoadDataRef` |
 | ✅ | imports | `ImportRow` names module/symbol strings and signature id; method/function metadata marks import callability |
 | ✅ | debug lines | debug section rows map method/code offset to file/line/column |
-| ☐ | source spans | planned span ranges for richer diagnostics/debugger support |
+| ✅ | source spans | SIR `span` pseudo-instruction lowers to bytecode `Line` markers; full range metadata remains represented through debug rows |
 
 ## SBC versioning and diagnostics
 

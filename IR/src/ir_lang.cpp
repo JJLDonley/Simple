@@ -198,6 +198,21 @@ void AppendIrConstBlob(std::vector<uint8_t>& pool, uint32_t kind, const std::vec
   if (out_const_id) *out_const_id = const_id;
 }
 
+bool ParseSourcePoint(const std::string& text, uint32_t* line, uint32_t* column) {
+  size_t colon = text.find(':');
+  if (colon == std::string::npos) return false;
+  uint64_t parsed_line = 0;
+  uint64_t parsed_column = 0;
+  if (!ParseUint(text.substr(0, colon), &parsed_line) ||
+      !ParseUint(text.substr(colon + 1), &parsed_column) ||
+      !FitsUnsigned<uint32_t>(parsed_line) || !FitsUnsigned<uint32_t>(parsed_column)) {
+    return false;
+  }
+  if (line) *line = static_cast<uint32_t>(parsed_line);
+  if (column) *column = static_cast<uint32_t>(parsed_column);
+  return true;
+}
+
 bool ParseI32ArrayLiteral(const std::string& text, std::vector<int32_t>* out) {
   if (!out) return false;
   out->clear();
@@ -1934,6 +1949,19 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail("line expects line column");
         }
         builder.EmitLine(static_cast<uint32_t>(line), static_cast<uint32_t>(column));
+        continue;
+      }
+      if (op == "span") {
+        uint32_t start_line = 0;
+        uint32_t start_column = 0;
+        uint32_t end_line = 0;
+        uint32_t end_column = 0;
+        if (args.size() != 3 || args[0].empty() || !ParseSourcePoint(args[1], &start_line, &start_column) ||
+            !ParseSourcePoint(args[2], &end_line, &end_column) || end_line < start_line ||
+            (end_line == start_line && end_column < start_column)) {
+          return fail("span expects file start_line:start_col end_line:end_col");
+        }
+        builder.EmitLine(start_line, start_column);
         continue;
       }
       if (op == "profile.start" || op == "profile.end" || op == "trace.enter" || op == "trace.leave") {

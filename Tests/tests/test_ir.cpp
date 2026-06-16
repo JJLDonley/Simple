@@ -4928,6 +4928,41 @@ bool RunIrTextBadConstNameTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_const_name");
 }
 
+bool RunIrTextSpanPseudoInstructionTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  span main.simple 12:3 12:8\n"
+      "  const i32 9\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_span_pseudo_instruction");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  bool saw_line = false;
+  for (size_t i = 0; i + 8 < load.module.code.size(); ++i) {
+    if (load.module.code[i] != static_cast<uint8_t>(Simple::Byte::OpCode::Line)) continue;
+    uint32_t line = Simple::Byte::sbc::ReadU32At(load.module.code, i + 1);
+    uint32_t column = Simple::Byte::sbc::ReadU32At(load.module.code, i + 5);
+    saw_line = saw_line || (line == 12 && column == 3);
+  }
+  return saw_line && RunExpectExit(bytes, 9);
+}
+
+bool RunIrTextSpanBadRangeTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  span main.simple 12:8 12:3\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_span_bad_range");
+}
+
 bool RunIrTextLowerLineNumberTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -8441,6 +8476,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_bytes_data_const_rows", RunIrTextBytesDataConstRowsTest},
   {"ir_text_data_const_bad_hex", RunIrTextDataConstBadHexTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
+  {"ir_text_span_pseudo_instruction", RunIrTextSpanPseudoInstructionTest},
+  {"ir_text_span_bad_range", RunIrTextSpanBadRangeTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},
   {"ir_text_explicit_local_decl", RunIrTextExplicitLocalDeclTest},

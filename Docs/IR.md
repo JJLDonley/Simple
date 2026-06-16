@@ -180,7 +180,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | sig ref | `<u32>` or `<name>` | numeric sig id or sig name | checked during lowering |
 | ✅ | const ref | `<u32>` or `<name>` | numeric const offset/id or const name | checked during lowering |
 | ✅ | typed immediate | `<T>:<value>` | Explicit literal typing for `const <T>:<value>`. | avoids opcode suffix ambiguity |
-| ☐ | source span | `<file>:<line>:<col>` | planned debug operand | debug/source mapping |
+| ✅ | source span | `<file> <line>:<col> <line>:<col>` | Accepted by `span` pseudo-instruction and lowered to `Line`. | debug/source mapping |
 
 ## Instruction aliases
 
@@ -648,7 +648,7 @@ Line/profile markers and runtime/native escape hatches.
 | ✅ | `0x82` | `profile.end <id>` | `u32 id` | `ProfileEnd` |  |
 | ✅ | `0x90` | `intrinsic <id>` | `u32 id` | `Intrinsic` |  |
 | ✅ | `0x91` | `syscall <id>` | `u32 id` | `SysCall` |  |
-| ☐ | `TBD` | `span <file> <start> <end>` | `source span` | `Span` | planned |
+| ✅ | pseudo | `span <file> <start> <end>` | `source span` | `Line` | lowers to start-line marker |
 | ✅ | `0x29` | `trace.enter <id>` | `u32 id` | `TraceEnter` |  |
 | ✅ | `0x2A` | `trace.leave <id>` | `u32 id` | `TraceLeave` |  |
 | ✅ | `0x28` | `stacktrace` | `none` | `StackTrace` |  |
