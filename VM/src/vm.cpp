@@ -341,6 +341,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI64(a + b));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedSubI64: {
+              int64_t b = UnpackI64(Pop(stack));
+              int64_t a = UnpackI64(Pop(stack));
+              if ((b < 0 && a > std::numeric_limits<int64_t>::max() + b) ||
+                  (b > 0 && a < std::numeric_limits<int64_t>::min() + b)) {
+                return Trap("CHECKED_SUB_I64 overflow");
+              }
+              Push(stack, PackI64(a - b));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

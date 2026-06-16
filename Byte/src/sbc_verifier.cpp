@@ -511,12 +511,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
-          case Simple::Byte::ExtendedOpCode::CheckedAddI64: {
+          case Simple::Byte::ExtendedOpCode::CheckedAddI64:
+          case Simple::Byte::ExtendedOpCode::CheckedSubI64: {
+            const char* label = ext_opcode == Simple::Byte::ExtendedOpCode::CheckedAddI64
+                                    ? "CHECKED_ADD_I64 type mismatch"
+                                    : "CHECKED_SUB_I64 type mismatch";
             ValType b = pop_type();
             ValType a = pop_type();
-            VerifyResult r1 = check_type(a, ValType::I64, "CHECKED_ADD_I64 type mismatch");
+            VerifyResult r1 = check_type(a, ValType::I64, label);
             if (!r1.ok) return r1;
-            VerifyResult r2 = check_type(b, ValType::I64, "CHECKED_ADD_I64 type mismatch");
+            VerifyResult r2 = check_type(b, ValType::I64, label);
             if (!r2.ok) return r2;
             push_type(ValType::I64);
             pc = next;
