@@ -1528,6 +1528,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitCheckedBounds();
         continue;
       }
+      if (op == "safepoint") {
+        if (!args.empty()) return fail("safepoint expects no operands");
+        builder.EmitSafepoint();
+        continue;
+      }
+      if (op == "alloc.checkpoint") {
+        if (!args.empty()) return fail("alloc.checkpoint expects no operands");
+        builder.EmitAllocCheckpoint();
+        continue;
+      }
+      if (op == "keepalive") {
+        if (!args.empty()) return fail("keepalive expects no operands");
+        builder.EmitKeepAlive();
+        continue;
+      }
       if (op == "pop") {
         builder.EmitPop();
         continue;

@@ -193,6 +193,18 @@ void IrBuilder::EmitCheckedBounds() {
   EmitOp(OpCode::CheckedBounds);
 }
 
+void IrBuilder::EmitSafepoint() {
+  EmitOp(OpCode::Safepoint);
+}
+
+void IrBuilder::EmitAllocCheckpoint() {
+  EmitOp(OpCode::AllocCheckpoint);
+}
+
+void IrBuilder::EmitKeepAlive() {
+  EmitOp(OpCode::KeepAlive);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);

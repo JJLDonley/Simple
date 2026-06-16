@@ -8,7 +8,12 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Halt:
     case OpCode::Trap:
     case OpCode::Breakpoint:
+    case OpCode::Safepoint:
+    case OpCode::AllocCheckpoint:
       *info = {0, 0, 0};
+      return true;
+    case OpCode::KeepAlive:
+      *info = {0, 1, 0};
       return true;
     case OpCode::Pop:
       *info = {0, 1, 0};
@@ -397,6 +402,7 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::StackTrace:
     case OpCode::CheckedNull:
+    case OpCode::KeepAlive:
       value = OpTypeRule::Ref;
       break;
     case OpCode::CheckedBounds:
@@ -692,6 +698,8 @@ bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
     value = OpVerifierRule::StackOnly;
   } else if (info.operand_bytes != 0 || opcode == static_cast<uint8_t>(OpCode::Nop) ||
              opcode == static_cast<uint8_t>(OpCode::Breakpoint) ||
+             opcode == static_cast<uint8_t>(OpCode::Safepoint) ||
+             opcode == static_cast<uint8_t>(OpCode::AllocCheckpoint) ||
              opcode == static_cast<uint8_t>(OpCode::Line) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileEnd) ||
@@ -808,6 +816,9 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::JmpTrue: return "JmpTrue";
     case OpCode::JmpFalse: return "JmpFalse";
     case OpCode::JmpTable: return "JmpTable";
+    case OpCode::Safepoint: return "Safepoint";
+    case OpCode::AllocCheckpoint: return "AllocCheckpoint";
+    case OpCode::KeepAlive: return "KeepAlive";
     case OpCode::Pop: return "Pop";
     case OpCode::Dup: return "Dup";
     case OpCode::Dup2: return "Dup2";

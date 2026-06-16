@@ -16,6 +16,9 @@ enum class OpCode : uint8_t {
   JmpTrue = 0x05,
   JmpFalse = 0x06,
   JmpTable = 0x07,
+  Safepoint = 0x08,
+  AllocCheckpoint = 0x09,
+  KeepAlive = 0x0A,
 
   Pop = 0x10,
   Dup = 0x11,

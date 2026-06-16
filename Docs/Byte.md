@@ -863,13 +863,13 @@ GC/runtime coordination opcodes.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `Safepoint` | 0 | 0 | 0 |
-| ☐ | `TBD` | `AllocCheckpoint` | 0 | 0 | 0 |
+| ✅ | `0x08` | `Safepoint` | 0 | 0 | 0 |
+| ✅ | `0x09` | `AllocCheckpoint` | 0 | 0 | 0 |
 | ☐ | `TBD` | `WriteBarrier` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ReadBarrier` | 0 | 1 | 1 |
 | ☐ | `TBD` | `PinRef` | 0 | 1 | 1 |
 | ☐ | `TBD` | `UnpinRef` | 0 | 1 | 0 |
-| ☐ | `TBD` | `KeepAlive` | 0 | 1 | 0 |
+| ✅ | `0x0A` | `KeepAlive` | 0 | 1 | 0 |
 
 ### JIT and deoptimization
 

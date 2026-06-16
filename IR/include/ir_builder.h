@@ -55,6 +55,9 @@ class IrBuilder {
   void EmitStackTrace();
   void EmitCheckedNull();
   void EmitCheckedBounds();
+  void EmitSafepoint();
+  void EmitAllocCheckpoint();
+  void EmitKeepAlive();
   void EmitIntrinsic(uint32_t id);
   void EmitSysCall(uint32_t id);
   void EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label);

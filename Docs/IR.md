@@ -943,13 +943,13 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `safepoint` | `none` | `Safepoint` | planned |
-| ☐ | `TBD` | `alloc.checkpoint` | `none` | `AllocCheckpoint` | planned |
+| ✅ | `0x08` | `safepoint` | `none` | `Safepoint` |  |
+| ✅ | `0x09` | `alloc.checkpoint` | `none` | `AllocCheckpoint` |  |
 | ☐ | `TBD` | `write.barrier` | `none` | `WriteBarrier` | planned |
 | ☐ | `TBD` | `read.barrier` | `none` | `ReadBarrier` | planned |
 | ☐ | `TBD` | `pin.ref` | `none` | `PinRef` | planned |
 | ☐ | `TBD` | `unpin.ref` | `none` | `UnpinRef` | planned |
-| ☐ | `TBD` | `keepalive` | `none` | `KeepAlive` | planned |
+| ✅ | `0x0A` | `keepalive` | `none` | `KeepAlive` |  |
 | ☐ | `TBD` | `deopt <id>` | `u32 id` | `Deopt` | planned |
 | ☐ | `TBD` | `patchpoint <id>` | `u32 id` | `Patchpoint` | planned |
 | ☐ | `TBD` | `inline.cache <id>` | `u32 id` | `InlineCache` | planned |

@@ -1386,6 +1386,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         ReadU32(module.code, pc);
         break;
       }
+      case OpCode::Safepoint:
+      case OpCode::AllocCheckpoint:
+        break;
+      case OpCode::KeepAlive:
+        Pop(stack);
+        break;
       case OpCode::TraceEnter:
       case OpCode::TraceLeave: {
         ReadU32(module.code, pc);

@@ -1736,6 +1736,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::Ref);
           break;
         }
+        case OpCode::Safepoint:
+        case OpCode::AllocCheckpoint:
         case OpCode::TraceEnter:
         case OpCode::TraceLeave:
         case OpCode::InitGlobal:
@@ -1750,6 +1752,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
           VerifyResult r = check_type(value, ValType::Ref, "CHECKED_NULL type mismatch");
           if (!r.ok) return r;
           push_type(ValType::Ref);
+          break;
+        }
+        case OpCode::KeepAlive: {
+          ValType value = pop_type();
+          VerifyResult r = check_type(value, ValType::Ref, "KEEPALIVE type mismatch");
+          if (!r.ok) return r;
           break;
         }
         case OpCode::CheckedBounds: {
