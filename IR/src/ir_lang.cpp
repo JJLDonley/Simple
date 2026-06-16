@@ -2671,6 +2671,23 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStoreGlobal(index);
         continue;
       }
+      if (op == "init.global") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_global(args[0], &index)) {
+          return fail("init.global expects global");
+        }
+        builder.EmitInitGlobal(index);
+        continue;
+      }
+      if (op == "init.module" || op == "ensure.module.init") {
+        uint64_t id = 0;
+        if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
+          return fail(op + " expects module id");
+        }
+        if (op == "init.module") builder.EmitInitModule(static_cast<uint32_t>(id));
+        else builder.EmitEnsureModuleInit(static_cast<uint32_t>(id));
+        continue;
+      }
       if (op == "ldupv" || op == "load.upvalue") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_upvalue(fn, args[0], &index)) {

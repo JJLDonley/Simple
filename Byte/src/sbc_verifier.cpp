@@ -596,6 +596,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         }
         if (type_id >= module.types.size()) return fail_at("NEW_ARRAY/LIST bad type id", pc, opcode);
       }
+      if (opcode == static_cast<uint8_t>(OpCode::InitGlobal)) {
+        uint32_t global_id = 0;
+        if (!ReadU32(code, pc + 1, &global_id)) return fail_at("INIT_GLOBAL id out of bounds", pc, opcode);
+        if (global_id >= module.globals.size()) return fail_at("INIT_GLOBAL bad global id", pc, opcode);
+      }
       if (opcode == static_cast<uint8_t>(OpCode::LoadField) ||
           opcode == static_cast<uint8_t>(OpCode::StoreField)) {
         uint32_t field_id = 0;
@@ -1733,6 +1738,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         }
         case OpCode::TraceEnter:
         case OpCode::TraceLeave:
+        case OpCode::InitGlobal:
+        case OpCode::InitModule:
+        case OpCode::EnsureModuleInit:
           break;
         case OpCode::StackTrace:
           push_type(ValType::Ref);

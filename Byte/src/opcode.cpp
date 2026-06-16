@@ -89,6 +89,9 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StoreGlobal:
     case OpCode::LoadUpvalue:
     case OpCode::StoreUpvalue:
+    case OpCode::InitGlobal:
+    case OpCode::InitModule:
+    case OpCode::EnsureModuleInit:
       *info = {4, opcode == static_cast<uint8_t>(OpCode::StoreLocal) ||
                       opcode == static_cast<uint8_t>(OpCode::StoreGlobal)
                       || opcode == static_cast<uint8_t>(OpCode::StoreUpvalue)
@@ -426,6 +429,9 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
     case OpCode::StoreGlobal:
     case OpCode::LoadUpvalue:
     case OpCode::StoreUpvalue:
+    case OpCode::InitGlobal:
+    case OpCode::InitModule:
+    case OpCode::EnsureModuleInit:
       value = OpTypeRule::LocalGlobal;
       break;
     case OpCode::AddI32:
@@ -844,6 +850,9 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::ListPopRef: return "ListPopRef";
     case OpCode::ListInsertRef: return "ListInsertRef";
     case OpCode::ListRemoveRef: return "ListRemoveRef";
+    case OpCode::InitGlobal: return "InitGlobal";
+    case OpCode::InitModule: return "InitModule";
+    case OpCode::EnsureModuleInit: return "EnsureModuleInit";
     case OpCode::AddI32: return "AddI32";
     case OpCode::SubI32: return "SubI32";
     case OpCode::MulI32: return "MulI32";

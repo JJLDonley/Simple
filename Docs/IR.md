@@ -333,9 +333,9 @@ Slot access and module/global initialization.
 | ✅ | `0x33` | `stglob <slot> / store.global <slot>` | `global index/name` | `StoreGlobal` |  |
 | ✅ | `0x34` | `ldupv <slot> / load.upvalue <slot>` | `upvalue index/name` | `LoadUpvalue` |  |
 | ✅ | `0x35` | `stupv <slot> / store.upvalue <slot>` | `upvalue index/name` | `StoreUpvalue` |  |
-| ☐ | `TBD` | `init.global <global>` | `global index/name` | `InitGlobal` | planned |
-| ☐ | `TBD` | `init.module <module>` | `module id/name` | `InitModule` | planned |
-| ☐ | `TBD` | `ensure.module.init <module>` | `module id/name` | `EnsureModuleInit` | planned |
+| ✅ | `0x3D` | `init.global <global>` | `global index/name` | `InitGlobal` | validates initialized global slot |
+| ✅ | `0x3E` | `init.module <module>` | `module id` | `InitModule` | module init marker |
+| ✅ | `0x3F` | `ensure.module.init <module>` | `module id` | `EnsureModuleInit` | module init guard marker |
 
 ### Arithmetic
 

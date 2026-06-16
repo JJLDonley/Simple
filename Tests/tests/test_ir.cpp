@@ -4101,6 +4101,34 @@ bool RunIrTextObjectCloneNullTrapTest() {
   return RunExpectTrap(module, "ir_text_object_clone_null_trap");
 }
 
+bool RunIrTextModuleInitOpsTest() {
+  const char* text =
+      "globals:\n"
+      "  global g0 i32\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  init.global g0\n"
+      "  init.module 1\n"
+      "  ensure.module.init 1\n"
+      "  const i32 3\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_module_init_ops");
+  if (module.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) return false;
+  bool saw_global = false;
+  bool saw_module = false;
+  bool saw_ensure = false;
+  for (uint8_t byte : load.module.code) {
+    saw_global = saw_global || byte == static_cast<uint8_t>(Simple::Byte::OpCode::InitGlobal);
+    saw_module = saw_module || byte == static_cast<uint8_t>(Simple::Byte::OpCode::InitModule);
+    saw_ensure = saw_ensure || byte == static_cast<uint8_t>(Simple::Byte::OpCode::EnsureModuleInit);
+  }
+  return saw_global && saw_module && saw_ensure && RunExpectExit(module, 3);
+}
+
 bool RunIrTextCheckedOpsTest() {
   const char* text =
       "consts:\n"
@@ -7726,6 +7754,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
   {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
+  {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
   {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},
   {"ir_text_checked_bounds_trap", RunIrTextCheckedBoundsTrapTest},

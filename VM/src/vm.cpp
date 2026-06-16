@@ -472,6 +472,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         WriteU32Payload(obj->payload, offset, UnpackRef(v));
         break;
       }
+      case OpCode::InitGlobal: {
+        uint32_t idx = ReadU32(module.code, pc);
+        if (idx >= globals.size()) return Trap("INIT_GLOBAL out of range");
+        break;
+      }
+      case OpCode::InitModule:
+      case OpCode::EnsureModuleInit:
+        ReadU32(module.code, pc);
+        break;
       case OpCode::NewObject: {
         uint32_t type_id = ReadU32(module.code, pc);
         if (type_id >= module.types.size()) return Trap("NEW_OBJECT bad type id");

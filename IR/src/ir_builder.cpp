@@ -511,6 +511,21 @@ void IrBuilder::EmitStoreGlobal(uint32_t index) {
   EmitU32(index);
 }
 
+void IrBuilder::EmitInitGlobal(uint32_t index) {
+  EmitOp(OpCode::InitGlobal);
+  EmitU32(index);
+}
+
+void IrBuilder::EmitInitModule(uint32_t id) {
+  EmitOp(OpCode::InitModule);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitEnsureModuleInit(uint32_t id) {
+  EmitOp(OpCode::EnsureModuleInit);
+  EmitU32(id);
+}
+
 void IrBuilder::EmitLoadUpvalue(uint32_t index) {
   EmitOp(OpCode::LoadUpvalue);
   EmitU32(index);

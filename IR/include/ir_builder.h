@@ -126,6 +126,9 @@ class IrBuilder {
   void EmitStoreLocal(uint32_t index);
   void EmitLoadGlobal(uint32_t index);
   void EmitStoreGlobal(uint32_t index);
+  void EmitInitGlobal(uint32_t index);
+  void EmitInitModule(uint32_t id);
+  void EmitEnsureModuleInit(uint32_t id);
   void EmitLoadUpvalue(uint32_t index);
   void EmitStoreUpvalue(uint32_t index);
   void EmitRet();

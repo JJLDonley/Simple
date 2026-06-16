@@ -237,9 +237,9 @@ Slot access plus planned typed module/global initialization operations.
 | ✅ | `0x33` | `StoreGlobal` | 4 | 1 | 0 |
 | ✅ | `0x34` | `LoadUpvalue` | 4 | 0 | 1 |
 | ✅ | `0x35` | `StoreUpvalue` | 4 | 1 | 0 |
-| ☐ | `TBD` | `InitGlobal` | 4 | 0 | 0 |
-| ☐ | `TBD` | `InitModule` | 4 | 0 | 0 |
-| ☐ | `TBD` | `EnsureModuleInit` | 4 | 0 | 0 |
+| ✅ | `0x3D` | `InitGlobal` | 4 | 0 | 0 |
+| ✅ | `0x3E` | `InitModule` | 4 | 0 | 0 |
+| ✅ | `0x3F` | `EnsureModuleInit` | 4 | 0 | 0 |
 
 ### Arithmetic
 

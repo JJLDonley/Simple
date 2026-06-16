@@ -63,6 +63,9 @@ enum class OpCode : uint8_t {
   ListPopRef = 0x3A,
   ListInsertRef = 0x3B,
   ListRemoveRef = 0x3C,
+  InitGlobal = 0x3D,
+  InitModule = 0x3E,
+  EnsureModuleInit = 0x3F,
 
   AddI32 = 0x40,
   SubI32 = 0x41,
