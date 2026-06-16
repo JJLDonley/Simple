@@ -833,17 +833,17 @@ Explicit pointer/address and raw memory operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `addrof.local <slot>` | `local` | `AddressOfLocal` | planned |
-| ☐ | `TBD` | `addrof.global <slot>` | `global` | `AddressOfGlobal` | planned |
-| ☐ | `TBD` | `addrof.field <field>` | `field` | `AddressOfField` | planned |
+| ✅ | pseudo | `addrof.local <slot>` | `local` | `LoadLocal` | address marker alias |
+| ✅ | pseudo | `addrof.global <slot>` | `global` | `LoadGlobal` | address marker alias |
+| ✅ | pseudo | `addrof.field <field>` | `field` | `LoadField` | address marker alias |
 | ☐ | `TBD` | `load.ptr.<T>` | `none` | `LoadPtr<T>` | planned |
 | ☐ | `TBD` | `store.ptr.<T>` | `none` | `StorePtr<T>` | planned |
 | ☐ | `TBD` | `ptr.add` | `none` | `PtrAdd` | planned |
 | ☐ | `TBD` | `ptr.offset` | `none` | `PtrOffset` | planned |
-| ☐ | `TBD` | `ptr.eq` | `none` | `PtrEq` | planned |
-| ☐ | `TBD` | `ptr.ne` | `none` | `PtrNe` | planned |
-| ☐ | `TBD` | `ptr.isnull` | `none` | `PtrIsNull` | planned |
-| ☐ | `TBD` | `ptr.check.null` | `none` | `PtrCheckNull` | planned |
+| ✅ | pseudo | `ptr.eq` | `none` | `RefEq` | pointer/reference equality alias |
+| ✅ | pseudo | `ptr.ne` | `none` | `RefNe` | pointer/reference inequality alias |
+| ✅ | pseudo | `ptr.isnull` | `none` | `IsNull` | null-test alias |
+| ✅ | pseudo | `ptr.check.null` | `none` | `CheckedNull` | null-check alias |
 | ☐ | `TBD` | `ptr.check.bounds` | `none` | `PtrCheckBounds` | planned |
 | ☐ | `TBD` | `mem.copy` | `none` | `MemCopy` | planned |
 | ☐ | `TBD` | `mem.move` | `none` | `MemMove` | planned |

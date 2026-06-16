@@ -5295,6 +5295,72 @@ bool RunIrTextUnknownOpTest() {
   return RunIrTextExpectFail(text, "ir_text_unknown_op");
 }
 
+bool RunIrTextPointerAliasOpsTest() {
+  const char* text =
+      "globals:\n"
+      "  global g ref\n"
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func main locals=1 stack=12 sig=main_sig\n"
+      "  local obj ref 0\n"
+      "  enter 1\n"
+      "  init.object Obj\n"
+      "  stloc obj\n"
+      "  ldloc obj\n"
+      "  stglob g\n"
+      "  addrof.local obj\n"
+      "  addrof.global g\n"
+      "  ptr.eq\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_pointer_alias_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextPointerNullAliasOpsTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const null\n"
+      "  ptr.isnull\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_pointer_null_alias_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextPointerCheckNullTrapTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const null\n"
+      "  ptr.check.null\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_pointer_check_null_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_pointer_check_null_trap");
+}
+
 bool RunIrTextGlobalTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -8828,6 +8894,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},
   {"ir_text_unknown_op", RunIrTextUnknownOpTest},
+  {"ir_text_pointer_alias_ops", RunIrTextPointerAliasOpsTest},
+  {"ir_text_pointer_null_alias_ops", RunIrTextPointerNullAliasOpsTest},
+  {"ir_text_pointer_check_null_trap", RunIrTextPointerCheckNullTrapTest},
   {"ir_text_global", RunIrTextGlobalTest},
   {"ir_text_named_globals", RunIrTextNamedGlobalsTest},
   {"ir_text_named_globals_init", RunIrTextNamedGlobalsInitTest},

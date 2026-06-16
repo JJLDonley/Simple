@@ -2906,7 +2906,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConvF64ToF32();
         continue;
       }
-      if (op == "ldloc" || op == "load.local" || op == "capture.local") {
+      if (op == "ldloc" || op == "load.local" || op == "capture.local" || op == "addrof.local") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail(op + " expects index");
@@ -2998,10 +2998,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitTypeOf();
         continue;
       }
-      if (op == "ldfld") {
+      if (op == "ldfld" || op == "addrof.field") {
         uint32_t field_id = 0;
         if (args.size() != 1 || !resolve_field_id(args[0], &field_id)) {
-          return fail("ldfld expects field_id");
+          return fail(op + " expects field_id");
         }
         builder.EmitLoadField(field_id);
         continue;
@@ -3018,15 +3018,19 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitTypeOf();
         continue;
       }
-      if (op == "isnull") {
+      if (op == "isnull" || op == "ptr.isnull") {
         builder.EmitIsNull();
         continue;
       }
-      if (op == "ref.eq") {
+      if (op == "ptr.check.null") {
+        builder.EmitCheckedNull();
+        continue;
+      }
+      if (op == "ref.eq" || op == "ptr.eq") {
         builder.EmitRefEq();
         continue;
       }
-      if (op == "ref.ne") {
+      if (op == "ref.ne" || op == "ptr.ne") {
         builder.EmitRefNe();
         continue;
       }
@@ -3292,10 +3296,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStringSlice();
         continue;
       }
-      if (op == "ldglob" || op == "load.global") {
+      if (op == "ldglob" || op == "load.global" || op == "addrof.global") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_global(args[0], &index)) {
-          return fail("ldglob expects index");
+          return fail(op + " expects index");
         }
         builder.EmitLoadGlobal(index);
         continue;

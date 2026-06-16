@@ -746,17 +746,17 @@ Explicit pointer/address and raw memory operations. `<T>` load/store rows are ty
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `AddressOfLocal` | 4 | 0 | 1 |
-| ☐ | `TBD` | `AddressOfGlobal` | 4 | 0 | 1 |
-| ☐ | `TBD` | `AddressOfField` | 4 | 1 | 1 |
+| ✅ | pseudo | `AddressOfLocal` | 4 | 0 | 1 |
+| ✅ | pseudo | `AddressOfGlobal` | 4 | 0 | 1 |
+| ✅ | pseudo | `AddressOfField` | 4 | 1 | 1 |
 | ☐ | `TBD` | `LoadPtr<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `StorePtr<T>` | 0 | 2 | 0 |
 | ☐ | `TBD` | `PtrAdd` | 0 | 2 | 1 |
 | ☐ | `TBD` | `PtrOffset` | 0 | 2 | 1 |
-| ☐ | `TBD` | `PtrEq` | 0 | 2 | 1 |
-| ☐ | `TBD` | `PtrNe` | 0 | 2 | 1 |
-| ☐ | `TBD` | `PtrIsNull` | 0 | 1 | 1 |
-| ☐ | `TBD` | `PtrCheckNull` | 0 | 1 | 1 |
+| ✅ | pseudo | `PtrEq` | 0 | 2 | 1 |
+| ✅ | pseudo | `PtrNe` | 0 | 2 | 1 |
+| ✅ | pseudo | `PtrIsNull` | 0 | 1 | 1 |
+| ✅ | pseudo | `PtrCheckNull` | 0 | 1 | 1 |
 | ☐ | `TBD` | `PtrCheckBounds` | 0 | 3 | 1 |
 | ☐ | `TBD` | `MemCopy` | 0 | 3 | 0 |
 | ☐ | `TBD` | `MemMove` | 0 | 3 | 0 |
