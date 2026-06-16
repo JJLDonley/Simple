@@ -770,6 +770,7 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
 | ✅ | ext `1` | `CheckedAddI32` | 0 | 2 | 1 |
+| ✅ | ext `6` | `CheckedAddI64` | 0 | 2 | 1 |
 | ✅ | ext `2` | `CheckedSubI32` | 0 | 2 | 1 |
 | ✅ | ext `3` | `CheckedMulI32` | 0 | 2 | 1 |
 | ✅ | ext `4` | `CheckedDivI32` | 0 | 2 | 1 |
