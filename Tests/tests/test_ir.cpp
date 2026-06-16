@@ -4790,6 +4790,32 @@ bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextTypedImmediateConstTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32:37\n"
+      "  const i32:5\n"
+      "  add i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_typed_immediate_const");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextTypedImmediateConstBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_typed_immediate_const_bad");
+}
+
 bool RunIrTextBytesDataConstRowsTest() {
   const char* text =
       "consts:\n"
@@ -8363,6 +8389,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_primitive_type_after_artifact", RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest},
+  {"ir_text_typed_immediate_const", RunIrTextTypedImmediateConstTest},
+  {"ir_text_typed_immediate_const_bad", RunIrTextTypedImmediateConstBadTest},
   {"ir_text_bytes_data_const_rows", RunIrTextBytesDataConstRowsTest},
   {"ir_text_data_const_bad_hex", RunIrTextDataConstBadHexTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},

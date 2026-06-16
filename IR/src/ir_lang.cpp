@@ -1821,6 +1821,17 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         };
         if (op == "const") {
           if (args.empty()) return false;
+          if (args.size() == 1) {
+            size_t colon = args[0].find(':');
+            if (colon != std::string::npos) {
+              std::string typed = Lower(args[0].substr(0, colon));
+              if (!typed.empty() && is_type_name(typed)) {
+                op = "const." + typed;
+                args[0] = args[0].substr(colon + 1);
+                return !args[0].empty();
+              }
+            }
+          }
           std::string t = Lower(args[0]);
           if (!is_type_name(t)) return false;
           op = "const." + t;

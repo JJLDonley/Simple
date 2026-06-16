@@ -179,7 +179,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | type ref | `<u32>` or `<name>` | numeric type id or type name | checked during lowering |
 | ✅ | sig ref | `<u32>` or `<name>` | numeric sig id or sig name | checked during lowering |
 | ✅ | const ref | `<u32>` or `<name>` | numeric const offset/id or const name | checked during lowering |
-| ☐ | typed immediate | `<T>:<value>` | planned explicit literal typing | avoids opcode suffix ambiguity |
+| ✅ | typed immediate | `<T>:<value>` | Explicit literal typing for `const <T>:<value>`. | avoids opcode suffix ambiguity |
 | ☐ | source span | `<file>:<line>:<col>` | planned debug operand | debug/source mapping |
 
 ## Instruction aliases
