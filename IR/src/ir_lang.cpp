@@ -2117,6 +2117,72 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitFence();
         continue;
       }
+      auto parse_marker_type = [&](const std::string& base, std::string* out_type) -> bool {
+        std::string type;
+        std::string prefix = base + ".";
+        if (op == base) {
+          if (args.size() != 1) return false;
+          type = Lower(args[0]);
+        } else if (op.rfind(prefix, 0) == 0) {
+          if (!args.empty()) return false;
+          type = Lower(op.substr(prefix.size()));
+        } else {
+          return false;
+        }
+        if (!is_type_name(type)) return false;
+        if (out_type) *out_type = type;
+        return true;
+      };
+      std::string marker_type;
+      if (parse_marker_type("atomic.load", &marker_type)) {
+        continue;
+      }
+      if (parse_marker_type("atomic.store", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (parse_marker_type("atomic.add", &marker_type) || parse_marker_type("atomic.sub", &marker_type)) {
+        if (marker_type == "i32") {
+          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddI32();
+          else builder.EmitSubI32();
+          continue;
+        }
+        if (marker_type == "i64") {
+          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddI64();
+          else builder.EmitSubI64();
+          continue;
+        }
+        if (marker_type == "u32") {
+          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddU32();
+          else builder.EmitSubU32();
+          continue;
+        }
+        if (marker_type == "u64") {
+          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddU64();
+          else builder.EmitSubU64();
+          continue;
+        }
+        return fail(op + " supports i32/i64/u32/u64");
+      }
+      if (parse_marker_type("atomic.cmpxchg", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitPop();
+        builder.EmitPop();
+        builder.EmitConstI32(0);
+        continue;
+      }
+      if (op == "lock" || op == "unlock" || op == "wait" || op == "notify" || op == "notify.all") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "trylock") {
+        if (!args.empty()) return fail("trylock expects no operands");
+        builder.EmitPop();
+        builder.EmitConstBool(true);
+        continue;
+      }
       if (op == "pop") {
         builder.EmitPop();
         continue;

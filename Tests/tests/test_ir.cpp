@@ -4472,6 +4472,67 @@ bool RunIrTextCatchUnknownLabelFailsTest() {
   return RunIrTextExpectFail(text, "ir_text_catch_unknown_label_fails");
 }
 
+bool RunIrTextAtomicMonitorAliasesTest() {
+  const char* text =
+      "types:\n"
+      "  type LockObj size=4 kind=artifact\n"
+      "func main locals=1 stack=16\n"
+      "  local lockobj ref 0\n"
+      "  enter 1\n"
+      "  const i32 7\n"
+      "  atomic.load i32\n"
+      "  const i32 5\n"
+      "  atomic.add.i32\n"
+      "  const i32 2\n"
+      "  atomic.sub i32\n"
+      "  init.object LockObj\n"
+      "  stloc lockobj\n"
+      "  ldloc lockobj\n"
+      "  lock\n"
+      "  ldloc lockobj\n"
+      "  trylock\n"
+      "  jmp.true ok\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  ldloc lockobj\n"
+      "  unlock\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_atomic_monitor_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 10);
+}
+
+bool RunIrTextAtomicCmpxchgAliasTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 1\n"
+      "  const i32 2\n"
+      "  atomic.cmpxchg.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_atomic_cmpxchg_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextAtomicAliasBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  atomic.load Missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_atomic_alias_bad");
+}
+
 bool RunIrTextConcurrencyMarkerAliasesTest() {
   const char* text =
       "func worker locals=0 stack=4\n"
@@ -9037,6 +9098,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_exception_marker_aliases", RunIrTextExceptionMarkerAliasesTest},
   {"ir_text_throw_panic_trap", RunIrTextThrowPanicTrapTest},
   {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
+  {"ir_text_atomic_monitor_aliases", RunIrTextAtomicMonitorAliasesTest},
+  {"ir_text_atomic_cmpxchg_alias", RunIrTextAtomicCmpxchgAliasTest},
+  {"ir_text_atomic_alias_bad", RunIrTextAtomicAliasBadTest},
   {"ir_text_concurrency_marker_aliases", RunIrTextConcurrencyMarkerAliasesTest},
   {"ir_text_concurrency_marker_bad", RunIrTextConcurrencyMarkerBadTest},
   {"ir_text_jit_marker_aliases", RunIrTextJitMarkerAliasesTest},

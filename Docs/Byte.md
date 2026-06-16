@@ -837,11 +837,11 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ☐ | `TBD` | `ChannelSend<T>` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ChannelRecv<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ChannelTryRecv<T>` | 0 | 1 | 2 |
-| ☐ | `TBD` | `AtomicLoad<T>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `AtomicStore<T>` | 0 | 2 | 0 |
-| ☐ | `TBD` | `AtomicAdd<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AtomicSub<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `AtomicCompareExchange<T>` | 0 | 3 | 1 |
+| ✅ | pseudo | `AtomicLoad<T>` | 0 | 1 | 1 |
+| ✅ | pseudo | `AtomicStore<T>` | 0 | 2 | 0 |
+| ✅ | pseudo | `AtomicAdd<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `AtomicSub<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `AtomicCompareExchange<T>` | 0 | 3 | 1 |
 | ✅ | `0x0F` | `Fence` | 0 | 0 | 0 |
 
 ### Locks and monitors
@@ -850,12 +850,12 @@ Monitor/lock operations for VM-managed synchronization if needed.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `Lock` | 0 | 1 | 0 |
-| ☐ | `TBD` | `Unlock` | 0 | 1 | 0 |
-| ☐ | `TBD` | `TryLock` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Wait` | 0 | 1 | 0 |
-| ☐ | `TBD` | `Notify` | 0 | 1 | 0 |
-| ☐ | `TBD` | `NotifyAll` | 0 | 1 | 0 |
+| ✅ | pseudo | `Lock` | 0 | 1 | 0 |
+| ✅ | pseudo | `Unlock` | 0 | 1 | 0 |
+| ✅ | pseudo | `TryLock` | 0 | 1 | 1 |
+| ✅ | pseudo | `Wait` | 0 | 1 | 0 |
+| ✅ | pseudo | `Notify` | 0 | 1 | 0 |
+| ✅ | pseudo | `NotifyAll` | 0 | 1 | 0 |
 
 ### GC and runtime barriers
 

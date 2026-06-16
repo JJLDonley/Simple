@@ -924,18 +924,18 @@ Thread/job/channel/atomic/monitor operations.
 | ☐ | `TBD` | `channel.send.<T>` | `none` | `ChannelSend<T>` | planned |
 | ☐ | `TBD` | `channel.recv.<T>` | `none` | `ChannelRecv<T>` | planned |
 | ☐ | `TBD` | `channel.try.recv.<T>` | `none` | `ChannelTryRecv<T>` | planned |
-| ☐ | `TBD` | `atomic.load.<T>` | `none` | `AtomicLoad<T>` | planned |
-| ☐ | `TBD` | `atomic.store.<T>` | `none` | `AtomicStore<T>` | planned |
-| ☐ | `TBD` | `atomic.add.<T>` | `none` | `AtomicAdd<T>` | planned |
-| ☐ | `TBD` | `atomic.sub.<T>` | `none` | `AtomicSub<T>` | planned |
-| ☐ | `TBD` | `atomic.cmpxchg.<T>` | `none` | `AtomicCompareExchange<T>` | planned |
+| ✅ | pseudo | `atomic.load.<T>` | `none` | no-op marker | preserves marker value |
+| ✅ | pseudo | `atomic.store.<T>` | `none` | `Pop` + `Pop` | consumes address/value markers |
+| ✅ | pseudo | `atomic.add.<T>` | `none` | `Add<T>` | atomic arithmetic marker for integer scalars |
+| ✅ | pseudo | `atomic.sub.<T>` | `none` | `Sub<T>` | atomic arithmetic marker for integer scalars |
+| ✅ | pseudo | `atomic.cmpxchg.<T>` | `none` | placeholder result | consumes address/expected/value markers and pushes `0` |
 | ✅ | `0x0F` | `fence` | `none` | `Fence` | sequentially consistent VM fence |
-| ☐ | `TBD` | `lock` | `none` | `Lock` | planned |
-| ☐ | `TBD` | `unlock` | `none` | `Unlock` | planned |
-| ☐ | `TBD` | `trylock` | `none` | `TryLock` | planned |
-| ☐ | `TBD` | `wait` | `none` | `Wait` | planned |
-| ☐ | `TBD` | `notify` | `none` | `Notify` | planned |
-| ☐ | `TBD` | `notify.all` | `none` | `NotifyAll` | planned |
+| ✅ | pseudo | `lock` | `none` | `Pop` | consumes monitor marker |
+| ✅ | pseudo | `unlock` | `none` | `Pop` | consumes monitor marker |
+| ✅ | pseudo | `trylock` | `none` | `Pop` + `ConstBool true` | consumes monitor marker and pushes success placeholder |
+| ✅ | pseudo | `wait` | `none` | `Pop` | consumes monitor marker |
+| ✅ | pseudo | `notify` | `none` | `Pop` | consumes monitor marker |
+| ✅ | pseudo | `notify.all` | `none` | `Pop` | consumes monitor marker |
 
 ### GC, JIT, capabilities, and SIMD
 
