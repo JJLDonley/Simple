@@ -2149,6 +2149,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return true;
       };
       std::string marker_type;
+      if (parse_marker_type("channel.send", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (parse_marker_type("channel.recv", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitConstI32(0);
+        continue;
+      }
+      if (parse_marker_type("channel.try.recv", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitConstBool(false);
+        builder.EmitConstI32(0);
+        continue;
+      }
       if (parse_marker_type("atomic.load", &marker_type)) {
         continue;
       }

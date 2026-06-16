@@ -921,9 +921,9 @@ Thread/job/channel/atomic/monitor operations.
 | ✅ | pseudo | `suspend` | `none` | `Yield` + `ConstI32` | yields and returns placeholder continuation |
 | ✅ | pseudo | `future.make <func>` | `function` | `ConstI32` | future marker returns function id handle |
 | ✅ | pseudo | `future.poll` | `none` | no-op marker | preserves future marker value |
-| ☐ | `TBD` | `channel.send.<T>` | `none` | `ChannelSend<T>` | planned |
-| ☐ | `TBD` | `channel.recv.<T>` | `none` | `ChannelRecv<T>` | planned |
-| ☐ | `TBD` | `channel.try.recv.<T>` | `none` | `ChannelTryRecv<T>` | planned |
+| ✅ | pseudo | `channel.send.<T>` | `none` | `Pop` + `Pop` | consumes channel/value markers |
+| ✅ | pseudo | `channel.recv.<T>` | `none` | placeholder value | consumes channel marker and pushes placeholder value |
+| ✅ | pseudo | `channel.try.recv.<T>` | `none` | placeholder status/value | consumes channel marker and pushes `false`, placeholder value |
 | ✅ | pseudo | `atomic.load.<T>` | `none` | no-op marker | preserves marker value |
 | ✅ | pseudo | `atomic.store.<T>` | `none` | `Pop` + `Pop` | consumes address/value markers |
 | ✅ | pseudo | `atomic.add.<T>` | `none` | `Add<T>` | atomic arithmetic marker for integer scalars |
