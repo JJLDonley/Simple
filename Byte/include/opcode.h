@@ -46,6 +46,9 @@ enum class OpCode : uint8_t {
   TraceLeave = 0x2A,
   CheckedNull = 0x2B,
   CheckedBounds = 0x2C,
+  DropObject = 0x2D,
+  CloneObject = 0x2E,
+  ObjectEq = 0x2F,
 
   LoadLocal = 0x30,
   StoreLocal = 0x31,

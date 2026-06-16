@@ -447,6 +447,18 @@ void IrBuilder::EmitTypeOf() {
   EmitOp(OpCode::TypeOf);
 }
 
+void IrBuilder::EmitDropObject() {
+  EmitOp(OpCode::DropObject);
+}
+
+void IrBuilder::EmitCloneObject() {
+  EmitOp(OpCode::CloneObject);
+}
+
+void IrBuilder::EmitObjectEq() {
+  EmitOp(OpCode::ObjectEq);
+}
+
 void IrBuilder::EmitStringLen() {
   EmitOp(OpCode::StringLen);
 }

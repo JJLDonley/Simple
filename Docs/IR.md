@@ -671,9 +671,9 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ☐ | `TBD` | `capture.ref <slot>` | `slot` | `CaptureRef` | planned |
 | ☐ | `TBD` | `close.upvalue <slot>` | `upvalue index/name` | `CloseUpvalue` | planned |
 | ☐ | `TBD` | `init.object <type>` | `type id/name` | `InitObject` | planned |
-| ☐ | `TBD` | `drop.object` | `none` | `DropObject` | planned |
-| ☐ | `TBD` | `clone.object` | `none` | `CloneObject` | planned |
-| ☐ | `TBD` | `object.eq` | `none` | `ObjectEq` | planned |
+| ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
+| ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |
+| ✅ | `0x2F` | `object.eq` | `none` | `ObjectEq` | structural payload equality |
 | ☐ | `TBD` | `instanceof.<T>` | `type id/name` | `InstanceOf<T>` | planned |
 | ☐ | `TBD` | `cast.ref.<T>` | `type id/name` | `CastRef<T>` | planned |
 | ☐ | `TBD` | `checked.cast.ref.<T>` | `type id/name` | `CheckedCastRef<T>` | planned |

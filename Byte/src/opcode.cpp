@@ -74,6 +74,15 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::CheckedBounds:
       *info = {0, 3, 1};
       return true;
+    case OpCode::DropObject:
+      *info = {0, 1, 0};
+      return true;
+    case OpCode::CloneObject:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::ObjectEq:
+      *info = {0, 2, 1};
+      return true;
     case OpCode::LoadLocal:
     case OpCode::StoreLocal:
     case OpCode::LoadGlobal:
@@ -388,6 +397,9 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
       value = OpTypeRule::Ref;
       break;
     case OpCode::CheckedBounds:
+    case OpCode::DropObject:
+    case OpCode::CloneObject:
+    case OpCode::ObjectEq:
       value = OpTypeRule::Aggregate;
       break;
     case OpCode::ConstI8:
@@ -816,6 +828,9 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::TraceLeave: return "TraceLeave";
     case OpCode::CheckedNull: return "CheckedNull";
     case OpCode::CheckedBounds: return "CheckedBounds";
+    case OpCode::DropObject: return "DropObject";
+    case OpCode::CloneObject: return "CloneObject";
+    case OpCode::ObjectEq: return "ObjectEq";
     case OpCode::LoadLocal: return "LoadLocal";
     case OpCode::StoreLocal: return "StoreLocal";
     case OpCode::LoadGlobal: return "LoadGlobal";

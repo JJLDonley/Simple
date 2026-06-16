@@ -1755,6 +1755,29 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(value);
           break;
         }
+        case OpCode::DropObject: {
+          ValType value = pop_type();
+          VerifyResult r = check_type(value, ValType::Ref, "DROP_OBJECT type mismatch");
+          if (!r.ok) return r;
+          break;
+        }
+        case OpCode::CloneObject: {
+          ValType value = pop_type();
+          VerifyResult r = check_type(value, ValType::Ref, "CLONE_OBJECT type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::Ref);
+          break;
+        }
+        case OpCode::ObjectEq: {
+          ValType b = pop_type();
+          ValType a = pop_type();
+          VerifyResult r1 = check_type(a, ValType::Ref, "OBJECT_EQ type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(b, ValType::Ref, "OBJECT_EQ type mismatch");
+          if (!r2.ok) return r2;
+          push_type(ValType::Bool);
+          break;
+        }
         case OpCode::Intrinsic: {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);

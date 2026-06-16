@@ -2409,6 +2409,18 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitRefNe();
         continue;
       }
+      if (op == "drop.object") {
+        builder.EmitDropObject();
+        continue;
+      }
+      if (op == "clone.object") {
+        builder.EmitCloneObject();
+        continue;
+      }
+      if (op == "object.eq") {
+        builder.EmitObjectEq();
+        continue;
+      }
       if (op == "newclosure") {
         uint32_t method_id = 0;
         uint64_t upvalues = 0;

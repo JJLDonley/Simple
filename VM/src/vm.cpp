@@ -1408,6 +1408,38 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         Push(stack, value);
         break;
       }
+      case OpCode::DropObject: {
+        Slot value = Pop(stack);
+        if (IsNullRef(value)) return Trap("DROP_OBJECT null reference");
+        if (!heap.Get(UnpackRef(value))) return Trap("DROP_OBJECT invalid reference");
+        break;
+      }
+      case OpCode::CloneObject: {
+        Slot value = Pop(stack);
+        if (IsNullRef(value)) return Trap("CLONE_OBJECT null reference");
+        HeapObject* obj = heap.Get(UnpackRef(value));
+        if (!obj) return Trap("CLONE_OBJECT invalid reference");
+        uint32_t handle = heap.Allocate(obj->header.kind, obj->header.type_id, obj->header.size);
+        if (handle == 0xFFFFFFFFu) return Trap("CLONE_OBJECT allocation failed");
+        HeapObject* clone = heap.Get(handle);
+        if (!clone) return Trap("CLONE_OBJECT allocation invalid");
+        clone->payload = obj->payload;
+        Push(stack, PackRef(handle));
+        break;
+      }
+      case OpCode::ObjectEq: {
+        Slot b = Pop(stack);
+        Slot a = Pop(stack);
+        if (IsNullRef(a) || IsNullRef(b)) return Trap("OBJECT_EQ null reference");
+        HeapObject* obj_a = heap.Get(UnpackRef(a));
+        HeapObject* obj_b = heap.Get(UnpackRef(b));
+        if (!obj_a || !obj_b) return Trap("OBJECT_EQ invalid reference");
+        bool equal = obj_a->header.kind == obj_b->header.kind &&
+                     obj_a->header.type_id == obj_b->header.type_id &&
+                     obj_a->payload == obj_b->payload;
+        Push(stack, PackI32(equal ? 1 : 0));
+        break;
+      }
       case OpCode::Intrinsic: {
         uint32_t id = ReadU32(module.code, pc);
         switch (id) {

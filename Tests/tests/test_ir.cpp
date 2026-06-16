@@ -4058,6 +4058,49 @@ bool RunIrTextTraceOpcodesTest() {
   return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
 }
 
+bool RunIrTextObjectLifecycleOpsTest() {
+  const char* text =
+      "consts:\n"
+      "  const a string \"hi\"\n"
+      "  const b string \"hi\"\n"
+      "  const c string \"drop\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string c\n"
+      "  drop.object\n"
+      "  const string a\n"
+      "  clone.object\n"
+      "  const string b\n"
+      "  object.eq\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_object_lifecycle_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextObjectCloneNullTrapTest() {
+  const char* text =
+      "func main locals=0 stack=2\n"
+      "  enter 0\n"
+      "  const null\n"
+      "  clone.object\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_object_clone_null_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_object_clone_null_trap");
+}
+
 bool RunIrTextCheckedOpsTest() {
   const char* text =
       "consts:\n"
@@ -7681,6 +7724,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
+  {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
+  {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
   {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},
   {"ir_text_checked_bounds_trap", RunIrTextCheckedBoundsTrapTest},

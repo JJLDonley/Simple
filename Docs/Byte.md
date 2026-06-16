@@ -581,9 +581,9 @@ Heap object, closure, reference, field, object lifecycle, and typed reference op
 | ☐ | `TBD` | `CaptureRef` | 4 | 0 | 1 |
 | ☐ | `TBD` | `CloseUpvalue` | 4 | 0 | 0 |
 | ☐ | `TBD` | `InitObject` | 4 | 1 | 1 |
-| ☐ | `TBD` | `DropObject` | 0 | 1 | 0 |
-| ☐ | `TBD` | `CloneObject` | 0 | 1 | 1 |
-| ☐ | `TBD` | `ObjectEq` | 0 | 2 | 1 |
+| ✅ | `0x2D` | `DropObject` | 0 | 1 | 0 |
+| ✅ | `0x2E` | `CloneObject` | 0 | 1 | 1 |
+| ✅ | `0x2F` | `ObjectEq` | 0 | 2 | 1 |
 | ☐ | `TBD` | `InstanceOf<T>` | 4 | 1 | 1 |
 | ☐ | `TBD` | `CastRef<T>` | 4 | 1 | 1 |
 | ☐ | `TBD` | `CheckedCastRef<T>` | 4 | 1 | 1 |
