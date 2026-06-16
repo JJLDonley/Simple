@@ -780,8 +780,8 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ☐ | `TBD` | `CheckedListSet<T>` | 0 | 3 | 0 |
 | ☐ | `TBD` | `CheckedStringGetChar` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CheckedStringSlice` | 0 | 3 | 1 |
-| ☐ | `TBD` | `CheckedNull` | 0 | 1 | 1 |
-| ☐ | `TBD` | `CheckedBounds` | 0 | 3 | 1 |
+| ✅ | `0x2B` | `CheckedNull` | 0 | 1 | 1 |
+| ✅ | `0x2C` | `CheckedBounds` | 0 | 3 | 1 |
 
 ### Enums, variants, and errors
 

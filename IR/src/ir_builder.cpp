@@ -185,6 +185,14 @@ void IrBuilder::EmitStackTrace() {
   EmitOp(OpCode::StackTrace);
 }
 
+void IrBuilder::EmitCheckedNull() {
+  EmitOp(OpCode::CheckedNull);
+}
+
+void IrBuilder::EmitCheckedBounds() {
+  EmitOp(OpCode::CheckedBounds);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);

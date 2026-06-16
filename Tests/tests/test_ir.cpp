@@ -4058,6 +4058,60 @@ bool RunIrTextTraceOpcodesTest() {
   return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
 }
 
+bool RunIrTextCheckedOpsTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"hello\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  checked.null\n"
+      "  string.len\n"
+      "  const i32 3\n"
+      "  const i32 1\n"
+      "  const i32 4\n"
+      "  checked.bounds\n"
+      "  add i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 8);
+}
+
+bool RunIrTextCheckedNullTrapTest() {
+  const char* text =
+      "func main locals=0 stack=2\n"
+      "  enter 0\n"
+      "  const null\n"
+      "  checked.null\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_null_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_null_trap");
+}
+
+bool RunIrTextCheckedBoundsTrapTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 9\n"
+      "  const i32 5\n"
+      "  const i32 2\n"
+      "  checked.bounds\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_bounds_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_bounds_trap");
+}
+
 bool RunIrTextConstBoolTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -7627,6 +7681,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
+  {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
+  {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},
+  {"ir_text_checked_bounds_trap", RunIrTextCheckedBoundsTrapTest},
   {"ir_text_const_bool", RunIrTextConstBoolTest},
   {"ir_text_const_char", RunIrTextConstCharTest},
   {"ir_text_array_len", RunIrTextArrayLenTest},

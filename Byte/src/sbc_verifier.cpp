@@ -1737,6 +1737,24 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::StackTrace:
           push_type(ValType::Ref);
           break;
+        case OpCode::CheckedNull: {
+          ValType value = pop_type();
+          VerifyResult r = check_type(value, ValType::Ref, "CHECKED_NULL type mismatch");
+          if (!r.ok) return r;
+          push_type(ValType::Ref);
+          break;
+        }
+        case OpCode::CheckedBounds: {
+          ValType length = pop_type();
+          ValType index = pop_type();
+          ValType value = pop_type();
+          VerifyResult r1 = check_type(index, ValType::I32, "CHECKED_BOUNDS index type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(length, ValType::I32, "CHECKED_BOUNDS length type mismatch");
+          if (!r2.ok) return r2;
+          push_type(value);
+          break;
+        }
         case OpCode::Intrinsic: {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);

@@ -68,6 +68,12 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StackTrace:
       *info = {0, 0, 1};
       return true;
+    case OpCode::CheckedNull:
+      *info = {0, 1, 1};
+      return true;
+    case OpCode::CheckedBounds:
+      *info = {0, 3, 1};
+      return true;
     case OpCode::LoadLocal:
     case OpCode::StoreLocal:
     case OpCode::LoadGlobal:
@@ -378,7 +384,11 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
   OpTypeRule value = OpTypeRule::None;
   switch (static_cast<OpCode>(opcode)) {
     case OpCode::StackTrace:
+    case OpCode::CheckedNull:
       value = OpTypeRule::Ref;
+      break;
+    case OpCode::CheckedBounds:
+      value = OpTypeRule::Aggregate;
       break;
     case OpCode::ConstI8:
     case OpCode::ConstI16:
@@ -804,6 +814,8 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::StackTrace: return "StackTrace";
     case OpCode::TraceEnter: return "TraceEnter";
     case OpCode::TraceLeave: return "TraceLeave";
+    case OpCode::CheckedNull: return "CheckedNull";
+    case OpCode::CheckedBounds: return "CheckedBounds";
     case OpCode::LoadLocal: return "LoadLocal";
     case OpCode::StoreLocal: return "StoreLocal";
     case OpCode::LoadGlobal: return "LoadGlobal";

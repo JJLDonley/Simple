@@ -1518,6 +1518,16 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStackTrace();
         continue;
       }
+      if (op == "checked.null") {
+        if (!args.empty()) return fail("checked.null expects no operands");
+        builder.EmitCheckedNull();
+        continue;
+      }
+      if (op == "checked.bounds") {
+        if (!args.empty()) return fail("checked.bounds expects no operands");
+        builder.EmitCheckedBounds();
+        continue;
+      }
       if (op == "pop") {
         builder.EmitPop();
         continue;

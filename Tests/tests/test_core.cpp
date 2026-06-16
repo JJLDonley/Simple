@@ -16837,6 +16837,8 @@ bool RunOpcodeStackEffectMetadataTest() {
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::StringCompare), &pops, &pushes) || pops != 2 || pushes != 1) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::StringFind), &pops, &pushes) || pops != 2 || pushes != 1) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace), &pops, &pushes) || pops != 0 || pushes != 1) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedNull), &pops, &pushes) || pops != 1 || pushes != 1) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedBounds), &pops, &pushes) || pops != 3 || pushes != 1) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &pops, &pushes) || pops != 0 || pushes != 0) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &pops, &pushes) || pops != 0 || pushes != 0) return false;
   return !Simple::Byte::GetStackEffect(0x17, &pops, &pushes);
@@ -16852,6 +16854,8 @@ bool RunOpcodeTypeRuleMetadataTest() {
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::LoadField), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace), &rule) || rule != Simple::Byte::OpTypeRule::Ref) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedNull), &rule) || rule != Simple::Byte::OpTypeRule::Ref) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedBounds), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &rule) || rule != Simple::Byte::OpTypeRule::Control) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringCompare), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
@@ -16886,6 +16890,8 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace), &rule) || rule != Simple::Byte::OpVerifierRule::Typed) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::TraceEnter), &rule) || rule != Simple::Byte::OpVerifierRule::Structural) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedNull), &rule) || rule != Simple::Byte::OpVerifierRule::Typed) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedBounds), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
   return !Simple::Byte::GetOpVerifierRule(0x17, &rule);

@@ -867,8 +867,8 @@ Checked arithmetic, bounds, null, and conversions.
 | ☐ | `TBD` | `checked.list.set.<T>` | `none` | `CheckedListSet<T>` | planned |
 | ☐ | `TBD` | `checked.string.get.char` | `none` | `CheckedStringGetChar` | planned |
 | ☐ | `TBD` | `checked.string.slice` | `none` | `CheckedStringSlice` | planned |
-| ☐ | `TBD` | `checked.null` | `none` | `CheckedNull` | planned |
-| ☐ | `TBD` | `checked.bounds` | `none` | `CheckedBounds` | planned |
+| ✅ | `0x2B` | `checked.null` | `none` | `CheckedNull` |  |
+| ✅ | `0x2C` | `checked.bounds` | `none` | `CheckedBounds` | pops value, index, length; pushes value |
 
 ### Enums, variants, results, and errors
 

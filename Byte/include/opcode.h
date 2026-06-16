@@ -44,6 +44,8 @@ enum class OpCode : uint8_t {
   StackTrace = 0x28,
   TraceEnter = 0x29,
   TraceLeave = 0x2A,
+  CheckedNull = 0x2B,
+  CheckedBounds = 0x2C,
 
   LoadLocal = 0x30,
   StoreLocal = 0x31,

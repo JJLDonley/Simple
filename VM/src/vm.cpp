@@ -1393,6 +1393,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         Push(stack, PackRef(handle));
         break;
       }
+      case OpCode::CheckedNull: {
+        Slot value = Pop(stack);
+        if (IsNullRef(value)) return Trap("CHECKED_NULL null reference");
+        if (!heap.Get(UnpackRef(value))) return Trap("CHECKED_NULL invalid reference");
+        Push(stack, value);
+        break;
+      }
+      case OpCode::CheckedBounds: {
+        int32_t length = UnpackI32(Pop(stack));
+        int32_t index = UnpackI32(Pop(stack));
+        Slot value = Pop(stack);
+        if (index < 0 || length < 0 || index >= length) return Trap("CHECKED_BOUNDS out of bounds");
+        Push(stack, value);
+        break;
+      }
       case OpCode::Intrinsic: {
         uint32_t id = ReadU32(module.code, pc);
         switch (id) {

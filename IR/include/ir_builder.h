@@ -53,6 +53,8 @@ class IrBuilder {
   void EmitTraceEnter(uint32_t id);
   void EmitTraceLeave(uint32_t id);
   void EmitStackTrace();
+  void EmitCheckedNull();
+  void EmitCheckedBounds();
   void EmitIntrinsic(uint32_t id);
   void EmitSysCall(uint32_t id);
   void EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label);
