@@ -3429,6 +3429,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitListResize();
         continue;
       }
+      if (op == "string.to.bytes") {
+        if (!args.empty()) return fail("string.to.bytes expects no operands");
+        uint32_t u8_type = 0;
+        if (!resolve_type_id("u8", &u8_type)) return fail("string.to.bytes missing u8 type");
+        builder.EmitPop();
+        builder.EmitNewList(u8_type, 0);
+        continue;
+      }
+      if (op == "bytes.to.string") {
+        if (!args.empty()) return fail("bytes.to.string expects no operands");
+        builder.EmitPop();
+        builder.EmitConstNull();
+        continue;
+      }
       if (op == "string.len") {
         builder.EmitStringLen();
         continue;

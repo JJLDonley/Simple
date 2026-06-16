@@ -737,8 +737,8 @@ String-specific operations.
 | ☐ | `TBD` | `StringNe` | 0 | 2 | 1 |
 | ✅ | `0x15` | `StringCompare` | 0 | 2 | 1 |
 | ✅ | `0x16` | `StringFind` | 0 | 2 | 1 |
-| ☐ | `TBD` | `StringToBytes` | 0 | 1 | 1 |
-| ☐ | `TBD` | `BytesToString` | 0 | 1 | 1 |
+| ✅ | pseudo | `StringToBytes` | 0 | 1 | 1 |
+| ✅ | pseudo | `BytesToString` | 0 | 1 | 1 |
 
 ### Pointer and memory
 

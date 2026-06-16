@@ -4513,6 +4513,43 @@ bool RunIrTextGcBarrierBadTest() {
   return RunIrTextExpectFail(text, "ir_text_gc_barrier_bad");
 }
 
+bool RunIrTextStringBytesAliasesTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"abc\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  string.to.bytes\n"
+      "  list.len\n"
+      "  newlist u8 0\n"
+      "  bytes.to.string\n"
+      "  isnull\n"
+      "  jmp.true ok\n"
+      "  pop\n"
+      "  const i32 9\n"
+      "  ret\n"
+      "ok:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_string_bytes_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextStringBytesAliasBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  string.to.bytes 1\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_string_bytes_alias_bad");
+}
+
 bool RunIrTextPointerMemoryAliasesTest() {
   const char* text =
       "func main locals=0 stack=12\n"
@@ -9218,6 +9255,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
   {"ir_text_gc_barrier_aliases", RunIrTextGcBarrierAliasesTest},
   {"ir_text_gc_barrier_bad", RunIrTextGcBarrierBadTest},
+  {"ir_text_string_bytes_aliases", RunIrTextStringBytesAliasesTest},
+  {"ir_text_string_bytes_alias_bad", RunIrTextStringBytesAliasBadTest},
   {"ir_text_pointer_memory_aliases", RunIrTextPointerMemoryAliasesTest},
   {"ir_text_pointer_memory_alias_bad", RunIrTextPointerMemoryAliasBadTest},
   {"ir_text_channel_marker_aliases", RunIrTextChannelMarkerAliasesTest},

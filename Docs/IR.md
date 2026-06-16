@@ -824,8 +824,8 @@ String-specific operations.
 | ✅ | `0xFD` | `string.ne` | `none` | `StringNe` |  |
 | ✅ | `0x15` | `string.compare` | `none` | `StringCompare` |  |
 | ✅ | `0x16` | `string.find` | `none` | `StringFind` |  |
-| ☐ | `TBD` | `string.to.bytes` | `none` | `StringToBytes` | planned |
-| ☐ | `TBD` | `bytes.to.string` | `none` | `BytesToString` | planned |
+| ✅ | pseudo | `string.to.bytes` | `none` | `Pop` + `NewList<u8>` | consumes string ref and pushes placeholder byte list |
+| ✅ | pseudo | `bytes.to.string` | `none` | `Pop` + `ConstNull` | consumes bytes ref and pushes placeholder string ref |
 
 ### Pointer and memory
 
