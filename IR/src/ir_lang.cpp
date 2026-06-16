@@ -2253,7 +2253,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             !FitsUnsigned<uint8_t>(arg_count)) {
           return fail(op + " expects numeric args");
         }
-        builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
+        if (op == "call.import") builder.EmitCallImport(func_id, static_cast<uint8_t>(arg_count));
+        else if (op == "call.native") builder.EmitCallNative(func_id, static_cast<uint8_t>(arg_count));
+        else builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
         continue;
       }
       if (op == "call.indirect") {

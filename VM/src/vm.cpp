@@ -2199,7 +2199,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       case OpCode::Leave:
         break;
-      case OpCode::Call: {
+      case OpCode::Call:
+      case OpCode::CallImport:
+      case OpCode::CallNative: {
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("CALL invalid function id");

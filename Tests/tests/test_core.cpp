@@ -2440,7 +2440,7 @@ std::vector<uint8_t> BuildBadUnknownOpcodeModule() {
   std::vector<uint8_t> code;
   AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
   AppendU16(code, 0);
-  AppendU8(code, 0xFF);
+  AppendU8(code, 0x15);
   AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
   return BuildModule(code, 0, 0);
 }
@@ -16816,7 +16816,9 @@ bool RunOpcodeOperandWidthMetadataTest() {
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &width) || width != 5) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &width) || width != 8) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &width) || width != 0) return false;
-  return !Simple::Byte::GetOperandWidth(0xFE, &width);
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &width) || width != 5) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &width) || width != 5) return false;
+  return !Simple::Byte::GetOperandWidth(0x15, &width);
 }
 
 bool RunOpcodeStackEffectMetadataTest() {
@@ -16828,7 +16830,9 @@ bool RunOpcodeStackEffectMetadataTest() {
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::Dup2), &pops, &pushes) || pops != 2 || pushes != 4) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &pops, &pushes) || pops != 1 || pushes != 0) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &pops, &pushes) || pops != 2 || pushes != 1) return false;
-  return !Simple::Byte::GetStackEffect(0xFE, &pops, &pushes);
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &pops, &pushes) || pops != 0 || pushes != 0) return false;
+  if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &pops, &pushes) || pops != 0 || pushes != 0) return false;
+  return !Simple::Byte::GetStackEffect(0x15, &pops, &pushes);
 }
 
 bool RunOpcodeTypeRuleMetadataTest() {
@@ -16842,7 +16846,9 @@ bool RunOpcodeTypeRuleMetadataTest() {
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::JmpFalse), &rule) || rule != Simple::Byte::OpTypeRule::Control) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
-  return !Simple::Byte::GetOpTypeRule(0xFE, &rule);
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
+  if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
+  return !Simple::Byte::GetOpTypeRule(0x15, &rule);
 }
 
 bool RunOpcodeControlFlowMetadataTest() {
@@ -16854,7 +16860,9 @@ bool RunOpcodeControlFlowMetadataTest() {
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Ret), &flow) || flow != Simple::Byte::OpControlFlow::Return) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::Trap), &flow) || flow != Simple::Byte::OpControlFlow::Terminal) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
-  return !Simple::Byte::GetOpControlFlow(0xFE, &flow);
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
+  if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
+  return !Simple::Byte::GetOpControlFlow(0x15, &flow);
 }
 
 bool RunOpcodeVerifierRuleMetadataTest() {
@@ -16866,7 +16874,9 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Call), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::Jmp), &rule) || rule != Simple::Byte::OpVerifierRule::Control) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
-  return !Simple::Byte::GetOpVerifierRule(0xFE, &rule);
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
+  return !Simple::Byte::GetOpVerifierRule(0x15, &rule);
 }
 
 bool RunOpcodeVmDispatchMetadataTest() {
@@ -16882,7 +16892,9 @@ bool RunOpcodeVmDispatchMetadataTest() {
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayGetI32), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::Intrinsic), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Runtime) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
-  return !Simple::Byte::GetOpVmDispatch(0xFE, &dispatch);
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
+  if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
+  return !Simple::Byte::GetOpVmDispatch(0x15, &dispatch);
 }
 
 bool RunOpcodeMetadataVerifierVmComparisonTest() {

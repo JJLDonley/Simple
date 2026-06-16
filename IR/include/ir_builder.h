@@ -42,6 +42,8 @@ class IrBuilder {
   void EmitConstString(uint32_t const_id);
   void EmitConstNull();
   void EmitCall(uint32_t func_id, uint8_t arg_count);
+  void EmitCallImport(uint32_t func_id, uint8_t arg_count);
+  void EmitCallNative(uint32_t func_id, uint8_t arg_count);
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallCheck();

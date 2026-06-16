@@ -6853,6 +6853,8 @@ bool RunIrTextCallImportNativeAliasTest() {
       "  enter 0\n"
       "  call.import args_count 0\n"
       "  pop\n"
+      "  call.native args_count 0\n"
+      "  pop\n"
       "  const i32 1\n"
       "  ret\n"
       "end\n"
@@ -6860,6 +6862,36 @@ bool RunIrTextCallImportNativeAliasTest() {
   auto module = BuildIrTextModule(text, "ir_text_call_import_native_alias");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
+}
+
+bool RunIrTextCallNativeOpcodesTest() {
+  const char* text =
+      "sigs:\n"
+      "  sig native_ret_i32: () -> i32\n"
+      "  sig main_sig: () -> i32\n"
+      "imports:\n"
+      "  import args_count System.os args_count sig=native_ret_i32\n"
+      "func main locals=0 stack=8 sig=main_sig\n"
+      "  enter 0\n"
+      "  call.import args_count 0\n"
+      "  pop\n"
+      "  call.native args_count 0\n"
+      "  pop\n"
+      "  const i32 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_call_native_opcodes");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  bool saw_import = false;
+  bool saw_native = false;
+  for (uint8_t byte : load.module.code) {
+    saw_import = saw_import || byte == static_cast<uint8_t>(Simple::Byte::OpCode::CallImport);
+    saw_native = saw_native || byte == static_cast<uint8_t>(Simple::Byte::OpCode::CallNative);
+  }
+  return saw_import && saw_native && RunExpectExit(bytes, 2);
 }
 
 bool RunIrTextCallIndirectArgsTest() {
@@ -7710,6 +7742,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
+  {"ir_text_call_native_opcodes", RunIrTextCallNativeOpcodesTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
   {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},
   {"ir_text_named_upvalue", RunIrTextNamedUpvalueTest},

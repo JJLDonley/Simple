@@ -182,6 +182,8 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Call:
     case OpCode::CallIndirect:
     case OpCode::TailCall:
+    case OpCode::CallImport:
+    case OpCode::CallNative:
       *info = {5, 0, 0};
       return true;
     case OpCode::ConvI32ToI64:
@@ -575,6 +577,8 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
     case OpCode::Call:
     case OpCode::CallIndirect:
     case OpCode::TailCall:
+    case OpCode::CallImport:
+    case OpCode::CallNative:
     case OpCode::CallCheck:
     case OpCode::Intrinsic:
     case OpCode::SysCall:
@@ -872,6 +876,8 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::Call: return "Call";
     case OpCode::CallIndirect: return "CallIndirect";
     case OpCode::TailCall: return "TailCall";
+    case OpCode::CallImport: return "CallImport";
+    case OpCode::CallNative: return "CallNative";
     case OpCode::Ret: return "Ret";
     case OpCode::Enter: return "Enter";
     case OpCode::Leave: return "Leave";

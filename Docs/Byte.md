@@ -519,8 +519,8 @@ Direct, indirect, tail, import/native, method, and virtual call forms. Typed cal
 | ✅ | `0x71` | `CallIndirect` | 5 | 0 | 0 |
 | ✅ | `0x72` | `TailCall` | 5 | 0 | 0 |
 | ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
-| ☐ | `TBD` | `CallImport` | 5 | 0 | 0 |
-| ☐ | `TBD` | `CallNative` | 5 | 0 | 0 |
+| ✅ | `0xFE` | `CallImport` | 5 | 0 | 0 |
+| ✅ | `0xFF` | `CallNative` | 5 | 0 | 0 |
 | ☐ | `TBD` | `CallMethod` | 5 | 0 | 0 |
 | ☐ | `TBD` | `CallVirtual` | 5 | 0 | 0 |
 

@@ -610,8 +610,8 @@ Direct, indirect, tail, import/native, method, and virtual calls.
 | ✅ | `0x71` | `call.indirect <sig> <argc>` | `signature id/name, argc` | `CallIndirect` |  |
 | ✅ | `0x72` | `tailcall <func> <argc>` | `function id/name, argc` | `TailCall` |  |
 | ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
-| ✅ | `0x70` | `call.import <import> <argc>` | `import id/name, argc` | `Call` | metadata-native import call alias |
-| ✅ | `0x70` | `call.native <native> <argc>` | `native id/name, argc` | `Call` | metadata-native import call alias |
+| ✅ | `0xFE` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | metadata-native import call |
+| ✅ | `0xFF` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | metadata-native import call |
 | ☐ | `TBD` | `call.method <method> <argc>` | `method id/name, argc` | `CallMethod` | planned |
 | ☐ | `TBD` | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallVirtual` | planned |
 

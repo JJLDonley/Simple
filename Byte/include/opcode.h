@@ -251,6 +251,8 @@ enum class OpCode : uint8_t {
   XorI32 = 0xF9,
   ShlI32 = 0xFA,
   ShrI32 = 0xFB,
+  CallImport = 0xFE,
+  CallNative = 0xFF,
 };
 
 struct OpInfo {

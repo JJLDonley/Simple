@@ -610,6 +610,8 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (const_id + 8 > module.const_pool.size()) return fail_at("CONST_STRING const id bad", pc, opcode);
       }
       if (opcode == static_cast<uint8_t>(OpCode::Call) ||
+          opcode == static_cast<uint8_t>(OpCode::CallImport) ||
+          opcode == static_cast<uint8_t>(OpCode::CallNative) ||
           opcode == static_cast<uint8_t>(OpCode::TailCall)) {
         uint32_t func_id = 0;
         uint8_t arg_count = 0;
@@ -624,7 +626,11 @@ VerifyResult VerifyModule(const SbcModule& module) {
         if (arg_count != module.sigs[sig_id].param_count) {
           return fail_at("CALL arg count mismatch", pc, opcode);
         }
-        if (opcode == static_cast<uint8_t>(OpCode::Call)) ++call_depth;
+        if (opcode == static_cast<uint8_t>(OpCode::Call) ||
+            opcode == static_cast<uint8_t>(OpCode::CallImport) ||
+            opcode == static_cast<uint8_t>(OpCode::CallNative)) {
+          ++call_depth;
+        }
       }
       if (opcode == static_cast<uint8_t>(OpCode::CallIndirect)) {
         uint32_t sig_id = 0;
@@ -1751,13 +1757,20 @@ VerifyResult VerifyModule(const SbcModule& module) {
         case OpCode::CallCheck:
           if (call_depth != 0) return fail_at("CALLCHECK not in root", pc, opcode);
           break;
-        case OpCode::Call: {
+        case OpCode::Call:
+        case OpCode::CallImport:
+        case OpCode::CallNative: {
           if (pc + 5 >= code.size()) return fail_at("CALL arg count out of bounds", pc, opcode);
           uint8_t arg_count = code[pc + 5];
           if (stack_types.size() < arg_count) return fail_at("CALL stack underflow", pc, opcode);
           uint32_t func_id = 0;
           if (!ReadU32(code, pc + 1, &func_id)) return fail_at("CALL function id out of bounds", pc, opcode);
           if (func_id >= module.functions.size()) return fail_at("CALL function id out of range", pc, opcode);
+          if ((opcode == static_cast<uint8_t>(OpCode::CallImport) ||
+               opcode == static_cast<uint8_t>(OpCode::CallNative)) &&
+              (func_id >= module.function_is_import.size() || !module.function_is_import[func_id])) {
+            return fail_at("CALL_NATIVE target is not an import", pc, opcode);
+          }
           uint32_t callee_method = module.functions[func_id].method_id;
           if (callee_method >= module.methods.size()) return fail_at("CALL method id out of range", pc, opcode);
           uint32_t call_sig_id = module.methods[callee_method].sig_id;

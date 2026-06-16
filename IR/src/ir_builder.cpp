@@ -127,6 +127,18 @@ void IrBuilder::EmitCall(uint32_t func_id, uint8_t arg_count) {
   EmitU8(arg_count);
 }
 
+void IrBuilder::EmitCallImport(uint32_t func_id, uint8_t arg_count) {
+  EmitOp(OpCode::CallImport);
+  EmitU32(func_id);
+  EmitU8(arg_count);
+}
+
+void IrBuilder::EmitCallNative(uint32_t func_id, uint8_t arg_count) {
+  EmitOp(OpCode::CallNative);
+  EmitU32(func_id);
+  EmitU8(arg_count);
+}
+
 void IrBuilder::EmitCallIndirect(uint32_t sig_id, uint8_t arg_count) {
   EmitOp(OpCode::CallIndirect);
   EmitU32(sig_id);
