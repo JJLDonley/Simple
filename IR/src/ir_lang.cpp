@@ -1917,7 +1917,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           std::string checked_name = "checked." + name;
           if (op == checked_name) {
             if (args.size() != 1 || !is_type_name(Lower(args[0]))) return false;
-            op = name + "." + Lower(args[0]);
+            op = checked_name + "." + Lower(args[0]);
             args.clear();
             return true;
           }
@@ -1925,7 +1925,6 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           if (op.rfind(checked_prefix, 0) == 0) {
             std::string type = Lower(op.substr(checked_prefix.size()));
             if (!is_type_name(type) || !args.empty()) return false;
-            op = name + "." + type;
             return true;
           }
         }
@@ -2553,6 +2552,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op == "const.null") {
         builder.EmitConstNull();
         continue;
+      }
+      if (op == "checked.add.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedAddI32);
+        continue;
+      }
+      if (op.rfind("checked.sub.", 0) == 0 || op.rfind("checked.mul.", 0) == 0 ||
+          op.rfind("checked.div.", 0) == 0 || op.rfind("checked.mod.", 0) == 0) {
+        return fail("real checked opcode not implemented yet: " + op);
       }
       if (op == "add.i32") {
         builder.EmitAddI32();

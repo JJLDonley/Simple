@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -269,6 +270,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             jit_stubs[current.func_index].disabled ? false : can_compile_func(current.func_index);
         compile_counts[current.func_index] += 1;
         compile_ticks_tier0[current.func_index] = ++compile_tick;
+      }
+    }
+    if (opcode == static_cast<uint8_t>(OpCode::CallNative)) {
+      size_t operand_pc = pc;
+      if (operand_pc + 7 <= module.code.size()) {
+        uint32_t ext_id = ReadU32(module.code, operand_pc);
+        uint8_t ext_arg = ReadU8(module.code, operand_pc);
+        if (Simple::Byte::IsExtendedOpcodePrefix(opcode, ext_id, ext_arg)) {
+          uint16_t ext = ReadU16(module.code, operand_pc);
+          pc = operand_pc;
+          switch (static_cast<Simple::Byte::ExtendedOpCode>(ext)) {
+            case Simple::Byte::ExtendedOpCode::CheckedAddI32: {
+              int32_t b = UnpackI32(Pop(stack));
+              int32_t a = UnpackI32(Pop(stack));
+              int64_t r = static_cast<int64_t>(a) + static_cast<int64_t>(b);
+              if (r < std::numeric_limits<int32_t>::min() || r > std::numeric_limits<int32_t>::max()) {
+                return Trap("CHECKED_ADD_I32 overflow");
+              }
+              Push(stack, PackI32(static_cast<int32_t>(r)));
+              break;
+            }
+            default:
+              return Trap("unknown extended opcode");
+          }
+          continue;
+        }
       }
     }
     switch (static_cast<OpCode>(opcode)) {

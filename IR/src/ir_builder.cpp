@@ -139,6 +139,13 @@ void IrBuilder::EmitCallNative(uint32_t func_id, uint8_t arg_count) {
   EmitU8(arg_count);
 }
 
+void IrBuilder::EmitExtended(Simple::Byte::ExtendedOpCode op) {
+  EmitOp(OpCode::CallNative);
+  EmitU32(Simple::Byte::kExtendedOpcodeSentinel);
+  EmitU8(Simple::Byte::kExtendedOpcodeArgSentinel);
+  EmitU16(static_cast<uint16_t>(op));
+}
+
 void IrBuilder::EmitCallIndirect(uint32_t sig_id, uint8_t arg_count) {
   EmitOp(OpCode::CallIndirect);
   EmitU32(sig_id);

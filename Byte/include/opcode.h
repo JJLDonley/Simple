@@ -7,6 +7,17 @@ namespace Simple::Byte {
 
 constexpr uint16_t kOpcodeMetadataVersion = 1;
 
+enum class ExtendedOpCode : uint16_t {
+  CheckedAddI32 = 1,
+};
+
+constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;
+constexpr uint8_t kExtendedOpcodeArgSentinel = 0xFFu;
+
+inline bool IsExtendedOpcodePrefix(uint8_t opcode, uint32_t id, uint8_t arg) {
+  return opcode == 0xFFu && id == kExtendedOpcodeSentinel && arg == kExtendedOpcodeArgSentinel;
+}
+
 enum class OpCode : uint8_t {
   Nop = 0x00,
   Halt = 0x01,

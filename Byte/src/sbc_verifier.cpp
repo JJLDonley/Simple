@@ -149,6 +149,16 @@ bool ReadU32(const std::vector<uint8_t>& code, size_t offset, uint32_t* out) {
   return true;
 }
 
+bool ReadExtendedOpcode(const std::vector<uint8_t>& code, size_t pc, Simple::Byte::ExtendedOpCode* out) {
+  if (pc + 8 > code.size() || code[pc] != static_cast<uint8_t>(Simple::Byte::OpCode::CallNative)) return false;
+  uint32_t id = 0;
+  uint16_t ext = 0;
+  if (!ReadU32(code, pc + 1, &id) || !ReadU16(code, pc + 6, &ext)) return false;
+  if (!Simple::Byte::IsExtendedOpcodePrefix(code[pc], id, code[pc + 5])) return false;
+  if (out) *out = static_cast<Simple::Byte::ExtendedOpCode>(ext);
+  return true;
+}
+
 VerifyResult Fail(const std::string& message) {
   VerifyResult result;
   result.ok = false;
@@ -357,6 +367,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
       if (!GetOperandWidth(opcode, &operand_bytes)) {
         return scan_fail("unknown opcode in verifier", pc - func.code_offset, opcode);
       }
+      if (ReadExtendedOpcode(code, pc, nullptr)) operand_bytes = 7;
       size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (next > end) {
         return scan_fail("opcode operands out of bounds", pc - func.code_offset, opcode);
@@ -459,6 +470,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
       GetOperandWidth(opcode, &operand_bytes);
       GetStackEffect(opcode, &base_pops, &base_pushes);
       GetOpVerifierRule(opcode, &verifier_rule);
+      Simple::Byte::ExtendedOpCode ext_opcode{};
+      bool is_extended_opcode = ReadExtendedOpcode(code, pc, &ext_opcode);
+      if (is_extended_opcode) operand_bytes = 7;
       size_t next = pc + 1 + static_cast<size_t>(operand_bytes);
       if (opcode == static_cast<uint8_t>(OpCode::Line) ||
           opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
@@ -468,6 +482,24 @@ VerifyResult VerifyModule(const SbcModule& module) {
         map.stack_height = static_cast<uint32_t>(stack_types.size());
         map.ref_bits = make_ref_bits(stack_types);
         stack_maps.push_back(std::move(map));
+      }
+
+      if (is_extended_opcode) {
+        switch (ext_opcode) {
+          case Simple::Byte::ExtendedOpCode::CheckedAddI32: {
+            ValType b = pop_type();
+            ValType a = pop_type();
+            VerifyResult r1 = check_type(a, ValType::I32, "CHECKED_ADD_I32 type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(b, ValType::I32, "CHECKED_ADD_I32 type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          default:
+            return fail_at("unknown extended opcode", current_pc, current_opcode);
+        }
       }
 
       std::vector<size_t> jump_targets;

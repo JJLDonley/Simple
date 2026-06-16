@@ -856,11 +856,11 @@ Checked arithmetic, bounds, null, and conversions.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | pseudo | `checked.add.<T>` | `none` | `Add<T>` | checked-arithmetic alias for supported scalar types |
-| ✅ | pseudo | `checked.sub.<T>` | `none` | `Sub<T>` | checked-arithmetic alias for supported scalar types |
-| ✅ | pseudo | `checked.mul.<T>` | `none` | `Mul<T>` | checked-arithmetic alias for supported scalar types |
-| ✅ | pseudo | `checked.div.<T>` | `none` | `Div<T>` | checked-arithmetic alias for supported scalar types |
-| ✅ | pseudo | `checked.mod.<T>` | `none` | `Mod<T>` | checked-arithmetic alias for supported scalar types |
+| ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
+| ☐ | `TBD` | `checked.sub.<T>` | `none` | `CheckedSub<T>` | real opcode pending |
+| ☐ | `TBD` | `checked.mul.<T>` | `none` | `CheckedMul<T>` | real opcode pending |
+| ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | real opcode pending |
+| ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | real opcode pending |
 | ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.array.set.<T>` | `none` | `ArraySet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |

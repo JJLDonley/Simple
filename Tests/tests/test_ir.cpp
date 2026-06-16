@@ -6591,21 +6591,30 @@ bool RunIrTextCheckedArithmeticAliasTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
-      "  const i32 20\n"
+      "  const i32 35\n"
       "  const i32 7\n"
       "  checked.add i32\n"
-      "  const i32 3\n"
-      "  checked.sub.i32\n"
-      "  const i32 2\n"
-      "  checked.mul i32\n"
-      "  const i32 4\n"
-      "  checked.div.i32\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_alias");
   if (module.empty()) return false;
-  return RunExpectExit(module, 12);
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedArithmeticOverflowTrapTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 2147483647\n"
+      "  const i32 1\n"
+      "  checked.add.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_overflow_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_arithmetic_overflow_trap");
 }
 
 bool RunIrTextCheckedArithmeticBadTest() {
@@ -9438,6 +9447,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
+  {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
   {"ir_text_checked_aggregate_bad", RunIrTextCheckedAggregateBadTest},
