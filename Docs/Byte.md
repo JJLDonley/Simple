@@ -776,7 +776,9 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ✅ | ext `3` | `CheckedMulI32` | 0 | 2 | 1 |
 | ✅ | ext `8` | `CheckedMulI64` | 0 | 2 | 1 |
 | ✅ | ext `4` | `CheckedDivI32` | 0 | 2 | 1 |
+| ✅ | ext `9` | `CheckedDivI64` | 0 | 2 | 1 |
 | ✅ | ext `5` | `CheckedModI32` | 0 | 2 | 1 |
+| ✅ | ext `10` | `CheckedModI64` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedArrayGet<T>` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedArraySet<T>` | 0 | 3 | 0 |
 | ✅ | pseudo | `CheckedListGet<T>` | 0 | 2 | 1 |
