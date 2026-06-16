@@ -4672,6 +4672,68 @@ bool RunIrTextObjectFieldTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextObjectTypeAliasOpsTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func main locals=0 stack=12 sig=main_sig\n"
+      "  enter 0\n"
+      "  init.object Obj\n"
+      "  checked.cast.ref Obj\n"
+      "  cast.ref Obj\n"
+      "  instanceof Obj\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_object_type_alias_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextLoadVTableAliasTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func main locals=0 stack=12 sig=main_sig\n"
+      "  enter 0\n"
+      "  init.object Obj\n"
+      "  load.vtable\n"
+      "  const i32 0\n"
+      "  cmp.ge i32\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_load_vtable_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextObjectTypeAliasBadTypeTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const null\n"
+      "  checked.cast.ref Missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_object_type_alias_bad_type");
+}
+
 bool RunIrTextNamedTablesTest() {
   const char* text =
       "types:\n"
@@ -8622,6 +8684,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
+  {"ir_text_object_type_alias_ops", RunIrTextObjectTypeAliasOpsTest},
+  {"ir_text_load_vtable_alias", RunIrTextLoadVTableAliasTest},
+  {"ir_text_object_type_alias_bad_type", RunIrTextObjectTypeAliasBadTypeTest},
   {"ir_text_named_tables", RunIrTextNamedTablesTest},
   {"ir_text_bad_type_name", RunIrTextBadTypeNameTest},
   {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},

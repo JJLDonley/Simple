@@ -670,14 +670,14 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ☐ | `TBD` | `capture.local <slot>` | `local index/name` | `CaptureLocal` | planned |
 | ☐ | `TBD` | `capture.ref <slot>` | `slot` | `CaptureRef` | planned |
 | ☐ | `TBD` | `close.upvalue <slot>` | `upvalue index/name` | `CloseUpvalue` | planned |
-| ☐ | `TBD` | `init.object <type>` | `type id/name` | `InitObject` | planned |
+| ✅ | pseudo | `init.object <type>` | `type id/name` | `NewObject` | object initialization alias |
 | ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
 | ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |
 | ✅ | `0x2F` | `object.eq` | `none` | `ObjectEq` | structural payload equality |
-| ☐ | `TBD` | `instanceof.<T>` | `type id/name` | `InstanceOf<T>` | planned |
-| ☐ | `TBD` | `cast.ref.<T>` | `type id/name` | `CastRef<T>` | planned |
-| ☐ | `TBD` | `checked.cast.ref.<T>` | `type id/name` | `CheckedCastRef<T>` | planned |
-| ☐ | `TBD` | `load.vtable` | `none` | `LoadVTable` | planned |
+| ✅ | pseudo | `instanceof[.<T>] <type?>` | `type id/name` | `TypeOf` + `ConstI32` + `CmpEqI32` | runtime type test alias |
+| ✅ | pseudo | `cast.ref[.<T>] <type?>` | `type id/name` | no-op | unchecked reference cast marker |
+| ✅ | pseudo | `checked.cast.ref[.<T>] <type?>` | `type id/name` | type guard sequence | checked reference cast marker |
+| ✅ | pseudo | `load.vtable` | `none` | `TypeOf` | type/vtable metadata alias |
 
 ### Arrays
 

@@ -2918,12 +2918,52 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitSysCall(id);
         continue;
       }
-      if (op == "newobj") {
+      if (op == "newobj" || op == "init.object") {
         uint32_t type_id = 0;
         if (args.size() != 1 || !resolve_type_id(args[0], &type_id)) {
-          return fail("newobj expects type_id");
+          return fail(op + " expects type_id");
         }
         builder.EmitNewObject(type_id);
+        continue;
+      }
+      auto resolve_type_operand = [&](const std::string& base, uint32_t* out_type_id) -> bool {
+        std::string type_token;
+        std::string prefix = base + ".";
+        if (op == base) {
+          if (args.size() != 1) return false;
+          type_token = args[0];
+        } else if (op.rfind(prefix, 0) == 0) {
+          if (!args.empty()) return false;
+          type_token = op.substr(prefix.size());
+        } else {
+          return false;
+        }
+        return resolve_type_id(type_token, out_type_id);
+      };
+      uint32_t object_type_id = 0;
+      if (resolve_type_operand("instanceof", &object_type_id)) {
+        builder.EmitTypeOf();
+        builder.EmitConstI32(static_cast<int32_t>(object_type_id));
+        builder.EmitCmpEqI32();
+        continue;
+      }
+      if (resolve_type_operand("cast.ref", &object_type_id)) {
+        continue;
+      }
+      if (resolve_type_operand("checked.cast.ref", &object_type_id)) {
+        Simple::IR::IrLabel ok = builder.CreateLabel();
+        builder.EmitDup();
+        builder.EmitTypeOf();
+        builder.EmitConstI32(static_cast<int32_t>(object_type_id));
+        builder.EmitCmpEqI32();
+        builder.EmitJmpTrue(ok);
+        builder.EmitOp(Simple::IR::OpCode::Trap);
+        if (!builder.BindLabel(ok, error)) return false;
+        continue;
+      }
+      if (op == "load.vtable") {
+        if (!args.empty()) return fail("load.vtable expects no operands");
+        builder.EmitTypeOf();
         continue;
       }
       if (op == "ldfld") {
