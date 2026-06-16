@@ -417,6 +417,44 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, static_cast<uint64_t>(a % b));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedAddU64: {
+              uint64_t b = UnpackU64Bits(Pop(stack));
+              uint64_t a = UnpackU64Bits(Pop(stack));
+              uint64_t r = 0;
+              if (__builtin_add_overflow(a, b, &r)) return Trap("CHECKED_ADD_U64 overflow");
+              Push(stack, r);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedSubU64: {
+              uint64_t b = UnpackU64Bits(Pop(stack));
+              uint64_t a = UnpackU64Bits(Pop(stack));
+              uint64_t r = 0;
+              if (__builtin_sub_overflow(a, b, &r)) return Trap("CHECKED_SUB_U64 overflow");
+              Push(stack, r);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedMulU64: {
+              uint64_t b = UnpackU64Bits(Pop(stack));
+              uint64_t a = UnpackU64Bits(Pop(stack));
+              uint64_t r = 0;
+              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_U64 overflow");
+              Push(stack, r);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedDivU64: {
+              uint64_t b = UnpackU64Bits(Pop(stack));
+              uint64_t a = UnpackU64Bits(Pop(stack));
+              if (b == 0) return Trap("CHECKED_DIV_U64 divide by zero");
+              Push(stack, a / b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedModU64: {
+              uint64_t b = UnpackU64Bits(Pop(stack));
+              uint64_t a = UnpackU64Bits(Pop(stack));
+              if (b == 0) return Trap("CHECKED_MOD_U64 divide by zero");
+              Push(stack, a % b);
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }
