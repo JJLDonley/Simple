@@ -355,6 +355,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
           return false;
         }
         IrTextType type;
+        bool has_size = false;
         type.name = tokens[1];
         for (size_t i = 2; i < tokens.size(); ++i) {
           const std::string& kv = tokens[i];
@@ -365,11 +366,12 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
           uint64_t num = 0;
           if (key == "size" && ParseUint(val, &num)) {
             type.size = static_cast<uint32_t>(num);
+            has_size = true;
           } else if (key == "kind") {
             type.kind = val;
           }
         }
-        if (type.size == 0) {
+        if (!has_size) {
           if (error) *error = "type missing size at line " + std::to_string(line_no);
           return false;
         }
@@ -827,6 +829,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   if (!add_builtin("char", Simple::Byte::TypeKind::Char, 2)) return false;
   if (!add_builtin("ref", Simple::Byte::TypeKind::Ref, 4)) return false;
   if (!add_builtin("string", Simple::Byte::TypeKind::String, 4)) return false;
+  if (!add_builtin("void", Simple::Byte::TypeKind::Void, 0)) return false;
+  if (!add_builtin("never", Simple::Byte::TypeKind::Never, 0)) return false;
 
   auto parse_type_kind = [&](const std::string& kind_text,
                              Simple::Byte::TypeKind* out_kind,
@@ -848,6 +852,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind == "char") { *out_kind = Simple::Byte::TypeKind::Char; return true; }
     if (kind == "string") { *out_kind = Simple::Byte::TypeKind::String; return true; }
     if (kind == "ref") { *out_kind = Simple::Byte::TypeKind::Ref; return true; }
+    if (kind == "void") { *out_kind = Simple::Byte::TypeKind::Void; return true; }
+    if (kind == "never") { *out_kind = Simple::Byte::TypeKind::Never; return true; }
     if (kind == "artifact" || kind == "object" || kind == "struct" || kind == "unspecified") {
       *out_kind = Simple::Byte::TypeKind::Unspecified;
       *out_flags = 1;
@@ -879,6 +885,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       case Simple::Byte::TypeKind::Ref:
       case Simple::Byte::TypeKind::String:
         return 4;
+      case Simple::Byte::TypeKind::Void:
+      case Simple::Byte::TypeKind::Never:
+        return 0;
       case Simple::Byte::TypeKind::Unspecified:
       default:
         return types[type_id].size;
@@ -927,6 +936,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if ((kind == Simple::Byte::TypeKind::Ref || kind == Simple::Byte::TypeKind::String) &&
         !(size == 0 || size == 4 || size == 8)) {
       if (error) *error = "type size mismatch for.ref/string: " + type.name;
+      return false;
+    }
+    if ((kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Never) && size != 0) {
+      if (error) *error = "type size mismatch for void/never: " + type.name;
       return false;
     }
     if (!add_type(type.name, kind, flags, size)) return false;

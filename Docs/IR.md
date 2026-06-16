@@ -154,8 +154,8 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
 | ✅ | `string` | `String` / `16` | ref | string reference |
 | ✅ | object type name | `Ref` or object row kind | declared | resolved by `types:` rows |
-| ☐ | `void` | TBD | 0 | planned no-result signature spelling |
-| ☐ | `never` | TBD | 0 | planned non-returning control-flow type |
+| ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
+| ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
 | ☐ | `ptr<T>` | TBD | word | planned typed pointer |
 | ☐ | `array<T>` | TBD | ref | planned first-class aggregate type syntax |
 | ☐ | `list<T>` | TBD | ref | planned first-class aggregate type syntax |

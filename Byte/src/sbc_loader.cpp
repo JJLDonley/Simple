@@ -189,9 +189,13 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
-      if (row.kind > static_cast<uint8_t>(TypeKind::String)) return Fail("type kind invalid");
+      if (row.kind > static_cast<uint8_t>(TypeKind::Never)) return Fail("type kind invalid");
       auto kind = static_cast<TypeKind>(row.kind);
       switch (kind) {
+        case TypeKind::Void:
+        case TypeKind::Never:
+          if (row.size != 0) return Fail("type kind size mismatch");
+          break;
         case TypeKind::I8:
         case TypeKind::U8:
         case TypeKind::Bool:
@@ -242,6 +246,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         case TypeKind::Char:
         case TypeKind::Ref:
         case TypeKind::String:
+        case TypeKind::Void:
+        case TypeKind::Never:
           if (row.field_start != 0 || row.field_count != 0) {
             return Fail("type kind has fields (type_id=" + std::to_string(i) +
                         " name_str=" + std::to_string(row.name_str) +

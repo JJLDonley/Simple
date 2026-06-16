@@ -102,8 +102,8 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `14` | `Bool` | `bool` | boolean |
 | ✅ | `15` | `Char` | `char` | current 16-bit char payload |
 | ✅ | `16` | `String` | `string` | string reference |
-| ☐ | TBD | `Void` | `void` | planned no-result signature type |
-| ☐ | TBD | `Never` | `never` | planned non-returning type |
+| ✅ | `17` | `Void` | `void` | no-result signature/metadata type |
+| ✅ | `18` | `Never` | `never` | non-returning metadata type |
 | ☐ | TBD | `Ptr` | `ptr<T>` | planned typed pointer |
 | ☐ | TBD | `Array` | `array<T>` | planned aggregate metadata |
 | ☐ | TBD | `List` | `list<T>` | planned aggregate metadata |

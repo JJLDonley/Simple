@@ -65,6 +65,8 @@ enum class TypeKind : uint8_t {
   Bool = 14,
   Char = 15,
   String = 16,
+  Void = 17,
+  Never = 18,
 };
 
 struct DebugHeader {

@@ -4210,6 +4210,31 @@ bool RunIrCompileRawMetadataSectionsTest() {
          load.module.capabilities.size() == 8 && RunExpectExit(bytes, 6);
 }
 
+bool RunIrTextVoidNeverTypesTest() {
+  const char* text =
+      "types:\n"
+      "  type Unit kind=void size=0\n"
+      "  type NeverType kind=never size=0\n"
+      "sigs:\n"
+      "  sig do_it: () -> void\n"
+      "func main locals=0 stack=4 sig=do_it\n"
+      "  enter 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_void_never_types");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  bool saw_void = false;
+  bool saw_never = false;
+  for (const auto& type : load.module.types) {
+    saw_void = saw_void || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Void);
+    saw_never = saw_never || type.kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Never);
+  }
+  return saw_void && saw_never && RunExpectExit(bytes, 0);
+}
+
 bool RunIrTextModuleMetadataSectionTest() {
   const char* text =
       "module sample\n"
@@ -8078,6 +8103,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
   {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
   {"ir_compile_raw_metadata_sections", RunIrCompileRawMetadataSectionsTest},
+  {"ir_text_void_never_types", RunIrTextVoidNeverTypesTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
