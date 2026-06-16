@@ -769,11 +769,11 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `CheckedAdd<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedSub<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMul<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedDiv<T>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `CheckedMod<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedAdd<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedSub<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedMul<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedDiv<T>` | 0 | 2 | 1 |
+| ✅ | pseudo | `CheckedMod<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CheckedArrayGet<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `CheckedArraySet<T>` | 0 | 3 | 0 |
 | ☐ | `TBD` | `CheckedListGet<T>` | 0 | 2 | 1 |

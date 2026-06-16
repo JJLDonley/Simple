@@ -5864,6 +5864,40 @@ bool RunIrTextCheckedConvBadTest() {
   return RunIrTextExpectFail(text, "ir_text_checked_conv_bad");
 }
 
+bool RunIrTextCheckedArithmeticAliasTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 20\n"
+      "  const i32 7\n"
+      "  checked.add i32\n"
+      "  const i32 3\n"
+      "  checked.sub.i32\n"
+      "  const i32 2\n"
+      "  checked.mul i32\n"
+      "  const i32 4\n"
+      "  checked.div.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextCheckedArithmeticBadTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 2\n"
+      "  checked.add Nope\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_checked_arithmetic_bad");
+}
+
 bool RunIrTextBitwiseI32Test() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -8597,6 +8631,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_conv_chain", RunIrTextConvChainTest},
   {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
+  {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
+  {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_bitwise_i32", RunIrTextBitwiseI32Test},
   {"ir_text_bitwise_i64", RunIrTextBitwiseI64Test},
   {"ir_text_shift_i32", RunIrTextShiftI32Test},

@@ -1897,6 +1897,23 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           op = "conv." + op.substr(13);
           return args.empty();
         }
+        const std::vector<std::string> checked_arith = {"add", "sub", "mul", "div", "mod"};
+        for (const auto& name : checked_arith) {
+          std::string checked_name = "checked." + name;
+          if (op == checked_name) {
+            if (args.size() != 1 || !is_type_name(Lower(args[0]))) return false;
+            op = name + "." + Lower(args[0]);
+            args.clear();
+            return true;
+          }
+          std::string checked_prefix = checked_name + ".";
+          if (op.rfind(checked_prefix, 0) == 0) {
+            std::string type = Lower(op.substr(checked_prefix.size()));
+            if (!is_type_name(type) || !args.empty()) return false;
+            op = name + "." + type;
+            return true;
+          }
+        }
         if (take_one_type({"add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
                            "and", "or", "xor", "shl", "shr",
                            "cmp.eq", "cmp.ne", "cmp.lt", "cmp.le", "cmp.gt", "cmp.ge",

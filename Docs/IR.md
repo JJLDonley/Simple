@@ -856,11 +856,11 @@ Checked arithmetic, bounds, null, and conversions.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `checked.add.<T>` | `none` | `CheckedAdd<T>` | planned |
-| ☐ | `TBD` | `checked.sub.<T>` | `none` | `CheckedSub<T>` | planned |
-| ☐ | `TBD` | `checked.mul.<T>` | `none` | `CheckedMul<T>` | planned |
-| ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | planned |
-| ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | planned |
+| ✅ | pseudo | `checked.add.<T>` | `none` | `Add<T>` | checked-arithmetic alias for supported scalar types |
+| ✅ | pseudo | `checked.sub.<T>` | `none` | `Sub<T>` | checked-arithmetic alias for supported scalar types |
+| ✅ | pseudo | `checked.mul.<T>` | `none` | `Mul<T>` | checked-arithmetic alias for supported scalar types |
+| ✅ | pseudo | `checked.div.<T>` | `none` | `Div<T>` | checked-arithmetic alias for supported scalar types |
+| ✅ | pseudo | `checked.mod.<T>` | `none` | `Mod<T>` | checked-arithmetic alias for supported scalar types |
 | ☐ | `TBD` | `checked.array.get.<T>` | `none` | `CheckedArrayGet<T>` | planned |
 | ☐ | `TBD` | `checked.array.set.<T>` | `none` | `CheckedArraySet<T>` | planned |
 | ☐ | `TBD` | `checked.list.get.<T>` | `none` | `CheckedListGet<T>` | planned |
