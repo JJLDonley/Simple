@@ -2043,6 +2043,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStackTrace();
         continue;
       }
+      if (op == "deopt" || op == "patchpoint" || op == "inline.cache") {
+        uint64_t id = 0;
+        if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
+          return fail(op + " expects id");
+        }
+        continue;
+      }
       if (op == "checked.null" || op == "guard.notnull") {
         if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedNull();

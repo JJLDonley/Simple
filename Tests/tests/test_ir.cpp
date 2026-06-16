@@ -4415,6 +4415,34 @@ bool RunIrTextModuleInitOpsTest() {
   return saw_global && saw_module && saw_ensure && RunExpectExit(module, 3);
 }
 
+bool RunIrTextJitMarkerAliasesTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  deopt 1\n"
+      "  patchpoint 2\n"
+      "  inline.cache 3\n"
+      "  const i32 7\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_jit_marker_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
+bool RunIrTextJitMarkerBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  patchpoint nope\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_jit_marker_bad");
+}
+
 bool RunIrTextCheckedOpsTest() {
   const char* text =
       "consts:\n"
@@ -8912,6 +8940,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
+  {"ir_text_jit_marker_aliases", RunIrTextJitMarkerAliasesTest},
+  {"ir_text_jit_marker_bad", RunIrTextJitMarkerBadTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
   {"ir_text_guard_alias_ops", RunIrTextGuardAliasOpsTest},
   {"ir_text_guard_type_alias", RunIrTextGuardTypeAliasTest},

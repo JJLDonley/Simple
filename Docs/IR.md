@@ -950,9 +950,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ☐ | `TBD` | `pin.ref` | `none` | `PinRef` | planned |
 | ☐ | `TBD` | `unpin.ref` | `none` | `UnpinRef` | planned |
 | ✅ | `0x0A` | `keepalive` | `none` | `KeepAlive` |  |
-| ☐ | `TBD` | `deopt <id>` | `u32 id` | `Deopt` | planned |
-| ☐ | `TBD` | `patchpoint <id>` | `u32 id` | `Patchpoint` | planned |
-| ☐ | `TBD` | `inline.cache <id>` | `u32 id` | `InlineCache` | planned |
+| ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
+| ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |
+| ✅ | pseudo | `inline.cache <id>` | `u32 id` | no-op marker | inline-cache marker alias |
 | ✅ | pseudo | `guard.type[.<T>] <type?>` | `type` | type guard sequence | runtime type guard alias |
 | ✅ | pseudo | `guard.bounds` | `none` | `CheckedBounds` | bounds guard alias |
 | ✅ | pseudo | `guard.notnull` | `none` | `CheckedNull` | non-null guard alias |
