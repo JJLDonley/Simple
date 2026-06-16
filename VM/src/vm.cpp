@@ -291,6 +291,16 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(static_cast<int32_t>(r)));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedSubI32: {
+              int32_t b = UnpackI32(Pop(stack));
+              int32_t a = UnpackI32(Pop(stack));
+              int64_t r = static_cast<int64_t>(a) - static_cast<int64_t>(b);
+              if (r < std::numeric_limits<int32_t>::min() || r > std::numeric_limits<int32_t>::max()) {
+                return Trap("CHECKED_SUB_I32 overflow");
+              }
+              Push(stack, PackI32(static_cast<int32_t>(r)));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

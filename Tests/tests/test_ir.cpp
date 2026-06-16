@@ -6602,8 +6602,23 @@ bool RunIrTextCheckedArithmeticAliasTest() {
   return RunExpectExit(module, 42);
 }
 
-bool RunIrTextCheckedArithmeticOverflowTrapTest() {
+bool RunIrTextCheckedArithmeticSubTest() {
   const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 50\n"
+      "  const i32 8\n"
+      "  checked.sub.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_sub");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedArithmeticOverflowTrapTest() {
+  const char* add_text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
       "  const i32 2147483647\n"
@@ -6612,9 +6627,20 @@ bool RunIrTextCheckedArithmeticOverflowTrapTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_overflow_trap");
-  if (module.empty()) return false;
-  return RunExpectTrap(module, "ir_text_checked_arithmetic_overflow_trap");
+  auto add_module = BuildIrTextModule(add_text, "ir_text_checked_add_overflow_trap");
+  if (add_module.empty() || !RunExpectTrap(add_module, "ir_text_checked_add_overflow_trap")) return false;
+  const char* sub_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 -2147483648\n"
+      "  const i32 1\n"
+      "  checked.sub.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto sub_module = BuildIrTextModule(sub_text, "ir_text_checked_sub_overflow_trap");
+  if (sub_module.empty()) return false;
+  return RunExpectTrap(sub_module, "ir_text_checked_sub_overflow_trap");
 }
 
 bool RunIrTextCheckedArithmeticBadTest() {
@@ -9447,6 +9473,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
+  {"ir_text_checked_arithmetic_sub", RunIrTextCheckedArithmeticSubTest},
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},

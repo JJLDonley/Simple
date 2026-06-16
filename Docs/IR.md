@@ -857,7 +857,7 @@ Checked arithmetic, bounds, null, and conversions.
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
-| ☐ | `TBD` | `checked.sub.<T>` | `none` | `CheckedSub<T>` | real opcode pending |
+| ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
 | ☐ | `TBD` | `checked.mul.<T>` | `none` | `CheckedMul<T>` | real opcode pending |
 | ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | real opcode pending |
 | ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | real opcode pending |

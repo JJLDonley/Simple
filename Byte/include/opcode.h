@@ -9,6 +9,7 @@ constexpr uint16_t kOpcodeMetadataVersion = 1;
 
 enum class ExtendedOpCode : uint16_t {
   CheckedAddI32 = 1,
+  CheckedSubI32 = 2,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

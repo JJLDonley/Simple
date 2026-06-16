@@ -486,12 +486,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
 
       if (is_extended_opcode) {
         switch (ext_opcode) {
-          case Simple::Byte::ExtendedOpCode::CheckedAddI32: {
+          case Simple::Byte::ExtendedOpCode::CheckedAddI32:
+          case Simple::Byte::ExtendedOpCode::CheckedSubI32: {
+            const char* label = ext_opcode == Simple::Byte::ExtendedOpCode::CheckedAddI32
+                                    ? "CHECKED_ADD_I32 type mismatch"
+                                    : "CHECKED_SUB_I32 type mismatch";
             ValType b = pop_type();
             ValType a = pop_type();
-            VerifyResult r1 = check_type(a, ValType::I32, "CHECKED_ADD_I32 type mismatch");
+            VerifyResult r1 = check_type(a, ValType::I32, label);
             if (!r1.ok) return r1;
-            VerifyResult r2 = check_type(b, ValType::I32, "CHECKED_ADD_I32 type mismatch");
+            VerifyResult r2 = check_type(b, ValType::I32, label);
             if (!r2.ok) return r2;
             push_type(ValType::I32);
             pc = next;
