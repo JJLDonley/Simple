@@ -4589,6 +4589,48 @@ bool RunIrTextPointerMemoryAliasBadTest() {
   return RunIrTextExpectFail(text, "ir_text_pointer_memory_alias_bad");
 }
 
+bool RunIrTextRangeIteratorAliasesTest() {
+  const char* text =
+      "func main locals=0 stack=12\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 5\n"
+      "  range.new i32\n"
+      "  range.next.i32\n"
+      "  pop\n"
+      "  iter.value i32\n"
+      "  pop\n"
+      "  const i32 2\n"
+      "  const i32 6\n"
+      "  const i32 2\n"
+      "  range.new.step.i32\n"
+      "  iter.has.next\n"
+      "  jmp.false ok\n"
+      "  pop\n"
+      "  const i32 9\n"
+      "  ret\n"
+      "ok:\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_range_iterator_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextRangeIteratorAliasBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 2\n"
+      "  range.new Missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_range_iterator_alias_bad");
+}
+
 bool RunIrTextChannelMarkerAliasesTest() {
   const char* text =
       "func main locals=0 stack=12\n"
@@ -9259,6 +9301,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_string_bytes_alias_bad", RunIrTextStringBytesAliasBadTest},
   {"ir_text_pointer_memory_aliases", RunIrTextPointerMemoryAliasesTest},
   {"ir_text_pointer_memory_alias_bad", RunIrTextPointerMemoryAliasBadTest},
+  {"ir_text_range_iterator_aliases", RunIrTextRangeIteratorAliasesTest},
+  {"ir_text_range_iterator_alias_bad", RunIrTextRangeIteratorAliasBadTest},
   {"ir_text_channel_marker_aliases", RunIrTextChannelMarkerAliasesTest},
   {"ir_text_channel_marker_bad", RunIrTextChannelMarkerBadTest},
   {"ir_text_atomic_monitor_aliases", RunIrTextAtomicMonitorAliasesTest},

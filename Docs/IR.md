@@ -899,12 +899,12 @@ Typed range/iterator bytecodes.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `range.new.<T>` | `none` | `RangeNew<T>` | planned |
-| ☐ | `TBD` | `range.new.step.<T>` | `none` | `RangeNewStep<T>` | planned |
-| ☐ | `TBD` | `range.next.<T>` | `none` | `RangeNext<T>` | planned |
-| ☐ | `TBD` | `iter.next.<T>` | `none` | `IteratorNext<T>` | planned |
-| ☐ | `TBD` | `iter.has.next` | `none` | `IteratorHasNext` | planned |
-| ☐ | `TBD` | `iter.value.<T>` | `none` | `IteratorValue<T>` | planned |
+| ✅ | pseudo | `range.new.<T>` | `none` | marker value | consumes end marker and preserves start marker |
+| ✅ | pseudo | `range.new.step.<T>` | `none` | marker value | consumes step/end markers and preserves start marker |
+| ✅ | pseudo | `range.next.<T>` | `none` | marker value + false | iterator/range next placeholder |
+| ✅ | pseudo | `iter.next.<T>` | `none` | marker value + false | iterator next placeholder |
+| ✅ | pseudo | `iter.has.next` | `none` | `ConstBool false` | iterator has-next placeholder |
+| ✅ | pseudo | `iter.value.<T>` | `none` | no-op marker | preserves iterator value marker |
 
 ### Concurrency, atomics, locks, and monitors
 

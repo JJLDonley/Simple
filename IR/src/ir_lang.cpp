@@ -2177,6 +2177,29 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConstI32(0);
         continue;
       }
+      if (parse_marker_type("range.new.step", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (parse_marker_type("range.new", &marker_type)) {
+        builder.EmitPop();
+        continue;
+      }
+      if (parse_marker_type("range.next", &marker_type) || parse_marker_type("iter.next", &marker_type)) {
+        builder.EmitDup();
+        builder.EmitConstBool(false);
+        continue;
+      }
+      if (op == "iter.has.next") {
+        if (!args.empty()) return fail("iter.has.next expects no operands");
+        builder.EmitPop();
+        builder.EmitConstBool(false);
+        continue;
+      }
+      if (parse_marker_type("iter.value", &marker_type)) {
+        continue;
+      }
       if (parse_marker_type("channel.send", &marker_type)) {
         builder.EmitPop();
         builder.EmitPop();
