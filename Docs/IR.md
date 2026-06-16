@@ -737,7 +737,7 @@ Growable list allocation and element operations.
 | ◐ | `typed` | `list.insert <T>` | `type` | `ListInsert<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ◐ | `typed` | `list.remove <T>` | `type` | `ListRemove<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC8` | `list.clear` | `none` | `ListClear` |  |
-| ☐ | `TBD` | `list.reserve` | `capacity` | `ListReserve` | planned |
+| ✅ | `0xAF` | `list.reserve` | `none` | `ListReserve` | pops list and i32 capacity |
 | ☐ | `TBD` | `list.resize` | `size fill` | `ListResize` | planned |
 
 newlist <T> SBC selection:

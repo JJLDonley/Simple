@@ -190,6 +190,7 @@ enum class OpCode : uint8_t {
   ListPopF64 = 0xAC,
   ListInsertF64 = 0xAD,
   ListRemoveF64 = 0xAE,
+  ListReserve = 0xAF,
 
   NewArray = 0xB0,
   ArrayLen = 0xB1,

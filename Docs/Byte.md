@@ -647,7 +647,7 @@ Growable list allocation and element operations. `<T>` covers every scalar paylo
 | ◐ | `typed` | `ListRemove<T>` | 0 | 2 | 1 |
 | ✅ | `0xC1` | `ListLen` | 0 | 1 | 1 |
 | ✅ | `0xC8` | `ListClear` | 0 | 1 | 0 |
-| ☐ | `TBD` | `ListReserve` | 0 | 2 | 0 |
+| ✅ | `0xAF` | `ListReserve` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ListResize` | 0 | 3 | 0 |
 
 NewList<T> codes:

@@ -7067,6 +7067,45 @@ bool RunIrTextListClearTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextListReserveTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newlist i32 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 8\n"
+      "  list.reserve\n"
+      "  ldloc 0\n"
+      "  const i32 42\n"
+      "  list.push i32\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  list.get i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_reserve");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextListReserveNegativeTrapTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  newlist i32 0\n"
+      "  const i32 -1\n"
+      "  list.reserve\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_reserve_negative_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_reserve_negative_trap");
+}
+
 bool RunIrTextCallArgsTest() {
   const char* text =
       "func add locals=2 stack=8 sig=0\n"
@@ -8006,6 +8045,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_string_missing_pool", RunIrTextConstStringMissingPoolTest},
   {"ir_text_call_missing_sig", RunIrTextCallMissingSigTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
+  {"ir_text_list_reserve", RunIrTextListReserveTest},
+  {"ir_text_list_reserve_negative_trap", RunIrTextListReserveNegativeTrapTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
   {"ir_text_call_native_opcodes", RunIrTextCallNativeOpcodesTest},

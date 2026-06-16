@@ -1280,6 +1280,24 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         WriteU32Payload(obj->payload, 0, 0);
         break;
       }
+      case OpCode::ListReserve: {
+        Slot capacity_value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_RESERVE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_RESERVE on non-list");
+        int32_t requested = UnpackI32(capacity_value);
+        if (requested < 0) return Trap("LIST_RESERVE negative capacity");
+        uint32_t capacity = static_cast<uint32_t>(requested);
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, capacity)) return Trap("runtime limit exceeded: array/list size");
+        uint32_t elem_size = 4;
+        if (obj->header.type_id < module.types.size()) {
+          TypeKind kind = static_cast<TypeKind>(module.types[obj->header.type_id].kind);
+          if (kind == TypeKind::I64 || kind == TypeKind::U64 || kind == TypeKind::F64) elem_size = 8;
+        }
+        if (!EnsureListCapacity(obj, capacity, elem_size)) return Trap("LIST_RESERVE invalid list");
+        break;
+      }
       case OpCode::StringLen: {
         Slot v = Pop(stack);
         if (IsNullRef(v)) return Trap("STRING_LEN on non-ref");
