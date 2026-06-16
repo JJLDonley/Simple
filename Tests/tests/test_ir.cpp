@@ -7067,6 +7067,60 @@ bool RunIrTextListClearTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextArrayCopyTest() {
+  const char* text =
+      "func main locals=2 stack=16\n"
+      "  enter 2\n"
+      "  newarray i32 3\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  const i32 11\n"
+      "  array.set i32\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  const i32 22\n"
+      "  array.set i32\n"
+      "  newarray i32 3\n"
+      "  stloc 1\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  ldloc 1\n"
+      "  const i32 1\n"
+      "  const i32 2\n"
+      "  array.copy\n"
+      "  ldloc 1\n"
+      "  const i32 2\n"
+      "  array.get i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_copy");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 22);
+}
+
+bool RunIrTextArrayCopyOobTrapTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newarray i32 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  const i32 2\n"
+      "  array.copy\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_copy_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_copy_oob");
+}
+
 bool RunIrTextListReserveTest() {
   const char* text =
       "func main locals=1 stack=10\n"
@@ -8107,6 +8161,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_const_string_missing_pool", RunIrTextConstStringMissingPoolTest},
   {"ir_text_call_missing_sig", RunIrTextCallMissingSigTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
+  {"ir_text_array_copy", RunIrTextArrayCopyTest},
+  {"ir_text_array_copy_oob", RunIrTextArrayCopyOobTrapTest},
   {"ir_text_list_reserve", RunIrTextListReserveTest},
   {"ir_text_list_reserve_negative_trap", RunIrTextListReserveNegativeTrapTest},
   {"ir_text_list_resize", RunIrTextListResizeTest},

@@ -32,6 +32,7 @@ enum class OpCode : uint8_t {
   Rot = 0x14,
   StringCompare = 0x15,
   StringFind = 0x16,
+  ArrayCopy = 0x17,
 
   ConstI8 = 0x18,
   ConstI16 = 0x19,

@@ -2524,6 +2524,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitArraySetRef();
         continue;
       }
+      if (op == "array.copy") {
+        builder.EmitArrayCopy();
+        continue;
+      }
       if (op == "newlist") {
         uint32_t type_id = 0;
         uint64_t cap = 0;

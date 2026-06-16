@@ -742,6 +742,40 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         WriteU32Payload(obj->payload, offset, UnpackRef(value));
         break;
       }
+      case OpCode::ArrayCopy: {
+        int32_t count = UnpackI32(Pop(stack));
+        int32_t dst_index = UnpackI32(Pop(stack));
+        Slot dst_value = Pop(stack);
+        int32_t src_index = UnpackI32(Pop(stack));
+        Slot src_value = Pop(stack);
+        if (IsNullRef(src_value) || IsNullRef(dst_value)) return Trap("ARRAY_COPY on non-ref");
+        HeapObject* src = heap.Get(UnpackRef(src_value));
+        HeapObject* dst = heap.Get(UnpackRef(dst_value));
+        if (!src || !dst || src->header.kind != ObjectKind::Array || dst->header.kind != ObjectKind::Array) {
+          return Trap("ARRAY_COPY on non-array");
+        }
+        if (src->header.type_id != dst->header.type_id) return Trap("ARRAY_COPY type mismatch");
+        uint32_t src_len = ReadU32Payload(src->payload, 0);
+        uint32_t dst_len = ReadU32Payload(dst->payload, 0);
+        if (count < 0 || src_index < 0 || dst_index < 0 ||
+            static_cast<uint32_t>(src_index) + static_cast<uint32_t>(count) > src_len ||
+            static_cast<uint32_t>(dst_index) + static_cast<uint32_t>(count) > dst_len) {
+          return Trap("ARRAY_COPY out of bounds");
+        }
+        uint32_t elem_size = 4;
+        if (src->header.type_id < module.types.size()) {
+          TypeKind kind = static_cast<TypeKind>(module.types[src->header.type_id].kind);
+          if (kind == TypeKind::I64 || kind == TypeKind::U64 || kind == TypeKind::F64) elem_size = 8;
+        }
+        size_t bytes = static_cast<size_t>(count) * elem_size;
+        size_t src_offset = HeapLayout::ArrayElementOffset(static_cast<uint32_t>(src_index), elem_size);
+        size_t dst_offset = HeapLayout::ArrayElementOffset(static_cast<uint32_t>(dst_index), elem_size);
+        if (src_offset + bytes > src->payload.size() || dst_offset + bytes > dst->payload.size()) {
+          return Trap("ARRAY_COPY invalid payload");
+        }
+        std::memmove(dst->payload.data() + dst_offset, src->payload.data() + src_offset, bytes);
+        break;
+      }
       case OpCode::NewList: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);

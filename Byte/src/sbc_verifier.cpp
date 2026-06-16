@@ -1366,6 +1366,24 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r3.ok) return r3;
           break;
         }
+        case OpCode::ArrayCopy: {
+          ValType count = pop_type();
+          ValType dst_idx = pop_type();
+          ValType dst = pop_type();
+          ValType src_idx = pop_type();
+          ValType src = pop_type();
+          VerifyResult r1 = check_type(src, ValType::Ref, "ARRAY_COPY source type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(src_idx, ValType::I32, "ARRAY_COPY source index type mismatch");
+          if (!r2.ok) return r2;
+          VerifyResult r3 = check_type(dst, ValType::Ref, "ARRAY_COPY dest type mismatch");
+          if (!r3.ok) return r3;
+          VerifyResult r4 = check_type(dst_idx, ValType::I32, "ARRAY_COPY dest index type mismatch");
+          if (!r4.ok) return r4;
+          VerifyResult r5 = check_type(count, ValType::I32, "ARRAY_COPY count type mismatch");
+          if (!r5.ok) return r5;
+          break;
+        }
         case OpCode::ListLen: {
           ValType a = pop_type();
           VerifyResult r = check_type(a, ValType::Ref, "LIST_LEN type mismatch");

@@ -41,6 +41,9 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::StringFind:
       *info = {0, 2, 1};
       return true;
+    case OpCode::ArrayCopy:
+      *info = {0, 5, 0};
+      return true;
     case OpCode::Jmp:
     case OpCode::JmpTrue:
     case OpCode::JmpFalse:
@@ -574,6 +577,7 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
     case OpCode::NewArrayF64:
     case OpCode::NewArrayRef:
     case OpCode::ArrayLen:
+    case OpCode::ArrayCopy:
     case OpCode::ArrayGetI32:
     case OpCode::ArrayGetI64:
     case OpCode::ArrayGetF32:
@@ -1036,6 +1040,7 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::StringNe: return "StringNe";
     case OpCode::StringCompare: return "StringCompare";
     case OpCode::StringFind: return "StringFind";
+    case OpCode::ArrayCopy: return "ArrayCopy";
     case OpCode::StringGetChar: return "StringGetChar";
     case OpCode::StringSlice: return "StringSlice";
     case OpCode::CallCheck: return "CallCheck";

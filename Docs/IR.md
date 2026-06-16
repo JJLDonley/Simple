@@ -689,7 +689,7 @@ Fixed-size array allocation and element access.
 | ✅ | `0xB1` | `array.len` | `none` | `ArrayLen` |  |
 | ◐ | `typed` | `array.get <T>` | `type` | `ArrayGet<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ◐ | `typed` | `array.set <T>` | `type` | `ArraySet<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ☐ | `TBD` | `array.copy <T>` | `type` | `ArrayCopy<T>` | planned |
+| ✅ | `0x17` | `array.copy` | `none` | `ArrayCopy<T>` | pops src, src index, dst, dst index, count |
 | ☐ | `TBD` | `array.fill <T>` | `type` | `ArrayFill<T>` | planned |
 
 newarray <T> SBC selection:

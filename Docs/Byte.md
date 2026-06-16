@@ -598,7 +598,7 @@ Fixed-size array allocation and element access. `<T>` covers every scalar payloa
 | ◐ | `typed` | `NewArray<T>` | 8 | 0 | 1 |
 | ◐ | `typed` | `ArrayGet<T>` | 0 | 2 | 1 |
 | ◐ | `typed` | `ArraySet<T>` | 0 | 3 | 0 |
-| ☐ | `TBD` | `ArrayCopy<T>` | 0 | 5 | 0 |
+| ✅ | `0x17` | `ArrayCopy<T>` | 0 | 5 | 0 |
 | ☐ | `TBD` | `ArrayFill<T>` | 0 | 3 | 0 |
 
 NewArray<T> codes:
