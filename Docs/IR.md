@@ -298,9 +298,9 @@ Immediate constants, constant-pool references, and planned typed data/blob const
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ◐ | `typed` | `const.<T> <value>` | `typed literal` | `Const<T>` | implemented for listed scalar/string/null forms |
-| ☐ | `TBD` | `const.bytes <const>` | `const id/name` | `ConstBytes` | planned |
-| ☐ | `TBD` | `const.data <const>` | `const id/name` | `ConstData` | planned |
-| ☐ | `TBD` | `load.dataref <const>` | `const id/name` | `LoadDataRef` | planned |
+| ✅ | pseudo | `const.bytes <const>` | `const id/name` | `ConstI32` | pushes bytes const-pool id |
+| ✅ | pseudo | `const.data <const>` | `const id/name` | `ConstI32` | pushes data const-pool id |
+| ✅ | pseudo | `load.dataref <const>` | `const id/name` | `ConstI32` | pushes data const-pool id |
 
 const.<T> codes:
 

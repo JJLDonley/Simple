@@ -1744,6 +1744,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     return true;
   };
 
+  auto resolve_blob_const_id = [&](const std::string& token,
+                                   const std::unordered_map<std::string, uint32_t>& ids,
+                                   uint32_t* out_id) -> bool {
+    uint64_t value = 0;
+    if (ParseUint(token, &value)) {
+      if (!FitsUnsigned<uint32_t>(value)) return false;
+      *out_id = static_cast<uint32_t>(value);
+      return true;
+    }
+    auto it = ids.find(token);
+    if (it == ids.end()) return false;
+    *out_id = it->second;
+    return true;
+  };
+
   auto resolve_intrinsic_id = [&](const std::string& token, uint32_t* out_id) -> bool {
     uint64_t value = 0;
     if (ParseUint(token, &value)) {
@@ -2307,6 +2322,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail("const.string expects const_id");
         }
         builder.EmitConstString(const_id);
+        continue;
+      }
+      if (op == "const.bytes" || op == "const.data" || op == "load.dataref") {
+        uint32_t const_id = 0;
+        const auto& ids = (op == "const.bytes") ? const_bytes_ids : const_data_ids;
+        if (args.size() != 1 || !resolve_blob_const_id(args[0], ids, &const_id)) {
+          return fail(op + " expects const_id");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(const_id));
         continue;
       }
       if (op == "const.null") {

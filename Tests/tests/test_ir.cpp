@@ -4966,6 +4966,44 @@ bool RunIrTextBytesDataConstRowsTest() {
   return RunExpectExit(bytes, 6);
 }
 
+bool RunIrTextBlobConstInstructionsTest() {
+  const char* text =
+      "consts:\n"
+      "  const raw bytes \"abc\"\n"
+      "  const blob data hex:010203\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const.bytes raw\n"
+      "  pop\n"
+      "  const.data blob\n"
+      "  load.dataref blob\n"
+      "  cmp.eq i32\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_blob_const_instructions");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextBlobConstInstructionBadTest() {
+  const char* text =
+      "consts:\n"
+      "  const raw bytes \"abc\"\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const.bytes missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_blob_const_instruction_bad");
+}
+
 bool RunIrTextDataConstBadHexTest() {
   const char* text =
       "consts:\n"
@@ -8770,6 +8808,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_typed_immediate_const", RunIrTextTypedImmediateConstTest},
   {"ir_text_typed_immediate_const_bad", RunIrTextTypedImmediateConstBadTest},
   {"ir_text_bytes_data_const_rows", RunIrTextBytesDataConstRowsTest},
+  {"ir_text_blob_const_instructions", RunIrTextBlobConstInstructionsTest},
+  {"ir_text_blob_const_instruction_bad", RunIrTextBlobConstInstructionBadTest},
   {"ir_text_data_const_bad_hex", RunIrTextDataConstBadHexTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_span_pseudo_instruction", RunIrTextSpanPseudoInstructionTest},
