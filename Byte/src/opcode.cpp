@@ -25,6 +25,10 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Rot:
       *info = {0, 3, 3};
       return true;
+    case OpCode::StringCompare:
+    case OpCode::StringFind:
+      *info = {0, 2, 1};
+      return true;
     case OpCode::Jmp:
     case OpCode::JmpTrue:
     case OpCode::JmpFalse:
@@ -570,6 +574,8 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
     case OpCode::StringConcat:
     case OpCode::StringEq:
     case OpCode::StringNe:
+    case OpCode::StringCompare:
+    case OpCode::StringFind:
     case OpCode::StringGetChar:
     case OpCode::StringSlice:
       value = OpTypeRule::Aggregate;
@@ -945,6 +951,8 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::StringConcat: return "StringConcat";
     case OpCode::StringEq: return "StringEq";
     case OpCode::StringNe: return "StringNe";
+    case OpCode::StringCompare: return "StringCompare";
+    case OpCode::StringFind: return "StringFind";
     case OpCode::StringGetChar: return "StringGetChar";
     case OpCode::StringSlice: return "StringSlice";
     case OpCode::CallCheck: return "CallCheck";

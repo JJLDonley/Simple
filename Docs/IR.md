@@ -822,8 +822,8 @@ String-specific operations.
 | ✅ | `0xD3` | `string.slice` | `none` | `StringSlice` |  |
 | ✅ | `0xFC` | `string.eq` | `none` | `StringEq` |  |
 | ✅ | `0xFD` | `string.ne` | `none` | `StringNe` |  |
-| ☐ | `TBD` | `string.compare` | `none` | `StringCompare` | planned |
-| ☐ | `TBD` | `string.find` | `none` | `StringFind` | planned |
+| ✅ | `0x15` | `string.compare` | `none` | `StringCompare` |  |
+| ✅ | `0x16` | `string.find` | `none` | `StringFind` |  |
 | ☐ | `TBD` | `string.to.bytes` | `none` | `StringToBytes` | planned |
 | ☐ | `TBD` | `bytes.to.string` | `none` | `BytesToString` | planned |
 

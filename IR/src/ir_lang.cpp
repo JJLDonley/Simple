@@ -2610,6 +2610,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStringNe();
         continue;
       }
+      if (op == "string.compare") {
+        builder.EmitStringCompare();
+        continue;
+      }
+      if (op == "string.find") {
+        builder.EmitStringFind();
+        continue;
+      }
       if (op == "string.get.char") {
         builder.EmitStringGetChar();
         continue;

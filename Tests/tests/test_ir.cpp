@@ -6746,6 +6746,31 @@ bool RunIrTextListRemoveRefOutOfBoundsTrapTest() {
   return RunExpectTrap(module, "ir_text_list_remove_ref_oob");
 }
 
+bool RunIrTextStringCompareFindTest() {
+  const char* text =
+      "consts:\n"
+      "  const a string \"abc\"\n"
+      "  const b string \"abd\"\n"
+      "  const needle string \"b\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string a\n"
+      "  const string b\n"
+      "  string.compare\n"
+      "  const i32 2\n"
+      "  add i32\n"
+      "  const string a\n"
+      "  const string needle\n"
+      "  string.find\n"
+      "  add i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_string_compare_find");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
 bool RunIrTextStringGetCharOobTrapTest() {
   std::vector<uint8_t> const_pool;
   uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
@@ -7730,6 +7755,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_remove_f32_oob", RunIrTextListRemoveF32OutOfBoundsTrapTest},
   {"ir_text_list_remove_f64_oob", RunIrTextListRemoveF64OutOfBoundsTrapTest},
   {"ir_text_list_remove_ref_oob", RunIrTextListRemoveRefOutOfBoundsTrapTest},
+  {"ir_text_string_compare_find", RunIrTextStringCompareFindTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
   {"ir_text_string_slice_oob", RunIrTextStringSliceOobTrapTest},
   {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},

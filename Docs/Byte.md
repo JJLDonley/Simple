@@ -735,8 +735,8 @@ String-specific operations.
 | ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
 | ☐ | `TBD` | `StringEq` | 0 | 2 | 1 |
 | ☐ | `TBD` | `StringNe` | 0 | 2 | 1 |
-| ☐ | `TBD` | `StringCompare` | 0 | 2 | 1 |
-| ☐ | `TBD` | `StringFind` | 0 | 2 | 1 |
+| ✅ | `0x15` | `StringCompare` | 0 | 2 | 1 |
+| ✅ | `0x16` | `StringFind` | 0 | 2 | 1 |
 | ☐ | `TBD` | `StringToBytes` | 0 | 1 | 1 |
 | ☐ | `TBD` | `BytesToString` | 0 | 1 | 1 |
 

@@ -441,6 +441,14 @@ void IrBuilder::EmitStringNe() {
   EmitOp(OpCode::StringNe);
 }
 
+void IrBuilder::EmitStringCompare() {
+  EmitOp(OpCode::StringCompare);
+}
+
+void IrBuilder::EmitStringFind() {
+  EmitOp(OpCode::StringFind);
+}
+
 void IrBuilder::EmitStringGetChar() {
   EmitOp(OpCode::StringGetChar);
 }

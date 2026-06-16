@@ -1298,7 +1298,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         break;
       }
       case OpCode::StringEq:
-      case OpCode::StringNe: {
+      case OpCode::StringNe:
+      case OpCode::StringCompare:
+      case OpCode::StringFind: {
         Slot b = Pop(stack);
         Slot a = Pop(stack);
         if (IsNullRef(a) || IsNullRef(b)) return Trap("STRING_COMPARE on non-ref");
@@ -1307,9 +1309,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!obj_a || !obj_b || obj_a->header.kind != ObjectKind::String || obj_b->header.kind != ObjectKind::String) {
           return Trap("STRING_COMPARE on non-string");
         }
-        bool out = ReadString(obj_a) == ReadString(obj_b);
-        if (opcode == static_cast<uint8_t>(OpCode::StringNe)) out = !out;
-        Push(stack, PackI32(out ? 1 : 0));
+        std::u16string sa = ReadString(obj_a);
+        std::u16string sb = ReadString(obj_b);
+        if (opcode == static_cast<uint8_t>(OpCode::StringCompare)) {
+          const int cmp = sa < sb ? -1 : (sa > sb ? 1 : 0);
+          Push(stack, PackI32(cmp));
+        } else if (opcode == static_cast<uint8_t>(OpCode::StringFind)) {
+          const size_t pos = sa.find(sb);
+          Push(stack, PackI32(pos == std::u16string::npos ? -1 : static_cast<int32_t>(pos)));
+        } else {
+          bool out = sa == sb;
+          if (opcode == static_cast<uint8_t>(OpCode::StringNe)) out = !out;
+          Push(stack, PackI32(out ? 1 : 0));
+        }
         break;
       }
       case OpCode::StringGetChar: {

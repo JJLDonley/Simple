@@ -22,6 +22,8 @@ enum class OpCode : uint8_t {
   Dup2 = 0x12,
   Swap = 0x13,
   Rot = 0x14,
+  StringCompare = 0x15,
+  StringFind = 0x16,
 
   ConstI8 = 0x18,
   ConstI16 = 0x19,
