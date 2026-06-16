@@ -4415,6 +4415,63 @@ bool RunIrTextModuleInitOpsTest() {
   return saw_global && saw_module && saw_ensure && RunExpectExit(module, 3);
 }
 
+bool RunIrTextExceptionMarkerAliasesTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  catch handler\n"
+      "  finally done\n"
+      "  const i32 5\n"
+      "  ret\n"
+      "handler:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "done:\n"
+      "  const i32 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_exception_marker_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 5);
+}
+
+bool RunIrTextThrowPanicTrapTest() {
+  const char* throw_text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  throw\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto throw_module = BuildIrTextModule(throw_text, "ir_text_throw_trap");
+  if (throw_module.empty() || !RunExpectTrap(throw_module, "ir_text_throw_trap")) return false;
+  const char* panic_text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  panic\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto panic_module = BuildIrTextModule(panic_text, "ir_text_panic_trap");
+  if (panic_module.empty()) return false;
+  return RunExpectTrap(panic_module, "ir_text_panic_trap");
+}
+
+bool RunIrTextCatchUnknownLabelFailsTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  catch missing\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_catch_unknown_label_fails");
+}
+
 bool RunIrTextJitMarkerAliasesTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -8940,6 +8997,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
+  {"ir_text_exception_marker_aliases", RunIrTextExceptionMarkerAliasesTest},
+  {"ir_text_throw_panic_trap", RunIrTextThrowPanicTrapTest},
+  {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
   {"ir_text_jit_marker_aliases", RunIrTextJitMarkerAliasesTest},
   {"ir_text_jit_marker_bad", RunIrTextJitMarkerBadTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},

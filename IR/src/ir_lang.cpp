@@ -2772,6 +2772,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitBoolOr();
         continue;
       }
+      if (op == "throw" || op == "panic") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitOp(Simple::IR::OpCode::Trap);
+        continue;
+      }
+      if (op == "catch" || op == "finally") {
+        if (args.size() != 1 || !IsValidLabelName(args[0])) {
+          return fail(op + " expects label");
+        }
+        if (labels.find(args[0]) == labels.end()) {
+          return fail("unknown label: " + args[0]);
+        }
+        continue;
+      }
       if (op == "jmp") {
         if (args.size() != 1) {
           return fail("jmp expects label");

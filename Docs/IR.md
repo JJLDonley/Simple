@@ -888,10 +888,10 @@ Tagged data and error operations.
 | ☐ | `TBD` | `result.is.err` | `none` | `ResultIsErr` | planned |
 | ☐ | `TBD` | `result.unwrap.<T>` | `none` | `ResultUnwrap<T>` | planned |
 | ☐ | `TBD` | `result.propagate.err` | `none` | `ResultPropagateErr` | planned |
-| ☐ | `TBD` | `throw` | `none` | `Throw` | planned |
-| ☐ | `TBD` | `catch <label>` | `label` | `Catch` | planned |
-| ☐ | `TBD` | `finally <label>` | `label` | `Finally` | planned |
-| ☐ | `TBD` | `panic` | `none` | `Panic` | planned |
+| ✅ | pseudo | `throw` | `none` | `Trap` | exception throw marker traps in current VM |
+| ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
+| ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |
+| ✅ | pseudo | `panic` | `none` | `Trap` | panic marker traps in current VM |
 
 ### Range and iterators
 

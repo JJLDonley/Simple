@@ -801,10 +801,10 @@ Enum/variant/result/error operations. Plain integer-like enums may still lower t
 | ☐ | `TBD` | `ResultIsErr` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ResultUnwrap<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ResultPropagateErr` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Throw` | 0 | 1 | 0 |
-| ☐ | `TBD` | `Catch` | 4 | 0 | 0 |
-| ☐ | `TBD` | `Finally` | 4 | 0 | 0 |
-| ☐ | `TBD` | `Panic` | 0 | 1 | 0 |
+| ✅ | pseudo | `Throw` | 0 | 1 | 0 |
+| ✅ | pseudo | `Catch` | 4 | 0 | 0 |
+| ✅ | pseudo | `Finally` | 4 | 0 | 0 |
+| ✅ | pseudo | `Panic` | 0 | 1 | 0 |
 
 ### Range and iterators
 
