@@ -1502,13 +1502,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitLine(static_cast<uint32_t>(line), static_cast<uint32_t>(column));
         continue;
       }
-      if (op == "profile.start" || op == "profile.end") {
+      if (op == "profile.start" || op == "profile.end" || op == "trace.enter" || op == "trace.leave") {
         uint64_t id = 0;
         if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
           return fail(op + " expects id");
         }
         if (op == "profile.start") builder.EmitProfileStart(static_cast<uint32_t>(id));
-        else builder.EmitProfileEnd(static_cast<uint32_t>(id));
+        else if (op == "profile.end") builder.EmitProfileEnd(static_cast<uint32_t>(id));
+        else if (op == "trace.enter") builder.EmitTraceEnter(static_cast<uint32_t>(id));
+        else builder.EmitTraceLeave(static_cast<uint32_t>(id));
+        continue;
+      }
+      if (op == "stacktrace") {
+        if (!args.empty()) return fail("stacktrace expects no operands");
+        builder.EmitStackTrace();
         continue;
       }
       if (op == "pop") {

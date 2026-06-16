@@ -1377,6 +1377,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         ReadU32(module.code, pc);
         break;
       }
+      case OpCode::TraceEnter:
+      case OpCode::TraceLeave: {
+        ReadU32(module.code, pc);
+        break;
+      }
+      case OpCode::StackTrace: {
+        std::ostringstream trace;
+        trace << "func#" << current.func_index << ":" << current.line << ":" << current.column;
+        for (auto it = call_stack.rbegin(); it != call_stack.rend(); ++it) {
+          trace << "\nfunc#" << it->func_index << ":" << it->line << ":" << it->column;
+        }
+        uint32_t handle = CreateString(heap, AsciiToU16(trace.str()));
+        if (handle == 0xFFFFFFFFu) return Trap("STACKTRACE allocation failed");
+        Push(stack, PackRef(handle));
+        break;
+      }
       case OpCode::Intrinsic: {
         uint32_t id = ReadU32(module.code, pc);
         switch (id) {

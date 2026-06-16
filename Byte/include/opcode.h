@@ -41,6 +41,9 @@ enum class OpCode : uint8_t {
   ConstChar = 0x25,
   ConstString = 0x26,
   ConstNull = 0x27,
+  StackTrace = 0x28,
+  TraceEnter = 0x29,
+  TraceLeave = 0x2A,
 
   LoadLocal = 0x30,
   StoreLocal = 0x31,

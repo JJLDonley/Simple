@@ -649,9 +649,9 @@ Line/profile markers and runtime/native escape hatches.
 | ✅ | `0x90` | `intrinsic <id>` | `u32 id` | `Intrinsic` |  |
 | ✅ | `0x91` | `syscall <id>` | `u32 id` | `SysCall` |  |
 | ☐ | `TBD` | `span <file> <start> <end>` | `source span` | `Span` | planned |
-| ☐ | `TBD` | `trace.enter <id>` | `u32 id` | `TraceEnter` | planned |
-| ☐ | `TBD` | `trace.leave <id>` | `u32 id` | `TraceLeave` | planned |
-| ☐ | `TBD` | `stacktrace` | `none` | `StackTrace` | planned |
+| ✅ | `0x29` | `trace.enter <id>` | `u32 id` | `TraceEnter` |  |
+| ✅ | `0x2A` | `trace.leave <id>` | `u32 id` | `TraceLeave` |  |
+| ✅ | `0x28` | `stacktrace` | `none` | `StackTrace` |  |
 
 ### Objects, closures, refs, and fields
 

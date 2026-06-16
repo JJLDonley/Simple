@@ -65,6 +65,9 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ConstNull:
       *info = {0, 0, 1};
       return true;
+    case OpCode::StackTrace:
+      *info = {0, 0, 1};
+      return true;
     case OpCode::LoadLocal:
     case OpCode::StoreLocal:
     case OpCode::LoadGlobal:
@@ -214,6 +217,8 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
       return true;
     case OpCode::ProfileStart:
     case OpCode::ProfileEnd:
+    case OpCode::TraceEnter:
+    case OpCode::TraceLeave:
     case OpCode::Intrinsic:
     case OpCode::SysCall:
       *info = {4, 0, 0};
@@ -372,6 +377,9 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
   if (!GetOpInfo(opcode, &info)) return false;
   OpTypeRule value = OpTypeRule::None;
   switch (static_cast<OpCode>(opcode)) {
+    case OpCode::StackTrace:
+      value = OpTypeRule::Ref;
+      break;
     case OpCode::ConstI8:
     case OpCode::ConstI16:
     case OpCode::ConstI32:
@@ -659,6 +667,8 @@ bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
              opcode == static_cast<uint8_t>(OpCode::Line) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileEnd) ||
+             opcode == static_cast<uint8_t>(OpCode::TraceEnter) ||
+             opcode == static_cast<uint8_t>(OpCode::TraceLeave) ||
              opcode == static_cast<uint8_t>(OpCode::Enter)) {
     value = OpVerifierRule::Structural;
   }
@@ -791,6 +801,9 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::ConstChar: return "ConstChar";
     case OpCode::ConstString: return "ConstString";
     case OpCode::ConstNull: return "ConstNull";
+    case OpCode::StackTrace: return "StackTrace";
+    case OpCode::TraceEnter: return "TraceEnter";
+    case OpCode::TraceLeave: return "TraceLeave";
     case OpCode::LoadLocal: return "LoadLocal";
     case OpCode::StoreLocal: return "StoreLocal";
     case OpCode::LoadGlobal: return "LoadGlobal";

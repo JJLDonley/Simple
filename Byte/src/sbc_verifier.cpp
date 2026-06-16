@@ -1731,6 +1731,12 @@ VerifyResult VerifyModule(const SbcModule& module) {
           push_type(ValType::Ref);
           break;
         }
+        case OpCode::TraceEnter:
+        case OpCode::TraceLeave:
+          break;
+        case OpCode::StackTrace:
+          push_type(ValType::Ref);
+          break;
         case OpCode::Intrinsic: {
           uint32_t id = 0;
           if (!ReadU32(code, pc + 1, &id)) return fail_at("INTRINSIC id out of bounds", pc, opcode);

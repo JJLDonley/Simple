@@ -559,9 +559,9 @@ Line/profile markers plus VM runtime/native escape hatches.
 | ✅ | `0x90` | `Intrinsic` | 4 | 0 | 0 |
 | ✅ | `0x91` | `SysCall` | 4 | 0 | 0 |
 | ☐ | `TBD` | `Span` | 16 | 0 | 0 |
-| ☐ | `TBD` | `TraceEnter` | 4 | 0 | 0 |
-| ☐ | `TBD` | `TraceLeave` | 4 | 0 | 0 |
-| ☐ | `TBD` | `StackTrace` | 0 | 0 | 1 |
+| ✅ | `0x29` | `TraceEnter` | 4 | 0 | 0 |
+| ✅ | `0x2A` | `TraceLeave` | 4 | 0 | 0 |
+| ✅ | `0x28` | `StackTrace` | 0 | 0 | 1 |
 
 ### Objects, closures, refs, and fields
 

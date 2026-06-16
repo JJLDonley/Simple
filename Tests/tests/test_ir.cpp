@@ -4031,6 +4031,33 @@ bool RunIrTextCommentInStringConstTest() {
   return RunExpectExit(module, 18);
 }
 
+bool RunIrTextTraceOpcodesTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  line 8 9\n"
+      "  trace.enter 1\n"
+      "  stacktrace\n"
+      "  string.len\n"
+      "  trace.leave 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_trace_opcodes");
+  if (module.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) return false;
+  bool saw_stacktrace = false;
+  bool saw_enter = false;
+  bool saw_leave = false;
+  for (uint8_t byte : load.module.code) {
+    saw_stacktrace = saw_stacktrace || byte == static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace);
+    saw_enter = saw_enter || byte == static_cast<uint8_t>(Simple::Byte::OpCode::TraceEnter);
+    saw_leave = saw_leave || byte == static_cast<uint8_t>(Simple::Byte::OpCode::TraceLeave);
+  }
+  return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
+}
+
 bool RunIrTextConstBoolTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -7599,6 +7626,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_control_runtime_opcodes", RunIrTextControlRuntimeOpcodesTest},
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
+  {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
   {"ir_text_const_bool", RunIrTextConstBoolTest},
   {"ir_text_const_char", RunIrTextConstCharTest},
   {"ir_text_array_len", RunIrTextArrayLenTest},

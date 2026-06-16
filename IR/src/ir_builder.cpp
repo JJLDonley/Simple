@@ -171,6 +171,20 @@ void IrBuilder::EmitProfileEnd(uint32_t id) {
   EmitU32(id);
 }
 
+void IrBuilder::EmitTraceEnter(uint32_t id) {
+  EmitOp(OpCode::TraceEnter);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitTraceLeave(uint32_t id) {
+  EmitOp(OpCode::TraceLeave);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitStackTrace() {
+  EmitOp(OpCode::StackTrace);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);
