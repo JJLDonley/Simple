@@ -219,6 +219,14 @@ void IrBuilder::EmitExitSandbox() {
   EmitOp(OpCode::ExitSandbox);
 }
 
+void IrBuilder::EmitYield() {
+  EmitOp(OpCode::Yield);
+}
+
+void IrBuilder::EmitFence() {
+  EmitOp(OpCode::Fence);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);

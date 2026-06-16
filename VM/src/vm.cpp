@@ -1390,6 +1390,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       case OpCode::AllocCheckpoint:
       case OpCode::ExitSandbox:
         break;
+      case OpCode::Yield:
+        Simple::VM::Native::Thread::Yield();
+        break;
+      case OpCode::Fence:
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        break;
       case OpCode::CheckCapability:
       case OpCode::EnterSandbox:
         ReadU32(module.code, pc);

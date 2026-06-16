@@ -11,6 +11,8 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Safepoint:
     case OpCode::AllocCheckpoint:
     case OpCode::ExitSandbox:
+    case OpCode::Yield:
+    case OpCode::Fence:
       *info = {0, 0, 0};
       return true;
     case OpCode::CheckCapability:
@@ -708,6 +710,8 @@ bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
              opcode == static_cast<uint8_t>(OpCode::CheckCapability) ||
              opcode == static_cast<uint8_t>(OpCode::EnterSandbox) ||
              opcode == static_cast<uint8_t>(OpCode::ExitSandbox) ||
+             opcode == static_cast<uint8_t>(OpCode::Yield) ||
+             opcode == static_cast<uint8_t>(OpCode::Fence) ||
              opcode == static_cast<uint8_t>(OpCode::Line) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileEnd) ||
@@ -830,6 +834,8 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::CheckCapability: return "CheckCapability";
     case OpCode::EnterSandbox: return "EnterSandbox";
     case OpCode::ExitSandbox: return "ExitSandbox";
+    case OpCode::Yield: return "Yield";
+    case OpCode::Fence: return "Fence";
     case OpCode::Pop: return "Pop";
     case OpCode::Dup: return "Dup";
     case OpCode::Dup2: return "Dup2";

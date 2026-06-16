@@ -22,6 +22,8 @@ enum class OpCode : uint8_t {
   CheckCapability = 0x0B,
   EnterSandbox = 0x0C,
   ExitSandbox = 0x0D,
+  Yield = 0x0E,
+  Fence = 0x0F,
 
   Pop = 0x10,
   Dup = 0x11,

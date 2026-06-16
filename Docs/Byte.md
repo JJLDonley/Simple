@@ -829,7 +829,7 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ☐ | `TBD` | `Join` | 0 | 1 | 1 |
 | ☐ | `TBD` | `Detach` | 0 | 1 | 0 |
 | ☐ | `TBD` | `Await` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Yield` | 0 | 0 | 0 |
+| ✅ | `0x0E` | `Yield` | 0 | 0 | 0 |
 | ☐ | `TBD` | `Resume` | 0 | 1 | 0 |
 | ☐ | `TBD` | `Suspend` | 0 | 0 | 1 |
 | ☐ | `TBD` | `MakeFuture` | 4 | 0 | 1 |
@@ -842,7 +842,7 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ☐ | `TBD` | `AtomicAdd<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `AtomicSub<T>` | 0 | 2 | 1 |
 | ☐ | `TBD` | `AtomicCompareExchange<T>` | 0 | 3 | 1 |
-| ☐ | `TBD` | `Fence` | 0 | 0 | 0 |
+| ✅ | `0x0F` | `Fence` | 0 | 0 | 0 |
 
 ### Locks and monitors
 

@@ -4058,6 +4058,29 @@ bool RunIrTextTraceOpcodesTest() {
   return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
 }
 
+bool RunIrTextConcurrencyMarkerOpsTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  yield\n"
+      "  fence\n"
+      "  const i32 6\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_ops");
+  if (module.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) return false;
+  bool saw_yield = false;
+  bool saw_fence = false;
+  for (uint8_t byte : load.module.code) {
+    saw_yield = saw_yield || byte == static_cast<uint8_t>(Simple::Byte::OpCode::Yield);
+    saw_fence = saw_fence || byte == static_cast<uint8_t>(Simple::Byte::OpCode::Fence);
+  }
+  return saw_yield && saw_fence && RunExpectExit(module, 6);
+}
+
 bool RunIrTextCapabilitySandboxOpsTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -7807,6 +7830,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
+  {"ir_text_concurrency_marker_ops", RunIrTextConcurrencyMarkerOpsTest},
   {"ir_text_capability_sandbox_ops", RunIrTextCapabilitySandboxOpsTest},
   {"ir_text_gc_runtime_ops", RunIrTextGcRuntimeOpsTest},
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},

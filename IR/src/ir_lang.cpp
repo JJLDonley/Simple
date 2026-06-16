@@ -1557,6 +1557,16 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExitSandbox();
         continue;
       }
+      if (op == "yield") {
+        if (!args.empty()) return fail("yield expects no operands");
+        builder.EmitYield();
+        continue;
+      }
+      if (op == "fence") {
+        if (!args.empty()) return fail("fence expects no operands");
+        builder.EmitFence();
+        continue;
+      }
       if (op == "pop") {
         builder.EmitPop();
         continue;

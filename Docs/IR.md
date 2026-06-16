@@ -916,7 +916,7 @@ Thread/job/channel/atomic/monitor operations.
 | ☐ | `TBD` | `join` | `none` | `Join` | planned |
 | ☐ | `TBD` | `detach` | `none` | `Detach` | planned |
 | ☐ | `TBD` | `await` | `none` | `Await` | planned |
-| ☐ | `TBD` | `yield` | `none` | `Yield` | planned |
+| ✅ | `0x0E` | `yield` | `none` | `Yield` | scheduler yield marker |
 | ☐ | `TBD` | `resume` | `none` | `Resume` | planned |
 | ☐ | `TBD` | `suspend` | `none` | `Suspend` | planned |
 | ☐ | `TBD` | `future.make <func>` | `function` | `MakeFuture` | planned |
@@ -929,7 +929,7 @@ Thread/job/channel/atomic/monitor operations.
 | ☐ | `TBD` | `atomic.add.<T>` | `none` | `AtomicAdd<T>` | planned |
 | ☐ | `TBD` | `atomic.sub.<T>` | `none` | `AtomicSub<T>` | planned |
 | ☐ | `TBD` | `atomic.cmpxchg.<T>` | `none` | `AtomicCompareExchange<T>` | planned |
-| ☐ | `TBD` | `fence` | `none` | `Fence` | planned |
+| ✅ | `0x0F` | `fence` | `none` | `Fence` | sequentially consistent VM fence |
 | ☐ | `TBD` | `lock` | `none` | `Lock` | planned |
 | ☐ | `TBD` | `unlock` | `none` | `Unlock` | planned |
 | ☐ | `TBD` | `trylock` | `none` | `TryLock` | planned |
