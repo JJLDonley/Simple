@@ -278,6 +278,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     if (error) *error = "output module is null";
     return false;
   }
+  out->module_name.clear();
   out->functions.clear();
   out->types.clear();
   out->sigs.clear();
@@ -308,6 +309,21 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     line_no++;
     std::string line = Trim(StripComment(raw));
     if (line.empty()) continue;
+
+    if (line.rfind("module ", 0) == 0) {
+      if (current) {
+        if (error) *error = "module declaration inside function at line " + std::to_string(line_no);
+        return false;
+      }
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() != 2 || !IsValidLabelName(tokens[1])) {
+        if (error) *error = "module expects name at line " + std::to_string(line_no);
+        return false;
+      }
+      out->module_name = tokens[1];
+      section = Section::None;
+      continue;
+    }
 
     if (line == "types:") {
       section = Section::Types;
@@ -722,6 +738,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   out->globals_bytes.clear();
   out->imports_bytes.clear();
   out->exports_bytes.clear();
+  out->module_bytes.clear();
+  out->data_bytes.clear();
+  out->capabilities_bytes.clear();
   out->debug_bytes.clear();
   out->entry_method_id = text.entry_index;
 
@@ -1107,6 +1126,11 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     Simple::Byte::sbc::AppendU32(out->fields_bytes, row.type_id);
     Simple::Byte::sbc::AppendU32(out->fields_bytes, row.offset);
     Simple::Byte::sbc::AppendU32(out->fields_bytes, row.flags);
+  }
+
+  if (!text.module_name.empty()) {
+    Simple::Byte::sbc::AppendU32(out->module_bytes, add_name(text.module_name));
+    Simple::Byte::sbc::AppendU32(out->module_bytes, 0);
   }
 
   out->const_pool = const_pool;

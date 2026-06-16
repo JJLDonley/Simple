@@ -111,6 +111,15 @@ bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string
   if (!module.exports_bytes.empty()) {
     sections.push_back({11, module.exports_bytes, static_cast<uint32_t>(module.exports_bytes.size() / 16), 0});
   }
+  if (!module.module_bytes.empty()) {
+    sections.push_back({12, module.module_bytes, 1, 0});
+  }
+  if (!module.data_bytes.empty()) {
+    sections.push_back({13, module.data_bytes, 0, 0});
+  }
+  if (!module.capabilities_bytes.empty()) {
+    sections.push_back({14, module.capabilities_bytes, static_cast<uint32_t>(module.capabilities_bytes.size() / 8), 0});
+  }
   sections.push_back({8, code, 0, 0});
   if (!module.debug_bytes.empty()) {
     sections.push_back({9, module.debug_bytes, 0, 0});

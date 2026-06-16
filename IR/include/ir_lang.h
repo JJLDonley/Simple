@@ -83,6 +83,7 @@ struct IrTextImport {
 };
 
 struct IrTextModule {
+  std::string module_name;
   std::vector<IrTextType> types;
   std::vector<IrTextSig> sigs;
   std::vector<IrTextConst> consts;

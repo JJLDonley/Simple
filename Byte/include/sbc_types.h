@@ -42,6 +42,9 @@ enum class SectionId : uint32_t {
   Debug = 9,
   Imports = 10,
   Exports = 11,
+  Module = 12,
+  Data = 13,
+  Capabilities = 14,
 };
 
 enum class TypeKind : uint8_t {
@@ -162,6 +165,9 @@ struct SbcModule {
   std::vector<FunctionRow> functions;
   std::vector<ImportRow> imports;
   std::vector<ExportRow> exports;
+  std::vector<uint8_t> module_metadata;
+  std::vector<uint8_t> data;
+  std::vector<uint8_t> capabilities;
   std::vector<uint8_t> function_is_import;
   std::vector<uint32_t> param_types;
   std::vector<uint8_t> code;

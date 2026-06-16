@@ -144,7 +144,7 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
     if (entry.offset + entry.size > bytes.size()) return Fail("section out of bounds");
     if (!seen_ids.insert(entry.id).second) return Fail("duplicate section id");
     if (entry.id < static_cast<uint32_t>(SectionId::Types) ||
-        entry.id > static_cast<uint32_t>(SectionId::Exports)) {
+        entry.id > static_cast<uint32_t>(SectionId::Capabilities)) {
       return Fail("unknown section id");
     }
     module.sections[i] = entry;
@@ -171,6 +171,9 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
   const SectionEntry* debug = FindSection(module.sections, SectionId::Debug);
   const SectionEntry* imports = FindSection(module.sections, SectionId::Imports);
   const SectionEntry* exports = FindSection(module.sections, SectionId::Exports);
+  const SectionEntry* module_meta = FindSection(module.sections, SectionId::Module);
+  const SectionEntry* data = FindSection(module.sections, SectionId::Data);
+  const SectionEntry* capabilities = FindSection(module.sections, SectionId::Capabilities);
 
   if (types) {
     constexpr size_t kRowSize = 20;
@@ -372,6 +375,28 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 8, &row.flags)) return Fail("export row read failed");
       if (!ReadU32At(bytes, off + 12, &row.reserved)) return Fail("export row read failed");
       module.exports[i] = row;
+    }
+  }
+
+  if (module_meta) {
+    if (module_meta->count != 0 && module_meta->count != 1) return Fail("module section count invalid");
+    if (module_meta->size % 4 != 0) return Fail("module section size invalid");
+    if (!ReadBytes(bytes, module_meta->offset, module_meta->size, &module.module_metadata)) {
+      return Fail("failed to read module section");
+    }
+  }
+
+  if (data) {
+    if (data->size % 4 != 0) return Fail("data section size invalid");
+    if (!ReadBytes(bytes, data->offset, data->size, &module.data)) {
+      return Fail("failed to read data section");
+    }
+  }
+
+  if (capabilities) {
+    if (capabilities->size % 4 != 0) return Fail("capabilities section size invalid");
+    if (!ReadBytes(bytes, capabilities->offset, capabilities->size, &module.capabilities)) {
+      return Fail("failed to read capabilities section");
     }
   }
 
@@ -724,6 +749,13 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         if (type_id >= module.types.size()) return Fail("signature param type id out of range");
       }
     }
+  }
+  if (!module.module_metadata.empty()) {
+    if (module.const_pool.empty()) return Fail("module section requires const pool");
+    if (module.module_metadata.size() < 4) return Fail("module section too small");
+    uint32_t name_str = 0;
+    if (!ReadU32At(module.module_metadata, 0, &name_str)) return Fail("module section read failed");
+    if (!IsValidStringOffset(module.const_pool, name_str)) return Fail("module name offset invalid");
   }
   if (!module.imports.empty()) {
     if (module.const_pool.empty()) return Fail("imports require const pool");

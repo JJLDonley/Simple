@@ -79,9 +79,9 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `9` | `Debug` | `DebugHeader` + debug rows | source/debug metadata |
 | ✅ | `10` | `Imports` | `ImportRow` | external symbols |
 | ✅ | `11` | `Exports` | `ExportRow` | exported functions |
-| ☐ | TBD | `Module` | module metadata | planned module identity |
-| ☐ | TBD | `Data` | typed blob rows | planned immutable data section |
-| ☐ | TBD | `Capabilities` | capability rows | planned sandbox/security metadata |
+| ✅ | `12` | `Module` | module metadata | module identity |
+| ✅ | `13` | `Data` | typed blob rows | immutable data section payload |
+| ✅ | `14` | `Capabilities` | capability rows | sandbox/security metadata payload |
 
 ## Binary type codes
 
@@ -130,7 +130,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `DebugFileRow` | `file_name_str`, `file_hash` |
 | ✅ | `DebugLineRow` | `method_id`, `code_offset`, `file_id`, `line`, `column` |
 | ✅ | `DebugSymRow` | `kind`, `owner_id`, `symbol_id`, `name_str` |
-| ☐ | planned | module/data/capability/type-extension rows |
+| ✅ | planned | module/data/capability raw payload sections |
 
 ## SBC constants, imports, and debug contracts
 

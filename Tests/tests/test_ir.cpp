@@ -4179,6 +4179,55 @@ bool RunIrTextObjectCloneNullTrapTest() {
   return RunExpectTrap(module, "ir_text_object_clone_null_trap");
 }
 
+bool RunIrCompileRawMetadataSectionsTest() {
+  Simple::IR::IrBuilder builder;
+  builder.EmitEnter(0);
+  builder.EmitConstI32(6);
+  builder.EmitRet();
+  std::vector<uint8_t> code;
+  std::string error;
+  if (!builder.Finish(&code, &error)) return false;
+
+  Simple::IR::IrModule module;
+  Simple::IR::IrFunction func;
+  func.code = std::move(code);
+  func.stack_max = 4;
+  module.functions.push_back(std::move(func));
+  uint32_t name_offset = static_cast<uint32_t>(AppendStringToPool(module.const_pool, "rawmeta"));
+  uint32_t dummy_const = 0;
+  AppendConstString(module.const_pool, name_offset, &dummy_const);
+  AppendU32(module.module_bytes, name_offset);
+  AppendU32(module.module_bytes, 0);
+  AppendU32(module.data_bytes, 0x12345678u);
+  AppendU32(module.capabilities_bytes, 7);
+  AppendU32(module.capabilities_bytes, 0);
+
+  std::vector<uint8_t> bytes;
+  if (!Simple::IR::CompileToSbc(module, &bytes, &error)) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  return load.module.module_metadata.size() == 8 && load.module.data.size() == 4 &&
+         load.module.capabilities.size() == 8 && RunExpectExit(bytes, 6);
+}
+
+bool RunIrTextModuleMetadataSectionTest() {
+  const char* text =
+      "module sample\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 5\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_module_metadata_section");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  if (load.module.module_metadata.size() != 8) return false;
+  uint32_t name_offset = Simple::Byte::sbc::ReadU32At(load.module.module_metadata, 0);
+  return name_offset < load.module.const_pool.size() && RunExpectExit(bytes, 5);
+}
+
 bool RunIrTextModuleInitOpsTest() {
   const char* text =
       "globals:\n"
@@ -8028,6 +8077,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_gc_runtime_ops", RunIrTextGcRuntimeOpsTest},
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
   {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
+  {"ir_compile_raw_metadata_sections", RunIrCompileRawMetadataSectionsTest},
+  {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
   {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},

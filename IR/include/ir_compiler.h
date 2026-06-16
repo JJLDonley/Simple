@@ -27,6 +27,9 @@ struct IrModule {
   std::vector<uint8_t> globals_bytes;
   std::vector<uint8_t> imports_bytes;
   std::vector<uint8_t> exports_bytes;
+  std::vector<uint8_t> module_bytes;
+  std::vector<uint8_t> data_bytes;
+  std::vector<uint8_t> capabilities_bytes;
   std::vector<uint8_t> debug_bytes;
 
   uint32_t entry_method_id = 0;
