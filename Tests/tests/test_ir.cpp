@@ -4472,6 +4472,43 @@ bool RunIrTextCatchUnknownLabelFailsTest() {
   return RunIrTextExpectFail(text, "ir_text_catch_unknown_label_fails");
 }
 
+bool RunIrTextConcurrencyMarkerAliasesTest() {
+  const char* text =
+      "func worker locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 99\n"
+      "  ret\n"
+      "end\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  spawn worker\n"
+      "  detach\n"
+      "  future.make worker\n"
+      "  await\n"
+      "  pop\n"
+      "  suspend\n"
+      "  resume\n"
+      "  future.make worker\n"
+      "  future.poll\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 0);
+}
+
+bool RunIrTextConcurrencyMarkerBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  spawn missing\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_concurrency_marker_bad");
+}
+
 bool RunIrTextJitMarkerAliasesTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -9000,6 +9037,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_exception_marker_aliases", RunIrTextExceptionMarkerAliasesTest},
   {"ir_text_throw_panic_trap", RunIrTextThrowPanicTrapTest},
   {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
+  {"ir_text_concurrency_marker_aliases", RunIrTextConcurrencyMarkerAliasesTest},
+  {"ir_text_concurrency_marker_bad", RunIrTextConcurrencyMarkerBadTest},
   {"ir_text_jit_marker_aliases", RunIrTextJitMarkerAliasesTest},
   {"ir_text_jit_marker_bad", RunIrTextJitMarkerBadTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},

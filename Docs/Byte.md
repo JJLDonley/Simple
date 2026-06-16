@@ -825,15 +825,15 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `Spawn` | 4 | 0 | 1 |
-| ☐ | `TBD` | `Join` | 0 | 1 | 1 |
-| ☐ | `TBD` | `Detach` | 0 | 1 | 0 |
-| ☐ | `TBD` | `Await` | 0 | 1 | 1 |
+| ✅ | pseudo | `Spawn` | 4 | 0 | 1 |
+| ✅ | pseudo | `Join` | 0 | 1 | 1 |
+| ✅ | pseudo | `Detach` | 0 | 1 | 0 |
+| ✅ | pseudo | `Await` | 0 | 1 | 1 |
 | ✅ | `0x0E` | `Yield` | 0 | 0 | 0 |
-| ☐ | `TBD` | `Resume` | 0 | 1 | 0 |
-| ☐ | `TBD` | `Suspend` | 0 | 0 | 1 |
-| ☐ | `TBD` | `MakeFuture` | 4 | 0 | 1 |
-| ☐ | `TBD` | `PollFuture` | 0 | 1 | 2 |
+| ✅ | pseudo | `Resume` | 0 | 1 | 0 |
+| ✅ | pseudo | `Suspend` | 0 | 0 | 1 |
+| ✅ | pseudo | `MakeFuture` | 4 | 0 | 1 |
+| ✅ | pseudo | `PollFuture` | 0 | 1 | 2 |
 | ☐ | `TBD` | `ChannelSend<T>` | 0 | 2 | 0 |
 | ☐ | `TBD` | `ChannelRecv<T>` | 0 | 1 | 1 |
 | ☐ | `TBD` | `ChannelTryRecv<T>` | 0 | 1 | 2 |

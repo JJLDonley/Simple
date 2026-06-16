@@ -912,15 +912,15 @@ Thread/job/channel/atomic/monitor operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `spawn <func>` | `function` | `Spawn` | planned |
-| ☐ | `TBD` | `join` | `none` | `Join` | planned |
-| ☐ | `TBD` | `detach` | `none` | `Detach` | planned |
-| ☐ | `TBD` | `await` | `none` | `Await` | planned |
+| ✅ | pseudo | `spawn <func>` | `function` | `ConstI32` | task marker returns function id handle |
+| ✅ | pseudo | `join` | `none` | no-op marker | preserves handle/result marker |
+| ✅ | pseudo | `detach` | `none` | `Pop` | consumes task marker handle |
+| ✅ | pseudo | `await` | `none` | no-op marker | preserves awaited marker value |
 | ✅ | `0x0E` | `yield` | `none` | `Yield` | scheduler yield marker |
-| ☐ | `TBD` | `resume` | `none` | `Resume` | planned |
-| ☐ | `TBD` | `suspend` | `none` | `Suspend` | planned |
-| ☐ | `TBD` | `future.make <func>` | `function` | `MakeFuture` | planned |
-| ☐ | `TBD` | `future.poll` | `none` | `PollFuture` | planned |
+| ✅ | pseudo | `resume` | `none` | `Pop` | consumes continuation marker |
+| ✅ | pseudo | `suspend` | `none` | `Yield` + `ConstI32` | yields and returns placeholder continuation |
+| ✅ | pseudo | `future.make <func>` | `function` | `ConstI32` | future marker returns function id handle |
+| ✅ | pseudo | `future.poll` | `none` | no-op marker | preserves future marker value |
 | ☐ | `TBD` | `channel.send.<T>` | `none` | `ChannelSend<T>` | planned |
 | ☐ | `TBD` | `channel.recv.<T>` | `none` | `ChannelRecv<T>` | planned |
 | ☐ | `TBD` | `channel.try.recv.<T>` | `none` | `ChannelTryRecv<T>` | planned |

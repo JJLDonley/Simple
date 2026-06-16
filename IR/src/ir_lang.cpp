@@ -2089,9 +2089,27 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExitSandbox();
         continue;
       }
-      if (op == "yield") {
-        if (!args.empty()) return fail("yield expects no operands");
+      if (op == "spawn" || op == "future.make") {
+        uint32_t func_id = 0;
+        if (args.size() != 1 || !resolve_func_id(args[0], &func_id)) {
+          return fail(op + " expects function");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(func_id));
+        continue;
+      }
+      if (op == "join" || op == "await" || op == "future.poll") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        continue;
+      }
+      if (op == "detach" || op == "resume") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "yield" || op == "suspend") {
+        if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitYield();
+        if (op == "suspend") builder.EmitConstI32(0);
         continue;
       }
       if (op == "fence") {
