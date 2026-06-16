@@ -861,6 +861,7 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.sub.i64` | `none` | `Ext.CheckedSubI64` | traps on signed i64 overflow |
 | ✅ | extended | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
+| ✅ | extended | `checked.mul.i64` | `none` | `Ext.CheckedMulI64` | traps on signed i64 overflow |
 | ✅ | extended | `checked.div.i32` | `none` | `Ext.CheckedDivI32` | traps on divide-by-zero and signed i32 overflow |
 | ✅ | extended | `checked.mod.i32` | `none` | `Ext.CheckedModI32` | traps on divide-by-zero and signed i32 overflow |
 | ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |

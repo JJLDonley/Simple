@@ -351,6 +351,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI64(a - b));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedMulI64: {
+              int64_t b = UnpackI64(Pop(stack));
+              int64_t a = UnpackI64(Pop(stack));
+              int64_t r = 0;
+              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_I64 overflow");
+              Push(stack, PackI64(r));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

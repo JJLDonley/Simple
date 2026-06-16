@@ -6618,6 +6618,38 @@ bool RunIrTextCheckedArithmeticAddI64Test() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArithmeticMulI64Test() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i64 6\n"
+      "  const i64 7\n"
+      "  checked.mul.i64\n"
+      "  conv i64 i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_mul_i64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedArithmeticMulI64OverflowTrapTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i64 4611686018427387904\n"
+      "  const i64 2\n"
+      "  checked.mul.i64\n"
+      "  conv i64 i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_mul_i64_overflow_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_arithmetic_mul_i64_overflow_trap");
+}
+
 bool RunIrTextCheckedArithmeticSubI64Test() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -9610,6 +9642,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
   {"ir_text_checked_arithmetic_add_i64", RunIrTextCheckedArithmeticAddI64Test},
   {"ir_text_checked_arithmetic_add_i64_overflow_trap", RunIrTextCheckedArithmeticAddI64OverflowTrapTest},
+  {"ir_text_checked_arithmetic_mul_i64", RunIrTextCheckedArithmeticMulI64Test},
+  {"ir_text_checked_arithmetic_mul_i64_overflow_trap", RunIrTextCheckedArithmeticMulI64OverflowTrapTest},
   {"ir_text_checked_arithmetic_sub_i64", RunIrTextCheckedArithmeticSubI64Test},
   {"ir_text_checked_arithmetic_sub_i64_overflow_trap", RunIrTextCheckedArithmeticSubI64OverflowTrapTest},
   {"ir_text_checked_arithmetic_sub", RunIrTextCheckedArithmeticSubTest},

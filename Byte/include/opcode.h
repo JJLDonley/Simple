@@ -15,6 +15,7 @@ enum class ExtendedOpCode : uint16_t {
   CheckedModI32 = 5,
   CheckedAddI64 = 6,
   CheckedSubI64 = 7,
+  CheckedMulI64 = 8,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

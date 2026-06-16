@@ -2573,6 +2573,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedMulI32);
         continue;
       }
+      if (op == "checked.mul.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedMulI64);
+        continue;
+      }
       if (op == "checked.div.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedDivI32);
         continue;
