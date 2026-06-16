@@ -124,8 +124,8 @@ blank         = { whitespace } ;
 | ✅ | imports | `syscall <name> [=] <id>` | Defines a syscall id alias. | import metadata / syscall id |
 | ✅ | globals | `global <name> <type> [init=<const>]` | Defines a typed global. | `GlobalRow` |
 | ✅ | function | `func <name> locals=<u16> stack=<u32> [sig=<sig>]` | Starts a function body. | `MethodRow`, `FunctionRow`, code |
-| ☐ | function | `local <name> <type> <slot>` | Planned named/typed local slot declaration. | function-local metadata |
-| ☐ | function | `upvalue <name> <type> <slot>` | Planned named/typed upvalue slot declaration. | function-upvalue metadata |
+| ✅ | function | `local <name> <type> <slot>` | Declares a named/typed local slot. | function-local metadata |
+| ✅ | function | `upvalue <name> <type> <slot>` | Declares a named/typed upvalue slot. | function-upvalue metadata |
 | ✅ | function | `<label>:` | Defines a branch target. | source-only fixup |
 | ✅ | entry | `entry <function>` | Selects module entry method. | `SbcHeader.entry_method_id` |
 | ✅ | module | `sir version <major>.<minor>` | Explicit SIR version directive; current supported version is `1.0`. | SBC version/metadata |

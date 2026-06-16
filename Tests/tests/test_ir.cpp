@@ -4839,6 +4839,48 @@ bool RunIrTextLocalTypeNameTest() {
   return RunExpectExit(module, 1);
 }
 
+bool RunIrTextExplicitLocalDeclTest() {
+  const char* text =
+      "func main locals=2 stack=4\n"
+      "  local answer i32 1\n"
+      "  enter 2\n"
+      "  const i32 42\n"
+      "  stloc answer\n"
+      "  ldloc answer\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_explicit_local_decl");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextExplicitLocalSlotOobTest() {
+  const char* text =
+      "func main locals=1 stack=4\n"
+      "  local answer i32 2\n"
+      "  enter 1\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_explicit_local_slot_oob");
+}
+
+bool RunIrTextExplicitUpvalueDeclTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  upvalue captured ref 0\n"
+      "  enter 0\n"
+      "  const i32 2\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_explicit_upvalue_decl");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 2);
+}
+
 bool RunIrTextLocalTypeBadNameTest() {
   const char* text =
       "func main locals=1 stack=4\n"
@@ -8268,6 +8310,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},
+  {"ir_text_explicit_local_decl", RunIrTextExplicitLocalDeclTest},
+  {"ir_text_explicit_local_slot_oob", RunIrTextExplicitLocalSlotOobTest},
+  {"ir_text_explicit_upvalue_decl", RunIrTextExplicitUpvalueDeclTest},
   {"ir_text_local_type_bad_name", RunIrTextLocalTypeBadNameTest},
   {"ir_text_upvalue_type_bad_name", RunIrTextUpvalueTypeBadNameTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},

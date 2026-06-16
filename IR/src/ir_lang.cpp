@@ -768,6 +768,56 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
       return false;
     }
 
+    if (line.rfind("local ", 0) == 0) {
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() != 4) {
+        if (error) *error = "local expects name type slot at line " + std::to_string(line_no);
+        return false;
+      }
+      if (!IsValidLabelName(tokens[1])) {
+        if (error) *error = "invalid local name at line " + std::to_string(line_no);
+        return false;
+      }
+      uint64_t slot = 0;
+      if (!ParseUint(tokens[3], &slot) || slot >= current->locals) {
+        if (error) *error = "local slot out of range at line " + std::to_string(line_no);
+        return false;
+      }
+      auto [_, inserted] = current->locals_map.emplace(tokens[1], static_cast<uint16_t>(slot));
+      if (!inserted) {
+        if (error) *error = "duplicate local name at line " + std::to_string(line_no);
+        return false;
+      }
+      if (current->local_type_names.empty()) current->local_type_names.resize(current->locals);
+      current->local_type_names[static_cast<size_t>(slot)] = tokens[2];
+      continue;
+    }
+
+    if (line.rfind("upvalue ", 0) == 0) {
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.size() != 4) {
+        if (error) *error = "upvalue expects name type slot at line " + std::to_string(line_no);
+        return false;
+      }
+      if (!IsValidLabelName(tokens[1])) {
+        if (error) *error = "invalid upvalue name at line " + std::to_string(line_no);
+        return false;
+      }
+      uint64_t slot = 0;
+      if (!ParseUint(tokens[3], &slot) || !FitsUnsigned<uint16_t>(slot)) {
+        if (error) *error = "upvalue slot out of range at line " + std::to_string(line_no);
+        return false;
+      }
+      auto [_, inserted] = current->upvalues_map.emplace(tokens[1], static_cast<uint16_t>(slot));
+      if (!inserted) {
+        if (error) *error = "duplicate upvalue name at line " + std::to_string(line_no);
+        return false;
+      }
+      if (current->upvalue_type_names.size() <= slot) current->upvalue_type_names.resize(static_cast<size_t>(slot) + 1);
+      current->upvalue_type_names[static_cast<size_t>(slot)] = tokens[2];
+      continue;
+    }
+
     if (line.rfind("locals:", 0) == 0) {
       std::string rest = Trim(line.substr(7));
       if (rest.empty()) {
