@@ -4472,6 +4472,47 @@ bool RunIrTextCatchUnknownLabelFailsTest() {
   return RunIrTextExpectFail(text, "ir_text_catch_unknown_label_fails");
 }
 
+bool RunIrTextGcBarrierAliasesTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  init.object Obj\n"
+      "  read.barrier\n"
+      "  pin.ref\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  init.object Obj\n"
+      "  init.object Obj\n"
+      "  write.barrier\n"
+      "  init.object Obj\n"
+      "  unpin.ref\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_gc_barrier_aliases");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextGcBarrierBadTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  read.barrier 1\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_gc_barrier_bad");
+}
+
 bool RunIrTextAtomicMonitorAliasesTest() {
   const char* text =
       "types:\n"
@@ -9098,6 +9139,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_exception_marker_aliases", RunIrTextExceptionMarkerAliasesTest},
   {"ir_text_throw_panic_trap", RunIrTextThrowPanicTrapTest},
   {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
+  {"ir_text_gc_barrier_aliases", RunIrTextGcBarrierAliasesTest},
+  {"ir_text_gc_barrier_bad", RunIrTextGcBarrierBadTest},
   {"ir_text_atomic_monitor_aliases", RunIrTextAtomicMonitorAliasesTest},
   {"ir_text_atomic_cmpxchg_alias", RunIrTextAtomicCmpxchgAliasTest},
   {"ir_text_atomic_alias_bad", RunIrTextAtomicAliasBadTest},

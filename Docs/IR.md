@@ -945,10 +945,10 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 |:---:|---:|---|---|---|---|
 | ✅ | `0x08` | `safepoint` | `none` | `Safepoint` |  |
 | ✅ | `0x09` | `alloc.checkpoint` | `none` | `AllocCheckpoint` |  |
-| ☐ | `TBD` | `write.barrier` | `none` | `WriteBarrier` | planned |
-| ☐ | `TBD` | `read.barrier` | `none` | `ReadBarrier` | planned |
-| ☐ | `TBD` | `pin.ref` | `none` | `PinRef` | planned |
-| ☐ | `TBD` | `unpin.ref` | `none` | `UnpinRef` | planned |
+| ✅ | pseudo | `write.barrier` | `none` | `Pop` + `Pop` | consumes object/value refs as GC marker |
+| ✅ | pseudo | `read.barrier` | `none` | no-op marker | preserves loaded ref marker |
+| ✅ | pseudo | `pin.ref` | `none` | no-op marker | preserves pinned ref marker |
+| ✅ | pseudo | `unpin.ref` | `none` | `Pop` | consumes pinned ref marker |
 | ✅ | `0x0A` | `keepalive` | `none` | `KeepAlive` |  |
 | ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
 | ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |

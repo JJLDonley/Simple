@@ -2075,6 +2075,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitKeepAlive();
         continue;
       }
+      if (op == "write.barrier") {
+        if (!args.empty()) return fail("write.barrier expects no operands");
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "read.barrier" || op == "pin.ref") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        continue;
+      }
+      if (op == "unpin.ref") {
+        if (!args.empty()) return fail("unpin.ref expects no operands");
+        builder.EmitPop();
+        continue;
+      }
       if (op == "cap.check" || op == "sandbox.enter") {
         uint64_t id = 0;
         if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
