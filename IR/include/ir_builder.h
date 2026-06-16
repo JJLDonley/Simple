@@ -112,6 +112,7 @@ class IrBuilder {
   void EmitListRemoveRef();
   void EmitListClear();
   void EmitListReserve();
+  void EmitListResize();
   void EmitNewClosure(uint32_t method_id, uint8_t upvalue_count);
   void EmitIsNull();
   void EmitRefEq();

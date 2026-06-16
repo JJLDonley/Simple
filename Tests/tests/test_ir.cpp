@@ -7106,6 +7106,68 @@ bool RunIrTextListReserveNegativeTrapTest() {
   return RunExpectTrap(module, "ir_text_list_reserve_negative_trap");
 }
 
+bool RunIrTextListResizeTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newlist i32 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 3\n"
+      "  const i32 7\n"
+      "  list.resize\n"
+      "  ldloc 0\n"
+      "  const i32 2\n"
+      "  list.get i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_resize");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 7);
+}
+
+bool RunIrTextListResizeShrinkTest() {
+  const char* text =
+      "func main locals=1 stack=12\n"
+      "  enter 1\n"
+      "  newlist i32 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 3\n"
+      "  const i32 5\n"
+      "  list.resize\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  const i32 0\n"
+      "  list.resize\n"
+      "  ldloc 0\n"
+      "  list.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_resize_shrink");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextListResizeNegativeTrapTest() {
+  const char* text =
+      "func main locals=0 stack=6\n"
+      "  enter 0\n"
+      "  newlist i32 0\n"
+      "  const i32 -1\n"
+      "  const i32 0\n"
+      "  list.resize\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_list_resize_negative_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_list_resize_negative_trap");
+}
+
 bool RunIrTextCallArgsTest() {
   const char* text =
       "func add locals=2 stack=8 sig=0\n"
@@ -8047,6 +8109,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_list_reserve", RunIrTextListReserveTest},
   {"ir_text_list_reserve_negative_trap", RunIrTextListReserveNegativeTrapTest},
+  {"ir_text_list_resize", RunIrTextListResizeTest},
+  {"ir_text_list_resize_shrink", RunIrTextListResizeShrinkTest},
+  {"ir_text_list_resize_negative_trap", RunIrTextListResizeNegativeTrapTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
   {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
   {"ir_text_call_native_opcodes", RunIrTextCallNativeOpcodesTest},

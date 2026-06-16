@@ -148,6 +148,7 @@ enum class OpCode : uint8_t {
   CmpLeF64 = 0x6C,
   CmpGtF64 = 0x6D,
   CmpGeF64 = 0x6E,
+  ListResize = 0x6F,
 
   BoolNot = 0x60,
   BoolAnd = 0x61,

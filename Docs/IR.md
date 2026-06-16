@@ -738,7 +738,7 @@ Growable list allocation and element operations.
 | ◐ | `typed` | `list.remove <T>` | `type` | `ListRemove<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC8` | `list.clear` | `none` | `ListClear` |  |
 | ✅ | `0xAF` | `list.reserve` | `none` | `ListReserve` | pops list and i32 capacity |
-| ☐ | `TBD` | `list.resize` | `size fill` | `ListResize` | planned |
+| ✅ | `0x6F` | `list.resize` | `none` | `ListResize` | pops list, i32 size, fill value |
 
 newlist <T> SBC selection:
 

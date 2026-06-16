@@ -448,6 +448,10 @@ void IrBuilder::EmitListReserve() {
   EmitOp(OpCode::ListReserve);
 }
 
+void IrBuilder::EmitListResize() {
+  EmitOp(OpCode::ListResize);
+}
+
 void IrBuilder::EmitNewClosure(uint32_t method_id, uint8_t upvalue_count) {
   EmitOp(OpCode::NewClosure);
   EmitU32(method_id);

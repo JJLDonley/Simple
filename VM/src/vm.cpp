@@ -1298,6 +1298,32 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!EnsureListCapacity(obj, capacity, elem_size)) return Trap("LIST_RESERVE invalid list");
         break;
       }
+      case OpCode::ListResize: {
+        Slot fill = Pop(stack);
+        Slot size_value = Pop(stack);
+        Slot v = Pop(stack);
+        if (IsNullRef(v)) return Trap("LIST_RESIZE on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(v));
+        if (!obj || obj->header.kind != ObjectKind::List) return Trap("LIST_RESIZE on non-list");
+        int32_t requested = UnpackI32(size_value);
+        if (requested < 0) return Trap("LIST_RESIZE negative size");
+        uint32_t new_length = static_cast<uint32_t>(requested);
+        if (!Simple::VM::Runtime::CheckSequenceLimit(limits, new_length)) return Trap("runtime limit exceeded: array/list size");
+        uint32_t elem_size = 4;
+        if (obj->header.type_id < module.types.size()) {
+          TypeKind kind = static_cast<TypeKind>(module.types[obj->header.type_id].kind);
+          if (kind == TypeKind::I64 || kind == TypeKind::U64 || kind == TypeKind::F64) elem_size = 8;
+        }
+        uint32_t old_length = ReadU32Payload(obj->payload, 0);
+        if (!EnsureListCapacity(obj, new_length, elem_size)) return Trap("LIST_RESIZE invalid list");
+        for (uint32_t i = old_length; i < new_length; ++i) {
+          size_t offset = HeapLayout::ListElementOffset(i, elem_size);
+          if (elem_size == 8) WriteU64Payload(obj->payload, offset, fill);
+          else WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(fill));
+        }
+        WriteU32Payload(obj->payload, 0, new_length);
+        break;
+      }
       case OpCode::StringLen: {
         Slot v = Pop(stack);
         if (IsNullRef(v)) return Trap("STRING_LEN on non-ref");

@@ -1691,6 +1691,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r2.ok) return r2;
           break;
         }
+        case OpCode::ListResize: {
+          pop_type(); // fill value is checked dynamically against the concrete list element representation.
+          ValType size = pop_type();
+          ValType list = pop_type();
+          VerifyResult r1 = check_type(list, ValType::Ref, "LIST_RESIZE type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(size, ValType::I32, "LIST_RESIZE size type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
         case OpCode::StringLen: {
           ValType list = pop_type();
           VerifyResult r = check_type(list, ValType::Ref, "STRING_LEN type mismatch");

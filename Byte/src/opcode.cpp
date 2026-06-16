@@ -321,6 +321,7 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::ListSetF32:
     case OpCode::ListSetF64:
     case OpCode::ListSetRef:
+    case OpCode::ListResize:
       *info = {0, 3, 0};
       return true;
     case OpCode::ListPushI32:
@@ -620,6 +621,7 @@ bool GetOpTypeRule(uint8_t opcode, OpTypeRule* rule) {
     case OpCode::ListRemoveF64:
     case OpCode::ListRemoveRef:
     case OpCode::ListReserve:
+    case OpCode::ListResize:
     case OpCode::ListClear:
     case OpCode::StringLen:
     case OpCode::StringConcat:
@@ -955,6 +957,7 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::CmpLeF64: return "CmpLeF64";
     case OpCode::CmpGtF64: return "CmpGtF64";
     case OpCode::CmpGeF64: return "CmpGeF64";
+    case OpCode::ListResize: return "ListResize";
     case OpCode::BoolNot: return "BoolNot";
     case OpCode::BoolAnd: return "BoolAnd";
     case OpCode::BoolOr: return "BoolOr";

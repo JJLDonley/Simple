@@ -2666,6 +2666,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitListReserve();
         continue;
       }
+      if (op == "list.resize") {
+        builder.EmitListResize();
+        continue;
+      }
       if (op == "string.len") {
         builder.EmitStringLen();
         continue;
