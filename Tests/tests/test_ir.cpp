@@ -4275,6 +4275,38 @@ bool RunIrTextCompoundMetadataTypesTest() {
          RunExpectExit(bytes, 7);
 }
 
+bool RunIrTextExportsSectionTest() {
+  const char* text =
+      "exports:\n"
+      "  export main_export main flags=1\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 8\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_exports_section");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  return load.module.exports.size() == 1 && load.module.exports[0].func_id == 0 &&
+         load.module.exports[0].flags == 1 && RunExpectExit(bytes, 8);
+}
+
+bool RunIrTextDuplicateExportFailsTest() {
+  const char* text =
+      "exports:\n"
+      "  export dup main\n"
+      "  export dup main\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_duplicate_export_fails");
+}
+
 bool RunIrTextModuleMetadataSectionTest() {
   const char* text =
       "module sample\n"
@@ -8145,6 +8177,8 @@ static const TestCase kIrTests[] = {
   {"ir_compile_raw_metadata_sections", RunIrCompileRawMetadataSectionsTest},
   {"ir_text_void_never_types", RunIrTextVoidNeverTypesTest},
   {"ir_text_compound_metadata_types", RunIrTextCompoundMetadataTypesTest},
+  {"ir_text_exports_section", RunIrTextExportsSectionTest},
+  {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},

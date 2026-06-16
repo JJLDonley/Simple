@@ -285,6 +285,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
   out->consts.clear();
   out->globals.clear();
   out->imports.clear();
+  out->exports.clear();
   out->entry_name.clear();
   out->entry_index = 0;
 
@@ -298,6 +299,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     Consts,
     Globals,
     Imports,
+    Exports,
   };
   Section section = Section::None;
   IrTextType* current_type = nullptr;
@@ -344,6 +346,10 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     }
     if (line == "globals:") {
       section = Section::Globals;
+      continue;
+    }
+    if (line == "exports:") {
+      section = Section::Exports;
       continue;
     }
 
@@ -518,6 +524,37 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
           }
         }
         out->globals.push_back(std::move(glob));
+        continue;
+      }
+    }
+
+    if (section == Section::Exports) {
+      if (line.rfind("export ", 0) == 0) {
+        std::vector<std::string> tokens = SplitTokens(line);
+        if (tokens.size() < 3) {
+          if (error) *error = "export expects symbol and function at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextExport exp;
+        exp.symbol = tokens[1];
+        exp.function = tokens[2];
+        for (size_t i = 3; i < tokens.size(); ++i) {
+          const std::string& kv = tokens[i];
+          size_t eq = kv.find('=');
+          if (eq == std::string::npos) continue;
+          std::string key = kv.substr(0, eq);
+          std::string val = kv.substr(eq + 1);
+          if (key == "flags") {
+            uint64_t num = 0;
+            if (!ParseUint(val, &num)) {
+              if (error) *error = "export expects numeric flags at line " + std::to_string(line_no);
+              return false;
+            }
+            exp.flags = static_cast<uint32_t>(num);
+            exp.has_flags = true;
+          }
+        }
+        out->exports.push_back(std::move(exp));
         continue;
       }
     }
@@ -1286,6 +1323,25 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     *out_id = import_it->second;
     return true;
   };
+
+  std::unordered_set<std::string> export_names;
+  for (const auto& exp : text.exports) {
+    if (exp.symbol.empty() || !export_names.insert(exp.symbol).second) {
+      if (error) *error = "duplicate or empty export symbol: " + exp.symbol;
+      return false;
+    }
+    uint32_t func_id = 0;
+    if (!resolve_func_id(exp.function, &func_id)) {
+      if (error) *error = "export function not found: " + exp.function;
+      return false;
+    }
+    Simple::Byte::sbc::AppendU32(out->exports_bytes, add_name(exp.symbol));
+    Simple::Byte::sbc::AppendU32(out->exports_bytes, func_id);
+    Simple::Byte::sbc::AppendU32(out->exports_bytes, exp.flags);
+    Simple::Byte::sbc::AppendU32(out->exports_bytes, 0);
+  }
+
+  out->const_pool = const_pool;
 
   auto resolve_local = [&](const IrTextFunction& fn, const std::string& token, uint32_t* out_id) -> bool {
     uint64_t value = 0;

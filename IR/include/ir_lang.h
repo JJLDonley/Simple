@@ -82,6 +82,13 @@ struct IrTextImport {
   bool has_flags = false;
 };
 
+struct IrTextExport {
+  std::string symbol;
+  std::string function;
+  uint32_t flags = 0;
+  bool has_flags = false;
+};
+
 struct IrTextModule {
   std::string module_name;
   std::vector<IrTextType> types;
@@ -89,6 +96,7 @@ struct IrTextModule {
   std::vector<IrTextConst> consts;
   std::vector<IrTextGlobal> globals;
   std::vector<IrTextImport> imports;
+  std::vector<IrTextExport> exports;
   std::vector<IrTextFunction> functions;
   std::string entry_name;
   uint32_t entry_index = 0;
