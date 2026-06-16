@@ -844,7 +844,7 @@ Explicit pointer/address and raw memory operations.
 | ✅ | pseudo | `ptr.ne` | `none` | `RefNe` | pointer/reference inequality alias |
 | ✅ | pseudo | `ptr.isnull` | `none` | `IsNull` | null-test alias |
 | ✅ | pseudo | `ptr.check.null` | `none` | `CheckedNull` | null-check alias |
-| ☐ | `TBD` | `ptr.check.bounds` | `none` | `PtrCheckBounds` | planned |
+| ✅ | pseudo | `ptr.check.bounds` | `none` | `CheckedBounds` | bounds-check alias |
 | ☐ | `TBD` | `mem.copy` | `none` | `MemCopy` | planned |
 | ☐ | `TBD` | `mem.move` | `none` | `MemMove` | planned |
 | ☐ | `TBD` | `mem.set` | `none` | `MemSet` | planned |
@@ -953,9 +953,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ☐ | `TBD` | `deopt <id>` | `u32 id` | `Deopt` | planned |
 | ☐ | `TBD` | `patchpoint <id>` | `u32 id` | `Patchpoint` | planned |
 | ☐ | `TBD` | `inline.cache <id>` | `u32 id` | `InlineCache` | planned |
-| ☐ | `TBD` | `guard.type.<T>` | `type` | `GuardType<T>` | planned |
-| ☐ | `TBD` | `guard.bounds` | `none` | `GuardBounds` | planned |
-| ☐ | `TBD` | `guard.notnull` | `none` | `GuardNotNull` | planned |
+| ✅ | pseudo | `guard.type[.<T>] <type?>` | `type` | type guard sequence | runtime type guard alias |
+| ✅ | pseudo | `guard.bounds` | `none` | `CheckedBounds` | bounds guard alias |
+| ✅ | pseudo | `guard.notnull` | `none` | `CheckedNull` | non-null guard alias |
 | ✅ | `0x0B` | `cap.check <id>` | `u32 id` | `CheckCapability` | capability marker |
 | ✅ | `0x0C` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | sandbox marker |
 | ✅ | `0x0D` | `sandbox.exit` | `none` | `ExitSandbox` | sandbox marker |

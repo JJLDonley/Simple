@@ -4437,6 +4437,70 @@ bool RunIrTextCheckedOpsTest() {
   return RunExpectExit(module, 8);
 }
 
+bool RunIrTextGuardAliasOpsTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"hello\"\n"
+      "func main locals=0 stack=10\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  guard.notnull\n"
+      "  string.len\n"
+      "  const i32 7\n"
+      "  const i32 1\n"
+      "  const i32 4\n"
+      "  guard.bounds\n"
+      "  add i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_guard_alias_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
+bool RunIrTextGuardTypeAliasTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "func main locals=0 stack=10\n"
+      "  enter 0\n"
+      "  init.object Obj\n"
+      "  guard.type Obj\n"
+      "  isnull\n"
+      "  bool.not\n"
+      "  jmp.true ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_guard_type_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
+bool RunIrTextGuardTypeTrapTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "  type Other size=4 kind=artifact\n"
+      "func main locals=0 stack=10\n"
+      "  enter 0\n"
+      "  init.object Obj\n"
+      "  guard.type Other\n"
+      "  pop\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_guard_type_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_guard_type_trap");
+}
+
 bool RunIrTextCheckedNullTrapTest() {
   const char* text =
       "func main locals=0 stack=2\n"
@@ -8849,6 +8913,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
+  {"ir_text_guard_alias_ops", RunIrTextGuardAliasOpsTest},
+  {"ir_text_guard_type_alias", RunIrTextGuardTypeAliasTest},
+  {"ir_text_guard_type_trap", RunIrTextGuardTypeTrapTest},
   {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},
   {"ir_text_checked_bounds_trap", RunIrTextCheckedBoundsTrapTest},
   {"ir_text_const_bool", RunIrTextConstBoolTest},

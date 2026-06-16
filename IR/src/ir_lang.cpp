@@ -2043,13 +2043,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStackTrace();
         continue;
       }
-      if (op == "checked.null") {
-        if (!args.empty()) return fail("checked.null expects no operands");
+      if (op == "checked.null" || op == "guard.notnull") {
+        if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedNull();
         continue;
       }
-      if (op == "checked.bounds") {
-        if (!args.empty()) return fail("checked.bounds expects no operands");
+      if (op == "checked.bounds" || op == "guard.bounds" || op == "ptr.check.bounds") {
+        if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedBounds();
         continue;
       }
@@ -2982,7 +2982,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (resolve_type_operand("cast.ref", &object_type_id)) {
         continue;
       }
-      if (resolve_type_operand("checked.cast.ref", &object_type_id)) {
+      if (resolve_type_operand("checked.cast.ref", &object_type_id) ||
+          resolve_type_operand("guard.type", &object_type_id)) {
         Simple::IR::IrLabel ok = builder.CreateLabel();
         builder.EmitDup();
         builder.EmitTypeOf();

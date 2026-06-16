@@ -757,7 +757,7 @@ Explicit pointer/address and raw memory operations. `<T>` load/store rows are ty
 | ✅ | pseudo | `PtrNe` | 0 | 2 | 1 |
 | ✅ | pseudo | `PtrIsNull` | 0 | 1 | 1 |
 | ✅ | pseudo | `PtrCheckNull` | 0 | 1 | 1 |
-| ☐ | `TBD` | `PtrCheckBounds` | 0 | 3 | 1 |
+| ✅ | pseudo | `PtrCheckBounds` | 0 | 3 | 1 |
 | ☐ | `TBD` | `MemCopy` | 0 | 3 | 0 |
 | ☐ | `TBD` | `MemMove` | 0 | 3 | 0 |
 | ☐ | `TBD` | `MemSet` | 0 | 3 | 0 |
@@ -880,9 +880,9 @@ JIT patching, guards, and deoptimization hooks for a typed optimizing backend.
 | ☐ | `TBD` | `Deopt` | 4 | 0 | 0 |
 | ☐ | `TBD` | `Patchpoint` | 4 | 0 | 0 |
 | ☐ | `TBD` | `InlineCache` | 4 | 0 | 0 |
-| ☐ | `TBD` | `GuardType<T>` | 4 | 1 | 1 |
-| ☐ | `TBD` | `GuardBounds` | 0 | 3 | 1 |
-| ☐ | `TBD` | `GuardNotNull` | 0 | 1 | 1 |
+| ✅ | pseudo | `GuardType<T>` | 4 | 1 | 1 |
+| ✅ | pseudo | `GuardBounds` | 0 | 3 | 1 |
+| ✅ | pseudo | `GuardNotNull` | 0 | 1 | 1 |
 
 ### Capabilities and sandboxing
 
