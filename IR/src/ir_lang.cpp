@@ -2565,6 +2565,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedMulI32);
         continue;
       }
+      if (op == "checked.div.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedDivI32);
+        continue;
+      }
+      if (op == "checked.mod.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedModI32);
+        continue;
+      }
       if (op.rfind("checked.div.", 0) == 0 || op.rfind("checked.mod.", 0) == 0) {
         return fail("real checked opcode not implemented yet: " + op);
       }

@@ -6617,6 +6617,51 @@ bool RunIrTextCheckedArithmeticSubTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArithmeticDivModTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 85\n"
+      "  const i32 2\n"
+      "  checked.div.i32\n"
+      "  const i32 5\n"
+      "  checked.mod.i32\n"
+      "  const i32 40\n"
+      "  checked.add.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_div_mod");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedArithmeticDivModTrapTest() {
+  const char* div_zero_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 0\n"
+      "  checked.div.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto div_zero_module = BuildIrTextModule(div_zero_text, "ir_text_checked_div_zero_trap");
+  if (div_zero_module.empty() || !RunExpectTrap(div_zero_module, "ir_text_checked_div_zero_trap")) return false;
+  const char* mod_zero_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 1\n"
+      "  const i32 0\n"
+      "  checked.mod.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto mod_zero_module = BuildIrTextModule(mod_zero_text, "ir_text_checked_mod_zero_trap");
+  if (mod_zero_module.empty()) return false;
+  return RunExpectTrap(mod_zero_module, "ir_text_checked_mod_zero_trap");
+}
+
 bool RunIrTextCheckedArithmeticMulTest() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -9500,6 +9545,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
   {"ir_text_checked_arithmetic_sub", RunIrTextCheckedArithmeticSubTest},
+  {"ir_text_checked_arithmetic_div_mod", RunIrTextCheckedArithmeticDivModTest},
+  {"ir_text_checked_arithmetic_div_mod_trap", RunIrTextCheckedArithmeticDivModTrapTest},
   {"ir_text_checked_arithmetic_mul", RunIrTextCheckedArithmeticMulTest},
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},

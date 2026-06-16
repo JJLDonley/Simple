@@ -311,6 +311,26 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(static_cast<int32_t>(r)));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedDivI32: {
+              int32_t b = UnpackI32(Pop(stack));
+              int32_t a = UnpackI32(Pop(stack));
+              if (b == 0) return Trap("CHECKED_DIV_I32 divide by zero");
+              if (a == std::numeric_limits<int32_t>::min() && b == -1) {
+                return Trap("CHECKED_DIV_I32 overflow");
+              }
+              Push(stack, PackI32(a / b));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedModI32: {
+              int32_t b = UnpackI32(Pop(stack));
+              int32_t a = UnpackI32(Pop(stack));
+              if (b == 0) return Trap("CHECKED_MOD_I32 divide by zero");
+              if (a == std::numeric_limits<int32_t>::min() && b == -1) {
+                return Trap("CHECKED_MOD_I32 overflow");
+              }
+              Push(stack, PackI32(a % b));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

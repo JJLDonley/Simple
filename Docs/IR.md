@@ -859,8 +859,8 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
-| ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | real opcode pending |
-| ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | real opcode pending |
+| ✅ | extended | `checked.div.i32` | `none` | `Ext.CheckedDivI32` | traps on divide-by-zero and signed i32 overflow |
+| ✅ | extended | `checked.mod.i32` | `none` | `Ext.CheckedModI32` | traps on divide-by-zero and signed i32 overflow |
 | ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.array.set.<T>` | `none` | `ArraySet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |

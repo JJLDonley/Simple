@@ -709,6 +709,13 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
           out += std::to_string(pc - func.code_offset);
           return Fail(out);
         }
+        if (opcode == static_cast<uint8_t>(OpCode::CallNative) && pc + 8 <= end) {
+          uint32_t ext_id = 0;
+          if (ReadU32At(module.code, pc + 1, &ext_id) &&
+              IsExtendedOpcodePrefix(opcode, ext_id, module.code[pc + 5])) {
+            operand_bytes = 7;
+          }
+        }
         if (opcode == static_cast<uint8_t>(OpCode::JmpTable)) {
           if (pc + 8 >= module.code.size()) return Fail("JMP_TABLE operand out of bounds");
           uint32_t const_id = 0;
