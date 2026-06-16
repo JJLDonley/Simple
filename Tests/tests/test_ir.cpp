@@ -4790,6 +4790,51 @@ bool RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest() {
   return RunExpectExit(module, 0);
 }
 
+bool RunIrTextArrayConstLiteralTest() {
+  const char* text =
+      "consts:\n"
+      "  const values array<i32> [1, -2, 3]\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 3\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  Simple::IR::Text::IrTextModule parsed;
+  std::string error;
+  if (!Simple::IR::Text::ParseIrTextModule(text, &parsed, &error)) return false;
+  Simple::IR::IrModule module;
+  if (!Simple::IR::Text::LowerIrTextToModule(parsed, &module, &error)) return false;
+  size_t first = 0;
+  while (first + 4 <= module.const_pool.size() &&
+         Simple::Byte::sbc::ReadU32At(module.const_pool, first) != 6) {
+    ++first;
+  }
+  if (first + 12 > module.const_pool.size()) return false;
+  uint32_t payload = Simple::Byte::sbc::ReadU32At(module.const_pool, first + 4);
+  if (Simple::Byte::sbc::ReadU32At(module.const_pool, payload) != 16) return false;
+  if (Simple::Byte::sbc::ReadU32At(module.const_pool, payload + 4) != 3) return false;
+  if (Simple::Byte::sbc::ReadU32At(module.const_pool, payload + 8) != 1) return false;
+  if (static_cast<int32_t>(Simple::Byte::sbc::ReadU32At(module.const_pool, payload + 12)) != -2) return false;
+  if (Simple::Byte::sbc::ReadU32At(module.const_pool, payload + 16) != 3) return false;
+  std::vector<uint8_t> bytes;
+  if (!Simple::IR::CompileToSbc(module, &bytes, &error)) return false;
+  return RunExpectExit(bytes, 3);
+}
+
+bool RunIrTextArrayConstLiteralBadTest() {
+  const char* text =
+      "consts:\n"
+      "  const values array<i32> [1, nope]\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_array_const_literal_bad");
+}
+
 bool RunIrTextTypedImmediateConstTest() {
   const char* text =
       "func main locals=0 stack=4\n"
@@ -8389,6 +8434,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_field_misaligned", RunIrTextFieldMisalignedTest},
   {"ir_text_field_oob", RunIrTextFieldOutOfBoundsTest},
   {"ir_text_primitive_type_after_artifact", RunIrTextPrimitiveTypeAfterArtifactNoFieldsTest},
+  {"ir_text_array_const_literal", RunIrTextArrayConstLiteralTest},
+  {"ir_text_array_const_literal_bad", RunIrTextArrayConstLiteralBadTest},
   {"ir_text_typed_immediate_const", RunIrTextTypedImmediateConstTest},
   {"ir_text_typed_immediate_const_bad", RunIrTextTypedImmediateConstBadTest},
   {"ir_text_bytes_data_const_rows", RunIrTextBytesDataConstRowsTest},

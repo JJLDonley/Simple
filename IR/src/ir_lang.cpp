@@ -198,6 +198,25 @@ void AppendIrConstBlob(std::vector<uint8_t>& pool, uint32_t kind, const std::vec
   if (out_const_id) *out_const_id = const_id;
 }
 
+bool ParseI32ArrayLiteral(const std::string& text, std::vector<int32_t>* out) {
+  if (!out) return false;
+  out->clear();
+  std::string value = Trim(text);
+  if (value.size() < 2 || value.front() != '[' || value.back() != ']') return false;
+  value = value.substr(1, value.size() - 2);
+  if (Trim(value).empty()) return true;
+  std::vector<std::string> parts = SplitCommaList(value);
+  for (const auto& part : parts) {
+    int64_t parsed = 0;
+    if (!ParseInt(Trim(part), &parsed) || parsed < std::numeric_limits<int32_t>::min() ||
+        parsed > std::numeric_limits<int32_t>::max()) {
+      return false;
+    }
+    out->push_back(static_cast<int32_t>(parsed));
+  }
+  return true;
+}
+
 bool ParseHexBlob(const std::string& text, std::vector<uint8_t>* out) {
   if (!out) return false;
   out->clear();
@@ -1305,6 +1324,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   std::unordered_map<std::string, uint32_t> const_f64_ids;
   std::unordered_map<std::string, uint32_t> const_bytes_ids;
   std::unordered_map<std::string, uint32_t> const_data_ids;
+  std::unordered_map<std::string, uint32_t> const_array_ids;
   for (const auto& c : text.consts) {
     if (const_map.find(c.name) != const_map.end()) {
       if (error) *error = "duplicate const name: " + c.name;
@@ -1314,7 +1334,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     if (kind != "i8" && kind != "i16" && kind != "i32" && kind != "i64" &&
         kind != "u8" && kind != "u16" && kind != "u32" && kind != "u64" &&
         kind != "f32" && kind != "f64" && kind != "bool" && kind != "char" &&
-        kind != "string" && kind != "bytes" && kind != "data") {
+        kind != "string" && kind != "bytes" && kind != "data" && kind != "array<i32>") {
       if (error) *error = "unsupported const kind: " + c.kind;
       return false;
     }
@@ -1351,6 +1371,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       uint32_t const_id = 0;
       AppendIrConstBlob(const_pool, 8, blob, &const_id);
       const_data_ids[c.name] = const_id;
+    } else if (kind == "array<i32>") {
+      std::vector<int32_t> values;
+      if (!ParseI32ArrayLiteral(c.value, &values)) {
+        if (error) *error = "const.array<i32> parse failed: " + c.name;
+        return false;
+      }
+      std::vector<uint8_t> blob;
+      Simple::Byte::sbc::AppendU32(blob, static_cast<uint32_t>(values.size()));
+      for (int32_t value : values) {
+        Simple::Byte::sbc::AppendU32(blob, static_cast<uint32_t>(value));
+      }
+      uint32_t const_id = 0;
+      AppendIrConstBlob(const_pool, 6, blob, &const_id);
+      const_array_ids[c.name] = const_id;
     }
     const_map[c.name] = c;
   }
