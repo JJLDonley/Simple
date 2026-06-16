@@ -131,7 +131,7 @@ blank         = { whitespace } ;
 | ☐ | module | `sir version <major>.<minor>` | Planned explicit SIR version directive. | SBC version/metadata |
 | ✅ | module | `module <name>` | Module identity. | module metadata |
 | ✅ | exports | `export <symbol> <func> [flags=<u32>]` | Defines an exported function symbol. | `ExportRow` |
-| ☐ | debug | `file`, `line`, `span`, `symbol` rows | Planned source-map/debug rows. | debug section |
+| ✅ | debug | `file`, `line`, `symbol` rows | Source-map/debug rows. | debug section |
 
 ## Type syntax and SBC type codes
 

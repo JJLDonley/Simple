@@ -89,6 +89,26 @@ struct IrTextExport {
   bool has_flags = false;
 };
 
+struct IrTextDebugFile {
+  std::string name;
+  uint32_t hash = 0;
+};
+
+struct IrTextDebugLine {
+  std::string function;
+  uint32_t code_offset = 0;
+  std::string file;
+  uint32_t line = 0;
+  uint32_t column = 0;
+};
+
+struct IrTextDebugSymbol {
+  uint32_t kind = 0;
+  std::string owner;
+  uint32_t symbol_id = 0;
+  std::string name;
+};
+
 struct IrTextModule {
   std::string module_name;
   std::vector<IrTextType> types;
@@ -97,6 +117,9 @@ struct IrTextModule {
   std::vector<IrTextGlobal> globals;
   std::vector<IrTextImport> imports;
   std::vector<IrTextExport> exports;
+  std::vector<IrTextDebugFile> debug_files;
+  std::vector<IrTextDebugLine> debug_lines;
+  std::vector<IrTextDebugSymbol> debug_symbols;
   std::vector<IrTextFunction> functions;
   std::string entry_name;
   uint32_t entry_index = 0;

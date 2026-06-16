@@ -4275,6 +4275,42 @@ bool RunIrTextCompoundMetadataTypesTest() {
          RunExpectExit(bytes, 7);
 }
 
+bool RunIrTextDebugSectionTest() {
+  const char* text =
+      "debug:\n"
+      "  file main.simple hash=123\n"
+      "  line main 0 main.simple 7 2\n"
+      "  symbol 5 main 0 main\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 4\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto bytes = BuildIrTextModule(text, "ir_text_debug_section");
+  if (bytes.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(bytes);
+  if (!load.ok) return false;
+  return load.module.debug_header.file_count == 1 && load.module.debug_header.line_count == 1 &&
+         load.module.debug_header.sym_count == 1 && load.module.debug_files[0].file_hash == 123 &&
+         load.module.debug_lines[0].method_id == 0 && load.module.debug_lines[0].line == 7 &&
+         load.module.debug_syms[0].kind == 5 && RunExpectExit(bytes, 4);
+}
+
+bool RunIrTextDebugUnknownFileFailsTest() {
+  const char* text =
+      "debug:\n"
+      "  file main.simple\n"
+      "  line main 0 missing.simple 7 2\n"
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  return RunIrTextExpectFail(text, "ir_text_debug_unknown_file_fails");
+}
+
 bool RunIrTextExportsSectionTest() {
   const char* text =
       "exports:\n"
@@ -8177,6 +8213,8 @@ static const TestCase kIrTests[] = {
   {"ir_compile_raw_metadata_sections", RunIrCompileRawMetadataSectionsTest},
   {"ir_text_void_never_types", RunIrTextVoidNeverTypesTest},
   {"ir_text_compound_metadata_types", RunIrTextCompoundMetadataTypesTest},
+  {"ir_text_debug_section", RunIrTextDebugSectionTest},
+  {"ir_text_debug_unknown_file_fails", RunIrTextDebugUnknownFileFailsTest},
   {"ir_text_exports_section", RunIrTextExportsSectionTest},
   {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},

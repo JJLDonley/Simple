@@ -286,6 +286,9 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
   out->globals.clear();
   out->imports.clear();
   out->exports.clear();
+  out->debug_files.clear();
+  out->debug_lines.clear();
+  out->debug_symbols.clear();
   out->entry_name.clear();
   out->entry_index = 0;
 
@@ -300,6 +303,7 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     Globals,
     Imports,
     Exports,
+    Debug,
   };
   Section section = Section::None;
   IrTextType* current_type = nullptr;
@@ -350,6 +354,10 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
     }
     if (line == "exports:") {
       section = Section::Exports;
+      continue;
+    }
+    if (line == "debug:") {
+      section = Section::Debug;
       continue;
     }
 
@@ -555,6 +563,76 @@ bool ParseIrTextModule(const std::string& text, IrTextModule* out, std::string* 
           }
         }
         out->exports.push_back(std::move(exp));
+        continue;
+      }
+    }
+
+    if (section == Section::Debug) {
+      std::vector<std::string> tokens = SplitTokens(line);
+      if (tokens.empty()) continue;
+      if (tokens[0] == "file") {
+        if (tokens.size() < 2) {
+          if (error) *error = "debug file expects name at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextDebugFile file;
+        file.name = tokens[1];
+        for (size_t i = 2; i < tokens.size(); ++i) {
+          size_t eq = tokens[i].find('=');
+          if (eq == std::string::npos) continue;
+          if (tokens[i].substr(0, eq) == "hash") {
+            uint64_t num = 0;
+            if (!ParseUint(tokens[i].substr(eq + 1), &num) || !FitsUnsigned<uint32_t>(num)) {
+              if (error) *error = "debug file hash invalid at line " + std::to_string(line_no);
+              return false;
+            }
+            file.hash = static_cast<uint32_t>(num);
+          }
+        }
+        out->debug_files.push_back(std::move(file));
+        continue;
+      }
+      if (tokens[0] == "line") {
+        if (tokens.size() != 6) {
+          if (error) *error = "debug line expects function offset file line column at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextDebugLine dbg;
+        dbg.function = tokens[1];
+        dbg.file = tokens[3];
+        uint64_t code_offset = 0;
+        uint64_t src_line = 0;
+        uint64_t column = 0;
+        if (!ParseUint(tokens[2], &code_offset) || !FitsUnsigned<uint32_t>(code_offset) ||
+            !ParseUint(tokens[4], &src_line) || !FitsUnsigned<uint32_t>(src_line) ||
+            !ParseUint(tokens[5], &column) || !FitsUnsigned<uint32_t>(column)) {
+          if (error) *error = "debug line numeric field invalid at line " + std::to_string(line_no);
+          return false;
+        }
+        dbg.code_offset = static_cast<uint32_t>(code_offset);
+        dbg.line = static_cast<uint32_t>(src_line);
+        dbg.column = static_cast<uint32_t>(column);
+        out->debug_lines.push_back(std::move(dbg));
+        continue;
+      }
+      if (tokens[0] == "symbol") {
+        if (tokens.size() != 5) {
+          if (error) *error = "debug symbol expects kind owner symbol_id name at line " + std::to_string(line_no);
+          return false;
+        }
+        IrTextDebugSymbol sym;
+        sym.owner = tokens[2];
+        sym.name = tokens[4];
+        uint64_t kind = 0;
+        uint64_t symbol_id = 0;
+        if (!ParseUint(tokens[1], &kind) || !FitsUnsigned<uint32_t>(kind) ||
+            !ParseUint(tokens[3], &symbol_id) || !FitsUnsigned<uint32_t>(symbol_id)) {
+          if (error) *error = "debug symbol numeric field invalid at line " + std::to_string(line_no);
+          return false;
+        }
+        sym.kind = static_cast<uint32_t>(kind);
+        sym.symbol_id = static_cast<uint32_t>(symbol_id);
+        out->debug_symbols.push_back(std::move(sym));
         continue;
       }
     }
@@ -1339,6 +1417,63 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     Simple::Byte::sbc::AppendU32(out->exports_bytes, func_id);
     Simple::Byte::sbc::AppendU32(out->exports_bytes, exp.flags);
     Simple::Byte::sbc::AppendU32(out->exports_bytes, 0);
+  }
+
+  if (!text.debug_files.empty() || !text.debug_lines.empty() || !text.debug_symbols.empty()) {
+    std::unordered_map<std::string, uint32_t> debug_file_ids;
+    Simple::Byte::sbc::AppendU32(out->debug_bytes, static_cast<uint32_t>(text.debug_files.size()));
+    Simple::Byte::sbc::AppendU32(out->debug_bytes, static_cast<uint32_t>(text.debug_lines.size()));
+    Simple::Byte::sbc::AppendU32(out->debug_bytes, static_cast<uint32_t>(text.debug_symbols.size()));
+    Simple::Byte::sbc::AppendU32(out->debug_bytes, 0);
+    for (size_t i = 0; i < text.debug_files.size(); ++i) {
+      const auto& file = text.debug_files[i];
+      if (file.name.empty() || !debug_file_ids.emplace(file.name, static_cast<uint32_t>(i)).second) {
+        if (error) *error = "duplicate or empty debug file: " + file.name;
+        return false;
+      }
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, add_name(file.name));
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, file.hash);
+    }
+    auto resolve_debug_file = [&](const std::string& token, uint32_t* out_id) -> bool {
+      uint64_t value = 0;
+      if (ParseUint(token, &value)) {
+        if (!FitsUnsigned<uint32_t>(value) || value >= text.debug_files.size()) return false;
+        *out_id = static_cast<uint32_t>(value);
+        return true;
+      }
+      auto it = debug_file_ids.find(token);
+      if (it == debug_file_ids.end()) return false;
+      *out_id = it->second;
+      return true;
+    };
+    for (const auto& line_row : text.debug_lines) {
+      uint32_t method_id = 0;
+      uint32_t file_id = 0;
+      if (!resolve_func_id(line_row.function, &method_id)) {
+        if (error) *error = "debug line function not found: " + line_row.function;
+        return false;
+      }
+      if (!resolve_debug_file(line_row.file, &file_id)) {
+        if (error) *error = "debug line file not found: " + line_row.file;
+        return false;
+      }
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, method_id);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, line_row.code_offset);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, file_id);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, line_row.line);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, line_row.column);
+    }
+    for (const auto& sym : text.debug_symbols) {
+      uint32_t owner_id = 0;
+      if (!resolve_func_id(sym.owner, &owner_id)) {
+        if (error) *error = "debug symbol owner not found: " + sym.owner;
+        return false;
+      }
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, sym.kind);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, owner_id);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, sym.symbol_id);
+      Simple::Byte::sbc::AppendU32(out->debug_bytes, add_name(sym.name));
+    }
   }
 
   out->const_pool = const_pool;
