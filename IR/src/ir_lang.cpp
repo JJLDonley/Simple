@@ -2149,6 +2149,34 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         return true;
       };
       std::string marker_type;
+      if (parse_marker_type("load.ptr", &marker_type)) {
+        continue;
+      }
+      if (parse_marker_type("store.ptr", &marker_type)) {
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "ptr.add" || op == "ptr.offset") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitAddI32();
+        continue;
+      }
+      if (op == "mem.copy" || op == "mem.move" || op == "mem.set") {
+        if (!args.empty()) return fail(op + " expects no operands");
+        builder.EmitPop();
+        builder.EmitPop();
+        builder.EmitPop();
+        continue;
+      }
+      if (op == "mem.compare") {
+        if (!args.empty()) return fail("mem.compare expects no operands");
+        builder.EmitPop();
+        builder.EmitPop();
+        builder.EmitPop();
+        builder.EmitConstI32(0);
+        continue;
+      }
       if (parse_marker_type("channel.send", &marker_type)) {
         builder.EmitPop();
         builder.EmitPop();

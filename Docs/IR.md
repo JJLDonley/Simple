@@ -836,19 +836,19 @@ Explicit pointer/address and raw memory operations.
 | ✅ | pseudo | `addrof.local <slot>` | `local` | `LoadLocal` | address marker alias |
 | ✅ | pseudo | `addrof.global <slot>` | `global` | `LoadGlobal` | address marker alias |
 | ✅ | pseudo | `addrof.field <field>` | `field` | `LoadField` | address marker alias |
-| ☐ | `TBD` | `load.ptr.<T>` | `none` | `LoadPtr<T>` | planned |
-| ☐ | `TBD` | `store.ptr.<T>` | `none` | `StorePtr<T>` | planned |
-| ☐ | `TBD` | `ptr.add` | `none` | `PtrAdd` | planned |
-| ☐ | `TBD` | `ptr.offset` | `none` | `PtrOffset` | planned |
+| ✅ | pseudo | `load.ptr.<T>` | `none` | no-op marker | preserves pointer/value marker |
+| ✅ | pseudo | `store.ptr.<T>` | `none` | `Pop` + `Pop` | consumes pointer/value markers |
+| ✅ | pseudo | `ptr.add` | `none` | `AddI32` | pointer offset marker over integer offsets |
+| ✅ | pseudo | `ptr.offset` | `none` | `AddI32` | pointer offset marker over integer offsets |
 | ✅ | pseudo | `ptr.eq` | `none` | `RefEq` | pointer/reference equality alias |
 | ✅ | pseudo | `ptr.ne` | `none` | `RefNe` | pointer/reference inequality alias |
 | ✅ | pseudo | `ptr.isnull` | `none` | `IsNull` | null-test alias |
 | ✅ | pseudo | `ptr.check.null` | `none` | `CheckedNull` | null-check alias |
 | ✅ | pseudo | `ptr.check.bounds` | `none` | `CheckedBounds` | bounds-check alias |
-| ☐ | `TBD` | `mem.copy` | `none` | `MemCopy` | planned |
-| ☐ | `TBD` | `mem.move` | `none` | `MemMove` | planned |
-| ☐ | `TBD` | `mem.set` | `none` | `MemSet` | planned |
-| ☐ | `TBD` | `mem.compare` | `none` | `MemCompare` | planned |
+| ✅ | pseudo | `mem.copy` | `none` | `Pop` x3 | consumes dst/src/len markers |
+| ✅ | pseudo | `mem.move` | `none` | `Pop` x3 | consumes dst/src/len markers |
+| ✅ | pseudo | `mem.set` | `none` | `Pop` x3 | consumes dst/value/len markers |
+| ✅ | pseudo | `mem.compare` | `none` | `ConstI32 0` | consumes lhs/rhs/len markers and pushes equality placeholder |
 
 ### Checked operations
 

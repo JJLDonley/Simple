@@ -749,19 +749,19 @@ Explicit pointer/address and raw memory operations. `<T>` load/store rows are ty
 | ✅ | pseudo | `AddressOfLocal` | 4 | 0 | 1 |
 | ✅ | pseudo | `AddressOfGlobal` | 4 | 0 | 1 |
 | ✅ | pseudo | `AddressOfField` | 4 | 1 | 1 |
-| ☐ | `TBD` | `LoadPtr<T>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `StorePtr<T>` | 0 | 2 | 0 |
-| ☐ | `TBD` | `PtrAdd` | 0 | 2 | 1 |
-| ☐ | `TBD` | `PtrOffset` | 0 | 2 | 1 |
+| ✅ | pseudo | `LoadPtr<T>` | 0 | 1 | 1 |
+| ✅ | pseudo | `StorePtr<T>` | 0 | 2 | 0 |
+| ✅ | pseudo | `PtrAdd` | 0 | 2 | 1 |
+| ✅ | pseudo | `PtrOffset` | 0 | 2 | 1 |
 | ✅ | pseudo | `PtrEq` | 0 | 2 | 1 |
 | ✅ | pseudo | `PtrNe` | 0 | 2 | 1 |
 | ✅ | pseudo | `PtrIsNull` | 0 | 1 | 1 |
 | ✅ | pseudo | `PtrCheckNull` | 0 | 1 | 1 |
 | ✅ | pseudo | `PtrCheckBounds` | 0 | 3 | 1 |
-| ☐ | `TBD` | `MemCopy` | 0 | 3 | 0 |
-| ☐ | `TBD` | `MemMove` | 0 | 3 | 0 |
-| ☐ | `TBD` | `MemSet` | 0 | 3 | 0 |
-| ☐ | `TBD` | `MemCompare` | 0 | 3 | 1 |
+| ✅ | pseudo | `MemCopy` | 0 | 3 | 0 |
+| ✅ | pseudo | `MemMove` | 0 | 3 | 0 |
+| ✅ | pseudo | `MemSet` | 0 | 3 | 0 |
+| ✅ | pseudo | `MemCompare` | 0 | 3 | 1 |
 
 ### Checked operations
 
