@@ -1384,6 +1384,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
           if (!r5.ok) return r5;
           break;
         }
+        case OpCode::ArrayFill: {
+          pop_type(); // fill value is checked dynamically against the concrete array element representation.
+          ValType count = pop_type();
+          ValType arr = pop_type();
+          VerifyResult r1 = check_type(arr, ValType::Ref, "ARRAY_FILL type mismatch");
+          if (!r1.ok) return r1;
+          VerifyResult r2 = check_type(count, ValType::I32, "ARRAY_FILL count type mismatch");
+          if (!r2.ok) return r2;
+          break;
+        }
         case OpCode::ListLen: {
           ValType a = pop_type();
           VerifyResult r = check_type(a, ValType::Ref, "LIST_LEN type mismatch");

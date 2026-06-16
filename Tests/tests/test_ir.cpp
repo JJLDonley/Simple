@@ -7100,6 +7100,44 @@ bool RunIrTextArrayCopyTest() {
   return RunExpectExit(module, 22);
 }
 
+bool RunIrTextArrayFillTest() {
+  const char* text =
+      "func main locals=1 stack=10\n"
+      "  enter 1\n"
+      "  newarray i32 4\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 3\n"
+      "  const i32 5\n"
+      "  array.fill\n"
+      "  ldloc 0\n"
+      "  const i32 2\n"
+      "  array.get i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_fill");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 5);
+}
+
+bool RunIrTextArrayFillOobTrapTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  newarray i32 2\n"
+      "  const i32 3\n"
+      "  const i32 5\n"
+      "  array.fill\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_array_fill_oob");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_array_fill_oob");
+}
+
 bool RunIrTextArrayCopyOobTrapTest() {
   const char* text =
       "func main locals=1 stack=12\n"
@@ -8162,6 +8200,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_missing_sig", RunIrTextCallMissingSigTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_array_copy", RunIrTextArrayCopyTest},
+  {"ir_text_array_fill", RunIrTextArrayFillTest},
+  {"ir_text_array_fill_oob", RunIrTextArrayFillOobTrapTest},
   {"ir_text_array_copy_oob", RunIrTextArrayCopyOobTrapTest},
   {"ir_text_list_reserve", RunIrTextListReserveTest},
   {"ir_text_list_reserve_negative_trap", RunIrTextListReserveNegativeTrapTest},

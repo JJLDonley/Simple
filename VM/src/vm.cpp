@@ -776,6 +776,27 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         std::memmove(dst->payload.data() + dst_offset, src->payload.data() + src_offset, bytes);
         break;
       }
+      case OpCode::ArrayFill: {
+        Slot fill = Pop(stack);
+        int32_t count = UnpackI32(Pop(stack));
+        Slot array_value = Pop(stack);
+        if (IsNullRef(array_value)) return Trap("ARRAY_FILL on non-ref");
+        HeapObject* obj = heap.Get(UnpackRef(array_value));
+        if (!obj || obj->header.kind != ObjectKind::Array) return Trap("ARRAY_FILL on non-array");
+        uint32_t length = ReadU32Payload(obj->payload, 0);
+        if (count < 0 || static_cast<uint32_t>(count) > length) return Trap("ARRAY_FILL out of bounds");
+        uint32_t elem_size = 4;
+        if (obj->header.type_id < module.types.size()) {
+          TypeKind kind = static_cast<TypeKind>(module.types[obj->header.type_id].kind);
+          if (kind == TypeKind::I64 || kind == TypeKind::U64 || kind == TypeKind::F64) elem_size = 8;
+        }
+        for (uint32_t i = 0; i < static_cast<uint32_t>(count); ++i) {
+          size_t offset = HeapLayout::ArrayElementOffset(i, elem_size);
+          if (elem_size == 8) WriteU64Payload(obj->payload, offset, fill);
+          else WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(fill));
+        }
+        break;
+      }
       case OpCode::NewList: {
         uint32_t type_id = ReadU32(module.code, pc);
         uint32_t capacity = ReadU32(module.code, pc);

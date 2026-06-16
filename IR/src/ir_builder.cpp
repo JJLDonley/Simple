@@ -314,6 +314,10 @@ void IrBuilder::EmitArrayCopy() {
   EmitOp(OpCode::ArrayCopy);
 }
 
+void IrBuilder::EmitArrayFill() {
+  EmitOp(OpCode::ArrayFill);
+}
+
 void IrBuilder::EmitNewList(uint32_t type_id, uint32_t capacity) {
   EmitOp(OpCode::NewList);
   EmitU32(type_id);

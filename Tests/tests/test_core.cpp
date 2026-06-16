@@ -16828,7 +16828,7 @@ bool RunOpcodeOperandWidthMetadataTest() {
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::StringFind), &width) || width != 0) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &width) || width != 5) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &width) || width != 5) return false;
-  return !Simple::Byte::GetOperandWidth(0x8F, &width);
+  return Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &width) && width == 0;
 }
 
 bool RunOpcodeStackEffectMetadataTest() {
@@ -16854,7 +16854,7 @@ bool RunOpcodeStackEffectMetadataTest() {
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::KeepAlive), &pops, &pushes) || pops != 1 || pushes != 0) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &pops, &pushes) || pops != 0 || pushes != 0) return false;
   if (!Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &pops, &pushes) || pops != 0 || pushes != 0) return false;
-  return !Simple::Byte::GetStackEffect(0x8F, &pops, &pushes);
+  return Simple::Byte::GetStackEffect(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &pops, &pushes) && pops == 3 && pushes == 0;
 }
 
 bool RunOpcodeTypeRuleMetadataTest() {
@@ -16881,7 +16881,7 @@ bool RunOpcodeTypeRuleMetadataTest() {
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringFind), &rule) || rule != Simple::Byte::OpTypeRule::Aggregate) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
   if (!Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &rule) || rule != Simple::Byte::OpTypeRule::Call) return false;
-  return !Simple::Byte::GetOpTypeRule(0x8F, &rule);
+  return Simple::Byte::GetOpTypeRule(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &rule) && rule == Simple::Byte::OpTypeRule::Aggregate;
 }
 
 bool RunOpcodeControlFlowMetadataTest() {
@@ -16895,7 +16895,7 @@ bool RunOpcodeControlFlowMetadataTest() {
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
   if (!Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &flow) || flow != Simple::Byte::OpControlFlow::None) return false;
-  return !Simple::Byte::GetOpControlFlow(0x8F, &flow);
+  return Simple::Byte::GetOpControlFlow(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &flow) && flow == Simple::Byte::OpControlFlow::None;
 }
 
 bool RunOpcodeVerifierRuleMetadataTest() {
@@ -16916,7 +16916,7 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedBounds), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;
-  return !Simple::Byte::GetOpVerifierRule(0x8F, &rule);
+  return Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &rule) && rule == Simple::Byte::OpVerifierRule::Aggregate;
 }
 
 bool RunOpcodeVmDispatchMetadataTest() {
@@ -16935,7 +16935,7 @@ bool RunOpcodeVmDispatchMetadataTest() {
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Aggregate) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
   if (!Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::CallNative), &dispatch) || dispatch != Simple::Byte::OpVmDispatch::Call) return false;
-  return !Simple::Byte::GetOpVmDispatch(0x8F, &dispatch);
+  return Simple::Byte::GetOpVmDispatch(static_cast<uint8_t>(Simple::Byte::OpCode::ArrayFill), &dispatch) && dispatch == Simple::Byte::OpVmDispatch::Aggregate;
 }
 
 bool RunOpcodeMetadataVerifierVmComparisonTest() {
@@ -19475,16 +19475,13 @@ bool RunBadTypeVerifyTest() {
   return true;
 }
 
-bool RunBadUnknownOpcodeLoadTest() {
-  std::vector<uint8_t> module_bytes = BuildBadUnknownOpcodeModule();
-  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
-  if (load.ok) {
-    std::cerr << "expected load failure\n";
-    return false;
-  }
-  if (load.error.find("unknown opcode") == std::string::npos) {
-    std::cerr << "expected unknown opcode error, got: " << load.error << "\n";
-    return false;
+bool RunOpcodeAllBytesAssignedTest() {
+  Simple::Byte::OpInfo info{};
+  for (uint32_t opcode = 0; opcode <= 0xFFu; ++opcode) {
+    if (!Simple::Byte::GetOpInfo(static_cast<uint8_t>(opcode), &info)) {
+      std::cerr << "unassigned opcode: 0x" << std::hex << opcode << std::dec << "\n";
+      return false;
+    }
   }
   return true;
 }
@@ -24741,7 +24738,7 @@ static const TestCase kCoreTests[] = {
   {"bad_type_kind_fields_load", RunBadTypeKindFieldsLoadTest},
   {"bad_type_kind_ref_fields_load", RunBadTypeKindRefFieldsLoadTest},
   {"good_type_kind_ref_size_load", RunGoodTypeKindRefSizeLoadTest},
-  {"bad_unknown_opcode_load", RunBadUnknownOpcodeLoadTest},
+  {"opcode_all_bytes_assigned", RunOpcodeAllBytesAssignedTest},
   {"bad_operand_overrun_load", RunBadOperandOverrunLoadTest},
   {"bad_code_alignment_load", RunBadCodeAlignmentLoadTest},
   {"bad_imports_table_size_load", RunBadImportsTableSizeLoadTest},

@@ -79,6 +79,7 @@ class IrBuilder {
   void EmitArrayGetRef();
   void EmitArraySetRef();
   void EmitArrayCopy();
+  void EmitArrayFill();
   void EmitNewList(uint32_t type_id, uint32_t capacity);
   void EmitListLen();
   void EmitListGetI32();
