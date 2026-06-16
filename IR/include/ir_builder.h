@@ -45,6 +45,9 @@ class IrBuilder {
   void EmitCallIndirect(uint32_t sig_id, uint8_t arg_count);
   void EmitTailCall(uint32_t func_id, uint8_t arg_count);
   void EmitCallCheck();
+  void EmitLine(uint32_t line, uint32_t column);
+  void EmitProfileStart(uint32_t id);
+  void EmitProfileEnd(uint32_t id);
   void EmitIntrinsic(uint32_t id);
   void EmitSysCall(uint32_t id);
   void EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label);

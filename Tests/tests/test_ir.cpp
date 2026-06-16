@@ -3985,6 +3985,52 @@ bool RunIrTextSysCallMissingIdTest() {
   return RunIrTextExpectFail(text, "ir_text_syscall_missing_id");
 }
 
+bool RunIrTextControlRuntimeOpcodesTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  line 12 34\n"
+      "  profile.start 7\n"
+      "  profile.end 7\n"
+      "  breakpoint\n"
+      "  const i32 9\n"
+      "  halt\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_control_runtime_opcodes");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 9);
+}
+
+bool RunIrTextTrapOpcodeTest() {
+  const char* text =
+      "func main locals=0 stack=1\n"
+      "  enter 0\n"
+      "  line 3 4\n"
+      "  trap\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_trap_opcode");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_trap_opcode");
+}
+
+bool RunIrTextCommentInStringConstTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"hello#still;string\" # real comment\n"
+      "func main locals=0 stack=2\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  string.len\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_comment_in_string_const");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 18);
+}
+
 bool RunIrTextConstBoolTest() {
   const char* text =
       "func main locals=0 stack=6\n"
@@ -6795,6 +6841,27 @@ bool RunIrTextCallArgsTest() {
   return RunExpectExit(module, 9);
 }
 
+bool RunIrTextCallImportNativeAliasTest() {
+  const char* text =
+      "sigs:\n"
+      "  sig native_ret_i32: () -> i32\n"
+      "  sig main_sig: () -> i32\n"
+      "imports:\n"
+      "  intrinsic brk = 1\n"
+      "  import args_count System.os args_count sig=native_ret_i32\n"
+      "func main locals=0 stack=8 sig=main_sig\n"
+      "  enter 0\n"
+      "  call.import args_count 0\n"
+      "  pop\n"
+      "  const i32 1\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_call_import_native_alias");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 1);
+}
+
 bool RunIrTextCallIndirectArgsTest() {
   const char* text =
       "func callee locals=2 stack=8 sig=0\n"
@@ -7472,6 +7539,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_intrinsic_trap", RunIrTextIntrinsicTrapTest},
   {"ir_text_syscall_verify_fail", RunIrTextSysCallVerifyFailTest},
   {"ir_text_syscall_missing_id", RunIrTextSysCallMissingIdTest},
+  {"ir_text_control_runtime_opcodes", RunIrTextControlRuntimeOpcodesTest},
+  {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
+  {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_const_bool", RunIrTextConstBoolTest},
   {"ir_text_const_char", RunIrTextConstCharTest},
   {"ir_text_array_len", RunIrTextArrayLenTest},
@@ -7639,6 +7709,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_call_missing_sig", RunIrTextCallMissingSigTest},
   {"ir_text_list_clear", RunIrTextListClearTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
+  {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
   {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},
   {"ir_text_named_upvalue", RunIrTextNamedUpvalueTest},

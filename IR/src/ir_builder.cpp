@@ -143,6 +143,22 @@ void IrBuilder::EmitCallCheck() {
   EmitOp(OpCode::CallCheck);
 }
 
+void IrBuilder::EmitLine(uint32_t line, uint32_t column) {
+  EmitOp(OpCode::Line);
+  EmitU32(line);
+  EmitU32(column);
+}
+
+void IrBuilder::EmitProfileStart(uint32_t id) {
+  EmitOp(OpCode::ProfileStart);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitProfileEnd(uint32_t id) {
+  EmitOp(OpCode::ProfileEnd);
+  EmitU32(id);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);

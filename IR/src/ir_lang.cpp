@@ -21,9 +21,34 @@ std::string Trim(const std::string& text) {
 }
 
 std::string StripComment(const std::string& line) {
-  size_t cut = line.find_first_of(";#");
-  if (cut == std::string::npos) return line;
-  return line.substr(0, cut);
+  bool in_quote = false;
+  char quote = '\0';
+  bool escaped = false;
+  for (size_t i = 0; i < line.size(); ++i) {
+    const char ch = line[i];
+    if (in_quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch == '\\') {
+        escaped = true;
+        continue;
+      }
+      if (ch == quote) {
+        in_quote = false;
+        quote = '\0';
+      }
+      continue;
+    }
+    if (ch == '"' || ch == '\'') {
+      in_quote = true;
+      quote = ch;
+      continue;
+    }
+    if (ch == ';' || ch == '#') return line.substr(0, i);
+  }
+  return line;
 }
 
 std::vector<std::string> SplitTokens(const std::string& line) {
@@ -1165,18 +1190,24 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
   }
 
   std::unordered_map<std::string, uint32_t> import_ids;
-  for (size_t i = 0; i < text.imports.size(); ++i) {
-    const auto& imp = text.imports[i];
+  uint32_t import_row_index = 0;
+  for (const auto& imp : text.imports) {
+    if (imp.kind == "syscall") continue;
+    if (imp.kind == "intrinsic") {
+      ++import_row_index;
+      continue;
+    }
     if (imp.kind != "import") continue;
     if (!IsValidLabelName(imp.name)) {
       if (error) *error = "invalid import name: " + imp.name;
       return false;
     }
-    uint32_t func_id = static_cast<uint32_t>(text.functions.size() + i);
+    uint32_t func_id = static_cast<uint32_t>(text.functions.size() + import_row_index);
     if (!import_ids.emplace(imp.name, func_id).second) {
       if (error) *error = "duplicate import name: " + imp.name;
       return false;
     }
+    ++import_row_index;
   }
 
   auto resolve_func_id = [&](const std::string& token, uint32_t* out_id) -> bool {
@@ -1437,8 +1468,47 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitRet();
         continue;
       }
+      if (op == "leave") {
+        if (!args.empty()) return fail("leave expects no operands");
+        builder.EmitOp(Simple::IR::OpCode::Leave);
+        continue;
+      }
+      if (op == "halt") {
+        if (!args.empty()) return fail("halt expects no operands");
+        builder.EmitOp(Simple::IR::OpCode::Halt);
+        continue;
+      }
+      if (op == "trap") {
+        if (!args.empty()) return fail("trap expects no operands");
+        builder.EmitOp(Simple::IR::OpCode::Trap);
+        continue;
+      }
+      if (op == "breakpoint") {
+        if (!args.empty()) return fail("breakpoint expects no operands");
+        builder.EmitOp(Simple::IR::OpCode::Breakpoint);
+        continue;
+      }
       if (op == "nop") {
         builder.EmitOp(Simple::IR::OpCode::Nop);
+        continue;
+      }
+      if (op == "line") {
+        uint64_t line = 0;
+        uint64_t column = 0;
+        if (args.size() != 2 || !ParseUint(args[0], &line) || !ParseUint(args[1], &column) ||
+            !FitsUnsigned<uint32_t>(line) || !FitsUnsigned<uint32_t>(column)) {
+          return fail("line expects line column");
+        }
+        builder.EmitLine(static_cast<uint32_t>(line), static_cast<uint32_t>(column));
+        continue;
+      }
+      if (op == "profile.start" || op == "profile.end") {
+        uint64_t id = 0;
+        if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
+          return fail(op + " expects id");
+        }
+        if (op == "profile.start") builder.EmitProfileStart(static_cast<uint32_t>(id));
+        else builder.EmitProfileEnd(static_cast<uint32_t>(id));
         continue;
       }
       if (op == "pop") {
@@ -2173,14 +2243,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitJmpTable(cases, def);
         continue;
       }
-      if (op == "call") {
+      if (op == "call" || op == "call.import" || op == "call.native") {
         if (args.size() != 2) {
-          return fail("call expects func_id arg_count");
+          return fail(op + " expects func_id arg_count");
         }
         uint32_t func_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count)) {
-          return fail("call expects numeric args");
+        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count) ||
+            !FitsUnsigned<uint8_t>(arg_count)) {
+          return fail(op + " expects numeric args");
         }
         builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
         continue;
@@ -2191,7 +2262,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         uint32_t sig_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_sig_id(args[0], &sig_id) || !ParseUint(args[1], &arg_count)) {
+        if (!resolve_sig_id(args[0], &sig_id) || !ParseUint(args[1], &arg_count) ||
+            !FitsUnsigned<uint8_t>(arg_count)) {
           return fail("call.indirect expects numeric args");
         }
         builder.EmitCallIndirect(sig_id, static_cast<uint8_t>(arg_count));
@@ -2203,7 +2275,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         uint32_t func_id = 0;
         uint64_t arg_count = 0;
-        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count)) {
+        if (!resolve_func_id(args[0], &func_id) || !ParseUint(args[1], &arg_count) ||
+            !FitsUnsigned<uint8_t>(arg_count)) {
           return fail("tailcall expects numeric args");
         }
         builder.EmitTailCall(func_id, static_cast<uint8_t>(arg_count));

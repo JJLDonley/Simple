@@ -269,14 +269,15 @@ Control-flow, frame, and labels. Labels are source-only and lower to relative br
 |:---:|---:|---|---|---|---|
 | ✅ | `0x00` | `nop` | `none` | `Nop` |  |
 | ✅ | `0x74` | `enter <locals>` | `u16 locals` | `Enter` |  |
+| ✅ | `0x75` | `leave` | `none` | `Leave` |  |
 | ✅ | `0x73` | `ret` | `none` | `Ret` |  |
 | ✅ | `0x04` | `jmp <label>` | `label` | `Jmp` |  |
 | ✅ | `0x05` | `jmp.true <label>` | `label` | `JmpTrue` |  |
 | ✅ | `0x06` | `jmp.false <label>` | `label` | `JmpFalse` |  |
 | ✅ | `0x07` | `jmptable <default> <case>...` | `default label plus case labels` | `JmpTable` |  |
-| ☐ | `TBD` | `halt` | `none` | `Halt` | planned |
-| ☐ | `TBD` | `trap` | `none` | `Trap` | planned |
-| ☐ | `TBD` | `breakpoint` | `none` | `Breakpoint` | planned |
+| ✅ | `0x01` | `halt` | `none` | `Halt` |  |
+| ✅ | `0x02` | `trap` | `none` | `Trap` |  |
+| ✅ | `0x03` | `breakpoint` | `none` | `Breakpoint` |  |
 
 ### Stack
 
@@ -609,8 +610,8 @@ Direct, indirect, tail, import/native, method, and virtual calls.
 | ✅ | `0x71` | `call.indirect <sig> <argc>` | `signature id/name, argc` | `CallIndirect` |  |
 | ✅ | `0x72` | `tailcall <func> <argc>` | `function id/name, argc` | `TailCall` |  |
 | ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
-| ☐ | `TBD` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | planned |
-| ☐ | `TBD` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | planned |
+| ✅ | `0x70` | `call.import <import> <argc>` | `import id/name, argc` | `Call` | metadata-native import call alias |
+| ✅ | `0x70` | `call.native <native> <argc>` | `native id/name, argc` | `Call` | metadata-native import call alias |
 | ☐ | `TBD` | `call.method <method> <argc>` | `method id/name, argc` | `CallMethod` | planned |
 | ☐ | `TBD` | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallVirtual` | planned |
 
@@ -642,9 +643,9 @@ Line/profile markers and runtime/native escape hatches.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ☐ | `TBD` | `line <file> <line>` | `u32 file, u32 line` | `Line` | planned SIR syntax for implemented bytecode |
-| ☐ | `TBD` | `profile.start <id>` | `u32 id` | `ProfileStart` | planned |
-| ☐ | `TBD` | `profile.end <id>` | `u32 id` | `ProfileEnd` | planned |
+| ✅ | `0x80` | `line <line> <column>` | `u32 line, u32 column` | `Line` |  |
+| ✅ | `0x81` | `profile.start <id>` | `u32 id` | `ProfileStart` |  |
+| ✅ | `0x82` | `profile.end <id>` | `u32 id` | `ProfileEnd` |  |
 | ✅ | `0x90` | `intrinsic <id>` | `u32 id` | `Intrinsic` |  |
 | ✅ | `0x91` | `syscall <id>` | `u32 id` | `SysCall` |  |
 | ☐ | `TBD` | `span <file> <start> <end>` | `source span` | `Span` | planned |
