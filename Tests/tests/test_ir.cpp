@@ -6617,6 +6617,21 @@ bool RunIrTextCheckedArithmeticSubTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArithmeticMulTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 6\n"
+      "  const i32 7\n"
+      "  checked.mul.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_mul");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
 bool RunIrTextCheckedArithmeticOverflowTrapTest() {
   const char* add_text =
       "func main locals=0 stack=8\n"
@@ -6639,8 +6654,19 @@ bool RunIrTextCheckedArithmeticOverflowTrapTest() {
       "end\n"
       "entry main\n";
   auto sub_module = BuildIrTextModule(sub_text, "ir_text_checked_sub_overflow_trap");
-  if (sub_module.empty()) return false;
-  return RunExpectTrap(sub_module, "ir_text_checked_sub_overflow_trap");
+  if (sub_module.empty() || !RunExpectTrap(sub_module, "ir_text_checked_sub_overflow_trap")) return false;
+  const char* mul_text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i32 1073741824\n"
+      "  const i32 2\n"
+      "  checked.mul.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto mul_module = BuildIrTextModule(mul_text, "ir_text_checked_mul_overflow_trap");
+  if (mul_module.empty()) return false;
+  return RunExpectTrap(mul_module, "ir_text_checked_mul_overflow_trap");
 }
 
 bool RunIrTextCheckedArithmeticBadTest() {
@@ -9474,6 +9500,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
   {"ir_text_checked_arithmetic_sub", RunIrTextCheckedArithmeticSubTest},
+  {"ir_text_checked_arithmetic_mul", RunIrTextCheckedArithmeticMulTest},
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},

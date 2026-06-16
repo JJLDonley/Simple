@@ -858,7 +858,7 @@ Checked arithmetic, bounds, null, and conversions.
 |:---:|---:|---|---|---|---|
 | ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
 | ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
-| ☐ | `TBD` | `checked.mul.<T>` | `none` | `CheckedMul<T>` | real opcode pending |
+| ✅ | extended | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
 | ☐ | `TBD` | `checked.div.<T>` | `none` | `CheckedDiv<T>` | real opcode pending |
 | ☐ | `TBD` | `checked.mod.<T>` | `none` | `CheckedMod<T>` | real opcode pending |
 | ✅ | pseudo | `checked.array.get.<T>` | `none` | `ArrayGet<T>` | checked aggregate alias for supported element types |
