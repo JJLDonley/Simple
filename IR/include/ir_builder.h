@@ -58,6 +58,9 @@ class IrBuilder {
   void EmitSafepoint();
   void EmitAllocCheckpoint();
   void EmitKeepAlive();
+  void EmitCheckCapability(uint32_t id);
+  void EmitEnterSandbox(uint32_t id);
+  void EmitExitSandbox();
   void EmitIntrinsic(uint32_t id);
   void EmitSysCall(uint32_t id);
   void EmitJmpTable(const std::vector<IrLabel>& cases, IrLabel default_label);

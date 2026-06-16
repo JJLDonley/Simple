@@ -890,9 +890,9 @@ Optional capability/security checks for restricted runtimes.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `CheckCapability` | 4 | 0 | 0 |
-| ☐ | `TBD` | `EnterSandbox` | 4 | 0 | 0 |
-| ☐ | `TBD` | `ExitSandbox` | 0 | 0 | 0 |
+| ✅ | `0x0B` | `CheckCapability` | 4 | 0 | 0 |
+| ✅ | `0x0C` | `EnterSandbox` | 4 | 0 | 0 |
+| ✅ | `0x0D` | `ExitSandbox` | 0 | 0 | 0 |
 
 ### SIMD and vectors
 

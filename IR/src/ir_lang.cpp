@@ -1543,6 +1543,20 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitKeepAlive();
         continue;
       }
+      if (op == "cap.check" || op == "sandbox.enter") {
+        uint64_t id = 0;
+        if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
+          return fail(op + " expects id");
+        }
+        if (op == "cap.check") builder.EmitCheckCapability(static_cast<uint32_t>(id));
+        else builder.EmitEnterSandbox(static_cast<uint32_t>(id));
+        continue;
+      }
+      if (op == "sandbox.exit") {
+        if (!args.empty()) return fail("sandbox.exit expects no operands");
+        builder.EmitExitSandbox();
+        continue;
+      }
       if (op == "pop") {
         builder.EmitPop();
         continue;

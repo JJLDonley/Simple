@@ -956,9 +956,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ☐ | `TBD` | `guard.type.<T>` | `type` | `GuardType<T>` | planned |
 | ☐ | `TBD` | `guard.bounds` | `none` | `GuardBounds` | planned |
 | ☐ | `TBD` | `guard.notnull` | `none` | `GuardNotNull` | planned |
-| ☐ | `TBD` | `cap.check <id>` | `u32 id` | `CheckCapability` | planned |
-| ☐ | `TBD` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | planned |
-| ☐ | `TBD` | `sandbox.exit` | `none` | `ExitSandbox` | planned |
+| ✅ | `0x0B` | `cap.check <id>` | `u32 id` | `CheckCapability` | capability marker |
+| ✅ | `0x0C` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | sandbox marker |
+| ✅ | `0x0D` | `sandbox.exit` | `none` | `ExitSandbox` | sandbox marker |
 | ☐ | `TBD` | `vec.load.<T,N>` | `none` | `VecLoad<T,N>` | planned |
 | ☐ | `TBD` | `vec.store.<T,N>` | `none` | `VecStore<T,N>` | planned |
 | ☐ | `TBD` | `vec.splat.<T,N>` | `none` | `VecSplat<T,N>` | planned |

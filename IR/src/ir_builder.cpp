@@ -205,6 +205,20 @@ void IrBuilder::EmitKeepAlive() {
   EmitOp(OpCode::KeepAlive);
 }
 
+void IrBuilder::EmitCheckCapability(uint32_t id) {
+  EmitOp(OpCode::CheckCapability);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitEnterSandbox(uint32_t id) {
+  EmitOp(OpCode::EnterSandbox);
+  EmitU32(id);
+}
+
+void IrBuilder::EmitExitSandbox() {
+  EmitOp(OpCode::ExitSandbox);
+}
+
 void IrBuilder::EmitIntrinsic(uint32_t id) {
   EmitOp(OpCode::Intrinsic);
   EmitU32(id);

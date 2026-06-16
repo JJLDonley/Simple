@@ -1738,6 +1738,9 @@ VerifyResult VerifyModule(const SbcModule& module) {
         }
         case OpCode::Safepoint:
         case OpCode::AllocCheckpoint:
+        case OpCode::CheckCapability:
+        case OpCode::EnterSandbox:
+        case OpCode::ExitSandbox:
         case OpCode::TraceEnter:
         case OpCode::TraceLeave:
         case OpCode::InitGlobal:

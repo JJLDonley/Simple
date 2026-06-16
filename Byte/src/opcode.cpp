@@ -10,7 +10,12 @@ bool GetOpInfo(uint8_t opcode, OpInfo* info) {
     case OpCode::Breakpoint:
     case OpCode::Safepoint:
     case OpCode::AllocCheckpoint:
+    case OpCode::ExitSandbox:
       *info = {0, 0, 0};
+      return true;
+    case OpCode::CheckCapability:
+    case OpCode::EnterSandbox:
+      *info = {4, 0, 0};
       return true;
     case OpCode::KeepAlive:
       *info = {0, 1, 0};
@@ -700,6 +705,9 @@ bool GetOpVerifierRule(uint8_t opcode, OpVerifierRule* rule) {
              opcode == static_cast<uint8_t>(OpCode::Breakpoint) ||
              opcode == static_cast<uint8_t>(OpCode::Safepoint) ||
              opcode == static_cast<uint8_t>(OpCode::AllocCheckpoint) ||
+             opcode == static_cast<uint8_t>(OpCode::CheckCapability) ||
+             opcode == static_cast<uint8_t>(OpCode::EnterSandbox) ||
+             opcode == static_cast<uint8_t>(OpCode::ExitSandbox) ||
              opcode == static_cast<uint8_t>(OpCode::Line) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileStart) ||
              opcode == static_cast<uint8_t>(OpCode::ProfileEnd) ||
@@ -819,6 +827,9 @@ const char* OpCodeName(uint8_t opcode) {
     case OpCode::Safepoint: return "Safepoint";
     case OpCode::AllocCheckpoint: return "AllocCheckpoint";
     case OpCode::KeepAlive: return "KeepAlive";
+    case OpCode::CheckCapability: return "CheckCapability";
+    case OpCode::EnterSandbox: return "EnterSandbox";
+    case OpCode::ExitSandbox: return "ExitSandbox";
     case OpCode::Pop: return "Pop";
     case OpCode::Dup: return "Dup";
     case OpCode::Dup2: return "Dup2";

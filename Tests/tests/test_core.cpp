@@ -16817,6 +16817,8 @@ bool RunOpcodeOperandWidthMetadataTest() {
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::TraceEnter), &width) || width != 4) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::InitGlobal), &width) || width != 4) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::Safepoint), &width) || width != 0) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::CheckCapability), &width) || width != 4) return false;
+  if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::ExitSandbox), &width) || width != 0) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace), &width) || width != 0) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::JmpTable), &width) || width != 8) return false;
   if (!Simple::Byte::GetOperandWidth(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &width) || width != 0) return false;
@@ -16899,6 +16901,7 @@ bool RunOpcodeVerifierRuleMetadataTest() {
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StringEq), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::StackTrace), &rule) || rule != Simple::Byte::OpVerifierRule::Typed) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::TraceEnter), &rule) || rule != Simple::Byte::OpVerifierRule::Structural) return false;
+  if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckCapability), &rule) || rule != Simple::Byte::OpVerifierRule::Structural) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedNull), &rule) || rule != Simple::Byte::OpVerifierRule::Typed) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CheckedBounds), &rule) || rule != Simple::Byte::OpVerifierRule::Aggregate) return false;
   if (!Simple::Byte::GetOpVerifierRule(static_cast<uint8_t>(Simple::Byte::OpCode::CallImport), &rule) || rule != Simple::Byte::OpVerifierRule::Call) return false;

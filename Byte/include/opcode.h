@@ -19,6 +19,9 @@ enum class OpCode : uint8_t {
   Safepoint = 0x08,
   AllocCheckpoint = 0x09,
   KeepAlive = 0x0A,
+  CheckCapability = 0x0B,
+  EnterSandbox = 0x0C,
+  ExitSandbox = 0x0D,
 
   Pop = 0x10,
   Dup = 0x11,

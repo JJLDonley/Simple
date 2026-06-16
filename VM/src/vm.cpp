@@ -1388,6 +1388,11 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       }
       case OpCode::Safepoint:
       case OpCode::AllocCheckpoint:
+      case OpCode::ExitSandbox:
+        break;
+      case OpCode::CheckCapability:
+      case OpCode::EnterSandbox:
+        ReadU32(module.code, pc);
         break;
       case OpCode::KeepAlive:
         Pop(stack);

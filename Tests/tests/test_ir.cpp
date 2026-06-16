@@ -4058,6 +4058,32 @@ bool RunIrTextTraceOpcodesTest() {
   return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
 }
 
+bool RunIrTextCapabilitySandboxOpsTest() {
+  const char* text =
+      "func main locals=0 stack=4\n"
+      "  enter 0\n"
+      "  cap.check 7\n"
+      "  sandbox.enter 2\n"
+      "  sandbox.exit\n"
+      "  const i32 9\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_capability_sandbox_ops");
+  if (module.empty()) return false;
+  auto load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) return false;
+  bool saw_cap = false;
+  bool saw_enter = false;
+  bool saw_exit = false;
+  for (uint8_t byte : load.module.code) {
+    saw_cap = saw_cap || byte == static_cast<uint8_t>(Simple::Byte::OpCode::CheckCapability);
+    saw_enter = saw_enter || byte == static_cast<uint8_t>(Simple::Byte::OpCode::EnterSandbox);
+    saw_exit = saw_exit || byte == static_cast<uint8_t>(Simple::Byte::OpCode::ExitSandbox);
+  }
+  return saw_cap && saw_enter && saw_exit && RunExpectExit(module, 9);
+}
+
 bool RunIrTextGcRuntimeOpsTest() {
   const char* text =
       "consts:\n"
@@ -7781,6 +7807,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
+  {"ir_text_capability_sandbox_ops", RunIrTextCapabilitySandboxOpsTest},
   {"ir_text_gc_runtime_ops", RunIrTextGcRuntimeOpsTest},
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
   {"ir_text_object_clone_null_trap", RunIrTextObjectCloneNullTrapTest},
