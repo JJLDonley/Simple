@@ -62,6 +62,28 @@ main : i32 () { return 0 }
          sir.find("field small bool offset=8") != std::string::npos;
 }
 
+bool LangCastIndexedMemberExprEmitsSir() {
+  std::string sir;
+  std::string error;
+  const char* source = R"simple(
+Particle :: artifact {
+  life : f32
+  alpha : u8
+}
+
+main : i32 () {
+  particles : Particle[] = []
+  particles.push({ .life=7.0, .alpha=255 })
+  particles[0].alpha = @u8((particles[0].life / 7.0) * 255.0)
+  return 0
+}
+)simple";
+  if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
+  return sir.find("ldfld Particle.life") != std::string::npos &&
+         sir.find("conv f32 i32") != std::string::npos &&
+         sir.find("stfld Particle.alpha") != std::string::npos;
+}
+
 bool LangSplitIreEmitsSirModule() {
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -86,6 +108,7 @@ const TestCase kLangIreTests[] = {
   {"lang_dl_imports_emit_system_namespace", LangDlImportsEmitSystemNamespace},
   {"lang_data_decl_emits_stable_layout", LangDataDeclEmitsStableLayout},
   {"lang_artifact_decl_emits_managed_layout", LangArtifactDeclEmitsManagedLayout},
+  {"lang_cast_indexed_member_expr_emits_sir", LangCastIndexedMemberExprEmitsSir},
   {"lang_split_ire_emits_sir_module", LangSplitIreEmitsSirModule},
 };
 

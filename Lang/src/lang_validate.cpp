@@ -1051,6 +1051,25 @@ bool InferExprType(const Expr& expr,
           }
         }
       }
+      TypeRef base_type;
+      if (InferExprType(base, ctx, scopes, current_artifact, &base_type)) {
+        auto artifact_it = ctx.artifacts.find(base_type.name);
+        const ArtifactDecl* artifact = artifact_it == ctx.artifacts.end() ? nullptr : artifact_it->second;
+        std::unordered_map<std::string, TypeRef> mapping;
+        if (artifact && !artifact->generics.empty()) {
+          if (!BuildArtifactTypeParamMap(base_type, artifact, &mapping, nullptr)) return false;
+        }
+        if (const VarDecl* field = FindArtifactField(artifact, expr.text)) {
+          TypeRef resolved;
+          if (!SubstituteTypeParams(field->type, mapping, &resolved)) return false;
+          return CloneTypeRef(resolved, out);
+        }
+        if (const FuncDecl* method = FindArtifactMethod(artifact, expr.text)) {
+          TypeRef resolved;
+          if (!SubstituteTypeParams(method->return_type, mapping, &resolved)) return false;
+          return CloneTypeRef(resolved, out);
+        }
+      }
       return false;
     }
     case ExprKind::Call: {
