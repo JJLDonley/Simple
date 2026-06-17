@@ -1904,12 +1904,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         if (op == "conv" || op == "checked.conv") {
           if (args.size() != 2 || !is_type_name(Lower(args[0])) || !is_type_name(Lower(args[1]))) return false;
-          op = "conv." + Lower(args[0]) + "." + Lower(args[1]);
+          const bool checked = op == "checked.conv";
+          op = std::string(checked ? "checked.conv." : "conv.") + Lower(args[0]) + "." + Lower(args[1]);
           args.clear();
           return true;
         }
         if (op.rfind("checked.conv.", 0) == 0) {
-          op = "conv." + op.substr(13);
           return args.empty();
         }
         const std::vector<std::string> checked_arith = {"add", "sub", "mul", "div", "mod"};
@@ -3177,6 +3177,38 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail("tailcall expects numeric args");
         }
         builder.EmitTailCall(func_id, static_cast<uint8_t>(arg_count));
+        continue;
+      }
+      if (op == "checked.conv.i32.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvI32ToI64);
+        continue;
+      }
+      if (op == "checked.conv.i64.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvI64ToI32);
+        continue;
+      }
+      if (op == "checked.conv.i32.f32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvI32ToF32);
+        continue;
+      }
+      if (op == "checked.conv.i32.f64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvI32ToF64);
+        continue;
+      }
+      if (op == "checked.conv.f32.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvF32ToI32);
+        continue;
+      }
+      if (op == "checked.conv.f64.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvF64ToI32);
+        continue;
+      }
+      if (op == "checked.conv.f32.f64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvF32ToF64);
+        continue;
+      }
+      if (op == "checked.conv.f64.f32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedConvF64ToF32);
         continue;
       }
       if (op == "conv.i32.i64") {

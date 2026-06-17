@@ -531,7 +531,7 @@ Scalar conversions. `<From,To>` covers explicit typed conversion pairs. Checked 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
 | ◐ | `typed` | `Conv<From,To>` | 0 | 1 | 1 |
-| ✅ | pseudo | `CheckedConv<From,To>` | 0 | 1 | 1 |
+| ✅ | ext `47..54` | `CheckedConv<From,To>` | 0 | 1 | 1 |
 
 Conv<From,To> codes:
 

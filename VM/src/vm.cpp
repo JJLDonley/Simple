@@ -811,6 +811,57 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(static_cast<int32_t>(obj->header.type_id)));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedConvI32ToI64: {
+              Push(stack, PackI64(static_cast<int64_t>(UnpackI32(Pop(stack)))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvI64ToI32: {
+              int64_t in = UnpackI64(Pop(stack));
+              if (in < std::numeric_limits<int32_t>::min() || in > std::numeric_limits<int32_t>::max()) {
+                return Trap("CHECKED_CONV_I64_I32 overflow");
+              }
+              Push(stack, PackI32(static_cast<int32_t>(in)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF32: {
+              Push(stack, PackF32Bits(F32ToBits(static_cast<float>(UnpackI32(Pop(stack))))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF64: {
+              Push(stack, PackF64Bits(F64ToBits(static_cast<double>(UnpackI32(Pop(stack))))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvF32ToI32: {
+              float in = BitsToF32(static_cast<uint32_t>(Pop(stack)));
+              if (!std::isfinite(in) || in < static_cast<float>(std::numeric_limits<int32_t>::min()) ||
+                  in > static_cast<float>(std::numeric_limits<int32_t>::max())) {
+                return Trap("CHECKED_CONV_F32_I32 overflow");
+              }
+              Push(stack, PackI32(static_cast<int32_t>(in)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvF64ToI32: {
+              double in = BitsToF64(static_cast<uint64_t>(Pop(stack)));
+              if (!std::isfinite(in) || in < static_cast<double>(std::numeric_limits<int32_t>::min()) ||
+                  in > static_cast<double>(std::numeric_limits<int32_t>::max())) {
+                return Trap("CHECKED_CONV_F64_I32 overflow");
+              }
+              Push(stack, PackI32(static_cast<int32_t>(in)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvF32ToF64: {
+              Push(stack, PackF64Bits(F64ToBits(static_cast<double>(BitsToF32(static_cast<uint32_t>(Pop(stack)))))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedConvF64ToF32: {
+              double in = BitsToF64(static_cast<uint64_t>(Pop(stack)));
+              if (std::isfinite(in) && (in < -static_cast<double>(std::numeric_limits<float>::max()) ||
+                  in > static_cast<double>(std::numeric_limits<float>::max()))) {
+                return Trap("CHECKED_CONV_F64_F32 overflow");
+              }
+              Push(stack, PackF32Bits(F32ToBits(static_cast<float>(in))));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

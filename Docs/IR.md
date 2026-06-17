@@ -622,7 +622,14 @@ Scalar conversions.
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ◐ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | partially implemented typed family |
-| ✅ | pseudo | `checked.conv.<From>.<To>` | `none` | `Conv<From,To>` | checked-conversion alias for supported scalar conversions |
+| ✅ | extended | `checked.conv.i32.i64` | `none` | `Ext.CheckedConvI32ToI64` | checked scalar conversion |
+| ✅ | extended | `checked.conv.i64.i32` | `none` | `Ext.CheckedConvI64ToI32` | traps on out-of-range |
+| ✅ | extended | `checked.conv.i32.f32` | `none` | `Ext.CheckedConvI32ToF32` | checked scalar conversion |
+| ✅ | extended | `checked.conv.i32.f64` | `none` | `Ext.CheckedConvI32ToF64` | checked scalar conversion |
+| ✅ | extended | `checked.conv.f32.i32` | `none` | `Ext.CheckedConvF32ToI32` | traps on NaN/infinity/out-of-range |
+| ✅ | extended | `checked.conv.f64.i32` | `none` | `Ext.CheckedConvF64ToI32` | traps on NaN/infinity/out-of-range |
+| ✅ | extended | `checked.conv.f32.f64` | `none` | `Ext.CheckedConvF32ToF64` | checked scalar conversion |
+| ✅ | extended | `checked.conv.f64.f32` | `none` | `Ext.CheckedConvF64ToF32` | traps on finite out-of-range |
 
 conv.<From>.<To> codes:
 

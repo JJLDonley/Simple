@@ -862,6 +862,70 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CheckedConvI32ToI64: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::I32, "CHECKED_CONV_I32_I64 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::I64);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvI64ToI32: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::I64, "CHECKED_CONV_I64_I32 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF32: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::I32, "CHECKED_CONV_I32_F32 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::F32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvI32ToF64: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::I32, "CHECKED_CONV_I32_F64 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::F64);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvF32ToI32: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::F32, "CHECKED_CONV_F32_I32 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvF64ToI32: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::F64, "CHECKED_CONV_F64_I32 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvF32ToF64: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::F32, "CHECKED_CONV_F32_F64 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::F64);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedConvF64ToF32: {
+            ValType v = pop_type();
+            VerifyResult r = check_type(v, ValType::F64, "CHECKED_CONV_F64_F32 type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::F32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

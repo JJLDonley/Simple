@@ -6575,6 +6575,20 @@ bool RunIrTextCheckedConvAliasTest() {
   return RunExpectExit(module, 12);
 }
 
+bool RunIrTextCheckedConvTrapTest() {
+  const char* text =
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const i64 2147483648\n"
+      "  checked.conv.i64.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_conv_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_conv_trap");
+}
+
 bool RunIrTextCheckedConvBadTest() {
   const char* text =
       "func main locals=0 stack=8\n"
@@ -10079,6 +10093,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_insert_remove_f64", RunIrTextListInsertRemoveF64Test},
   {"ir_text_conv_chain", RunIrTextConvChainTest},
   {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
+  {"ir_text_checked_conv_trap", RunIrTextCheckedConvTrapTest},
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
   {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
   {"ir_text_checked_arithmetic_add_i64", RunIrTextCheckedArithmeticAddI64Test},
