@@ -3455,6 +3455,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetF32);
         continue;
       }
+      if (op == "checked.list.get.f64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListGetF64);
+        continue;
+      }
+      if (op == "checked.list.set.f64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetF64);
+        continue;
+      }
+      if (op == "checked.list.get.ref") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListGetRef);
+        continue;
+      }
+      if (op == "checked.list.set.ref") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetRef);
+        continue;
+      }
       if (op.rfind("checked.list.get.", 0) == 0 || op.rfind("checked.list.set.", 0) == 0) {
         return fail("real checked opcode not implemented yet: " + op);
       }
@@ -3516,6 +3532,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         std::string list_type_name = Lower(args[0]);
         if (list_type_name == "i64") builder.EmitNewListI64(type_id, static_cast<uint32_t>(cap));
         else if (list_type_name == "f32") builder.EmitNewListF32(type_id, static_cast<uint32_t>(cap));
+        else if (list_type_name == "f64") builder.EmitNewListF64(type_id, static_cast<uint32_t>(cap));
+        else if (list_type_name == "ref") builder.EmitNewListRef(type_id, static_cast<uint32_t>(cap));
         else builder.EmitNewList(type_id, static_cast<uint32_t>(cap));
         continue;
       }

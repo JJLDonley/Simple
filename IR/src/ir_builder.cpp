@@ -367,6 +367,18 @@ void IrBuilder::EmitNewListF32(uint32_t type_id, uint32_t capacity) {
   EmitU32(capacity);
 }
 
+void IrBuilder::EmitNewListF64(uint32_t type_id, uint32_t capacity) {
+  EmitOp(OpCode::NewListF64);
+  EmitU32(type_id);
+  EmitU32(capacity);
+}
+
+void IrBuilder::EmitNewListRef(uint32_t type_id, uint32_t capacity) {
+  EmitOp(OpCode::NewListRef);
+  EmitU32(type_id);
+  EmitU32(capacity);
+}
+
 void IrBuilder::EmitListLen() {
   EmitOp(OpCode::ListLen);
 }

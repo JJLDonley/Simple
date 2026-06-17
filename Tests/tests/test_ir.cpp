@@ -6996,6 +6996,65 @@ bool RunIrTextCheckedAggregateAliasTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedListF64Test() {
+  const char* text =
+      "func main locals=1 stack=16\n"
+      "  enter 1\n"
+      "  newlist f64 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const f64 42.0\n"
+      "  list.push f64\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  const f64 42.0\n"
+      "  checked.list.set.f64\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  checked.list.get f64\n"
+      "  conv f64 i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_list_f64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedListRefTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func main locals=1 stack=16 sig=main_sig\n"
+      "  enter 1\n"
+      "  newlist ref 0\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  init.object Obj\n"
+      "  list.push ref\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  init.object Obj\n"
+      "  checked.list.set.ref\n"
+      "  ldloc 0\n"
+      "  const i32 0\n"
+      "  checked.list.get ref\n"
+      "  isnull\n"
+      "  jmp.false ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 42\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_list_ref");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
 bool RunIrTextCheckedListF32Test() {
   const char* text =
       "func main locals=1 stack=16\n"
@@ -10001,6 +10060,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
+  {"ir_text_checked_list_f64", RunIrTextCheckedListF64Test},
+  {"ir_text_checked_list_ref", RunIrTextCheckedListRefTest},
   {"ir_text_checked_list_f32", RunIrTextCheckedListF32Test},
   {"ir_text_checked_list_i64", RunIrTextCheckedListI64Test},
   {"ir_text_checked_list_i32", RunIrTextCheckedListI32Test},

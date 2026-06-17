@@ -685,6 +685,64 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedListGetF64: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_GET_F64 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_GET_F64 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_GET_F64 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 8;
+              if (offset + 8 > obj->payload.size()) return Trap("CHECKED_LIST_GET_F64 out of bounds");
+              Push(stack, PackF64Bits(ReadU64Payload(obj->payload, offset)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedListSetF64: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_SET_F64 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_SET_F64 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_SET_F64 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 8;
+              if (offset + 8 > obj->payload.size()) return Trap("CHECKED_LIST_SET_F64 out of bounds");
+              WriteU64Payload(obj->payload, offset, UnpackU64Bits(value));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedListGetRef: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_GET_REF on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_GET_REF on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_GET_REF out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_LIST_GET_REF out of bounds");
+              Push(stack, PackRef(ReadU32Payload(obj->payload, offset)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedListSetRef: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_SET_REF on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_SET_REF on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_SET_REF out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_LIST_SET_REF out of bounds");
+              WriteU32Payload(obj->payload, offset, UnpackRef(value));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }
