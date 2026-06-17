@@ -45,54 +45,54 @@ The native library cannot be robust until these lower layers can represent the t
 
 ### IR / SIR Prerequisites
 
-Native-blocking SIR syntax/lowering not complete yet:
+Native-blocking SIR syntax/lowering status:
 
-- [ ] Module/version/export metadata.
-  - [ ] `sir version <major>.<minor>`.
-  - [ ] `module <name>`.
-  - [ ] `export <symbol> <func> [flags=<u32>]`.
-  - [ ] source debug rows: `file`, `line`, `span`, `symbol`.
-- [ ] Local/upvalue metadata.
-  - [ ] `local <name> <type> <slot>`.
-  - [ ] `upvalue <name> <type> <slot>`.
-- [ ] Constants/data.
-  - [ ] `const <name> bytes "..."`.
-  - [ ] `const <name> data <blob>`.
-  - [ ] `const <name> array<T> [...]`.
-  - [ ] `const.bytes <const>`.
-  - [ ] `const.data <const>`.
-  - [ ] `load.dataref <const>`.
-- [ ] Module lifecycle.
-  - [ ] `init.module <module>`.
-  - [ ] `ensure.module.init <module>`.
-- [ ] Native/import calls.
-  - [ ] `call.import <import> <argc>`.
-  - [ ] `call.native <native> <argc>`.
-- [ ] String/bytes conversion.
-  - [ ] `string.to.bytes`.
-  - [ ] `bytes.to.string`.
-- [ ] Result/option/variant operations.
-  - [ ] `variant.tag`.
-  - [ ] `variant.payload.<T> <case>`.
-  - [ ] `variant.make.<T> <case>`.
-  - [ ] `result.ok.<T>`.
-  - [ ] `result.err.<T>`.
-  - [ ] `result.is.ok`.
-  - [ ] `result.is.err`.
-  - [ ] `result.unwrap.<T>` or final explicit extraction/checking form.
-  - [ ] optional `result.propagate.err` if `?` is not lowered to branches.
-  - [ ] option syntax if distinct from variants.
-- [ ] Async/concurrency operations.
-  - [ ] `spawn <func>`.
-  - [ ] `await`.
-  - [ ] `promise.make <func>` / final spelling.
-  - [ ] `promise.poll` / final spelling.
-  - [ ] `channel.send.<T>`.
-  - [ ] `channel.recv.<T>`.
-  - [ ] `channel.try.recv.<T>`.
-- [ ] Capability/security syntax.
-  - [ ] `check.capability <capability>` or final spelling.
-  - [ ] sandbox enter/exit forms if retained.
+- [x] Module/version/export metadata.
+  - [x] `sir version <major>.<minor>`.
+  - [x] `module <name>`.
+  - [x] `export <symbol> <func> [flags=<u32>]`.
+  - [x] source debug rows: `file`, `line`, `span`, `symbol`.
+- [x] Local/upvalue metadata.
+  - [x] `local <name> <type> <slot>`.
+  - [x] `upvalue <name> <type> <slot>`.
+- [x] Constants/data.
+  - [x] `const <name> bytes "..."`.
+  - [x] `const <name> data <blob>`.
+  - [x] `const <name> array<T> [...]`.
+  - [x] `const.bytes <const>`.
+  - [x] `const.data <const>`.
+  - [x] `load.dataref <const>`.
+- [x] Module lifecycle.
+  - [x] `init.module <module>`.
+  - [x] `ensure.module.init <module>`.
+- [x] Native/import calls.
+  - [x] `call.import <import> <argc>`.
+  - [x] `call.native <native> <argc>`.
+- [x] String/bytes conversion.
+  - [x] `string.to.bytes`.
+  - [x] `bytes.to.string`.
+- [x] Result/option/variant operations.
+  - [x] `variant.tag`.
+  - [x] `variant.payload.<T> <case>`.
+  - [x] `variant.make.<T> <case>`.
+  - [x] `result.ok.<T>`.
+  - [x] `result.err.<T>`.
+  - [x] `result.is.ok`.
+  - [x] `result.is.err`.
+  - [x] `result.unwrap.<T>`.
+  - [x] `result.propagate.err`.
+  - [x] option metadata is represented; distinct option syntax remains tracked under type-system work.
+- [x] Async/concurrency operations.
+  - [x] `spawn <func>`.
+  - [x] `await`.
+  - [x] `future.make <func>`.
+  - [x] `future.poll`.
+  - [x] `channel.send.<T>`.
+  - [x] `channel.recv.<T>`.
+  - [x] `channel.try.recv.<T>`.
+- [x] Capability/security syntax.
+  - [x] `cap.check <capability>`.
+  - [x] sandbox enter/exit forms.
 - [ ] Preserve generic built-in type arguments in SIR:
   - [ ] `System.Handle<T>`.
   - [ ] `Result<T>`.
@@ -103,75 +103,75 @@ Native-blocking SIR syntax/lowering not complete yet:
 
 ### Bytecode / SBC Prerequisites
 
-Native-blocking SBC metadata/opcodes not complete yet:
+Native-blocking SBC metadata/opcodes status:
 
-- [ ] Type/metadata rows.
-  - [ ] `Result` type row.
-  - [ ] `Option` type row.
+- [x] Type/metadata rows.
+  - [x] `Result` type row.
+  - [x] `Option` type row.
   - [ ] handle/resource metadata for `System.Handle<T>`.
-  - [ ] promise/future metadata for `Promise<T>`.
-  - [ ] `Module` section.
-  - [ ] `Data` section.
-  - [ ] `Capabilities` section.
+  - [x] future metadata for future/task handles.
+  - [x] `Module` section.
+  - [x] `Data` section.
+  - [x] `Capabilities` section.
   - [ ] type-extension rows for resource kind, capability tags, blocking behavior, and platform availability.
-- [ ] Constants/data opcodes.
-  - [ ] `ConstBytes`.
-  - [ ] `ConstData`.
-  - [ ] `LoadDataRef`.
-- [ ] Module lifecycle opcodes.
-  - [ ] `InitModule`.
-  - [ ] `EnsureModuleInit`.
-- [ ] Native/import call opcodes.
-  - [ ] `CallImport`.
-  - [ ] `CallNative`.
-  - [ ] `CallMethod`.
-  - [ ] `CallVirtual` if high-level wrappers need virtual/interface dispatch later.
-- [ ] String/bytes conversion opcodes.
-  - [ ] `StringToBytes`.
-  - [ ] `BytesToString`.
-- [ ] Pointer/unsafe/system opcodes.
-  - [ ] `AddressOfLocal`, `AddressOfGlobal`, `AddressOfField`.
-  - [ ] `LoadPtr<T>`, `StorePtr<T>`.
-  - [ ] `PtrAdd`, `PtrOffset`, `PtrEq`, `PtrNe`, `PtrIsNull`.
-  - [ ] `PtrCheckNull`, `PtrCheckBounds`.
-  - [ ] `MemCopy`, `MemMove`, `MemSet`, `MemCompare`.
-- [ ] Checked/safe opcodes.
-  - [ ] `CheckedConv<From,To>`.
-  - [ ] `CheckedArrayGet<T>`, `CheckedArraySet<T>`.
-  - [ ] `CheckedListGet<T>`, `CheckedListSet<T>`.
-  - [ ] `CheckedStringGetChar`, `CheckedStringSlice`.
-  - [ ] `CheckedNull`, `CheckedBounds`.
-- [ ] Result/option/variant opcodes.
-  - [ ] `VariantTag`, `VariantPayload<T>`, `VariantMake<T>`.
-  - [ ] `ResultOk<T>`, `ResultErr<T>`.
-  - [ ] `ResultIsOk`, `ResultIsErr`.
-  - [ ] `ResultUnwrap<T>` or final explicit extraction/checking opcode.
-  - [ ] optional propagation opcode for `?` if not branch-lowered.
-  - [ ] option equivalents if separate from variants.
-- [ ] Concurrency/promise/channel opcodes.
-  - [ ] `Spawn`, `Join`, `Detach`.
-  - [ ] `Await`, `Yield`, `Resume`, `Suspend`.
-  - [ ] `MakePromise`, `PollPromise` or final spelling.
-  - [ ] `ChannelSend<T>`, `ChannelRecv<T>`, `ChannelTryRecv<T>`.
-- [ ] Runtime/GC coordination opcodes.
-  - [ ] `Safepoint`, `AllocCheckpoint`.
-  - [ ] `WriteBarrier`, `ReadBarrier`.
-  - [ ] `PinRef`, `UnpinRef`, `KeepAlive`.
-- [ ] Capability/security opcodes.
-  - [ ] `CheckCapability`.
-  - [ ] `EnterSandbox`.
-  - [ ] `ExitSandbox`.
-- [ ] Verifier checks.
-  - [ ] wrong payload extraction from `Result<T>` / `Option<T>`.
+- [x] Constants/data opcodes.
+  - [x] `ConstBytes`.
+  - [x] `ConstData`.
+  - [x] `LoadDataRef`.
+- [x] Module lifecycle opcodes.
+  - [x] `InitModule`.
+  - [x] `EnsureModuleInit`.
+- [x] Native/import call opcodes.
+  - [x] `CallImport`.
+  - [x] `CallNative`.
+  - [x] `CallMethod`.
+  - [x] `CallVirtual`.
+- [x] String/bytes conversion opcodes.
+  - [x] `StringToBytes`.
+  - [x] `BytesToString`.
+- [x] Pointer/unsafe/system opcodes.
+  - [x] `AddressOfLocal`, `AddressOfGlobal`, `AddressOfField`.
+  - [x] `LoadPtr<T>`, `StorePtr<T>`.
+  - [x] `PtrAdd`, `PtrOffset`, `PtrEq`, `PtrNe`, `PtrIsNull`.
+  - [x] `PtrCheckNull`, `PtrCheckBounds`.
+  - [x] `MemCopy`, `MemMove`, `MemSet`, `MemCompare`.
+- [x] Checked/safe opcodes.
+  - [x] `CheckedConv<From,To>`.
+  - [x] `CheckedArrayGet<T>`, `CheckedArraySet<T>`.
+  - [x] `CheckedListGet<T>`, `CheckedListSet<T>`.
+  - [x] `CheckedStringGetChar`, `CheckedStringSlice`.
+  - [x] `CheckedNull`, `CheckedBounds`, guard opcodes.
+- [x] Result/option/variant opcodes.
+  - [x] `VariantTag`, `VariantPayload<T>`, `VariantMake<T>`.
+  - [x] `ResultOk<T>`, `ResultErr<T>`.
+  - [x] `ResultIsOk`, `ResultIsErr`.
+  - [x] `ResultUnwrap<T>`.
+  - [x] `ResultPropagateErr`.
+  - [x] option represented through metadata/variant surface.
+- [x] Concurrency/future/channel opcodes.
+  - [x] `Spawn`, `Join`, `Detach`.
+  - [x] `Await`, `Yield`, `Resume`, `Suspend`.
+  - [x] `MakeFuture`, `PollFuture`.
+  - [x] `ChannelSend<T>`, `ChannelRecv<T>`, `ChannelTryRecv<T>`.
+- [x] Runtime/GC coordination opcodes.
+  - [x] `Safepoint`, `AllocCheckpoint`.
+  - [x] `WriteBarrier`, `ReadBarrier`.
+  - [x] `PinRef`, `UnpinRef`, `KeepAlive`.
+- [x] Capability/security opcodes.
+  - [x] `CheckCapability`.
+  - [x] `EnterSandbox`.
+  - [x] `ExitSandbox`.
+- [x] Verifier checks.
+  - [x] payload/result/variant stack correctness.
   - [ ] wrong resource kind for handle use.
-  - [ ] native call result type matches metadata.
-  - [ ] explicit `Result<T>` / `Option<T>` extraction stack correctness.
-  - [ ] optional `?` propagation stack correctness.
+  - [x] native call result type matches metadata where metadata is available.
+  - [x] explicit `Result<T>` / `Option<T>` extraction stack correctness.
+  - [x] propagation opcode stack correctness.
 
 ### Documentation Prerequisites
 
-- [ ] Update `Docs/IR.md` with built-in generic/native-facing type syntax.
-- [ ] Update `Docs/Byte.md` with SBC rows for handles/results/options/promises.
+- [x] Update `Docs/IR.md` with implemented native-facing IR syntax.
+- [x] Update `Docs/Byte.md` with implemented SBC rows for results/options/futures and native-facing opcodes.
 - [ ] Update `Docs/Language.md` with `System.Handle<T>`, `Result<T>`, `Option<T>`, `Promise<T>`, and optional `?`.
 - [ ] Update generated native/standard docs to show canonical `Standard.*` names and aliases.
 
