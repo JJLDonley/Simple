@@ -1221,6 +1221,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, iter);
               break;
             }
+            case Simple::Byte::ExtendedOpCode::Spawn:
+            case Simple::Byte::ExtendedOpCode::MakeFuture: {
+              Slot func = Pop(stack);
+              int32_t id = UnpackI32(func);
+              if (id < 0 || static_cast<uint32_t>(id) >= module.functions.size()) return Trap("TASK_CREATE invalid function id");
+              Push(stack, func);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Join:
+            case Simple::Byte::ExtendedOpCode::Await:
+            case Simple::Byte::ExtendedOpCode::PollFuture: {
+              Slot handle = Pop(stack);
+              Push(stack, handle);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Detach:
+            case Simple::Byte::ExtendedOpCode::Resume: {
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Suspend: {
+              Push(stack, PackI32(0));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

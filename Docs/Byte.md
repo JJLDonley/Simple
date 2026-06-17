@@ -856,15 +856,15 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `Spawn` | 4 | 0 | 1 |
-| ✅ | pseudo | `Join` | 0 | 1 | 1 |
-| ✅ | pseudo | `Detach` | 0 | 1 | 0 |
-| ✅ | pseudo | `Await` | 0 | 1 | 1 |
+| ✅ | ext `109` | `Spawn` | 0 | 1 | 1 |
+| ✅ | ext `110` | `Join` | 0 | 1 | 1 |
+| ✅ | ext `111` | `Detach` | 0 | 1 | 0 |
+| ✅ | ext `112` | `Await` | 0 | 1 | 1 |
 | ✅ | `0x0E` | `Yield` | 0 | 0 | 0 |
-| ✅ | pseudo | `Resume` | 0 | 1 | 0 |
-| ✅ | pseudo | `Suspend` | 0 | 0 | 1 |
-| ✅ | pseudo | `MakeFuture` | 4 | 0 | 1 |
-| ✅ | pseudo | `PollFuture` | 0 | 1 | 2 |
+| ✅ | ext `113` | `Resume` | 0 | 1 | 0 |
+| ✅ | ext `114` | `Suspend` | 0 | 0 | 1 |
+| ✅ | ext `115` | `MakeFuture` | 0 | 1 | 1 |
+| ✅ | ext `116` | `PollFuture` | 0 | 1 | 1 |
 | ✅ | pseudo | `ChannelSend<T>` | 0 | 2 | 0 |
 | ✅ | pseudo | `ChannelRecv<T>` | 0 | 1 | 1 |
 | ✅ | pseudo | `ChannelTryRecv<T>` | 0 | 1 | 2 |

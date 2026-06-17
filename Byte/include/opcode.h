@@ -116,6 +116,14 @@ enum class ExtendedOpCode : uint16_t {
   IteratorNext = 106,
   IteratorHasNext = 107,
   IteratorValue = 108,
+  Spawn = 109,
+  Join = 110,
+  Detach = 111,
+  Await = 112,
+  Resume = 113,
+  Suspend = 114,
+  MakeFuture = 115,
+  PollFuture = 116,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

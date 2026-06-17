@@ -1221,6 +1221,34 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::Spawn:
+          case Simple::Byte::ExtendedOpCode::MakeFuture: {
+            ValType func = pop_type();
+            VerifyResult r = check_type(func, ValType::I32, "TASK_CREATE function id type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Join:
+          case Simple::Byte::ExtendedOpCode::Await:
+          case Simple::Byte::ExtendedOpCode::PollFuture: {
+            ValType handle = pop_type();
+            push_type(handle);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Detach:
+          case Simple::Byte::ExtendedOpCode::Resume: {
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Suspend: {
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

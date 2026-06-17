@@ -2121,21 +2121,43 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail(op + " expects function");
         }
         builder.EmitConstI32(static_cast<int32_t>(func_id));
+        builder.EmitExtended(op == "spawn" ? Simple::Byte::ExtendedOpCode::Spawn
+                                             : Simple::Byte::ExtendedOpCode::MakeFuture);
         continue;
       }
-      if (op == "join" || op == "await" || op == "future.poll") {
-        if (!args.empty()) return fail(op + " expects no operands");
+      if (op == "join") {
+        if (!args.empty()) return fail("join expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Join);
         continue;
       }
-      if (op == "detach" || op == "resume") {
-        if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitPop();
+      if (op == "await") {
+        if (!args.empty()) return fail("await expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Await);
         continue;
       }
-      if (op == "yield" || op == "suspend") {
-        if (!args.empty()) return fail(op + " expects no operands");
+      if (op == "future.poll") {
+        if (!args.empty()) return fail("future.poll expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PollFuture);
+        continue;
+      }
+      if (op == "detach") {
+        if (!args.empty()) return fail("detach expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Detach);
+        continue;
+      }
+      if (op == "resume") {
+        if (!args.empty()) return fail("resume expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Resume);
+        continue;
+      }
+      if (op == "yield") {
+        if (!args.empty()) return fail("yield expects no operands");
         builder.EmitYield();
-        if (op == "suspend") builder.EmitConstI32(0);
+        continue;
+      }
+      if (op == "suspend") {
+        if (!args.empty()) return fail("suspend expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Suspend);
         continue;
       }
       if (op == "fence") {

@@ -950,15 +950,15 @@ Thread/job/channel/atomic/monitor operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | pseudo | `spawn <func>` | `function` | `ConstI32` | task marker returns function id handle |
-| ✅ | pseudo | `join` | `none` | no-op marker | preserves handle/result marker |
-| ✅ | pseudo | `detach` | `none` | `Pop` | consumes task marker handle |
-| ✅ | pseudo | `await` | `none` | no-op marker | preserves awaited marker value |
+| ✅ | `ext 109` | `spawn <func>` | `function` | `ConstI32` + `Ext.Spawn` | creates task handle |
+| ✅ | `ext 110` | `join` | `none` | `Ext.Join` | joins task handle/result |
+| ✅ | `ext 111` | `detach` | `none` | `Ext.Detach` | detaches task handle |
+| ✅ | `ext 112` | `await` | `none` | `Ext.Await` | awaits future/task handle |
 | ✅ | `0x0E` | `yield` | `none` | `Yield` | scheduler yield marker |
-| ✅ | pseudo | `resume` | `none` | `Pop` | consumes continuation marker |
-| ✅ | pseudo | `suspend` | `none` | `Yield` + `ConstI32` | yields and returns placeholder continuation |
-| ✅ | pseudo | `future.make <func>` | `function` | `ConstI32` | future marker returns function id handle |
-| ✅ | pseudo | `future.poll` | `none` | no-op marker | preserves future marker value |
+| ✅ | `ext 113` | `resume` | `none` | `Ext.Resume` | resumes continuation |
+| ✅ | `ext 114` | `suspend` | `none` | `Ext.Suspend` | suspends and returns continuation |
+| ✅ | `ext 115` | `future.make <func>` | `function` | `ConstI32` + `Ext.MakeFuture` | creates future handle |
+| ✅ | `ext 116` | `future.poll` | `none` | `Ext.PollFuture` | polls future handle |
 | ✅ | pseudo | `channel.send.<T>` | `none` | `Pop` + `Pop` | consumes channel/value markers |
 | ✅ | pseudo | `channel.recv.<T>` | `none` | placeholder value | consumes channel marker and pushes placeholder value |
 | ✅ | pseudo | `channel.try.recv.<T>` | `none` | placeholder status/value | consumes channel marker and pushes `false`, placeholder value |
