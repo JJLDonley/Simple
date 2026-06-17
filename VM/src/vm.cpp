@@ -1162,6 +1162,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(static_cast<int32_t>(ReadU32Payload(obj->payload, offset))));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::EnumTag:
+            case Simple::Byte::ExtendedOpCode::VariantTag: {
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::EnumPayload:
+            case Simple::Byte::ExtendedOpCode::EnumMake:
+            case Simple::Byte::ExtendedOpCode::VariantPayload:
+            case Simple::Byte::ExtendedOpCode::VariantMake: {
+              (void)Pop(stack);
+              Slot value = Pop(stack);
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::ResultOk:
+            case Simple::Byte::ExtendedOpCode::ResultErr:
+            case Simple::Byte::ExtendedOpCode::ResultUnwrap:
+            case Simple::Byte::ExtendedOpCode::ResultPropagateErr: {
+              Slot value = Pop(stack);
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::ResultIsOk:
+            case Simple::Byte::ExtendedOpCode::ResultIsErr: {
+              (void)Pop(stack);
+              Push(stack, PackI32(1));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

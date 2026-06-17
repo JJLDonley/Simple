@@ -2217,29 +2217,73 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (out_type) *out_type = type;
         return true;
       };
-      if (op == "enum.tag" || op == "variant.tag") {
-        if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitPop();
-        builder.EmitConstI32(0);
+      if (op == "enum.tag") {
+        if (!args.empty()) return fail("enum.tag expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::EnumTag);
         continue;
       }
-      if (parse_case_marker_type("enum.payload", &marker_type) ||
-          parse_case_marker_type("variant.payload", &marker_type) ||
-          parse_case_marker_type("enum.make", &marker_type) ||
-          parse_case_marker_type("variant.make", &marker_type)) {
+      if (op == "variant.tag") {
+        if (!args.empty()) return fail("variant.tag expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VariantTag);
         continue;
       }
-      if (parse_marker_type("result.ok", &marker_type) ||
-          parse_marker_type("result.err", &marker_type) ||
-          parse_marker_type("result.unwrap", &marker_type) ||
-          op == "result.propagate.err") {
-        if (op == "result.propagate.err" && !args.empty()) return fail("result.propagate.err expects no operands");
+      if (parse_case_marker_type("enum.payload", &marker_type)) {
+        uint64_t case_id = 0;
+        const std::string& case_token = (op == "enum.payload") ? args[1] : args[0];
+        ParseUint(case_token, &case_id);
+        builder.EmitConstI32(static_cast<int32_t>(case_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::EnumPayload);
         continue;
       }
-      if (op == "result.is.ok" || op == "result.is.err") {
-        if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitPop();
-        builder.EmitConstBool(true);
+      if (parse_case_marker_type("variant.payload", &marker_type)) {
+        uint64_t case_id = 0;
+        const std::string& case_token = (op == "variant.payload") ? args[1] : args[0];
+        ParseUint(case_token, &case_id);
+        builder.EmitConstI32(static_cast<int32_t>(case_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VariantPayload);
+        continue;
+      }
+      if (parse_case_marker_type("enum.make", &marker_type)) {
+        uint64_t case_id = 0;
+        const std::string& case_token = (op == "enum.make") ? args[1] : args[0];
+        ParseUint(case_token, &case_id);
+        builder.EmitConstI32(static_cast<int32_t>(case_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::EnumMake);
+        continue;
+      }
+      if (parse_case_marker_type("variant.make", &marker_type)) {
+        uint64_t case_id = 0;
+        const std::string& case_token = (op == "variant.make") ? args[1] : args[0];
+        ParseUint(case_token, &case_id);
+        builder.EmitConstI32(static_cast<int32_t>(case_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VariantMake);
+        continue;
+      }
+      if (parse_marker_type("result.ok", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultOk);
+        continue;
+      }
+      if (parse_marker_type("result.err", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultErr);
+        continue;
+      }
+      if (parse_marker_type("result.unwrap", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultUnwrap);
+        continue;
+      }
+      if (op == "result.propagate.err") {
+        if (!args.empty()) return fail("result.propagate.err expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultPropagateErr);
+        continue;
+      }
+      if (op == "result.is.ok") {
+        if (!args.empty()) return fail("result.is.ok expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultIsOk);
+        continue;
+      }
+      if (op == "result.is.err") {
+        if (!args.empty()) return fail("result.is.err expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ResultIsErr);
         continue;
       }
       if (parse_marker_type("range.new.step", &marker_type)) {

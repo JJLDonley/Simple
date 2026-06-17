@@ -914,18 +914,18 @@ Tagged data and error operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | pseudo | `enum.tag` | `none` | `ConstI32 0` | consumes enum marker and pushes tag placeholder |
-| ✅ | pseudo | `enum.payload.<T> <case>` | `case` | no-op marker | preserves payload marker |
-| ✅ | pseudo | `enum.make.<T> <case>` | `case` | no-op marker | preserves payload marker |
-| ✅ | pseudo | `variant.tag` | `none` | `ConstI32 0` | consumes variant marker and pushes tag placeholder |
-| ✅ | pseudo | `variant.payload.<T> <case>` | `case` | no-op marker | preserves payload marker |
-| ✅ | pseudo | `variant.make.<T> <case>` | `case` | no-op marker | preserves payload marker |
-| ✅ | pseudo | `result.ok.<T>` | `none` | no-op marker | preserves ok value marker |
-| ✅ | pseudo | `result.err.<T>` | `none` | no-op marker | preserves err value marker |
-| ✅ | pseudo | `result.is.ok` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
-| ✅ | pseudo | `result.is.err` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
-| ✅ | pseudo | `result.unwrap.<T>` | `none` | no-op marker | preserves value marker |
-| ✅ | pseudo | `result.propagate.err` | `none` | no-op marker | preserves result marker |
+| ✅ | `ext 91` | `enum.tag` | `none` | `Ext.EnumTag` | reads enum tag |
+| ✅ | `ext 92` | `enum.payload.<T> <case>` | `case` | `ConstI32` + `Ext.EnumPayload` | extracts enum payload |
+| ✅ | `ext 93` | `enum.make.<T> <case>` | `case` | `ConstI32` + `Ext.EnumMake` | constructs enum value |
+| ✅ | `ext 94` | `variant.tag` | `none` | `Ext.VariantTag` | reads variant tag |
+| ✅ | `ext 95` | `variant.payload.<T> <case>` | `case` | `ConstI32` + `Ext.VariantPayload` | extracts variant payload |
+| ✅ | `ext 96` | `variant.make.<T> <case>` | `case` | `ConstI32` + `Ext.VariantMake` | constructs variant value |
+| ✅ | `ext 97` | `result.ok.<T>` | `none` | `Ext.ResultOk` | constructs ok result |
+| ✅ | `ext 98` | `result.err.<T>` | `none` | `Ext.ResultErr` | constructs err result |
+| ✅ | `ext 99` | `result.is.ok` | `none` | `Ext.ResultIsOk` | tests ok result |
+| ✅ | `ext 100` | `result.is.err` | `none` | `Ext.ResultIsErr` | tests err result |
+| ✅ | `ext 101` | `result.unwrap.<T>` | `none` | `Ext.ResultUnwrap` | unwraps result value |
+| ✅ | `ext 102` | `result.propagate.err` | `none` | `Ext.ResultPropagateErr` | propagates err result |
 | ✅ | `ext 61` | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
 | ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
 | ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |

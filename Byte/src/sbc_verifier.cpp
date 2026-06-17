@@ -1151,6 +1151,41 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::EnumTag:
+          case Simple::Byte::ExtendedOpCode::VariantTag: {
+            (void)pop_type();
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::EnumPayload:
+          case Simple::Byte::ExtendedOpCode::EnumMake:
+          case Simple::Byte::ExtendedOpCode::VariantPayload:
+          case Simple::Byte::ExtendedOpCode::VariantMake: {
+            ValType case_id = pop_type();
+            ValType value = pop_type();
+            VerifyResult r = check_type(case_id, ValType::I32, "SUM_TYPE case id mismatch");
+            if (!r.ok) return r;
+            push_type(value);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::ResultOk:
+          case Simple::Byte::ExtendedOpCode::ResultErr:
+          case Simple::Byte::ExtendedOpCode::ResultUnwrap:
+          case Simple::Byte::ExtendedOpCode::ResultPropagateErr: {
+            ValType value = pop_type();
+            push_type(value);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::ResultIsOk:
+          case Simple::Byte::ExtendedOpCode::ResultIsErr: {
+            (void)pop_type();
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

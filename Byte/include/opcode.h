@@ -98,6 +98,18 @@ enum class ExtendedOpCode : uint16_t {
   AddressOfLocal = 88,
   AddressOfGlobal = 89,
   AddressOfField = 90,
+  EnumTag = 91,
+  EnumPayload = 92,
+  EnumMake = 93,
+  VariantTag = 94,
+  VariantPayload = 95,
+  VariantMake = 96,
+  ResultOk = 97,
+  ResultErr = 98,
+  ResultIsOk = 99,
+  ResultIsErr = 100,
+  ResultUnwrap = 101,
+  ResultPropagateErr = 102,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

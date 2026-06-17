@@ -820,18 +820,18 @@ Enum/variant/result/error operations. Plain integer-like enums may still lower t
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `EnumTag` | 0 | 1 | 1 |
-| ✅ | pseudo | `EnumPayload<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `EnumMake<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `VariantTag` | 0 | 1 | 1 |
-| ✅ | pseudo | `VariantPayload<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `VariantMake<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `ResultOk<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `ResultErr<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `ResultIsOk` | 0 | 1 | 1 |
-| ✅ | pseudo | `ResultIsErr` | 0 | 1 | 1 |
-| ✅ | pseudo | `ResultUnwrap<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `ResultPropagateErr` | 0 | 1 | 1 |
+| ✅ | ext `91` | `EnumTag` | 0 | 1 | 1 |
+| ✅ | ext `92` | `EnumPayload` | 0 | 2 | 1 |
+| ✅ | ext `93` | `EnumMake` | 0 | 2 | 1 |
+| ✅ | ext `94` | `VariantTag` | 0 | 1 | 1 |
+| ✅ | ext `95` | `VariantPayload` | 0 | 2 | 1 |
+| ✅ | ext `96` | `VariantMake` | 0 | 2 | 1 |
+| ✅ | ext `97` | `ResultOk` | 0 | 1 | 1 |
+| ✅ | ext `98` | `ResultErr` | 0 | 1 | 1 |
+| ✅ | ext `99` | `ResultIsOk` | 0 | 1 | 1 |
+| ✅ | ext `100` | `ResultIsErr` | 0 | 1 | 1 |
+| ✅ | ext `101` | `ResultUnwrap` | 0 | 1 | 1 |
+| ✅ | ext `102` | `ResultPropagateErr` | 0 | 1 | 1 |
 | ✅ | ext `61` | `Throw` | 0 | 0 | 0 |
 | ✅ | pseudo | `Catch` | 4 | 0 | 0 |
 | ✅ | pseudo | `Finally` | 4 | 0 | 0 |
