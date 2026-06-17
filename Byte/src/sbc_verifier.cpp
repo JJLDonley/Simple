@@ -1249,6 +1249,25 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::ChannelSend: {
+            (void)pop_type();
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::ChannelRecv: {
+            (void)pop_type();
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::ChannelTryRecv: {
+            (void)pop_type();
+            push_type(ValType::Bool);
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

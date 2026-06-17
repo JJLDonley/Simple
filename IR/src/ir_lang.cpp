@@ -2334,19 +2334,15 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (parse_marker_type("channel.send", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ChannelSend);
         continue;
       }
       if (parse_marker_type("channel.recv", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitConstI32(0);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ChannelRecv);
         continue;
       }
       if (parse_marker_type("channel.try.recv", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitConstBool(false);
-        builder.EmitConstI32(0);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ChannelTryRecv);
         continue;
       }
       if (parse_marker_type("atomic.load", &marker_type)) {

@@ -1245,6 +1245,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(0));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::ChannelSend: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::ChannelRecv: {
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::ChannelTryRecv: {
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              Push(stack, PackI32(0));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

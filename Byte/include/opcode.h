@@ -124,6 +124,9 @@ enum class ExtendedOpCode : uint16_t {
   Suspend = 114,
   MakeFuture = 115,
   PollFuture = 116,
+  ChannelSend = 117,
+  ChannelRecv = 118,
+  ChannelTryRecv = 119,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

@@ -959,9 +959,9 @@ Thread/job/channel/atomic/monitor operations.
 | ✅ | `ext 114` | `suspend` | `none` | `Ext.Suspend` | suspends and returns continuation |
 | ✅ | `ext 115` | `future.make <func>` | `function` | `ConstI32` + `Ext.MakeFuture` | creates future handle |
 | ✅ | `ext 116` | `future.poll` | `none` | `Ext.PollFuture` | polls future handle |
-| ✅ | pseudo | `channel.send.<T>` | `none` | `Pop` + `Pop` | consumes channel/value markers |
-| ✅ | pseudo | `channel.recv.<T>` | `none` | placeholder value | consumes channel marker and pushes placeholder value |
-| ✅ | pseudo | `channel.try.recv.<T>` | `none` | placeholder status/value | consumes channel marker and pushes `false`, placeholder value |
+| ✅ | `ext 117` | `channel.send.<T>` | `none` | `Ext.ChannelSend` | sends value to channel handle |
+| ✅ | `ext 118` | `channel.recv.<T>` | `none` | `Ext.ChannelRecv` | receives value from channel handle |
+| ✅ | `ext 119` | `channel.try.recv.<T>` | `none` | `Ext.ChannelTryRecv` | nonblocking receive status/value |
 | ✅ | pseudo | `atomic.load.<T>` | `none` | no-op marker | preserves marker value |
 | ✅ | pseudo | `atomic.store.<T>` | `none` | `Pop` + `Pop` | consumes address/value markers |
 | ✅ | pseudo | `atomic.add.<T>` | `none` | `Add<T>` | atomic arithmetic marker for integer scalars |

@@ -865,9 +865,9 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ✅ | ext `114` | `Suspend` | 0 | 0 | 1 |
 | ✅ | ext `115` | `MakeFuture` | 0 | 1 | 1 |
 | ✅ | ext `116` | `PollFuture` | 0 | 1 | 1 |
-| ✅ | pseudo | `ChannelSend<T>` | 0 | 2 | 0 |
-| ✅ | pseudo | `ChannelRecv<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `ChannelTryRecv<T>` | 0 | 1 | 2 |
+| ✅ | ext `117` | `ChannelSend` | 0 | 2 | 0 |
+| ✅ | ext `118` | `ChannelRecv` | 0 | 1 | 1 |
+| ✅ | ext `119` | `ChannelTryRecv` | 0 | 1 | 2 |
 | ✅ | pseudo | `AtomicLoad<T>` | 0 | 1 | 1 |
 | ✅ | pseudo | `AtomicStore<T>` | 0 | 2 | 0 |
 | ✅ | pseudo | `AtomicAdd<T>` | 0 | 2 | 1 |
