@@ -1186,6 +1186,41 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::RangeNew: {
+            (void)pop_type();
+            ValType start = pop_type();
+            push_type(start);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::RangeNewStep: {
+            (void)pop_type();
+            (void)pop_type();
+            ValType start = pop_type();
+            push_type(start);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::RangeNext:
+          case Simple::Byte::ExtendedOpCode::IteratorNext: {
+            if (stack_types.empty()) return fail_at("ITERATOR_NEXT stack underflow", current_pc, current_opcode);
+            push_type(stack_types.back());
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::IteratorHasNext: {
+            (void)pop_type();
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::IteratorValue: {
+            ValType iter = pop_type();
+            push_type(iter);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

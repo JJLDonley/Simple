@@ -843,12 +843,12 @@ Typed range/iterator bytecodes for loop lowering when not expanded into scalar l
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `RangeNew<T>` | 0 | 2 | 1 |
-| ✅ | pseudo | `RangeNewStep<T>` | 0 | 3 | 1 |
-| ✅ | pseudo | `RangeNext<T>` | 0 | 1 | 2 |
-| ✅ | pseudo | `IteratorNext<T>` | 0 | 1 | 2 |
-| ✅ | pseudo | `IteratorHasNext` | 0 | 1 | 1 |
-| ✅ | pseudo | `IteratorValue<T>` | 0 | 1 | 1 |
+| ✅ | ext `103` | `RangeNew` | 0 | 2 | 1 |
+| ✅ | ext `104` | `RangeNewStep` | 0 | 3 | 1 |
+| ✅ | ext `105` | `RangeNext` | 0 | 1 | 2 |
+| ✅ | ext `106` | `IteratorNext` | 0 | 1 | 2 |
+| ✅ | ext `107` | `IteratorHasNext` | 0 | 1 | 1 |
+| ✅ | ext `108` | `IteratorValue` | 0 | 1 | 1 |
 
 ### Concurrency and atomics
 

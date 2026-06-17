@@ -110,6 +110,12 @@ enum class ExtendedOpCode : uint16_t {
   ResultIsErr = 100,
   ResultUnwrap = 101,
   ResultPropagateErr = 102,
+  RangeNew = 103,
+  RangeNewStep = 104,
+  RangeNext = 105,
+  IteratorNext = 106,
+  IteratorHasNext = 107,
+  IteratorValue = 108,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

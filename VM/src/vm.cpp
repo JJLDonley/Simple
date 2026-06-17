@@ -1191,6 +1191,36 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(1));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::RangeNew: {
+              (void)Pop(stack);
+              Slot start = Pop(stack);
+              Push(stack, start);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::RangeNewStep: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              Slot start = Pop(stack);
+              Push(stack, start);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::RangeNext:
+            case Simple::Byte::ExtendedOpCode::IteratorNext: {
+              if (stack.empty()) return Trap("ITERATOR_NEXT stack underflow");
+              Push(stack, stack.back());
+              Push(stack, PackI32(0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::IteratorHasNext: {
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::IteratorValue: {
+              Slot iter = Pop(stack);
+              Push(stack, iter);
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

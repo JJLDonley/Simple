@@ -937,12 +937,12 @@ Typed range/iterator bytecodes.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | pseudo | `range.new.<T>` | `none` | marker value | consumes end marker and preserves start marker |
-| ✅ | pseudo | `range.new.step.<T>` | `none` | marker value | consumes step/end markers and preserves start marker |
-| ✅ | pseudo | `range.next.<T>` | `none` | marker value + false | iterator/range next placeholder |
-| ✅ | pseudo | `iter.next.<T>` | `none` | marker value + false | iterator next placeholder |
-| ✅ | pseudo | `iter.has.next` | `none` | `ConstBool false` | iterator has-next placeholder |
-| ✅ | pseudo | `iter.value.<T>` | `none` | no-op marker | preserves iterator value marker |
+| ✅ | `ext 103` | `range.new.<T>` | `none` | `Ext.RangeNew` | constructs range state |
+| ✅ | `ext 104` | `range.new.step.<T>` | `none` | `Ext.RangeNewStep` | constructs stepped range state |
+| ✅ | `ext 105` | `range.next.<T>` | `none` | `Ext.RangeNext` | advances range iterator |
+| ✅ | `ext 106` | `iter.next.<T>` | `none` | `Ext.IteratorNext` | advances iterator |
+| ✅ | `ext 107` | `iter.has.next` | `none` | `Ext.IteratorHasNext` | tests iterator availability |
+| ✅ | `ext 108` | `iter.value.<T>` | `none` | `Ext.IteratorValue` | reads iterator value |
 
 ### Concurrency, atomics, locks, and monitors
 

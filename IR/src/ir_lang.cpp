@@ -2287,26 +2287,28 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (parse_marker_type("range.new.step", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::RangeNewStep);
         continue;
       }
       if (parse_marker_type("range.new", &marker_type)) {
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::RangeNew);
         continue;
       }
-      if (parse_marker_type("range.next", &marker_type) || parse_marker_type("iter.next", &marker_type)) {
-        builder.EmitDup();
-        builder.EmitConstBool(false);
+      if (parse_marker_type("range.next", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::RangeNext);
+        continue;
+      }
+      if (parse_marker_type("iter.next", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::IteratorNext);
         continue;
       }
       if (op == "iter.has.next") {
         if (!args.empty()) return fail("iter.has.next expects no operands");
-        builder.EmitPop();
-        builder.EmitConstBool(false);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::IteratorHasNext);
         continue;
       }
       if (parse_marker_type("iter.value", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::IteratorValue);
         continue;
       }
       if (parse_marker_type("channel.send", &marker_type)) {
