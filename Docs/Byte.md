@@ -44,7 +44,7 @@ The header records:
 - section count
 - section table offset
 - entry method id
-- reserved fields for future compatibility
+- reserved compatibility fields
 
 Consumers must reject unsupported magic/version combinations.
 
@@ -87,7 +87,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 
 | Status | Code | TypeKind | SIR spelling | Notes |
 |:---:|---:|---|---|---|
-| ✅ | `0` | `Unspecified` | internal | placeholder/invalid default |
+| ✅ | `0` | `Unspecified` | internal | invalid default |
 | ✅ | `1` | `I32` | `i32` | signed integer |
 | ✅ | `2` | `I64` | `i64` | signed integer |
 | ✅ | `3` | `F32` | `f32` | IEEE-754 binary32 |
@@ -130,7 +130,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | `DebugFileRow` | `file_name_str`, `file_hash` |
 | ✅ | `DebugLineRow` | `method_id`, `code_offset`, `file_id`, `line`, `column` |
 | ✅ | `DebugSymRow` | `kind`, `owner_id`, `symbol_id`, `name_str` |
-| ✅ | planned | module/data/capability raw payload sections |
+| ✅ | raw payload | module/data/capability raw payload sections |
 
 ## SBC constants, imports, and debug contracts
 
@@ -151,22 +151,18 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | version | current binary version `0x0001` |
 | ✅ | endian | loader validates header endian marker |
 | ✅ | bounds | loader validates section table, rows, const pool, code ranges, and references |
-| ☐ | opcode metadata version | planned independent opcode/typed-family compatibility marker |
-| ☐ | diagnostic codes | planned stable byte loader/verifier diagnostic code table |
 
 ## Opcodes
 
 Opcodes are defined in `Byte/include/opcode.h` with metadata in `Byte/src/opcode.cpp`. The opcode stream is a sequence of opcode bytes plus little-endian immediates.
 
-The tables below are the full robust typed opcode plan grouped by operation family. Concrete scalar families are collapsed into `<T>` rows; assigned implementation opcodes are listed underneath as compact `Code | T` maps instead of duplicating a concrete row and a generic row.
+The tables below are the implemented robust typed opcode set grouped by operation family. Concrete scalar families are collapsed into `<T>` rows; assigned implementation opcodes are listed underneath as compact `Code | T` maps instead of duplicating a concrete row and a generic row.
 
 `Operands` is the number of immediate bytes following the opcode byte. `Pops` and `Pushes` are the static stack-effect metadata used by the verifier; call-family opcodes carry dynamic arity in their operands/signatures, so their static stack effect is recorded as `0/0`.
 
 Status values:
 
 - `✅`: fully implemented concrete opcode.
-- `◐`: typed family is partially implemented for the listed `Code | T` mappings.
-- `☐`: planned opcode family with no assigned opcode yet.
 
 `<T>` means a typed opcode family over the relevant scalar/reference payload set instead of listing every scalar spelling. For numeric scalar families, `<T>` means the valid subset of `i8 i16 i32 i64 u8 u16 u32 u64 f32 f64`; boolean, char, ref, pointer, string, enum, and vector families state their own payload rules.
 
@@ -203,7 +199,7 @@ Operand-stack manipulation.
 
 ### Constants and data
 
-Immediate constants, constant-pool references, and planned typed data/blob constants.
+Immediate constants, constant-pool references, and typed data/blob constants.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -227,7 +223,7 @@ Immediate constants, constant-pool references, and planned typed data/blob const
 
 ### Locals, globals, upvalues, and module init
 
-Slot access plus planned typed module/global initialization operations.
+Slot access plus typed module/global initialization operations.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
@@ -247,11 +243,11 @@ Binary arithmetic. `<T>` covers every valid numeric scalar type.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `Add<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Sub<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Mul<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Div<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Mod<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Add<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Sub<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Mul<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Div<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Mod<T>` | 0 | 2 | 1 |
 
 Add<T> codes:
 
@@ -313,8 +309,8 @@ Unary increment/decrement over valid numeric scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `Inc<T>` | 0 | 1 | 1 |
-| ◐ | `typed` | `Dec<T>` | 0 | 1 | 1 |
+| ✅ | `typed` | `Inc<T>` | 0 | 1 | 1 |
+| ✅ | `typed` | `Dec<T>` | 0 | 1 | 1 |
 
 Inc<T> codes:
 
@@ -353,7 +349,7 @@ Unary numeric negation over valid numeric scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `Neg<T>` | 0 | 1 | 1 |
+| ✅ | `typed` | `Neg<T>` | 0 | 1 | 1 |
 
 Neg<T> codes:
 
@@ -377,12 +373,12 @@ Equality and ordering comparisons over comparable typed values.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `CmpEq<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `CmpNe<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `CmpLt<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `CmpLe<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `CmpGt<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `CmpGe<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpEq<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpNe<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpLt<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpLe<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpGt<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `CmpGe<T>` | 0 | 2 | 1 |
 
 CmpEq<T> codes:
 
@@ -467,11 +463,11 @@ Bitwise and shift operations over integer scalar types.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `And<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Or<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Xor<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Shl<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `Shr<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `And<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Or<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Xor<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Shl<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `Shr<T>` | 0 | 2 | 1 |
 
 And<T> codes:
 
@@ -530,7 +526,7 @@ Scalar conversions. `<From,To>` covers explicit typed conversion pairs. Checked 
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `Conv<From,To>` | 0 | 1 | 1 |
+| ✅ | `typed` | `Conv<From,To>` | 0 | 1 | 1 |
 | ✅ | ext `47..54` | `CheckedConv<From,To>` | 0 | 1 | 1 |
 
 Conv<From,To> codes:
@@ -595,9 +591,9 @@ Fixed-size array allocation and element access. `<T>` covers every scalar payloa
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `NewArray<T>` | 8 | 0 | 1 |
-| ◐ | `typed` | `ArrayGet<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `ArraySet<T>` | 0 | 3 | 0 |
+| ✅ | `typed` | `NewArray<T>` | 8 | 0 | 1 |
+| ✅ | `typed` | `ArrayGet<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `ArraySet<T>` | 0 | 3 | 0 |
 | ✅ | `0x17` | `ArrayCopy<T>` | 0 | 5 | 0 |
 | ✅ | `0x8F` | `ArrayFill<T>` | 0 | 3 | 0 |
 
@@ -638,13 +634,13 @@ Growable list allocation and element operations. `<T>` covers every scalar paylo
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ◐ | `typed` | `NewList<T>` | 8 | 0 | 1 |
-| ◐ | `typed` | `ListGet<T>` | 0 | 2 | 1 |
-| ◐ | `typed` | `ListSet<T>` | 0 | 3 | 0 |
-| ◐ | `typed` | `ListPush<T>` | 0 | 2 | 0 |
-| ◐ | `typed` | `ListPop<T>` | 0 | 1 | 1 |
-| ◐ | `typed` | `ListInsert<T>` | 0 | 3 | 0 |
-| ◐ | `typed` | `ListRemove<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `NewList<T>` | 8 | 0 | 1 |
+| ✅ | `typed` | `ListGet<T>` | 0 | 2 | 1 |
+| ✅ | `typed` | `ListSet<T>` | 0 | 3 | 0 |
+| ✅ | `typed` | `ListPush<T>` | 0 | 2 | 0 |
+| ✅ | `typed` | `ListPop<T>` | 0 | 1 | 1 |
+| ✅ | `typed` | `ListInsert<T>` | 0 | 3 | 0 |
+| ✅ | `typed` | `ListRemove<T>` | 0 | 2 | 1 |
 | ✅ | `0xC1` | `ListLen` | 0 | 1 | 1 |
 | ✅ | `0xC8` | `ListClear` | 0 | 1 | 0 |
 | ✅ | `0xAF` | `ListReserve` | 0 | 2 | 0 |
@@ -951,7 +947,7 @@ The loader validates binary shape:
 - code range bounds
 - table index sanity needed to construct `SbcModule`
 
-A load failure returns an error string and must not produce a partially trusted module.
+A load failure returns an error string and must not produce a trusted module.
 
 ## Verifier contract
 

@@ -82,8 +82,6 @@ entry add
 Status values:
 
 - `✅`: accepted by the current SIR parser/lowerer and emitted to assigned SBC bytecode.
-- `◐`: typed SIR instruction family is partially implemented; assigned forms are listed in the `Code | T | Syntax` tables.
-- `☐`: planned robust typed IR syntax, not accepted by the current lowerer yet.
 
 `Code` is the emitted SBC opcode byte when assigned. `typed` means the row is a collapsed typed family whose assigned concrete opcode bytes are listed below that row.
 
@@ -135,7 +133,7 @@ blank         = { whitespace } ;
 
 ## Type syntax and SBC type codes
 
-Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned typed-IR surface unless listed as implemented by the current lowerer.
+Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where listed by the current lowerer.
 
 | Status | SIR type syntax | SBC kind/code | Size | Notes |
 |:---:|---|---:|---:|---|
@@ -182,7 +180,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | typed immediate | `<T>:<value>` | Explicit literal typing for `const <T>:<value>`. | avoids opcode suffix ambiguity |
 | ✅ | source span | `<file> <line>:<col> <line>:<col>` | Accepted by `span` and lowered to `Ext.SourceSpan`. | debug/source mapping |
 
-## Instruction aliases
+## Instruction surface
 
 | Canonical syntax | Alias | Emits |
 |---|---|---|
@@ -228,7 +226,7 @@ The instruction table below lists syntax and emitted opcode. The robust typed IR
 | Traps | runtime traps possible after verification |
 | Verifier rule | static checks required before emission/execution |
 
-These columns are planned for a later expansion of each instruction-family table; until then, stack effects remain synchronized with `Docs/Byte.md` and bytecode opcode metadata.
+Stack effects remain synchronized with `Docs/Byte.md` and bytecode opcode metadata.
 
 ## Structured IRB model
 
@@ -243,10 +241,6 @@ Textual SIR is the stable inspection/lowering format. `IRB` is the structured la
 | ✅ | call op | callee, signature, args | `call*` |
 | ✅ | aggregate op | array/list/object operation, payload type | aggregate SIR op |
 | ✅ | control op | labels/branches/return | branch/return SIR op |
-| ☐ | SSA value | id, type, defining op | future middle IR |
-| ☐ | basic block | params, ops, terminator | future typed CFG IR |
-| ☐ | phi/block args | predecessor values | future SSA lowering |
-| ☐ | pass metadata | dominance/liveness/debug | future optimizer input |
 
 ## Versioning and diagnostics
 
@@ -255,9 +249,6 @@ Textual SIR is the stable inspection/lowering format. `IRB` is the structured la
 | ✅ | current parser | unknown sections/opcodes/types are hard errors |
 | ✅ | current lowering | duplicate labels, unresolved labels, invalid references are hard errors |
 | ✅ | SIR version | `sir version <major>.<minor>` directive validates supported SIR text version |
-| ☐ | compatibility | planned explicit syntax/version compatibility policy |
-| ☐ | diagnostic codes | planned stable `E5xxx` IR/lowering diagnostic code table |
-| ☐ | fixtures | planned archived SIR compatibility fixtures |
 
 ## Full instruction syntax and codes
 
@@ -293,11 +284,11 @@ Operand-stack manipulation.
 
 ### Constants and data
 
-Immediate constants, constant-pool references, and planned typed data/blob constants.
+Immediate constants, constant-pool references, and typed data/blob constants.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `const.<T> <value>` | `typed literal` | `Const<T>` | implemented for listed scalar/string/null forms |
+| ✅ | `typed` | `const.<T> <value>` | `typed literal` | `Const<T>` | implemented for listed scalar/string/null forms |
 | ✅ | `ext 58` | `const.bytes <const>` | `const id/name` | `ConstI32` + `Ext.ConstBytes` | loads bytes const as byte-list ref |
 | ✅ | `ext 59` | `const.data <const>` | `const id/name` | `ConstI32` + `Ext.ConstData` | loads data const as byte-list ref |
 | ✅ | `ext 60` | `load.dataref <const>` | `const id/name` | `ConstI32` + `Ext.LoadDataRef` | loads data const as byte-list ref |
@@ -343,11 +334,11 @@ Binary arithmetic. `<T>` covers every valid numeric scalar type.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `add.<T>` | `none` | `Add<T>` | partially implemented typed family |
-| ◐ | `typed` | `sub.<T>` | `none` | `Sub<T>` | partially implemented typed family |
-| ◐ | `typed` | `mul.<T>` | `none` | `Mul<T>` | partially implemented typed family |
-| ◐ | `typed` | `div.<T>` | `none` | `Div<T>` | partially implemented typed family |
-| ◐ | `typed` | `mod.<T>` | `none` | `Mod<T>` | partially implemented typed family |
+| ✅ | `typed` | `add.<T>` | `none` | `Add<T>` | implemented typed family |
+| ✅ | `typed` | `sub.<T>` | `none` | `Sub<T>` | implemented typed family |
+| ✅ | `typed` | `mul.<T>` | `none` | `Mul<T>` | implemented typed family |
+| ✅ | `typed` | `div.<T>` | `none` | `Div<T>` | implemented typed family |
+| ✅ | `typed` | `mod.<T>` | `none` | `Mod<T>` | implemented typed family |
 
 add.<T> codes:
 
@@ -408,8 +399,8 @@ Unary increment/decrement.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `inc.<T>` | `none` | `Inc<T>` | partially implemented typed family |
-| ◐ | `typed` | `dec.<T>` | `none` | `Dec<T>` | partially implemented typed family |
+| ✅ | `typed` | `inc.<T>` | `none` | `Inc<T>` | implemented typed family |
+| ✅ | `typed` | `dec.<T>` | `none` | `Dec<T>` | implemented typed family |
 
 inc.<T> codes:
 
@@ -447,7 +438,7 @@ Unary numeric negation.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `neg.<T>` | `none` | `Neg<T>` | partially implemented typed family |
+| ✅ | `typed` | `neg.<T>` | `none` | `Neg<T>` | implemented typed family |
 
 neg.<T> codes:
 
@@ -470,12 +461,12 @@ Equality and ordering comparisons over comparable typed values.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `cmp.eq.<T>` | `none` | `CmpEq<T>` | partially implemented typed family |
-| ◐ | `typed` | `cmp.ne.<T>` | `none` | `CmpNe<T>` | partially implemented typed family |
-| ◐ | `typed` | `cmp.lt.<T>` | `none` | `CmpLt<T>` | partially implemented typed family |
-| ◐ | `typed` | `cmp.le.<T>` | `none` | `CmpLe<T>` | partially implemented typed family |
-| ◐ | `typed` | `cmp.gt.<T>` | `none` | `CmpGt<T>` | partially implemented typed family |
-| ◐ | `typed` | `cmp.ge.<T>` | `none` | `CmpGe<T>` | partially implemented typed family |
+| ✅ | `typed` | `cmp.eq.<T>` | `none` | `CmpEq<T>` | implemented typed family |
+| ✅ | `typed` | `cmp.ne.<T>` | `none` | `CmpNe<T>` | implemented typed family |
+| ✅ | `typed` | `cmp.lt.<T>` | `none` | `CmpLt<T>` | implemented typed family |
+| ✅ | `typed` | `cmp.le.<T>` | `none` | `CmpLe<T>` | implemented typed family |
+| ✅ | `typed` | `cmp.gt.<T>` | `none` | `CmpGt<T>` | implemented typed family |
+| ✅ | `typed` | `cmp.ge.<T>` | `none` | `CmpGe<T>` | implemented typed family |
 
 cmp.eq.<T> codes:
 
@@ -559,11 +550,11 @@ Bitwise and shift operations over integer scalar types.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `and.<T>` | `none` | `And<T>` | partially implemented typed family |
-| ◐ | `typed` | `or.<T>` | `none` | `Or<T>` | partially implemented typed family |
-| ◐ | `typed` | `xor.<T>` | `none` | `Xor<T>` | partially implemented typed family |
-| ◐ | `typed` | `shl.<T>` | `none` | `Shl<T>` | partially implemented typed family |
-| ◐ | `typed` | `shr.<T>` | `none` | `Shr<T>` | partially implemented typed family |
+| ✅ | `typed` | `and.<T>` | `none` | `And<T>` | implemented typed family |
+| ✅ | `typed` | `or.<T>` | `none` | `Or<T>` | implemented typed family |
+| ✅ | `typed` | `xor.<T>` | `none` | `Xor<T>` | implemented typed family |
+| ✅ | `typed` | `shl.<T>` | `none` | `Shl<T>` | implemented typed family |
+| ✅ | `typed` | `shr.<T>` | `none` | `Shr<T>` | implemented typed family |
 
 and.<T> codes:
 
@@ -621,7 +612,7 @@ Scalar conversions.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | partially implemented typed family |
+| ✅ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | implemented typed family |
 | ✅ | `ext 47` | `checked.conv.i32.i64` | `none` | `Ext.CheckedConvI32ToI64` | checked scalar conversion |
 | ✅ | `ext 48` | `checked.conv.i64.i32` | `none` | `Ext.CheckedConvI64ToI32` | traps on out-of-range |
 | ✅ | `ext 49` | `checked.conv.i32.f32` | `none` | `Ext.CheckedConvI32ToF32` | checked scalar conversion |
@@ -692,10 +683,10 @@ Fixed-size array allocation and element access.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `newarray <T> <length>` | `type, length` | `NewArray<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `newarray <T> <length>` | `type, length` | `NewArray<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xB1` | `array.len` | `none` | `ArrayLen` |  |
-| ◐ | `typed` | `array.get <T>` | `type` | `ArrayGet<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `array.set <T>` | `type` | `ArraySet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `array.get <T>` | `type` | `ArrayGet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `array.set <T>` | `type` | `ArraySet<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0x17` | `array.copy` | `none` | `ArrayCopy<T>` | pops src, src index, dst, dst index, count |
 | ✅ | `0x8F` | `array.fill` | `none` | `ArrayFill<T>` | pops array, i32 count, fill value |
 
@@ -735,14 +726,14 @@ Growable list allocation and element operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ◐ | `typed` | `newlist <T> <capacity>` | `type, capacity` | `NewList<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `newlist <T> <capacity>` | `type, capacity` | `NewList<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC1` | `list.len` | `none` | `ListLen` |  |
-| ◐ | `typed` | `list.get <T>` | `type` | `ListGet<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `list.set <T>` | `type` | `ListSet<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `list.push <T>` | `type` | `ListPush<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `list.pop <T>` | `type` | `ListPop<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `list.insert <T>` | `type` | `ListInsert<T>` | generic SIR; compiler selects concrete SBC opcode |
-| ◐ | `typed` | `list.remove <T>` | `type` | `ListRemove<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.get <T>` | `type` | `ListGet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.set <T>` | `type` | `ListSet<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.push <T>` | `type` | `ListPush<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.pop <T>` | `type` | `ListPop<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.insert <T>` | `type` | `ListInsert<T>` | generic SIR; compiler selects concrete SBC opcode |
+| ✅ | `typed` | `list.remove <T>` | `type` | `ListRemove<T>` | generic SIR; compiler selects concrete SBC opcode |
 | ✅ | `0xC8` | `list.clear` | `none` | `ListClear` |  |
 | ✅ | `0xAF` | `list.reserve` | `none` | `ListReserve` | pops list and i32 capacity |
 | ✅ | `0x6F` | `list.resize` | `none` | `ListResize` | pops list, i32 size, fill value |
