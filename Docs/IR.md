@@ -182,7 +182,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 
 ## Instruction surface
 
-| Canonical syntax | Alias | Emits |
+| Canonical syntax | Short form | Emits |
 |---|---|---|
 | `load.local <slot>` | `ldloc <slot>` | `LoadLocal` |
 | `store.local <slot>` | `stloc <slot>` | `StoreLocal` |
