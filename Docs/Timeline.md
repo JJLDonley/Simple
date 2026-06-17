@@ -4,8 +4,8 @@ This is the canonical project roadmap. Native library prerequisites and native-l
 
 Order of work:
 
-1. Compiler / IR / bytecode prerequisites for native-facing types.
-2. Native ABI and built-in result/option/promise/handle types.
+1. Compiler / IR / bytecode prerequisites for language-neutral VM types and operations.
+2. Native ABI and language-level result/option/promise/handle types.
 3. VM Native Core resource registry and safety model.
 4. Low-level `System.*` APIs.
 5. High-level `Standard.*` APIs and approved aliases.
@@ -16,36 +16,19 @@ Order of work:
 
 ## Phase 0: Compiler / IR / Bytecode Prerequisites
 
-The native library cannot be robust until these lower layers can represent the types and operations the library needs.
+These lower layers remain language-neutral. They define VM-level type metadata, bytecode operations, verification, and lowering only; language sugar and native library names are tracked in later phases.
 
 ### Type-System Prerequisites
 
-- [ ] Add built-in generic `System.Handle<T>`.
-  - [ ] Preserve resource marker type `T` through validation, SIR, SBC metadata, and native dispatch.
-  - [ ] Reject forging handles from plain integers in user code.
-  - [ ] Preserve handle resource kind in diagnostics and generated docs.
-- [ ] Add built-in `Result<T>`.
-  - [ ] Define success/error constructors and representation.
-  - [ ] Define `Result<void>`.
-  - [ ] Add optional `?` propagation for `Result<T>` / `Option<T>` after explicit handling works.
-  - [ ] Keep explicit handling valid; `?` is convenience syntax only.
-- [ ] Add built-in `Option<T>`.
-  - [ ] Define `Some(T)` / `None` or equivalent constructors.
-  - [ ] Use for absent/non-ready states instead of sentinel values.
-- [ ] Add planned `Promise<T>`.
-  - [ ] `Promise<T>.await() -> Result<T>`.
-  - [ ] `Promise<T>.poll() -> Option<Result<T>>`.
-  - [ ] `Promise<T>.cancel() -> Result<void>`.
-  - [ ] `Promise<T>.isDone() -> bool`.
-- [ ] Add native aliases over `System.Handle<T>`.
-  - [ ] `System.FS.FileHandle = System.Handle<System.FS.File>`.
-  - [ ] `System.Net.SocketHandle = System.Handle<System.Net.Socket>`.
-  - [ ] `System.HTTP.ServerHandle = System.Handle<System.HTTP.Server>`.
-  - [ ] Equivalent aliases for all native resource families.
+- [x] Add generic VM metadata for result-like, option-like, vector, aggregate, function, and pointer types.
+- [x] Keep artifact-as-struct layout explicit in SIR/SBC type metadata.
+- [x] Keep artifact methods separate from artifact layout metadata.
+- [ ] Add opaque handle/resource metadata without naming language or native-library modules.
+- [ ] Add type-extension rows for resource kind, capability tags, blocking behavior, and platform availability.
 
 ### IR / SIR Prerequisites
 
-Native-blocking SIR syntax/lowering status:
+Language-neutral SIR syntax/lowering status:
 
 - [x] Module/version/export metadata.
   - [x] `sir version <major>.<minor>`.
@@ -71,7 +54,7 @@ Native-blocking SIR syntax/lowering status:
 - [x] String/bytes conversion.
   - [x] `string.to.bytes`.
   - [x] `bytes.to.string`.
-- [x] Result/option/variant operations.
+- [x] Result-like/option-like/variant operations.
   - [x] `variant.tag`.
   - [x] `variant.payload.<T> <case>`.
   - [x] `variant.make.<T> <case>`.
@@ -81,7 +64,7 @@ Native-blocking SIR syntax/lowering status:
   - [x] `result.is.err`.
   - [x] `result.unwrap.<T>`.
   - [x] `result.propagate.err`.
-  - [x] option metadata is represented; distinct option syntax remains tracked under type-system work.
+  - [x] option-like metadata is represented without language-specific spelling.
 - [x] Async/concurrency operations.
   - [x] `spawn <func>`.
   - [x] `await`.
@@ -93,23 +76,18 @@ Native-blocking SIR syntax/lowering status:
 - [x] Capability/security syntax.
   - [x] `cap.check <capability>`.
   - [x] sandbox enter/exit forms.
-- [ ] Preserve generic built-in type arguments in SIR:
-  - [ ] `System.Handle<T>`.
-  - [ ] `Result<T>`.
-  - [ ] `Option<T>`.
-  - [ ] `Promise<T>`.
-- [ ] Keep artifact-as-struct layout explicit in SIR type metadata.
-- [ ] Keep artifact methods separate from artifact layout metadata.
+- [x] Preserve generic VM type arguments in SIR/SBC metadata where represented.
+- [ ] Preserve opaque handle resource kind through validation, SIR, SBC metadata, and native dispatch.
 
 ### Bytecode / SBC Prerequisites
 
-Native-blocking SBC metadata/opcodes status:
+Language-neutral SBC metadata/opcodes status:
 
 - [x] Type/metadata rows.
-  - [x] `Result` type row.
-  - [x] `Option` type row.
-  - [ ] handle/resource metadata for `System.Handle<T>`.
-  - [x] future metadata for future/task handles.
+  - [x] result-like type row.
+  - [x] option-like type row.
+  - [ ] opaque handle/resource metadata.
+  - [x] future/task-handle metadata.
   - [x] `Module` section.
   - [x] `Data` section.
   - [x] `Capabilities` section.
@@ -141,13 +119,13 @@ Native-blocking SBC metadata/opcodes status:
   - [x] `CheckedListGet<T>`, `CheckedListSet<T>`.
   - [x] `CheckedStringGetChar`, `CheckedStringSlice`.
   - [x] `CheckedNull`, `CheckedBounds`, guard opcodes.
-- [x] Result/option/variant opcodes.
+- [x] Result-like/option-like/variant opcodes.
   - [x] `VariantTag`, `VariantPayload<T>`, `VariantMake<T>`.
   - [x] `ResultOk<T>`, `ResultErr<T>`.
   - [x] `ResultIsOk`, `ResultIsErr`.
   - [x] `ResultUnwrap<T>`.
   - [x] `ResultPropagateErr`.
-  - [x] option represented through metadata/variant surface.
+  - [x] option-like values represented through metadata/variant surface.
 - [x] Concurrency/future/channel opcodes.
   - [x] `Spawn`, `Join`, `Detach`.
   - [x] `Await`, `Yield`, `Resume`, `Suspend`.
@@ -163,17 +141,15 @@ Native-blocking SBC metadata/opcodes status:
   - [x] `ExitSandbox`.
 - [x] Verifier checks.
   - [x] payload/result/variant stack correctness.
-  - [ ] wrong resource kind for handle use.
+  - [ ] wrong resource kind for opaque handle use.
   - [x] native call result type matches metadata where metadata is available.
-  - [x] explicit `Result<T>` / `Option<T>` extraction stack correctness.
+  - [x] explicit result-like / option-like extraction stack correctness.
   - [x] propagation opcode stack correctness.
 
 ### Documentation Prerequisites
 
-- [x] Update `Docs/IR.md` with implemented native-facing IR syntax.
-- [x] Update `Docs/Byte.md` with implemented SBC rows for results/options/futures and native-facing opcodes.
-- [ ] Update `Docs/Language.md` with `System.Handle<T>`, `Result<T>`, `Option<T>`, `Promise<T>`, and optional `?`.
-- [ ] Update generated native/standard docs to show canonical `Standard.*` names and aliases.
+- [x] Update `Docs/IR.md` with implemented language-neutral IR syntax.
+- [x] Update `Docs/Byte.md` with implemented SBC rows for VM-level opcodes and metadata.
 
 ---
 
