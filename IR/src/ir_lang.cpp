@@ -3439,6 +3439,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetI32);
         continue;
       }
+      if (op == "checked.list.get.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListGetI64);
+        continue;
+      }
+      if (op == "checked.list.set.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetI64);
+        continue;
+      }
       if (op.rfind("checked.list.get.", 0) == 0 || op.rfind("checked.list.set.", 0) == 0) {
         return fail("real checked opcode not implemented yet: " + op);
       }
@@ -3497,7 +3505,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             !ParseUint(args[1], &cap)) {
           return fail("newlist expects type_id capacity");
         }
-        builder.EmitNewList(type_id, static_cast<uint32_t>(cap));
+        if (Lower(args[0]) == "i64") builder.EmitNewListI64(type_id, static_cast<uint32_t>(cap));
+        else builder.EmitNewList(type_id, static_cast<uint32_t>(cap));
         continue;
       }
       if (op == "list.len") {

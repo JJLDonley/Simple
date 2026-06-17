@@ -627,6 +627,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedListGetI64: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_GET_I64 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_GET_I64 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_GET_I64 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 8;
+              if (offset + 8 > obj->payload.size()) return Trap("CHECKED_LIST_GET_I64 out of bounds");
+              Push(stack, PackI64(static_cast<int64_t>(ReadU64Payload(obj->payload, offset))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedListSetI64: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_SET_I64 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_SET_I64 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_SET_I64 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 8;
+              if (offset + 8 > obj->payload.size()) return Trap("CHECKED_LIST_SET_I64 out of bounds");
+              WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }
