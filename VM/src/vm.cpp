@@ -775,6 +775,42 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::InstanceOf: {
+              Slot type_val = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) { Push(stack, PackI32(0)); break; }
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj) return Trap("INSTANCEOF on invalid ref");
+              Push(stack, PackI32(obj->header.type_id == static_cast<uint32_t>(UnpackI32(type_val)) ? 1 : 0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CastRef: {
+              Slot type_val = Pop(stack);
+              (void)type_val;
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CAST_REF on non-ref");
+              if (!heap.Get(UnpackRef(v))) return Trap("CAST_REF on invalid ref");
+              Push(stack, v);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedCastRef: {
+              Slot type_val = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_CAST_REF on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj) return Trap("CHECKED_CAST_REF on invalid ref");
+              if (obj->header.type_id != static_cast<uint32_t>(UnpackI32(type_val))) return Trap("CHECKED_CAST_REF type mismatch");
+              Push(stack, v);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::LoadVTable: {
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("LOAD_VTABLE on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj) return Trap("LOAD_VTABLE on invalid ref");
+              Push(stack, PackI32(static_cast<int32_t>(obj->header.type_id)));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

@@ -831,6 +831,37 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::InstanceOf: {
+            ValType type = pop_type();
+            ValType ref = pop_type();
+            VerifyResult r1 = check_type(ref, ValType::Ref, "INSTANCEOF ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(type, ValType::I32, "INSTANCEOF type id mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CastRef:
+          case Simple::Byte::ExtendedOpCode::CheckedCastRef: {
+            ValType type = pop_type();
+            ValType ref = pop_type();
+            VerifyResult r1 = check_type(ref, ValType::Ref, "CAST_REF ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(type, ValType::I32, "CAST_REF type id mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::LoadVTable: {
+            ValType ref = pop_type();
+            VerifyResult r1 = check_type(ref, ValType::Ref, "LOAD_VTABLE ref type mismatch");
+            if (!r1.ok) return r1;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

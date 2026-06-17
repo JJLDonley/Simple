@@ -3279,29 +3279,24 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       };
       uint32_t object_type_id = 0;
       if (resolve_type_operand("instanceof", &object_type_id)) {
-        builder.EmitTypeOf();
         builder.EmitConstI32(static_cast<int32_t>(object_type_id));
-        builder.EmitCmpEqI32();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::InstanceOf);
         continue;
       }
       if (resolve_type_operand("cast.ref", &object_type_id)) {
+        builder.EmitConstI32(static_cast<int32_t>(object_type_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CastRef);
         continue;
       }
       if (resolve_type_operand("checked.cast.ref", &object_type_id) ||
           resolve_type_operand("guard.type", &object_type_id)) {
-        Simple::IR::IrLabel ok = builder.CreateLabel();
-        builder.EmitDup();
-        builder.EmitTypeOf();
         builder.EmitConstI32(static_cast<int32_t>(object_type_id));
-        builder.EmitCmpEqI32();
-        builder.EmitJmpTrue(ok);
-        builder.EmitOp(Simple::IR::OpCode::Trap);
-        if (!builder.BindLabel(ok, error)) return false;
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedCastRef);
         continue;
       }
       if (op == "load.vtable") {
         if (!args.empty()) return fail("load.vtable expects no operands");
-        builder.EmitTypeOf();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::LoadVTable);
         continue;
       }
       if (op == "ldfld" || op == "addrof.field") {

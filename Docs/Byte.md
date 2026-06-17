@@ -584,10 +584,10 @@ Heap object, closure, reference, field, object lifecycle, and typed reference op
 | ✅ | `0x2D` | `DropObject` | 0 | 1 | 0 |
 | ✅ | `0x2E` | `CloneObject` | 0 | 1 | 1 |
 | ✅ | `0x2F` | `ObjectEq` | 0 | 2 | 1 |
-| ✅ | pseudo | `InstanceOf<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `CastRef<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `CheckedCastRef<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `LoadVTable` | 0 | 1 | 1 |
+| ✅ | ext `43` | `InstanceOf` | 0 | 2 | 1 |
+| ✅ | ext `44` | `CastRef` | 0 | 2 | 1 |
+| ✅ | ext `45` | `CheckedCastRef` | 0 | 2 | 1 |
+| ✅ | ext `46` | `LoadVTable` | 0 | 1 | 1 |
 
 ### Arrays
 

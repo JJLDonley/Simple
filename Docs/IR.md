@@ -674,10 +674,10 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
 | ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |
 | ✅ | `0x2F` | `object.eq` | `none` | `ObjectEq` | structural payload equality |
-| ✅ | pseudo | `instanceof[.<T>] <type?>` | `type id/name` | `TypeOf` + `ConstI32` + `CmpEqI32` | runtime type test alias |
-| ✅ | pseudo | `cast.ref[.<T>] <type?>` | `type id/name` | no-op | unchecked reference cast marker |
-| ✅ | pseudo | `checked.cast.ref[.<T>] <type?>` | `type id/name` | type guard sequence | checked reference cast marker |
-| ✅ | pseudo | `load.vtable` | `none` | `TypeOf` | type/vtable metadata alias |
+| ✅ | extended | `instanceof[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.InstanceOf` | runtime type test |
+| ✅ | extended | `cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CastRef` | unchecked reference cast |
+| ✅ | extended | `checked.cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CheckedCastRef` | checked reference cast |
+| ✅ | extended | `load.vtable` | `none` | `Ext.LoadVTable` | load object type/vtable id |
 
 ### Arrays
 
