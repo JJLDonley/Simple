@@ -677,7 +677,7 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ✅ | pseudo | `capture.local <slot>` | `local index/name` | `LoadLocal` | pushes local for closure capture |
 | ✅ | pseudo | `capture.ref <slot>` | `local index/name` | `LoadLocal` | pushes local ref for closure capture |
 | ✅ | pseudo | `close.upvalue <slot>` | `upvalue index/name` | no-op | explicit upvalue-close marker |
-| ✅ | pseudo | `init.object <type>` | `type id/name` | `NewObject` | object initialization alias |
+| ✅ | extended | `init.object <type>` | `type id/name` | `ConstI32` + `Ext.InitObject` | allocate and initialize object |
 | ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
 | ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |
 | ✅ | `0x2F` | `object.eq` | `none` | `ObjectEq` | structural payload equality |

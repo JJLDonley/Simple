@@ -862,6 +862,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackF32Bits(F32ToBits(static_cast<float>(in))));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::InitObject: {
+              int32_t type_raw = UnpackI32(Pop(stack));
+              if (type_raw < 0 || static_cast<uint32_t>(type_raw) >= module.types.size()) return Trap("INIT_OBJECT bad type id");
+              uint32_t type_id = static_cast<uint32_t>(type_raw);
+              uint32_t handle = heap.Allocate(ObjectKind::Artifact, type_id, module.types[type_id].size);
+              Push(stack, PackRef(handle));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

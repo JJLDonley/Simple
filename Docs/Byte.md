@@ -580,7 +580,7 @@ Heap object, closure, reference, field, object lifecycle, and typed reference op
 | ✅ | pseudo | `CaptureLocal` | 4 | 0 | 1 |
 | ✅ | pseudo | `CaptureRef` | 4 | 0 | 1 |
 | ✅ | pseudo | `CloseUpvalue` | 4 | 0 | 0 |
-| ✅ | pseudo | `InitObject` | 4 | 1 | 1 |
+| ✅ | ext `55` | `InitObject` | 0 | 1 | 1 |
 | ✅ | `0x2D` | `DropObject` | 0 | 1 | 0 |
 | ✅ | `0x2E` | `CloneObject` | 0 | 1 | 1 |
 | ✅ | `0x2F` | `ObjectEq` | 0 | 2 | 1 |

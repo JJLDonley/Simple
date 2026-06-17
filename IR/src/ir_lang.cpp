@@ -3287,12 +3287,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitSysCall(id);
         continue;
       }
-      if (op == "newobj" || op == "init.object") {
+      if (op == "newobj") {
         uint32_t type_id = 0;
         if (args.size() != 1 || !resolve_type_id(args[0], &type_id)) {
           return fail(op + " expects type_id");
         }
         builder.EmitNewObject(type_id);
+        continue;
+      }
+      if (op == "init.object") {
+        uint32_t type_id = 0;
+        if (args.size() != 1 || !resolve_type_id(args[0], &type_id)) {
+          return fail(op + " expects type_id");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(type_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::InitObject);
         continue;
       }
       auto resolve_type_operand = [&](const std::string& base, uint32_t* out_type_id) -> bool {

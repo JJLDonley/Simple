@@ -926,6 +926,14 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::InitObject: {
+            ValType type = pop_type();
+            VerifyResult r = check_type(type, ValType::I32, "INIT_OBJECT type id mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }
