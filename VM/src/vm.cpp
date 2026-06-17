@@ -455,6 +455,33 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, a % b);
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedArrayGetI32: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_ARRAY_GET_I32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::Array) return Trap("CHECKED_ARRAY_GET_I32 on non-array");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_ARRAY_GET_I32 out of bounds");
+              size_t offset = 4 + static_cast<size_t>(index) * 4;
+              Push(stack, PackI32(static_cast<int32_t>(ReadU32Payload(obj->payload, offset))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedArraySetI32: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_ARRAY_SET_I32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::Array) return Trap("CHECKED_ARRAY_SET_I32 on non-array");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_ARRAY_SET_I32 out of bounds");
+              size_t offset = 4 + static_cast<size_t>(index) * 4;
+              WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

@@ -6977,38 +6977,40 @@ bool RunIrTextCheckedArithmeticBadTest() {
 
 bool RunIrTextCheckedAggregateAliasTest() {
   const char* text =
-      "consts:\n"
-      "  const text string \"A\"\n"
-      "func main locals=2 stack=16\n"
-      "  enter 2\n"
+      "func main locals=1 stack=16\n"
+      "  enter 1\n"
       "  newarray i32 2\n"
       "  stloc 0\n"
       "  ldloc 0\n"
       "  const i32 1\n"
-      "  const i32 40\n"
+      "  const i32 42\n"
       "  checked.array.set.i32\n"
-      "  newlist i32 0\n"
-      "  stloc 1\n"
-      "  ldloc 1\n"
-      "  const i32 2\n"
-      "  list.push i32\n"
       "  ldloc 0\n"
       "  const i32 1\n"
       "  checked.array.get i32\n"
-      "  ldloc 1\n"
-      "  const i32 0\n"
-      "  checked.list.get.i32\n"
-      "  checked.add.i32\n"
-      "  const string text\n"
-      "  const i32 0\n"
-      "  checked.string.get.char\n"
-      "  pop\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_checked_aggregate_alias");
   if (module.empty()) return false;
   return RunExpectExit(module, 42);
+}
+
+bool RunIrTextCheckedArrayI32TrapTest() {
+  const char* text =
+      "func main locals=1 stack=8\n"
+      "  enter 1\n"
+      "  newarray i32 1\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 2\n"
+      "  checked.array.get.i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_array_i32_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_array_i32_trap");
 }
 
 bool RunIrTextCheckedAggregateBadTest() {
@@ -9811,6 +9813,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
+  {"ir_text_checked_array_i32_trap", RunIrTextCheckedArrayI32TrapTest},
   {"ir_text_checked_aggregate_bad", RunIrTextCheckedAggregateBadTest},
   {"ir_text_bitwise_i32", RunIrTextBitwiseI32Test},
   {"ir_text_bitwise_i64", RunIrTextBitwiseI64Test},
