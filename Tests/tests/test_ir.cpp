@@ -6996,6 +6996,28 @@ bool RunIrTextCheckedAggregateAliasTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArrayF64Test() {
+  const char* text =
+      "func main locals=1 stack=16\n"
+      "  enter 1\n"
+      "  newarray f64 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  const f64 42.0\n"
+      "  checked.array.set.f64\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  checked.array.get f64\n"
+      "  conv f64 i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_array_f64");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
 bool RunIrTextCheckedArrayF32Test() {
   const char* text =
       "func main locals=1 stack=16\n"
@@ -9857,6 +9879,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
+  {"ir_text_checked_array_f64", RunIrTextCheckedArrayF64Test},
   {"ir_text_checked_array_f32", RunIrTextCheckedArrayF32Test},
   {"ir_text_checked_array_i64", RunIrTextCheckedArrayI64Test},
   {"ir_text_checked_array_i32_trap", RunIrTextCheckedArrayI32TrapTest},

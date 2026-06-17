@@ -70,6 +70,7 @@ class IrBuilder {
   void EmitNewArray(uint32_t type_id, uint32_t length);
   void EmitNewArrayI64(uint32_t type_id, uint32_t length);
   void EmitNewArrayF32(uint32_t type_id, uint32_t length);
+  void EmitNewArrayF64(uint32_t type_id, uint32_t length);
   void EmitArrayLen();
   void EmitArrayGetI32();
   void EmitArraySetI32();
