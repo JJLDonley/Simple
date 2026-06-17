@@ -76,6 +76,8 @@ enum class ExtendedOpCode : uint16_t {
   GuardNotNull = 66,
   GuardBounds = 67,
   GuardType = 68,
+  CallMethod = 69,
+  CallVirtual = 70,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

@@ -612,8 +612,8 @@ Direct, indirect, tail, import/native, method, and virtual calls.
 | ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
 | ✅ | `0xFE` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | metadata-native import call |
 | ✅ | `0xFF` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | metadata-native import call |
-| ✅ | pseudo | `call.method <method> <argc>` | `method id/name, argc` | `Call` | direct method-call alias |
-| ✅ | pseudo | `call.virtual <sig> <argc>` | `signature id/name, argc` | `CallIndirect` | virtual-call alias |
+| ✅ | extended | `call.method <method> <argc>` | `method id/name, argc` | `ConstI32` x2 + `Ext.CallMethod` | direct method call |
+| ✅ | extended | `call.virtual <sig> <argc>` | `signature id/name, argc` | `ConstI32` x2 + `Ext.CallVirtual` | virtual/closure call |
 
 ### Conversions
 

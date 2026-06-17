@@ -521,8 +521,8 @@ Direct, indirect, tail, import/native, method, and virtual call forms. Typed cal
 | ✅ | `0xE0` | `CallCheck` | 0 | 0 | 0 |
 | ✅ | `0xFE` | `CallImport` | 5 | 0 | 0 |
 | ✅ | `0xFF` | `CallNative` | 5 | 0 | 0 |
-| ✅ | pseudo | `CallMethod` | 5 | 0 | 0 |
-| ✅ | pseudo | `CallVirtual` | 5 | 0 | 0 |
+| ✅ | ext `69` | `CallMethod` | 0 | dynamic | dynamic |
+| ✅ | ext `70` | `CallVirtual` | 0 | dynamic | dynamic |
 
 ### Conversions
 

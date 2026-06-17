@@ -980,6 +980,77 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, v);
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CallMethod: {
+              int32_t argc_raw = UnpackI32(Pop(stack));
+              int32_t func_raw = UnpackI32(Pop(stack));
+              if (argc_raw < 0 || argc_raw > 255 || func_raw < 0) return Trap("CALL_METHOD invalid operands");
+              uint8_t arg_count = static_cast<uint8_t>(argc_raw);
+              uint32_t func_id = static_cast<uint32_t>(func_raw);
+              if (func_id >= module.functions.size()) return Trap("CALL_METHOD invalid function id");
+              const auto& func = module.functions[func_id];
+              if (func.method_id >= module.methods.size()) return Trap("CALL_METHOD invalid method id");
+              const auto& method = module.methods[func.method_id];
+              if (method.sig_id >= module.sigs.size()) return Trap("CALL_METHOD invalid signature id");
+              const auto& sig = module.sigs[method.sig_id];
+              if (arg_count != sig.param_count) return Trap("CALL_METHOD arg count mismatch");
+              if (stack.size() < arg_count) return Trap("CALL_METHOD stack underflow");
+              call_args.resize(arg_count);
+              for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) call_args[static_cast<size_t>(i)] = Pop(stack);
+              current.return_pc = pc;
+              current.stack_base = stack.size();
+              if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) return Trap("runtime limit exceeded: call depth");
+              call_stack.push_back(current);
+              current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, pc, stack.size(), kNullRef);
+              for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) locals_arena[current.locals_base + i] = call_args[i];
+              func_start = func.code_offset;
+              pc = func_start;
+              end = func_start + func.code_size;
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CallVirtual: {
+              int32_t argc_raw = UnpackI32(Pop(stack));
+              int32_t sig_raw = UnpackI32(Pop(stack));
+              if (argc_raw < 0 || argc_raw > 255 || sig_raw < 0) return Trap("CALL_VIRTUAL invalid operands");
+              uint8_t arg_count = static_cast<uint8_t>(argc_raw);
+              uint32_t sig_id = static_cast<uint32_t>(sig_raw);
+              if (sig_id >= module.sigs.size()) return Trap("CALL_VIRTUAL invalid signature id");
+              const auto& sig = module.sigs[sig_id];
+              if (arg_count != sig.param_count) return Trap("CALL_VIRTUAL arg count mismatch");
+              if (stack.size() < static_cast<size_t>(arg_count) + 1u) return Trap("CALL_VIRTUAL stack underflow");
+              Slot func_val = Pop(stack);
+              int64_t func_index = -1;
+              uint32_t closure_ref = kNullRef;
+              uint32_t handle = UnpackRef(func_val);
+              if (handle != kNullRef) {
+                HeapObject* obj = heap.Get(handle);
+                if (obj && obj->header.kind == ObjectKind::Closure) {
+                  uint32_t method_id = ReadU32Payload(obj->payload, 0);
+                  for (size_t i = 0; i < module.functions.size(); ++i) {
+                    if (module.functions[i].method_id == method_id) { func_index = static_cast<int64_t>(i); break; }
+                  }
+                  if (func_index < 0) return Trap("CALL_VIRTUAL closure method not found");
+                  closure_ref = handle;
+                }
+              }
+              if (func_index < 0) {
+                int32_t idx = UnpackI32(func_val);
+                if (idx < 0 || static_cast<size_t>(idx) >= module.functions.size()) return Trap("CALL_VIRTUAL invalid function id");
+                func_index = idx;
+              }
+              call_args.resize(arg_count);
+              for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) call_args[static_cast<size_t>(i)] = Pop(stack);
+              size_t target = static_cast<size_t>(func_index);
+              current.return_pc = pc;
+              current.stack_base = stack.size();
+              if (!Simple::VM::Runtime::CheckCallDepthLimit(limits, call_stack.size())) return Trap("runtime limit exceeded: call depth");
+              call_stack.push_back(current);
+              current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, target, pc, stack.size(), closure_ref);
+              for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) locals_arena[current.locals_base + i] = call_args[i];
+              func_start = module.functions[target].code_offset;
+              pc = func_start;
+              end = func_start + module.functions[target].code_size;
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

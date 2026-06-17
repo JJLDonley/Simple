@@ -3172,7 +3172,11 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         if (op == "call.import") builder.EmitCallImport(func_id, static_cast<uint8_t>(arg_count));
         else if (op == "call.native") builder.EmitCallNative(func_id, static_cast<uint8_t>(arg_count));
-        else builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
+        else if (op == "call.method") {
+          builder.EmitConstI32(static_cast<int32_t>(func_id));
+          builder.EmitConstI32(static_cast<int32_t>(arg_count));
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::CallMethod);
+        } else builder.EmitCall(func_id, static_cast<uint8_t>(arg_count));
         continue;
       }
       if (op == "call.indirect" || op == "call.virtual") {
@@ -3185,7 +3189,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             !FitsUnsigned<uint8_t>(arg_count)) {
           return fail(op + " expects numeric args");
         }
-        builder.EmitCallIndirect(sig_id, static_cast<uint8_t>(arg_count));
+        if (op == "call.virtual") {
+          builder.EmitConstI32(static_cast<int32_t>(sig_id));
+          builder.EmitConstI32(static_cast<int32_t>(arg_count));
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::CallVirtual);
+        } else {
+          builder.EmitCallIndirect(sig_id, static_cast<uint8_t>(arg_count));
+        }
         continue;
       }
       if (op == "tailcall") {
