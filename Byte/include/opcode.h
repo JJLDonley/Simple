@@ -82,6 +82,19 @@ enum class ExtendedOpCode : uint16_t {
   ReadBarrier = 72,
   PinRef = 73,
   UnpinRef = 74,
+  LoadPtr = 75,
+  StorePtr = 76,
+  PtrAdd = 77,
+  PtrOffset = 78,
+  PtrEq = 79,
+  PtrNe = 80,
+  PtrIsNull = 81,
+  PtrCheckNull = 82,
+  PtrCheckBounds = 83,
+  MemCopy = 84,
+  MemMove = 85,
+  MemSet = 86,
+  MemCompare = 87,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

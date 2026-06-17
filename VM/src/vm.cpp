@@ -1078,6 +1078,66 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (!heap.Get(UnpackRef(value))) return Trap("UNPIN_REF invalid reference");
               break;
             }
+            case Simple::Byte::ExtendedOpCode::LoadPtr: {
+              Slot ptr = Pop(stack);
+              Push(stack, ptr);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::StorePtr: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PtrAdd:
+            case Simple::Byte::ExtendedOpCode::PtrOffset: {
+              int32_t b = UnpackI32(Pop(stack));
+              int32_t a = UnpackI32(Pop(stack));
+              Push(stack, PackI32(a + b));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PtrEq:
+            case Simple::Byte::ExtendedOpCode::PtrNe: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              bool eq = a == b;
+              if (static_cast<Simple::Byte::ExtendedOpCode>(ext) == Simple::Byte::ExtendedOpCode::PtrNe) eq = !eq;
+              Push(stack, PackI32(eq ? 1 : 0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PtrIsNull: {
+              Slot ptr = Pop(stack);
+              Push(stack, PackI32(IsNullRef(ptr) ? 1 : 0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PtrCheckNull: {
+              Slot ptr = Pop(stack);
+              if (IsNullRef(ptr)) return Trap("PTR_CHECK_NULL null pointer");
+              Push(stack, ptr);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PtrCheckBounds: {
+              int32_t length = UnpackI32(Pop(stack));
+              int32_t index = UnpackI32(Pop(stack));
+              Slot ptr = Pop(stack);
+              if (index < 0 || length < 0 || index >= length) return Trap("PTR_CHECK_BOUNDS out of bounds");
+              Push(stack, ptr);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::MemCopy:
+            case Simple::Byte::ExtendedOpCode::MemMove:
+            case Simple::Byte::ExtendedOpCode::MemSet: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::MemCompare: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

@@ -749,19 +749,19 @@ Explicit pointer/address and raw memory operations. `<T>` load/store rows are ty
 | ✅ | pseudo | `AddressOfLocal` | 4 | 0 | 1 |
 | ✅ | pseudo | `AddressOfGlobal` | 4 | 0 | 1 |
 | ✅ | pseudo | `AddressOfField` | 4 | 1 | 1 |
-| ✅ | pseudo | `LoadPtr<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `StorePtr<T>` | 0 | 2 | 0 |
-| ✅ | pseudo | `PtrAdd` | 0 | 2 | 1 |
-| ✅ | pseudo | `PtrOffset` | 0 | 2 | 1 |
-| ✅ | pseudo | `PtrEq` | 0 | 2 | 1 |
-| ✅ | pseudo | `PtrNe` | 0 | 2 | 1 |
-| ✅ | pseudo | `PtrIsNull` | 0 | 1 | 1 |
-| ✅ | pseudo | `PtrCheckNull` | 0 | 1 | 1 |
-| ✅ | pseudo | `PtrCheckBounds` | 0 | 3 | 1 |
-| ✅ | pseudo | `MemCopy` | 0 | 3 | 0 |
-| ✅ | pseudo | `MemMove` | 0 | 3 | 0 |
-| ✅ | pseudo | `MemSet` | 0 | 3 | 0 |
-| ✅ | pseudo | `MemCompare` | 0 | 3 | 1 |
+| ✅ | ext `75` | `LoadPtr` | 0 | 1 | 1 |
+| ✅ | ext `76` | `StorePtr` | 0 | 2 | 0 |
+| ✅ | ext `77` | `PtrAdd` | 0 | 2 | 1 |
+| ✅ | ext `78` | `PtrOffset` | 0 | 2 | 1 |
+| ✅ | ext `79` | `PtrEq` | 0 | 2 | 1 |
+| ✅ | ext `80` | `PtrNe` | 0 | 2 | 1 |
+| ✅ | ext `81` | `PtrIsNull` | 0 | 1 | 1 |
+| ✅ | ext `82` | `PtrCheckNull` | 0 | 1 | 1 |
+| ✅ | ext `83` | `PtrCheckBounds` | 0 | 3 | 1 |
+| ✅ | ext `84` | `MemCopy` | 0 | 3 | 0 |
+| ✅ | ext `85` | `MemMove` | 0 | 3 | 0 |
+| ✅ | ext `86` | `MemSet` | 0 | 3 | 0 |
+| ✅ | ext `87` | `MemCompare` | 0 | 3 | 1 |
 
 ### Checked operations
 

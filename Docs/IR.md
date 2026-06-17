@@ -843,19 +843,19 @@ Explicit pointer/address and raw memory operations.
 | ✅ | pseudo | `addrof.local <slot>` | `local` | `LoadLocal` | address marker alias |
 | ✅ | pseudo | `addrof.global <slot>` | `global` | `LoadGlobal` | address marker alias |
 | ✅ | pseudo | `addrof.field <field>` | `field` | `LoadField` | address marker alias |
-| ✅ | pseudo | `load.ptr.<T>` | `none` | no-op marker | preserves pointer/value marker |
-| ✅ | pseudo | `store.ptr.<T>` | `none` | `Pop` + `Pop` | consumes pointer/value markers |
-| ✅ | pseudo | `ptr.add` | `none` | `AddI32` | pointer offset marker over integer offsets |
-| ✅ | pseudo | `ptr.offset` | `none` | `AddI32` | pointer offset marker over integer offsets |
-| ✅ | pseudo | `ptr.eq` | `none` | `RefEq` | pointer/reference equality alias |
-| ✅ | pseudo | `ptr.ne` | `none` | `RefNe` | pointer/reference inequality alias |
-| ✅ | pseudo | `ptr.isnull` | `none` | `IsNull` | null-test alias |
-| ✅ | pseudo | `ptr.check.null` | `none` | `CheckedNull` | null-check alias |
-| ✅ | pseudo | `ptr.check.bounds` | `none` | `CheckedBounds` | bounds-check alias |
-| ✅ | pseudo | `mem.copy` | `none` | `Pop` x3 | consumes dst/src/len markers |
-| ✅ | pseudo | `mem.move` | `none` | `Pop` x3 | consumes dst/src/len markers |
-| ✅ | pseudo | `mem.set` | `none` | `Pop` x3 | consumes dst/value/len markers |
-| ✅ | pseudo | `mem.compare` | `none` | `ConstI32 0` | consumes lhs/rhs/len markers and pushes equality placeholder |
+| ✅ | `ext 75` | `load.ptr.<T>` | `none` | `Ext.LoadPtr` | loads pointer-represented slot |
+| ✅ | `ext 76` | `store.ptr.<T>` | `none` | `Ext.StorePtr` | stores pointer-represented slot |
+| ✅ | `ext 77` | `ptr.add` | `none` | `Ext.PtrAdd` | pointer integer offset add |
+| ✅ | `ext 78` | `ptr.offset` | `none` | `Ext.PtrOffset` | pointer integer offset add |
+| ✅ | `ext 79` | `ptr.eq` | `none` | `Ext.PtrEq` | pointer/reference equality |
+| ✅ | `ext 80` | `ptr.ne` | `none` | `Ext.PtrNe` | pointer/reference inequality |
+| ✅ | `ext 81` | `ptr.isnull` | `none` | `Ext.PtrIsNull` | null-test |
+| ✅ | `ext 82` | `ptr.check.null` | `none` | `Ext.PtrCheckNull` | null-check |
+| ✅ | `ext 83` | `ptr.check.bounds` | `none` | `Ext.PtrCheckBounds` | bounds-check |
+| ✅ | `ext 84` | `mem.copy` | `none` | `Ext.MemCopy` | memory copy operation |
+| ✅ | `ext 85` | `mem.move` | `none` | `Ext.MemMove` | memory move operation |
+| ✅ | `ext 86` | `mem.set` | `none` | `Ext.MemSet` | memory set operation |
+| ✅ | `ext 87` | `mem.compare` | `none` | `Ext.MemCompare` | memory compare operation |
 
 ### Checked operations
 

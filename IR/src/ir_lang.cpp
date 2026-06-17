@@ -2056,7 +2056,12 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::GuardBounds);
         continue;
       }
-      if (op == "checked.bounds" || op == "ptr.check.bounds") {
+      if (op == "ptr.check.bounds") {
+        if (!args.empty()) return fail("ptr.check.bounds expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrCheckBounds);
+        continue;
+      }
+      if (op == "checked.bounds") {
         if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedBounds();
         continue;
@@ -2156,31 +2161,41 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       };
       std::string marker_type;
       if (parse_marker_type("load.ptr", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::LoadPtr);
         continue;
       }
       if (parse_marker_type("store.ptr", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::StorePtr);
         continue;
       }
-      if (op == "ptr.add" || op == "ptr.offset") {
+      if (op == "ptr.add") {
         if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitAddI32();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrAdd);
         continue;
       }
-      if (op == "mem.copy" || op == "mem.move" || op == "mem.set") {
+      if (op == "ptr.offset") {
         if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitPop();
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrOffset);
+        continue;
+      }
+      if (op == "mem.copy") {
+        if (!args.empty()) return fail("mem.copy expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::MemCopy);
+        continue;
+      }
+      if (op == "mem.move") {
+        if (!args.empty()) return fail("mem.move expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::MemMove);
+        continue;
+      }
+      if (op == "mem.set") {
+        if (!args.empty()) return fail("mem.set expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::MemSet);
         continue;
       }
       if (op == "mem.compare") {
         if (!args.empty()) return fail("mem.compare expects no operands");
-        builder.EmitPop();
-        builder.EmitPop();
-        builder.EmitPop();
-        builder.EmitConstI32(0);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::MemCompare);
         continue;
       }
       auto parse_case_marker_type = [&](const std::string& base, std::string* out_type) -> bool {
@@ -3411,19 +3426,31 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitTypeOf();
         continue;
       }
-      if (op == "isnull" || op == "ptr.isnull") {
+      if (op == "ptr.isnull") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrIsNull);
+        continue;
+      }
+      if (op == "isnull") {
         builder.EmitIsNull();
         continue;
       }
       if (op == "ptr.check.null") {
-        builder.EmitCheckedNull();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrCheckNull);
         continue;
       }
-      if (op == "ref.eq" || op == "ptr.eq") {
+      if (op == "ptr.eq") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrEq);
+        continue;
+      }
+      if (op == "ref.eq") {
         builder.EmitRefEq();
         continue;
       }
-      if (op == "ref.ne" || op == "ptr.ne") {
+      if (op == "ptr.ne") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PtrNe);
+        continue;
+      }
+      if (op == "ref.ne") {
         builder.EmitRefNe();
         continue;
       }

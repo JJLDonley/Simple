@@ -1054,6 +1054,83 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::LoadPtr: {
+            ValType ptr = pop_type();
+            push_type(ptr);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::StorePtr: {
+            (void)pop_type();
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PtrAdd:
+          case Simple::Byte::ExtendedOpCode::PtrOffset: {
+            ValType b = pop_type();
+            ValType a = pop_type();
+            VerifyResult r1 = check_type(a, ValType::I32, "PTR_ADD pointer type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(b, ValType::I32, "PTR_ADD offset type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PtrEq:
+          case Simple::Byte::ExtendedOpCode::PtrNe: {
+            (void)pop_type();
+            (void)pop_type();
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PtrIsNull: {
+            ValType ptr = pop_type();
+            VerifyResult r = check_type(ptr, ValType::Ref, "PTR_ISNULL type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PtrCheckNull: {
+            ValType ptr = pop_type();
+            VerifyResult r = check_type(ptr, ValType::Ref, "PTR_CHECK_NULL type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::PtrCheckBounds: {
+            ValType length = pop_type();
+            ValType index = pop_type();
+            ValType ptr = pop_type();
+            VerifyResult r1 = check_type(index, ValType::I32, "PTR_CHECK_BOUNDS index type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(length, ValType::I32, "PTR_CHECK_BOUNDS length type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ptr);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::MemCopy:
+          case Simple::Byte::ExtendedOpCode::MemMove:
+          case Simple::Byte::ExtendedOpCode::MemSet: {
+            (void)pop_type();
+            (void)pop_type();
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::MemCompare: {
+            (void)pop_type();
+            (void)pop_type();
+            (void)pop_type();
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }
