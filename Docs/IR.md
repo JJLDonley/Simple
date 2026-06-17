@@ -118,8 +118,8 @@ blank         = { whitespace } ;
 | ✅ | sigs | `sig <name>: (<param>, ...) -> <ret>` | Defines a callable signature. | `SigRow` plus param type list |
 | ✅ | consts | `const <name> <kind> <value>` | Defines a constant-pool value. | const pool |
 | ✅ | imports | `import <name> <module> <symbol> sig=<sig> [flags=<u32>]` | Defines an external import. | `ImportRow` plus method row |
-| ✅ | imports | `intrinsic <name> [=] <id>` | Defines an intrinsic id alias. | import metadata / intrinsic id |
-| ✅ | imports | `syscall <name> [=] <id>` | Defines a syscall id alias. | import metadata / syscall id |
+| ✅ | imports | `intrinsic <name> [=] <id>` | Defines an intrinsic id name. | import metadata / intrinsic id |
+| ✅ | imports | `syscall <name> [=] <id>` | Defines a syscall id name. | import metadata / syscall id |
 | ✅ | globals | `global <name> <type> [init=<const>]` | Defines a typed global. | `GlobalRow` |
 | ✅ | function | `func <name> locals=<u16> stack=<u32> [sig=<sig>]` | Starts a function body. | `MethodRow`, `FunctionRow`, code |
 | ✅ | function | `local <name> <type> <slot>` | Declares a named/typed local slot. | function-local metadata |

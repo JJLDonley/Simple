@@ -4058,7 +4058,7 @@ bool RunIrTextTraceOpcodesTest() {
   return saw_stacktrace && saw_enter && saw_leave && RunExpectExit(module, 10);
 }
 
-bool RunIrTextConcurrencyMarkerOpsTest() {
+bool RunIrTextConcurrencyRuntimeOpsTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4068,7 +4068,7 @@ bool RunIrTextConcurrencyMarkerOpsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_ops");
+  auto module = BuildIrTextModule(text, "ir_text_concurrency_runtime_ops");
   if (module.empty()) return false;
   auto load = Simple::Byte::LoadModuleFromBytes(module);
   if (!load.ok) return false;
@@ -4415,7 +4415,7 @@ bool RunIrTextModuleInitOpsTest() {
   return saw_global && saw_module && saw_ensure && RunExpectExit(module, 3);
 }
 
-bool RunIrTextExceptionMarkerAliasesTest() {
+bool RunIrTextExceptionMarkerOpsTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4431,7 +4431,7 @@ bool RunIrTextExceptionMarkerAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_exception_marker_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_exception_marker_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 5);
 }
@@ -4472,7 +4472,7 @@ bool RunIrTextCatchUnknownLabelFailsTest() {
   return RunIrTextExpectFail(text, "ir_text_catch_unknown_label_fails");
 }
 
-bool RunIrTextGcBarrierAliasesTest() {
+bool RunIrTextGcBarrierOpsTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -4496,7 +4496,7 @@ bool RunIrTextGcBarrierAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_gc_barrier_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_gc_barrier_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
@@ -4513,7 +4513,7 @@ bool RunIrTextGcBarrierBadTest() {
   return RunIrTextExpectFail(text, "ir_text_gc_barrier_bad");
 }
 
-bool RunIrTextStringBytesAliasesTest() {
+bool RunIrTextStringBytesOpsTest() {
   const char* text =
       "consts:\n"
       "  const msg string \"abc\"\n"
@@ -4530,12 +4530,12 @@ bool RunIrTextStringBytesAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_string_bytes_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_string_bytes_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 6);
 }
 
-bool RunIrTextStringBytesAliasBadTest() {
+bool RunIrTextStringBytesOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4544,7 +4544,7 @@ bool RunIrTextStringBytesAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_string_bytes_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_string_bytes_op_bad");
 }
 
 bool RunIrTextVectorOpsTest() {
@@ -4566,7 +4566,7 @@ bool RunIrTextVectorOpsTest() {
   return RunExpectExit(module, 12);
 }
 
-bool RunIrTextPointerMemoryAliasesTest() {
+bool RunIrTextPointerMemoryOpsTest() {
   const char* text =
       "func main locals=0 stack=12\n"
       "  enter 0\n"
@@ -4589,12 +4589,12 @@ bool RunIrTextPointerMemoryAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_pointer_memory_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_pointer_memory_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 0);
 }
 
-bool RunIrTextPointerMemoryAliasBadTest() {
+bool RunIrTextPointerMemoryOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4602,10 +4602,10 @@ bool RunIrTextPointerMemoryAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_pointer_memory_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_pointer_memory_op_bad");
 }
 
-bool RunIrTextSumTypeResultAliasesTest() {
+bool RunIrTextSumTypeResultOpsTest() {
   const char* text =
       "func main locals=0 stack=12\n"
       "  enter 0\n"
@@ -4629,12 +4629,12 @@ bool RunIrTextSumTypeResultAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_sum_type_result_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_sum_type_result_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 42);
 }
 
-bool RunIrTextSumTypeResultAliasBadTest() {
+bool RunIrTextSumTypeResultOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4643,10 +4643,10 @@ bool RunIrTextSumTypeResultAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_sum_type_result_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_sum_type_result_op_bad");
 }
 
-bool RunIrTextRangeIteratorAliasesTest() {
+bool RunIrTextRangeIteratorOpsTest() {
   const char* text =
       "func main locals=0 stack=12\n"
       "  enter 0\n"
@@ -4670,12 +4670,12 @@ bool RunIrTextRangeIteratorAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_range_iterator_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_range_iterator_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextRangeIteratorAliasBadTest() {
+bool RunIrTextRangeIteratorOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4685,10 +4685,10 @@ bool RunIrTextRangeIteratorAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_range_iterator_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_range_iterator_op_bad");
 }
 
-bool RunIrTextChannelMarkerAliasesTest() {
+bool RunIrTextChannelMarkerOpsTest() {
   const char* text =
       "func main locals=0 stack=12\n"
       "  enter 0\n"
@@ -4709,7 +4709,7 @@ bool RunIrTextChannelMarkerAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_channel_marker_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_channel_marker_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 0);
 }
@@ -4726,7 +4726,7 @@ bool RunIrTextChannelMarkerBadTest() {
   return RunIrTextExpectFail(text, "ir_text_channel_marker_bad");
 }
 
-bool RunIrTextAtomicMonitorAliasesTest() {
+bool RunIrTextAtomicMonitorOpsTest() {
   const char* text =
       "types:\n"
       "  type LockObj size=4 kind=artifact\n"
@@ -4755,12 +4755,12 @@ bool RunIrTextAtomicMonitorAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_atomic_monitor_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_atomic_monitor_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 10);
 }
 
-bool RunIrTextAtomicCmpxchgAliasTest() {
+bool RunIrTextAtomicCmpxchgOpTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
@@ -4771,12 +4771,12 @@ bool RunIrTextAtomicCmpxchgAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_atomic_cmpxchg_alias");
+  auto module = BuildIrTextModule(text, "ir_text_atomic_cmpxchg_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 0);
 }
 
-bool RunIrTextAtomicAliasBadTest() {
+bool RunIrTextAtomicOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4784,10 +4784,10 @@ bool RunIrTextAtomicAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_atomic_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_atomic_op_bad");
 }
 
-bool RunIrTextConcurrencyMarkerAliasesTest() {
+bool RunIrTextConcurrencyMarkerOpsTest() {
   const char* text =
       "func worker locals=0 stack=4\n"
       "  enter 0\n"
@@ -4808,7 +4808,7 @@ bool RunIrTextConcurrencyMarkerAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_concurrency_marker_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 0);
 }
@@ -4824,7 +4824,7 @@ bool RunIrTextConcurrencyMarkerBadTest() {
   return RunIrTextExpectFail(text, "ir_text_concurrency_marker_bad");
 }
 
-bool RunIrTextJitMarkerAliasesTest() {
+bool RunIrTextJitMarkerOpsTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -4835,7 +4835,7 @@ bool RunIrTextJitMarkerAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_jit_marker_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_jit_marker_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 7);
 }
@@ -4874,7 +4874,7 @@ bool RunIrTextCheckedOpsTest() {
   return RunExpectExit(module, 8);
 }
 
-bool RunIrTextGuardAliasOpsTest() {
+bool RunIrTextGuardOpOpsTest() {
   const char* text =
       "consts:\n"
       "  const msg string \"hello\"\n"
@@ -4891,12 +4891,12 @@ bool RunIrTextGuardAliasOpsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_guard_alias_ops");
+  auto module = BuildIrTextModule(text, "ir_text_guard_op_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 12);
 }
 
-bool RunIrTextGuardTypeAliasTest() {
+bool RunIrTextGuardTypeOpTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -4914,7 +4914,7 @@ bool RunIrTextGuardTypeAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_guard_type_alias");
+  auto module = BuildIrTextModule(text, "ir_text_guard_type_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
@@ -5173,7 +5173,7 @@ bool RunIrTextObjectFieldTest() {
   return RunExpectExit(module, 42);
 }
 
-bool RunIrTextObjectTypeAliasOpsTest() {
+bool RunIrTextObjectTypeOpOpsTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -5193,12 +5193,12 @@ bool RunIrTextObjectTypeAliasOpsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_object_type_alias_ops");
+  auto module = BuildIrTextModule(text, "ir_text_object_type_op_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextLoadVTableAliasTest() {
+bool RunIrTextLoadVTableOpTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -5218,12 +5218,12 @@ bool RunIrTextLoadVTableAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_load_vtable_alias");
+  auto module = BuildIrTextModule(text, "ir_text_load_vtable_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextObjectTypeAliasBadTypeTest() {
+bool RunIrTextObjectTypeOpBadTypeTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -5232,7 +5232,7 @@ bool RunIrTextObjectTypeAliasBadTypeTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_object_type_alias_bad_type");
+  return RunIrTextExpectFail(text, "ir_text_object_type_op_bad_type");
 }
 
 bool RunIrTextNamedTablesTest() {
@@ -5527,7 +5527,7 @@ bool RunIrTextBadConstNameTest() {
   return RunIrTextExpectFail(text, "ir_text_bad_const_name");
 }
 
-bool RunIrTextSpanPseudoInstructionTest() {
+bool RunIrTextSourceSpanInstructionTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -5536,7 +5536,7 @@ bool RunIrTextSpanPseudoInstructionTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto bytes = BuildIrTextModule(text, "ir_text_span_pseudo_instruction");
+  auto bytes = BuildIrTextModule(text, "ir_text_source_span_instruction");
   if (bytes.empty()) return false;
   auto load = Simple::Byte::LoadModuleFromBytes(bytes);
   if (!load.ok) return false;
@@ -5668,7 +5668,7 @@ bool RunIrTextUpvalueTypeBadNameTest() {
   return RunIrTextExpectFail(text, "ir_text_upvalue_type_bad_name");
 }
 
-bool RunIrTextCaptureAliasesTest() {
+bool RunIrTextCaptureOpsTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -5699,12 +5699,12 @@ bool RunIrTextCaptureAliasesTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_capture_aliases");
+  auto module = BuildIrTextModule(text, "ir_text_capture_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextCaptureRefAliasTest() {
+bool RunIrTextCaptureRefOpTest() {
   const char* text =
       "types:\n"
       "  type Obj size=4 kind=artifact\n"
@@ -5724,12 +5724,12 @@ bool RunIrTextCaptureRefAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_capture_ref_alias");
+  auto module = BuildIrTextModule(text, "ir_text_capture_ref_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextCaptureAliasBadTest() {
+bool RunIrTextCaptureOpBadTest() {
   const char* text =
       "func main locals=0 stack=4\n"
       "  enter 0\n"
@@ -5737,7 +5737,7 @@ bool RunIrTextCaptureAliasBadTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  return RunIrTextExpectFail(text, "ir_text_capture_alias_bad");
+  return RunIrTextExpectFail(text, "ir_text_capture_op_bad");
 }
 
 bool RunIrTextSyscallNameFailTest() {
@@ -5794,7 +5794,7 @@ bool RunIrTextUnknownOpTest() {
   return RunIrTextExpectFail(text, "ir_text_unknown_op");
 }
 
-bool RunIrTextPointerAliasOpsTest() {
+bool RunIrTextPointerOpOpsTest() {
   const char* text =
       "globals:\n"
       "  global g ref\n"
@@ -5820,12 +5820,12 @@ bool RunIrTextPointerAliasOpsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_pointer_alias_ops");
+  auto module = BuildIrTextModule(text, "ir_text_pointer_op_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
 
-bool RunIrTextPointerNullAliasOpsTest() {
+bool RunIrTextPointerNullOpOpsTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
@@ -5839,7 +5839,7 @@ bool RunIrTextPointerNullAliasOpsTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_pointer_null_alias_ops");
+  auto module = BuildIrTextModule(text, "ir_text_pointer_null_op_ops");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
@@ -6574,7 +6574,7 @@ bool RunIrTextConvChainTest() {
   return RunExpectExit(module, 7);
 }
 
-bool RunIrTextCheckedConvAliasTest() {
+bool RunIrTextCheckedConvOpTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
@@ -6584,7 +6584,7 @@ bool RunIrTextCheckedConvAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_checked_conv_alias");
+  auto module = BuildIrTextModule(text, "ir_text_checked_conv_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 12);
 }
@@ -6615,7 +6615,7 @@ bool RunIrTextCheckedConvBadTest() {
   return RunIrTextExpectFail(text, "ir_text_checked_conv_bad");
 }
 
-bool RunIrTextCheckedArithmeticAliasTest() {
+bool RunIrTextCheckedArithmeticOpTest() {
   const char* text =
       "func main locals=0 stack=8\n"
       "  enter 0\n"
@@ -6625,7 +6625,7 @@ bool RunIrTextCheckedArithmeticAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_alias");
+  auto module = BuildIrTextModule(text, "ir_text_checked_arithmetic_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 42);
 }
@@ -7003,7 +7003,7 @@ bool RunIrTextCheckedArithmeticBadTest() {
   return RunIrTextExpectFail(text, "ir_text_checked_arithmetic_bad");
 }
 
-bool RunIrTextCheckedAggregateAliasTest() {
+bool RunIrTextCheckedAggregateOpTest() {
   const char* text =
       "func main locals=1 stack=16\n"
       "  enter 1\n"
@@ -7019,7 +7019,7 @@ bool RunIrTextCheckedAggregateAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_checked_aggregate_alias");
+  auto module = BuildIrTextModule(text, "ir_text_checked_aggregate_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 42);
 }
@@ -9203,7 +9203,7 @@ bool RunIrTextCallArgsTest() {
   return RunExpectExit(module, 9);
 }
 
-bool RunIrTextCallMethodAliasTest() {
+bool RunIrTextCallMethodOpTest() {
   const char* text =
       "func answer locals=0 stack=4 sig=0\n"
       "  enter 0\n"
@@ -9222,12 +9222,12 @@ bool RunIrTextCallMethodAliasTest() {
   Simple::Byte::sbc::SigSpec sig1;
   sig1.ret_type_id = 0;
   sig1.param_count = 0;
-  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_method_alias", {sig0, sig1});
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_method_op", {sig0, sig1});
   if (module.empty()) return false;
   return RunExpectExit(module, 42);
 }
 
-bool RunIrTextCallVirtualAliasTest() {
+bool RunIrTextCallVirtualOpTest() {
   const char* text =
       "func callee locals=0 stack=4 sig=0\n"
       "  enter 0\n"
@@ -9249,12 +9249,12 @@ bool RunIrTextCallVirtualAliasTest() {
   Simple::Byte::sbc::SigSpec sig1;
   sig1.ret_type_id = 0;
   sig1.param_count = 0;
-  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_virtual_alias", {sig0, sig1});
+  auto module = BuildIrTextModuleWithSigs(text, "ir_text_call_virtual_op", {sig0, sig1});
   if (module.empty()) return false;
   return RunExpectExit(module, 11);
 }
 
-bool RunIrTextCallImportNativeAliasTest() {
+bool RunIrTextCallImportNativeOpTest() {
   const char* text =
       "sigs:\n"
       "  sig native_ret_i32: () -> i32\n"
@@ -9272,7 +9272,7 @@ bool RunIrTextCallImportNativeAliasTest() {
       "  ret\n"
       "end\n"
       "entry main\n";
-  auto module = BuildIrTextModule(text, "ir_text_call_import_native_alias");
+  auto module = BuildIrTextModule(text, "ir_text_call_import_native_op");
   if (module.empty()) return false;
   return RunExpectExit(module, 1);
 }
@@ -9988,7 +9988,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_trap_opcode", RunIrTextTrapOpcodeTest},
   {"ir_text_comment_in_string_const", RunIrTextCommentInStringConstTest},
   {"ir_text_trace_opcodes", RunIrTextTraceOpcodesTest},
-  {"ir_text_concurrency_marker_ops", RunIrTextConcurrencyMarkerOpsTest},
+  {"ir_text_concurrency_runtime_ops", RunIrTextConcurrencyRuntimeOpsTest},
   {"ir_text_capability_sandbox_ops", RunIrTextCapabilitySandboxOpsTest},
   {"ir_text_gc_runtime_ops", RunIrTextGcRuntimeOpsTest},
   {"ir_text_object_lifecycle_ops", RunIrTextObjectLifecycleOpsTest},
@@ -10004,32 +10004,32 @@ static const TestCase kIrTests[] = {
   {"ir_text_duplicate_export_fails", RunIrTextDuplicateExportFailsTest},
   {"ir_text_module_metadata_section", RunIrTextModuleMetadataSectionTest},
   {"ir_text_module_init_ops", RunIrTextModuleInitOpsTest},
-  {"ir_text_exception_marker_aliases", RunIrTextExceptionMarkerAliasesTest},
+  {"ir_text_exception_marker_ops", RunIrTextExceptionMarkerOpsTest},
   {"ir_text_throw_panic_trap", RunIrTextThrowPanicTrapTest},
   {"ir_text_catch_unknown_label_fails", RunIrTextCatchUnknownLabelFailsTest},
-  {"ir_text_gc_barrier_aliases", RunIrTextGcBarrierAliasesTest},
+  {"ir_text_gc_barrier_ops", RunIrTextGcBarrierOpsTest},
   {"ir_text_gc_barrier_bad", RunIrTextGcBarrierBadTest},
-  {"ir_text_string_bytes_aliases", RunIrTextStringBytesAliasesTest},
-  {"ir_text_string_bytes_alias_bad", RunIrTextStringBytesAliasBadTest},
+  {"ir_text_string_bytes_ops", RunIrTextStringBytesOpsTest},
+  {"ir_text_string_bytes_op_bad", RunIrTextStringBytesOpBadTest},
   {"ir_text_vector_ops", RunIrTextVectorOpsTest},
-  {"ir_text_pointer_memory_aliases", RunIrTextPointerMemoryAliasesTest},
-  {"ir_text_pointer_memory_alias_bad", RunIrTextPointerMemoryAliasBadTest},
-  {"ir_text_sum_type_result_aliases", RunIrTextSumTypeResultAliasesTest},
-  {"ir_text_sum_type_result_alias_bad", RunIrTextSumTypeResultAliasBadTest},
-  {"ir_text_range_iterator_aliases", RunIrTextRangeIteratorAliasesTest},
-  {"ir_text_range_iterator_alias_bad", RunIrTextRangeIteratorAliasBadTest},
-  {"ir_text_channel_marker_aliases", RunIrTextChannelMarkerAliasesTest},
+  {"ir_text_pointer_memory_ops", RunIrTextPointerMemoryOpsTest},
+  {"ir_text_pointer_memory_op_bad", RunIrTextPointerMemoryOpBadTest},
+  {"ir_text_sum_type_result_ops", RunIrTextSumTypeResultOpsTest},
+  {"ir_text_sum_type_result_op_bad", RunIrTextSumTypeResultOpBadTest},
+  {"ir_text_range_iterator_ops", RunIrTextRangeIteratorOpsTest},
+  {"ir_text_range_iterator_op_bad", RunIrTextRangeIteratorOpBadTest},
+  {"ir_text_channel_marker_ops", RunIrTextChannelMarkerOpsTest},
   {"ir_text_channel_marker_bad", RunIrTextChannelMarkerBadTest},
-  {"ir_text_atomic_monitor_aliases", RunIrTextAtomicMonitorAliasesTest},
-  {"ir_text_atomic_cmpxchg_alias", RunIrTextAtomicCmpxchgAliasTest},
-  {"ir_text_atomic_alias_bad", RunIrTextAtomicAliasBadTest},
-  {"ir_text_concurrency_marker_aliases", RunIrTextConcurrencyMarkerAliasesTest},
+  {"ir_text_atomic_monitor_ops", RunIrTextAtomicMonitorOpsTest},
+  {"ir_text_atomic_cmpxchg_op", RunIrTextAtomicCmpxchgOpTest},
+  {"ir_text_atomic_op_bad", RunIrTextAtomicOpBadTest},
+  {"ir_text_concurrency_marker_ops", RunIrTextConcurrencyMarkerOpsTest},
   {"ir_text_concurrency_marker_bad", RunIrTextConcurrencyMarkerBadTest},
-  {"ir_text_jit_marker_aliases", RunIrTextJitMarkerAliasesTest},
+  {"ir_text_jit_marker_ops", RunIrTextJitMarkerOpsTest},
   {"ir_text_jit_marker_bad", RunIrTextJitMarkerBadTest},
   {"ir_text_checked_ops", RunIrTextCheckedOpsTest},
-  {"ir_text_guard_alias_ops", RunIrTextGuardAliasOpsTest},
-  {"ir_text_guard_type_alias", RunIrTextGuardTypeAliasTest},
+  {"ir_text_guard_op_ops", RunIrTextGuardOpOpsTest},
+  {"ir_text_guard_type_op", RunIrTextGuardTypeOpTest},
   {"ir_text_guard_type_trap", RunIrTextGuardTypeTrapTest},
   {"ir_text_checked_null_trap", RunIrTextCheckedNullTrapTest},
   {"ir_text_checked_bounds_trap", RunIrTextCheckedBoundsTrapTest},
@@ -10042,9 +10042,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_array_i32", RunIrTextArrayI32Test},
   {"ir_text_list_i32", RunIrTextListI32Test},
   {"ir_text_object_field", RunIrTextObjectFieldTest},
-  {"ir_text_object_type_alias_ops", RunIrTextObjectTypeAliasOpsTest},
-  {"ir_text_load_vtable_alias", RunIrTextLoadVTableAliasTest},
-  {"ir_text_object_type_alias_bad_type", RunIrTextObjectTypeAliasBadTypeTest},
+  {"ir_text_object_type_op_ops", RunIrTextObjectTypeOpOpsTest},
+  {"ir_text_load_vtable_op", RunIrTextLoadVTableOpTest},
+  {"ir_text_object_type_op_bad_type", RunIrTextObjectTypeOpBadTypeTest},
   {"ir_text_named_tables", RunIrTextNamedTablesTest},
   {"ir_text_bad_type_name", RunIrTextBadTypeNameTest},
   {"ir_text_bad_field_name", RunIrTextBadFieldNameTest},
@@ -10060,24 +10060,24 @@ static const TestCase kIrTests[] = {
   {"ir_text_blob_const_instruction_bad", RunIrTextBlobConstInstructionBadTest},
   {"ir_text_data_const_bad_hex", RunIrTextDataConstBadHexTest},
   {"ir_text_bad_const_name", RunIrTextBadConstNameTest},
-  {"ir_text_span_pseudo_instruction", RunIrTextSpanPseudoInstructionTest},
+  {"ir_text_source_span_instruction", RunIrTextSourceSpanInstructionTest},
   {"ir_text_span_bad_range", RunIrTextSpanBadRangeTest},
   {"ir_text_lower_line_number", RunIrTextLowerLineNumberTest},
   {"ir_text_local_type_name", RunIrTextLocalTypeNameTest},
   {"ir_text_explicit_local_decl", RunIrTextExplicitLocalDeclTest},
   {"ir_text_explicit_local_slot_oob", RunIrTextExplicitLocalSlotOobTest},
   {"ir_text_explicit_upvalue_decl", RunIrTextExplicitUpvalueDeclTest},
-  {"ir_text_capture_aliases", RunIrTextCaptureAliasesTest},
-  {"ir_text_capture_ref_alias", RunIrTextCaptureRefAliasTest},
-  {"ir_text_capture_alias_bad", RunIrTextCaptureAliasBadTest},
+  {"ir_text_capture_ops", RunIrTextCaptureOpsTest},
+  {"ir_text_capture_ref_op", RunIrTextCaptureRefOpTest},
+  {"ir_text_capture_op_bad", RunIrTextCaptureOpBadTest},
   {"ir_text_local_type_bad_name", RunIrTextLocalTypeBadNameTest},
   {"ir_text_upvalue_type_bad_name", RunIrTextUpvalueTypeBadNameTest},
   {"ir_text_syscall_name_fail", RunIrTextSyscallNameFailTest},
   {"ir_text_string_len", RunIrTextStringLenTest},
   {"ir_text_bad_operand", RunIrTextBadOperandTest},
   {"ir_text_unknown_op", RunIrTextUnknownOpTest},
-  {"ir_text_pointer_alias_ops", RunIrTextPointerAliasOpsTest},
-  {"ir_text_pointer_null_alias_ops", RunIrTextPointerNullAliasOpsTest},
+  {"ir_text_pointer_op_ops", RunIrTextPointerOpOpsTest},
+  {"ir_text_pointer_null_op_ops", RunIrTextPointerNullOpOpsTest},
   {"ir_text_pointer_check_null_trap", RunIrTextPointerCheckNullTrapTest},
   {"ir_text_global", RunIrTextGlobalTest},
   {"ir_text_named_globals", RunIrTextNamedGlobalsTest},
@@ -10107,10 +10107,10 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_insert_remove_ref", RunIrTextListInsertRemoveRefTest},
   {"ir_text_list_insert_remove_f64", RunIrTextListInsertRemoveF64Test},
   {"ir_text_conv_chain", RunIrTextConvChainTest},
-  {"ir_text_checked_conv_alias", RunIrTextCheckedConvAliasTest},
+  {"ir_text_checked_conv_op", RunIrTextCheckedConvOpTest},
   {"ir_text_checked_conv_trap", RunIrTextCheckedConvTrapTest},
   {"ir_text_checked_conv_bad", RunIrTextCheckedConvBadTest},
-  {"ir_text_checked_arithmetic_alias", RunIrTextCheckedArithmeticAliasTest},
+  {"ir_text_checked_arithmetic_op", RunIrTextCheckedArithmeticOpTest},
   {"ir_text_checked_arithmetic_add_i64", RunIrTextCheckedArithmeticAddI64Test},
   {"ir_text_checked_arithmetic_u64", RunIrTextCheckedArithmeticU64Test},
   {"ir_text_checked_arithmetic_u64_trap", RunIrTextCheckedArithmeticU64TrapTest},
@@ -10129,7 +10129,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_mul", RunIrTextCheckedArithmeticMulTest},
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
-  {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
+  {"ir_text_checked_aggregate_op", RunIrTextCheckedAggregateOpTest},
   {"ir_text_checked_list_f64", RunIrTextCheckedListF64Test},
   {"ir_text_checked_list_ref", RunIrTextCheckedListRefTest},
   {"ir_text_checked_list_f32", RunIrTextCheckedListF32Test},
@@ -10269,9 +10269,9 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_resize_shrink", RunIrTextListResizeShrinkTest},
   {"ir_text_list_resize_negative_trap", RunIrTextListResizeNegativeTrapTest},
   {"ir_text_call_args", RunIrTextCallArgsTest},
-  {"ir_text_call_method_alias", RunIrTextCallMethodAliasTest},
-  {"ir_text_call_virtual_alias", RunIrTextCallVirtualAliasTest},
-  {"ir_text_call_import_native_alias", RunIrTextCallImportNativeAliasTest},
+  {"ir_text_call_method_op", RunIrTextCallMethodOpTest},
+  {"ir_text_call_virtual_op", RunIrTextCallVirtualOpTest},
+  {"ir_text_call_import_native_op", RunIrTextCallImportNativeOpTest},
   {"ir_text_call_native_opcodes", RunIrTextCallNativeOpcodesTest},
   {"ir_text_call_indirect_args", RunIrTextCallIndirectArgsTest},
   {"ir_text_store_upvalue", RunIrTextStoreUpvalueTest},

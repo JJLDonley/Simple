@@ -3540,7 +3540,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
         if (enable_jit && jit_stubs[func_id].active) {
-          // JIT stub placeholder: still runs interpreter path.
+          // JIT stub path currently falls back to interpreter execution.
           jit_dispatch_counts[func_id] += 1;
         }
 
@@ -3632,7 +3632,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         }
 
         if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].active) {
-          // JIT stub placeholder: still runs interpreter path.
+          // JIT stub path currently falls back to interpreter execution.
           jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
         }
 
@@ -3675,7 +3675,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
         if (enable_jit && jit_stubs[func_id].active) {
-          // JIT stub placeholder: still runs interpreter path.
+          // JIT stub path currently falls back to interpreter execution.
           jit_dispatch_counts[func_id] += 1;
         }
         const auto& func = module.functions[func_id];
