@@ -1131,6 +1131,26 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::AddressOfLocal:
+          case Simple::Byte::ExtendedOpCode::AddressOfGlobal: {
+            ValType index = pop_type();
+            VerifyResult r = check_type(index, ValType::I32, "ADDRESS_OF index type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Unknown);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::AddressOfField: {
+            ValType field = pop_type();
+            ValType ref = pop_type();
+            VerifyResult r1 = check_type(field, ValType::I32, "ADDRESS_OF_FIELD id type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(ref, ValType::Ref, "ADDRESS_OF_FIELD ref type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Unknown);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

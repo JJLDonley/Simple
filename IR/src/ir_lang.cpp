@@ -3295,12 +3295,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConvF64ToF32();
         continue;
       }
-      if (op == "ldloc" || op == "load.local" || op == "addrof.local") {
+      if (op == "ldloc" || op == "load.local") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail(op + " expects index");
         }
         builder.EmitLoadLocal(index);
+        continue;
+      }
+      if (op == "addrof.local") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
+          return fail("addrof.local expects index");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(index));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AddressOfLocal);
         continue;
       }
       if (op == "capture.local") {
@@ -3406,12 +3415,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::LoadVTable);
         continue;
       }
-      if (op == "ldfld" || op == "addrof.field") {
+      if (op == "ldfld") {
         uint32_t field_id = 0;
         if (args.size() != 1 || !resolve_field_id(args[0], &field_id)) {
           return fail(op + " expects field_id");
         }
         builder.EmitLoadField(field_id);
+        continue;
+      }
+      if (op == "addrof.field") {
+        uint32_t field_id = 0;
+        if (args.size() != 1 || !resolve_field_id(args[0], &field_id)) {
+          return fail("addrof.field expects field_id");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(field_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AddressOfField);
         continue;
       }
       if (op == "stfld") {
@@ -3830,12 +3848,21 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitStringSlice();
         continue;
       }
-      if (op == "ldglob" || op == "load.global" || op == "addrof.global") {
+      if (op == "ldglob" || op == "load.global") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_global(args[0], &index)) {
           return fail(op + " expects index");
         }
         builder.EmitLoadGlobal(index);
+        continue;
+      }
+      if (op == "addrof.global") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_global(args[0], &index)) {
+          return fail("addrof.global expects index");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(index));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AddressOfGlobal);
         continue;
       }
       if (op == "stglob" || op == "store.global") {

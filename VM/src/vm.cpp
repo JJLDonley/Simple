@@ -1138,6 +1138,30 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(0));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::AddressOfLocal: {
+              int32_t idx = UnpackI32(Pop(stack));
+              if (idx < 0 || static_cast<uint32_t>(idx) >= current.locals_count) return Trap("ADDRESS_OF_LOCAL out of range");
+              Push(stack, locals_arena[current.locals_base + static_cast<uint32_t>(idx)]);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AddressOfGlobal: {
+              int32_t idx = UnpackI32(Pop(stack));
+              if (idx < 0 || static_cast<size_t>(idx) >= globals.size()) return Trap("ADDRESS_OF_GLOBAL out of range");
+              Push(stack, globals[static_cast<size_t>(idx)]);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AddressOfField: {
+              int32_t field_raw = UnpackI32(Pop(stack));
+              Slot v = Pop(stack);
+              if (field_raw < 0 || static_cast<uint32_t>(field_raw) >= module.fields.size()) return Trap("ADDRESS_OF_FIELD bad field id");
+              if (IsNullRef(v)) return Trap("ADDRESS_OF_FIELD on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::Artifact) return Trap("ADDRESS_OF_FIELD on non-object");
+              uint32_t offset = module.fields[static_cast<uint32_t>(field_raw)].offset;
+              if (offset + 4 > obj->payload.size()) return Trap("ADDRESS_OF_FIELD out of bounds");
+              Push(stack, PackI32(static_cast<int32_t>(ReadU32Payload(obj->payload, offset))));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

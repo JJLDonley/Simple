@@ -95,6 +95,9 @@ enum class ExtendedOpCode : uint16_t {
   MemMove = 85,
   MemSet = 86,
   MemCompare = 87,
+  AddressOfLocal = 88,
+  AddressOfGlobal = 89,
+  AddressOfField = 90,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

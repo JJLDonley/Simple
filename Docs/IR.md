@@ -840,9 +840,9 @@ Explicit pointer/address and raw memory operations.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | pseudo | `addrof.local <slot>` | `local` | `LoadLocal` | address marker alias |
-| ✅ | pseudo | `addrof.global <slot>` | `global` | `LoadGlobal` | address marker alias |
-| ✅ | pseudo | `addrof.field <field>` | `field` | `LoadField` | address marker alias |
+| ✅ | `ext 88` | `addrof.local <slot>` | `local` | `ConstI32` + `Ext.AddressOfLocal` | local address/value handle |
+| ✅ | `ext 89` | `addrof.global <slot>` | `global` | `ConstI32` + `Ext.AddressOfGlobal` | global address/value handle |
+| ✅ | `ext 90` | `addrof.field <field>` | `field` | `ConstI32` + `Ext.AddressOfField` | field address/value handle |
 | ✅ | `ext 75` | `load.ptr.<T>` | `none` | `Ext.LoadPtr` | loads pointer-represented slot |
 | ✅ | `ext 76` | `store.ptr.<T>` | `none` | `Ext.StorePtr` | stores pointer-represented slot |
 | ✅ | `ext 77` | `ptr.add` | `none` | `Ext.PtrAdd` | pointer integer offset add |

@@ -746,9 +746,9 @@ Explicit pointer/address and raw memory operations. `<T>` load/store rows are ty
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `AddressOfLocal` | 4 | 0 | 1 |
-| ✅ | pseudo | `AddressOfGlobal` | 4 | 0 | 1 |
-| ✅ | pseudo | `AddressOfField` | 4 | 1 | 1 |
+| ✅ | ext `88` | `AddressOfLocal` | 0 | 1 | 1 |
+| ✅ | ext `89` | `AddressOfGlobal` | 0 | 1 | 1 |
+| ✅ | ext `90` | `AddressOfField` | 0 | 2 | 1 |
 | ✅ | ext `75` | `LoadPtr` | 0 | 1 | 1 |
 | ✅ | ext `76` | `StorePtr` | 0 | 2 | 0 |
 | ✅ | ext `77` | `PtrAdd` | 0 | 2 | 1 |
