@@ -1944,15 +1944,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             return true;
           }
         }
-        if (op == "checked.string.get.char") {
-          if (!args.empty()) return false;
-          op = "string.get.char";
-          return true;
-        }
-        if (op == "checked.string.slice") {
-          if (!args.empty()) return false;
-          op = "string.slice";
-          return true;
+        if (op == "checked.string.get.char" || op == "checked.string.slice") {
+          return args.empty();
         }
         if (take_one_type({"add", "sub", "mul", "div", "mod", "neg", "inc", "dec",
                            "and", "or", "xor", "shl", "shr",
@@ -3709,6 +3702,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "string.find") {
         builder.EmitStringFind();
+        continue;
+      }
+      if (op == "checked.string.get.char") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedStringGetChar);
+        continue;
+      }
+      if (op == "checked.string.slice") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedStringSlice);
         continue;
       }
       if (op == "string.get.char") {

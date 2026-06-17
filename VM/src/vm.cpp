@@ -743,6 +743,38 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               WriteU32Payload(obj->payload, offset, UnpackRef(value));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedStringGetChar: {
+              Slot idx_val = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_STRING_GET_CHAR on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::String) return Trap("CHECKED_STRING_GET_CHAR on non-string");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx_val);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_STRING_GET_CHAR out of bounds");
+              size_t offset = 4 + static_cast<size_t>(index) * 2;
+              Push(stack, PackI32(ReadU16Payload(obj->payload, offset)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedStringSlice: {
+              Slot end_val = Pop(stack);
+              Slot start_val = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_STRING_SLICE on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::String) return Trap("CHECKED_STRING_SLICE on non-string");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t start = UnpackI32(start_val);
+              int32_t end_idx = UnpackI32(end_val);
+              if (start < 0 || end_idx < 0 || start > end_idx || static_cast<uint32_t>(end_idx) > length) {
+                return Trap("CHECKED_STRING_SLICE out of bounds");
+              }
+              std::u16string text = ReadString(obj);
+              uint32_t handle = CreateString(heap, text.substr(static_cast<size_t>(start), static_cast<size_t>(end_idx - start)));
+              if (handle == 0xFFFFFFFFu) return Trap("CHECKED_STRING_SLICE allocation failed");
+              Push(stack, PackRef(handle));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

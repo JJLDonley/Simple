@@ -8847,6 +8847,46 @@ bool RunIrTextStringCompareFindTest() {
   return RunExpectExit(module, 2);
 }
 
+bool RunIrTextCheckedStringOpsTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"ABC\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  const i32 1\n"
+      "  checked.string.get.char\n"
+      "  const string msg\n"
+      "  const i32 0\n"
+      "  const i32 2\n"
+      "  checked.string.slice\n"
+      "  string.len\n"
+      "  add i32\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_string_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 68);
+}
+
+bool RunIrTextCheckedStringTrapTest() {
+  const char* text =
+      "consts:\n"
+      "  const msg string \"ABC\"\n"
+      "func main locals=0 stack=8\n"
+      "  enter 0\n"
+      "  const string msg\n"
+      "  const i32 9\n"
+      "  checked.string.get.char\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_string_trap");
+  if (module.empty()) return false;
+  return RunExpectTrap(module, "ir_text_checked_string_trap");
+}
+
 bool RunIrTextStringGetCharOobTrapTest() {
   std::vector<uint8_t> const_pool;
   uint32_t str_off = static_cast<uint32_t>(AppendStringToPool(const_pool, "hi"));
@@ -10177,6 +10217,8 @@ static const TestCase kIrTests[] = {
   {"ir_text_list_remove_f64_oob", RunIrTextListRemoveF64OutOfBoundsTrapTest},
   {"ir_text_list_remove_ref_oob", RunIrTextListRemoveRefOutOfBoundsTrapTest},
   {"ir_text_string_compare_find", RunIrTextStringCompareFindTest},
+  {"ir_text_checked_string_ops", RunIrTextCheckedStringOpsTest},
+  {"ir_text_checked_string_trap", RunIrTextCheckedStringTrapTest},
   {"ir_text_string_get_char_oob", RunIrTextStringGetCharOobTrapTest},
   {"ir_text_string_slice_oob", RunIrTextStringSliceOobTrapTest},
   {"ir_text_stack_underflow", RunIrTextStackUnderflowTest},

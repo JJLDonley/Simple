@@ -806,6 +806,31 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CheckedStringGetChar: {
+            ValType idx = pop_type();
+            ValType str = pop_type();
+            VerifyResult r1 = check_type(str, ValType::Ref, "CHECKED_STRING_GET_CHAR ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(idx, ValType::I32, "CHECKED_STRING_GET_CHAR index type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Char);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedStringSlice: {
+            ValType end_idx = pop_type();
+            ValType start_idx = pop_type();
+            ValType str = pop_type();
+            VerifyResult r1 = check_type(str, ValType::Ref, "CHECKED_STRING_SLICE ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(start_idx, ValType::I32, "CHECKED_STRING_SLICE start type mismatch");
+            if (!r2.ok) return r2;
+            VerifyResult r3 = check_type(end_idx, ValType::I32, "CHECKED_STRING_SLICE end type mismatch");
+            if (!r3.ok) return r3;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

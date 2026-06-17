@@ -896,8 +896,8 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | extended | `checked.list.set.f64` | `none` | `Ext.CheckedListSetF64` | null/type/bounds checked list store |
 | ✅ | extended | `checked.list.get.ref` | `none` | `Ext.CheckedListGetRef` | null/type/bounds checked list load |
 | ✅ | extended | `checked.list.set.ref` | `none` | `Ext.CheckedListSetRef` | null/type/bounds checked list store |
-| ✅ | pseudo | `checked.string.get.char` | `none` | `StringGetChar` | checked string alias |
-| ✅ | pseudo | `checked.string.slice` | `none` | `StringSlice` | checked string alias |
+| ✅ | extended | `checked.string.get.char` | `none` | `Ext.CheckedStringGetChar` | null/type/bounds checked string char load |
+| ✅ | extended | `checked.string.slice` | `none` | `Ext.CheckedStringSlice` | null/type/bounds checked string slice |
 | ✅ | `0x2B` | `checked.null` | `none` | `CheckedNull` |  |
 | ✅ | `0x2C` | `checked.bounds` | `none` | `CheckedBounds` | pops value, index, length; pushes value |
 

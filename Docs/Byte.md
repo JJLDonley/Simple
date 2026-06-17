@@ -809,8 +809,8 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ✅ | ext `38` | `CheckedListSetF64` | 0 | 3 | 0 |
 | ✅ | ext `39` | `CheckedListGetRef` | 0 | 2 | 1 |
 | ✅ | ext `40` | `CheckedListSetRef` | 0 | 3 | 0 |
-| ✅ | pseudo | `CheckedStringGetChar` | 0 | 2 | 1 |
-| ✅ | pseudo | `CheckedStringSlice` | 0 | 3 | 1 |
+| ✅ | ext `41` | `CheckedStringGetChar` | 0 | 2 | 1 |
+| ✅ | ext `42` | `CheckedStringSlice` | 0 | 3 | 1 |
 | ✅ | `0x2B` | `CheckedNull` | 0 | 1 | 1 |
 | ✅ | `0x2C` | `CheckedBounds` | 0 | 3 | 1 |
 
