@@ -831,8 +831,8 @@ String-specific operations.
 | ✅ | `0xFD` | `string.ne` | `none` | `StringNe` |  |
 | ✅ | `0x15` | `string.compare` | `none` | `StringCompare` |  |
 | ✅ | `0x16` | `string.find` | `none` | `StringFind` |  |
-| ✅ | pseudo | `string.to.bytes` | `none` | `Pop` + `NewList<u8>` | consumes string ref and pushes placeholder byte list |
-| ✅ | pseudo | `bytes.to.string` | `none` | `Pop` + `ConstNull` | consumes bytes ref and pushes placeholder string ref |
+| ✅ | extended | `string.to.bytes` | `none` | `Ext.StringToBytes` | converts string ref to byte-list ref |
+| ✅ | extended | `bytes.to.string` | `none` | `Ext.BytesToString` | converts byte-list ref to string ref |
 
 ### Pointer and memory
 

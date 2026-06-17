@@ -63,6 +63,8 @@ enum class ExtendedOpCode : uint16_t {
   CheckedConvF32ToF64 = 53,
   CheckedConvF64ToF32 = 54,
   InitObject = 55,
+  StringToBytes = 56,
+  BytesToString = 57,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

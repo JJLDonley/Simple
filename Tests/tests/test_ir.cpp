@@ -4522,20 +4522,17 @@ bool RunIrTextStringBytesAliasesTest() {
       "  const string msg\n"
       "  string.to.bytes\n"
       "  list.len\n"
-      "  newlist u8 0\n"
+      "  const string msg\n"
+      "  string.to.bytes\n"
       "  bytes.to.string\n"
-      "  isnull\n"
-      "  jmp.true ok\n"
-      "  pop\n"
-      "  const i32 9\n"
-      "  ret\n"
-      "ok:\n"
+      "  string.len\n"
+      "  add i32\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_string_bytes_aliases");
   if (module.empty()) return false;
-  return RunExpectExit(module, 0);
+  return RunExpectExit(module, 6);
 }
 
 bool RunIrTextStringBytesAliasBadTest() {

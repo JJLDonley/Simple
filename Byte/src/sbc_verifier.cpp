@@ -934,6 +934,15 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::StringToBytes:
+          case Simple::Byte::ExtendedOpCode::BytesToString: {
+            ValType ref = pop_type();
+            VerifyResult r = check_type(ref, ValType::Ref, "STRING_BYTES ref type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

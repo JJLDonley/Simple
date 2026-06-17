@@ -870,6 +870,43 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::StringToBytes: {
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("STRING_TO_BYTES on non-ref");
+              HeapObject* str = heap.Get(UnpackRef(v));
+              if (!str || str->header.kind != ObjectKind::String) return Trap("STRING_TO_BYTES on non-string");
+              std::u16string text = ReadString(str);
+              uint32_t length = static_cast<uint32_t>(text.size());
+              if (!Simple::VM::Runtime::CheckSequenceLimit(limits, length)) return Trap("runtime limit exceeded: string bytes size");
+              uint32_t size = 8 + length * 4;
+              uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+              HeapObject* list = heap.Get(handle);
+              if (!list) return Trap("STRING_TO_BYTES allocation failed");
+              WriteU32Payload(list->payload, 0, length);
+              WriteU32Payload(list->payload, 4, length);
+              for (uint32_t i = 0; i < length; ++i) {
+                WriteU32Payload(list->payload, 8 + static_cast<size_t>(i) * 4, static_cast<uint32_t>(text[i] & 0x00FFu));
+              }
+              Push(stack, PackRef(handle));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::BytesToString: {
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("BYTES_TO_STRING on non-ref");
+              HeapObject* list = heap.Get(UnpackRef(v));
+              if (!list || list->header.kind != ObjectKind::List) return Trap("BYTES_TO_STRING on non-list");
+              uint32_t length = ReadU32Payload(list->payload, 0);
+              if (8 + static_cast<size_t>(length) * 4 > list->payload.size()) return Trap("BYTES_TO_STRING out of bounds");
+              std::u16string text;
+              text.reserve(length);
+              for (uint32_t i = 0; i < length; ++i) {
+                text.push_back(static_cast<char16_t>(ReadU32Payload(list->payload, 8 + static_cast<size_t>(i) * 4) & 0xFFu));
+              }
+              uint32_t handle = CreateString(heap, text);
+              if (handle == 0xFFFFFFFFu) return Trap("BYTES_TO_STRING allocation failed");
+              Push(stack, PackRef(handle));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }
