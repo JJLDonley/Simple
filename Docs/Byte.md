@@ -832,10 +832,10 @@ Enum/variant/result/error operations. Plain integer-like enums may still lower t
 | ✅ | pseudo | `ResultIsErr` | 0 | 1 | 1 |
 | ✅ | pseudo | `ResultUnwrap<T>` | 0 | 1 | 1 |
 | ✅ | pseudo | `ResultPropagateErr` | 0 | 1 | 1 |
-| ✅ | pseudo | `Throw` | 0 | 1 | 0 |
+| ✅ | ext `61` | `Throw` | 0 | 0 | 0 |
 | ✅ | pseudo | `Catch` | 4 | 0 | 0 |
 | ✅ | pseudo | `Finally` | 4 | 0 | 0 |
-| ✅ | pseudo | `Panic` | 0 | 1 | 0 |
+| ✅ | ext `62` | `Panic` | 0 | 0 | 0 |
 
 ### Range and iterators
 

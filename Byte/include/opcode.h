@@ -68,6 +68,8 @@ enum class ExtendedOpCode : uint16_t {
   ConstBytes = 58,
   ConstData = 59,
   LoadDataRef = 60,
+  Throw = 61,
+  Panic = 62,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

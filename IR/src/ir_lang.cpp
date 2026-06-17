@@ -3063,9 +3063,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitBoolOr();
         continue;
       }
-      if (op == "throw" || op == "panic") {
-        if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitOp(Simple::IR::OpCode::Trap);
+      if (op == "throw") {
+        if (!args.empty()) return fail("throw expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Throw);
+        continue;
+      }
+      if (op == "panic") {
+        if (!args.empty()) return fail("panic expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Panic);
         continue;
       }
       if (op == "catch" || op == "finally") {

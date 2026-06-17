@@ -926,10 +926,10 @@ Tagged data and error operations.
 | ✅ | pseudo | `result.is.err` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
 | ✅ | pseudo | `result.unwrap.<T>` | `none` | no-op marker | preserves value marker |
 | ✅ | pseudo | `result.propagate.err` | `none` | no-op marker | preserves result marker |
-| ✅ | pseudo | `throw` | `none` | `Trap` | exception throw marker traps in current VM |
+| ✅ | extended | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
 | ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
 | ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |
-| ✅ | pseudo | `panic` | `none` | `Trap` | panic marker traps in current VM |
+| ✅ | extended | `panic` | `none` | `Ext.Panic` | unconditional panic trap |
 
 ### Range and iterators
 

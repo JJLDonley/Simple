@@ -934,6 +934,10 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::Throw:
+              return Trap("THROW");
+            case Simple::Byte::ExtendedOpCode::Panic:
+              return Trap("PANIC");
             default:
               return Trap("unknown extended opcode");
           }
