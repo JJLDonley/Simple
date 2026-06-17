@@ -2812,7 +2812,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op.rfind("checked.div.", 0) == 0 || op.rfind("checked.mod.", 0) == 0) {
-        return fail("real checked opcode not implemented yet: " + op);
+        return fail("unsupported checked opcode type: " + op);
       }
       if (op == "add.i32") {
         builder.EmitAddI32();
@@ -3706,7 +3706,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op.rfind("checked.array.get.", 0) == 0 || op.rfind("checked.array.set.", 0) == 0) {
-        return fail("real checked opcode not implemented yet: " + op);
+        return fail("unsupported checked opcode type: " + op);
       }
       if (op == "checked.list.get.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListGetI32);
@@ -3749,7 +3749,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (op.rfind("checked.list.get.", 0) == 0 || op.rfind("checked.list.set.", 0) == 0) {
-        return fail("real checked opcode not implemented yet: " + op);
+        return fail("unsupported checked opcode type: " + op);
       }
       if (op == "array.get.i32") {
         builder.EmitArrayGetI32();
