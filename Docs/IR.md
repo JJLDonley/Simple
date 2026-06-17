@@ -991,9 +991,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
 | ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |
 | ✅ | pseudo | `inline.cache <id>` | `u32 id` | no-op marker | inline-cache marker alias |
-| ✅ | pseudo | `guard.type[.<T>] <type?>` | `type` | type guard sequence | runtime type guard alias |
-| ✅ | pseudo | `guard.bounds` | `none` | `CheckedBounds` | bounds guard alias |
-| ✅ | pseudo | `guard.notnull` | `none` | `CheckedNull` | non-null guard alias |
+| ✅ | extended | `guard.type[.<T>] <type?>` | `type` | `ConstI32` + `Ext.GuardType` | runtime type guard |
+| ✅ | extended | `guard.bounds` | `none` | `Ext.GuardBounds` | checked bounds guard |
+| ✅ | extended | `guard.notnull` | `none` | `Ext.GuardNotNull` | non-null guard |
 | ✅ | `0x0B` | `cap.check <id>` | `u32 id` | `CheckCapability` | capability marker |
 | ✅ | `0x0C` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | sandbox marker |
 | ✅ | `0x0D` | `sandbox.exit` | `none` | `ExitSandbox` | sandbox marker |

@@ -911,9 +911,9 @@ JIT patching, guards, and deoptimization hooks for a typed optimizing backend.
 | ✅ | pseudo | `Deopt` | 4 | 0 | 0 |
 | ✅ | pseudo | `Patchpoint` | 4 | 0 | 0 |
 | ✅ | pseudo | `InlineCache` | 4 | 0 | 0 |
-| ✅ | pseudo | `GuardType<T>` | 4 | 1 | 1 |
-| ✅ | pseudo | `GuardBounds` | 0 | 3 | 1 |
-| ✅ | pseudo | `GuardNotNull` | 0 | 1 | 1 |
+| ✅ | ext `68` | `GuardType` | 0 | 2 | 1 |
+| ✅ | ext `67` | `GuardBounds` | 0 | 3 | 1 |
+| ✅ | ext `66` | `GuardNotNull` | 0 | 1 | 1 |
 
 ### Capabilities and sandboxing
 

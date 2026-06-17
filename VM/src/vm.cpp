@@ -955,6 +955,31 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               if (index < 0 || static_cast<uint32_t>(index) >= count) return Trap("CLOSE_UPVALUE out of range");
               break;
             }
+            case Simple::Byte::ExtendedOpCode::GuardNotNull: {
+              Slot value = Pop(stack);
+              if (IsNullRef(value)) return Trap("GUARD_NOT_NULL null reference");
+              if (!heap.Get(UnpackRef(value))) return Trap("GUARD_NOT_NULL invalid reference");
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::GuardBounds: {
+              int32_t length = UnpackI32(Pop(stack));
+              int32_t index = UnpackI32(Pop(stack));
+              Slot value = Pop(stack);
+              if (index < 0 || length < 0 || index >= length) return Trap("GUARD_BOUNDS out of bounds");
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::GuardType: {
+              Slot type_val = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("GUARD_TYPE on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj) return Trap("GUARD_TYPE on invalid ref");
+              if (obj->header.type_id != static_cast<uint32_t>(UnpackI32(type_val))) return Trap("GUARD_TYPE type mismatch");
+              Push(stack, v);
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

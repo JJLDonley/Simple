@@ -2041,12 +2041,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         }
         continue;
       }
-      if (op == "checked.null" || op == "guard.notnull") {
+      if (op == "guard.notnull") {
+        if (!args.empty()) return fail("guard.notnull expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::GuardNotNull);
+        continue;
+      }
+      if (op == "checked.null") {
         if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedNull();
         continue;
       }
-      if (op == "checked.bounds" || op == "guard.bounds" || op == "ptr.check.bounds") {
+      if (op == "guard.bounds") {
+        if (!args.empty()) return fail("guard.bounds expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::GuardBounds);
+        continue;
+      }
+      if (op == "checked.bounds" || op == "ptr.check.bounds") {
         if (!args.empty()) return fail(op + " expects no operands");
         builder.EmitCheckedBounds();
         continue;
@@ -3351,10 +3361,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CastRef);
         continue;
       }
-      if (resolve_type_operand("checked.cast.ref", &object_type_id) ||
-          resolve_type_operand("guard.type", &object_type_id)) {
+      if (resolve_type_operand("checked.cast.ref", &object_type_id)) {
         builder.EmitConstI32(static_cast<int32_t>(object_type_id));
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedCastRef);
+        continue;
+      }
+      if (resolve_type_operand("guard.type", &object_type_id)) {
+        builder.EmitConstI32(static_cast<int32_t>(object_type_id));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::GuardType);
         continue;
       }
       if (op == "load.vtable") {

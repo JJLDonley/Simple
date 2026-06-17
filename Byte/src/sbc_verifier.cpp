@@ -974,6 +974,37 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::GuardNotNull: {
+            ValType value = pop_type();
+            VerifyResult r = check_type(value, ValType::Ref, "GUARD_NOT_NULL type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::GuardBounds: {
+            ValType length = pop_type();
+            ValType index = pop_type();
+            ValType value = pop_type();
+            VerifyResult r1 = check_type(index, ValType::I32, "GUARD_BOUNDS index type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(length, ValType::I32, "GUARD_BOUNDS length type mismatch");
+            if (!r2.ok) return r2;
+            push_type(value);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::GuardType: {
+            ValType type = pop_type();
+            ValType ref = pop_type();
+            VerifyResult r1 = check_type(ref, ValType::Ref, "GUARD_TYPE ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(type, ValType::I32, "GUARD_TYPE type id mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

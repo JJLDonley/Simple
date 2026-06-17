@@ -73,6 +73,9 @@ enum class ExtendedOpCode : uint16_t {
   CaptureLocal = 63,
   CaptureRef = 64,
   CloseUpvalue = 65,
+  GuardNotNull = 66,
+  GuardBounds = 67,
+  GuardType = 68,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;
