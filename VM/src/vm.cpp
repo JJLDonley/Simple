@@ -907,6 +907,33 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackRef(handle));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::ConstBytes:
+            case Simple::Byte::ExtendedOpCode::ConstData:
+            case Simple::Byte::ExtendedOpCode::LoadDataRef: {
+              int32_t const_raw = UnpackI32(Pop(stack));
+              if (const_raw < 0) return Trap("BLOB_CONST bad const id");
+              uint32_t const_id = static_cast<uint32_t>(const_raw);
+              if (const_id + 8 > module.const_pool.size()) return Trap("BLOB_CONST out of bounds");
+              uint32_t kind = ReadU32Payload(module.const_pool, const_id);
+              uint32_t expected = static_cast<Simple::Byte::ExtendedOpCode>(ext) == Simple::Byte::ExtendedOpCode::ConstBytes ? 7u : 8u;
+              if (kind != expected) return Trap("BLOB_CONST kind mismatch");
+              uint32_t payload = ReadU32Payload(module.const_pool, const_id + 4);
+              if (payload + 4 > module.const_pool.size()) return Trap("BLOB_CONST bad payload");
+              uint32_t length = ReadU32Payload(module.const_pool, payload);
+              if (payload + 4 + length > module.const_pool.size()) return Trap("BLOB_CONST payload out of bounds");
+              if (!Simple::VM::Runtime::CheckSequenceLimit(limits, length)) return Trap("runtime limit exceeded: blob size");
+              uint32_t size = 8 + length * 4;
+              uint32_t handle = heap.Allocate(ObjectKind::List, 0, size);
+              HeapObject* list = heap.Get(handle);
+              if (!list) return Trap("BLOB_CONST allocation failed");
+              WriteU32Payload(list->payload, 0, length);
+              WriteU32Payload(list->payload, 4, length);
+              for (uint32_t i = 0; i < length; ++i) {
+                WriteU32Payload(list->payload, 8 + static_cast<size_t>(i) * 4, module.const_pool[payload + 4 + i]);
+              }
+              Push(stack, PackRef(handle));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

@@ -943,6 +943,16 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::ConstBytes:
+          case Simple::Byte::ExtendedOpCode::ConstData:
+          case Simple::Byte::ExtendedOpCode::LoadDataRef: {
+            ValType id = pop_type();
+            VerifyResult r = check_type(id, ValType::I32, "BLOB_CONST id type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

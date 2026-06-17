@@ -221,9 +221,9 @@ Immediate constants, constant-pool references, and planned typed data/blob const
 | ✅ | `0x25` | `ConstChar` | 2 | 0 | 1 |
 | ✅ | `0x26` | `ConstString` | 4 | 0 | 1 |
 | ✅ | `0x27` | `ConstNull` | 0 | 0 | 1 |
-| ✅ | pseudo | `ConstBytes` | 4 | 0 | 1 |
-| ✅ | pseudo | `ConstData` | 4 | 0 | 1 |
-| ✅ | pseudo | `LoadDataRef` | 4 | 0 | 1 |
+| ✅ | ext `58` | `ConstBytes` | 0 | 1 | 1 |
+| ✅ | ext `59` | `ConstData` | 0 | 1 | 1 |
+| ✅ | ext `60` | `LoadDataRef` | 0 | 1 | 1 |
 
 ### Locals, globals, upvalues, and module init
 

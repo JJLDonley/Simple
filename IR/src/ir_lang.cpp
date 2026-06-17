@@ -2539,6 +2539,13 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail(op + " expects const_id");
         }
         builder.EmitConstI32(static_cast<int32_t>(const_id));
+        if (op == "const.bytes") {
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::ConstBytes);
+        } else if (op == "const.data") {
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::ConstData);
+        } else {
+          builder.EmitExtended(Simple::Byte::ExtendedOpCode::LoadDataRef);
+        }
         continue;
       }
       if (op == "const.null") {

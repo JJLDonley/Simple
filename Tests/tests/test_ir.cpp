@@ -5456,21 +5456,19 @@ bool RunIrTextBlobConstInstructionsTest() {
       "func main locals=0 stack=8\n"
       "  enter 0\n"
       "  const.bytes raw\n"
-      "  pop\n"
+      "  list.len\n"
       "  const.data blob\n"
+      "  list.len\n"
+      "  add i32\n"
       "  load.dataref blob\n"
-      "  cmp.eq i32\n"
-      "  jmp.true ok\n"
-      "  const i32 0\n"
-      "  ret\n"
-      "ok:\n"
-      "  const i32 1\n"
+      "  list.len\n"
+      "  add i32\n"
       "  ret\n"
       "end\n"
       "entry main\n";
   auto module = BuildIrTextModule(text, "ir_text_blob_const_instructions");
   if (module.empty()) return false;
-  return RunExpectExit(module, 1);
+  return RunExpectExit(module, 9);
 }
 
 bool RunIrTextBlobConstInstructionBadTest() {
