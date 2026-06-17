@@ -118,7 +118,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 |:---:|---|---|
 | ✅ | `SbcHeader` | `magic`, `version`, `endian`, `flags`, `section_count`, `section_table_offset`, `entry_method_id`, reserved words |
 | ✅ | `SectionEntry` | `id`, `offset`, `size`, `count` |
-| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `size`, `field_start`, `field_count` |
+| ✅ | `TypeRow` | `name_str`, `kind`, `flags`, `size`, `field_start`, `field_count`; flag `0x1` marks managed artifact layout, flag `0x2` marks stable data layout |
 | ✅ | `FieldRow` | `name_str`, `type_id`, `offset`, `flags` |
 | ✅ | `MethodRow` | `name_str`, `sig_id`, `code_offset`, `local_count`, `flags` |
 | ✅ | `SigRow` | `ret_type_id`, `param_count`, `call_conv`, `param_type_start` |

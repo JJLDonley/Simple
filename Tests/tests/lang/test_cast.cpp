@@ -289,6 +289,22 @@ bool LangParsesArtifactDecl() {
 }
 
 
+bool LangParsesDataDecl() {
+  const char* src = "Point :: data { x : f32; y :: f32 }";
+  Simple::Lang::Program program;
+  std::string error;
+  if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
+  if (program.decls.size() != 1) return false;
+  const auto& decl = program.decls[0];
+  if (decl.kind != Simple::Lang::DeclKind::Artifact) return false;
+  if (decl.artifact.name != "Point") return false;
+  if (!decl.artifact.is_data) return false;
+  if (decl.artifact.fields.size() != 2) return false;
+  if (!decl.artifact.methods.empty()) return false;
+  return true;
+}
+
+
 bool LangParsesArtifactDeclCapitalized() {
   const char* src = "Point :: artifact { x : f32; y :: f32; len : i32 () { return 1; } }";
   Simple::Lang::Program program;
@@ -756,6 +772,7 @@ const TestCase kLangCastTests[] = {
   {"lang_parse_var_decl_no_init", LangParsesVarDeclNoInit},
   {"lang_parse_local_var_decl_no_init", LangParsesLocalVarDeclNoInit},
   {"lang_parse_artifact_decl", LangParsesArtifactDecl},
+  {"lang_parse_data_decl", LangParsesDataDecl},
   {"lang_parse_artifact_decl_capitalized", LangParsesArtifactDeclCapitalized},
   {"lang_parse_module_decl", LangParsesModuleDecl},
   {"lang_parse_module_decl_capitalized", LangParsesModuleDeclCapitalized},

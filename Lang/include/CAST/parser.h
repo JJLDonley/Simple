@@ -34,6 +34,7 @@ private:
   bool ParseParam(ParamDecl* out);
   bool ParseArtifactDecl(const Token& name_tok,
                          std::vector<std::string> generics,
+                         bool is_data,
                          Decl* out);
   bool ParseModuleDecl(const Token& name_tok, Decl* out);
   bool ParseEnumDecl(const Token& name_tok, Decl* out);

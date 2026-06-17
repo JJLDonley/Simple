@@ -1,5 +1,6 @@
 #include "IRE/sir_emitter.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -5457,7 +5458,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     uint32_t offset = 0;
     uint32_t max_align = 1;
     layout.fields.reserve(artifact->fields.size());
-    for (const auto& field : artifact->fields) {
+    std::vector<const VarDecl*> ordered_fields;
+    ordered_fields.reserve(artifact->fields.size());
+    for (const auto& field : artifact->fields) ordered_fields.push_back(&field);
+    if (!artifact->is_data) {
+      std::stable_sort(ordered_fields.begin(), ordered_fields.end(), [](const VarDecl* a, const VarDecl* b) {
+        uint32_t align_a = FieldAlignForType(a->type);
+        uint32_t align_b = FieldAlignForType(b->type);
+        if (align_a != align_b) return align_a > align_b;
+        return FieldSizeForType(a->type) > FieldSizeForType(b->type);
+      });
+    }
+    for (const VarDecl* field_ptr : ordered_fields) {
+      const auto& field = *field_ptr;
       EmitState::FieldLayout field_layout;
       field_layout.name = field.name;
       if (!CloneTypeRef(field.type, &field_layout.type)) return false;
@@ -5555,7 +5568,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       auto it = st.artifact_layouts.find(artifact->name);
       if (it == st.artifact_layouts.end()) return false;
       const auto& layout = it->second;
-      result << "  type " << artifact->name << " size=" << layout.size << " kind=artifact\n";
+      result << "  type " << artifact->name << " size=" << layout.size << " kind=" << (artifact->is_data ? "data" : "artifact") << "\n";
       for (const auto& field : layout.fields) {
         result << "  field " << field.name << " " << field.sir_type << " offset=" << field.offset << "\n";
       }

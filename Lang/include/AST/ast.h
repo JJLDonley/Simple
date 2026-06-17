@@ -182,6 +182,7 @@ struct FuncDecl {
 struct ArtifactDecl {
   std::string name;
   std::vector<std::string> generics;
+  bool is_data = false;
   std::vector<VarDecl> fields;
   std::vector<FuncDecl> methods;
 };

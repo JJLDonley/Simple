@@ -1138,6 +1138,11 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       *out_flags = 1;
       return true;
     }
+    if (kind == "data") {
+      *out_kind = Simple::Byte::TypeKind::Unspecified;
+      *out_flags = 2;
+      return true;
+    }
     return false;
   };
 

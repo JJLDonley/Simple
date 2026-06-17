@@ -28,6 +28,40 @@ main :: i32 () {
          sir.find("import core.") == std::string::npos;
 }
 
+bool LangDataDeclEmitsStableLayout() {
+  std::string sir;
+  std::string error;
+  const char* source = R"simple(
+Point :: data {
+  small : bool
+  wide : i64
+}
+
+main : i32 () { return 0 }
+)simple";
+  if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
+  return sir.find("type Point size=16 kind=data") != std::string::npos &&
+         sir.find("field small bool offset=0") != std::string::npos &&
+         sir.find("field wide i64 offset=8") != std::string::npos;
+}
+
+bool LangArtifactDeclEmitsManagedLayout() {
+  std::string sir;
+  std::string error;
+  const char* source = R"simple(
+Box :: artifact {
+  small : bool
+  wide : i64
+}
+
+main : i32 () { return 0 }
+)simple";
+  if (!Simple::Lang::IRE::EmitSirFromString(source, &sir, &error)) return false;
+  return sir.find("type Box size=16 kind=artifact") != std::string::npos &&
+         sir.find("field wide i64 offset=0") != std::string::npos &&
+         sir.find("field small bool offset=8") != std::string::npos;
+}
+
 bool LangSplitIreEmitsSirModule() {
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;
@@ -50,6 +84,8 @@ bool LangSplitIreEmitsSirModule() {
 
 const TestCase kLangIreTests[] = {
   {"lang_dl_imports_emit_system_namespace", LangDlImportsEmitSystemNamespace},
+  {"lang_data_decl_emits_stable_layout", LangDataDeclEmitsStableLayout},
+  {"lang_artifact_decl_emits_managed_layout", LangArtifactDeclEmitsManagedLayout},
   {"lang_split_ire_emits_sir_module", LangSplitIreEmitsSirModule},
 };
 

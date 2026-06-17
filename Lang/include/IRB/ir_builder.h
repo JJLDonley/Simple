@@ -61,6 +61,7 @@ struct IrArtifactField {
 
 struct IrArtifactLayout {
   std::string name;
+  bool is_data = false;
   std::vector<IrArtifactField> fields;
 };
 

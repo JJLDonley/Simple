@@ -40,12 +40,16 @@ This page is the canonical language reference for the syntax and behavior covere
 ```simple
 import IO
 
-Point :: artifact {
+Point :: data {
   x : i32
   y : i32
+}
 
-  sum : i32 () {
-    return self.x + self.y
+Counter :: artifact {
+  value : i32
+
+  inc : i32 () {
+    return self.value + 1
   }
 }
 
@@ -55,7 +59,8 @@ add : i32 (a : i32, b : i32) {
 
 main : i32 () {
   p : Point = { .x = 3, .y = 4 }
-  IO.println("sum={}", p.sum())
+  c : Counter = { .value = 6 }
+  IO.println("next={}", c.inc())
   return add(p.x, p.y)
 }
 ```
@@ -65,7 +70,7 @@ Important syntax facts:
 - `name : Type` declares a **mutable** binding.
 - `name :: Type` declares an **immutable** binding.
 - `module Name` declares the file/module header used by import indexing.
-- `Name :: artifact`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
+- `Name :: artifact`, `Name :: data`, `Name :: namespace`, and `Name :: enum` declare top-level kinds.
 - `skip` is the loop-continue statement.
 - Primitive casts use `@Type(value)`, for example `@i32(x)`.
 
@@ -120,11 +125,12 @@ module-header-decl   = "module" qualified-name ;
 import-decl    = "import" qualified-name [ "as" ident ] ;
 using-decl     = "using" qualified-name ;
 extern-decl    = "extern" [ qualified-name ] function-signature ;
-top-decl       = var-decl | func-decl | artifact-decl | namespace-decl | enum-decl ;
+top-decl       = var-decl | func-decl | artifact-decl | data-decl | namespace-decl | enum-decl ;
 
 var-decl       = ident (":" | "::") type [ "=" expr ] ;
 func-decl      = ident ":" type "(" [ params ] ")" block ;
 artifact-decl  = ident "::" "artifact" "{" { field-decl | func-decl } "}" ;
+data-decl      = ident "::" "data" "{" { field-decl } "}" ;
 namespace-decl = ident "::" "namespace" "{" { top-decl } "}" ;
 enum-decl      = ident "::" "enum" "{" enum-member { enum-member } "}" ;
 
@@ -203,7 +209,8 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `name : Type = expr` | TAST | Mutable binding with typed initializer. |
 | ✅ | `name :: Type = expr` | TAST | Immutable binding; must not be assigned later. |
 | ✅ | `name : Ret (params) block` | TAST | Function declaration. |
-| ✅ | `Name :: artifact { ... }` | TAST | Artifact type declaration. |
+| ✅ | `Name :: artifact { ... }` | TAST | Managed artifact declaration; layout may be optimized. |
+| ✅ | `Name :: data { ... }` | TAST/IRE | Stable data struct declaration; field order/layout is preserved for ABI/data use. |
 | ✅ | `Name :: namespace { ... }` | RAST/TAST | Namespace/module declaration. |
 | ✅ | `Name :: enum { ... }` | TAST | Enum declaration. |
 | ✅ | top-level executable statement | AST/IRE | Normalized into implicit script entry. |

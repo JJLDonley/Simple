@@ -178,6 +178,7 @@ void PopulateArtifactLayouts(const Simple::Lang::AST::Program& program, IrModule
     if (decl.kind != Simple::Lang::AST::DeclKind::Artifact) continue;
     IrArtifactLayout layout;
     layout.name = decl.artifact.name;
+    layout.is_data = decl.artifact.is_data;
     layout.fields.reserve(decl.artifact.fields.size());
     for (size_t i = 0; i < decl.artifact.fields.size(); ++i) {
       const auto& field = decl.artifact.fields[i];

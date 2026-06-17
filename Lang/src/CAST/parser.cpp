@@ -453,7 +453,11 @@ bool Parser::ParseDecl(Decl* out) {
 
   if (Match(TokenKind::DoubleColon)) {
     if (Match(TokenKind::KwArtifact)) {
-      return ParseArtifactDecl(name_tok, std::move(generics), out);
+      return ParseArtifactDecl(name_tok, std::move(generics), false, out);
+    }
+    if (Peek().kind == TokenKind::Identifier && Peek().text == "data") {
+      Advance();
+      return ParseArtifactDecl(name_tok, std::move(generics), true, out);
     }
     if (Match(TokenKind::KwNamespace)) {
       return ParseModuleDecl(name_tok, out);
@@ -550,11 +554,13 @@ bool Parser::ParseDecl(Decl* out) {
 
 bool Parser::ParseArtifactDecl(const Token& name_tok,
                                std::vector<std::string> generics,
+                               bool is_data,
                                Decl* out) {
   if (out) {
     out->kind = DeclKind::Artifact;
     out->artifact.name = name_tok.text;
     out->artifact.generics = std::move(generics);
+    out->artifact.is_data = is_data;
   }
   if (!ParseArtifactBody(&out->artifact)) return false;
   return true;
@@ -660,6 +666,10 @@ bool Parser::ParseArtifactMember(ArtifactDecl* out) {
   if (!ParseTypeInner(&type)) return false;
 
   if (Match(TokenKind::LParen)) {
+    if (out && out->is_data) {
+      error_ = "data declarations cannot contain methods";
+      return false;
+    }
     FuncDecl fn;
     fn.name = name_tok.text;
     fn.return_mutability = mut;

@@ -53,7 +53,7 @@ Representative shape:
 
 ```txt
 types:
-  type Point kind=object size=16
+  type Point kind=data size=16
   field x i32 offset=0
   field y i32 offset=4
 
@@ -113,7 +113,7 @@ blank         = { whitespace } ;
 
 | Status | Section | Syntax | Meaning | SBC target |
 |:---:|---|---|---|---|
-| ✅ | types | `type <name> kind=<kind> size=<bytes>` | Defines a type row. | `TypeRow` |
+| ✅ | types | `type <name> kind=<kind> size=<bytes>` | Defines a type row; `kind=data` preserves declared field layout, while `kind=artifact` is managed VM layout. | `TypeRow` |
 | ✅ | types | `field <name> <type> offset=<bytes>` | Adds a field to the preceding type. | `FieldRow` |
 | ✅ | sigs | `sig <name>: (<param>, ...) -> <ret>` | Defines a callable signature. | `SigRow` plus param type list |
 | ✅ | consts | `const <name> <kind> <value>` | Defines a constant-pool value. | const pool |
@@ -151,7 +151,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms lower where l
 | ✅ | `bool` | `Bool` / `14` | 1 | boolean |
 | ✅ | `char` | `Char` / `15` | 2 | UTF/code-unit scalar in current bytecode |
 | ✅ | `string` | `String` / `16` | ref | string reference |
-| ✅ | object type name | `Ref` or object row kind | declared | resolved by `types:` rows |
+| ✅ | object/data type name | `Ref` or row kind | declared | resolved by `types:` rows; `kind=data` uses stable field offsets |
 | ✅ | `void` | `Void` / `17` | 0 | no-result signature spelling / metadata type |
 | ✅ | `never` | `Never` / `18` | 0 | non-returning metadata type |
 | ✅ | `ptr<T>` | `Ptr` / `19` | word | typed pointer metadata via `kind=ptr` |
