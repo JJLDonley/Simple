@@ -6996,6 +6996,37 @@ bool RunIrTextCheckedAggregateAliasTest() {
   return RunExpectExit(module, 42);
 }
 
+bool RunIrTextCheckedArrayRefTest() {
+  const char* text =
+      "types:\n"
+      "  type Obj size=4 kind=artifact\n"
+      "sigs:\n"
+      "  sig main_sig: () -> i32\n"
+      "func main locals=1 stack=16 sig=main_sig\n"
+      "  enter 1\n"
+      "  newarray ref 2\n"
+      "  stloc 0\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  init.object Obj\n"
+      "  checked.array.set.ref\n"
+      "  ldloc 0\n"
+      "  const i32 1\n"
+      "  checked.array.get ref\n"
+      "  isnull\n"
+      "  jmp.false ok\n"
+      "  const i32 0\n"
+      "  ret\n"
+      "ok:\n"
+      "  const i32 42\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_checked_array_ref");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 42);
+}
+
 bool RunIrTextCheckedArrayF64Test() {
   const char* text =
       "func main locals=1 stack=16\n"
@@ -9879,6 +9910,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_checked_arithmetic_overflow_trap", RunIrTextCheckedArithmeticOverflowTrapTest},
   {"ir_text_checked_arithmetic_bad", RunIrTextCheckedArithmeticBadTest},
   {"ir_text_checked_aggregate_alias", RunIrTextCheckedAggregateAliasTest},
+  {"ir_text_checked_array_ref", RunIrTextCheckedArrayRefTest},
   {"ir_text_checked_array_f64", RunIrTextCheckedArrayF64Test},
   {"ir_text_checked_array_f32", RunIrTextCheckedArrayF32Test},
   {"ir_text_checked_array_i64", RunIrTextCheckedArrayI64Test},

@@ -884,6 +884,8 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | extended | `checked.array.set.f32` | `none` | `Ext.CheckedArraySetF32` | null/type/bounds checked array store |
 | ✅ | extended | `checked.array.get.f64` | `none` | `Ext.CheckedArrayGetF64` | null/type/bounds checked array load |
 | ✅ | extended | `checked.array.set.f64` | `none` | `Ext.CheckedArraySetF64` | null/type/bounds checked array store |
+| ✅ | extended | `checked.array.get.ref` | `none` | `Ext.CheckedArrayGetRef` | null/type/bounds checked array load |
+| ✅ | extended | `checked.array.set.ref` | `none` | `Ext.CheckedArraySetRef` | null/type/bounds checked array store |
 | ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.list.set.<T>` | `none` | `ListSet<T>` | checked aggregate alias for supported element types |
 | ✅ | pseudo | `checked.string.get.char` | `none` | `StringGetChar` | checked string alias |

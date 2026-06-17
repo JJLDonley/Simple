@@ -3380,6 +3380,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (array_type_name == "i64") builder.EmitNewArrayI64(type_id, static_cast<uint32_t>(length));
         else if (array_type_name == "f32") builder.EmitNewArrayF32(type_id, static_cast<uint32_t>(length));
         else if (array_type_name == "f64") builder.EmitNewArrayF64(type_id, static_cast<uint32_t>(length));
+        else if (array_type_name == "ref") builder.EmitNewArrayRef(type_id, static_cast<uint32_t>(length));
         else builder.EmitNewArray(type_id, static_cast<uint32_t>(length));
         continue;
       }
@@ -3417,6 +3418,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "checked.array.set.f64") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetF64);
+        continue;
+      }
+      if (op == "checked.array.get.ref") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArrayGetRef);
+        continue;
+      }
+      if (op == "checked.array.set.ref") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetRef);
         continue;
       }
       if (op.rfind("checked.array.get.", 0) == 0 || op.rfind("checked.array.set.", 0) == 0) {

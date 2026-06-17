@@ -662,6 +662,30 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CheckedArrayGetRef: {
+            ValType idx = pop_type();
+            ValType arr = pop_type();
+            VerifyResult r1 = check_type(arr, ValType::Ref, "CHECKED_ARRAY_GET_REF ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(idx, ValType::I32, "CHECKED_ARRAY_GET_REF index type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedArraySetRef: {
+            ValType value = pop_type();
+            ValType idx = pop_type();
+            ValType arr = pop_type();
+            VerifyResult r1 = check_type(arr, ValType::Ref, "CHECKED_ARRAY_SET_REF ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(idx, ValType::I32, "CHECKED_ARRAY_SET_REF index type mismatch");
+            if (!r2.ok) return r2;
+            VerifyResult r3 = check_type(value, ValType::Ref, "CHECKED_ARRAY_SET_REF value type mismatch");
+            if (!r3.ok) return r3;
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }
