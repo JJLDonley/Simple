@@ -141,7 +141,7 @@ SBC metadata rows are compact little-endian POD-style records defined in `Byte/i
 | ✅ | bytes/data constants | typed blob const-pool rows (`kind=7` bytes, `kind=8` data), reserved for `ConstBytes`, `ConstData`, `LoadDataRef` |
 | ✅ | imports | `ImportRow` names module/symbol strings and signature id; method/function metadata marks import callability |
 | ✅ | debug lines | debug section rows map method/code offset to file/line/column |
-| ✅ | source spans | SIR `span` pseudo-instruction lowers to bytecode `Line` markers; full range metadata remains represented through debug rows |
+| ✅ | source spans | SIR `span` lowers to real `Ext.SourceSpan`; full range metadata remains represented through debug rows |
 
 ## SBC versioning and diagnostics
 
@@ -558,7 +558,7 @@ Line/profile markers plus VM runtime/native escape hatches.
 | ✅ | `0x82` | `ProfileEnd` | 4 | 0 | 0 |
 | ✅ | `0x90` | `Intrinsic` | 4 | 0 | 0 |
 | ✅ | `0x91` | `SysCall` | 4 | 0 | 0 |
-| ☐ | `TBD` | `Span` | 16 | 0 | 0 |
+| ✅ | ext `131` | `SourceSpan` | 0 | 1 | 0 |
 | ✅ | `0x29` | `TraceEnter` | 4 | 0 | 0 |
 | ✅ | `0x2A` | `TraceLeave` | 4 | 0 | 0 |
 | ✅ | `0x28` | `StackTrace` | 0 | 0 | 1 |
@@ -833,8 +833,8 @@ Enum/variant/result/error operations. Plain integer-like enums may still lower t
 | ✅ | ext `101` | `ResultUnwrap` | 0 | 1 | 1 |
 | ✅ | ext `102` | `ResultPropagateErr` | 0 | 1 | 1 |
 | ✅ | ext `61` | `Throw` | 0 | 0 | 0 |
-| ✅ | pseudo | `Catch` | 4 | 0 | 0 |
-| ✅ | pseudo | `Finally` | 4 | 0 | 0 |
+| ✅ | ext `132` | `Catch` | 0 | 1 | 0 |
+| ✅ | ext `133` | `Finally` | 0 | 1 | 0 |
 | ✅ | ext `62` | `Panic` | 0 | 0 | 0 |
 
 ### Range and iterators
@@ -908,9 +908,9 @@ JIT patching, guards, and deoptimization hooks for a typed optimizing backend.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `Deopt` | 4 | 0 | 0 |
-| ✅ | pseudo | `Patchpoint` | 4 | 0 | 0 |
-| ✅ | pseudo | `InlineCache` | 4 | 0 | 0 |
+| ✅ | ext `134` | `Deopt` | 0 | 1 | 0 |
+| ✅ | ext `135` | `Patchpoint` | 0 | 1 | 0 |
+| ✅ | ext `136` | `InlineCache` | 0 | 1 | 0 |
 | ✅ | ext `68` | `GuardType` | 0 | 2 | 1 |
 | ✅ | ext `67` | `GuardBounds` | 0 | 3 | 1 |
 | ✅ | ext `66` | `GuardNotNull` | 0 | 1 | 1 |

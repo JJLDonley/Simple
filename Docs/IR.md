@@ -180,7 +180,7 @@ Primitive SIR names lower to SBC `TypeKind` values. Compound forms are planned t
 | ✅ | sig ref | `<u32>` or `<name>` | numeric sig id or sig name | checked during lowering |
 | ✅ | const ref | `<u32>` or `<name>` | numeric const offset/id or const name | checked during lowering |
 | ✅ | typed immediate | `<T>:<value>` | Explicit literal typing for `const <T>:<value>`. | avoids opcode suffix ambiguity |
-| ✅ | source span | `<file> <line>:<col> <line>:<col>` | Accepted by `span` pseudo-instruction and lowered to `Line`. | debug/source mapping |
+| ✅ | source span | `<file> <line>:<col> <line>:<col>` | Accepted by `span` and lowered to `Ext.SourceSpan`. | debug/source mapping |
 
 ## Instruction aliases
 
@@ -655,7 +655,7 @@ Line/profile markers and runtime/native escape hatches.
 | ✅ | `0x82` | `profile.end <id>` | `u32 id` | `ProfileEnd` |  |
 | ✅ | `0x90` | `intrinsic <id>` | `u32 id` | `Intrinsic` |  |
 | ✅ | `0x91` | `syscall <id>` | `u32 id` | `SysCall` |  |
-| ✅ | pseudo | `span <file> <start> <end>` | `source span` | `Line` | lowers to start-line marker |
+| ✅ | `ext 131` | `span <file> <start> <end>` | `source span` | `Line` + `ConstI32` + `Ext.SourceSpan` | records source span |
 | ✅ | `0x29` | `trace.enter <id>` | `u32 id` | `TraceEnter` |  |
 | ✅ | `0x2A` | `trace.leave <id>` | `u32 id` | `TraceLeave` |  |
 | ✅ | `0x28` | `stacktrace` | `none` | `StackTrace` |  |
@@ -927,8 +927,8 @@ Tagged data and error operations.
 | ✅ | `ext 101` | `result.unwrap.<T>` | `none` | `Ext.ResultUnwrap` | unwraps result value |
 | ✅ | `ext 102` | `result.propagate.err` | `none` | `Ext.ResultPropagateErr` | propagates err result |
 | ✅ | `ext 61` | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
-| ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
-| ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |
+| ✅ | `ext 132` | `catch <label>` | `label` | `ConstI32` + `Ext.Catch` | registers/validates handler label |
+| ✅ | `ext 133` | `finally <label>` | `label` | `ConstI32` + `Ext.Finally` | registers/validates cleanup label |
 | ✅ | `ext 62` | `panic` | `none` | `Ext.Panic` | unconditional panic trap |
 
 ### Range and iterators
@@ -988,9 +988,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ✅ | `ext 73` | `pin.ref` | `none` | `Ext.PinRef` | validates and pins live ref for current operation |
 | ✅ | `ext 74` | `unpin.ref` | `none` | `Ext.UnpinRef` | validates and unpins ref |
 | ✅ | `0x0A` | `keepalive` | `none` | `KeepAlive` |  |
-| ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
-| ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |
-| ✅ | pseudo | `inline.cache <id>` | `u32 id` | no-op marker | inline-cache marker alias |
+| ✅ | `ext 134` | `deopt <id>` | `u32 id` | `ConstI32` + `Ext.Deopt` | deoptimization point |
+| ✅ | `ext 135` | `patchpoint <id>` | `u32 id` | `ConstI32` + `Ext.Patchpoint` | JIT patchpoint |
+| ✅ | `ext 136` | `inline.cache <id>` | `u32 id` | `ConstI32` + `Ext.InlineCache` | inline-cache site |
 | ✅ | `ext 68` | `guard.type[.<T>] <type?>` | `type` | `ConstI32` + `Ext.GuardType` | runtime type guard |
 | ✅ | `ext 67` | `guard.bounds` | `none` | `Ext.GuardBounds` | checked bounds guard |
 | ✅ | `ext 66` | `guard.notnull` | `none` | `Ext.GuardNotNull` | non-null guard |

@@ -1303,6 +1303,19 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(1));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::SourceSpan: {
+              Slot line = Pop(stack);
+              current.line = static_cast<uint32_t>(UnpackI32(line));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Catch:
+            case Simple::Byte::ExtendedOpCode::Finally:
+            case Simple::Byte::ExtendedOpCode::Deopt:
+            case Simple::Byte::ExtendedOpCode::Patchpoint:
+            case Simple::Byte::ExtendedOpCode::InlineCache: {
+              (void)Pop(stack);
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

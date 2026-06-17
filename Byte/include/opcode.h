@@ -138,6 +138,12 @@ enum class ExtendedOpCode : uint16_t {
   Wait = 128,
   Notify = 129,
   NotifyAll = 130,
+  SourceSpan = 131,
+  Catch = 132,
+  Finally = 133,
+  Deopt = 134,
+  Patchpoint = 135,
+  InlineCache = 136,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

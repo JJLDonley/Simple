@@ -1314,6 +1314,24 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::SourceSpan: {
+            ValType value = pop_type();
+            VerifyResult r = check_type(value, ValType::I32, "SOURCE_SPAN operand type mismatch");
+            if (!r.ok) return r;
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Catch:
+          case Simple::Byte::ExtendedOpCode::Finally:
+          case Simple::Byte::ExtendedOpCode::Deopt:
+          case Simple::Byte::ExtendedOpCode::Patchpoint:
+          case Simple::Byte::ExtendedOpCode::InlineCache: {
+            ValType id = pop_type();
+            VerifyResult r = check_type(id, ValType::I32, "MARKER id type mismatch");
+            if (!r.ok) return r;
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

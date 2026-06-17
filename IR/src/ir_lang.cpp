@@ -2016,6 +2016,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
           return fail("span expects file start_line:start_col end_line:end_col");
         }
         builder.EmitLine(start_line, start_column);
+        builder.EmitConstI32(static_cast<int32_t>(start_line));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::SourceSpan);
         continue;
       }
       if (op == "profile.start" || op == "profile.end" || op == "trace.enter" || op == "trace.leave") {
@@ -2039,6 +2041,10 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (args.size() != 1 || !ParseUint(args[0], &id) || !FitsUnsigned<uint32_t>(id)) {
           return fail(op + " expects id");
         }
+        builder.EmitConstI32(static_cast<int32_t>(id));
+        if (op == "deopt") builder.EmitExtended(Simple::Byte::ExtendedOpCode::Deopt);
+        else if (op == "patchpoint") builder.EmitExtended(Simple::Byte::ExtendedOpCode::Patchpoint);
+        else builder.EmitExtended(Simple::Byte::ExtendedOpCode::InlineCache);
         continue;
       }
       if (op == "guard.notnull") {
@@ -3181,6 +3187,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (labels.find(args[0]) == labels.end()) {
           return fail("unknown label: " + args[0]);
         }
+        builder.EmitConstI32(0);
+        builder.EmitExtended(op == "catch" ? Simple::Byte::ExtendedOpCode::Catch
+                                            : Simple::Byte::ExtendedOpCode::Finally);
         continue;
       }
       if (op == "jmp") {
