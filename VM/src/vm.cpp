@@ -938,6 +938,23 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               return Trap("THROW");
             case Simple::Byte::ExtendedOpCode::Panic:
               return Trap("PANIC");
+            case Simple::Byte::ExtendedOpCode::CaptureLocal:
+            case Simple::Byte::ExtendedOpCode::CaptureRef: {
+              int32_t index = UnpackI32(Pop(stack));
+              if (index < 0 || static_cast<uint32_t>(index) >= current.locals_count) return Trap("CAPTURE_LOCAL out of range");
+              Push(stack, locals_arena[current.locals_base + static_cast<uint32_t>(index)]);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CloseUpvalue: {
+              int32_t index = UnpackI32(Pop(stack));
+              if (current.closure_ref == kNullRef) return Trap("CLOSE_UPVALUE without closure");
+              HeapObject* obj = heap.Get(current.closure_ref);
+              if (!obj || obj->header.kind != ObjectKind::Closure) return Trap("CLOSE_UPVALUE on non-closure");
+              if (obj->payload.size() < 8) return Trap("CLOSE_UPVALUE invalid closure payload");
+              uint32_t count = ReadU32Payload(obj->payload, 4);
+              if (index < 0 || static_cast<uint32_t>(index) >= count) return Trap("CLOSE_UPVALUE out of range");
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

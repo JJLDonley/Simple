@@ -3255,7 +3255,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitConvF64ToF32();
         continue;
       }
-      if (op == "ldloc" || op == "load.local" || op == "capture.local" || op == "addrof.local") {
+      if (op == "ldloc" || op == "load.local" || op == "addrof.local") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail(op + " expects index");
@@ -3263,12 +3263,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         builder.EmitLoadLocal(index);
         continue;
       }
+      if (op == "capture.local") {
+        uint32_t index = 0;
+        if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
+          return fail("capture.local expects local index");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(index));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CaptureLocal);
+        continue;
+      }
       if (op == "capture.ref") {
         uint32_t index = 0;
         if (args.size() != 1 || !resolve_local(fn, args[0], &index)) {
           return fail("capture.ref expects local index");
         }
-        builder.EmitLoadLocal(index);
+        builder.EmitConstI32(static_cast<int32_t>(index));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CaptureRef);
         continue;
       }
       if (op == "stloc" || op == "store.local") {
@@ -3818,6 +3828,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (args.size() != 1 || !resolve_upvalue(fn, args[0], &index)) {
           return fail("close.upvalue expects index");
         }
+        builder.EmitConstI32(static_cast<int32_t>(index));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CloseUpvalue);
         continue;
       }
 

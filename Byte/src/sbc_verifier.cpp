@@ -958,6 +958,22 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CaptureLocal:
+          case Simple::Byte::ExtendedOpCode::CaptureRef: {
+            ValType index = pop_type();
+            VerifyResult r = check_type(index, ValType::I32, "CAPTURE_LOCAL index type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Unknown);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CloseUpvalue: {
+            ValType index = pop_type();
+            VerifyResult r = check_type(index, ValType::I32, "CLOSE_UPVALUE index type mismatch");
+            if (!r.ok) return r;
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

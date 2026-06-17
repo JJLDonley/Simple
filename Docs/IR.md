@@ -674,9 +674,9 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ✅ | `0xA5` | `ref.eq` | `none` | `RefEq` |  |
 | ✅ | `0xA6` | `ref.ne` | `none` | `RefNe` |  |
 | ✅ | `0xA7` | `typeof` | `none` | `TypeOf` |  |
-| ✅ | pseudo | `capture.local <slot>` | `local index/name` | `LoadLocal` | pushes local for closure capture |
-| ✅ | pseudo | `capture.ref <slot>` | `local index/name` | `LoadLocal` | pushes local ref for closure capture |
-| ✅ | pseudo | `close.upvalue <slot>` | `upvalue index/name` | no-op | explicit upvalue-close marker |
+| ✅ | extended | `capture.local <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureLocal` | pushes local for closure capture |
+| ✅ | extended | `capture.ref <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureRef` | pushes local ref for closure capture |
+| ✅ | extended | `close.upvalue <slot>` | `upvalue index/name` | `ConstI32` + `Ext.CloseUpvalue` | validates and closes captured upvalue |
 | ✅ | extended | `init.object <type>` | `type id/name` | `ConstI32` + `Ext.InitObject` | allocate and initialize object |
 | ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
 | ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |

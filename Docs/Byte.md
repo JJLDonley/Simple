@@ -577,9 +577,9 @@ Heap object, closure, reference, field, object lifecycle, and typed reference op
 | ✅ | `0xA5` | `RefEq` | 0 | 2 | 1 |
 | ✅ | `0xA6` | `RefNe` | 0 | 2 | 1 |
 | ✅ | `0xA7` | `TypeOf` | 0 | 1 | 1 |
-| ✅ | pseudo | `CaptureLocal` | 4 | 0 | 1 |
-| ✅ | pseudo | `CaptureRef` | 4 | 0 | 1 |
-| ✅ | pseudo | `CloseUpvalue` | 4 | 0 | 0 |
+| ✅ | ext `63` | `CaptureLocal` | 0 | 1 | 1 |
+| ✅ | ext `64` | `CaptureRef` | 0 | 1 | 1 |
+| ✅ | ext `65` | `CloseUpvalue` | 0 | 1 | 0 |
 | ✅ | ext `55` | `InitObject` | 0 | 1 | 1 |
 | ✅ | `0x2D` | `DropObject` | 0 | 1 | 0 |
 | ✅ | `0x2E` | `CloneObject` | 0 | 1 | 1 |

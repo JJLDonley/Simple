@@ -70,6 +70,9 @@ enum class ExtendedOpCode : uint16_t {
   LoadDataRef = 60,
   Throw = 61,
   Panic = 62,
+  CaptureLocal = 63,
+  CaptureRef = 64,
+  CloseUpvalue = 65,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;
