@@ -3431,6 +3431,17 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       if (op.rfind("checked.array.get.", 0) == 0 || op.rfind("checked.array.set.", 0) == 0) {
         return fail("real checked opcode not implemented yet: " + op);
       }
+      if (op == "checked.list.get.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListGetI32);
+        continue;
+      }
+      if (op == "checked.list.set.i32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedListSetI32);
+        continue;
+      }
+      if (op.rfind("checked.list.get.", 0) == 0 || op.rfind("checked.list.set.", 0) == 0) {
+        return fail("real checked opcode not implemented yet: " + op);
+      }
       if (op == "array.get.i32") {
         builder.EmitArrayGetI32();
         continue;

@@ -799,8 +799,8 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ✅ | ext `28` | `CheckedArraySetF64` | 0 | 3 | 0 |
 | ✅ | ext `29` | `CheckedArrayGetRef` | 0 | 2 | 1 |
 | ✅ | ext `30` | `CheckedArraySetRef` | 0 | 3 | 0 |
-| ✅ | pseudo | `CheckedListGet<T>` | 0 | 2 | 1 |
-| ✅ | pseudo | `CheckedListSet<T>` | 0 | 3 | 0 |
+| ✅ | ext `31` | `CheckedListGetI32` | 0 | 2 | 1 |
+| ✅ | ext `32` | `CheckedListSetI32` | 0 | 3 | 0 |
 | ✅ | pseudo | `CheckedStringGetChar` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedStringSlice` | 0 | 3 | 1 |
 | ✅ | `0x2B` | `CheckedNull` | 0 | 1 | 1 |

@@ -598,6 +598,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               WriteU32Payload(obj->payload, offset, UnpackRef(value));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedListGetI32: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_GET_I32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_GET_I32 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_GET_I32 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_LIST_GET_I32 out of bounds");
+              Push(stack, PackI32(static_cast<int32_t>(ReadU32Payload(obj->payload, offset))));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedListSetI32: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_LIST_SET_I32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::List) return Trap("CHECKED_LIST_SET_I32 on non-list");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_LIST_SET_I32 out of bounds");
+              size_t offset = 8 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_LIST_SET_I32 out of bounds");
+              WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(UnpackI32(value)));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

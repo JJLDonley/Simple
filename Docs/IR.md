@@ -886,8 +886,8 @@ Checked arithmetic, bounds, null, and conversions.
 | ✅ | extended | `checked.array.set.f64` | `none` | `Ext.CheckedArraySetF64` | null/type/bounds checked array store |
 | ✅ | extended | `checked.array.get.ref` | `none` | `Ext.CheckedArrayGetRef` | null/type/bounds checked array load |
 | ✅ | extended | `checked.array.set.ref` | `none` | `Ext.CheckedArraySetRef` | null/type/bounds checked array store |
-| ✅ | pseudo | `checked.list.get.<T>` | `none` | `ListGet<T>` | checked aggregate alias for supported element types |
-| ✅ | pseudo | `checked.list.set.<T>` | `none` | `ListSet<T>` | checked aggregate alias for supported element types |
+| ✅ | extended | `checked.list.get.i32` | `none` | `Ext.CheckedListGetI32` | null/type/bounds checked list load |
+| ✅ | extended | `checked.list.set.i32` | `none` | `Ext.CheckedListSetI32` | null/type/bounds checked list store |
 | ✅ | pseudo | `checked.string.get.char` | `none` | `StringGetChar` | checked string alias |
 | ✅ | pseudo | `checked.string.slice` | `none` | `StringSlice` | checked string alias |
 | ✅ | `0x2B` | `checked.null` | `none` | `CheckedNull` |  |
