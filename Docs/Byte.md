@@ -803,6 +803,8 @@ Checked arithmetic, bounds, null, and conversion operations. `<T>` covers numeri
 | ✅ | ext `32` | `CheckedListSetI32` | 0 | 3 | 0 |
 | ✅ | ext `33` | `CheckedListGetI64` | 0 | 2 | 1 |
 | ✅ | ext `34` | `CheckedListSetI64` | 0 | 3 | 0 |
+| ✅ | ext `35` | `CheckedListGetF32` | 0 | 2 | 1 |
+| ✅ | ext `36` | `CheckedListSetF32` | 0 | 3 | 0 |
 | ✅ | pseudo | `CheckedStringGetChar` | 0 | 2 | 1 |
 | ✅ | pseudo | `CheckedStringSlice` | 0 | 3 | 1 |
 | ✅ | `0x2B` | `CheckedNull` | 0 | 1 | 1 |

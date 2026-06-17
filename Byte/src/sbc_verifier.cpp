@@ -734,6 +734,30 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::CheckedListGetF32: {
+            ValType idx = pop_type();
+            ValType list = pop_type();
+            VerifyResult r1 = check_type(list, ValType::Ref, "CHECKED_LIST_GET_F32 ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(idx, ValType::I32, "CHECKED_LIST_GET_F32 index type mismatch");
+            if (!r2.ok) return r2;
+            push_type(ValType::F32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::CheckedListSetF32: {
+            ValType value = pop_type();
+            ValType idx = pop_type();
+            ValType list = pop_type();
+            VerifyResult r1 = check_type(list, ValType::Ref, "CHECKED_LIST_SET_F32 ref type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(idx, ValType::I32, "CHECKED_LIST_SET_F32 index type mismatch");
+            if (!r2.ok) return r2;
+            VerifyResult r3 = check_type(value, ValType::F32, "CHECKED_LIST_SET_F32 value type mismatch");
+            if (!r3.ok) return r3;
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }
