@@ -511,6 +511,35 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               WriteU64Payload(obj->payload, offset, static_cast<uint64_t>(UnpackI64(value)));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::CheckedArrayGetF32: {
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_ARRAY_GET_F32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::Array) return Trap("CHECKED_ARRAY_GET_F32 on non-array");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_ARRAY_GET_F32 out of bounds");
+              size_t offset = 4 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_ARRAY_GET_F32 out of bounds");
+              Push(stack, PackF32Bits(ReadU32Payload(obj->payload, offset)));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::CheckedArraySetF32: {
+              Slot value = Pop(stack);
+              Slot idx = Pop(stack);
+              Slot v = Pop(stack);
+              if (IsNullRef(v)) return Trap("CHECKED_ARRAY_SET_F32 on non-ref");
+              HeapObject* obj = heap.Get(UnpackRef(v));
+              if (!obj || obj->header.kind != ObjectKind::Array) return Trap("CHECKED_ARRAY_SET_F32 on non-array");
+              uint32_t length = ReadU32Payload(obj->payload, 0);
+              int32_t index = UnpackI32(idx);
+              if (index < 0 || static_cast<uint32_t>(index) >= length) return Trap("CHECKED_ARRAY_SET_F32 out of bounds");
+              size_t offset = 4 + static_cast<size_t>(index) * 4;
+              if (offset + 4 > obj->payload.size()) return Trap("CHECKED_ARRAY_SET_F32 out of bounds");
+              WriteU32Payload(obj->payload, offset, UnpackU32Bits(value));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

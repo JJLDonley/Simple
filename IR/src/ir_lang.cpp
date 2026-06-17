@@ -3376,7 +3376,9 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             !ParseUint(args[1], &length)) {
           return fail("newarray expects type_id length");
         }
-        if (Lower(args[0]) == "i64") builder.EmitNewArrayI64(type_id, static_cast<uint32_t>(length));
+        std::string array_type_name = Lower(args[0]);
+        if (array_type_name == "i64") builder.EmitNewArrayI64(type_id, static_cast<uint32_t>(length));
+        else if (array_type_name == "f32") builder.EmitNewArrayF32(type_id, static_cast<uint32_t>(length));
         else builder.EmitNewArray(type_id, static_cast<uint32_t>(length));
         continue;
       }
@@ -3398,6 +3400,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "checked.array.set.i64") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetI64);
+        continue;
+      }
+      if (op == "checked.array.get.f32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArrayGetF32);
+        continue;
+      }
+      if (op == "checked.array.set.f32") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetF32);
         continue;
       }
       if (op.rfind("checked.array.get.", 0) == 0 || op.rfind("checked.array.set.", 0) == 0) {
