@@ -1268,6 +1268,52 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::AtomicLoad: {
+            ValType address = pop_type();
+            push_type(address);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::AtomicStore: {
+            (void)pop_type();
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::AtomicAdd:
+          case Simple::Byte::ExtendedOpCode::AtomicSub: {
+            ValType value = pop_type();
+            ValType address = pop_type();
+            if (address != ValType::Unknown && value != ValType::Unknown && address != value) {
+              return fail_at("ATOMIC arithmetic type mismatch", current_pc, current_opcode);
+            }
+            push_type(address == ValType::Unknown ? value : address);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::AtomicCompareExchange: {
+            (void)pop_type();
+            (void)pop_type();
+            (void)pop_type();
+            push_type(ValType::I32);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::Lock:
+          case Simple::Byte::ExtendedOpCode::Unlock:
+          case Simple::Byte::ExtendedOpCode::Wait:
+          case Simple::Byte::ExtendedOpCode::Notify:
+          case Simple::Byte::ExtendedOpCode::NotifyAll: {
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::TryLock: {
+            (void)pop_type();
+            push_type(ValType::Bool);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

@@ -962,18 +962,18 @@ Thread/job/channel/atomic/monitor operations.
 | ✅ | `ext 117` | `channel.send.<T>` | `none` | `Ext.ChannelSend` | sends value to channel handle |
 | ✅ | `ext 118` | `channel.recv.<T>` | `none` | `Ext.ChannelRecv` | receives value from channel handle |
 | ✅ | `ext 119` | `channel.try.recv.<T>` | `none` | `Ext.ChannelTryRecv` | nonblocking receive status/value |
-| ✅ | pseudo | `atomic.load.<T>` | `none` | no-op marker | preserves marker value |
-| ✅ | pseudo | `atomic.store.<T>` | `none` | `Pop` + `Pop` | consumes address/value markers |
-| ✅ | pseudo | `atomic.add.<T>` | `none` | `Add<T>` | atomic arithmetic marker for integer scalars |
-| ✅ | pseudo | `atomic.sub.<T>` | `none` | `Sub<T>` | atomic arithmetic marker for integer scalars |
-| ✅ | pseudo | `atomic.cmpxchg.<T>` | `none` | placeholder result | consumes address/expected/value markers and pushes `0` |
+| ✅ | `ext 120` | `atomic.load.<T>` | `none` | `Ext.AtomicLoad` | atomic load from address handle |
+| ✅ | `ext 121` | `atomic.store.<T>` | `none` | `Ext.AtomicStore` | atomic store to address handle |
+| ✅ | `ext 122` | `atomic.add.<T>` | `none` | `Ext.AtomicAdd` | atomic add |
+| ✅ | `ext 123` | `atomic.sub.<T>` | `none` | `Ext.AtomicSub` | atomic sub |
+| ✅ | `ext 124` | `atomic.cmpxchg.<T>` | `none` | `Ext.AtomicCompareExchange` | atomic compare exchange |
 | ✅ | `0x0F` | `fence` | `none` | `Fence` | sequentially consistent VM fence |
-| ✅ | pseudo | `lock` | `none` | `Pop` | consumes monitor marker |
-| ✅ | pseudo | `unlock` | `none` | `Pop` | consumes monitor marker |
-| ✅ | pseudo | `trylock` | `none` | `Pop` + `ConstBool true` | consumes monitor marker and pushes success placeholder |
-| ✅ | pseudo | `wait` | `none` | `Pop` | consumes monitor marker |
-| ✅ | pseudo | `notify` | `none` | `Pop` | consumes monitor marker |
-| ✅ | pseudo | `notify.all` | `none` | `Pop` | consumes monitor marker |
+| ✅ | `ext 125` | `lock` | `none` | `Ext.Lock` | acquire monitor |
+| ✅ | `ext 126` | `unlock` | `none` | `Ext.Unlock` | release monitor |
+| ✅ | `ext 127` | `trylock` | `none` | `Ext.TryLock` | try acquire monitor |
+| ✅ | `ext 128` | `wait` | `none` | `Ext.Wait` | wait on monitor |
+| ✅ | `ext 129` | `notify` | `none` | `Ext.Notify` | notify one waiter |
+| ✅ | `ext 130` | `notify.all` | `none` | `Ext.NotifyAll` | notify all waiters |
 
 ### GC, JIT, capabilities, and SIMD
 

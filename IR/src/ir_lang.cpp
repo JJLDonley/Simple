@@ -2346,52 +2346,59 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         continue;
       }
       if (parse_marker_type("atomic.load", &marker_type)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AtomicLoad);
         continue;
       }
       if (parse_marker_type("atomic.store", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AtomicStore);
         continue;
       }
-      if (parse_marker_type("atomic.add", &marker_type) || parse_marker_type("atomic.sub", &marker_type)) {
-        if (marker_type == "i32") {
-          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddI32();
-          else builder.EmitSubI32();
-          continue;
+      if (parse_marker_type("atomic.add", &marker_type)) {
+        if (marker_type != "i32" && marker_type != "i64" && marker_type != "u32" && marker_type != "u64") {
+          return fail(op + " supports i32/i64/u32/u64");
         }
-        if (marker_type == "i64") {
-          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddI64();
-          else builder.EmitSubI64();
-          continue;
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AtomicAdd);
+        continue;
+      }
+      if (parse_marker_type("atomic.sub", &marker_type)) {
+        if (marker_type != "i32" && marker_type != "i64" && marker_type != "u32" && marker_type != "u64") {
+          return fail(op + " supports i32/i64/u32/u64");
         }
-        if (marker_type == "u32") {
-          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddU32();
-          else builder.EmitSubU32();
-          continue;
-        }
-        if (marker_type == "u64") {
-          if (op.rfind("atomic.add", 0) == 0) builder.EmitAddU64();
-          else builder.EmitSubU64();
-          continue;
-        }
-        return fail(op + " supports i32/i64/u32/u64");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AtomicSub);
+        continue;
       }
       if (parse_marker_type("atomic.cmpxchg", &marker_type)) {
-        builder.EmitPop();
-        builder.EmitPop();
-        builder.EmitPop();
-        builder.EmitConstI32(0);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::AtomicCompareExchange);
         continue;
       }
-      if (op == "lock" || op == "unlock" || op == "wait" || op == "notify" || op == "notify.all") {
-        if (!args.empty()) return fail(op + " expects no operands");
-        builder.EmitPop();
+      if (op == "lock") {
+        if (!args.empty()) return fail("lock expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Lock);
+        continue;
+      }
+      if (op == "unlock") {
+        if (!args.empty()) return fail("unlock expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Unlock);
+        continue;
+      }
+      if (op == "wait") {
+        if (!args.empty()) return fail("wait expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Wait);
+        continue;
+      }
+      if (op == "notify") {
+        if (!args.empty()) return fail("notify expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::Notify);
+        continue;
+      }
+      if (op == "notify.all") {
+        if (!args.empty()) return fail("notify.all expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::NotifyAll);
         continue;
       }
       if (op == "trylock") {
         if (!args.empty()) return fail("trylock expects no operands");
-        builder.EmitPop();
-        builder.EmitConstBool(true);
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::TryLock);
         continue;
       }
       if (op == "pop") {

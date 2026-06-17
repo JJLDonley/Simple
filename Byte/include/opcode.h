@@ -127,6 +127,17 @@ enum class ExtendedOpCode : uint16_t {
   ChannelSend = 117,
   ChannelRecv = 118,
   ChannelTryRecv = 119,
+  AtomicLoad = 120,
+  AtomicStore = 121,
+  AtomicAdd = 122,
+  AtomicSub = 123,
+  AtomicCompareExchange = 124,
+  Lock = 125,
+  Unlock = 126,
+  TryLock = 127,
+  Wait = 128,
+  Notify = 129,
+  NotifyAll = 130,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

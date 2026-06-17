@@ -1261,6 +1261,48 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               Push(stack, PackI32(0));
               break;
             }
+            case Simple::Byte::ExtendedOpCode::AtomicLoad: {
+              Slot address = Pop(stack);
+              Push(stack, address);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AtomicStore: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AtomicAdd: {
+              Slot value = Pop(stack);
+              Slot address = Pop(stack);
+              Push(stack, address + value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AtomicSub: {
+              Slot value = Pop(stack);
+              Slot address = Pop(stack);
+              Push(stack, address - value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::AtomicCompareExchange: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              (void)Pop(stack);
+              Push(stack, PackI32(0));
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::Lock:
+            case Simple::Byte::ExtendedOpCode::Unlock:
+            case Simple::Byte::ExtendedOpCode::Wait:
+            case Simple::Byte::ExtendedOpCode::Notify:
+            case Simple::Byte::ExtendedOpCode::NotifyAll: {
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::TryLock: {
+              (void)Pop(stack);
+              Push(stack, PackI32(1));
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

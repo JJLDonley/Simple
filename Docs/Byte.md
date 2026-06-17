@@ -868,11 +868,11 @@ Thread/job/channel/atomic bytecodes. `<T>` covers channel/atomic payload types w
 | ✅ | ext `117` | `ChannelSend` | 0 | 2 | 0 |
 | ✅ | ext `118` | `ChannelRecv` | 0 | 1 | 1 |
 | ✅ | ext `119` | `ChannelTryRecv` | 0 | 1 | 2 |
-| ✅ | pseudo | `AtomicLoad<T>` | 0 | 1 | 1 |
-| ✅ | pseudo | `AtomicStore<T>` | 0 | 2 | 0 |
-| ✅ | pseudo | `AtomicAdd<T>` | 0 | 2 | 1 |
-| ✅ | pseudo | `AtomicSub<T>` | 0 | 2 | 1 |
-| ✅ | pseudo | `AtomicCompareExchange<T>` | 0 | 3 | 1 |
+| ✅ | ext `120` | `AtomicLoad` | 0 | 1 | 1 |
+| ✅ | ext `121` | `AtomicStore` | 0 | 2 | 0 |
+| ✅ | ext `122` | `AtomicAdd` | 0 | 2 | 1 |
+| ✅ | ext `123` | `AtomicSub` | 0 | 2 | 1 |
+| ✅ | ext `124` | `AtomicCompareExchange` | 0 | 3 | 1 |
 | ✅ | `0x0F` | `Fence` | 0 | 0 | 0 |
 
 ### Locks and monitors
@@ -881,12 +881,12 @@ Monitor/lock operations for VM-managed synchronization if needed.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ✅ | pseudo | `Lock` | 0 | 1 | 0 |
-| ✅ | pseudo | `Unlock` | 0 | 1 | 0 |
-| ✅ | pseudo | `TryLock` | 0 | 1 | 1 |
-| ✅ | pseudo | `Wait` | 0 | 1 | 0 |
-| ✅ | pseudo | `Notify` | 0 | 1 | 0 |
-| ✅ | pseudo | `NotifyAll` | 0 | 1 | 0 |
+| ✅ | ext `125` | `Lock` | 0 | 1 | 0 |
+| ✅ | ext `126` | `Unlock` | 0 | 1 | 0 |
+| ✅ | ext `127` | `TryLock` | 0 | 1 | 1 |
+| ✅ | ext `128` | `Wait` | 0 | 1 | 0 |
+| ✅ | ext `129` | `Notify` | 0 | 1 | 0 |
+| ✅ | ext `130` | `NotifyAll` | 0 | 1 | 0 |
 
 ### GC and runtime barriers
 
