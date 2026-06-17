@@ -298,9 +298,9 @@ Immediate constants, constant-pool references, and planned typed data/blob const
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ◐ | `typed` | `const.<T> <value>` | `typed literal` | `Const<T>` | implemented for listed scalar/string/null forms |
-| ✅ | extended | `const.bytes <const>` | `const id/name` | `ConstI32` + `Ext.ConstBytes` | loads bytes const as byte-list ref |
-| ✅ | extended | `const.data <const>` | `const id/name` | `ConstI32` + `Ext.ConstData` | loads data const as byte-list ref |
-| ✅ | extended | `load.dataref <const>` | `const id/name` | `ConstI32` + `Ext.LoadDataRef` | loads data const as byte-list ref |
+| ✅ | `ext 58` | `const.bytes <const>` | `const id/name` | `ConstI32` + `Ext.ConstBytes` | loads bytes const as byte-list ref |
+| ✅ | `ext 59` | `const.data <const>` | `const id/name` | `ConstI32` + `Ext.ConstData` | loads data const as byte-list ref |
+| ✅ | `ext 60` | `load.dataref <const>` | `const id/name` | `ConstI32` + `Ext.LoadDataRef` | loads data const as byte-list ref |
 
 const.<T> codes:
 
@@ -612,8 +612,8 @@ Direct, indirect, tail, import/native, method, and virtual calls.
 | ✅ | `0xE0` | `callcheck` | `none` | `CallCheck` |  |
 | ✅ | `0xFE` | `call.import <import> <argc>` | `import id/name, argc` | `CallImport` | metadata-native import call |
 | ✅ | `0xFF` | `call.native <native> <argc>` | `native id/name, argc` | `CallNative` | metadata-native import call |
-| ✅ | extended | `call.method <method> <argc>` | `method id/name, argc` | `ConstI32` x2 + `Ext.CallMethod` | direct method call |
-| ✅ | extended | `call.virtual <sig> <argc>` | `signature id/name, argc` | `ConstI32` x2 + `Ext.CallVirtual` | virtual/closure call |
+| ✅ | `ext 69` | `call.method <method> <argc>` | `method id/name, argc` | `ConstI32` x2 + `Ext.CallMethod` | direct method call |
+| ✅ | `ext 70` | `call.virtual <sig> <argc>` | `signature id/name, argc` | `ConstI32` x2 + `Ext.CallVirtual` | virtual/closure call |
 
 ### Conversions
 
@@ -622,14 +622,14 @@ Scalar conversions.
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
 | ◐ | `typed` | `conv.<From>.<To>` | `none` | `Conv<From,To>` | partially implemented typed family |
-| ✅ | extended | `checked.conv.i32.i64` | `none` | `Ext.CheckedConvI32ToI64` | checked scalar conversion |
-| ✅ | extended | `checked.conv.i64.i32` | `none` | `Ext.CheckedConvI64ToI32` | traps on out-of-range |
-| ✅ | extended | `checked.conv.i32.f32` | `none` | `Ext.CheckedConvI32ToF32` | checked scalar conversion |
-| ✅ | extended | `checked.conv.i32.f64` | `none` | `Ext.CheckedConvI32ToF64` | checked scalar conversion |
-| ✅ | extended | `checked.conv.f32.i32` | `none` | `Ext.CheckedConvF32ToI32` | traps on NaN/infinity/out-of-range |
-| ✅ | extended | `checked.conv.f64.i32` | `none` | `Ext.CheckedConvF64ToI32` | traps on NaN/infinity/out-of-range |
-| ✅ | extended | `checked.conv.f32.f64` | `none` | `Ext.CheckedConvF32ToF64` | checked scalar conversion |
-| ✅ | extended | `checked.conv.f64.f32` | `none` | `Ext.CheckedConvF64ToF32` | traps on finite out-of-range |
+| ✅ | `ext 47` | `checked.conv.i32.i64` | `none` | `Ext.CheckedConvI32ToI64` | checked scalar conversion |
+| ✅ | `ext 48` | `checked.conv.i64.i32` | `none` | `Ext.CheckedConvI64ToI32` | traps on out-of-range |
+| ✅ | `ext 49` | `checked.conv.i32.f32` | `none` | `Ext.CheckedConvI32ToF32` | checked scalar conversion |
+| ✅ | `ext 50` | `checked.conv.i32.f64` | `none` | `Ext.CheckedConvI32ToF64` | checked scalar conversion |
+| ✅ | `ext 51` | `checked.conv.f32.i32` | `none` | `Ext.CheckedConvF32ToI32` | traps on NaN/infinity/out-of-range |
+| ✅ | `ext 52` | `checked.conv.f64.i32` | `none` | `Ext.CheckedConvF64ToI32` | traps on NaN/infinity/out-of-range |
+| ✅ | `ext 53` | `checked.conv.f32.f64` | `none` | `Ext.CheckedConvF32ToF64` | checked scalar conversion |
+| ✅ | `ext 54` | `checked.conv.f64.f32` | `none` | `Ext.CheckedConvF64ToF32` | traps on finite out-of-range |
 
 conv.<From>.<To> codes:
 
@@ -674,17 +674,17 @@ Heap object, closure, reference, field, lifecycle, and typed reference operation
 | ✅ | `0xA5` | `ref.eq` | `none` | `RefEq` |  |
 | ✅ | `0xA6` | `ref.ne` | `none` | `RefNe` |  |
 | ✅ | `0xA7` | `typeof` | `none` | `TypeOf` |  |
-| ✅ | extended | `capture.local <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureLocal` | pushes local for closure capture |
-| ✅ | extended | `capture.ref <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureRef` | pushes local ref for closure capture |
-| ✅ | extended | `close.upvalue <slot>` | `upvalue index/name` | `ConstI32` + `Ext.CloseUpvalue` | validates and closes captured upvalue |
-| ✅ | extended | `init.object <type>` | `type id/name` | `ConstI32` + `Ext.InitObject` | allocate and initialize object |
+| ✅ | `ext 63` | `capture.local <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureLocal` | pushes local for closure capture |
+| ✅ | `ext 64` | `capture.ref <slot>` | `local index/name` | `ConstI32` + `Ext.CaptureRef` | pushes local ref for closure capture |
+| ✅ | `ext 65` | `close.upvalue <slot>` | `upvalue index/name` | `ConstI32` + `Ext.CloseUpvalue` | validates and closes captured upvalue |
+| ✅ | `ext 55` | `init.object <type>` | `type id/name` | `ConstI32` + `Ext.InitObject` | allocate and initialize object |
 | ✅ | `0x2D` | `drop.object` | `none` | `DropObject` |  |
 | ✅ | `0x2E` | `clone.object` | `none` | `CloneObject` |  |
 | ✅ | `0x2F` | `object.eq` | `none` | `ObjectEq` | structural payload equality |
-| ✅ | extended | `instanceof[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.InstanceOf` | runtime type test |
-| ✅ | extended | `cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CastRef` | unchecked reference cast |
-| ✅ | extended | `checked.cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CheckedCastRef` | checked reference cast |
-| ✅ | extended | `load.vtable` | `none` | `Ext.LoadVTable` | load object type/vtable id |
+| ✅ | `ext 43` | `instanceof[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.InstanceOf` | runtime type test |
+| ✅ | `ext 44` | `cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CastRef` | unchecked reference cast |
+| ✅ | `ext 45` | `checked.cast.ref[.<T>] <type?>` | `type id/name` | `ConstI32` + `Ext.CheckedCastRef` | checked reference cast |
+| ✅ | `ext 46` | `load.vtable` | `none` | `Ext.LoadVTable` | load object type/vtable id |
 
 ### Arrays
 
@@ -831,8 +831,8 @@ String-specific operations.
 | ✅ | `0xFD` | `string.ne` | `none` | `StringNe` |  |
 | ✅ | `0x15` | `string.compare` | `none` | `StringCompare` |  |
 | ✅ | `0x16` | `string.find` | `none` | `StringFind` |  |
-| ✅ | extended | `string.to.bytes` | `none` | `Ext.StringToBytes` | converts string ref to byte-list ref |
-| ✅ | extended | `bytes.to.string` | `none` | `Ext.BytesToString` | converts byte-list ref to string ref |
+| ✅ | `ext 56` | `string.to.bytes` | `none` | `Ext.StringToBytes` | converts string ref to byte-list ref |
+| ✅ | `ext 57` | `bytes.to.string` | `none` | `Ext.BytesToString` | converts byte-list ref to string ref |
 
 ### Pointer and memory
 
@@ -863,48 +863,48 @@ Checked arithmetic, bounds, null, and conversions.
 
 | Status | Code | Syntax | Operands | Emits | Notes |
 |:---:|---:|---|---|---|---|
-| ✅ | extended | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
-| ✅ | extended | `checked.add.i64` | `none` | `Ext.CheckedAddI64` | traps on signed i64 overflow |
-| ✅ | extended | `checked.add.u32` | `none` | `Ext.CheckedAddU32` | traps on unsigned u32 overflow |
-| ✅ | extended | `checked.add.u64` | `none` | `Ext.CheckedAddU64` | traps on unsigned u64 overflow |
-| ✅ | extended | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
-| ✅ | extended | `checked.sub.i64` | `none` | `Ext.CheckedSubI64` | traps on signed i64 overflow |
-| ✅ | extended | `checked.sub.u32` | `none` | `Ext.CheckedSubU32` | traps on unsigned u32 overflow |
-| ✅ | extended | `checked.sub.u64` | `none` | `Ext.CheckedSubU64` | traps on unsigned u64 overflow |
-| ✅ | extended | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
-| ✅ | extended | `checked.mul.i64` | `none` | `Ext.CheckedMulI64` | traps on signed i64 overflow |
-| ✅ | extended | `checked.mul.u32` | `none` | `Ext.CheckedMulU32` | traps on unsigned u32 overflow |
-| ✅ | extended | `checked.mul.u64` | `none` | `Ext.CheckedMulU64` | traps on unsigned u64 overflow |
-| ✅ | extended | `checked.div.i32` | `none` | `Ext.CheckedDivI32` | traps on divide-by-zero and signed i32 overflow |
-| ✅ | extended | `checked.div.i64` | `none` | `Ext.CheckedDivI64` | traps on divide-by-zero and signed i64 overflow |
-| ✅ | extended | `checked.div.u32` | `none` | `Ext.CheckedDivU32` | traps on divide-by-zero |
-| ✅ | extended | `checked.div.u64` | `none` | `Ext.CheckedDivU64` | traps on divide-by-zero |
-| ✅ | extended | `checked.mod.i32` | `none` | `Ext.CheckedModI32` | traps on divide-by-zero and signed i32 overflow |
-| ✅ | extended | `checked.mod.i64` | `none` | `Ext.CheckedModI64` | traps on divide-by-zero and signed i64 overflow |
-| ✅ | extended | `checked.mod.u32` | `none` | `Ext.CheckedModU32` | traps on divide-by-zero |
-| ✅ | extended | `checked.mod.u64` | `none` | `Ext.CheckedModU64` | traps on divide-by-zero |
-| ✅ | extended | `checked.array.get.i32` | `none` | `Ext.CheckedArrayGetI32` | null/type/bounds checked array load |
-| ✅ | extended | `checked.array.set.i32` | `none` | `Ext.CheckedArraySetI32` | null/type/bounds checked array store |
-| ✅ | extended | `checked.array.get.i64` | `none` | `Ext.CheckedArrayGetI64` | null/type/bounds checked array load |
-| ✅ | extended | `checked.array.set.i64` | `none` | `Ext.CheckedArraySetI64` | null/type/bounds checked array store |
-| ✅ | extended | `checked.array.get.f32` | `none` | `Ext.CheckedArrayGetF32` | null/type/bounds checked array load |
-| ✅ | extended | `checked.array.set.f32` | `none` | `Ext.CheckedArraySetF32` | null/type/bounds checked array store |
-| ✅ | extended | `checked.array.get.f64` | `none` | `Ext.CheckedArrayGetF64` | null/type/bounds checked array load |
-| ✅ | extended | `checked.array.set.f64` | `none` | `Ext.CheckedArraySetF64` | null/type/bounds checked array store |
-| ✅ | extended | `checked.array.get.ref` | `none` | `Ext.CheckedArrayGetRef` | null/type/bounds checked array load |
-| ✅ | extended | `checked.array.set.ref` | `none` | `Ext.CheckedArraySetRef` | null/type/bounds checked array store |
-| ✅ | extended | `checked.list.get.i32` | `none` | `Ext.CheckedListGetI32` | null/type/bounds checked list load |
-| ✅ | extended | `checked.list.set.i32` | `none` | `Ext.CheckedListSetI32` | null/type/bounds checked list store |
-| ✅ | extended | `checked.list.get.i64` | `none` | `Ext.CheckedListGetI64` | null/type/bounds checked list load |
-| ✅ | extended | `checked.list.set.i64` | `none` | `Ext.CheckedListSetI64` | null/type/bounds checked list store |
-| ✅ | extended | `checked.list.get.f32` | `none` | `Ext.CheckedListGetF32` | null/type/bounds checked list load |
-| ✅ | extended | `checked.list.set.f32` | `none` | `Ext.CheckedListSetF32` | null/type/bounds checked list store |
-| ✅ | extended | `checked.list.get.f64` | `none` | `Ext.CheckedListGetF64` | null/type/bounds checked list load |
-| ✅ | extended | `checked.list.set.f64` | `none` | `Ext.CheckedListSetF64` | null/type/bounds checked list store |
-| ✅ | extended | `checked.list.get.ref` | `none` | `Ext.CheckedListGetRef` | null/type/bounds checked list load |
-| ✅ | extended | `checked.list.set.ref` | `none` | `Ext.CheckedListSetRef` | null/type/bounds checked list store |
-| ✅ | extended | `checked.string.get.char` | `none` | `Ext.CheckedStringGetChar` | null/type/bounds checked string char load |
-| ✅ | extended | `checked.string.slice` | `none` | `Ext.CheckedStringSlice` | null/type/bounds checked string slice |
+| ✅ | `ext 1` | `checked.add.i32` | `none` | `Ext.CheckedAddI32` | traps on signed i32 overflow |
+| ✅ | `ext 6` | `checked.add.i64` | `none` | `Ext.CheckedAddI64` | traps on signed i64 overflow |
+| ✅ | `ext 11` | `checked.add.u32` | `none` | `Ext.CheckedAddU32` | traps on unsigned u32 overflow |
+| ✅ | `ext 16` | `checked.add.u64` | `none` | `Ext.CheckedAddU64` | traps on unsigned u64 overflow |
+| ✅ | `ext 2` | `checked.sub.i32` | `none` | `Ext.CheckedSubI32` | traps on signed i32 overflow |
+| ✅ | `ext 7` | `checked.sub.i64` | `none` | `Ext.CheckedSubI64` | traps on signed i64 overflow |
+| ✅ | `ext 12` | `checked.sub.u32` | `none` | `Ext.CheckedSubU32` | traps on unsigned u32 overflow |
+| ✅ | `ext 17` | `checked.sub.u64` | `none` | `Ext.CheckedSubU64` | traps on unsigned u64 overflow |
+| ✅ | `ext 3` | `checked.mul.i32` | `none` | `Ext.CheckedMulI32` | traps on signed i32 overflow |
+| ✅ | `ext 8` | `checked.mul.i64` | `none` | `Ext.CheckedMulI64` | traps on signed i64 overflow |
+| ✅ | `ext 13` | `checked.mul.u32` | `none` | `Ext.CheckedMulU32` | traps on unsigned u32 overflow |
+| ✅ | `ext 18` | `checked.mul.u64` | `none` | `Ext.CheckedMulU64` | traps on unsigned u64 overflow |
+| ✅ | `ext 4` | `checked.div.i32` | `none` | `Ext.CheckedDivI32` | traps on divide-by-zero and signed i32 overflow |
+| ✅ | `ext 9` | `checked.div.i64` | `none` | `Ext.CheckedDivI64` | traps on divide-by-zero and signed i64 overflow |
+| ✅ | `ext 14` | `checked.div.u32` | `none` | `Ext.CheckedDivU32` | traps on divide-by-zero |
+| ✅ | `ext 19` | `checked.div.u64` | `none` | `Ext.CheckedDivU64` | traps on divide-by-zero |
+| ✅ | `ext 5` | `checked.mod.i32` | `none` | `Ext.CheckedModI32` | traps on divide-by-zero and signed i32 overflow |
+| ✅ | `ext 10` | `checked.mod.i64` | `none` | `Ext.CheckedModI64` | traps on divide-by-zero and signed i64 overflow |
+| ✅ | `ext 15` | `checked.mod.u32` | `none` | `Ext.CheckedModU32` | traps on divide-by-zero |
+| ✅ | `ext 20` | `checked.mod.u64` | `none` | `Ext.CheckedModU64` | traps on divide-by-zero |
+| ✅ | `ext 21` | `checked.array.get.i32` | `none` | `Ext.CheckedArrayGetI32` | null/type/bounds checked array load |
+| ✅ | `ext 22` | `checked.array.set.i32` | `none` | `Ext.CheckedArraySetI32` | null/type/bounds checked array store |
+| ✅ | `ext 23` | `checked.array.get.i64` | `none` | `Ext.CheckedArrayGetI64` | null/type/bounds checked array load |
+| ✅ | `ext 24` | `checked.array.set.i64` | `none` | `Ext.CheckedArraySetI64` | null/type/bounds checked array store |
+| ✅ | `ext 25` | `checked.array.get.f32` | `none` | `Ext.CheckedArrayGetF32` | null/type/bounds checked array load |
+| ✅ | `ext 26` | `checked.array.set.f32` | `none` | `Ext.CheckedArraySetF32` | null/type/bounds checked array store |
+| ✅ | `ext 27` | `checked.array.get.f64` | `none` | `Ext.CheckedArrayGetF64` | null/type/bounds checked array load |
+| ✅ | `ext 28` | `checked.array.set.f64` | `none` | `Ext.CheckedArraySetF64` | null/type/bounds checked array store |
+| ✅ | `ext 29` | `checked.array.get.ref` | `none` | `Ext.CheckedArrayGetRef` | null/type/bounds checked array load |
+| ✅ | `ext 30` | `checked.array.set.ref` | `none` | `Ext.CheckedArraySetRef` | null/type/bounds checked array store |
+| ✅ | `ext 31` | `checked.list.get.i32` | `none` | `Ext.CheckedListGetI32` | null/type/bounds checked list load |
+| ✅ | `ext 32` | `checked.list.set.i32` | `none` | `Ext.CheckedListSetI32` | null/type/bounds checked list store |
+| ✅ | `ext 33` | `checked.list.get.i64` | `none` | `Ext.CheckedListGetI64` | null/type/bounds checked list load |
+| ✅ | `ext 34` | `checked.list.set.i64` | `none` | `Ext.CheckedListSetI64` | null/type/bounds checked list store |
+| ✅ | `ext 35` | `checked.list.get.f32` | `none` | `Ext.CheckedListGetF32` | null/type/bounds checked list load |
+| ✅ | `ext 36` | `checked.list.set.f32` | `none` | `Ext.CheckedListSetF32` | null/type/bounds checked list store |
+| ✅ | `ext 37` | `checked.list.get.f64` | `none` | `Ext.CheckedListGetF64` | null/type/bounds checked list load |
+| ✅ | `ext 38` | `checked.list.set.f64` | `none` | `Ext.CheckedListSetF64` | null/type/bounds checked list store |
+| ✅ | `ext 39` | `checked.list.get.ref` | `none` | `Ext.CheckedListGetRef` | null/type/bounds checked list load |
+| ✅ | `ext 40` | `checked.list.set.ref` | `none` | `Ext.CheckedListSetRef` | null/type/bounds checked list store |
+| ✅ | `ext 41` | `checked.string.get.char` | `none` | `Ext.CheckedStringGetChar` | null/type/bounds checked string char load |
+| ✅ | `ext 42` | `checked.string.slice` | `none` | `Ext.CheckedStringSlice` | null/type/bounds checked string slice |
 | ✅ | `0x2B` | `checked.null` | `none` | `CheckedNull` |  |
 | ✅ | `0x2C` | `checked.bounds` | `none` | `CheckedBounds` | pops value, index, length; pushes value |
 
@@ -926,10 +926,10 @@ Tagged data and error operations.
 | ✅ | pseudo | `result.is.err` | `none` | `ConstBool true` | consumes result marker and pushes status placeholder |
 | ✅ | pseudo | `result.unwrap.<T>` | `none` | no-op marker | preserves value marker |
 | ✅ | pseudo | `result.propagate.err` | `none` | no-op marker | preserves result marker |
-| ✅ | extended | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
+| ✅ | `ext 61` | `throw` | `none` | `Ext.Throw` | raises current exception/traps in current VM |
 | ✅ | pseudo | `catch <label>` | `label` | no-op marker | validates handler label |
 | ✅ | pseudo | `finally <label>` | `label` | no-op marker | validates cleanup label |
-| ✅ | extended | `panic` | `none` | `Ext.Panic` | unconditional panic trap |
+| ✅ | `ext 62` | `panic` | `none` | `Ext.Panic` | unconditional panic trap |
 
 ### Range and iterators
 
@@ -991,9 +991,9 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
 | ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |
 | ✅ | pseudo | `inline.cache <id>` | `u32 id` | no-op marker | inline-cache marker alias |
-| ✅ | extended | `guard.type[.<T>] <type?>` | `type` | `ConstI32` + `Ext.GuardType` | runtime type guard |
-| ✅ | extended | `guard.bounds` | `none` | `Ext.GuardBounds` | checked bounds guard |
-| ✅ | extended | `guard.notnull` | `none` | `Ext.GuardNotNull` | non-null guard |
+| ✅ | `ext 68` | `guard.type[.<T>] <type?>` | `type` | `ConstI32` + `Ext.GuardType` | runtime type guard |
+| ✅ | `ext 67` | `guard.bounds` | `none` | `Ext.GuardBounds` | checked bounds guard |
+| ✅ | `ext 66` | `guard.notnull` | `none` | `Ext.GuardNotNull` | non-null guard |
 | ✅ | `0x0B` | `cap.check <id>` | `u32 id` | `CheckCapability` | capability marker |
 | ✅ | `0x0C` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | sandbox marker |
 | ✅ | `0x0D` | `sandbox.exit` | `none` | `ExitSandbox` | sandbox marker |
