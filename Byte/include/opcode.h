@@ -78,6 +78,10 @@ enum class ExtendedOpCode : uint16_t {
   GuardType = 68,
   CallMethod = 69,
   CallVirtual = 70,
+  WriteBarrier = 71,
+  ReadBarrier = 72,
+  PinRef = 73,
+  UnpinRef = 74,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

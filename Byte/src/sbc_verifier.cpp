@@ -1028,6 +1028,32 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::WriteBarrier: {
+            ValType value = pop_type();
+            ValType object = pop_type();
+            VerifyResult r1 = check_type(object, ValType::Ref, "WRITE_BARRIER object type mismatch");
+            if (!r1.ok) return r1;
+            VerifyResult r2 = check_type(value, ValType::Ref, "WRITE_BARRIER value type mismatch");
+            if (!r2.ok) return r2;
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::ReadBarrier:
+          case Simple::Byte::ExtendedOpCode::PinRef: {
+            ValType value = pop_type();
+            VerifyResult r = check_type(value, ValType::Ref, "READ_BARRIER ref type mismatch");
+            if (!r.ok) return r;
+            push_type(ValType::Ref);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::UnpinRef: {
+            ValType value = pop_type();
+            VerifyResult r = check_type(value, ValType::Ref, "UNPIN_REF ref type mismatch");
+            if (!r.ok) return r;
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

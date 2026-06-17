@@ -1051,6 +1051,33 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               end = func_start + module.functions[target].code_size;
               break;
             }
+            case Simple::Byte::ExtendedOpCode::WriteBarrier: {
+              Slot value = Pop(stack);
+              Slot object = Pop(stack);
+              if (IsNullRef(object)) return Trap("WRITE_BARRIER null object");
+              if (!heap.Get(UnpackRef(object))) return Trap("WRITE_BARRIER invalid object");
+              if (!IsNullRef(value) && !heap.Get(UnpackRef(value))) return Trap("WRITE_BARRIER invalid value");
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::ReadBarrier: {
+              Slot value = Pop(stack);
+              if (!IsNullRef(value) && !heap.Get(UnpackRef(value))) return Trap("READ_BARRIER invalid reference");
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::PinRef: {
+              Slot value = Pop(stack);
+              if (IsNullRef(value)) return Trap("PIN_REF null reference");
+              if (!heap.Get(UnpackRef(value))) return Trap("PIN_REF invalid reference");
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::UnpinRef: {
+              Slot value = Pop(stack);
+              if (IsNullRef(value)) return Trap("UNPIN_REF null reference");
+              if (!heap.Get(UnpackRef(value))) return Trap("UNPIN_REF invalid reference");
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

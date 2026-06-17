@@ -2078,17 +2078,22 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "write.barrier") {
         if (!args.empty()) return fail("write.barrier expects no operands");
-        builder.EmitPop();
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::WriteBarrier);
         continue;
       }
-      if (op == "read.barrier" || op == "pin.ref") {
-        if (!args.empty()) return fail(op + " expects no operands");
+      if (op == "read.barrier") {
+        if (!args.empty()) return fail("read.barrier expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::ReadBarrier);
+        continue;
+      }
+      if (op == "pin.ref") {
+        if (!args.empty()) return fail("pin.ref expects no operands");
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::PinRef);
         continue;
       }
       if (op == "unpin.ref") {
         if (!args.empty()) return fail("unpin.ref expects no operands");
-        builder.EmitPop();
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::UnpinRef);
         continue;
       }
       if (op == "cap.check" || op == "sandbox.enter") {

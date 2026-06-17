@@ -983,10 +983,10 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 |:---:|---:|---|---|---|---|
 | ✅ | `0x08` | `safepoint` | `none` | `Safepoint` |  |
 | ✅ | `0x09` | `alloc.checkpoint` | `none` | `AllocCheckpoint` |  |
-| ✅ | pseudo | `write.barrier` | `none` | `Pop` + `Pop` | consumes object/value refs as GC marker |
-| ✅ | pseudo | `read.barrier` | `none` | no-op marker | preserves loaded ref marker |
-| ✅ | pseudo | `pin.ref` | `none` | no-op marker | preserves pinned ref marker |
-| ✅ | pseudo | `unpin.ref` | `none` | `Pop` | consumes pinned ref marker |
+| ✅ | `ext 71` | `write.barrier` | `none` | `Ext.WriteBarrier` | records/validates object-to-ref write barrier |
+| ✅ | `ext 72` | `read.barrier` | `none` | `Ext.ReadBarrier` | validates and returns loaded ref |
+| ✅ | `ext 73` | `pin.ref` | `none` | `Ext.PinRef` | validates and pins live ref for current operation |
+| ✅ | `ext 74` | `unpin.ref` | `none` | `Ext.UnpinRef` | validates and unpins ref |
 | ✅ | `0x0A` | `keepalive` | `none` | `KeepAlive` |  |
 | ✅ | pseudo | `deopt <id>` | `u32 id` | no-op marker | deoptimization marker alias |
 | ✅ | pseudo | `patchpoint <id>` | `u32 id` | no-op marker | JIT patchpoint marker alias |
