@@ -3376,7 +3376,8 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
             !ParseUint(args[1], &length)) {
           return fail("newarray expects type_id length");
         }
-        builder.EmitNewArray(type_id, static_cast<uint32_t>(length));
+        if (Lower(args[0]) == "i64") builder.EmitNewArrayI64(type_id, static_cast<uint32_t>(length));
+        else builder.EmitNewArray(type_id, static_cast<uint32_t>(length));
         continue;
       }
       if (op == "array.len") {
@@ -3389,6 +3390,14 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
       }
       if (op == "checked.array.set.i32") {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetI32);
+        continue;
+      }
+      if (op == "checked.array.get.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArrayGetI64);
+        continue;
+      }
+      if (op == "checked.array.set.i64") {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::CheckedArraySetI64);
         continue;
       }
       if (op.rfind("checked.array.get.", 0) == 0 || op.rfind("checked.array.set.", 0) == 0) {

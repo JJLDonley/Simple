@@ -273,6 +273,12 @@ void IrBuilder::EmitNewArray(uint32_t type_id, uint32_t length) {
   EmitU32(length);
 }
 
+void IrBuilder::EmitNewArrayI64(uint32_t type_id, uint32_t length) {
+  EmitOp(OpCode::NewArrayI64);
+  EmitU32(type_id);
+  EmitU32(length);
+}
+
 void IrBuilder::EmitArrayLen() {
   EmitOp(OpCode::ArrayLen);
 }
