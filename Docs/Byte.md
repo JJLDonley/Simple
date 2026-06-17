@@ -733,8 +733,6 @@ String-specific operations.
 | ✅ | `0xFD` | `StringNe` | 0 | 2 | 1 |
 | ✅ | `0xD2` | `StringGetChar` | 0 | 2 | 1 |
 | ✅ | `0xD3` | `StringSlice` | 0 | 3 | 1 |
-| ☐ | `TBD` | `StringEq` | 0 | 2 | 1 |
-| ☐ | `TBD` | `StringNe` | 0 | 2 | 1 |
 | ✅ | `0x15` | `StringCompare` | 0 | 2 | 1 |
 | ✅ | `0x16` | `StringFind` | 0 | 2 | 1 |
 | ✅ | ext `56` | `StringToBytes` | 0 | 1 | 1 |
@@ -931,17 +929,17 @@ Reserved vector/SIMD opcode space. `<T,N>` is element type plus lane count.
 
 | Status | Value | Name | Operands | Pops | Pushes |
 |:---:|---:|---|---:|---:|---:|
-| ☐ | `TBD` | `VecLoad<T,N>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `VecStore<T,N>` | 0 | 2 | 0 |
-| ☐ | `TBD` | `VecSplat<T,N>` | 0 | 1 | 1 |
-| ☐ | `TBD` | `VecExtract<T,N>` | 4 | 1 | 1 |
-| ☐ | `TBD` | `VecAdd<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecSub<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecMul<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecDiv<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecAnd<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecOr<T,N>` | 0 | 2 | 1 |
-| ☐ | `TBD` | `VecXor<T,N>` | 0 | 2 | 1 |
+| ✅ | ext `137` | `VecLoad` | 0 | 1 | 1 |
+| ✅ | ext `138` | `VecStore` | 0 | 2 | 0 |
+| ✅ | ext `139` | `VecSplat` | 0 | 1 | 1 |
+| ✅ | ext `140` | `VecExtract` | 0 | 2 | 1 |
+| ✅ | ext `141` | `VecAdd` | 0 | 2 | 1 |
+| ✅ | ext `142` | `VecSub` | 0 | 2 | 1 |
+| ✅ | ext `143` | `VecMul` | 0 | 2 | 1 |
+| ✅ | ext `144` | `VecDiv` | 0 | 2 | 1 |
+| ✅ | ext `145` | `VecAnd` | 0 | 2 | 1 |
+| ✅ | ext `146` | `VecOr` | 0 | 2 | 1 |
+| ✅ | ext `147` | `VecXor` | 0 | 2 | 1 |
 
 ## Loader contract
 

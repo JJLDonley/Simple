@@ -2187,7 +2187,79 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
         if (out_type) *out_type = type;
         return true;
       };
+      auto parse_vec_type_count = [&](const std::string& base, std::string* out_type, uint32_t* out_count) -> bool {
+        std::string type;
+        uint64_t count = 0;
+        std::string prefix = base + ".";
+        if (op == base) {
+          if (args.size() != 2 || !ParseUint(args[1], &count)) return false;
+          type = Lower(args[0]);
+        } else if (op.rfind(prefix, 0) == 0) {
+          if (base != "vec.extract" && !args.empty()) return false;
+          std::string rest = op.substr(prefix.size());
+          size_t dot = rest.rfind('.');
+          if (dot == std::string::npos || dot + 1 >= rest.size()) return false;
+          type = Lower(rest.substr(0, dot));
+          if (!ParseUint(rest.substr(dot + 1), &count)) return false;
+        } else {
+          return false;
+        }
+        if (!is_type_name(type) || count == 0 || !FitsUnsigned<uint32_t>(count)) return false;
+        if (out_type) *out_type = type;
+        if (out_count) *out_count = static_cast<uint32_t>(count);
+        return true;
+      };
       std::string marker_type;
+      uint32_t vec_count = 0;
+      if (parse_vec_type_count("vec.load", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecLoad);
+        continue;
+      }
+      if (parse_vec_type_count("vec.store", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecStore);
+        continue;
+      }
+      if (parse_vec_type_count("vec.splat", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecSplat);
+        continue;
+      }
+      if (parse_vec_type_count("vec.extract", &marker_type, &vec_count)) {
+        uint64_t lane = 0;
+        if (args.size() != 1 || !ParseUint(args[0], &lane) || lane >= vec_count || !FitsUnsigned<uint32_t>(lane)) {
+          return fail("vec.extract expects lane within vector width");
+        }
+        builder.EmitConstI32(static_cast<int32_t>(lane));
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecExtract);
+        continue;
+      }
+      if (parse_vec_type_count("vec.add", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecAdd);
+        continue;
+      }
+      if (parse_vec_type_count("vec.sub", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecSub);
+        continue;
+      }
+      if (parse_vec_type_count("vec.mul", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecMul);
+        continue;
+      }
+      if (parse_vec_type_count("vec.div", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecDiv);
+        continue;
+      }
+      if (parse_vec_type_count("vec.and", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecAnd);
+        continue;
+      }
+      if (parse_vec_type_count("vec.or", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecOr);
+        continue;
+      }
+      if (parse_vec_type_count("vec.xor", &marker_type, &vec_count)) {
+        builder.EmitExtended(Simple::Byte::ExtendedOpCode::VecXor);
+        continue;
+      }
       if (parse_marker_type("load.ptr", &marker_type)) {
         builder.EmitExtended(Simple::Byte::ExtendedOpCode::LoadPtr);
         continue;

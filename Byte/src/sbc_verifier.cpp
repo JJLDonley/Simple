@@ -1332,6 +1332,44 @@ VerifyResult VerifyModule(const SbcModule& module) {
             pc = next;
             continue;
           }
+          case Simple::Byte::ExtendedOpCode::VecLoad:
+          case Simple::Byte::ExtendedOpCode::VecSplat: {
+            ValType value = pop_type();
+            push_type(value);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::VecStore: {
+            (void)pop_type();
+            (void)pop_type();
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::VecExtract: {
+            ValType lane = pop_type();
+            ValType vector = pop_type();
+            VerifyResult r = check_type(lane, ValType::I32, "VEC_EXTRACT lane type mismatch");
+            if (!r.ok) return r;
+            push_type(vector);
+            pc = next;
+            continue;
+          }
+          case Simple::Byte::ExtendedOpCode::VecAdd:
+          case Simple::Byte::ExtendedOpCode::VecSub:
+          case Simple::Byte::ExtendedOpCode::VecMul:
+          case Simple::Byte::ExtendedOpCode::VecDiv:
+          case Simple::Byte::ExtendedOpCode::VecAnd:
+          case Simple::Byte::ExtendedOpCode::VecOr:
+          case Simple::Byte::ExtendedOpCode::VecXor: {
+            ValType b = pop_type();
+            ValType a = pop_type();
+            if (a != ValType::Unknown && b != ValType::Unknown && a != b) {
+              return fail_at("VEC operand type mismatch", current_pc, current_opcode);
+            }
+            push_type(a == ValType::Unknown ? b : a);
+            pc = next;
+            continue;
+          }
           default:
             return fail_at("unknown extended opcode", current_pc, current_opcode);
         }

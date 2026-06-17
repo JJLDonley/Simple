@@ -997,17 +997,17 @@ Runtime coordination, optimizing backend hooks, sandbox checks, and vectors.
 | ✅ | `0x0B` | `cap.check <id>` | `u32 id` | `CheckCapability` | capability marker |
 | ✅ | `0x0C` | `sandbox.enter <id>` | `u32 id` | `EnterSandbox` | sandbox marker |
 | ✅ | `0x0D` | `sandbox.exit` | `none` | `ExitSandbox` | sandbox marker |
-| ☐ | `TBD` | `vec.load.<T,N>` | `none` | `VecLoad<T,N>` | planned |
-| ☐ | `TBD` | `vec.store.<T,N>` | `none` | `VecStore<T,N>` | planned |
-| ☐ | `TBD` | `vec.splat.<T,N>` | `none` | `VecSplat<T,N>` | planned |
-| ☐ | `TBD` | `vec.extract.<T,N> <lane>` | `lane` | `VecExtract<T,N>` | planned |
-| ☐ | `TBD` | `vec.add.<T,N>` | `none` | `VecAdd<T,N>` | planned |
-| ☐ | `TBD` | `vec.sub.<T,N>` | `none` | `VecSub<T,N>` | planned |
-| ☐ | `TBD` | `vec.mul.<T,N>` | `none` | `VecMul<T,N>` | planned |
-| ☐ | `TBD` | `vec.div.<T,N>` | `none` | `VecDiv<T,N>` | planned |
-| ☐ | `TBD` | `vec.and.<T,N>` | `none` | `VecAnd<T,N>` | planned |
-| ☐ | `TBD` | `vec.or.<T,N>` | `none` | `VecOr<T,N>` | planned |
-| ☐ | `TBD` | `vec.xor.<T,N>` | `none` | `VecXor<T,N>` | planned |
+| ✅ | `ext 137` | `vec.load.<T.N>` | `none` | `Ext.VecLoad` | vector load |
+| ✅ | `ext 138` | `vec.store.<T.N>` | `none` | `Ext.VecStore` | vector store |
+| ✅ | `ext 139` | `vec.splat.<T.N>` | `none` | `Ext.VecSplat` | vector splat |
+| ✅ | `ext 140` | `vec.extract.<T.N> <lane>` | `lane` | `ConstI32` + `Ext.VecExtract` | lane extract |
+| ✅ | `ext 141` | `vec.add.<T.N>` | `none` | `Ext.VecAdd` | vector add |
+| ✅ | `ext 142` | `vec.sub.<T.N>` | `none` | `Ext.VecSub` | vector sub |
+| ✅ | `ext 143` | `vec.mul.<T.N>` | `none` | `Ext.VecMul` | vector mul |
+| ✅ | `ext 144` | `vec.div.<T.N>` | `none` | `Ext.VecDiv` | vector div |
+| ✅ | `ext 145` | `vec.and.<T.N>` | `none` | `Ext.VecAnd` | vector and |
+| ✅ | `ext 146` | `vec.or.<T.N>` | `none` | `Ext.VecOr` | vector or |
+| ✅ | `ext 147` | `vec.xor.<T.N>` | `none` | `Ext.VecXor` | vector xor |
 
 ## Module model
 

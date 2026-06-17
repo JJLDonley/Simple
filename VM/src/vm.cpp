@@ -1316,6 +1316,66 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               (void)Pop(stack);
               break;
             }
+            case Simple::Byte::ExtendedOpCode::VecLoad:
+            case Simple::Byte::ExtendedOpCode::VecSplat: {
+              Slot value = Pop(stack);
+              Push(stack, value);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecStore: {
+              (void)Pop(stack);
+              (void)Pop(stack);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecExtract: {
+              (void)Pop(stack);
+              Slot vector = Pop(stack);
+              Push(stack, vector);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecAdd: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a + b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecSub: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a - b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecMul: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a * b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecDiv: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              if (b == 0) return Trap("VEC_DIV divide by zero");
+              Push(stack, a / b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecAnd: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a & b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecOr: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a | b);
+              break;
+            }
+            case Simple::Byte::ExtendedOpCode::VecXor: {
+              Slot b = Pop(stack);
+              Slot a = Pop(stack);
+              Push(stack, a ^ b);
+              break;
+            }
             default:
               return Trap("unknown extended opcode");
           }

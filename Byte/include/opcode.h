@@ -144,6 +144,17 @@ enum class ExtendedOpCode : uint16_t {
   Deopt = 134,
   Patchpoint = 135,
   InlineCache = 136,
+  VecLoad = 137,
+  VecStore = 138,
+  VecSplat = 139,
+  VecExtract = 140,
+  VecAdd = 141,
+  VecSub = 142,
+  VecMul = 143,
+  VecDiv = 144,
+  VecAnd = 145,
+  VecOr = 146,
+  VecXor = 147,
 };
 
 constexpr uint32_t kExtendedOpcodeSentinel = 0xFFFFFFFFu;

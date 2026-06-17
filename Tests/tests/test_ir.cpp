@@ -4547,6 +4547,25 @@ bool RunIrTextStringBytesAliasBadTest() {
   return RunIrTextExpectFail(text, "ir_text_string_bytes_alias_bad");
 }
 
+bool RunIrTextVectorOpsTest() {
+  const char* text =
+      "func main locals=0 stack=12\n"
+      "  enter 0\n"
+      "  const i32 10\n"
+      "  vec.splat.i32.4\n"
+      "  const i32 5\n"
+      "  vec.add.i32.4\n"
+      "  vec.extract.i32.4 0\n"
+      "  const i32 3\n"
+      "  vec.xor.i32.4\n"
+      "  ret\n"
+      "end\n"
+      "entry main\n";
+  auto module = BuildIrTextModule(text, "ir_text_vector_ops");
+  if (module.empty()) return false;
+  return RunExpectExit(module, 12);
+}
+
 bool RunIrTextPointerMemoryAliasesTest() {
   const char* text =
       "func main locals=0 stack=12\n"
@@ -9992,6 +10011,7 @@ static const TestCase kIrTests[] = {
   {"ir_text_gc_barrier_bad", RunIrTextGcBarrierBadTest},
   {"ir_text_string_bytes_aliases", RunIrTextStringBytesAliasesTest},
   {"ir_text_string_bytes_alias_bad", RunIrTextStringBytesAliasBadTest},
+  {"ir_text_vector_ops", RunIrTextVectorOpsTest},
   {"ir_text_pointer_memory_aliases", RunIrTextPointerMemoryAliasesTest},
   {"ir_text_pointer_memory_alias_bad", RunIrTextPointerMemoryAliasBadTest},
   {"ir_text_sum_type_result_aliases", RunIrTextSumTypeResultAliasesTest},
