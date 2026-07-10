@@ -353,6 +353,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Define `NativeHandleId` as opaque VM value payload.
 - [ ] Map each public `System.Handle<T>` to `NativeHandleId` plus resource kind/generation.
   - [x] Back legacy file descriptors with `NativeResourceRegistry` handles internally.
+  - [x] Remove legacy `open_files` native dispatch storage.
 - [x] Define `NativeResourceKind`:
   - [x] file, directory, socket, listener, process, thread, job, channel.
   - [x] FFI library/symbol.

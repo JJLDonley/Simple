@@ -862,7 +862,7 @@ NativeCallResult FsMkdirAll(NativeCallContext& context) {
 NativeCallResult FsOpen(NativeCallContext& context) {
   NativeCallResult result;
   std::string path;
-  if (!context.open_files || !ReadStringArg(context, 0, &path)) {
+  if (!context.resource_registry || !context.file_handles || !ReadStringArg(context, 0, &path)) {
     result.value = PackI32(-1);
     return result;
   }
@@ -878,21 +878,15 @@ NativeCallResult FsOpen(NativeCallContext& context) {
     result.value = PackI32(-1);
     return result;
   }
-  if (context.resource_registry && context.file_handles) {
-    NativeResourceRecord record;
-    record.kind = NativeResourceKind::File;
-    record.owned = true;
-    record.debug_label = path;
-    record.payload = file;
-    record.close = CloseFileResource;
-    const NativeHandleId handle = context.resource_registry->Insert(std::move(record));
-    context.file_handles->push_back(handle);
-    context.open_files->push_back(nullptr);
-    result.value = PackI32(static_cast<int32_t>(context.file_handles->size() - 1));
-    return result;
-  }
-  context.open_files->push_back(file);
-  result.value = PackI32(static_cast<int32_t>(context.open_files->size() - 1));
+  NativeResourceRecord record;
+  record.kind = NativeResourceKind::File;
+  record.owned = true;
+  record.debug_label = path;
+  record.payload = file;
+  record.close = CloseFileResource;
+  const NativeHandleId handle = context.resource_registry->Insert(std::move(record));
+  context.file_handles->push_back(handle);
+  result.value = PackI32(static_cast<int32_t>(context.file_handles->size() - 1));
   return result;
 }
 
@@ -902,9 +896,6 @@ NativeCallResult FsRead(NativeCallContext& context) {
   const int32_t count = UnpackI32(context.args[2]);
   HeapObject* obj = GetHeapObject(context, 1);
   std::FILE* file = GetFileFromRegistry(context, fd);
-  if (!file && context.open_files && fd >= 0 && static_cast<size_t>(fd) < context.open_files->size()) {
-    file = (*context.open_files)[static_cast<size_t>(fd)];
-  }
   if (!file || count < 0 || !obj || obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
     result.value = PackI32(-1);
     return result;
@@ -931,9 +922,6 @@ NativeCallResult FsWrite(NativeCallContext& context) {
   const int32_t count = UnpackI32(context.args[2]);
   HeapObject* obj = GetHeapObject(context, 1);
   std::FILE* file = GetFileFromRegistry(context, fd);
-  if (!file && context.open_files && fd >= 0 && static_cast<size_t>(fd) < context.open_files->size()) {
-    file = (*context.open_files)[static_cast<size_t>(fd)];
-  }
   if (!file || count < 0 || !obj || obj->header.kind != ObjectKind::Array || obj->payload.size() < 4) {
     result.value = PackI32(-1);
     return result;
@@ -960,21 +948,14 @@ NativeCallResult FsClose(NativeCallContext& context) {
   NativeCallResult result;
   result.has_value = false;
   const int32_t fd = UnpackI32(context.args[0]);
-  if (context.resource_registry && context.file_handles && fd >= 0 &&
-      static_cast<size_t>(fd) < context.file_handles->size()) {
-    std::string ignored;
-    context.resource_registry->Close((*context.file_handles)[static_cast<size_t>(fd)],
-                                     NativeResourceKind::File,
-                                     &ignored);
+  if (!context.resource_registry || !context.file_handles || fd < 0 ||
+      static_cast<size_t>(fd) >= context.file_handles->size()) {
     return result;
   }
-  if (!context.open_files) return result;
-  if (fd < 0 || static_cast<size_t>(fd) >= context.open_files->size()) return result;
-  std::FILE* file = (*context.open_files)[static_cast<size_t>(fd)];
-  if (file) {
-    std::fclose(file);
-    (*context.open_files)[static_cast<size_t>(fd)] = nullptr;
-  }
+  std::string ignored;
+  context.resource_registry->Close((*context.file_handles)[static_cast<size_t>(fd)],
+                                   NativeResourceKind::File,
+                                   &ignored);
   return result;
 }
 

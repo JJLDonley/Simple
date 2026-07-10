@@ -1,7 +1,6 @@
 #ifndef SIMPLE_VM_RUNTIME_IMPORT_DISPATCH_H
 #define SIMPLE_VM_RUNTIME_IMPORT_DISPATCH_H
 
-#include <cstdio>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -19,7 +18,6 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               const ExecOptions& options,
                               const Simple::VM::Native::NativeRegistry& native_registry,
                               Heap& heap,
-                              std::vector<std::FILE*>& open_files,
                               std::vector<Simple::VM::Native::NativeHandleId>& file_handles,
                               Simple::VM::Native::NativeResourceRegistry& resource_registry,
                               std::string& dl_last_error,

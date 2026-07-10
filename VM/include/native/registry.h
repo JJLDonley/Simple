@@ -1,7 +1,6 @@
 #ifndef SIMPLE_VM_NATIVE_REGISTRY_H
 #define SIMPLE_VM_NATIVE_REGISTRY_H
 
-#include <cstdio>
 #include <cstdint>
 #include <cstddef>
 #include <functional>
@@ -21,7 +20,6 @@ struct NativeCallContext {
   std::vector<Slot> args;
   Heap* heap = nullptr;
   const std::vector<std::string>* argv = nullptr;
-  std::vector<std::FILE*>* open_files = nullptr;
   std::vector<NativeHandleId>* file_handles = nullptr;
   std::string* dl_last_error = nullptr;
   NativeResourceRegistry* resource_registry = nullptr;

@@ -16520,38 +16520,45 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* fs_list_dir_obj = metadata_heap.Get(static_cast<uint32_t>(fs_list_dir_result.value));
   if (!fs_list_dir_obj) return false;
   const uint32_t fs_list_dir_len = read_test_u32(fs_list_dir_obj->payload, 0);
-  std::vector<std::FILE*> metadata_open_files;
+  Simple::VM::Native::NativeResourceRegistry metadata_resources;
+  std::vector<Simple::VM::Native::NativeHandleId> metadata_file_handles;
   Simple::VM::Native::NativeCallContext fs_open_write_ctx;
   fs_open_write_ctx.heap = &metadata_heap;
-  fs_open_write_ctx.open_files = &metadata_open_files;
+  fs_open_write_ctx.resource_registry = &metadata_resources;
+  fs_open_write_ctx.file_handles = &metadata_file_handles;
   fs_open_write_ctx.args = {fs_fd_ref, 1};
   const auto fs_open_write_result = fs_open ? fs_open->handler(fs_open_write_ctx)
                                             : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_write_ctx;
   fs_write_ctx.heap = &metadata_heap;
-  fs_write_ctx.open_files = &metadata_open_files;
+  fs_write_ctx.resource_registry = &metadata_resources;
+  fs_write_ctx.file_handles = &metadata_file_handles;
   fs_write_ctx.args = {fs_open_write_result.value, fs_fd_write_buf_ref, 3};
   const auto fs_write_result = fs_write ? fs_write->handler(fs_write_ctx)
                                         : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_close_write_ctx;
-  fs_close_write_ctx.open_files = &metadata_open_files;
+  fs_close_write_ctx.resource_registry = &metadata_resources;
+  fs_close_write_ctx.file_handles = &metadata_file_handles;
   fs_close_write_ctx.args = {fs_open_write_result.value};
   const auto fs_close_write_result = fs_close ? fs_close->handler(fs_close_write_ctx)
                                               : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_open_read_ctx;
   fs_open_read_ctx.heap = &metadata_heap;
-  fs_open_read_ctx.open_files = &metadata_open_files;
+  fs_open_read_ctx.resource_registry = &metadata_resources;
+  fs_open_read_ctx.file_handles = &metadata_file_handles;
   fs_open_read_ctx.args = {fs_fd_ref, 0};
   const auto fs_open_read_result = fs_open ? fs_open->handler(fs_open_read_ctx)
                                            : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_read_ctx;
   fs_read_ctx.heap = &metadata_heap;
-  fs_read_ctx.open_files = &metadata_open_files;
+  fs_read_ctx.resource_registry = &metadata_resources;
+  fs_read_ctx.file_handles = &metadata_file_handles;
   fs_read_ctx.args = {fs_open_read_result.value, fs_fd_read_buf_ref, 3};
   const auto fs_read_result = fs_read ? fs_read->handler(fs_read_ctx)
                                       : Simple::VM::Native::NativeCallResult{};
   Simple::VM::Native::NativeCallContext fs_close_read_ctx;
-  fs_close_read_ctx.open_files = &metadata_open_files;
+  fs_close_read_ctx.resource_registry = &metadata_resources;
+  fs_close_read_ctx.file_handles = &metadata_file_handles;
   fs_close_read_ctx.args = {fs_open_read_result.value};
   const auto fs_close_read_result = fs_close ? fs_close->handler(fs_close_read_ctx)
                                              : Simple::VM::Native::NativeCallResult{};

@@ -134,7 +134,6 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   context.args = args;
   context.heap = runtime.heap;
   context.argv = runtime.argv;
-  context.open_files = runtime.open_files;
   context.file_handles = runtime.file_handles;
   context.dl_last_error = runtime.dl_last_error;
   context.resource_registry = runtime.resource_registry;

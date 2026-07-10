@@ -456,11 +456,9 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   const uint64_t path_ref = Simple::VM::CreateString(heap, path_u16);
   auto registry = BuildDefaultRegistry();
   NativeResourceRegistry resources;
-  std::vector<std::FILE*> open_files;
   std::vector<NativeHandleId> file_handles;
   MetadataDispatchContext context;
   context.heap = &heap;
-  context.open_files = &open_files;
   context.file_handles = &file_handles;
   context.resource_registry = &resources;
 
@@ -470,7 +468,7 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   bool handled = DispatchMetadataImport(registry, "System.fs", "open", {path_ref, 1},
                                         Simple::Byte::TypeKind::I32, context, &ret, &has_ret, &error);
   if (!handled || !error.empty() || !has_ret || static_cast<int32_t>(ret) != 0 ||
-      resources.LiveCount() != 1 || file_handles.size() != 1 || open_files.size() != 1 || open_files[0]) {
+      resources.LiveCount() != 1 || file_handles.size() != 1) {
     std::filesystem::remove(path);
     return false;
   }
