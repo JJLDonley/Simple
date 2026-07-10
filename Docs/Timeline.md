@@ -197,10 +197,10 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] `System.Handle<T>`, `Result<T,E>`, `Option<T>`, `Promise<T>`.
   - [x] `Channel<T>`.
   - [x] instantiated generic types as generic arguments.
-- [ ] Define deterministic generic symbol mangling.
-  - [ ] Human/debug form, e.g. `Map<string, List<i32>>`.
-  - [ ] Link/internal form with stable escaping or hash suffixes.
-  - [ ] Collision detection with diagnostic output.
+- [x] Define deterministic generic symbol mangling.
+  - [x] Human/debug form, e.g. `Map<string, List<i32>>`.
+  - [x] Link/internal form with stable escaping or hash suffixes.
+  - [x] Collision detection with diagnostic output.
 - [ ] Add generic declaration metadata to TAST and SIR/SBC debug/type metadata.
 - [ ] Reject recursive value containment without indirection; allow recursion through pointer/ref/handle.
 

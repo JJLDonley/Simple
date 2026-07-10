@@ -10,6 +10,27 @@
 namespace Simple::VM::Tests {
 namespace {
 
+bool VmRuntimeAbiManglesGenericSymbols() {
+  using Simple::VM::Runtime::DetectGenericSymbolCollision;
+  using Simple::VM::Runtime::HumanGenericSymbolName;
+  using Simple::VM::Runtime::LinkGenericSymbolName;
+
+  const std::vector<std::string> args = {"string", "list<i32>"};
+  const std::string human = HumanGenericSymbolName("Map", args);
+  const std::string link = LinkGenericSymbolName("Map", args);
+  const std::string escaped = LinkGenericSymbolName("Map Value", args);
+  std::string error;
+  if (human != "Map<string, list<i32>>" || link.rfind("Map$g$", 0) != 0 ||
+      escaped.rfind("Map%20Value$g$", 0) != 0 || link == escaped) {
+    return false;
+  }
+  if (!DetectGenericSymbolCollision({{link, human}, {link, human}}, &error) || !error.empty()) {
+    return false;
+  }
+  return !DetectGenericSymbolCollision({{link, human}, {link, "Other<i32>"}}, &error) &&
+         error.find("generic symbol collision") != std::string::npos;
+}
+
 bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Native::NativeResourceKind;
@@ -578,6 +599,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 }
 
 const TestCase kVmRuntimeAbiTests[] = {
+  {"vm_runtime_abi_mangles_generic_symbols", VmRuntimeAbiManglesGenericSymbols},
   {"vm_runtime_abi_builds_canonical_type_identities", VmRuntimeAbiBuildsCanonicalTypeIdentities},
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_validates_scalar_values", VmRuntimeAbiValidatesScalarValues},

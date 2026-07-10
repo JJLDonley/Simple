@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <unordered_map>
 
 namespace Simple::VM::Runtime {
 namespace {
@@ -10,6 +11,15 @@ std::string Hex64(uint64_t value) {
   std::ostringstream out;
   out << std::hex << value;
   return out.str();
+}
+
+uint64_t Fnv1a64(const std::string& value) {
+  uint64_t hash = 14695981039346656037ull;
+  for (const unsigned char ch : value) {
+    hash ^= static_cast<uint64_t>(ch);
+    hash *= 1099511628211ull;
+  }
+  return hash;
 }
 
 std::string EscapeIdentitySegment(const std::string& value) {
@@ -114,6 +124,40 @@ std::string CanonicalOptionTypeIdentity(const std::string& value_type_identity) 
 std::string CanonicalResultTypeIdentity(const std::string& ok_type_identity,
                                         const std::string& error_type_identity) {
   return "result<" + ok_type_identity + "," + error_type_identity + ">";
+}
+
+std::string HumanGenericSymbolName(const std::string& base_symbol,
+                                   const std::vector<std::string>& argument_identities) {
+  std::string out = base_symbol + "<";
+  for (size_t i = 0; i < argument_identities.size(); ++i) {
+    if (i != 0) out += ", ";
+    out += argument_identities[i];
+  }
+  out += ">";
+  return out;
+}
+
+std::string LinkGenericSymbolName(const std::string& base_symbol,
+                                  const std::vector<std::string>& argument_identities) {
+  const std::string human = HumanGenericSymbolName(base_symbol, argument_identities);
+  return EscapeIdentitySegment(base_symbol) + "$g$" + Hex64(Fnv1a64(human));
+}
+
+bool DetectGenericSymbolCollision(const std::vector<std::pair<std::string, std::string>>& link_to_human,
+                                  std::string* error) {
+  std::unordered_map<std::string, std::string> seen;
+  for (const auto& entry : link_to_human) {
+    const auto [it, inserted] = seen.emplace(entry.first, entry.second);
+    if (!inserted && it->second != entry.second) {
+      if (error) {
+        *error = "generic symbol collision for " + entry.first + ": " + it->second + " vs " +
+                 entry.second;
+      }
+      return false;
+    }
+  }
+  if (error) error->clear();
+  return true;
 }
 
 } // namespace Simple::VM::Runtime
