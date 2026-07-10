@@ -4635,6 +4635,19 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           return import_name(target_func, &module_name, &symbol_name) && module_name == "System.dl" &&
                  symbol_name.rfind("call$", 0) == 0 && dl_call_loop_safe(target_sig);
         }();
+        const bool dynamic_dl_i32_i32_direct_bind = dynamic_dl_direct_call && [&]() {
+          if (target_sig.ret_type_id >= module.types.size() || target_sig.param_count != 2 ||
+              target_sig.param_type_start + 2 > module.param_types.size()) {
+            return false;
+          }
+          const uint32_t fn_ptr_type_id = module.param_types[target_sig.param_type_start];
+          const uint32_t arg_type_id = module.param_types[target_sig.param_type_start + 1];
+          if (fn_ptr_type_id >= module.types.size() || arg_type_id >= module.types.size()) return false;
+          const auto fn_ptr_kind = static_cast<Simple::Byte::TypeKind>(module.types[fn_ptr_type_id].kind);
+          return (fn_ptr_kind == Simple::Byte::TypeKind::I64 || fn_ptr_kind == Simple::Byte::TypeKind::U64) &&
+                 static_cast<Simple::Byte::TypeKind>(module.types[arg_type_id].kind) == Simple::Byte::TypeKind::I32 &&
+                 static_cast<Simple::Byte::TypeKind>(module.types[target_sig.ret_type_id].kind) == Simple::Byte::TypeKind::I32;
+        }();
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
           return false;
@@ -4653,6 +4666,16 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::Value* result = nullptr;
         if (target_func == func_index) {
           result = builder.CreateCall(fn_type, fn, {call_args, builder.getInt32(arg_count)});
+        } else if (dynamic_dl_i32_i32_direct_bind) {
+          llvm::Value* fn_slot_ptr = builder.CreateGEP(i64, call_args, builder.getInt64(0));
+          llvm::Value* fn_slot = builder.CreateLoad(i64, fn_slot_ptr);
+          llvm::Value* raw_fn = builder.CreateIntToPtr(
+              fn_slot, llvm::PointerType::getUnqual(llvm::FunctionType::get(i32, {i32}, false)));
+          llvm::Value* arg_slot_ptr = builder.CreateGEP(i64, call_args, builder.getInt64(1));
+          llvm::Value* arg_slot = builder.CreateLoad(i64, arg_slot_ptr);
+          llvm::Value* native_arg = builder.CreateTrunc(arg_slot, i32);
+          llvm::Value* native_ret = builder.CreateCall(llvm::FunctionType::get(i32, {i32}, false), raw_fn, {native_arg});
+          result = builder.CreateZExt(native_ret, i64);
         } else if (dynamic_dl_direct_call) {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "dynamic_dl_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
