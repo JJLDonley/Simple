@@ -457,6 +457,13 @@ bool LangGenCollectsInstantiationRequests() {
   var.var.type.type_args.push_back(box);
   program.decls.push_back(var);
 
+  Simple::Lang::AST::Decl ext;
+  ext.kind = DeclKind::Extern;
+  ext.ext.name = "native";
+  ext.ext.return_type.name = "Promise";
+  ext.ext.return_type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.decls.push_back(ext);
+
   Simple::Lang::AST::Decl fn;
   fn.kind = DeclKind::Function;
   fn.func.name = "use";
@@ -482,7 +489,7 @@ bool LangGenCollectsInstantiationRequests() {
 
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> requests;
   if (!Simple::Lang::GEN::CollectInstantiationRequestsFromProgram(program, &requests)) return false;
-  if (requests.size() != 5) return false;
+  if (requests.size() != 6) return false;
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> unique;
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> duplicated = requests;
   duplicated.push_back(requests[0]);
@@ -494,9 +501,10 @@ bool LangGenCollectsInstantiationRequests() {
          requests[0].argument_identities[0] == "i32" &&
          Simple::Lang::GEN::InstantiationRequestKey(requests[0]) == "Box<i32>" &&
          requests[1].base_name == "List" && requests[1].argument_identities[0] == "Box<i32>" &&
-         requests[2].base_name == "Option" && requests[2].argument_identities[0] == "string" &&
-         requests[3].base_name == "Result" && requests[3].argument_identities.size() == 2 &&
-         requests[4].base_name == "identity" && requests[4].argument_identities[0] == "i32";
+         requests[2].base_name == "Promise" && requests[2].argument_identities[0] == "i32" &&
+         requests[3].base_name == "Option" && requests[3].argument_identities[0] == "string" &&
+         requests[4].base_name == "Result" && requests[4].argument_identities.size() == 2 &&
+         requests[5].base_name == "identity" && requests[5].argument_identities[0] == "i32";
 }
 
 bool LangTastCollectsGenericDeclarationMetadata() {

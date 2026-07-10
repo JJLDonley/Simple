@@ -216,6 +216,12 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
       case Simple::Lang::AST::DeclKind::Variable:
         if (!CollectInstantiationRequestsFromType(decl.var.type, out)) return false;
         break;
+      case Simple::Lang::AST::DeclKind::Extern:
+        if (!CollectInstantiationRequestsFromType(decl.ext.return_type, out)) return false;
+        for (const auto& param : decl.ext.params) {
+          if (!CollectInstantiationRequestsFromType(param.type, out)) return false;
+        }
+        break;
       case Simple::Lang::AST::DeclKind::Function:
         if (!CollectFromFunction(decl.func, out)) return false;
         break;
