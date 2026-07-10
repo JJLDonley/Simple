@@ -1,5 +1,6 @@
 #include "runtime/type_identity.h"
 
+#include <iomanip>
 #include <sstream>
 
 namespace Simple::VM::Runtime {
@@ -8,6 +9,20 @@ namespace {
 std::string Hex64(uint64_t value) {
   std::ostringstream out;
   out << std::hex << value;
+  return out.str();
+}
+
+std::string EscapeIdentitySegment(const std::string& value) {
+  std::ostringstream out;
+  for (const unsigned char ch : value) {
+    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+        (ch >= '0' && ch <= '9') || ch == '_' || ch == '.' || ch == '$') {
+      out << static_cast<char>(ch);
+    } else {
+      out << '%' << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+          << static_cast<uint32_t>(ch) << std::nouppercase << std::dec;
+    }
+  }
   return out.str();
 }
 
@@ -46,13 +61,46 @@ std::string CanonicalPrimitiveTypeIdentity(Simple::Byte::TypeKind kind) {
   return "invalid";
 }
 
+std::string CanonicalEnumTypeIdentity(const std::string& enum_name,
+                                      Simple::Byte::TypeKind underlying_kind) {
+  return "enum:" + EscapeIdentitySegment(enum_name) + ":" +
+         CanonicalPrimitiveTypeIdentity(underlying_kind);
+}
+
+std::string CanonicalPointerTypeIdentity(const std::string& pointee_type_identity) {
+  return "ptr<" + pointee_type_identity + ">";
+}
+
+std::string CanonicalArrayTypeIdentity(const std::string& element_type_identity) {
+  return "array<" + element_type_identity + ">";
+}
+
+std::string CanonicalListTypeIdentity(const std::string& element_type_identity) {
+  return "list<" + element_type_identity + ">";
+}
+
 std::string CanonicalHandleTypeIdentity(Simple::VM::Native::NativeResourceKind kind) {
   return "handle#" + std::to_string(Simple::VM::Native::NativeResourceKindId(kind));
+}
+
+std::string CanonicalChannelTypeIdentity(const std::string& value_type_identity) {
+  return "channel<" + value_type_identity + ">";
 }
 
 std::string CanonicalAggregateTypeIdentity(const AbiAggregateLayout& layout) {
   return "data#" + Hex64(layout.layout_hash) + ":" + std::to_string(layout.size) + ":" +
          std::to_string(layout.align);
+}
+
+std::string CanonicalInstantiatedTypeIdentity(const std::string& base_type_identity,
+                                             const std::vector<std::string>& argument_identities) {
+  std::string out = "inst<" + base_type_identity;
+  for (const std::string& argument : argument_identities) {
+    out += ",";
+    out += argument;
+  }
+  out += ">";
+  return out;
 }
 
 std::string CanonicalPromiseTypeIdentity(const std::string& value_type_identity) {
