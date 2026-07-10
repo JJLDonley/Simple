@@ -1356,6 +1356,52 @@ size_t NativeRegistry::Size() const {
   return functions_.size();
 }
 
+bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error) {
+  for (const NativeFunctionSpec& spec : registry.Functions()) {
+    const std::string name = spec.module_name + "." + spec.symbol_name;
+    if (spec.module_name.empty() || spec.symbol_name.empty()) {
+      if (error) *error = "native metadata has empty module or symbol";
+      return false;
+    }
+    if (!spec.handler) {
+      if (error) *error = name + " missing handler";
+      return false;
+    }
+    for (Simple::Byte::TypeKind param : spec.parameter_types) {
+      if (param == Simple::Byte::TypeKind::Unspecified || param == Simple::Byte::TypeKind::Never) {
+        if (error) *error = name + " has invalid parameter type";
+        return false;
+      }
+    }
+    for (const NativeResourceUse& resource : spec.resources) {
+      if (resource.kind == NativeResourceKind::Unknown) {
+        if (error) *error = name + " declares unknown resource kind";
+        return false;
+      }
+      if (resource.access != NativeResourceAccess::Output &&
+          resource.parameter_index >= spec.parameter_types.size()) {
+        if (error) *error = name + " resource parameter index out of range";
+        return false;
+      }
+      if (resource.ownership == NativeOwnershipRule::None) {
+        if (error) *error = name + " resource missing ownership rule";
+        return false;
+      }
+      if (resource.access == NativeResourceAccess::Output &&
+          resource.cleanup == NativeCleanupBehavior::None) {
+        if (error) *error = name + " resource output missing cleanup behavior";
+        return false;
+      }
+      if (resource.access == NativeResourceAccess::InputOutput &&
+          resource.cleanup != NativeCleanupBehavior::CloseRequired) {
+        if (error) *error = name + " inout resource must require close";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;
   switch (kind) {

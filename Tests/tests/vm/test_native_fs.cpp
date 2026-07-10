@@ -5,6 +5,7 @@
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "native/dispatch.h"
 #include "native/fs.h"
@@ -93,6 +94,35 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
   if (!Simple::VM::Native::Fs::ReadText(path.string(), &read)) return false;
   const bool removed = Simple::VM::Native::Fs::Remove(path.string());
   return removed && read == text && !std::filesystem::exists(path);
+}
+
+bool VmNativeRegistryMetadataValidatesSpecs() {
+  Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  std::string error;
+  if (!Simple::VM::Native::ValidateNativeRegistryMetadata(registry, &error) || !error.empty()) {
+    return false;
+  }
+
+  Simple::VM::Native::NativeFunctionSpec bad;
+  bad.module_name = "System.bad";
+  bad.symbol_name = "leak";
+  bad.parameter_types = {Simple::Byte::TypeKind::I32};
+  bad.result_type = Simple::Byte::TypeKind::I32;
+  bad.resources.push_back(Simple::VM::Native::NativeResourceUse{
+      Simple::VM::Native::NativeResourceKind::File,
+      Simple::VM::Native::NativeResourceAccess::Output,
+      Simple::VM::Native::NativeOwnershipRule::TransferToCaller,
+      Simple::VM::Native::NativeCleanupBehavior::None,
+      0xffffffffu});
+  bad.handler = [](Simple::VM::Native::NativeCallContext&) {
+    Simple::VM::Native::NativeCallResult result;
+    result.value = 0;
+    return result;
+  };
+  if (!registry.Register(std::move(bad))) return false;
+  error.clear();
+  return !Simple::VM::Native::ValidateNativeRegistryMetadata(registry, &error) &&
+         error.find("resource output missing cleanup behavior") != std::string::npos;
 }
 
 bool VmNativeFunctionMetadataDeclaresResources() {
@@ -268,6 +298,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_has_no_native_stdlib_forwarding_glue", VmRuntimeHasNoNativeStdlibForwardingGlue},
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
+  {"vm_native_registry_metadata_validates_specs", VmNativeRegistryMetadataValidatesSpecs},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},

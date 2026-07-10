@@ -127,6 +127,7 @@ void RegisterSystemFs(NativeRegistry& registry);
 void RegisterSystemIo(NativeRegistry& registry);
 void RegisterSystemDl(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
+bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error);
 std::string GenerateStdLibMarkdown(const NativeRegistry& registry);
 
 } // namespace Simple::VM::Native
