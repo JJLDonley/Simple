@@ -78,6 +78,8 @@ Native modules include time, filesystem/path/env/OS helpers, logging, buffers, J
 
 Native host resources use generational opaque handles. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown.
 
+Native function metadata records layer, module, symbol, parameter/result types, resource uses, blocking behavior, capability tags, platform availability, and stability. The interpreter and JIT use this shared metadata instead of ad hoc native signatures.
+
 ## Dynamic libraries / FFI
 
 `System.dl` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime checks argument count, argument types, return shape, and ABI support. Recursive artifact ABI is rejected.

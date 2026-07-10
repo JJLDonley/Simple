@@ -7,6 +7,7 @@
 #include <string>
 
 #include "native/fs.h"
+#include "native/registry.h"
 #include "native/resource_registry.h"
 
 namespace Simple::VM::Tests {
@@ -93,6 +94,43 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
   return removed && read == text && !std::filesystem::exists(path);
 }
 
+bool VmNativeFunctionMetadataDeclaresResources() {
+  using Simple::VM::Native::NativeBlockingBehavior;
+  using Simple::VM::Native::NativeResourceAccess;
+  using Simple::VM::Native::NativeResourceKind;
+
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const auto* fs_open = registry.Find("System.fs", "open");
+  const auto* fs_read = registry.Find("System.fs", "read");
+  const auto* fs_close = registry.Find("System.fs", "close");
+  const auto* dl_open = registry.Find("System.dl", "open");
+  const auto* dl_sym = registry.Find("System.dl", "sym");
+  if (!fs_open || !fs_read || !fs_close || !dl_open || !dl_sym) return false;
+  if (fs_open->resources.size() != 1 ||
+      fs_open->resources[0].kind != NativeResourceKind::File ||
+      fs_open->resources[0].access != NativeResourceAccess::Output ||
+      fs_open->blocking != NativeBlockingBehavior::MayBlock) {
+    return false;
+  }
+  if (fs_read->resources.size() != 1 ||
+      fs_read->resources[0].kind != NativeResourceKind::File ||
+      fs_read->resources[0].access != NativeResourceAccess::Input ||
+      fs_read->resources[0].parameter_index != 0 ||
+      fs_read->capability_tags.empty()) {
+    return false;
+  }
+  if (fs_close->resources.size() != 1 ||
+      fs_close->resources[0].access != NativeResourceAccess::InputOutput) {
+    return false;
+  }
+  return dl_open->resources.size() == 1 &&
+         dl_open->resources[0].kind == NativeResourceKind::FfiLibrary &&
+         dl_open->resources[0].access == NativeResourceAccess::Output &&
+         dl_sym->resources.size() == 1 &&
+         dl_sym->resources[0].parameter_index == 0 &&
+         !dl_open->capability_tags.empty();
+}
+
 bool VmNativeResourceRegistryTracksHandleLifecycle() {
   using Simple::VM::Native::NativeHandleId;
   using Simple::VM::Native::NativeResourceKind;
@@ -146,6 +184,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_has_no_native_stdlib_forwarding_glue", VmRuntimeHasNoNativeStdlibForwardingGlue},
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
+  {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };
 

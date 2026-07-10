@@ -357,10 +357,10 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Validate handle kind before every use.
 - [x] Detect stale handle generation after close/reuse.
 - [ ] Define behavior for:
-  - [ ] double close.
-  - [ ] use after close.
-  - [ ] wrong-kind handle use.
-  - [ ] VM shutdown with live handles.
+  - [x] double close.
+  - [x] use after close.
+  - [x] wrong-kind handle use.
+  - [x] VM shutdown with live handles.
   - [ ] native callback failure during cleanup.
 - [x] Add VM shutdown cleanup sweep.
 - [ ] Tests:
@@ -374,26 +374,26 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 Extend `NativeFunctionSpec` with:
 
-- [ ] layer: `core`, `system`, `standard`, `domain`.
-- [ ] module and function name.
-- [ ] parameter/return types.
-- [ ] resource inputs/outputs.
-- [ ] ownership transfer rules.
-- [ ] cleanup behavior.
-- [ ] blocking behavior.
-- [ ] capability tags.
-- [ ] platform availability.
-- [ ] stability status.
+- [x] layer: `core`, `system`, `standard`, `domain`.
+- [x] module and function name.
+- [x] parameter/return types.
+- [x] resource inputs/outputs metadata shape.
+- [ ] ownership transfer rules beyond input/output/input-output access.
+- [ ] cleanup behavior metadata beyond resource kind/use.
+- [x] blocking behavior metadata shape.
+- [x] capability tags metadata shape.
+- [x] platform availability metadata shape.
+- [x] stability status metadata shape.
 - [ ] doc summary/examples.
 
 ### Capability Policy
 
 - [ ] Add capability tags:
-  - [ ] filesystem read/write.
+  - [x] filesystem read/write.
   - [ ] process spawn.
   - [ ] environment read/write.
   - [ ] network client/server.
-  - [ ] FFI/dynamic loading.
+  - [x] FFI/dynamic loading.
   - [ ] native assembly/code generation.
   - [ ] threading.
   - [ ] clock/time.

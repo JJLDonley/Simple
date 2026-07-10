@@ -16559,7 +16559,9 @@ bool RunNativeRegistryModuleTest() {
   fs_close_read_ctx.args = {fs_open_read_result.value};
   const auto fs_close_read_result = fs_close ? fs_close->handler(fs_close_read_ctx)
                                              : Simple::VM::Native::NativeCallResult{};
-  const uint32_t fs_fd_read_first = read_test_u32(fs_fd_read_buf->payload, 4);
+  HeapObject* fs_fd_read_result_buf = metadata_heap.Get(fs_fd_read_buf_ref);
+  if (!fs_fd_read_result_buf) return false;
+  const uint32_t fs_fd_read_first = read_test_u32(fs_fd_read_result_buf->payload, 4);
   Simple::VM::Native::NativeCallContext fs_cwd_ctx;
   const auto fs_cwd_result = fs_cwd ? fs_cwd->handler(fs_cwd_ctx)
                                     : Simple::VM::Native::NativeCallResult{};

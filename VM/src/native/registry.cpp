@@ -1277,7 +1277,27 @@ NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
   spec.symbol_name = symbol_name;
   spec.parameter_types = std::move(params);
   spec.result_type = result_type;
+  spec.layer = NativeLayer::System;
+  spec.stability = NativeStability::Experimental;
   spec.handler = std::move(handler);
+  return spec;
+}
+
+NativeFunctionSpec WithResource(NativeFunctionSpec spec,
+                                NativeResourceKind kind,
+                                NativeResourceAccess access,
+                                uint32_t parameter_index = 0xffffffffu) {
+  spec.resources.push_back(NativeResourceUse{kind, access, parameter_index});
+  return spec;
+}
+
+NativeFunctionSpec MayBlock(NativeFunctionSpec spec) {
+  spec.blocking = NativeBlockingBehavior::MayBlock;
+  return spec;
+}
+
+NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capability) {
+  spec.capability_tags.push_back(capability);
   return spec;
 }
 
@@ -1403,10 +1423,18 @@ void RegisterSystemJson(NativeRegistry& registry) {
 
 void RegisterSystemDl(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.dl", "open", {TypeKind::String}, TypeKind::I64, DlOpen));
-  registry.Register(MakeSpec("System.dl", "sym", {TypeKind::I64, TypeKind::String}, TypeKind::I64,
-                             DlSymbol));
-  registry.Register(MakeSpec("System.dl", "close", {TypeKind::I64}, TypeKind::I32, DlClose));
+  registry.Register(WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
+                                                    TypeKind::I64, DlOpen),
+                                     "ffi.dynamic_load"),
+                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::Output));
+  registry.Register(WithResource(WithCapability(MakeSpec("System.dl", "sym",
+                                                    {TypeKind::I64, TypeKind::String},
+                                                    TypeKind::I64, DlSymbol),
+                                     "ffi.dynamic_load"),
+                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0));
+  registry.Register(WithResource(MakeSpec("System.dl", "close", {TypeKind::I64},
+                                         TypeKind::I32, DlClose),
+                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0));
   registry.Register(MakeSpec("System.dl", "last_error", {}, TypeKind::String, DlLastError));
 }
 
@@ -1448,24 +1476,43 @@ void RegisterSystemPath(NativeRegistry& registry) {
 
 void RegisterSystemFs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.fs", "readText", {TypeKind::String}, TypeKind::String,
-                             FsReadText));
-  registry.Register(MakeSpec("System.fs", "writeText", {TypeKind::String, TypeKind::String},
-                             TypeKind::I32, FsWriteText));
-  registry.Register(MakeSpec("System.fs", "readBytes", {TypeKind::String}, TypeKind::Ref,
-                             FsReadBytes));
-  registry.Register(MakeSpec("System.fs", "writeBytes", {TypeKind::String, TypeKind::Ref},
-                             TypeKind::I32, FsWriteBytes));
-  registry.Register(MakeSpec("System.fs", "listDir", {TypeKind::String}, TypeKind::Ref,
-                             FsListDir));
-  registry.Register(MakeSpec("System.fs", "open", {TypeKind::String, TypeKind::I32},
-                             TypeKind::I32, FsOpen));
-  registry.Register(MakeSpec("System.fs", "read", {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
-                             TypeKind::I32, FsRead));
-  registry.Register(MakeSpec("System.fs", "write", {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
-                             TypeKind::I32, FsWrite));
-  registry.Register(MakeSpec("System.fs", "close", {TypeKind::I32}, TypeKind::Unspecified,
-                             FsClose));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "readText", {TypeKind::String},
+                                                  TypeKind::String, FsReadText)),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "writeText",
+                                                  {TypeKind::String, TypeKind::String},
+                                                  TypeKind::I32, FsWriteText)),
+                                   "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "readBytes",
+                                                  {TypeKind::String}, TypeKind::Ref, FsReadBytes)),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "writeBytes",
+                                                  {TypeKind::String, TypeKind::Ref},
+                                                  TypeKind::I32, FsWriteBytes)),
+                                   "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "listDir",
+                                                  {TypeKind::String}, TypeKind::Ref, FsListDir)),
+                                   "filesystem.read"));
+  registry.Register(WithResource(
+      WithCapability(MayBlock(MakeSpec("System.fs", "open", {TypeKind::String, TypeKind::I32},
+                                       TypeKind::I32, FsOpen)),
+                     "filesystem.open"),
+      NativeResourceKind::File, NativeResourceAccess::Output));
+  registry.Register(WithResource(
+      WithCapability(MayBlock(MakeSpec("System.fs", "read",
+                                       {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
+                                       TypeKind::I32, FsRead)),
+                     "filesystem.read"),
+      NativeResourceKind::File, NativeResourceAccess::Input, 0));
+  registry.Register(WithResource(
+      WithCapability(MayBlock(MakeSpec("System.fs", "write",
+                                       {TypeKind::I32, TypeKind::Ref, TypeKind::I32},
+                                       TypeKind::I32, FsWrite)),
+                     "filesystem.write"),
+      NativeResourceKind::File, NativeResourceAccess::Input, 0));
+  registry.Register(WithResource(MakeSpec("System.fs", "close", {TypeKind::I32},
+                                         TypeKind::Unspecified, FsClose),
+                                 NativeResourceKind::File, NativeResourceAccess::InputOutput, 0));
   registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
   registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
                              TypeKind::I32, FsCopy));

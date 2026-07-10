@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "heap.h"
+#include "native/resource_registry.h"
 #include "sbc_types.h"
 
 namespace Simple::VM::Native {
@@ -32,11 +33,48 @@ struct NativeCallResult {
 
 using NativeFunctionHandler = std::function<NativeCallResult(NativeCallContext&)>;
 
+enum class NativeLayer {
+  Core,
+  System,
+  Standard,
+  Domain,
+};
+
+enum class NativeResourceAccess {
+  Input,
+  Output,
+  InputOutput,
+};
+
+enum class NativeBlockingBehavior {
+  NonBlocking,
+  MayBlock,
+};
+
+enum class NativeStability {
+  Experimental,
+  Stable,
+  Unsafe,
+};
+
+struct NativeResourceUse {
+  NativeResourceKind kind = NativeResourceKind::Unknown;
+  NativeResourceAccess access = NativeResourceAccess::Input;
+  uint32_t parameter_index = 0xffffffffu;
+};
+
 struct NativeFunctionSpec {
   std::string module_name;
   std::string symbol_name;
   std::vector<Simple::Byte::TypeKind> parameter_types;
   Simple::Byte::TypeKind result_type = Simple::Byte::TypeKind::Unspecified;
+  NativeLayer layer = NativeLayer::System;
+  std::vector<NativeResourceUse> resources;
+  NativeBlockingBehavior blocking = NativeBlockingBehavior::NonBlocking;
+  std::vector<std::string> capability_tags;
+  std::vector<std::string> platforms;
+  NativeStability stability = NativeStability::Experimental;
+  std::string doc_summary;
   NativeFunctionHandler handler;
 };
 
