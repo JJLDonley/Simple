@@ -201,6 +201,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] Link/internal form with stable escaping or hash suffixes.
   - [x] Collision detection with diagnostic output.
 - [ ] Add generic declaration metadata to TAST and SIR/SBC debug/type metadata.
+  - [x] TAST collects generic function/data/artifact/method declaration metadata.
 - [ ] Reject recursive value containment without indirection; allow recursion through pointer/ref/handle.
 
 ### Specialization Pipeline
@@ -208,7 +209,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [ ] Add `Lang/include/GEN/specializer.h`.
 - [ ] Add `Lang/src/GEN/specializer.cpp`.
 - [ ] Insert specialization after generic TAST validation and before IRB lowering.
-- [ ] Collect generic function/data/artifact declarations.
+- [x] Collect generic function/data/artifact declarations.
 - [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
 - [ ] Instantiate dependencies recursively with cycle detection.
 - [ ] Re-run semantic/type checks on each concrete specialization.

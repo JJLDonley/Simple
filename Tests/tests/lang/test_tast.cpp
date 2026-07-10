@@ -337,6 +337,54 @@ bool LangTastFnLiteralChecksTargetProcedureShape() {
   return error.find("nested fn literals are not supported") != std::string::npos;
 }
 
+bool LangTastCollectsGenericDeclarationMetadata() {
+  using Simple::Lang::AST::DeclKind;
+  using Simple::Lang::TAST::GenericDeclarationKind;
+  using Simple::Lang::TAST::GenericDeclarationMetadata;
+
+  Simple::Lang::AST::Program program;
+  Simple::Lang::AST::Decl function;
+  function.kind = DeclKind::Function;
+  function.func.name = "identity";
+  function.func.generics = {"T"};
+  program.decls.push_back(function);
+
+  Simple::Lang::AST::Decl data;
+  data.kind = DeclKind::Artifact;
+  data.artifact.name = "Box";
+  data.artifact.is_data = true;
+  data.artifact.generics = {"T"};
+  Simple::Lang::AST::FuncDecl method;
+  method.name = "map";
+  method.generics = {"U"};
+  data.artifact.methods.push_back(method);
+  program.decls.push_back(data);
+
+  std::vector<GenericDeclarationMetadata> metadata;
+  std::string error;
+  if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &metadata, &error)) {
+    return false;
+  }
+  if (metadata.size() != 3) return false;
+  if (metadata[0].kind != GenericDeclarationKind::Function || metadata[0].name != "identity" ||
+      metadata[0].type_params.size() != 1 || metadata[0].type_params[0] != "T") {
+    return false;
+  }
+  if (metadata[1].kind != GenericDeclarationKind::Data || metadata[1].name != "Box") {
+    return false;
+  }
+  if (metadata[2].kind != GenericDeclarationKind::Method || metadata[2].owner_name != "Box" ||
+      metadata[2].name != "map" || metadata[2].type_params.size() != 2 ||
+      metadata[2].type_params[0] != "T" || metadata[2].type_params[1] != "U") {
+    return false;
+  }
+
+  program.decls[1].artifact.methods[0].generics = {"T"};
+  metadata.clear();
+  return !Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &metadata, &error) &&
+         error.find("duplicate generic parameter: T") != std::string::npos;
+}
+
 bool LangSplitTastAbiAndGenericsSmoke() {
   std::unordered_set<std::string> collected;
   std::string generic_error;
@@ -988,6 +1036,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
+  {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
   {"lang_tast_substitute_generic_types_rewrites_nested_args", LangTastSubstituteGenericTypesRewritesNestedArgs},

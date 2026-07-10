@@ -11,6 +11,24 @@ namespace Simple::Lang::TAST {
 
 using GenericSubstitutionMap = std::unordered_map<std::string, Simple::Lang::AST::TypeRef>;
 
+enum class GenericDeclarationKind {
+  Function,
+  Data,
+  Artifact,
+  Method,
+};
+
+struct GenericDeclarationMetadata {
+  GenericDeclarationKind kind = GenericDeclarationKind::Function;
+  std::string owner_name;
+  std::string name;
+  std::vector<std::string> type_params;
+};
+
+bool CollectGenericDeclarationMetadata(const Simple::Lang::AST::Program& program,
+                                       std::vector<GenericDeclarationMetadata>* out,
+                                       std::string* error);
+
 bool CollectTypeParams(const std::vector<std::string>& generics,
                        std::unordered_set<std::string>* out,
                        std::string* error);

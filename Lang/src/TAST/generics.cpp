@@ -6,6 +6,61 @@
 
 namespace Simple::Lang::TAST {
 
+bool CollectGenericDeclarationMetadata(const Simple::Lang::AST::Program& program,
+                                       std::vector<GenericDeclarationMetadata>* out,
+                                       std::string* error) {
+  if (!out) return false;
+  out->clear();
+  auto append = [&](GenericDeclarationKind kind,
+                    std::string owner,
+                    std::string name,
+                    const std::vector<std::string>& type_params) -> bool {
+    if (type_params.empty()) return true;
+    std::unordered_set<std::string> collected;
+    if (!CollectTypeParams(type_params, &collected, error)) return false;
+    GenericDeclarationMetadata metadata;
+    metadata.kind = kind;
+    metadata.owner_name = std::move(owner);
+    metadata.name = std::move(name);
+    metadata.type_params = type_params;
+    out->push_back(std::move(metadata));
+    return true;
+  };
+
+  for (const auto& decl : program.decls) {
+    switch (decl.kind) {
+      case Simple::Lang::AST::DeclKind::Function:
+        if (!append(GenericDeclarationKind::Function, {}, decl.func.name, decl.func.generics)) {
+          return false;
+        }
+        break;
+      case Simple::Lang::AST::DeclKind::Artifact:
+        if (!append(decl.artifact.is_data ? GenericDeclarationKind::Data
+                                          : GenericDeclarationKind::Artifact,
+                    {},
+                    decl.artifact.name,
+                    decl.artifact.generics)) {
+          return false;
+        }
+        for (const auto& method : decl.artifact.methods) {
+          std::unordered_set<std::string> merged_set;
+          if (!CollectTypeParamsMerged(decl.artifact.generics, method.generics, &merged_set, error)) {
+            return false;
+          }
+          std::vector<std::string> merged = decl.artifact.generics;
+          merged.insert(merged.end(), method.generics.begin(), method.generics.end());
+          if (!append(GenericDeclarationKind::Method, decl.artifact.name, method.name, merged)) {
+            return false;
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return true;
+}
+
 bool CollectTypeParams(const std::vector<std::string>& generics,
                        std::unordered_set<std::string>* out,
                        std::string* error) {
