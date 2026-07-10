@@ -355,6 +355,29 @@ bool VmRuntimeAbiComputesNestedAggregateLayout() {
          outer.padding[1].size == 6;
 }
 
+bool VmRuntimeAbiDataMethodsDoNotAffectLayout() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::AbiDataDeclaration;
+  using Simple::VM::Runtime::ComputeStableDataLayout;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  AbiDataDeclaration without_methods;
+  without_methods.fields = {
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::F64),
+  };
+
+  AbiDataDeclaration with_methods = without_methods;
+  with_methods.method_count = 7;
+
+  const auto first = ComputeStableDataLayout(without_methods);
+  const auto second = ComputeStableDataLayout(with_methods);
+  return first.size == second.size && first.align == second.align &&
+         first.layout_hash == second.layout_hash && first.fields.size() == second.fields.size() &&
+         first.fields[0].offset == second.fields[0].offset &&
+         first.fields[1].offset == second.fields[1].offset;
+}
+
 bool VmRuntimeAbiRejectsRecursiveValueContainment() {
   using Simple::VM::Runtime::AbiContainmentField;
   using Simple::VM::Runtime::ValidateNoRecursiveValueContainment;
@@ -434,6 +457,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_nested_aggregate_layout", VmRuntimeAbiComputesNestedAggregateLayout},
+  {"vm_runtime_abi_data_methods_do_not_affect_layout", VmRuntimeAbiDataMethodsDoNotAffectLayout},
   {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };

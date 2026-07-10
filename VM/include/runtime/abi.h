@@ -59,6 +59,11 @@ struct AbiContainmentField {
   bool indirect = false;
 };
 
+struct AbiDataDeclaration {
+  std::vector<AbiTypeInfo> fields;
+  uint32_t method_count = 0;
+};
+
 struct AbiAggregateLayout {
   uint32_t size = 0;
   uint32_t align = 1;
@@ -132,6 +137,7 @@ bool IsAbiResultOk(const AbiVariantValue& value);
 bool IsAbiResultErr(const AbiVariantValue& value);
 uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
+AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration);
 bool ValidateNoRecursiveValueContainment(
     const std::vector<std::vector<AbiContainmentField>>& type_fields,
     std::string* error);

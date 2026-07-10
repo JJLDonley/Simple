@@ -324,6 +324,10 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
   return layout;
 }
 
+AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration) {
+  return ComputeStableAggregateLayout(declaration.fields);
+}
+
 bool ValidateNoRecursiveValueContainment(
     const std::vector<std::vector<AbiContainmentField>>& type_fields,
     std::string* error) {

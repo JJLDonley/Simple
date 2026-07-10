@@ -297,7 +297,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
 - [x] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
 - [x] Return-by-value rules match parameter rules through explicit ABI pass-mode helpers.
-- [ ] Tests prove methods do not affect layout.
+- [x] Tests prove methods do not affect layout.
 - [ ] Tests cover padding, nested data, arrays, generics, and layout hashes.
   - [x] Runtime ABI tests cover deterministic stable aggregate layout hashes.
   - [x] Runtime ABI tests cover primitive padding and ref-containing aggregate classification.
@@ -305,6 +305,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Runtime ABI tests cover parameter/return pass-mode classification.
   - [x] Runtime ABI tests cover nested aggregate layout.
   - [x] Runtime ABI tests cover recursive value-containment rejection.
+  - [x] Runtime ABI tests cover method-insensitive stable data layout.
 
 ### Strings and Bytes ABI
 
