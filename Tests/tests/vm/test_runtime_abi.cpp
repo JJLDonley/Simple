@@ -219,13 +219,33 @@ bool VmRuntimeAbiMarksOpaqueVmReferences() {
 
 bool VmRuntimeAbiValidatesExternalCSignatures() {
   using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::GetAggregateAbiTypeInfo;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
   using Simple::VM::Runtime::ValidateExternalCAbiSignature;
+  using Simple::VM::Runtime::ValidateExternalCAbiTypeInfos;
 
   std::string error;
   if (!ValidateExternalCAbiSignature({TypeKind::I32, TypeKind::Ptr}, TypeKind::I64, &error) ||
       !error.empty()) {
     return false;
   }
+  const auto stable_data = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::F64),
+  }));
+  if (!ValidateExternalCAbiTypeInfos({stable_data}, stable_data, &error) || !error.empty()) {
+    return false;
+  }
+  const auto managed_data = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::String),
+  }));
+  if (ValidateExternalCAbiTypeInfos({managed_data}, stable_data, &error) ||
+      error.find("parameter 0") == std::string::npos) {
+    return false;
+  }
+  error.clear();
   if (ValidateExternalCAbiSignature({TypeKind::String}, TypeKind::I32, &error) ||
       error.find("string") == std::string::npos) {
     return false;

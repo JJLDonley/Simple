@@ -127,5 +127,8 @@ bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& par
 bool ValidateExternalCAbiSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                    Simple::Byte::TypeKind result_type,
                                    std::string* error);
+bool ValidateExternalCAbiTypeInfos(const std::vector<AbiTypeInfo>& parameter_types,
+                                   const AbiTypeInfo& result_type,
+                                   std::string* error);
 
 } // namespace Simple::VM::Runtime

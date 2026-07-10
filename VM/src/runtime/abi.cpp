@@ -352,4 +352,23 @@ bool ValidateExternalCAbiSignature(const std::vector<Simple::Byte::TypeKind>& pa
   return ValidateAbiCallableSignature(parameter_types, result_type, true, error);
 }
 
+bool ValidateExternalCAbiTypeInfos(const std::vector<AbiTypeInfo>& parameter_types,
+                                   const AbiTypeInfo& result_type,
+                                   std::string* error) {
+  for (size_t i = 0; i < parameter_types.size(); ++i) {
+    const AbiTypeInfo& type = parameter_types[i];
+    if (type.abi_class == AbiClass::Void || type.abi_class == AbiClass::Invalid ||
+        !type.external_ffi_callable) {
+      if (error) *error = "parameter " + std::to_string(i) + " is not external-C ABI callable";
+      return false;
+    }
+  }
+  if (result_type.abi_class != AbiClass::Void &&
+      (result_type.abi_class == AbiClass::Invalid || !result_type.external_ffi_callable)) {
+    if (error) *error = "result is not external-C ABI callable";
+    return false;
+  }
+  return true;
+}
+
 } // namespace Simple::VM::Runtime
