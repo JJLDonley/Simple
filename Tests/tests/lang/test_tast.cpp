@@ -683,6 +683,52 @@ bool LangGenMaterializesConcreteProgram() {
          error.find("duplicate top-level declaration") != std::string::npos;
 }
 
+bool LangIrbRejectsInvalidConcreteSpecialization() {
+  using Simple::Lang::AST::DeclKind;
+
+  Simple::Lang::AST::Program program;
+  Simple::Lang::AST::Decl fn_decl;
+  fn_decl.kind = DeclKind::Function;
+  fn_decl.func.name = "bad";
+  fn_decl.func.generics = {"T"};
+  fn_decl.func.return_type = Simple::Lang::TAST::MakeSimpleType("i32");
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "value";
+  param.type = Simple::Lang::TAST::MakeSimpleType("T");
+  fn_decl.func.params.push_back(param);
+  Simple::Lang::AST::Stmt ret;
+  ret.kind = Simple::Lang::AST::StmtKind::Return;
+  ret.has_return_expr = true;
+  ret.expr.kind = Simple::Lang::AST::ExprKind::Identifier;
+  ret.expr.text = "value";
+  fn_decl.func.body.push_back(ret);
+  program.decls.push_back(fn_decl);
+
+  Simple::Lang::AST::Stmt call_stmt;
+  call_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  call_stmt.expr.kind = Simple::Lang::AST::ExprKind::Call;
+  Simple::Lang::AST::Expr callee;
+  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
+  callee.text = "bad";
+  call_stmt.expr.children.push_back(callee);
+  Simple::Lang::AST::Expr arg;
+  arg.kind = Simple::Lang::AST::ExprKind::Literal;
+  arg.literal_kind = Simple::Lang::AST::LiteralKind::String;
+  arg.text = "x";
+  call_stmt.expr.args.push_back(arg);
+  call_stmt.expr.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("string"));
+  program.top_level_stmts.push_back(call_stmt);
+
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  resolved.program = &program;
+  Simple::Lang::TAST::TypedProgram typed;
+  typed.resolved = &resolved;
+  Simple::Lang::IRB::Module module;
+  std::string error;
+  return !Simple::Lang::IRB::BuildModule(typed, &module, &error) &&
+         error.find("return type mismatch") != std::string::npos;
+}
+
 bool LangGenNormalizesConcreteRequestMetadata() {
   using Simple::Lang::GEN::GenericInstantiationRequest;
   using Simple::Lang::GEN::NormalizeInstantiationRequests;
@@ -1500,6 +1546,7 @@ const TestCase kLangTastTests[] = {
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
   {"lang_gen_specializes_concrete_declarations", LangGenSpecializesConcreteDeclarations},
   {"lang_gen_materializes_concrete_program", LangGenMaterializesConcreteProgram},
+  {"lang_irb_rejects_invalid_concrete_specialization", LangIrbRejectsInvalidConcreteSpecialization},
   {"lang_gen_normalizes_concrete_request_metadata", LangGenNormalizesConcreteRequestMetadata},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},

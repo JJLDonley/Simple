@@ -8,6 +8,7 @@
 
 #include "GEN/specializer.h"
 #include "IRE/sir_emitter.h"
+#include "TAST/type_checker.h"
 
 namespace Simple::Lang::IRB {
 namespace {
@@ -226,6 +227,11 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
                                                        generic_plan,
                                                        &concrete_program,
                                                        error)) {
+      return false;
+    }
+    std::string validate_error;
+    if (!Simple::Lang::ValidateProgram(concrete_program, &validate_error)) {
+      if (error) *error = validate_error;
       return false;
     }
     lowering_program = &concrete_program;
