@@ -9888,6 +9888,70 @@ bool RunLlvmJitDynamicDlScalarCallInsideLoopTest() {
   return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 4;
 }
 
+bool RunLlvmJitDynamicDlManagedSignatureDiagnosticTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  size_t loop_start = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 2);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  size_t loop_end = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(main_code, exit_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(main_code, back_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildSingleImportFunctionModuleWithTypes(main_code, 1, "System.dl", "call$managed",
+                                               SigSpec{0, 2, {3, 2}}, BuildTypesI32RefStringI64()));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "expected dynamic dl managed signature loop rejection\n";
+    return false;
+  }
+  return error.find("category=dynamic-dl/external-c") != std::string::npos &&
+         error.find("reason=non-scalar-or-managed-signature") != std::string::npos &&
+         error.find("target=System.dl.call$managed") != std::string::npos &&
+         error.find("sig=(i64,string)->i32") != std::string::npos;
+}
+
 bool RunLlvmJitManagedArgImportCallInsideLoopTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -10408,6 +10472,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_scalar_import_call_inside_loop", RunLlvmJitScalarImportCallInsideLoopTest},
   {"llvm_jit_pre_loop_allocating_import_with_loop", RunLlvmJitPreLoopAllocatingImportWithLoopTest},
   {"llvm_jit_dynamic_dl_scalar_call_inside_loop", RunLlvmJitDynamicDlScalarCallInsideLoopTest},
+  {"llvm_jit_dynamic_dl_managed_signature_diagnostic", RunLlvmJitDynamicDlManagedSignatureDiagnosticTest},
   {"llvm_jit_managed_arg_import_call_inside_loop", RunLlvmJitManagedArgImportCallInsideLoopTest},
   {"llvm_jit_resource_input_import_call_inside_loop", RunLlvmJitResourceInputImportCallInsideLoopTest},
   {"llvm_jit_unsafe_import_call_inside_loop_rejects", RunLlvmJitUnsafeImportCallInsideLoopRejectsTest},

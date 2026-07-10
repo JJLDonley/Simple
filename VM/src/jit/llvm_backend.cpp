@@ -1397,6 +1397,55 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (!name.empty()) return name;
     return "func#" + std::to_string(func_id);
   };
+  auto type_kind_label = [](Simple::Byte::TypeKind kind) -> std::string {
+    switch (kind) {
+      case Simple::Byte::TypeKind::Unspecified: return "unspecified";
+      case Simple::Byte::TypeKind::I32: return "i32";
+      case Simple::Byte::TypeKind::I64: return "i64";
+      case Simple::Byte::TypeKind::F32: return "f32";
+      case Simple::Byte::TypeKind::F64: return "f64";
+      case Simple::Byte::TypeKind::Ref: return "ref";
+      case Simple::Byte::TypeKind::I8: return "i8";
+      case Simple::Byte::TypeKind::I16: return "i16";
+      case Simple::Byte::TypeKind::I128: return "i128";
+      case Simple::Byte::TypeKind::U8: return "u8";
+      case Simple::Byte::TypeKind::U16: return "u16";
+      case Simple::Byte::TypeKind::U32: return "u32";
+      case Simple::Byte::TypeKind::U64: return "u64";
+      case Simple::Byte::TypeKind::U128: return "u128";
+      case Simple::Byte::TypeKind::Bool: return "bool";
+      case Simple::Byte::TypeKind::Char: return "char";
+      case Simple::Byte::TypeKind::String: return "string";
+      case Simple::Byte::TypeKind::Void: return "void";
+      case Simple::Byte::TypeKind::Never: return "never";
+      case Simple::Byte::TypeKind::Ptr: return "ptr";
+      case Simple::Byte::TypeKind::Array: return "array";
+      case Simple::Byte::TypeKind::List: return "list";
+      case Simple::Byte::TypeKind::Function: return "function";
+      case Simple::Byte::TypeKind::Result: return "result";
+      case Simple::Byte::TypeKind::Option: return "option";
+      case Simple::Byte::TypeKind::Vector: return "vector";
+    }
+    return "kind#" + std::to_string(static_cast<uint8_t>(kind));
+  };
+  auto type_label = [&](uint32_t type_id) -> std::string {
+    if (type_id == 0xFFFFFFFFu) return "unspecified";
+    if (type_id >= module.types.size()) return "type#" + std::to_string(type_id);
+    std::string name = Simple::Byte::ReadConstPoolString(module, module.types[type_id].name_str);
+    if (!name.empty()) return name;
+    return type_kind_label(static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind));
+  };
+  auto signature_label = [&](const Simple::Byte::SigRow& row) -> std::string {
+    std::ostringstream out;
+    out << "sig=(";
+    for (uint16_t i = 0; i < row.param_count; ++i) {
+      if (i != 0) out << ",";
+      const uint32_t param_index = row.param_type_start + i;
+      out << (param_index < module.param_types.size() ? type_label(module.param_types[param_index]) : "type#out-of-range");
+    }
+    out << ")->" << type_label(row.ret_type_id);
+    return out.str();
+  };
   auto native_import_spec = [&](uint32_t func_id) -> const Simple::VM::Native::NativeFunctionSpec* {
     std::string module_name;
     std::string symbol_name;
@@ -1427,8 +1476,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return true;
   };
   auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
-    auto unsafe = [](const std::string& category, const std::string& why, const std::string& target) {
-      return "category=" + category + " reason=" + why + (target.empty() ? std::string() : " target=" + target);
+    auto unsafe = [&](const std::string& category, const std::string& why, const std::string& target) {
+      return "category=" + category + " reason=" + why + (target.empty() ? std::string() : " target=" + target) +
+             " " + signature_label(row);
     };
     const std::string target = call_target_label(func_id, true);
     std::string module_name;
@@ -2150,8 +2200,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         unsafe_loop_call_candidates.push_back({op_pc,
                                                op,
                                                sig_is_scalar_loop_call_safe(target_sig)
-                                                   ? "category=indirect/procedure reason=unknown-target-effects"
-                                                   : "category=indirect/procedure reason=non-scalar-or-managed-signature"});
+                                                   ? "category=indirect/procedure reason=unknown-target-effects " + signature_label(target_sig)
+                                                   : "category=indirect/procedure reason=non-scalar-or-managed-signature " +
+                                                         signature_label(target_sig)});
         break;
       }
       case OpCode::CallImport:
@@ -2190,7 +2241,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
         } else if (!sig_is_scalar_loop_call_safe(target_sig)) {
           unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature target=" +
-                          call_target_label(target_func, false);
+                          call_target_label(target_func, false) + " " + signature_label(target_sig);
         }
         if (!unsafe_detail.empty()) {
           unsafe_loop_call_candidates.push_back({op_pc, op, std::move(unsafe_detail)});
