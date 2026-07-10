@@ -84,81 +84,72 @@ Slot PackF64(double value) {
 }
 
 NativeCallResult RandomSeed(NativeCallContext& context) {
-  Random::Seed(static_cast<uint64_t>(UnpackI64(context.args[0])));
-  NativeCallResult result;
-  result.has_value = false;
-  return result;
+  int64_t seed = 0;
+  if (!context.ArgI64(0, &seed)) return NativeCallResult::Error("System.random.seed missing seed");
+  Random::Seed(static_cast<uint64_t>(seed));
+  return NativeCallResult::Void();
 }
 
 NativeCallResult RandomI32(NativeCallContext&) {
-  NativeCallResult result;
-  result.value = PackI32(Random::I32());
-  return result;
+  return NativeCallResult::I32(Random::I32());
 }
 
 NativeCallResult RandomRange(NativeCallContext& context) {
-  NativeCallResult result;
-  result.value = PackI32(Random::Range(UnpackI32(context.args[0]), UnpackI32(context.args[1])));
-  return result;
+  int32_t min_value = 0;
+  int32_t max_value = 0;
+  if (!context.ArgI32(0, &min_value) || !context.ArgI32(1, &max_value)) {
+    return NativeCallResult::Error("System.random.range missing bounds");
+  }
+  return NativeCallResult::I32(Random::Range(min_value, max_value));
 }
 
 NativeCallResult RandomF64(NativeCallContext&) {
-  NativeCallResult result;
-  result.value = PackF64(Random::F64());
-  return result;
+  return NativeCallResult::F64(Random::F64());
 }
 
 NativeCallResult OsTimeMonoNs(NativeCallContext&) {
-  NativeCallResult result;
-  result.value = PackI64(Time::MonotonicNs());
-  return result;
+  return NativeCallResult::I64(Time::MonotonicNs());
 }
 
 NativeCallResult OsTimeWallNs(NativeCallContext&) {
-  NativeCallResult result;
-  result.value = PackI64(Time::WallNs());
-  return result;
+  return NativeCallResult::I64(Time::WallNs());
 }
 
 NativeCallResult OsSleepMs(NativeCallContext& context) {
-  Thread::SleepMs(UnpackI32(context.args[0]));
-  NativeCallResult result;
-  result.has_value = false;
-  return result;
+  int32_t ms = 0;
+  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.os.sleepMs missing duration");
+  Thread::SleepMs(ms);
+  return NativeCallResult::Void();
 }
 
 NativeCallResult OsCwdGet(NativeCallContext&) {
-  NativeCallResult result;
-  if (!Os::CurrentWorkingDirectory(&result.string_value)) {
-    result.value = PackRef(HeapLayout::kNullRef);
+  std::string cwd;
+  if (!Os::CurrentWorkingDirectory(&cwd)) {
+    return NativeCallResult::Ref(HeapLayout::kNullRef);
   }
-  return result;
+  return NativeCallResult::String(std::move(cwd));
 }
 
 NativeCallResult OsFormatWallNs(NativeCallContext& context) {
-  NativeCallResult result;
-  result.string_value = Time::FormatWallNsUtc(UnpackI64(context.args[0]));
-  return result;
+  int64_t ns = 0;
+  if (!context.ArgI64(0, &ns)) return NativeCallResult::Error("System.os.formatWallNs missing timestamp");
+  return NativeCallResult::String(Time::FormatWallNsUtc(ns));
 }
 
 NativeCallResult ThreadSleep(NativeCallContext& context) {
-  Thread::SleepMs(UnpackI32(context.args[0]));
-  NativeCallResult result;
-  result.has_value = false;
-  return result;
+  int32_t ms = 0;
+  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.thread.sleep missing duration");
+  Thread::SleepMs(ms);
+  return NativeCallResult::Void();
 }
 
 NativeCallResult ThreadYield(NativeCallContext&) {
   Thread::Yield();
-  NativeCallResult result;
-  result.has_value = false;
-  return result;
+  return NativeCallResult::Void();
 }
 
 NativeCallResult ThreadHardwareConcurrency(NativeCallContext&) {
-  NativeCallResult result;
-  result.value = PackI32(Thread::HardwareConcurrency());
-  return result;
+  return NativeCallResult::I32(Thread::HardwareConcurrency());
 }
 
 NativeCallResult ChannelNewI32(NativeCallContext&) {
@@ -1345,6 +1336,18 @@ bool NativeCallContext::ArgI64(size_t index, int64_t* out) const {
   return true;
 }
 
+bool NativeCallContext::ArgF32(size_t index, float* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = BitsToF32(UnpackU32Bits(args[index]));
+  return true;
+}
+
+bool NativeCallContext::ArgF64(size_t index, double* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = BitsToF64(UnpackU64Bits(args[index]));
+  return true;
+}
+
 bool NativeCallContext::ArgRef(size_t index, uint32_t* out) const {
   if (!out || index >= args.size()) return false;
   *out = UnpackRef(args[index]);
@@ -1370,6 +1373,18 @@ NativeCallResult NativeCallResult::I32(int32_t value) {
 NativeCallResult NativeCallResult::I64(int64_t value) {
   NativeCallResult result;
   result.value = PackI64(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::F32(float value) {
+  NativeCallResult result;
+  result.value = PackF32(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::F64(double value) {
+  NativeCallResult result;
+  result.value = PackF64(value);
   return result;
 }
 

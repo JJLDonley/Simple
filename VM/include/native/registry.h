@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <vector>
@@ -24,6 +25,8 @@ struct NativeCallContext {
 
   bool ArgI32(size_t index, int32_t* out) const;
   bool ArgI64(size_t index, int64_t* out) const;
+  bool ArgF32(size_t index, float* out) const;
+  bool ArgF64(size_t index, double* out) const;
   bool ArgRef(size_t index, uint32_t* out) const;
   bool ArgString(size_t index, std::string* out);
 };
@@ -38,6 +41,8 @@ struct NativeCallResult {
   static NativeCallResult Void();
   static NativeCallResult I32(int32_t value);
   static NativeCallResult I64(int64_t value);
+  static NativeCallResult F32(float value);
+  static NativeCallResult F64(double value);
   static NativeCallResult Ref(uint32_t value);
   static NativeCallResult String(std::string value);
   static NativeCallResult Error(std::string message);

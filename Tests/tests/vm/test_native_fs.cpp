@@ -1,5 +1,6 @@
 #include "test_utils.h"
 
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -128,28 +129,41 @@ bool VmNativeRegistryMetadataValidatesSpecs() {
 bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   Simple::VM::Heap heap;
   const uint32_t text_ref = Simple::VM::CreateString(heap, u"typed");
+  float f32_input = 1.25f;
+  uint32_t f32_bits = 0;
+  std::memcpy(&f32_bits, &f32_input, sizeof(f32_bits));
+  double f64_input = 2.5;
+  uint64_t f64_bits = 0;
+  std::memcpy(&f64_bits, &f64_input, sizeof(f64_bits));
   Simple::VM::Native::NativeCallContext context;
   context.heap = &heap;
-  context.args = {42, 9000000000ull, text_ref};
+  context.args = {42, 9000000000ull, f32_bits, f64_bits, text_ref};
 
   int32_t i32 = 0;
   int64_t i64 = 0;
+  float f32 = 0.0f;
+  double f64 = 0.0;
   uint32_t ref = 0;
   std::string text;
   if (!context.ArgI32(0, &i32) || i32 != 42) return false;
   if (!context.ArgI64(1, &i64) || i64 != 9000000000ll) return false;
-  if (!context.ArgRef(2, &ref) || ref != text_ref) return false;
-  if (!context.ArgString(2, &text) || text != "typed") return false;
+  if (!context.ArgF32(2, &f32) || f32 != f32_input) return false;
+  if (!context.ArgF64(3, &f64) || f64 != f64_input) return false;
+  if (!context.ArgRef(4, &ref) || ref != text_ref) return false;
+  if (!context.ArgString(4, &text) || text != "typed") return false;
   if (context.ArgI32(9, &i32)) return false;
 
   const auto void_result = Simple::VM::Native::NativeCallResult::Void();
   const auto i32_result = Simple::VM::Native::NativeCallResult::I32(-7);
   const auto i64_result = Simple::VM::Native::NativeCallResult::I64(-99);
+  const auto f32_result = Simple::VM::Native::NativeCallResult::F32(f32_input);
+  const auto f64_result = Simple::VM::Native::NativeCallResult::F64(f64_input);
   const auto ref_result = Simple::VM::Native::NativeCallResult::Ref(text_ref);
   const auto string_result = Simple::VM::Native::NativeCallResult::String("ok");
   const auto error_result = Simple::VM::Native::NativeCallResult::Error("bad");
   return !void_result.has_value && i32_result.value == static_cast<uint32_t>(-7) &&
-         static_cast<int64_t>(i64_result.value) == -99 && ref_result.value == text_ref &&
+         static_cast<int64_t>(i64_result.value) == -99 && f32_result.value == f32_bits &&
+         f64_result.value == f64_bits && ref_result.value == text_ref &&
          string_result.string_value == "ok" && !error_result.ok && error_result.error == "bad";
 }
 
