@@ -16354,13 +16354,9 @@ bool RunNativeRegistryModuleTest() {
   Simple::VM::Native::NativeCallContext channel_new_bytes_ctx;
   const auto channel_new_bytes_result = channel_bytes ? channel_bytes->handler(channel_new_bytes_ctx)
                                                       : Simple::VM::Native::NativeCallResult{};
-  const uint32_t channel_bytes_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 2u * 4u);
+  const uint32_t channel_bytes_ref = CreateBytes(metadata_heap, {65, 66});
   HeapObject* channel_bytes_obj = metadata_heap.Get(channel_bytes_ref);
-  if (!channel_bytes_obj) return false;
-  WriteU32Payload(channel_bytes_obj->payload, 0, 2);
-  WriteU32Payload(channel_bytes_obj->payload, 4, 2);
-  WriteU32Payload(channel_bytes_obj->payload, 8, 65);
-  WriteU32Payload(channel_bytes_obj->payload, 12, 66);
+  if (!channel_bytes_obj || channel_bytes_obj->header.kind != ObjectKind::Bytes) return false;
   Simple::VM::Native::NativeCallContext channel_send_bytes_ctx;
   channel_send_bytes_ctx.heap = &metadata_heap;
   channel_send_bytes_ctx.args = {channel_new_bytes_result.value, channel_bytes_ref};
@@ -16377,6 +16373,7 @@ bool RunNativeRegistryModuleTest() {
                                                             : Simple::VM::Native::NativeCallResult{};
   HeapObject* channel_recv_bytes_obj = metadata_heap.Get(static_cast<uint32_t>(channel_recv_bytes_result.value));
   if (!channel_recv_bytes_obj) return false;
+  if (channel_recv_bytes_obj->header.kind != ObjectKind::List) return false;
   const uint32_t channel_recv_bytes_len = read_test_u32(channel_recv_bytes_obj->payload, 0);
   const uint32_t channel_recv_bytes_first = read_test_u32(channel_recv_bytes_obj->payload, 8);
   const uint32_t log_empty_path = make_metadata_string("");
@@ -16445,14 +16442,9 @@ bool RunNativeRegistryModuleTest() {
   const uint32_t fs_bytes_ref = make_metadata_string(fs_bytes);
   const uint32_t fs_fd_ref = make_metadata_string(fs_fd);
   const uint32_t fs_text_value_ref = make_metadata_string("hello metadata");
-  const uint32_t fs_bytes_value_ref = metadata_heap.Allocate(ObjectKind::List, 0, 8u + 3u * 4u);
+  const uint32_t fs_bytes_value_ref = CreateBytes(metadata_heap, {65, 66, 67});
   HeapObject* fs_bytes_value = metadata_heap.Get(fs_bytes_value_ref);
-  if (!fs_bytes_value) return false;
-  WriteU32Payload(fs_bytes_value->payload, 0, 3);
-  WriteU32Payload(fs_bytes_value->payload, 4, 3);
-  WriteU32Payload(fs_bytes_value->payload, 8, 65);
-  WriteU32Payload(fs_bytes_value->payload, 12, 66);
-  WriteU32Payload(fs_bytes_value->payload, 16, 67);
+  if (!fs_bytes_value || fs_bytes_value->header.kind != ObjectKind::Bytes) return false;
   const uint32_t fs_fd_write_buf_ref = metadata_heap.Allocate(ObjectKind::Array, 0, 4u + 3u * 4u);
   HeapObject* fs_fd_write_buf = metadata_heap.Get(fs_fd_write_buf_ref);
   if (!fs_fd_write_buf) return false;
@@ -16486,6 +16478,7 @@ bool RunNativeRegistryModuleTest() {
                                                   : Simple::VM::Native::NativeCallResult{};
   HeapObject* fs_read_bytes_obj = metadata_heap.Get(static_cast<uint32_t>(fs_read_bytes_result.value));
   if (!fs_read_bytes_obj) return false;
+  if (fs_read_bytes_obj->header.kind != ObjectKind::List) return false;
   const uint32_t fs_read_bytes_len = read_test_u32(fs_read_bytes_obj->payload, 0);
   const uint32_t fs_read_bytes_first = read_test_u32(fs_read_bytes_obj->payload, 8);
   Simple::VM::Native::NativeCallContext io_new_ctx;

@@ -49,7 +49,7 @@ Slot PackRef(uint32_t handle) {
 }
 
 bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_value);
-bool ReadByteList(NativeCallContext& context, size_t index, std::vector<int32_t>* out);
+bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out);
 Slot CreateByteList(Heap& heap, const std::vector<uint32_t>& values);
 void WriteU32(std::vector<uint8_t>& payload, size_t offset, uint32_t value);
 
@@ -425,7 +425,7 @@ NativeCallResult ChannelTrySendString(NativeCallContext& context) {
 NativeCallResult ChannelSendBytes(NativeCallContext& context) {
   NativeCallResult result;
   std::vector<int32_t> values;
-  result.value = PackI32(ReadByteList(context, 1, &values) &&
+  result.value = PackI32(ReadByteSequence(context, 1, &values) &&
                                  Channel::Send(Channel::g_bytes, UnpackI64(context.args[0]), values)
                              ? 1
                              : 0);
@@ -992,20 +992,25 @@ Slot CreateRefList(Heap& heap, const std::vector<uint32_t>& refs) {
   return PackRef(handle);
 }
 
-bool ReadByteList(NativeCallContext& context, size_t index, std::vector<int32_t>* out) {
+bool ReadByteSequence(NativeCallContext& context, size_t index, std::vector<int32_t>* out) {
   if (!out) return false;
   HeapObject* obj = GetHeapObject(context, index);
-  if (!obj || (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array) ||
-      obj->payload.size() < 4) {
-    return false;
-  }
+  if (!obj || obj->payload.size() < 4) return false;
   const uint32_t length = obj->payload[0] | (static_cast<uint32_t>(obj->payload[1]) << 8u) |
                           (static_cast<uint32_t>(obj->payload[2]) << 16u) |
                           (static_cast<uint32_t>(obj->payload[3]) << 24u);
-  const size_t elem_base = obj->header.kind == ObjectKind::List ? 8u : 4u;
-  if (elem_base + static_cast<size_t>(length) * 4u > obj->payload.size()) return false;
   out->clear();
   out->reserve(length);
+  if (obj->header.kind == ObjectKind::Bytes) {
+    if (HeapLayout::kBytesDataOffset + static_cast<size_t>(length) > obj->payload.size()) return false;
+    for (uint32_t i = 0; i < length; ++i) {
+      out->push_back(static_cast<int32_t>(obj->payload[HeapLayout::BytesElementOffset(i)]));
+    }
+    return true;
+  }
+  if (obj->header.kind != ObjectKind::List && obj->header.kind != ObjectKind::Array) return false;
+  const size_t elem_base = obj->header.kind == ObjectKind::List ? 8u : 4u;
+  if (elem_base + static_cast<size_t>(length) * 4u > obj->payload.size()) return false;
   for (uint32_t i = 0; i < length; ++i) {
     const size_t offset = elem_base + i * 4u;
     const uint32_t value = obj->payload[offset] |
@@ -1050,7 +1055,7 @@ NativeCallResult FsWriteBytes(NativeCallContext& context) {
   NativeCallResult result;
   std::string path;
   std::vector<int32_t> values;
-  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadByteList(context, 1, &values) &&
+  result.value = PackI32(ReadStringArg(context, 0, &path) && ReadByteSequence(context, 1, &values) &&
                                  Fs::WriteBytes(path, values)
                              ? 1
                              : 0);

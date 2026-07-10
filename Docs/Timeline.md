@@ -649,7 +649,7 @@ Rules:
 - [ ] `FS.copy/move/remove/ensureDir/list/walk -> Result<T>`.
 - [ ] async variants under `FS.async.*` returning `Promise<T>`.
 - [ ] `Path` wrappers over `System.Path`.
-- [ ] `Bytes` heap-owned byte sequence, UTF-8 conversion, hex/base64 later.
+- [x] `Bytes` heap-owned byte sequence; UTF-8 conversion and hex/base64 later.
 
 ### JSON
 
