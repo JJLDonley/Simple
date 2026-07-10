@@ -186,6 +186,8 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU8At(bytes, off + 4, &row.kind)) return Fail("type row read failed");
       if (!ReadU8At(bytes, off + 5, &row.flags)) return Fail("type row read failed");
       if (!ReadU16At(bytes, off + 6, &row.reserved)) return Fail("type row read failed");
+      if ((row.flags & ~kTypeFlagsKnownMask) != 0u) return Fail("type flags invalid");
+      if (!IsOpaqueHandleType(row) && row.reserved != 0) return Fail("type reserved invalid");
       if (!ReadU32At(bytes, off + 8, &row.size)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 12, &row.field_start)) return Fail("type row read failed");
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
@@ -235,6 +237,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
         case TypeKind::Vector:
         case TypeKind::Unspecified:
           break;
+      }
+      if (IsOpaqueHandleType(row)) {
+        if (row.reserved == 0) return Fail("opaque handle resource kind missing");
+        if (row.size != 8) return Fail("opaque handle size mismatch");
+        if (row.field_start != 0 || row.field_count != 0) return Fail("opaque handle has fields");
       }
       switch (kind) {
         case TypeKind::I8:

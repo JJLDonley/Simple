@@ -37,7 +37,7 @@ These lower layers remain language-neutral. They define VM-level type metadata, 
 - [x] Add generic VM metadata for result-like, option-like, vector, aggregate, function, and pointer types.
 - [x] Keep artifact-as-struct layout explicit in SIR/SBC type metadata.
 - [x] Keep artifact methods separate from artifact layout metadata.
-- [ ] Add opaque handle/resource metadata without naming language or native-library modules.
+- [x] Add opaque handle/resource metadata without naming language or native-library modules.
 - [ ] Add type-extension rows for resource kind, capability tags, blocking behavior, and platform availability.
 
 ### IR / SIR Prerequisites
@@ -100,7 +100,7 @@ Language-neutral SBC metadata/opcodes status:
 - [x] Type/metadata rows.
   - [x] result-like type row.
   - [x] option-like type row.
-  - [ ] opaque handle/resource metadata.
+  - [x] opaque handle/resource metadata.
   - [x] future/task-handle metadata.
   - [x] `Module` section.
   - [x] `Data` section.

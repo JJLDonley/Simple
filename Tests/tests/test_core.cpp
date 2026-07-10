@@ -16978,6 +16978,8 @@ bool RunTypedMetadataBuildersTest() {
   Simple::Byte::sbc::TypeSpec type;
   type.name_str = 12;
   type.kind = static_cast<uint8_t>(Simple::Byte::TypeKind::I64);
+  type.flags = Simple::Byte::kTypeFlagOpaqueHandle;
+  type.reserved = 7;
   type.size = 8;
   type.field_start = 2;
   type.field_count = 3;
@@ -16985,6 +16987,8 @@ bool RunTypedMetadataBuildersTest() {
   if (types.size() != 20) return false;
   if (ReadU32At(types, 0) != 12) return false;
   if (types[4] != static_cast<uint8_t>(Simple::Byte::TypeKind::I64)) return false;
+  if (types[5] != Simple::Byte::kTypeFlagOpaqueHandle) return false;
+  if ((static_cast<uint16_t>(types[6]) | (static_cast<uint16_t>(types[7]) << 8u)) != 7) return false;
   if (ReadU32At(types, 8) != 8) return false;
   if (ReadU32At(types, 12) != 2) return false;
   if (ReadU32At(types, 16) != 3) return false;
@@ -17009,6 +17013,48 @@ bool RunTypedMetadataBuildersTest() {
   if (ReadU32At(globals, 0) != 30) return false;
   if (ReadU32At(globals, 8) != 1) return false;
   return ReadU32At(globals, 12) == 0xFFFFFFFFu;
+}
+
+bool RunOpaqueHandleTypeMetadataLoadTest() {
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Ret));
+
+  Simple::Byte::sbc::TypeSpec scalar;
+  Simple::Byte::sbc::TypeSpec handle;
+  handle.kind = static_cast<uint8_t>(Simple::Byte::TypeKind::Unspecified);
+  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle;
+  handle.reserved = 1;
+  handle.size = 8;
+  const std::vector<uint8_t> types = Simple::Byte::sbc::BuildTypeSection({scalar, handle});
+  const std::vector<uint8_t> module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
+      code, {}, types, {}, 0, 0, 0, 0, 0, 0, {});
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok || load.module.types.size() != 2) return false;
+  if (!Simple::Byte::IsOpaqueHandleType(load.module.types[1]) ||
+      Simple::Byte::OpaqueHandleResourceKindId(load.module.types[1]) != 1) {
+    return false;
+  }
+
+  handle.reserved = 0;
+  const std::vector<uint8_t> missing_kind_types =
+      Simple::Byte::sbc::BuildTypeSection({scalar, handle});
+  const std::vector<uint8_t> missing_kind_module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
+      code, {}, missing_kind_types, {}, 0, 0, 0, 0, 0, 0, {});
+  load = Simple::Byte::LoadModuleFromBytes(missing_kind_module);
+  if (load.ok || load.error.find("opaque handle resource kind missing") == std::string::npos) {
+    return false;
+  }
+
+  handle.flags = 0;
+  handle.reserved = 1;
+  const std::vector<uint8_t> bad_reserved_types =
+      Simple::Byte::sbc::BuildTypeSection({scalar, handle});
+  const std::vector<uint8_t> bad_reserved_module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
+      code, {}, bad_reserved_types, {}, 0, 0, 0, 0, 0, 0, {});
+  load = Simple::Byte::LoadModuleFromBytes(bad_reserved_module);
+  return !load.ok && load.error.find("type reserved invalid") != std::string::npos;
 }
 
 bool RunAddTest() {
@@ -24497,6 +24543,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_vm_dispatch_metadata", RunOpcodeVmDispatchMetadataTest},
   {"opcode_metadata_verifier_vm_comparison", RunOpcodeMetadataVerifierVmComparisonTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
+  {"opaque_handle_type_metadata_load", RunOpaqueHandleTypeMetadataLoadTest},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
   {"dup", RunDupTest},

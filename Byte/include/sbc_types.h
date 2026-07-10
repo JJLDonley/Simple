@@ -47,6 +47,12 @@ enum class SectionId : uint32_t {
   Capabilities = 14,
 };
 
+constexpr uint8_t kTypeFlagManagedArtifact = 0x01u;
+constexpr uint8_t kTypeFlagStableData = 0x02u;
+constexpr uint8_t kTypeFlagOpaqueHandle = 0x04u;
+constexpr uint8_t kTypeFlagsKnownMask = kTypeFlagManagedArtifact | kTypeFlagStableData |
+                                        kTypeFlagOpaqueHandle;
+
 enum class TypeKind : uint8_t {
   Unspecified = 0,
   I32 = 1,
@@ -107,11 +113,20 @@ struct TypeRow {
   uint32_t name_str = 0;
   uint8_t kind = 0;
   uint8_t flags = 0;
+  // For opaque handle types, stores the language-neutral resource kind id.
   uint16_t reserved = 0;
   uint32_t size = 0;
   uint32_t field_start = 0;
   uint32_t field_count = 0;
 };
+
+inline bool IsOpaqueHandleType(const TypeRow& row) {
+  return (row.flags & kTypeFlagOpaqueHandle) != 0u;
+}
+
+inline uint16_t OpaqueHandleResourceKindId(const TypeRow& row) {
+  return IsOpaqueHandleType(row) ? row.reserved : 0;
+}
 
 struct FieldRow {
   uint32_t name_str = 0;

@@ -98,6 +98,7 @@ struct TypeSpec {
   uint32_t name_str = 0;
   uint8_t kind = static_cast<uint8_t>(Simple::Byte::TypeKind::I32);
   uint8_t flags = 0;
+  uint16_t reserved = 0;
   uint32_t size = 4;
   uint32_t field_start = 0;
   uint32_t field_count = 0;
@@ -136,7 +137,7 @@ inline void AppendTypeRow(std::vector<uint8_t>& out, const TypeSpec& row) {
   AppendU32(out, row.name_str);
   AppendU8(out, row.kind);
   AppendU8(out, row.flags);
-  AppendU16(out, 0);
+  AppendU16(out, row.reserved);
   AppendU32(out, row.size);
   AppendU32(out, row.field_start);
   AppendU32(out, row.field_count);
