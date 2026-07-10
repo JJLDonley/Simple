@@ -508,7 +508,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Treat unspecified-return direct Simple calls as void-safe for scalar loop-call lowering.
 - [x] Route accepted scalar dynamic `System.dl.call$...` loop calls through a specialized LLVM helper instead of full helper dispatch.
 - [x] Direct-bind verified dynamic `System.dl.call$...` `i32(i32)` calls from LLVM loops.
-- [x] Direct-bind verified raylib `void(Color)` and `void(Texture2D, Vector2, Color)` dynamic FFI calls from LLVM loops.
+- [x] Direct-bind verified raylib `void(Color)`, `void(cstring, i32, i32, i32, Color)`, and `void(Texture2D, Vector2, Color)` dynamic FFI calls from LLVM loops.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.

@@ -294,6 +294,14 @@ bool LlvmReadRaylibColor(uint64_t ref_slot, LlvmRaylibColor* out) {
   out->a = (*payload)[12];
   return true;
 }
+
+bool LlvmReadCString(uint64_t ref_slot, std::string* out) {
+  if (!g_llvm_heap || !out || Simple::VM::Runtime::IsNullRef(ref_slot)) return false;
+  Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::String) return false;
+  *out = Simple::VM::U16ToAscii(Simple::VM::ReadString(obj));
+  return true;
+}
 } // namespace
 
 extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(uint64_t fn_slot, uint64_t color_slot) {
@@ -304,6 +312,28 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(uint64_t fn_slot, uint64_t color
   }
   using Fn = void (*)(LlvmRaylibColor);
   reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_slot))(color);
+  return 0;
+}
+
+extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot,
+                                                                  uint64_t text_slot,
+                                                                  uint64_t x_slot,
+                                                                  uint64_t y_slot,
+                                                                  uint64_t size_slot,
+                                                                  uint64_t color_slot) {
+  std::string text;
+  LlvmRaylibColor color{};
+  if (!LlvmReadCString(text_slot, &text) || !LlvmReadRaylibColor(color_slot, &color)) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  using Fn = void (*)(const char*, int32_t, int32_t, int32_t, LlvmRaylibColor);
+  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_slot))(
+      text.c_str(),
+      Simple::VM::Runtime::UnpackI32(x_slot),
+      Simple::VM::Runtime::UnpackI32(y_slot),
+      Simple::VM::Runtime::UnpackI32(size_slot),
+      color);
   return 0;
 }
 
@@ -1301,6 +1331,29 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                 Simple::Byte::TypeKind::U8, Simple::Byte::TypeKind::U8},
                                {0, 4, 8, 12});
   };
+  auto type_kind_is = [&](uint32_t type_id, Simple::Byte::TypeKind kind) -> bool {
+    return type_id < module.types.size() && static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind) == kind;
+  };
+  auto dl_call_is_void_cstring_i32_i32_i32_color = [&](const Simple::Byte::SigRow& row) -> bool {
+    if (row.ret_type_id != 0xFFFFFFFFu && row.ret_type_id >= module.types.size()) return false;
+    if (row.param_count != 6 || row.param_type_start + row.param_count > module.param_types.size()) return false;
+    if (row.ret_type_id != 0xFFFFFFFFu) {
+      const auto result_kind = static_cast<Simple::Byte::TypeKind>(module.types[row.ret_type_id].kind);
+      if (result_kind != Simple::Byte::TypeKind::Void && result_kind != Simple::Byte::TypeKind::Unspecified) return false;
+    }
+    const uint32_t fn_type = module.param_types[row.param_type_start];
+    if (fn_type >= module.types.size()) return false;
+    const auto fn_kind = static_cast<Simple::Byte::TypeKind>(module.types[fn_type].kind);
+    if (fn_kind != Simple::Byte::TypeKind::I64 && fn_kind != Simple::Byte::TypeKind::U64) return false;
+    return type_kind_is(module.param_types[row.param_type_start + 1], Simple::Byte::TypeKind::String) &&
+           type_kind_is(module.param_types[row.param_type_start + 2], Simple::Byte::TypeKind::I32) &&
+           type_kind_is(module.param_types[row.param_type_start + 3], Simple::Byte::TypeKind::I32) &&
+           type_kind_is(module.param_types[row.param_type_start + 4], Simple::Byte::TypeKind::I32) &&
+           artifact_has_fields(module.param_types[row.param_type_start + 5],
+                               {Simple::Byte::TypeKind::U8, Simple::Byte::TypeKind::U8,
+                                Simple::Byte::TypeKind::U8, Simple::Byte::TypeKind::U8},
+                               {0, 4, 8, 12});
+  };
   auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
                                                const Simple::Byte::SigRow& row) -> bool {
     std::vector<Simple::Byte::TypeKind> params;
@@ -1383,7 +1436,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata", target);
     if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name", target);
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
-      if (dl_call_is_void_color(row) || dl_call_is_void_texture2d_vector2_color(row)) return std::string();
+      if (dl_call_is_void_color(row) || dl_call_is_void_cstring_i32_i32_i32_color(row) ||
+          dl_call_is_void_texture2d_vector2_color(row)) return std::string();
       if (!sig_is_scalar_loop_call_safe(row)) {
         return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature", target);
       }
@@ -2389,6 +2443,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDynamicDl), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCallDlVoidColor")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDlVoidColor), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmCallDlVoidCStringI32I32I32Color")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDlVoidCStringI32I32I32Color), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCallDlVoidTexture2DVector2Color")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDlVoidTexture2DVector2Color), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmYield")] = llvm::orc::ExecutorSymbolDef(
@@ -2541,6 +2597,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       "SimpleVmLlvmCallDynamicDl", llvm::FunctionType::get(i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr}, false));
   llvm::FunctionCallee dl_color_helper = ir_module->getOrInsertFunction(
       "SimpleVmLlvmCallDlVoidColor", llvm::FunctionType::get(i64, {i64, i64}, false));
+  llvm::FunctionCallee dl_cstring_i32_i32_i32_color_helper = ir_module->getOrInsertFunction(
+      "SimpleVmLlvmCallDlVoidCStringI32I32I32Color",
+      llvm::FunctionType::get(i64, {i64, i64, i64, i64, i64, i64}, false));
   llvm::FunctionCallee dl_texture2d_vector2_color_helper = ir_module->getOrInsertFunction(
       "SimpleVmLlvmCallDlVoidTexture2DVector2Color", llvm::FunctionType::get(i64, {i64, i64, i64, i64}, false));
   llvm::FunctionCallee yield_helper = ir_module->getOrInsertFunction("SimpleVmLlvmYield", yield_type);
@@ -4792,6 +4851,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           return import_name(target_func, &module_name, &symbol_name) && module_name == "System.dl" &&
                  symbol_name.rfind("call$", 0) == 0 &&
                  (dl_call_loop_safe(target_sig) || dl_call_is_void_color(target_sig) ||
+                  dl_call_is_void_cstring_i32_i32_i32_color(target_sig) ||
                   dl_call_is_void_texture2d_vector2_color(target_sig));
         }();
         const bool dynamic_dl_i32_i32_direct_bind = dynamic_dl_direct_call && [&]() {
@@ -4808,6 +4868,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                  static_cast<Simple::Byte::TypeKind>(module.types[target_sig.ret_type_id].kind) == Simple::Byte::TypeKind::I32;
         }();
         const bool dynamic_dl_color_direct_bind = dynamic_dl_direct_call && dl_call_is_void_color(target_sig);
+        const bool dynamic_dl_cstring_i32_i32_i32_color_direct_bind =
+            dynamic_dl_direct_call && dl_call_is_void_cstring_i32_i32_i32_color(target_sig);
         const bool dynamic_dl_texture2d_vector2_color_direct_bind =
             dynamic_dl_direct_call && dl_call_is_void_texture2d_vector2_color(target_sig);
         if (target_func == func_index && arg_count != param_count) {
@@ -4842,6 +4904,15 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
           llvm::Value* color_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
           result = builder.CreateCall(dl_color_helper, {fn_slot, color_slot});
+        } else if (dynamic_dl_cstring_i32_i32_i32_color_direct_bind) {
+          llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
+          llvm::Value* text_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
+          llvm::Value* x_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(2)));
+          llvm::Value* y_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(3)));
+          llvm::Value* size_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(4)));
+          llvm::Value* color_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(5)));
+          result = builder.CreateCall(dl_cstring_i32_i32_i32_color_helper,
+                                      {fn_slot, text_slot, x_slot, y_slot, size_slot, color_slot});
         } else if (dynamic_dl_texture2d_vector2_color_direct_bind) {
           llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
           llvm::Value* texture_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
