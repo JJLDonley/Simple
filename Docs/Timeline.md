@@ -509,6 +509,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [ ] Capability checks run identically in interpreter and JIT.
 - [x] Resource kind/generation/closed-state checks run through shared metadata dispatch before native handlers.
 - [ ] Blocking/native calls publish safepoints and roots before entering host code.
+- [x] Scalar/void import and indirect helper calls are allowed through the shared helper ABI inside LLVM-lowered loops.
 - [x] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
 
 ### Tier 1: Optimized Monomorphic Lowering
@@ -526,6 +527,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [ ] Every JIT-supported opcode has interpreter parity tests.
 - [x] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
 - [x] `--jit-stats` reports function names alongside function indexes.
+- [x] LLVM loop-call rejection reasons include opcode and bytecode pc.
 - [ ] Runtime traps include opcode/function/pc/source debug context when available.
 - [ ] Test `-jit` and `-int` produce identical user-visible results for fixture suites.
 - [x] Remove old compiled-runner code; JIT work targets LLVM ORC plus interpreter fallback only.

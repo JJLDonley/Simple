@@ -947,6 +947,38 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   auto sig_returns_void = [&](const Simple::Byte::SigRow& row) -> bool {
     return type_is_void(row.ret_type_id);
   };
+  auto type_is_scalar_loop_call_safe = [&](uint32_t type_id) -> bool {
+    if (type_id >= module.types.size()) return false;
+    const auto& row = module.types[type_id];
+    if (Simple::Byte::IsManagedArtifactType(row) || Simple::Byte::IsOpaqueHandleType(row)) return false;
+    switch (static_cast<Simple::Byte::TypeKind>(row.kind)) {
+      case Simple::Byte::TypeKind::Void:
+      case Simple::Byte::TypeKind::I8:
+      case Simple::Byte::TypeKind::I16:
+      case Simple::Byte::TypeKind::I32:
+      case Simple::Byte::TypeKind::I64:
+      case Simple::Byte::TypeKind::U8:
+      case Simple::Byte::TypeKind::U16:
+      case Simple::Byte::TypeKind::U32:
+      case Simple::Byte::TypeKind::U64:
+      case Simple::Byte::TypeKind::F32:
+      case Simple::Byte::TypeKind::F64:
+      case Simple::Byte::TypeKind::Bool:
+      case Simple::Byte::TypeKind::Char:
+      case Simple::Byte::TypeKind::Ptr:
+        return true;
+      default:
+        return false;
+    }
+  };
+  auto sig_is_scalar_loop_call_safe = [&](const Simple::Byte::SigRow& row) -> bool {
+    if (!type_is_scalar_loop_call_safe(row.ret_type_id)) return false;
+    if (row.param_type_start + row.param_count > module.param_types.size()) return false;
+    for (uint16_t i = 0; i < row.param_count; ++i) {
+      if (!type_is_scalar_loop_call_safe(module.param_types[row.param_type_start + i])) return false;
+    }
+    return true;
+  };
   const uint16_t param_count = sig.param_count;
   if (args.size() != param_count) {
     reason = "LLVM JIT arg count mismatch";
@@ -1049,13 +1081,16 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   uint16_t local_count = 0;
   bool saw_ret = false;
   bool saw_call = false;
-  bool saw_import_or_indirect_call = false;
+  bool saw_unsafe_import_or_indirect_loop_call = false;
+  size_t unsafe_import_or_indirect_loop_call_pc = 0;
+  OpCode unsafe_import_or_indirect_loop_call_op = OpCode::Nop;
   bool saw_backward_branch = false;
   bool saw_branch = false;
   bool saw_global_access = false;
   std::vector<size_t> block_offsets;
   block_offsets.push_back(func.code_offset);
   while (scan_pc < end_pc) {
+    const size_t op_pc = scan_pc;
     OpCode op = static_cast<OpCode>(module.code[scan_pc++]);
     switch (op) {
       case OpCode::Nop:
@@ -1611,7 +1646,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       }
       case OpCode::CallIndirect: {
         saw_call = true;
-        saw_import_or_indirect_call = true;
         if (scan_pc + 5 > end_pc) {
           reason = "LLVM JIT CALL_INDIRECT operand out of bounds";
           return false;
@@ -1627,6 +1661,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL_INDIRECT arg count mismatch";
           return false;
         }
+        if (!sig_is_scalar_loop_call_safe(target_sig) && !saw_unsafe_import_or_indirect_loop_call) {
+          saw_unsafe_import_or_indirect_loop_call = true;
+          unsafe_import_or_indirect_loop_call_pc = op_pc;
+          unsafe_import_or_indirect_loop_call_op = op;
+        }
         break;
       }
       case OpCode::CallImport:
@@ -1639,10 +1678,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         uint32_t target_func = ReadU32(module.code, scan_pc);
         uint8_t arg_count = ReadU8(module.code, scan_pc);
-        if (op == OpCode::CallImport ||
-            (target_func < module.function_is_import.size() && module.function_is_import[target_func])) {
-          saw_import_or_indirect_call = true;
-        }
+        const bool import_like_call =
+            op == OpCode::CallImport ||
+            (target_func < module.function_is_import.size() && module.function_is_import[target_func]);
         if (target_func >= module.functions.size()) {
           reason = "LLVM JIT CALL invalid function id";
           return false;
@@ -1661,6 +1699,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (arg_count != target_sig.param_count) {
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
+        }
+        if (import_like_call && !sig_is_scalar_loop_call_safe(target_sig) &&
+            !saw_unsafe_import_or_indirect_loop_call) {
+          saw_unsafe_import_or_indirect_loop_call = true;
+          unsafe_import_or_indirect_loop_call_pc = op_pc;
+          unsafe_import_or_indirect_loop_call_op = op;
         }
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
@@ -1837,8 +1881,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   if (saw_call && !options_.allow_runtime_calls) {
     return reject_cached("unsupported: runtime/helper calls need LLVM runtime ABI");
   }
-  if (saw_backward_branch && saw_import_or_indirect_call) {
-    return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI");
+  if (saw_backward_branch && saw_unsafe_import_or_indirect_loop_call) {
+    return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
+                         std::to_string(unsafe_import_or_indirect_loop_call_pc - func.code_offset) +
+                         " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(unsafe_import_or_indirect_loop_call_op)));
   }
   (void)saw_call;
   (void)saw_branch;
