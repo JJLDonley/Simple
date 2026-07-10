@@ -260,7 +260,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Permit primitives and pointers through external C ABI verifier.
   - [ ] Permit stable `data` structs and explicit ABI wrapper types.
   - [x] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions in external C ABI verifier.
-  - [x] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass in verifier APIs.
+  - [ ] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass.
 - [ ] Keep interpreter, LLVM ORC JIT, and future AOT on the same Simple Native ABI contract.
 
 ### Exact ABI Mapping Table
@@ -274,7 +274,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] `char` ABI is `u32` Unicode scalar long-term; document current bytecode compatibility if still 16-bit internally.
   - [ ] enums use declared or default underlying integer type.
 - [ ] Reference/handle representations:
-  - [ ] VM heap references are opaque VM refs, never raw host pointers.
+  - [x] VM heap references are opaque VM refs, never raw host pointers.
   - [x] `System.Handle<T>` lowers to `NativeHandleId` packed as a VM word.
   - [x] `Promise<T>` lowers to a generational promise/job id.
 

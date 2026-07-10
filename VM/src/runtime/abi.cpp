@@ -96,6 +96,20 @@ bool IsReferenceAbiClass(AbiClass abi_class) {
          abi_class == AbiClass::Promise || abi_class == AbiClass::Opaque;
 }
 
+bool IsOpaqueVmReferenceType(Simple::Byte::TypeKind kind) {
+  using Simple::Byte::TypeKind;
+  switch (kind) {
+    case TypeKind::Ref:
+    case TypeKind::String:
+    case TypeKind::Array:
+    case TypeKind::List:
+    case TypeKind::Function:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool IsSmallAbiAggregate(uint32_t size, bool contains_references) {
   return !contains_references && size <= 16;
 }

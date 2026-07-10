@@ -86,6 +86,7 @@ struct AbiPromiseId {
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
+bool IsOpaqueVmReferenceType(Simple::Byte::TypeKind kind);
 bool IsSmallAbiAggregate(uint32_t size, bool contains_references);
 bool IsValidBorrowedStringView(const SimpleStringView& view);
 bool IsValidBorrowedBytesView(const SimpleBytesView& view);

@@ -160,6 +160,19 @@ bool VmRuntimeAbiValidatesBorrowedViews() {
          IsValidBorrowedBytesView(empty_bytes) && !IsValidBorrowedBytesView(bad_bytes);
 }
 
+bool VmRuntimeAbiMarksOpaqueVmReferences() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::IsOpaqueVmReferenceType;
+
+  return IsOpaqueVmReferenceType(TypeKind::Ref) &&
+         IsOpaqueVmReferenceType(TypeKind::String) &&
+         IsOpaqueVmReferenceType(TypeKind::Array) &&
+         IsOpaqueVmReferenceType(TypeKind::List) &&
+         IsOpaqueVmReferenceType(TypeKind::Function) &&
+         !IsOpaqueVmReferenceType(TypeKind::Ptr) &&
+         !IsOpaqueVmReferenceType(TypeKind::I64);
+}
+
 bool VmRuntimeAbiValidatesExternalCSignatures() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ValidateExternalCAbiSignature;
@@ -268,6 +281,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
+  {"vm_runtime_abi_marks_opaque_vm_references", VmRuntimeAbiMarksOpaqueVmReferences},
   {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
