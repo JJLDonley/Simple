@@ -173,6 +173,40 @@ bool VmNativeDispatchEnforcesCapabilities() {
   return handled && error.empty();
 }
 
+bool VmNativeResourceRegistryReportsShutdownFailures() {
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRecord;
+  using Simple::VM::Native::NativeResourceRegistry;
+
+  int close_count = 0;
+  int finalize_count = 0;
+  NativeResourceRegistry registry;
+  NativeResourceRecord record;
+  record.kind = NativeResourceKind::File;
+  record.payload = &close_count;
+  record.close = [](void* payload, std::string* error) -> bool {
+    ++*static_cast<int*>(payload);
+    if (error) *error = "close failed for test";
+    return false;
+  };
+  record.finalize = [](void* payload) {
+    // The close counter address is reused as a sentinel payload. Finalize does
+    // not own it; this test only verifies that finalization still runs.
+    (void)payload;
+  };
+  registry.Insert(record);
+
+  NativeResourceRecord second;
+  second.kind = NativeResourceKind::Buffer;
+  second.payload = &finalize_count;
+  second.close = [](void*, std::string*) -> bool { return true; };
+  second.finalize = [](void* payload) { ++*static_cast<int*>(payload); };
+  registry.Insert(second);
+
+  const size_t failed = registry.SweepShutdown();
+  return failed == 1 && close_count == 1 && finalize_count == 1 && registry.LiveCount() == 0;
+}
+
 bool VmNativeResourceRegistryTracksHandleLifecycle() {
   using Simple::VM::Native::NativeHandleId;
   using Simple::VM::Native::NativeResourceKind;
@@ -229,6 +263,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
+  {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };
 

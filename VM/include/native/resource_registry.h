@@ -81,7 +81,10 @@ class NativeResourceRegistry {
   NativeResourceStatus Close(NativeHandleId handle,
                              NativeResourceKind expected_kind,
                              std::string* error);
-  void SweepShutdown();
+  // Closes and finalizes all owned live records. Returns the number of close callbacks
+  // that reported failure. Records are still marked closed and finalized so shutdown
+  // remains best-effort and non-throwing.
+  size_t SweepShutdown();
 
   size_t LiveCount() const;
   size_t SlotCount() const { return records_.size(); }

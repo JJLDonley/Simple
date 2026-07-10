@@ -97,13 +97,14 @@ NativeResourceStatus NativeResourceRegistry::Close(NativeHandleId handle,
   return NativeResourceStatus::Ok;
 }
 
-void NativeResourceRegistry::SweepShutdown() {
+size_t NativeResourceRegistry::SweepShutdown() {
+  size_t failed_closes = 0;
   for (Slot& slot : records_) {
     if (!slot.occupied) continue;
     NativeResourceRecord& record = slot.record;
     if (!record.closed && record.owned && record.close) {
       std::string ignored;
-      (void)record.close(record.payload, &ignored);
+      if (!record.close(record.payload, &ignored)) ++failed_closes;
     }
     record.closed = true;
     if (record.finalize && record.payload) {
@@ -111,6 +112,7 @@ void NativeResourceRegistry::SweepShutdown() {
       record.payload = nullptr;
     }
   }
+  return failed_closes;
 }
 
 size_t NativeResourceRegistry::LiveCount() const {

@@ -81,7 +81,7 @@ Language imports map to VM runtime modules. `System.*` names are canonical. The 
 
 Native modules include time, filesystem/path/env/OS helpers, logging, buffers, JSON, channels, random values, and threads where implemented by tests.
 
-Native host resources use generational opaque handles. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown.
+Native host resources use generational opaque handles. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown. Shutdown sweep is best-effort: close callback failures are counted, records are still marked closed, and finalize callbacks still run.
 
 Native function metadata records layer, module, symbol, parameter/result types, resource uses, blocking behavior, capability tags, platform availability, stability, and documentation summaries. The interpreter and JIT use this shared metadata instead of ad hoc native signatures. `ExecOptions::capability_policy` defaults to allow-all for current CLI compatibility, and metadata dispatch rejects calls whose capability tags are not allowed by a stricter host policy.
 

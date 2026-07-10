@@ -363,7 +363,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] use after close.
   - [x] wrong-kind handle use.
   - [x] VM shutdown with live handles.
-  - [ ] native callback failure during cleanup.
+  - [x] native callback failure during cleanup.
 - [x] Add VM shutdown cleanup sweep.
 - [ ] Tests:
   - [x] leak cleanup on registry shutdown.
@@ -371,6 +371,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] use-after-close.
   - [x] wrong-kind handle.
   - [x] stale reuse detection.
+  - [x] shutdown close failure count with finalization.
 
 ### Native Metadata
 
