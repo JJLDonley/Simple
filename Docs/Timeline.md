@@ -516,6 +516,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Include loop bytecode ranges in unsafe LLVM loop-call rejection diagnostics.
 - [x] Route guarded raylib dynamic-DL direct-bind helpers through `JitCallContext` argument/heap/trap state.
 - [x] Publish caller local/operand roots and safepoint metadata around guarded dynamic-DL direct-bind helpers.
+- [x] Route the dynamic-DL `i32(i32)` direct-bind path through `JitCallContext` instead of raw LLVM C calls.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.

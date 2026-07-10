@@ -342,6 +342,41 @@ void LlvmPopulateDirectDlContext(Simple::VM::Jit::JitCallContext* context,
 }
 } // namespace
 
+extern "C" uint64_t SimpleVmLlvmCallDlI32I32(const Simple::Byte::SbcModule* module,
+                                             uint64_t* args,
+                                             uint32_t argc,
+                                             uint64_t* caller_locals,
+                                             uint32_t caller_local_count,
+                                             uint64_t caller_local_ref_mask,
+                                             uint64_t* caller_stack,
+                                             uint32_t caller_stack_count,
+                                             uint64_t caller_stack_ref_mask,
+                                             uint32_t caller_func_index,
+                                             uint32_t caller_pc,
+                                             uint8_t* has_ret) {
+  (void)module;
+  if (has_ret) *has_ret = 0;
+  Simple::VM::Jit::JitCallContext context;
+  LlvmPopulateDirectDlContext(&context, args, argc, caller_locals, caller_local_count, caller_local_ref_mask,
+                              caller_stack, caller_stack_count, caller_stack_ref_mask,
+                              caller_func_index, caller_pc, 0);
+  LlvmJitRootFrameScope roots(&context.root_refs);
+  Simple::VM::Jit::Slot fn_arg = 0;
+  Simple::VM::Jit::Slot value_arg = 0;
+  if (argc != 2 || !Simple::VM::Jit::JitArg(context, 0, &fn_arg) ||
+      !Simple::VM::Jit::JitArg(context, 1, &value_arg)) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT i32 dl direct-bind argument mismatch");
+    g_llvm_trap = true;
+    return 0;
+  }
+  using Fn = int32_t (*)(int32_t);
+  const int32_t ret = reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_arg))(Simple::VM::Runtime::UnpackI32(value_arg));
+  Simple::VM::Jit::SetJitReturn(&context, Simple::VM::Runtime::PackI32(ret));
+  if (has_ret) *has_ret = 1;
+  return context.return_value;
+}
+
 extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(const Simple::Byte::SbcModule* module,
                                                  uint64_t* args,
                                                  uint32_t argc,
@@ -2658,6 +2693,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallFunction), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCallDynamicDl")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDynamicDl), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmCallDlI32I32")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDlI32I32), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCallDlVoidColor")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDlVoidColor), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmCallDlVoidCStringI32I32I32Color")] = llvm::orc::ExecutorSymbolDef(
@@ -2819,6 +2856,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       {slot_ptr, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32, slot_ptr},
       false);
   llvm::FunctionCallee dynamic_dl_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallDynamicDl", dynamic_dl_type);
+  llvm::FunctionCallee dl_i32_i32_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallDlI32I32", direct_dl_type);
   llvm::FunctionCallee dl_color_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallDlVoidColor", direct_dl_type);
   llvm::FunctionCallee dl_cstring_i32_i32_i32_color_helper = ir_module->getOrInsertFunction(
       "SimpleVmLlvmCallDlVoidCStringI32I32I32Color", direct_dl_type);
@@ -5180,15 +5218,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (target_func == func_index) {
           result = builder.CreateCall(fn_type, fn, {call_args, builder.getInt32(arg_count)});
         } else if (dynamic_dl_i32_i32_direct_bind) {
-          llvm::Value* fn_slot_ptr = builder.CreateGEP(i64, call_args, builder.getInt64(0));
-          llvm::Value* fn_slot = builder.CreateLoad(i64, fn_slot_ptr);
-          llvm::Value* raw_fn = builder.CreateIntToPtr(
-              fn_slot, llvm::PointerType::getUnqual(llvm::FunctionType::get(i32, {i32}, false)));
-          llvm::Value* arg_slot_ptr = builder.CreateGEP(i64, call_args, builder.getInt64(1));
-          llvm::Value* arg_slot = builder.CreateLoad(i64, arg_slot_ptr);
-          llvm::Value* native_arg = builder.CreateTrunc(arg_slot, i32);
-          llvm::Value* native_ret = builder.CreateCall(llvm::FunctionType::get(i32, {i32}, false), raw_fn, {native_arg});
-          result = builder.CreateZExt(native_ret, i64);
+          llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "direct_dl_i32_has_ret");
+          builder.CreateStore(builder.getInt8(0), has_ret_ptr);
+          result = emit_direct_dl_helper(dl_i32_i32_helper, call_args, arg_count, has_ret_ptr, instr_pc);
         } else if (dynamic_dl_color_direct_bind) {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "direct_dl_color_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
