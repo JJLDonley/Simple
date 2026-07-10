@@ -666,6 +666,15 @@ int main(int argc, char** argv) {
                                    exec.compile_counts.size(), exec.jit_dispatch_counts.size(),
                                    exec.jit_compiled_exec_counts.size(), exec.jit_tier1_exec_counts.size(),
                                    exec.llvm_reject_counts.size()});
+    if (!exec.jit_status_counts.empty()) {
+      std::cerr << "[jit] status";
+      for (size_t i = 0; i < exec.jit_status_counts.size(); ++i) {
+        const auto code = static_cast<Simple::VM::Jit::JitStatusCode>(i);
+        std::cerr << " " << Simple::VM::Jit::JitStatusCodeName(code)
+                  << "=" << exec.jit_status_counts[i];
+      }
+      std::cerr << "\n";
+    }
     for (size_t i = 0; i < count; ++i) {
       uint32_t calls = i < exec.call_counts.size() ? exec.call_counts[i] : 0;
       uint64_t ops = i < exec.opcode_counts.size() ? exec.opcode_counts[i] : 0;

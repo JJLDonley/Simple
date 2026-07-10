@@ -47,6 +47,8 @@ struct ExecResult {
   std::vector<uint32_t> jit_tier1_exec_counts;
   std::vector<uint32_t> llvm_reject_counts;
   std::vector<std::string> llvm_reject_reasons;
+  // Indexed by Simple::VM::Jit::JitStatusCode ordinal.
+  std::vector<uint32_t> jit_status_counts;
 };
 
 struct RuntimeLimits {

@@ -12,6 +12,7 @@
 #include "sbc_verifier.h"
 #include "jit/llvm_backend.h"
 #include "intrinsic_ids.h"
+#include "runtime/execution_stats.h"
 #include "runtime/values.h"
 #include "test_utils.h"
 #include "vm.h"
@@ -9513,6 +9514,25 @@ bool RunJitStatusCodeTest() {
          ClassifyJitReason("LLVM JIT branch stack height mismatch") == JitStatusCode::Fallback;
 }
 
+bool RunJitStatusCountsTest() {
+  using Simple::VM::Jit::JitStatusCode;
+
+  Simple::VM::ExecResult result;
+  result = Simple::VM::Runtime::AttachExecutionStats(
+      result,
+      {}, {}, {}, {}, {}, {}, {}, {},
+      {2, 3},
+      {},
+      {4, 5, 6},
+      {"unsupported: opcode", "LLVM JIT helper failed", "trap: panic"});
+  if (result.jit_status_counts.size() != 5) return false;
+  return result.jit_status_counts[static_cast<size_t>(JitStatusCode::Return)] == 5 &&
+         result.jit_status_counts[static_cast<size_t>(JitStatusCode::Unsupported)] == 4 &&
+         result.jit_status_counts[static_cast<size_t>(JitStatusCode::Fallback)] == 5 &&
+         result.jit_status_counts[static_cast<size_t>(JitStatusCode::Trap)] == 6 &&
+         result.jit_status_counts[static_cast<size_t>(JitStatusCode::Halt)] == 0;
+}
+
 bool RunLlvmJitLoopSmokeTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -9571,6 +9591,7 @@ bool RunLlvmJitLoopSmokeTest() {
 
 static const TestCase kJitTests[] = {
   {"jit_status_codes", RunJitStatusCodeTest},
+  {"jit_status_counts", RunJitStatusCountsTest},
   {"llvm_jit_leaf_i32_smoke", RunLlvmJitLeafI32SmokeTest},
   {"llvm_jit_locals_params_smoke", RunLlvmJitLocalsAndParamsSmokeTest},
   {"llvm_jit_cache_smoke", RunLlvmJitCacheSmokeTest},
