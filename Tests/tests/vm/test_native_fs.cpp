@@ -283,6 +283,64 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos;
 }
 
+bool VmNativeDispatchValidatesResourceHandles() {
+  using Simple::VM::Native::NativeCleanupBehavior;
+  using Simple::VM::Native::NativeFunctionSpec;
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeOwnershipRule;
+  using Simple::VM::Native::NativeRegistry;
+  using Simple::VM::Native::NativeResourceAccess;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRecord;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::NativeResourceUse;
+
+  int calls = 0;
+  NativeRegistry registry;
+  NativeFunctionSpec spec;
+  spec.module_name = "System.test";
+  spec.symbol_name = "useFile";
+  spec.parameter_types = {Simple::Byte::TypeKind::I64};
+  spec.result_type = Simple::Byte::TypeKind::I32;
+  spec.resources.push_back(NativeResourceUse{NativeResourceKind::File, NativeResourceAccess::Input,
+                                             NativeOwnershipRule::Borrow,
+                                             NativeCleanupBehavior::None, 0});
+  spec.handler = [&calls](Simple::VM::Native::NativeCallContext& context) {
+    ++calls;
+    Simple::VM::Native::NativeHandleId handle;
+    if (!context.resource_registry || !context.ArgHandle(0, &handle) || handle.IsNull()) {
+      return Simple::VM::Native::NativeCallResult::Error("missing handle");
+    }
+    return Simple::VM::Native::NativeCallResult::I32(1);
+  };
+  if (!registry.Register(std::move(spec))) return false;
+
+  NativeResourceRegistry resources;
+  NativeResourceRecord file;
+  file.kind = NativeResourceKind::File;
+  const NativeHandleId file_handle = resources.Insert(file);
+  NativeResourceRecord socket;
+  socket.kind = NativeResourceKind::Socket;
+  const NativeHandleId socket_handle = resources.Insert(socket);
+
+  Simple::VM::Heap heap;
+  Simple::VM::Native::MetadataDispatchContext context;
+  context.heap = &heap;
+  context.resource_registry = &resources;
+  uint64_t ret = 0;
+  bool has_ret = false;
+  std::string error;
+  bool handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.test", "useFile", {Simple::VM::Native::PackNativeHandleId(file_handle)},
+      Simple::Byte::TypeKind::I32, context, &ret, &has_ret, &error);
+  if (!handled || !error.empty() || ret != 1 || calls != 1) return false;
+
+  handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.test", "useFile", {Simple::VM::Native::PackNativeHandleId(socket_handle)},
+      Simple::Byte::TypeKind::I32, context, &ret, &has_ret, &error);
+  return handled && calls == 1 && error.find("wrong resource kind") != std::string::npos;
+}
+
 bool VmNativeDispatchEnforcesCapabilities() {
   Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   Simple::VM::Heap heap;
@@ -404,6 +462,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_function_metadata_declares_stability", VmNativeFunctionMetadataDeclaresStability},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
+  {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},

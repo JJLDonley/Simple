@@ -105,6 +105,24 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
       return true;
     }
   }
+  if (runtime.resource_registry) {
+    for (const NativeResourceUse& resource : spec->resources) {
+      if (resource.access == NativeResourceAccess::Output) continue;
+      if (resource.parameter_index >= args.size()) {
+        if (out_error) *out_error = module_name + "." + symbol_name + " resource parameter index out of range";
+        return true;
+      }
+      const NativeHandleId handle = UnpackNativeHandleId(args[resource.parameter_index]);
+      const NativeResourceStatus status = runtime.resource_registry->Get(handle, resource.kind, nullptr);
+      if (status != NativeResourceStatus::Ok) {
+        if (out_error) {
+          *out_error = module_name + "." + symbol_name + " invalid resource handle: " +
+                       NativeResourceStatusName(status);
+        }
+        return true;
+      }
+    }
+  }
 
   NativeCallContext context;
   context.args = args;
@@ -112,6 +130,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   context.argv = runtime.argv;
   context.open_files = runtime.open_files;
   context.dl_last_error = runtime.dl_last_error;
+  context.resource_registry = runtime.resource_registry;
   NativeCallResult result = spec->handler(context);
   if (!result.ok) {
     if (out_error) *out_error = result.error;

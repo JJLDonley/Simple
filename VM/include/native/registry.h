@@ -22,6 +22,7 @@ struct NativeCallContext {
   const std::vector<std::string>* argv = nullptr;
   std::vector<std::FILE*>* open_files = nullptr;
   std::string* dl_last_error = nullptr;
+  NativeResourceRegistry* resource_registry = nullptr;
 
   bool ArgI32(size_t index, int32_t* out) const;
   bool ArgI64(size_t index, int64_t* out) const;

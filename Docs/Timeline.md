@@ -312,7 +312,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### Handles, Results, Options, Promises
 
 - [x] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
-- [ ] Native callees declare expected resource kind; dispatch validates kind/generation/closed state before use.
+- [x] Native callees declare expected resource kind; metadata dispatch validates kind/generation/closed state before use.
 - [x] Define canonical `Result<T,E>` representation.
   - [x] tag plus inline small payload or heap box for large/ref-containing payloads.
   - [x] native handler builders for ok/err.
@@ -454,7 +454,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 
 - [ ] JIT native calls use `NativeFunctionSpec` id and the same dispatcher as the interpreter.
 - [ ] Capability checks run identically in interpreter and JIT.
-- [ ] Resource kind/generation/closed-state checks run identically in interpreter and JIT.
+- [x] Resource kind/generation/closed-state checks run through shared metadata dispatch before native handlers.
 - [ ] Blocking/native calls publish safepoints and roots before entering host code.
 - [ ] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
 
