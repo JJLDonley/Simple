@@ -50,7 +50,7 @@ Null references use the VM heap null sentinel. Runtime code distinguishes intege
 
 ## Runtime ABI classifier
 
-`VM/include/runtime/abi.h` maps current SBC `TypeKind` values to ABI classes, sizes, and alignments. Scalar integer/bool/char types use exact-width ABI payloads (`bool` is one byte, `char` is four bytes at the ABI boundary), floats use IEEE-754 widths, refs/strings/arrays/lists/functions are opaque VM references, and small no-reference aggregates are eligible for by-value internal passing when their stable layout is at most 16 bytes.
+`VM/include/runtime/abi.h` maps current SBC `TypeKind` values to ABI classes, sizes, and alignments. Scalar integer/bool/char types use exact-width ABI payloads (`bool` is one byte, `char` is four bytes at the ABI boundary), floats use IEEE-754 widths, refs/strings/arrays/lists/functions are opaque VM references, and small no-reference aggregates are eligible for by-value internal passing when their stable layout is at most 16 bytes. Stable aggregate layout keeps declaration order, aligns each field, rounds total size to aggregate alignment, and classifies ref-containing aggregates as by-reference for native calls.
 
 ## Frames and calls
 

@@ -279,7 +279,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 ### Stable `data` Layout ABI
 
-- [ ] Field declaration order is layout order.
+- [x] Field declaration order is layout order.
 - [x] Alignment rules:
   - [x] 1-byte: `bool`, `i8`, `u8`.
   - [x] 2-byte: `i16`, `u16`.
@@ -287,14 +287,15 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
   - [ ] nested `data`: max field alignment, capped at 8 initially.
 - [ ] Padding is deterministic and zero-initialized where observable through ABI.
-- [ ] Total size rounds up to max alignment.
+- [x] Total size rounds up to max alignment.
 - [ ] Nested `data` structs are allowed after recursive layout validation.
 - [ ] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
 - [x] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
-- [ ] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
+- [x] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
 - [ ] Return-by-value rules match parameter rules and are explicit in metadata.
 - [ ] Tests prove methods do not affect layout.
 - [ ] Tests cover padding, nested data, arrays, generics, and layout hashes.
+  - [x] Runtime ABI tests cover primitive padding and ref-containing aggregate classification.
 
 ### Strings and Bytes ABI
 

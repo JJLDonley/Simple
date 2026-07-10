@@ -44,9 +44,38 @@ bool VmRuntimeAbiAlignsStableDataFields() {
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
 }
 
+bool VmRuntimeAbiComputesStableAggregateLayout() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto layout = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::Bool),
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::I64),
+  });
+  if (layout.fields.size() != 3 || layout.fields[0].offset != 0 ||
+      layout.fields[1].offset != 4 || layout.fields[2].offset != 8) {
+    return false;
+  }
+  if (layout.size != 16 || layout.align != 8 || !layout.pass_by_value) return false;
+  if (!layout.native_callable || !layout.external_ffi_callable || layout.contains_references) {
+    return false;
+  }
+
+  const auto ref_layout = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::String),
+  });
+  return ref_layout.fields.size() == 2 && ref_layout.fields[1].offset == 8 &&
+         ref_layout.size == 16 && ref_layout.contains_references &&
+         !ref_layout.pass_by_value && !ref_layout.external_ffi_callable;
+}
+
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 
 const TestSection kVmRuntimeAbiSections[] = {
