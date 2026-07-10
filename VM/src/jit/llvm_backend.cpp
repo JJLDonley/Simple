@@ -2330,7 +2330,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   bool native_has_ret = true;
   std::unordered_map<size_t, llvm::BasicBlock*> blocks;
   std::unordered_map<size_t, std::vector<llvm::Value*>> block_stacks;
+  std::unordered_map<size_t, std::vector<uint32_t>> block_stack_types;
   std::unordered_map<size_t, std::vector<std::pair<llvm::BasicBlock*, std::vector<llvm::Value*>>>> block_stack_incomings;
+  std::unordered_map<llvm::Value*, uint32_t> value_type_ids;
+  std::vector<uint32_t> local_type_ids;
+  constexpr uint32_t kUnknownJitTypeId = 0xFFFFFFFFu;
   blocks.emplace(func.code_offset, body_entry);
   auto get_block = [&](size_t offset) -> llvm::BasicBlock* {
     auto it = blocks.find(offset);
@@ -2388,25 +2392,54 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (llvm::Instruction* term = entry->getTerminator()) alloca_builder.SetInsertPoint(term);
     return alloca_builder.CreateAlloca(type, array_size, name);
   };
+  auto value_type_id = [&](llvm::Value* value) -> uint32_t {
+    auto it = value_type_ids.find(value);
+    return it == value_type_ids.end() ? kUnknownJitTypeId : it->second;
+  };
+  auto note_value_type = [&](llvm::Value* value, uint32_t type_id) {
+    if (value && type_id != kUnknownJitTypeId) value_type_ids[value] = type_id;
+  };
+  auto stack_ref_mask = [&]() -> uint64_t {
+    uint64_t mask = 0;
+    const size_t limit = std::min<size_t>(stack.size(), 64);
+    for (size_t i = 0; i < limit; ++i) {
+      const uint32_t type_id = value_type_id(stack[i]);
+      if (type_id != kUnknownJitTypeId && Simple::VM::Jit::IsJitRootType(module, type_id)) {
+        mask |= uint64_t{1} << i;
+      }
+    }
+    return mask;
+  };
   auto merge_block_stack = [&](size_t target, const std::vector<llvm::Value*>& incoming_stack,
                                llvm::BasicBlock* pred) -> bool {
     std::vector<llvm::Value*> normalized;
+    std::vector<uint32_t> normalized_types;
     normalized.reserve(incoming_stack.size());
-    for (llvm::Value* value : incoming_stack) normalized.push_back(to_slot(value));
+    normalized_types.reserve(incoming_stack.size());
+    for (llvm::Value* value : incoming_stack) {
+      const uint32_t type_id = value_type_id(value);
+      llvm::Value* slot_value = to_slot(value);
+      note_value_type(slot_value, type_id);
+      normalized.push_back(slot_value);
+      normalized_types.push_back(type_id);
+    }
     auto existing_it = block_stacks.find(target);
     if (existing_it == block_stacks.end()) {
       block_stacks[target] = normalized;
+      block_stack_types[target] = normalized_types;
       block_stack_incomings[target].push_back({pred, normalized});
       return true;
     }
     std::vector<llvm::Value*>& existing = existing_it->second;
-    if (existing.size() != normalized.size()) {
+    std::vector<uint32_t>& existing_types = block_stack_types[target];
+    if (existing.size() != normalized.size() || existing_types.size() != normalized_types.size()) {
       reason = "LLVM JIT branch stack height mismatch";
       return false;
     }
     llvm::BasicBlock* target_block = get_block(target);
     auto& incomings = block_stack_incomings[target];
     for (size_t i = 0; i < existing.size(); ++i) {
+      if (existing_types[i] != normalized_types[i]) existing_types[i] = kUnknownJitTypeId;
       llvm::PHINode* phi = llvm::dyn_cast<llvm::PHINode>(existing[i]);
       if (!phi || phi->getParent() != target_block) {
         llvm::IRBuilder<> phi_builder(target_block, target_block->begin());
@@ -2416,6 +2449,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         existing[i] = phi;
       }
+      note_value_type(phi, existing_types[i]);
       phi->addIncoming(normalized[i], pred);
     }
     incomings.push_back({pred, normalized});
@@ -2451,7 +2485,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                               {module_ptr, target_func, call_args, builder.getInt32(arg_count),
                                local_snapshot, builder.getInt32(static_cast<uint32_t>(locals.size())),
                                builder.getInt64(local_ref_mask), stack_snapshot,
-                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(0),
+                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(stack_ref_mask()),
                                builder.getInt32(static_cast<uint32_t>(func_index)),
                                builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)),
                                builder.getInt8(may_block ? 1 : 0), builder.getInt8(may_allocate ? 1 : 0), has_ret_ptr});
@@ -2498,6 +2532,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       builder.CreateRet(returns_void ? builder.getInt64(0) : result);
       stack.clear();
     } else if (!returns_void) {
+      note_value_type(result, target_sig.ret_type_id);
       stack.push_back(result);
     }
     return true;
@@ -3327,6 +3362,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         uint16_t count = ReadU16(module.code, pc);
         locals.clear();
         globals.clear();
+        local_type_ids.assign(count, kUnknownJitTypeId);
         locals.reserve(count);
         globals.reserve(module.globals.size());
         for (uint16_t i = 0; i < count; ++i) {
@@ -3354,7 +3390,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         for (uint16_t i = 0; i < param_count; ++i) {
           llvm::Value* offset = builder.getInt64(i);
           llvm::Value* ptr = builder.CreateGEP(i64, arg_slots, offset);
-          builder.CreateStore(builder.CreateLoad(i64, ptr), locals[i]);
+          llvm::Value* loaded_arg = builder.CreateLoad(i64, ptr);
+          builder.CreateStore(loaded_arg, locals[i]);
+          if (sig.param_type_start + i < module.param_types.size()) {
+            local_type_ids[i] = module.param_types[sig.param_type_start + i];
+            note_value_type(loaded_arg, local_type_ids[i]);
+          }
         }
         break;
       }
@@ -4033,7 +4074,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT LOAD_LOCAL invalid index";
           return false;
         }
-        stack.push_back(builder.CreateLoad(i64, locals[idx]));
+        llvm::Value* loaded = builder.CreateLoad(i64, locals[idx]);
+        if (idx < local_type_ids.size()) note_value_type(loaded, local_type_ids[idx]);
+        stack.push_back(loaded);
         break;
       }
       case OpCode::StoreLocal: {
@@ -4047,7 +4090,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT STORE_LOCAL underflow";
           return false;
         }
-        builder.CreateStore(to_slot(stack.back()), locals[idx]);
+        llvm::Value* source = stack.back();
+        llvm::Value* stored = to_slot(source);
+        if (idx < local_type_ids.size()) {
+          local_type_ids[idx] = value_type_id(source);
+          note_value_type(stored, local_type_ids[idx]);
+        }
+        builder.CreateStore(stored, locals[idx]);
         stack.pop_back();
         break;
       }
@@ -4059,14 +4108,18 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
             reason = "LLVM JIT LOAD_GLOBAL invalid index";
             return false;
           }
-          stack.push_back(builder.CreateCall(load_global_helper, {builder.getInt32(idx)}));
+          llvm::Value* loaded = builder.CreateCall(load_global_helper, {builder.getInt32(idx)});
+          note_value_type(loaded, module.globals[idx].type_id);
+          stack.push_back(loaded);
           break;
         }
         if (idx >= globals.size()) {
           reason = "LLVM JIT LOAD_GLOBAL invalid index";
           return false;
         }
-        stack.push_back(builder.CreateLoad(i64, globals[idx]));
+        llvm::Value* loaded = builder.CreateLoad(i64, globals[idx]);
+        note_value_type(loaded, module.globals[idx].type_id);
+        stack.push_back(loaded);
         break;
       }
       case OpCode::StoreGlobal: {
@@ -4391,7 +4444,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         builder.CreateStore(builder.getInt8(0), has_ret_ptr);
         llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr, instr_pc,
                                                true, true);
-        if (!sig_returns_void(target_sig)) stack.push_back(result);
+        if (!sig_returns_void(target_sig)) {
+          note_value_type(result, target_sig.ret_type_id);
+          stack.push_back(result);
+        }
         break;
       }
       case OpCode::CallImport:
@@ -4450,6 +4506,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           builder.CreateRet(returns_void ? builder.getInt64(0) : result);
           stack.clear();
         } else if (!returns_void) {
+          note_value_type(result, target_sig.ret_type_id);
           stack.push_back(result);
         }
         break;
