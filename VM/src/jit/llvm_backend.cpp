@@ -1065,29 +1065,35 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return spec.result_type == Simple::Byte::TypeKind::Unspecified || spec.result_type == result;
   };
-  auto import_metadata_loop_call_safe = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> bool {
-    if (!sig_is_scalar_loop_call_safe(row)) return false;
+  auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
+    auto unsafe = [](const std::string& category, const std::string& why) {
+      return "category=" + category + " reason=" + why;
+    };
+    if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature");
     if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
-      return false;
+      return unsafe("native/import", "missing-import-metadata");
     }
     const size_t import_base = module.functions.size() - module.imports.size();
-    if (func_id < import_base) return false;
+    if (func_id < import_base) return unsafe("native/import", "invalid-import-index");
     const size_t import_index = func_id - import_base;
-    if (import_index >= module.imports.size()) return false;
+    if (import_index >= module.imports.size()) return unsafe("native/import", "invalid-import-index");
     const auto& import_row = module.imports[import_index];
     const std::string module_name = Simple::Byte::ReadConstPoolString(module, import_row.module_name_str);
     const std::string symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
-    if (module_name.empty() || symbol_name.empty()) return false;
+    if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name");
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
-      return dl_call_loop_safe(row);
+      return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature");
     }
     static const Simple::VM::Native::NativeRegistry* registry =
         new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
     const auto* spec = registry->Find(module_name, symbol_name);
-    return spec && native_metadata_matches_signature(*spec, row) && spec->resources.empty() &&
-           spec->blocking == Simple::VM::Native::NativeBlockingBehavior::NonBlocking &&
-           spec->allocation == Simple::VM::Native::NativeAllocationBehavior::NoAllocation &&
-           spec->gc_behavior == Simple::VM::Native::NativeGcBehavior::NoSafepoint;
+    if (!spec) return unsafe("native-registry", "missing-native-metadata");
+    if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch");
+    if (!spec->resources.empty()) return unsafe("native-registry", "resource-argument-or-result");
+    if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call");
+    if (spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation) return unsafe("native-registry", "allocating-call");
+    if (spec->gc_behavior != Simple::VM::Native::NativeGcBehavior::NoSafepoint) return unsafe("native-registry", "gc-safepoint-call");
+    return std::string();
   };
   const uint16_t param_count = sig.param_count;
   if (args.size() != param_count) {
@@ -1194,6 +1200,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   bool saw_unsafe_import_or_indirect_loop_call = false;
   size_t unsafe_import_or_indirect_loop_call_pc = 0;
   OpCode unsafe_import_or_indirect_loop_call_op = OpCode::Nop;
+  std::string unsafe_import_or_indirect_loop_call_detail;
   bool saw_backward_branch = false;
   bool saw_branch = false;
   bool saw_global_access = false;
@@ -1775,6 +1782,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           saw_unsafe_import_or_indirect_loop_call = true;
           unsafe_import_or_indirect_loop_call_pc = op_pc;
           unsafe_import_or_indirect_loop_call_op = op;
+          unsafe_import_or_indirect_loop_call_detail = "category=indirect/procedure reason=non-scalar-or-managed-signature";
         }
         break;
       }
@@ -1809,11 +1817,14 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
         }
-        if (import_like_call && !import_metadata_loop_call_safe(target_func, target_sig) &&
-            !saw_unsafe_import_or_indirect_loop_call) {
-          saw_unsafe_import_or_indirect_loop_call = true;
-          unsafe_import_or_indirect_loop_call_pc = op_pc;
-          unsafe_import_or_indirect_loop_call_op = op;
+        if (import_like_call && !saw_unsafe_import_or_indirect_loop_call) {
+          std::string unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
+          if (!unsafe_detail.empty()) {
+            saw_unsafe_import_or_indirect_loop_call = true;
+            unsafe_import_or_indirect_loop_call_pc = op_pc;
+            unsafe_import_or_indirect_loop_call_op = op;
+            unsafe_import_or_indirect_loop_call_detail = std::move(unsafe_detail);
+          }
         }
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
@@ -1993,7 +2004,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   if (saw_backward_branch && saw_unsafe_import_or_indirect_loop_call) {
     return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
                          std::to_string(unsafe_import_or_indirect_loop_call_pc - func.code_offset) +
-                         " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(unsafe_import_or_indirect_loop_call_op)));
+                         " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(unsafe_import_or_indirect_loop_call_op)) +
+                         (unsafe_import_or_indirect_loop_call_detail.empty()
+                              ? std::string()
+                              : " " + unsafe_import_or_indirect_loop_call_detail));
   }
   (void)saw_call;
   (void)saw_branch;

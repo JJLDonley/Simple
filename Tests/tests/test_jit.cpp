@@ -9754,7 +9754,9 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
   }
   return error.find("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI") !=
              std::string::npos &&
-         error.find("op=CallImport") != std::string::npos && error.find("pc=") != std::string::npos;
+         error.find("op=CallImport") != std::string::npos && error.find("pc=") != std::string::npos &&
+         error.find("category=native-registry") != std::string::npos &&
+         error.find("reason=blocking-call") != std::string::npos;
 }
 
 bool RunLlvmJitLoopSmokeTest() {

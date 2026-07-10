@@ -531,7 +531,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [ ] Every JIT-supported opcode has interpreter parity tests.
 - [x] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
 - [x] `--jit-stats` reports function names alongside function indexes.
-- [x] LLVM loop-call rejection reasons include opcode and bytecode pc.
+- [x] LLVM loop-call rejection reasons include opcode, bytecode pc, call category, and safety reason.
 - [ ] Runtime traps include opcode/function/pc/source debug context when available.
 - [ ] Test `-jit` and `-int` produce identical user-visible results for fixture suites.
 - [x] Remove old compiled-runner code; JIT work targets LLVM ORC plus interpreter fallback only.
