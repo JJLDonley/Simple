@@ -274,7 +274,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [ ] enums use declared or default underlying integer type.
 - [ ] Reference/handle representations:
   - [ ] VM heap references are opaque VM refs, never raw host pointers.
-  - [ ] `System.Handle<T>` lowers to `NativeHandleId` packed as a VM word.
+  - [x] `System.Handle<T>` lowers to `NativeHandleId` packed as a VM word.
   - [ ] `Promise<T>` lowers to a generational promise/job id.
 
 ### Stable `data` Layout ABI
@@ -311,7 +311,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 ### Handles, Results, Options, Promises
 
-- [ ] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
+- [x] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
 - [ ] Native callees declare expected resource kind; dispatch validates kind/generation/closed state before use.
 - [x] Define canonical `Result<T,E>` representation.
   - [x] tag plus inline small payload or heap box for large/ref-containing payloads.

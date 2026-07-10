@@ -28,6 +28,7 @@ struct NativeCallContext {
   bool ArgF32(size_t index, float* out) const;
   bool ArgF64(size_t index, double* out) const;
   bool ArgRef(size_t index, uint32_t* out) const;
+  bool ArgHandle(size_t index, NativeHandleId* out) const;
   bool ArgString(size_t index, std::string* out);
 };
 
@@ -44,6 +45,7 @@ struct NativeCallResult {
   static NativeCallResult F32(float value);
   static NativeCallResult F64(double value);
   static NativeCallResult Ref(uint32_t value);
+  static NativeCallResult Handle(NativeHandleId value);
   static NativeCallResult String(std::string value);
   static NativeCallResult Error(std::string message);
 };

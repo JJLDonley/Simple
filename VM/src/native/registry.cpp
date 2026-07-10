@@ -1366,6 +1366,12 @@ bool NativeCallContext::ArgRef(size_t index, uint32_t* out) const {
   return true;
 }
 
+bool NativeCallContext::ArgHandle(size_t index, NativeHandleId* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = UnpackNativeHandleId(args[index]);
+  return true;
+}
+
 bool NativeCallContext::ArgString(size_t index, std::string* out) {
   return ReadStringArg(*this, index, out);
 }
@@ -1403,6 +1409,12 @@ NativeCallResult NativeCallResult::F64(double value) {
 NativeCallResult NativeCallResult::Ref(uint32_t value) {
   NativeCallResult result;
   result.value = PackRef(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::Handle(NativeHandleId value) {
+  NativeCallResult result;
+  result.value = PackNativeHandleId(value);
   return result;
 }
 
