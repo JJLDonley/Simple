@@ -15,8 +15,12 @@ std::string CanonicalPrimitiveTypeIdentity(Simple::Byte::TypeKind kind);
 std::string CanonicalEnumTypeIdentity(const std::string& enum_name,
                                       Simple::Byte::TypeKind underlying_kind);
 std::string CanonicalPointerTypeIdentity(const std::string& pointee_type_identity);
+std::string CanonicalBytesTypeIdentity();
 std::string CanonicalArrayTypeIdentity(const std::string& element_type_identity);
 std::string CanonicalListTypeIdentity(const std::string& element_type_identity);
+std::string CanonicalFunctionTypeIdentity(const std::vector<std::string>& parameter_type_identities,
+                                          const std::string& result_type_identity,
+                                          bool captures);
 std::string CanonicalHandleTypeIdentity(Simple::VM::Native::NativeResourceKind kind);
 std::string CanonicalChannelTypeIdentity(const std::string& value_type_identity);
 std::string CanonicalAggregateTypeIdentity(const AbiAggregateLayout& layout);

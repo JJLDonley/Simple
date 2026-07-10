@@ -81,12 +81,29 @@ std::string CanonicalPointerTypeIdentity(const std::string& pointee_type_identit
   return "ptr<" + pointee_type_identity + ">";
 }
 
+std::string CanonicalBytesTypeIdentity() {
+  return "bytes";
+}
+
 std::string CanonicalArrayTypeIdentity(const std::string& element_type_identity) {
   return "array<" + element_type_identity + ">";
 }
 
 std::string CanonicalListTypeIdentity(const std::string& element_type_identity) {
   return "list<" + element_type_identity + ">";
+}
+
+std::string CanonicalFunctionTypeIdentity(const std::vector<std::string>& parameter_type_identities,
+                                          const std::string& result_type_identity,
+                                          bool captures) {
+  std::string out = captures ? "closure(" : "fn(";
+  for (size_t i = 0; i < parameter_type_identities.size(); ++i) {
+    if (i != 0) out += ",";
+    out += parameter_type_identities[i];
+  }
+  out += ")->";
+  out += result_type_identity;
+  return out;
 }
 
 std::string CanonicalHandleTypeIdentity(Simple::VM::Native::NativeResourceKind kind) {

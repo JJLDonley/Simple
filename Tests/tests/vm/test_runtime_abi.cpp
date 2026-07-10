@@ -36,9 +36,11 @@ bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
   using Simple::VM::Native::NativeResourceKind;
   using Simple::VM::Runtime::CanonicalAggregateTypeIdentity;
   using Simple::VM::Runtime::CanonicalArrayTypeIdentity;
+  using Simple::VM::Runtime::CanonicalBytesTypeIdentity;
   using Simple::VM::Runtime::CanonicalChannelTypeIdentity;
   using Simple::VM::Runtime::CanonicalEnumTypeIdentity;
   using Simple::VM::Runtime::CanonicalHandleTypeIdentity;
+  using Simple::VM::Runtime::CanonicalFunctionTypeIdentity;
   using Simple::VM::Runtime::CanonicalInstantiatedTypeIdentity;
   using Simple::VM::Runtime::CanonicalListTypeIdentity;
   using Simple::VM::Runtime::CanonicalOptionTypeIdentity;
@@ -58,8 +60,12 @@ bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
          CanonicalPrimitiveTypeIdentity(TypeKind::String) == "string" &&
          CanonicalEnumTypeIdentity("Color Mode", TypeKind::U8) == "enum:Color%20Mode:u8" &&
          CanonicalPointerTypeIdentity("i32") == "ptr<i32>" &&
+         CanonicalBytesTypeIdentity() == "bytes" &&
          CanonicalArrayTypeIdentity("i32") == "array<i32>" &&
          CanonicalListTypeIdentity("string") == "list<string>" &&
+         CanonicalFunctionTypeIdentity({"i32", "string"}, "bool", false) ==
+             "fn(i32,string)->bool" &&
+         CanonicalFunctionTypeIdentity({"i32"}, "void", true) == "closure(i32)->void" &&
          CanonicalHandleTypeIdentity(NativeResourceKind::File) == "handle#1" &&
          CanonicalChannelTypeIdentity("i32") == "channel<i32>" &&
          CanonicalInstantiatedTypeIdentity("Map", {"string", "list<i32>"}) ==
