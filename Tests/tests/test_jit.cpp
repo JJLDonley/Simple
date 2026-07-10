@@ -9775,6 +9775,63 @@ bool RunLlvmJitScalarImportCallInsideLoopTest() {
   return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 6;
 }
 
+bool RunLlvmJitScalarImportLoopMatchesInterpreterTest() {
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  size_t loop_start = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 6);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  size_t loop_end = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(main_code, exit_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(main_code, back_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildSingleImportFunctionModule(main_code, 1, "System.os", "args_count", SigSpec{0, 0, {}}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::ExecOptions options;
+  options.argv.push_back("jit-test");
+  Simple::VM::ExecResult exec_nojit = Simple::VM::ExecuteModule(load.module, true, false, options);
+  Simple::VM::ExecResult exec_jit = Simple::VM::ExecuteModule(load.module, true, true, options);
+  if (exec_nojit.status != exec_jit.status || exec_nojit.exit_code != exec_jit.exit_code) {
+    std::cerr << "scalar import loop int/jit mismatch: status " << static_cast<int>(exec_nojit.status)
+              << " vs " << static_cast<int>(exec_jit.status) << ", exit " << exec_nojit.exit_code
+              << " vs " << exec_jit.exit_code << "\n";
+    return false;
+  }
+  return exec_jit.exit_code == 6;
+}
+
 bool RunLlvmJitPreLoopAllocatingImportWithLoopTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -10610,6 +10667,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_compare_bool_smoke", RunLlvmJitCompareBoolSmokeTest},
   {"llvm_jit_forward_branch_smoke", RunLlvmJitForwardBranchSmokeTest},
   {"llvm_jit_scalar_import_call_inside_loop", RunLlvmJitScalarImportCallInsideLoopTest},
+  {"llvm_jit_scalar_import_loop_matches_interpreter", RunLlvmJitScalarImportLoopMatchesInterpreterTest},
   {"llvm_jit_pre_loop_allocating_import_with_loop", RunLlvmJitPreLoopAllocatingImportWithLoopTest},
   {"llvm_jit_dynamic_dl_scalar_call_inside_loop", RunLlvmJitDynamicDlScalarCallInsideLoopTest},
   {"llvm_jit_dynamic_dl_context_helper_inside_loop", RunLlvmJitDynamicDlContextHelperInsideLoopTest},
