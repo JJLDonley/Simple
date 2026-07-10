@@ -9,6 +9,45 @@ constexpr uint32_t kFirstGeneration = 1;
 
 } // namespace
 
+uint16_t NativeResourceKindId(NativeResourceKind kind) {
+  return static_cast<uint16_t>(kind);
+}
+
+bool NativeResourceKindFromId(uint16_t id, NativeResourceKind* out_kind) {
+  if (!out_kind) return false;
+  switch (static_cast<NativeResourceKind>(id)) {
+    case NativeResourceKind::Unknown:
+    case NativeResourceKind::File:
+    case NativeResourceKind::Directory:
+    case NativeResourceKind::Socket:
+    case NativeResourceKind::Listener:
+    case NativeResourceKind::Process:
+    case NativeResourceKind::Thread:
+    case NativeResourceKind::Job:
+    case NativeResourceKind::Channel:
+    case NativeResourceKind::FfiLibrary:
+    case NativeResourceKind::FfiSymbol:
+    case NativeResourceKind::AsmUnit:
+    case NativeResourceKind::AsmObject:
+    case NativeResourceKind::AsmSymbol:
+    case NativeResourceKind::Buffer:
+    case NativeResourceKind::Timer:
+    case NativeResourceKind::Watcher:
+    case NativeResourceKind::Terminal:
+    case NativeResourceKind::JsonValue:
+    case NativeResourceKind::Logger:
+    case NativeResourceKind::Random:
+      *out_kind = static_cast<NativeResourceKind>(id);
+      return true;
+  }
+  return false;
+}
+
+bool IsKnownNativeResourceKindId(uint16_t id) {
+  NativeResourceKind ignored = NativeResourceKind::Unknown;
+  return NativeResourceKindFromId(id, &ignored) && ignored != NativeResourceKind::Unknown;
+}
+
 uint64_t PackNativeHandleId(NativeHandleId handle) {
   return (static_cast<uint64_t>(handle.generation) << 32u) | handle.index;
 }

@@ -491,6 +491,29 @@ bool VmNativeFsOpenCloseUsesResourceRegistry() {
   return ok;
 }
 
+bool VmNativeResourceKindIdsAreStable() {
+  using Simple::VM::Native::IsKnownNativeResourceKindId;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceKindFromId;
+  using Simple::VM::Native::NativeResourceKindId;
+
+  NativeResourceKind kind = NativeResourceKind::Unknown;
+  if (NativeResourceKindId(NativeResourceKind::File) != 1 ||
+      NativeResourceKindId(NativeResourceKind::FfiLibrary) != 9 ||
+      NativeResourceKindId(NativeResourceKind::Terminal) != 17) {
+    return false;
+  }
+  if (!NativeResourceKindFromId(NativeResourceKindId(NativeResourceKind::Socket), &kind) ||
+      kind != NativeResourceKind::Socket) {
+    return false;
+  }
+  if (!IsKnownNativeResourceKindId(NativeResourceKindId(NativeResourceKind::File)) ||
+      IsKnownNativeResourceKindId(NativeResourceKindId(NativeResourceKind::Unknown))) {
+    return false;
+  }
+  return !NativeResourceKindFromId(999, &kind);
+}
+
 bool VmNativeResourceRegistryReportsShutdownFailures() {
   using Simple::VM::Native::NativeResourceKind;
   using Simple::VM::Native::NativeResourceRecord;
@@ -588,6 +611,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_fs_open_close_uses_resource_registry", VmNativeFsOpenCloseUsesResourceRegistry},
+  {"vm_native_resource_kind_ids_are_stable", VmNativeResourceKindIdsAreStable},
   {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };

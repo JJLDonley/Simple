@@ -94,6 +94,7 @@ Language-neutral SIR syntax/lowering status:
 - [ ] Preserve opaque handle resource kind through validation, SIR, SBC metadata, and native dispatch.
   - [x] SBC loader validates opaque handle resource kind metadata.
   - [x] Runtime ABI classifier maps opaque handle type rows to handle ABI values.
+  - [x] Native resource kinds expose stable ids for opaque handle metadata.
 
 ### Bytecode / SBC Prerequisites
 
@@ -365,6 +366,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Back legacy file descriptors with `NativeResourceRegistry` handles internally.
   - [x] Remove legacy `open_files` native dispatch storage.
 - [x] Define `NativeResourceKind`:
+  - [x] stable numeric ids for SBC opaque handle metadata.
   - [x] file, directory, socket, listener, process, thread, job, channel.
   - [x] FFI library/symbol.
   - [x] ASM unit/object/symbol.

@@ -30,6 +30,10 @@ enum class NativeResourceKind : uint16_t {
   Random,
 };
 
+uint16_t NativeResourceKindId(NativeResourceKind kind);
+bool NativeResourceKindFromId(uint16_t id, NativeResourceKind* out_kind);
+bool IsKnownNativeResourceKindId(uint16_t id);
+
 struct NativeHandleId {
   uint32_t index = 0;
   uint32_t generation = 0;
