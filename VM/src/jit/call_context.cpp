@@ -83,6 +83,24 @@ void ClearJitRoots(JitCallContext* context) {
   context->root_refs.clear();
 }
 
+void MarkJitSafepoint(JitCallContext* context,
+                      uint32_t function_index,
+                      uint32_t pc,
+                      bool may_block,
+                      bool may_allocate) {
+  if (!context) return;
+  context->safepoint.active = true;
+  context->safepoint.function_index = function_index;
+  context->safepoint.pc = pc;
+  context->safepoint.may_block = may_block;
+  context->safepoint.may_allocate = may_allocate;
+}
+
+void ClearJitSafepoint(JitCallContext* context) {
+  if (!context) return;
+  context->safepoint = JitCallSafepoint{};
+}
+
 bool IsJitRootType(const Simple::Byte::SbcModule& module, uint32_t type_id) {
   if (type_id >= module.types.size()) return false;
   switch (static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind)) {

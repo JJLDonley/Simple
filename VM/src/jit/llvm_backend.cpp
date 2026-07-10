@@ -756,6 +756,10 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
                                              uint64_t* caller_stack,
                                              uint32_t caller_stack_count,
                                              uint64_t caller_stack_ref_mask,
+                                             uint32_t caller_func_index,
+                                             uint32_t caller_pc,
+                                             uint8_t may_block,
+                                             uint8_t may_allocate,
                                              uint8_t* has_ret) {
   if (has_ret) *has_ret = 0;
   if (!module) return 0;
@@ -799,6 +803,7 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
   }
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, caller_local_ref_mask);
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.operand_stack, caller_stack_ref_mask);
+  Simple::VM::Jit::MarkJitSafepoint(&context, caller_func_index, caller_pc, may_block != 0, may_allocate != 0);
 
   std::string reason;
   if (func_index < module->function_is_import.size() && module->function_is_import[func_index]) {
@@ -2209,7 +2214,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::PointerType* slot_ptr = llvm::PointerType::getUnqual(*context);
   llvm::FunctionType* fn_type = llvm::FunctionType::get(i64, {slot_ptr, i32}, false);
   llvm::FunctionType* helper_type = llvm::FunctionType::get(
-      i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, slot_ptr}, false);
+      i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32,
+            builder.getInt8Ty(), builder.getInt8Ty(), slot_ptr}, false);
   llvm::FunctionType* yield_type = llvm::FunctionType::get(builder.getVoidTy(), {}, false);
   llvm::FunctionType* trap_type = llvm::FunctionType::get(builder.getVoidTy(), {}, false);
   llvm::FunctionType* string_compare_type = llvm::FunctionType::get(i64, {i64, i64, i32}, false);
@@ -2390,7 +2396,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   auto emit_call_helper = [&](llvm::Value* target_func,
                               llvm::AllocaInst* call_args,
                               uint8_t arg_count,
-                              llvm::AllocaInst* has_ret_ptr) -> llvm::Value* {
+                              llvm::AllocaInst* has_ret_ptr,
+                              size_t call_pc) -> llvm::Value* {
     llvm::Value* null_slots = llvm::ConstantPointerNull::get(slot_ptr);
     llvm::Value* local_snapshot = null_slots;
     if (!locals.empty()) {
@@ -2414,7 +2421,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                               {module_ptr, target_func, call_args, builder.getInt32(arg_count),
                                local_snapshot, builder.getInt32(static_cast<uint32_t>(locals.size())),
                                builder.getInt64(local_ref_mask), stack_snapshot,
-                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(0), has_ret_ptr});
+                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(0),
+                               builder.getInt32(static_cast<uint32_t>(func_index)),
+                               builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)),
+                               builder.getInt8(0), builder.getInt8(0), has_ret_ptr});
   };
   auto emit_trap_if = [&](llvm::Value* cond, const char* name) {
     llvm::BasicBlock* trap_block = llvm::BasicBlock::Create(*context, std::string(name) + ".trap", fn);
@@ -2448,7 +2458,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     } else {
       llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, std::string(opname) + "_has_ret");
       builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-      result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr);
+      result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, pc);
     }
     const bool returns_void = sig_returns_void(target_sig);
     if (tail) {
@@ -2472,6 +2482,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       if (stack_it != block_stacks.end()) stack = stack_it->second;
     }
     const bool skipping_unreachable = builder.GetInsertBlock()->getTerminator() != nullptr;
+    const size_t instr_pc = pc;
     OpCode op = static_cast<OpCode>(module.code[pc++]);
     switch (op) {
       case OpCode::Nop:
@@ -4346,7 +4357,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_indirect_has_ret");
         builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-        llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr);
+        llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr, instr_pc);
         if (!sig_returns_void(target_sig)) stack.push_back(result);
         break;
       }
@@ -4396,7 +4407,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         } else {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-          result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr);
+          result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, instr_pc);
         }
         const bool returns_void = sig_returns_void(target_sig);
         if (op == OpCode::TailCall) {

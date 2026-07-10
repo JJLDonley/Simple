@@ -9601,7 +9601,14 @@ bool RunJitCallContextHelpersTest() {
   }
   Simple::VM::Jit::ClearJitRoots(&context);
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, 0b10);
-  return context.root_refs.size() == 1 && context.root_refs[0] == 88;
+  if (context.root_refs.size() != 1 || context.root_refs[0] != 88) return false;
+  Simple::VM::Jit::MarkJitSafepoint(&context, 7, 11, true, false);
+  if (!context.safepoint.active || context.safepoint.function_index != 7 || context.safepoint.pc != 11 ||
+      !context.safepoint.may_block || context.safepoint.may_allocate) {
+    return false;
+  }
+  Simple::VM::Jit::ClearJitSafepoint(&context);
+  return !context.safepoint.active;
 }
 
 bool RunJitStatusCodeTest() {

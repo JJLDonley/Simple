@@ -24,6 +24,14 @@ struct JitCallTrap {
   std::string message;
 };
 
+struct JitCallSafepoint {
+  bool active = false;
+  bool may_block = false;
+  bool may_allocate = false;
+  uint32_t function_index = 0xFFFFFFFFu;
+  uint32_t pc = 0xFFFFFFFFu;
+};
+
 struct JitCallContext {
   std::vector<Slot> args;
   std::vector<Slot> operand_stack;
@@ -34,6 +42,7 @@ struct JitCallContext {
   Slot return_value = 0;
   bool has_return = false;
   JitCallTrap trap;
+  JitCallSafepoint safepoint;
   std::vector<uint32_t> root_refs;
 };
 
@@ -50,6 +59,12 @@ void ClearJitReturn(JitCallContext* context);
 void SetJitTrap(JitCallContext* context, JitCallTrapKind kind, std::string message);
 void RegisterJitRoot(JitCallContext* context, uint32_t ref);
 void ClearJitRoots(JitCallContext* context);
+void MarkJitSafepoint(JitCallContext* context,
+                      uint32_t function_index,
+                      uint32_t pc,
+                      bool may_block,
+                      bool may_allocate);
+void ClearJitSafepoint(JitCallContext* context);
 bool IsJitRootType(const Simple::Byte::SbcModule& module, uint32_t type_id);
 bool PublishJitRootsFromContext(JitCallContext* context,
                                 const Simple::Byte::SbcModule& module,
