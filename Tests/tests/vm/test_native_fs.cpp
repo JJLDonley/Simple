@@ -132,6 +132,19 @@ bool VmNativeFunctionMetadataDeclaresResources() {
          !dl_open->capability_tags.empty();
 }
 
+bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const std::string docs = Simple::VM::Native::GenerateStdLibMarkdown(registry);
+  return docs.find("| Symbol | Signature | Blocking | Capabilities | Resources |") !=
+             std::string::npos &&
+         docs.find("| `readText` | `(string) -> string` | `may-block` | `filesystem.read` | `-` |") !=
+             std::string::npos &&
+         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file` |") !=
+             std::string::npos &&
+         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0` |") !=
+             std::string::npos;
+}
+
 bool VmNativeDispatchEnforcesCapabilities() {
   Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   Simple::VM::Heap heap;
@@ -214,6 +227,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
+  {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };

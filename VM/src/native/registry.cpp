@@ -1350,6 +1350,92 @@ std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
   }
 }
 
+std::string BlockingMarkdown(NativeBlockingBehavior blocking) {
+  return blocking == NativeBlockingBehavior::MayBlock ? "may-block" : "non-blocking";
+}
+
+std::string ResourceKindMarkdown(NativeResourceKind kind) {
+  switch (kind) {
+    case NativeResourceKind::File:
+      return "file";
+    case NativeResourceKind::Directory:
+      return "directory";
+    case NativeResourceKind::Socket:
+      return "socket";
+    case NativeResourceKind::Listener:
+      return "listener";
+    case NativeResourceKind::Process:
+      return "process";
+    case NativeResourceKind::Thread:
+      return "thread";
+    case NativeResourceKind::Job:
+      return "job";
+    case NativeResourceKind::Channel:
+      return "channel";
+    case NativeResourceKind::FfiLibrary:
+      return "ffi-library";
+    case NativeResourceKind::FfiSymbol:
+      return "ffi-symbol";
+    case NativeResourceKind::AsmUnit:
+      return "asm-unit";
+    case NativeResourceKind::AsmObject:
+      return "asm-object";
+    case NativeResourceKind::AsmSymbol:
+      return "asm-symbol";
+    case NativeResourceKind::Buffer:
+      return "buffer";
+    case NativeResourceKind::Timer:
+      return "timer";
+    case NativeResourceKind::Watcher:
+      return "watcher";
+    case NativeResourceKind::Terminal:
+      return "terminal";
+    case NativeResourceKind::JsonValue:
+      return "json-value";
+    case NativeResourceKind::Logger:
+      return "logger";
+    case NativeResourceKind::Random:
+      return "random";
+    case NativeResourceKind::Unknown:
+      return "unknown";
+  }
+  return "unknown";
+}
+
+std::string ResourceAccessMarkdown(NativeResourceAccess access) {
+  switch (access) {
+    case NativeResourceAccess::Input:
+      return "in";
+    case NativeResourceAccess::Output:
+      return "out";
+    case NativeResourceAccess::InputOutput:
+      return "inout";
+  }
+  return "unknown";
+}
+
+std::string TagsMarkdown(const std::vector<std::string>& tags) {
+  if (tags.empty()) return "-";
+  std::ostringstream out;
+  for (size_t i = 0; i < tags.size(); ++i) {
+    if (i > 0) out << ", ";
+    out << tags[i];
+  }
+  return out.str();
+}
+
+std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
+  if (resources.empty()) return "-";
+  std::ostringstream out;
+  for (size_t i = 0; i < resources.size(); ++i) {
+    if (i > 0) out << ", ";
+    const NativeResourceUse& resource = resources[i];
+    out << ResourceAccessMarkdown(resource.access) << ":" << ResourceKindMarkdown(resource.kind);
+    if (resource.parameter_index != 0xffffffffu) out << "@" << resource.parameter_index;
+  }
+  return out.str();
+}
+
 std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
   std::map<std::string, std::vector<const NativeFunctionSpec*>> modules;
   for (const NativeFunctionSpec& spec : registry.Functions()) {
@@ -1364,14 +1450,18 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Signature |\n|---|---|\n";
+    out << "| Symbol | Signature | Blocking | Capabilities | Resources |\n"
+        << "|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
       out << "| `" << spec->symbol_name << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
         if (i > 0) out << ", ";
         out << TypeKindMarkdown(spec->parameter_types[i]);
       }
-      out << ") -> " << TypeKindMarkdown(spec->result_type) << "` |\n";
+      out << ") -> " << TypeKindMarkdown(spec->result_type) << "` | `"
+          << BlockingMarkdown(spec->blocking) << "` | `"
+          << TagsMarkdown(spec->capability_tags) << "` | `"
+          << ResourcesMarkdown(spec->resources) << "` |\n";
     }
   }
   return out.str();

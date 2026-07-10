@@ -700,13 +700,15 @@ Rules:
 ## Phase 5: Documentation and Tests
 
 - [ ] Generate native API docs grouped by layer.
-- [ ] Generate capability table.
-- [ ] Generate resource lifecycle table.
+  - [x] Generated native metadata docs include module/symbol/signature rows.
+- [x] Generate capability table in native metadata docs.
+- [x] Generate resource-use table in native metadata docs.
 - [ ] Generate platform availability table.
-- [ ] Test every public native function has metadata.
+- [x] Test every public native function has metadata.
 - [ ] Test every resource-producing function declares resource kind and cleanup behavior.
-- [ ] Unit tests for resource registry.
-- [ ] VM tests for handle lifecycle edge cases.
+  - [x] File and FFI library metadata tests cover resource outputs/inputs.
+- [x] Unit tests for resource registry.
+- [x] VM tests for handle lifecycle edge cases.
 - [ ] Native family tests:
   - [ ] FS/path.
   - [ ] buffer/bytes.
