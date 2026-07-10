@@ -190,7 +190,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [ ] primitives.
   - [ ] `string`, `Bytes`, heap references, and managed artifacts.
   - [ ] arrays/lists and nested aggregate types.
-  - [ ] stable-layout `data` types.
+  - [x] stable-layout `data` types.
   - [ ] enums and pointer types.
   - [ ] function/procedure types including captured closures.
   - [ ] `System.Handle<T>`, `Result<T,E>`, `Option<T>`, `Promise<T>`, `Channel<T>`.
@@ -302,6 +302,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Padding is deterministic and zero-initialized where observable through ABI.
 - [x] Total size rounds up to max alignment.
 - [x] Nested `data` structs are allowed after recursive layout validation in runtime ABI layout helpers.
+- [x] Runtime ABI maps stable SBC data type rows through recursive field layout classification.
 - [x] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
 - [x] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
 - [x] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.

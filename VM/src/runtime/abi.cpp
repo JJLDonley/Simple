@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <string>
+#include <unordered_set>
 
 namespace Simple::VM::Runtime {
 namespace {
@@ -98,6 +99,70 @@ AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
     return AbiTypeInfo{AbiClass::Handle, 8, 8, true, false};
   }
   return GetPrimitiveAbiTypeInfo(static_cast<Simple::Byte::TypeKind>(row.kind));
+}
+
+bool GetSbcModuleTypeAbiTypeInfoImpl(const Simple::Byte::SbcModule& module,
+                                     uint32_t type_id,
+                                     std::unordered_set<uint32_t>& visiting,
+                                     AbiTypeInfo* out,
+                                     std::string* error) {
+  if (!out) return false;
+  if (type_id >= module.types.size()) {
+    if (error) *error = "SBC type id out of range";
+    return false;
+  }
+  const Simple::Byte::TypeRow& row = module.types[type_id];
+  if (Simple::Byte::IsOpaqueHandleType(row)) {
+    *out = GetSbcTypeAbiTypeInfo(row);
+    return true;
+  }
+  if (Simple::Byte::IsManagedArtifactType(row)) {
+    *out = AbiTypeInfo{AbiClass::Ref, 8, 8, true, false};
+    return true;
+  }
+  const auto kind = static_cast<Simple::Byte::TypeKind>(row.kind);
+  if (kind != Simple::Byte::TypeKind::Unspecified) {
+    *out = GetPrimitiveAbiTypeInfo(kind);
+    return out->abi_class != AbiClass::Invalid;
+  }
+  if (!Simple::Byte::IsStableDataType(row)) {
+    if (error) *error = "SBC aggregate type is not stable data";
+    return false;
+  }
+  if (!visiting.insert(type_id).second) {
+    if (error) *error = "recursive stable data ABI type";
+    return false;
+  }
+  if (row.field_start + row.field_count > module.fields.size()) {
+    if (error) *error = "stable data field range out of bounds";
+    visiting.erase(type_id);
+    return false;
+  }
+  std::vector<AbiTypeInfo> fields;
+  fields.reserve(row.field_count);
+  for (uint32_t i = 0; i < row.field_count; ++i) {
+    AbiTypeInfo field;
+    if (!GetSbcModuleTypeAbiTypeInfoImpl(module,
+                                         module.fields[row.field_start + i].type_id,
+                                         visiting,
+                                         &field,
+                                         error)) {
+      visiting.erase(type_id);
+      return false;
+    }
+    fields.push_back(field);
+  }
+  visiting.erase(type_id);
+  *out = GetAggregateAbiTypeInfo(ComputeStableAggregateLayout(fields));
+  return true;
+}
+
+bool GetSbcModuleTypeAbiTypeInfo(const Simple::Byte::SbcModule& module,
+                                 uint32_t type_id,
+                                 AbiTypeInfo* out,
+                                 std::string* error) {
+  std::unordered_set<uint32_t> visiting;
+  return GetSbcModuleTypeAbiTypeInfoImpl(module, type_id, visiting, out, error);
 }
 
 AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind) {

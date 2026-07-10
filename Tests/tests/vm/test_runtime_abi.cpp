@@ -76,6 +76,42 @@ bool VmRuntimeAbiMapsOpaqueHandleTypeRows() {
          scalar_info.abi_class == AbiClass::Scalar && scalar_info.size == 8;
 }
 
+bool VmRuntimeAbiMapsStableSbcDataTypes() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::AbiClass;
+  using Simple::VM::Runtime::GetSbcModuleTypeAbiTypeInfo;
+
+  Simple::Byte::SbcModule module;
+  Simple::Byte::TypeRow i32;
+  i32.kind = static_cast<uint8_t>(TypeKind::I32);
+  i32.size = 4;
+  module.types.push_back(i32);
+  Simple::Byte::TypeRow data;
+  data.kind = static_cast<uint8_t>(TypeKind::Unspecified);
+  data.flags = Simple::Byte::kTypeFlagStableData;
+  data.size = 8;
+  data.field_start = 0;
+  data.field_count = 2;
+  module.types.push_back(data);
+  module.fields.push_back(Simple::Byte::FieldRow{0, 0, 0, 0});
+  module.fields.push_back(Simple::Byte::FieldRow{0, 0, 4, 0});
+
+  Simple::VM::Runtime::AbiTypeInfo info;
+  std::string error;
+  if (!GetSbcModuleTypeAbiTypeInfo(module, 1, &info, &error) || !error.empty()) {
+    return false;
+  }
+  if (info.abi_class != AbiClass::Aggregate || info.size != 8 || info.align != 4 ||
+      !info.native_callable || !info.external_ffi_callable) {
+    return false;
+  }
+
+  module.fields[1].type_id = 1;
+  error.clear();
+  return !GetSbcModuleTypeAbiTypeInfo(module, 1, &info, &error) &&
+         error.find("recursive stable data ABI type") != std::string::npos;
+}
+
 bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::AbiClass;
@@ -503,6 +539,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_validates_scalar_values", VmRuntimeAbiValidatesScalarValues},
   {"vm_runtime_abi_maps_opaque_handle_type_rows", VmRuntimeAbiMapsOpaqueHandleTypeRows},
+  {"vm_runtime_abi_maps_stable_sbc_data_types", VmRuntimeAbiMapsStableSbcDataTypes},
   {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
