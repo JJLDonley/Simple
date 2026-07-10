@@ -295,6 +295,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [ ] Return-by-value rules match parameter rules and are explicit in metadata.
 - [ ] Tests prove methods do not affect layout.
 - [ ] Tests cover padding, nested data, arrays, generics, and layout hashes.
+  - [x] Runtime ABI tests cover deterministic stable aggregate layout hashes.
   - [x] Runtime ABI tests cover primitive padding and ref-containing aggregate classification.
 
 ### Strings and Bytes ABI
@@ -328,7 +329,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### ABI Metadata and Tests
 
 - [x] Add ABI classification helper for scalar, float, ref, aggregate, variant, promise, and opaque classes.
-- [ ] Add layout hash for stable `data` types and generic specializations.
+- [x] Add layout hash for stable `data` types and generic specializations.
 - [x] Add ABI verifier checks for native-callable signatures.
 - [ ] Add interpreter/JIT shared tests for the same native ABI calls.
 - [ ] Document all mappings in `Docs/Language.md`, `Docs/VM.md`, `Docs/IR.md`, and `Docs/Byte.md`.

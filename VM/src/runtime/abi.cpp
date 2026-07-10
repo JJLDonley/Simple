@@ -8,10 +8,35 @@ namespace {
 
 constexpr uint32_t kDefaultAggregateAlign = 1;
 constexpr uint32_t kMaxStableAggregateAlign = 8;
+constexpr uint64_t kFnvOffset = 14695981039346656037ull;
+constexpr uint64_t kFnvPrime = 1099511628211ull;
 
 uint32_t ClampStableAggregateAlign(uint32_t alignment) {
   if (alignment == 0) return kDefaultAggregateAlign;
   return std::min(alignment, kMaxStableAggregateAlign);
+}
+
+void HashByte(uint64_t* hash, uint8_t value) {
+  *hash ^= value;
+  *hash *= kFnvPrime;
+}
+
+void HashU32(uint64_t* hash, uint32_t value) {
+  for (uint32_t i = 0; i < 4; ++i) {
+    HashByte(hash, static_cast<uint8_t>((value >> (i * 8u)) & 0xffu));
+  }
+}
+
+void HashBool(uint64_t* hash, bool value) {
+  HashByte(hash, value ? 1u : 0u);
+}
+
+void HashTypeInfo(uint64_t* hash, const AbiTypeInfo& type) {
+  HashU32(hash, static_cast<uint32_t>(type.abi_class));
+  HashU32(hash, type.size);
+  HashU32(hash, type.align);
+  HashBool(hash, type.native_callable);
+  HashBool(hash, type.external_ffi_callable);
 }
 
 } // namespace
@@ -146,6 +171,22 @@ bool IsVoidLikeResult(Simple::Byte::TypeKind kind) {
   return kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Unspecified;
 }
 
+uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout) {
+  uint64_t hash = kFnvOffset;
+  HashU32(&hash, layout.size);
+  HashU32(&hash, layout.align);
+  HashBool(&hash, layout.contains_references);
+  HashBool(&hash, layout.native_callable);
+  HashBool(&hash, layout.external_ffi_callable);
+  HashBool(&hash, layout.pass_by_value);
+  HashU32(&hash, static_cast<uint32_t>(layout.fields.size()));
+  for (const AbiFieldLayout& field : layout.fields) {
+    HashU32(&hash, field.offset);
+    HashTypeInfo(&hash, field.type);
+  }
+  return hash;
+}
+
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields) {
   AbiAggregateLayout layout;
   layout.fields.reserve(fields.size());
@@ -173,6 +214,7 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
 
   layout.size = AlignAbiOffset(offset, layout.align);
   layout.pass_by_value = layout.native_callable && IsSmallAbiAggregate(layout.size, layout.contains_references);
+  layout.layout_hash = ComputeStableAggregateLayoutHash(layout);
   return layout;
 }
 

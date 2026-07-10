@@ -42,6 +42,7 @@ struct AbiAggregateLayout {
   bool native_callable = true;
   bool external_ffi_callable = true;
   bool pass_by_value = true;
+  uint64_t layout_hash = 0;
   std::vector<AbiFieldLayout> fields;
 };
 
@@ -88,6 +89,7 @@ AbiVariantValue MakeAbiResultErr(uint64_t payload);
 bool IsAbiOptionSome(const AbiVariantValue& value);
 bool IsAbiResultOk(const AbiVariantValue& value);
 bool IsAbiResultErr(const AbiVariantValue& value);
+uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,

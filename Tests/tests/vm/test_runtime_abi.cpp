@@ -112,6 +112,28 @@ bool VmRuntimeAbiValidatesCallableSignatures() {
          error.find("never") != std::string::npos;
 }
 
+bool VmRuntimeAbiComputesStableLayoutHashes() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::ComputeStableAggregateLayoutHash;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto first = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::Bool),
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+  });
+  const auto same = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::Bool),
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+  });
+  const auto reordered = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::Bool),
+  });
+  return first.layout_hash != 0 && first.layout_hash == ComputeStableAggregateLayoutHash(first) &&
+         first.layout_hash == same.layout_hash && first.layout_hash != reordered.layout_hash;
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -146,6 +168,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
+  {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 
