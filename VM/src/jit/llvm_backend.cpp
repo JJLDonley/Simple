@@ -1624,9 +1624,22 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   auto type_label = [&](uint32_t type_id) -> std::string {
     if (type_id == 0xFFFFFFFFu) return "unspecified";
     if (type_id >= module.types.size()) return "type#" + std::to_string(type_id);
-    std::string name = Simple::Byte::ReadConstPoolString(module, module.types[type_id].name_str);
-    if (!name.empty()) return name;
-    return type_kind_label(static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind));
+    const auto& row = module.types[type_id];
+    std::string name = Simple::Byte::ReadConstPoolString(module, row.name_str);
+    if (name.empty()) name = type_kind_label(static_cast<Simple::Byte::TypeKind>(row.kind));
+    if (row.field_count == 0 || row.field_start + row.field_count > module.fields.size()) return name;
+    std::ostringstream out;
+    out << name << "{";
+    for (uint32_t i = 0; i < row.field_count; ++i) {
+      if (i != 0) out << ",";
+      const auto& field = module.fields[row.field_start + i];
+      out << (field.type_id < module.types.size()
+                  ? type_kind_label(static_cast<Simple::Byte::TypeKind>(module.types[field.type_id].kind))
+                  : "type#" + std::to_string(field.type_id))
+          << "@" << field.offset;
+    }
+    out << "}";
+    return out.str();
   };
   auto signature_label = [&](const Simple::Byte::SigRow& row) -> std::string {
     std::ostringstream out;
