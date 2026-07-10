@@ -513,6 +513,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Route scalar dynamic-DL LLVM helper calls through `JitCallContext` snapshots/root publication.
 - [x] Bump the LLVM runtime-helper ABI version after changing the dynamic-DL helper signature.
 - [x] Allow verified dynamic-DL borrowed C-string input calls inside LLVM loops through the `JitCallContext` helper path.
+- [x] Include loop bytecode ranges in unsafe LLVM loop-call rejection diagnostics.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.

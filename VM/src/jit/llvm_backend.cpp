@@ -2488,8 +2488,16 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       if (loop_call) break;
     }
     if (loop_call) {
+      std::string loop_range;
+      for (const auto& range : backward_branch_ranges) {
+        if (loop_call->pc >= range.first && loop_call->pc <= range.second) {
+          loop_range = " loop=[" + std::to_string(range.first - func.code_offset) + "," +
+                       std::to_string(range.second - func.code_offset) + "]";
+          break;
+        }
+      }
       return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
-                           std::to_string(loop_call->pc - func.code_offset) +
+                           std::to_string(loop_call->pc - func.code_offset) + loop_range +
                            " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(loop_call->op)) +
                            (loop_call->detail.empty() ? std::string() : " " + loop_call->detail));
     }

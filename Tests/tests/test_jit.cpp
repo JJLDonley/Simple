@@ -2,7 +2,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
-#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -48,6 +47,7 @@ extern "C" int64_t SimpleVmLlvmTestAddOneI64(int64_t value) {
 extern "C" int32_t SimpleVmLlvmTestCStringLength(const char* value) {
   return value ? static_cast<int32_t>(std::strlen(value)) : -1;
 }
+
 
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
                                               const std::vector<uint16_t>& locals);
