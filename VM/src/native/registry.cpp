@@ -1277,6 +1277,10 @@ NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
   spec.result_type = result_type;
   spec.layer = NativeLayer::System;
   spec.stability = NativeStability::Experimental;
+  if (result_type == Simple::Byte::TypeKind::String || result_type == Simple::Byte::TypeKind::Ref) {
+    spec.allocation = NativeAllocationBehavior::MayAllocateVm;
+    spec.gc_behavior = NativeGcBehavior::MaySafepoint;
+  }
   spec.handler = std::move(handler);
   return spec;
 }
@@ -1558,6 +1562,28 @@ std::string BlockingMarkdown(NativeBlockingBehavior blocking) {
   return blocking == NativeBlockingBehavior::MayBlock ? "may-block" : "non-blocking";
 }
 
+std::string AllocationMarkdown(NativeAllocationBehavior allocation) {
+  switch (allocation) {
+    case NativeAllocationBehavior::NoAllocation:
+      return "no-alloc";
+    case NativeAllocationBehavior::MayAllocateVm:
+      return "vm-alloc";
+    case NativeAllocationBehavior::MayAllocateHost:
+      return "host-alloc";
+  }
+  return "unknown";
+}
+
+std::string GcMarkdown(NativeGcBehavior gc_behavior) {
+  switch (gc_behavior) {
+    case NativeGcBehavior::NoSafepoint:
+      return "no-safepoint";
+    case NativeGcBehavior::MaySafepoint:
+      return "may-safepoint";
+  }
+  return "unknown";
+}
+
 std::string StabilityMarkdown(NativeStability stability) {
   switch (stability) {
     case NativeStability::Experimental:
@@ -1701,8 +1727,8 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Signature | Blocking | Capabilities | Resources | Platforms | Stability | Summary |\n"
-        << "|---|---|---|---|---|---|---|---|\n";
+    out << "| Symbol | Signature | Blocking | Allocation | GC | Capabilities | Resources | Platforms | Stability | Summary |\n"
+        << "|---|---|---|---|---|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
       out << "| `" << spec->symbol_name << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
@@ -1711,6 +1737,8 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       }
       out << ") -> " << TypeKindMarkdown(spec->result_type) << "` | `"
           << BlockingMarkdown(spec->blocking) << "` | `"
+          << AllocationMarkdown(spec->allocation) << "` | `"
+          << GcMarkdown(spec->gc_behavior) << "` | `"
           << TagsMarkdown(spec->capability_tags) << "` | `"
           << ResourcesMarkdown(spec->resources) << "` | `"
           << PlatformsMarkdown(spec->platforms) << "` | `"

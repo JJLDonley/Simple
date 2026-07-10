@@ -388,6 +388,8 @@ Extend `NativeFunctionSpec` with:
 - [x] ownership transfer rules beyond input/output/input-output access.
 - [x] cleanup behavior metadata beyond resource kind/use.
 - [x] blocking behavior metadata shape.
+- [x] allocation behavior metadata shape.
+- [x] GC/safepoint behavior metadata shape.
 - [x] capability tags metadata shape.
 - [x] platform availability metadata shape.
 - [x] stability status metadata shape.

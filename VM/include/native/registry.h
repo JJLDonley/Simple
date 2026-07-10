@@ -75,6 +75,17 @@ enum class NativeBlockingBehavior {
   MayBlock,
 };
 
+enum class NativeAllocationBehavior {
+  NoAllocation,
+  MayAllocateVm,
+  MayAllocateHost,
+};
+
+enum class NativeGcBehavior {
+  NoSafepoint,
+  MaySafepoint,
+};
+
 enum class NativeStability {
   Experimental,
   Stable,
@@ -110,6 +121,8 @@ struct NativeFunctionSpec {
   NativeLayer layer = NativeLayer::System;
   std::vector<NativeResourceUse> resources;
   NativeBlockingBehavior blocking = NativeBlockingBehavior::NonBlocking;
+  NativeAllocationBehavior allocation = NativeAllocationBehavior::NoAllocation;
+  NativeGcBehavior gc_behavior = NativeGcBehavior::NoSafepoint;
   std::vector<std::string> capability_tags;
   std::vector<std::string> platforms;
   NativeStability stability = NativeStability::Experimental;
