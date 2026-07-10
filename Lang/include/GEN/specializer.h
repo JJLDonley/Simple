@@ -62,5 +62,13 @@ bool BuildOrderedSpecializationPlan(
 bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
                                  Simple::Lang::TAST::GenericSubstitutionMap* out,
                                  std::string* error);
+bool SpecializeFunctionDeclaration(const Simple::Lang::AST::FuncDecl& source,
+                                   const GenericSpecializationPlan& plan,
+                                   Simple::Lang::AST::FuncDecl* out,
+                                   std::string* error);
+bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& source,
+                                         const GenericSpecializationPlan& plan,
+                                         Simple::Lang::AST::ArtifactDecl* out,
+                                         std::string* error);
 
 } // namespace Simple::Lang::GEN

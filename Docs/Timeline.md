@@ -228,6 +228,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] GEN detects specialization symbol collisions while planning.
 - [ ] Emit only concrete specialized declarations into IRB/IRE.
   - [x] GEN rejects non-concrete specialization requests during planning.
+  - [x] GEN can materialize concrete function and artifact layout declarations from specialization plans.
 
 ### Generic Language Surface
 

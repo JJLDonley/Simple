@@ -482,6 +482,74 @@ bool LangGenBuildsSpecializationPlan() {
          error.find("generic specialization argument count mismatch") != std::string::npos;
 }
 
+bool LangGenSpecializesConcreteDeclarations() {
+  using Simple::Lang::AST::DeclKind;
+  using Simple::Lang::GEN::BuildSpecializationPlanFromProgram;
+  using Simple::Lang::GEN::GenericSpecializationPlan;
+  using Simple::Lang::GEN::SpecializeArtifactLayoutDeclaration;
+  using Simple::Lang::GEN::SpecializeFunctionDeclaration;
+
+  Simple::Lang::AST::Program program;
+  Simple::Lang::AST::Decl fn_decl;
+  fn_decl.kind = DeclKind::Function;
+  fn_decl.func.name = "id";
+  fn_decl.func.generics = {"T"};
+  fn_decl.func.return_type = Simple::Lang::TAST::MakeSimpleType("T");
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "value";
+  param.type = Simple::Lang::TAST::MakeSimpleType("T");
+  fn_decl.func.params.push_back(param);
+  Simple::Lang::AST::Stmt local;
+  local.kind = Simple::Lang::AST::StmtKind::VarDecl;
+  local.var_decl.name = "copy";
+  local.var_decl.type = Simple::Lang::TAST::MakeSimpleType("T");
+  fn_decl.func.body.push_back(local);
+  program.decls.push_back(fn_decl);
+
+  Simple::Lang::AST::Decl box_decl;
+  box_decl.kind = DeclKind::Artifact;
+  box_decl.artifact.name = "Box";
+  box_decl.artifact.generics = {"T"};
+  Simple::Lang::AST::VarDecl field;
+  field.name = "value";
+  field.type = Simple::Lang::TAST::MakeSimpleType("T");
+  box_decl.artifact.fields.push_back(field);
+  program.decls.push_back(box_decl);
+
+  Simple::Lang::AST::Decl value;
+  value.kind = DeclKind::Variable;
+  value.var.name = "boxed";
+  value.var.type.name = "Box";
+  value.var.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.decls.push_back(value);
+
+  Simple::Lang::AST::Stmt call_stmt;
+  call_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  call_stmt.expr.kind = Simple::Lang::AST::ExprKind::Call;
+  Simple::Lang::AST::Expr callee;
+  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
+  callee.text = "id";
+  call_stmt.expr.children.push_back(callee);
+  call_stmt.expr.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.top_level_stmts.push_back(call_stmt);
+
+  std::vector<GenericSpecializationPlan> plan;
+  std::string error;
+  if (!BuildSpecializationPlanFromProgram(program, &plan, &error) || plan.size() != 2) return false;
+  Simple::Lang::AST::FuncDecl concrete_fn;
+  Simple::Lang::AST::ArtifactDecl concrete_box;
+  const GenericSpecializationPlan* fn_plan = plan[0].request.base_name == "id" ? &plan[0] : &plan[1];
+  const GenericSpecializationPlan* box_plan = plan[0].request.base_name == "Box" ? &plan[0] : &plan[1];
+  if (!SpecializeFunctionDeclaration(program.decls[0].func, *fn_plan, &concrete_fn, &error)) return false;
+  if (!SpecializeArtifactLayoutDeclaration(program.decls[1].artifact, *box_plan, &concrete_box, &error)) {
+    return false;
+  }
+  return concrete_fn.generics.empty() && concrete_fn.name == fn_plan->specialized_symbol &&
+         concrete_fn.return_type.name == "i32" && concrete_fn.params[0].type.name == "i32" &&
+         concrete_fn.body[0].var_decl.type.name == "i32" && concrete_box.generics.empty() &&
+         concrete_box.name == box_plan->specialized_symbol && concrete_box.fields[0].type.name == "i32";
+}
+
 bool LangGenNormalizesConcreteRequestMetadata() {
   using Simple::Lang::GEN::GenericInstantiationRequest;
   using Simple::Lang::GEN::NormalizeInstantiationRequests;
@@ -1297,6 +1365,7 @@ const TestCase kLangTastTests[] = {
   {"lang_gen_builds_specialization_plan_from_program", LangGenBuildsSpecializationPlanFromProgram},
   {"lang_gen_builds_ordered_specialization_plan", LangGenBuildsOrderedSpecializationPlan},
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
+  {"lang_gen_specializes_concrete_declarations", LangGenSpecializesConcreteDeclarations},
   {"lang_gen_normalizes_concrete_request_metadata", LangGenNormalizesConcreteRequestMetadata},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},

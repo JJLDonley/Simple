@@ -187,6 +187,97 @@ bool CollectFromFunction(const Simple::Lang::AST::FuncDecl& fn,
   return CollectFromStmtList(fn.body, out);
 }
 
+bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
+                             const Simple::Lang::TAST::GenericSubstitutionMap& substitutions);
+bool ApplySubstitutionToStmt(Simple::Lang::AST::Stmt* stmt,
+                             const Simple::Lang::TAST::GenericSubstitutionMap& substitutions);
+
+bool ApplySubstitutionToTypeList(std::vector<Simple::Lang::AST::TypeRef>* types,
+                                 const Simple::Lang::TAST::GenericSubstitutionMap& substitutions) {
+  if (!types) return false;
+  for (auto& type : *types) {
+    if (!Simple::Lang::TAST::ApplyTypeSubstitution(&type, substitutions)) return false;
+  }
+  return true;
+}
+
+bool ApplySubstitutionToExpr(Simple::Lang::AST::Expr* expr,
+                             const Simple::Lang::TAST::GenericSubstitutionMap& substitutions) {
+  if (!expr) return false;
+  if (!ApplySubstitutionToTypeList(&expr->type_args, substitutions)) return false;
+  for (auto& param : expr->fn_params) {
+    if (!Simple::Lang::TAST::ApplyTypeSubstitution(&param.type, substitutions)) return false;
+  }
+  for (auto& child : expr->children) {
+    if (!ApplySubstitutionToExpr(&child, substitutions)) return false;
+  }
+  for (auto& arg : expr->args) {
+    if (!ApplySubstitutionToExpr(&arg, substitutions)) return false;
+  }
+  for (auto& value : expr->field_values) {
+    if (!ApplySubstitutionToExpr(&value, substitutions)) return false;
+  }
+  for (auto& branch : expr->switch_branches) {
+    if (!branch.is_default && !ApplySubstitutionToExpr(&branch.condition, substitutions)) return false;
+    if (branch.has_inline_value && !ApplySubstitutionToExpr(&branch.value, substitutions)) return false;
+    for (auto& stmt : branch.block) {
+      if (!ApplySubstitutionToStmt(&stmt, substitutions)) return false;
+    }
+  }
+  return true;
+}
+
+bool ApplySubstitutionToVar(Simple::Lang::AST::VarDecl* var,
+                            const Simple::Lang::TAST::GenericSubstitutionMap& substitutions) {
+  if (!var) return false;
+  if (!Simple::Lang::TAST::ApplyTypeSubstitution(&var->type, substitutions)) return false;
+  return !var->has_init_expr || ApplySubstitutionToExpr(&var->init_expr, substitutions);
+}
+
+bool ApplySubstitutionToStmt(Simple::Lang::AST::Stmt* stmt,
+                             const Simple::Lang::TAST::GenericSubstitutionMap& substitutions) {
+  if (!stmt) return false;
+  if (!ApplySubstitutionToExpr(&stmt->expr, substitutions)) return false;
+  if (!ApplySubstitutionToExpr(&stmt->target, substitutions)) return false;
+  if (!ApplySubstitutionToVar(&stmt->var_decl, substitutions)) return false;
+  for (auto& branch : stmt->if_branches) {
+    if (!ApplySubstitutionToExpr(&branch.first, substitutions)) return false;
+    for (auto& nested : branch.second) {
+      if (!ApplySubstitutionToStmt(&nested, substitutions)) return false;
+    }
+  }
+  for (auto& nested : stmt->else_branch) {
+    if (!ApplySubstitutionToStmt(&nested, substitutions)) return false;
+  }
+  if (!ApplySubstitutionToExpr(&stmt->if_cond, substitutions)) return false;
+  for (auto& nested : stmt->if_then) {
+    if (!ApplySubstitutionToStmt(&nested, substitutions)) return false;
+  }
+  for (auto& nested : stmt->if_else) {
+    if (!ApplySubstitutionToStmt(&nested, substitutions)) return false;
+  }
+  if (!ApplySubstitutionToExpr(&stmt->loop_cond, substitutions)) return false;
+  for (auto& nested : stmt->loop_body) {
+    if (!ApplySubstitutionToStmt(&nested, substitutions)) return false;
+  }
+  if (!ApplySubstitutionToExpr(&stmt->loop_iter, substitutions)) return false;
+  if (!ApplySubstitutionToExpr(&stmt->loop_step, substitutions)) return false;
+  return !stmt->has_loop_var_decl || ApplySubstitutionToVar(&stmt->loop_var_decl, substitutions);
+}
+
+bool ApplySubstitutionToFunction(Simple::Lang::AST::FuncDecl* fn,
+                                 const Simple::Lang::TAST::GenericSubstitutionMap& substitutions) {
+  if (!fn) return false;
+  if (!Simple::Lang::TAST::ApplyTypeSubstitution(&fn->return_type, substitutions)) return false;
+  for (auto& param : fn->params) {
+    if (!Simple::Lang::TAST::ApplyTypeSubstitution(&param.type, substitutions)) return false;
+  }
+  for (auto& stmt : fn->body) {
+    if (!ApplySubstitutionToStmt(&stmt, substitutions)) return false;
+  }
+  return true;
+}
+
 } // namespace
 
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type) {
@@ -487,6 +578,58 @@ bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
       }
       return false;
     }
+  }
+  if (error) error->clear();
+  return true;
+}
+
+bool SpecializeFunctionDeclaration(const Simple::Lang::AST::FuncDecl& source,
+                                   const GenericSpecializationPlan& plan,
+                                   Simple::Lang::AST::FuncDecl* out,
+                                   std::string* error) {
+  if (!out) return false;
+  if (plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Function) {
+    if (error) *error = "generic specialization plan is not a function";
+    return false;
+  }
+  if (plan.declaration.name != source.name) {
+    if (error) *error = "generic specialization declaration mismatch for " + source.name;
+    return false;
+  }
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
+  *out = source;
+  out->name = plan.specialized_symbol;
+  out->generics.clear();
+  if (!ApplySubstitutionToFunction(out, substitutions)) return false;
+  if (error) error->clear();
+  return true;
+}
+
+bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& source,
+                                         const GenericSpecializationPlan& plan,
+                                         Simple::Lang::AST::ArtifactDecl* out,
+                                         std::string* error) {
+  if (!out) return false;
+  if (plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Artifact &&
+      plan.declaration.kind != Simple::Lang::TAST::GenericDeclarationKind::Data) {
+    if (error) *error = "generic specialization plan is not an artifact";
+    return false;
+  }
+  if (plan.declaration.name != source.name) {
+    if (error) *error = "generic specialization declaration mismatch for " + source.name;
+    return false;
+  }
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (!BuildGenericSubstitutionMap(plan, &substitutions, error)) return false;
+  *out = source;
+  out->name = plan.specialized_symbol;
+  out->generics.clear();
+  for (auto& field : out->fields) {
+    if (!ApplySubstitutionToVar(&field, substitutions)) return false;
+  }
+  for (auto& method : out->methods) {
+    if (!ApplySubstitutionToFunction(&method, substitutions)) return false;
   }
   if (error) error->clear();
   return true;
