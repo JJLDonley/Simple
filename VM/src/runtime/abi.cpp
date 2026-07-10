@@ -182,6 +182,33 @@ bool IsSmallAbiAggregate(uint32_t size, bool contains_references) {
   return !contains_references && size <= 16;
 }
 
+bool IsValidAbiScalarValue(Simple::Byte::TypeKind kind, uint64_t value) {
+  using Simple::Byte::TypeKind;
+  switch (kind) {
+    case TypeKind::Bool:
+      return value == 0 || value == 1;
+    case TypeKind::Char: {
+      const uint32_t codepoint = static_cast<uint32_t>(value);
+      return value == codepoint && codepoint <= 0x10FFFFu &&
+             (codepoint < 0xD800u || codepoint > 0xDFFFu);
+    }
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::I64:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::U64:
+    case TypeKind::F32:
+    case TypeKind::F64:
+    case TypeKind::Ptr:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool IsValidBorrowedStringView(const SimpleStringView& view) {
   return (view.data != nullptr || view.size == 0) && view.encoding == AbiStringEncoding::Utf8;
 }

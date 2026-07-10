@@ -275,7 +275,9 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] signed/unsigned integers use exact-width two's-complement payloads.
   - [x] floats use IEEE-754 `f32`/`f64`.
   - [x] `bool` ABI is `u8` with only `0` or `1` valid.
+    - [x] Runtime ABI value validator rejects non-canonical bool payloads.
   - [x] `char` ABI is `u32` Unicode scalar long-term; document current bytecode compatibility if still 16-bit internally.
+    - [x] Runtime ABI value validator rejects invalid Unicode scalar payloads.
   - [x] enums use declared or default underlying integer type.
 - [ ] Reference/handle representations:
   - [x] VM heap references are opaque VM refs, never raw host pointers.

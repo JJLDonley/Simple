@@ -35,6 +35,21 @@ bool VmRuntimeAbiMapsPrimitiveTypes() {
          !string_info.external_ffi_callable;
 }
 
+bool VmRuntimeAbiValidatesScalarValues() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::IsValidAbiScalarValue;
+
+  return IsValidAbiScalarValue(TypeKind::Bool, 0) &&
+         IsValidAbiScalarValue(TypeKind::Bool, 1) &&
+         !IsValidAbiScalarValue(TypeKind::Bool, 2) &&
+         IsValidAbiScalarValue(TypeKind::Char, 0x41) &&
+         IsValidAbiScalarValue(TypeKind::Char, 0x10FFFF) &&
+         !IsValidAbiScalarValue(TypeKind::Char, 0xD800) &&
+         !IsValidAbiScalarValue(TypeKind::Char, 0x110000) &&
+         IsValidAbiScalarValue(TypeKind::I32, 0xFFFFFFFFu) &&
+         !IsValidAbiScalarValue(TypeKind::String, 1);
+}
+
 bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::AbiClass;
@@ -460,6 +475,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
+  {"vm_runtime_abi_validates_scalar_values", VmRuntimeAbiValidatesScalarValues},
   {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
