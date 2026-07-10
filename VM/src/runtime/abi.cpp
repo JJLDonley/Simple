@@ -85,6 +85,37 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
   }
 }
 
+AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type) {
+  if (!type.native_callable || type.abi_class == AbiClass::Invalid) return AbiPassMode::Invalid;
+  switch (type.abi_class) {
+    case AbiClass::Void:
+      return AbiPassMode::Void;
+    case AbiClass::Scalar:
+    case AbiClass::Float:
+    case AbiClass::Ref:
+    case AbiClass::Handle:
+    case AbiClass::Variant:
+    case AbiClass::Promise:
+      return AbiPassMode::Direct;
+    case AbiClass::Aggregate:
+      return type.size <= 16 ? AbiPassMode::Direct : AbiPassMode::Indirect;
+    case AbiClass::Opaque:
+      return AbiPassMode::Indirect;
+    case AbiClass::Invalid:
+      return AbiPassMode::Invalid;
+  }
+  return AbiPassMode::Invalid;
+}
+
+AbiPassMode GetAbiReturnPassMode(const AbiTypeInfo& type) {
+  return GetAbiParameterPassMode(type);
+}
+
+AbiPassMode GetAbiAggregatePassMode(const AbiAggregateLayout& layout) {
+  if (!layout.native_callable) return AbiPassMode::Invalid;
+  return layout.pass_by_value ? AbiPassMode::Direct : AbiPassMode::Indirect;
+}
+
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment) {
   if (alignment <= 1) return offset;
   const uint32_t remainder = offset % alignment;

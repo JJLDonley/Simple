@@ -30,6 +30,13 @@ struct AbiTypeInfo {
   bool external_ffi_callable = false;
 };
 
+enum class AbiPassMode {
+  Invalid,
+  Void,
+  Direct,
+  Indirect,
+};
+
 struct AbiFieldLayout {
   uint32_t offset = 0;
   AbiTypeInfo type;
@@ -91,6 +98,9 @@ struct AbiPromiseId {
 };
 
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
+AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type);
+AbiPassMode GetAbiReturnPassMode(const AbiTypeInfo& type);
+AbiPassMode GetAbiAggregatePassMode(const AbiAggregateLayout& layout);
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
 bool IsOpaqueVmReferenceType(Simple::Byte::TypeKind kind);

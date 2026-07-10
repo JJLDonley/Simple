@@ -140,6 +140,34 @@ bool VmRuntimeAbiBuildsResultAndOptionValues() {
          !IsAbiResultErr(ok);
 }
 
+bool VmRuntimeAbiClassifiesPassModes() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::AbiPassMode;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::GetAbiAggregatePassMode;
+  using Simple::VM::Runtime::GetAbiParameterPassMode;
+  using Simple::VM::Runtime::GetAbiReturnPassMode;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto i32 = GetPrimitiveAbiTypeInfo(TypeKind::I32);
+  const auto string_ref = GetPrimitiveAbiTypeInfo(TypeKind::String);
+  const auto none = GetPrimitiveAbiTypeInfo(TypeKind::Unspecified);
+  const auto small = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+  });
+  const auto with_ref = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::String),
+  });
+  return GetAbiParameterPassMode(i32) == AbiPassMode::Direct &&
+         GetAbiReturnPassMode(i32) == AbiPassMode::Direct &&
+         GetAbiParameterPassMode(string_ref) == AbiPassMode::Direct &&
+         GetAbiReturnPassMode(none) == AbiPassMode::Void &&
+         GetAbiAggregatePassMode(small) == AbiPassMode::Direct &&
+         GetAbiAggregatePassMode(with_ref) == AbiPassMode::Indirect;
+}
+
 bool VmRuntimeAbiValidatesBorrowedViews() {
   using Simple::VM::Runtime::AbiStringEncoding;
   using Simple::VM::Runtime::IsValidBorrowedBytesView;
@@ -286,6 +314,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
+  {"vm_runtime_abi_classifies_pass_modes", VmRuntimeAbiClassifiesPassModes},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_marks_opaque_vm_references", VmRuntimeAbiMarksOpaqueVmReferences},
   {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},
