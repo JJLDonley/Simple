@@ -1301,6 +1301,11 @@ NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capabilit
   return spec;
 }
 
+NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary) {
+  spec.doc_summary = summary;
+  return spec;
+}
+
 } // namespace
 
 bool NativeRegistry::Register(NativeFunctionSpec spec) {
@@ -1352,6 +1357,18 @@ std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
 
 std::string BlockingMarkdown(NativeBlockingBehavior blocking) {
   return blocking == NativeBlockingBehavior::MayBlock ? "may-block" : "non-blocking";
+}
+
+std::string StabilityMarkdown(NativeStability stability) {
+  switch (stability) {
+    case NativeStability::Experimental:
+      return "experimental";
+    case NativeStability::Stable:
+      return "stable";
+    case NativeStability::Unsafe:
+      return "unsafe";
+  }
+  return "unknown";
 }
 
 std::string ResourceKindMarkdown(NativeResourceKind kind) {
@@ -1424,6 +1441,14 @@ std::string TagsMarkdown(const std::vector<std::string>& tags) {
   return out.str();
 }
 
+std::string PlatformsMarkdown(const std::vector<std::string>& platforms) {
+  return platforms.empty() ? "all" : TagsMarkdown(platforms);
+}
+
+std::string SummaryMarkdown(const std::string& summary) {
+  return summary.empty() ? "-" : summary;
+}
+
 std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
   if (resources.empty()) return "-";
   std::ostringstream out;
@@ -1450,8 +1475,8 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Signature | Blocking | Capabilities | Resources |\n"
-        << "|---|---|---|---|---|\n";
+    out << "| Symbol | Signature | Blocking | Capabilities | Resources | Platforms | Stability | Summary |\n"
+        << "|---|---|---|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
       out << "| `" << spec->symbol_name << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
@@ -1461,7 +1486,10 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       out << ") -> " << TypeKindMarkdown(spec->result_type) << "` | `"
           << BlockingMarkdown(spec->blocking) << "` | `"
           << TagsMarkdown(spec->capability_tags) << "` | `"
-          << ResourcesMarkdown(spec->resources) << "` |\n";
+          << ResourcesMarkdown(spec->resources) << "` | `"
+          << PlatformsMarkdown(spec->platforms) << "` | `"
+          << StabilityMarkdown(spec->stability) << "` | "
+          << SummaryMarkdown(spec->doc_summary) << " |\n";
     }
   }
   return out.str();
@@ -1513,15 +1541,19 @@ void RegisterSystemJson(NativeRegistry& registry) {
 
 void RegisterSystemDl(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
-                                                    TypeKind::I64, DlOpen),
-                                     "ffi.dynamic_load"),
-                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::Output));
-  registry.Register(WithResource(WithCapability(MakeSpec("System.dl", "sym",
-                                                    {TypeKind::I64, TypeKind::String},
-                                                    TypeKind::I64, DlSymbol),
-                                     "ffi.dynamic_load"),
-                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0));
+  registry.Register(WithDoc(
+      WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
+                                           TypeKind::I64, DlOpen),
+                                  "ffi.dynamic_load"),
+                   NativeResourceKind::FfiLibrary, NativeResourceAccess::Output),
+      "Open a dynamic library handle."));
+  registry.Register(WithDoc(
+      WithResource(WithCapability(MakeSpec("System.dl", "sym",
+                                           {TypeKind::I64, TypeKind::String}, TypeKind::I64,
+                                           DlSymbol),
+                                  "ffi.dynamic_load"),
+                   NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),
+      "Resolve a symbol from a dynamic library handle."));
   registry.Register(WithResource(MakeSpec("System.dl", "close", {TypeKind::I64},
                                          TypeKind::I32, DlClose),
                                  NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0));
@@ -1566,9 +1598,11 @@ void RegisterSystemPath(NativeRegistry& registry) {
 
 void RegisterSystemFs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "readText", {TypeKind::String},
-                                                  TypeKind::String, FsReadText)),
-                                   "filesystem.read"));
+  registry.Register(WithDoc(WithCapability(MayBlock(MakeSpec("System.fs", "readText",
+                                                               {TypeKind::String},
+                                                               TypeKind::String, FsReadText)),
+                                            "filesystem.read"),
+                            "Read a UTF-8 text file."));
   registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "writeText",
                                                   {TypeKind::String, TypeKind::String},
                                                   TypeKind::I32, FsWriteText)),
@@ -1583,11 +1617,13 @@ void RegisterSystemFs(NativeRegistry& registry) {
   registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "listDir",
                                                   {TypeKind::String}, TypeKind::Ref, FsListDir)),
                                    "filesystem.read"));
-  registry.Register(WithResource(
-      WithCapability(MayBlock(MakeSpec("System.fs", "open", {TypeKind::String, TypeKind::I32},
-                                       TypeKind::I32, FsOpen)),
-                     "filesystem.open"),
-      NativeResourceKind::File, NativeResourceAccess::Output));
+  registry.Register(WithDoc(
+      WithResource(WithCapability(MayBlock(MakeSpec("System.fs", "open",
+                                                   {TypeKind::String, TypeKind::I32},
+                                                   TypeKind::I32, FsOpen)),
+                                  "filesystem.open"),
+                   NativeResourceKind::File, NativeResourceAccess::Output),
+      "Open a file descriptor handle."));
   registry.Register(WithResource(
       WithCapability(MayBlock(MakeSpec("System.fs", "read",
                                        {TypeKind::I32, TypeKind::Ref, TypeKind::I32},

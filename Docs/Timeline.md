@@ -386,7 +386,7 @@ Extend `NativeFunctionSpec` with:
 - [x] capability tags metadata shape.
 - [x] platform availability metadata shape.
 - [x] stability status metadata shape.
-- [ ] doc summary/examples.
+- [x] doc summary metadata shape and generated output.
 
 ### Capability Policy
 
@@ -703,7 +703,7 @@ Rules:
   - [x] Generated native metadata docs include module/symbol/signature rows.
 - [x] Generate capability table in native metadata docs.
 - [x] Generate resource-use table in native metadata docs.
-- [ ] Generate platform availability table.
+- [x] Generate platform availability table in native metadata docs.
 - [x] Test every public native function has metadata.
 - [ ] Test every resource-producing function declares resource kind and cleanup behavior.
   - [x] File and FFI library metadata tests cover resource outputs/inputs.

@@ -135,13 +135,13 @@ bool VmNativeFunctionMetadataDeclaresResources() {
 bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   const std::string docs = Simple::VM::Native::GenerateStdLibMarkdown(registry);
-  return docs.find("| Symbol | Signature | Blocking | Capabilities | Resources |") !=
+  return docs.find("| Symbol | Signature | Blocking | Capabilities | Resources | Platforms | Stability | Summary |") !=
              std::string::npos &&
-         docs.find("| `readText` | `(string) -> string` | `may-block` | `filesystem.read` | `-` |") !=
+         docs.find("| `readText` | `(string) -> string` | `may-block` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
              std::string::npos &&
-         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file` |") !=
+         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0` |") !=
+         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0` | `all` | `experimental` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 
