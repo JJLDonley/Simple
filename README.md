@@ -455,4 +455,4 @@ cmake --build build --target simplevm_tests -j2
 
 ## Version
 
-Current tool version: `v0.4.15`.
+Current tool version: `v0.4.16`.

@@ -1117,6 +1117,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     const bool may_allocate = spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation;
     return {may_block, may_allocate};
   };
+  auto native_resources_loop_safe = [](const Simple::VM::Native::NativeFunctionSpec& spec) -> bool {
+    for (const auto& resource : spec.resources) {
+      if (resource.access != Simple::VM::Native::NativeResourceAccess::Input) return false;
+      if (resource.parameter_index >= spec.parameter_types.size()) return false;
+    }
+    return true;
+  };
   auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
     auto unsafe = [](const std::string& category, const std::string& why) {
       return "category=" + category + " reason=" + why;
@@ -1137,7 +1144,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       return unsafe("native-registry", "missing-native-metadata");
     }
     if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch");
-    if (!spec->resources.empty()) return unsafe("native-registry", "resource-argument-or-result");
+    if (!native_resources_loop_safe(*spec)) return unsafe("native-registry", "resource-argument-or-result");
     if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call");
     if (spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation) return unsafe("native-registry", "allocating-call");
     if (spec->gc_behavior != Simple::VM::Native::NativeGcBehavior::NoSafepoint) return unsafe("native-registry", "gc-safepoint-call");

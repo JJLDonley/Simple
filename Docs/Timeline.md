@@ -520,6 +520,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Ref/string/resource direct calls inside loops reject until caller-frame roots/safepoints are complete.
 - [x] Native import loop enabling is gated by metadata: matching signature, non-blocking, no allocation, no GC safepoint, and no resources.
 - [x] Managed string/ref arguments are allowed for safe native import loop calls via `JitCallContext` roots.
+- [x] Borrowed resource input arguments are allowed for safe native import loop calls while output/mutating resources still reject.
 - [x] Dynamic `System.dl.call$...` loop enabling requires scalar/void signatures that pass the external C ABI verifier.
 - [x] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
 
