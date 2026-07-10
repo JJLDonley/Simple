@@ -160,6 +160,34 @@ bool VmRuntimeAbiValidatesBorrowedViews() {
          IsValidBorrowedBytesView(empty_bytes) && !IsValidBorrowedBytesView(bad_bytes);
 }
 
+bool VmRuntimeAbiValidatesExternalCSignatures() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ValidateExternalCAbiSignature;
+
+  std::string error;
+  if (!ValidateExternalCAbiSignature({TypeKind::I32, TypeKind::Ptr}, TypeKind::I64, &error) ||
+      !error.empty()) {
+    return false;
+  }
+  if (ValidateExternalCAbiSignature({TypeKind::String}, TypeKind::I32, &error) ||
+      error.find("string") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  if (ValidateExternalCAbiSignature({TypeKind::Ref}, TypeKind::I32, &error) ||
+      error.find("ref") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  if (ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Result, &error) ||
+      error.find("result") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  return !ValidateExternalCAbiSignature({TypeKind::I32}, TypeKind::Option, &error) &&
+         error.find("option") != std::string::npos;
+}
+
 bool VmRuntimeAbiValidatesCallableSignatures() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ValidateAbiCallableSignature;
@@ -240,6 +268,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
+  {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},

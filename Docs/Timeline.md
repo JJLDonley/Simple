@@ -257,9 +257,10 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Native handlers build returns through typed builders.
   - [x] Resource, capability, allocation, blocking, and GC behavior are visible through metadata.
 - [ ] Define restricted External C FFI ABI.
-  - [ ] Permit primitives, pointers, stable `data` structs, and explicit ABI wrapper types.
-  - [ ] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions.
-  - [ ] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass.
+  - [x] Permit primitives and pointers through external C ABI verifier.
+  - [ ] Permit stable `data` structs and explicit ABI wrapper types.
+  - [x] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions in external C ABI verifier.
+  - [x] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass in verifier APIs.
 - [ ] Keep interpreter, LLVM ORC JIT, and future AOT on the same Simple Native ABI contract.
 
 ### Exact ABI Mapping Table
@@ -309,7 +310,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Define `SimpleBytesView { data, size }` for borrowed bytes arguments.
 - [x] Add native-call typed accessor for borrowed heap `Bytes` views.
 - [ ] Define mutable buffers as resource handles, not borrowed mutable VM internals.
-- [ ] External FFI requires explicit `cstring`, pointer, or bytes wrapper types; no implicit `string` coercion.
+- [x] External FFI verifier requires explicit `cstring`, pointer, or bytes wrapper types; no implicit `string` coercion.
 
 ### Handles, Results, Options, Promises
 

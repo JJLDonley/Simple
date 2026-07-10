@@ -104,5 +104,8 @@ bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& par
                                   Simple::Byte::TypeKind result_type,
                                   bool external_ffi,
                                   std::string* error);
+bool ValidateExternalCAbiSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
+                                   Simple::Byte::TypeKind result_type,
+                                   std::string* error);
 
 } // namespace Simple::VM::Runtime
