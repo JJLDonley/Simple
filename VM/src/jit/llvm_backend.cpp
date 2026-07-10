@@ -2998,14 +2998,14 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           case Simple::VM::kIntrinsicSqrtF32: {
             if (stack.empty()) { reason = "LLVM JIT sqrt f32 underflow"; return false; }
             llvm::Value* value = to_f32(stack.back()); stack.pop_back();
-            llvm::Function* sqrt_fn = llvm::Intrinsic::getOrInsertDeclaration(ir_module.get(), llvm::Intrinsic::sqrt, f32, {f32});
+            llvm::Function* sqrt_fn = llvm::Intrinsic::getDeclaration(ir_module.get(), llvm::Intrinsic::sqrt, {f32});
             stack.push_back(f32_to_slot_bits(builder.CreateCall(sqrt_fn, {value})));
             break;
           }
           case Simple::VM::kIntrinsicSqrtF64: {
             if (stack.empty()) { reason = "LLVM JIT sqrt f64 underflow"; return false; }
             llvm::Value* value = to_f64(stack.back()); stack.pop_back();
-            llvm::Function* sqrt_fn = llvm::Intrinsic::getOrInsertDeclaration(ir_module.get(), llvm::Intrinsic::sqrt, f64, {f64});
+            llvm::Function* sqrt_fn = llvm::Intrinsic::getDeclaration(ir_module.get(), llvm::Intrinsic::sqrt, {f64});
             stack.push_back(f64_to_slot_bits(builder.CreateCall(sqrt_fn, {value})));
             break;
           }

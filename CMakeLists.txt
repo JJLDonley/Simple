@@ -13,6 +13,12 @@ if (SIMPLEVM_ENABLE_LLVM_JIT)
     native
   )
   separate_arguments(SIMPLEVM_LLVM_DEFINITIONS NATIVE_COMMAND "${LLVM_DEFINITIONS}")
+  execute_process(
+    COMMAND "${LLVM_TOOLS_BINARY_DIR}/llvm-config" --ldflags --libs core executionengine orcjit native support target --system-libs
+    OUTPUT_VARIABLE SIMPLEVM_LLVM_EMBED_LINK_FLAGS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  string(REPLACE "\n" " " SIMPLEVM_LLVM_EMBED_LINK_FLAGS "${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -258,6 +264,9 @@ target_include_directories(simplevm PRIVATE
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
 target_compile_definitions(simplevm PRIVATE SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}")
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_compile_definitions(simplevm PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
+endif()
 set_target_properties(simplevm PROPERTIES OUTPUT_NAME svm)
 add_custom_command(TARGET simplevm POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E rm -f $<TARGET_FILE_DIR:simplevm>/simplevm
@@ -316,6 +325,9 @@ target_include_directories(simplevm_tests PRIVATE
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm_tests PRIVATE simplevm_core_static)
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_compile_definitions(simplevm_tests PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
+endif()
 
 function(simplevm_apply_warnings target_name)
   if (MSVC)

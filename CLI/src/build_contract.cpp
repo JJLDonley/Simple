@@ -180,6 +180,12 @@ bool BuildEmbeddedExecutable(const BuildLayoutPaths& layout,
   if (!is_static) cmd += "-Wl,-rpath," + QuoteArg(lib_dir.string()) + " ";
   cmd += "-ldl ";
   cmd += "-lffi ";
+#ifdef SIMPLEVM_EMBED_LLVM_LINK_FLAGS
+  if (is_static) {
+    cmd += SIMPLEVM_EMBED_LLVM_LINK_FLAGS;
+    cmd += " ";
+  }
+#endif
   cmd += "-o " + QuoteArg(out_path);
 
   int rc = std::system(cmd.c_str());
