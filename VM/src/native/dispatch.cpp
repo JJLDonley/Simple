@@ -91,6 +91,8 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   } else if (!IsCompatibleNativeReturnType(spec->result_type, return_kind)) {
     if (out_error) *out_error = module_name + "." + symbol_name + " return type mismatch";
     return true;
+  } else {
+    *out_has_ret = true;
   }
   if (args.size() != spec->parameter_types.size()) {
     if (out_error) *out_error = module_name + "." + symbol_name + " arg count mismatch";

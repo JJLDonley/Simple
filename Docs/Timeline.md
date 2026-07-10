@@ -304,7 +304,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Add native-call typed accessor for borrowed UTF-8 string views.
 - [x] Strings are UTF-8 at ABI boundaries unless a different encoding is explicit.
 - [x] Borrowed string/bytes views are valid only for the native call duration.
-- [ ] Native functions returning strings allocate/build VM-owned strings.
+- [x] Native functions returning strings allocate/build VM-owned strings.
 - [x] Define heap-owned `Bytes` as the canonical immutable byte sequence.
 - [x] Define `SimpleBytesView { data, size }` for borrowed bytes arguments.
 - [x] Add native-call typed accessor for borrowed heap `Bytes` views.

@@ -296,6 +296,31 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos;
 }
 
+bool VmNativeDispatchAllocatesVmOwnedStrings() {
+  Simple::VM::Native::NativeRegistry registry;
+  Simple::VM::Native::NativeFunctionSpec spec;
+  spec.module_name = "System.test";
+  spec.symbol_name = "stringValue";
+  spec.result_type = Simple::Byte::TypeKind::String;
+  spec.handler = [](Simple::VM::Native::NativeCallContext&) {
+    return Simple::VM::Native::NativeCallResult::String("owned");
+  };
+  if (!registry.Register(std::move(spec))) return false;
+
+  Simple::VM::Heap heap;
+  Simple::VM::Native::MetadataDispatchContext context;
+  context.heap = &heap;
+  uint64_t ret = 0;
+  bool has_ret = false;
+  std::string error;
+  const bool handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.test", "stringValue", {}, Simple::Byte::TypeKind::String,
+      context, &ret, &has_ret, &error);
+  const Simple::VM::HeapObject* obj = heap.Get(static_cast<uint32_t>(ret));
+  return handled && error.empty() && has_ret && obj && obj->header.kind == Simple::VM::ObjectKind::String &&
+         Simple::VM::U16ToAscii(Simple::VM::ReadString(obj)) == "owned";
+}
+
 bool VmNativeDispatchValidatesResourceHandles() {
   using Simple::VM::Native::NativeCleanupBehavior;
   using Simple::VM::Native::NativeFunctionSpec;
@@ -475,6 +500,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_function_metadata_declares_stability", VmNativeFunctionMetadataDeclaresStability},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
+  {"vm_native_dispatch_allocates_vm_owned_strings", VmNativeDispatchAllocatesVmOwnedStrings},
   {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
