@@ -1,5 +1,6 @@
 /bin
 /build
+/build-*
 /.vscode
 /Tests/ffi/*.so
 /dist

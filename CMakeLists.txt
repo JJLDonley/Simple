@@ -1,5 +1,19 @@
 cmake_minimum_required(VERSION 3.16)
-project(simplevm LANGUAGES CXX)
+project(simplevm LANGUAGES C CXX)
+
+option(SIMPLEVM_ENABLE_LLVM_JIT "Build experimental LLVM ORC JIT backend" OFF)
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  find_package(LLVM REQUIRED CONFIG)
+  llvm_map_components_to_libnames(SIMPLEVM_LLVM_LIBS
+    Core
+    ExecutionEngine
+    OrcJIT
+    Support
+    Target
+    native
+  )
+  separate_arguments(SIMPLEVM_LLVM_DEFINITIONS NATIVE_COMMAND "${LLVM_DEFINITIONS}")
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,7 +45,6 @@ foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 set(SIMPLEVM_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-get_filename_component(SIMPLEVM_WORKSPACE_ROOT ${SIMPLEVM_ROOT} DIRECTORY)
 set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/VM)
 set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
 set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
@@ -55,6 +68,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/jit/compiled_runner.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/failure_format.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
+  ${SIMPLEVM_VM_ROOT}/src/jit/llvm_backend.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/tier_updater.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
@@ -125,6 +139,11 @@ target_include_directories(simplevm_core_obj PUBLIC
   ${SIMPLEVM_BYTE_ROOT}/include
 )
 set_target_properties(simplevm_core_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_include_directories(simplevm_core_obj PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_compile_definitions(simplevm_core_obj PRIVATE SIMPLEVM_HAS_LLVM)
+  target_compile_options(simplevm_core_obj PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
+endif()
 
 add_library(simplevm_core_static STATIC $<TARGET_OBJECTS:simplevm_core_obj>)
 set_target_properties(simplevm_core_static PROPERTIES OUTPUT_NAME simplevm_core)
@@ -142,6 +161,9 @@ if (SIMPLEVM_NEEDS_FFI)
   endif()
 else()
   target_link_libraries(simplevm_core_static PUBLIC ${CMAKE_DL_LIBS})
+endif()
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_link_libraries(simplevm_core_static PUBLIC ${SIMPLEVM_LLVM_LIBS})
 endif()
 
 add_library(simplevm_core_shared SHARED $<TARGET_OBJECTS:simplevm_core_obj>)
@@ -161,6 +183,9 @@ if (SIMPLEVM_NEEDS_FFI)
 else()
   target_link_libraries(simplevm_core_shared PUBLIC ${CMAKE_DL_LIBS})
 endif()
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_link_libraries(simplevm_core_shared PUBLIC ${SIMPLEVM_LLVM_LIBS})
+endif()
 target_compile_definitions(simplevm_core_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
 add_library(simplevm_runtime_static STATIC ${SIMPLEVM_RUNTIME_SRC})
@@ -169,6 +194,11 @@ target_include_directories(simplevm_runtime_static PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_include_directories(simplevm_runtime_static PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_compile_definitions(simplevm_runtime_static PRIVATE SIMPLEVM_HAS_LLVM)
+  target_compile_options(simplevm_runtime_static PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
+endif()
 if (SIMPLEVM_NEEDS_FFI)
   if (TARGET PkgConfig::FFI)
     target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
@@ -178,6 +208,9 @@ if (SIMPLEVM_NEEDS_FFI)
 else()
   target_link_libraries(simplevm_runtime_static PUBLIC ${CMAKE_DL_LIBS})
 endif()
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_link_libraries(simplevm_runtime_static PUBLIC ${SIMPLEVM_LLVM_LIBS})
+endif()
 set_target_properties(simplevm_runtime_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(simplevm_runtime_shared SHARED ${SIMPLEVM_RUNTIME_SRC})
@@ -186,6 +219,11 @@ target_include_directories(simplevm_runtime_shared PUBLIC
   ${SIMPLEVM_VM_ROOT}/include
   ${SIMPLEVM_BYTE_ROOT}/include
 )
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_include_directories(simplevm_runtime_shared PRIVATE ${LLVM_INCLUDE_DIRS})
+  target_compile_definitions(simplevm_runtime_shared PRIVATE SIMPLEVM_HAS_LLVM)
+  target_compile_options(simplevm_runtime_shared PRIVATE ${SIMPLEVM_LLVM_DEFINITIONS})
+endif()
 if (SIMPLEVM_NEEDS_FFI)
   if (TARGET PkgConfig::FFI)
     target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS} ${SIMPLEVM_FFI_TARGET})
@@ -194,6 +232,9 @@ if (SIMPLEVM_NEEDS_FFI)
   endif()
 else()
   target_link_libraries(simplevm_runtime_shared PUBLIC ${CMAKE_DL_LIBS})
+endif()
+if (SIMPLEVM_ENABLE_LLVM_JIT)
+  target_link_libraries(simplevm_runtime_shared PUBLIC ${SIMPLEVM_LLVM_LIBS})
 endif()
 target_compile_definitions(simplevm_runtime_shared PUBLIC SIMPLEVM_SHARED PRIVATE SIMPLEVM_BUILDING_DLL)
 
@@ -288,4 +329,4 @@ simplevm_apply_warnings(simplevm_tests)
 
 enable_testing()
 add_test(NAME simplevm_tests COMMAND simplevm_tests)
-set_tests_properties(simplevm_tests PROPERTIES WORKING_DIRECTORY ${SIMPLEVM_WORKSPACE_ROOT})
+set_tests_properties(simplevm_tests PROPERTIES WORKING_DIRECTORY ${SIMPLEVM_ROOT})

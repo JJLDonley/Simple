@@ -15,7 +15,15 @@ The Simple JIT is an optional execution path layered on top of the VM. The inter
 
 ## Status
 
-The current JIT is a tiering and compiled-runner scaffold, not a full native-code compiler. It tracks hot functions, classifies eligibility, executes a supported compiled subset, and falls back or reports safe failures for unsupported paths.
+The `-jit` path is now LLVM ORC first: it attempts to execute supported SBC functions as native LLVM code and falls back to the interpreter for unsupported shapes. The old tiered compiled-runner dispatch is no longer used by CLI execution.
+
+The LLVM ORC backend is present behind CMake option `SIMPLEVM_ENABLE_LLVM_JIT`. This is the migration path toward JVM/CLR-style execution:
+
+```text
+Simple -> SIR -> SBC -> verifier -> SBC-to-LLVM lowering -> ORC JIT -> Simple runtime helpers
+```
+
+When enabled and completed, `.sbc` remains the portable artifact while the platform-specific `svm` runtime JIT-compiles functions to native code on the user's machine.
 
 ## Enabling JIT
 
@@ -29,23 +37,42 @@ ExecuteModule(module, verify, enable_jit, options)
 
 ## Tiering
 
-The VM records per-function call counts and opcode counts. When thresholds are reached, functions may move through JIT tiers:
-
-- baseline/interpreter state
-- Tier0 for opcode-hot or initially compiled candidates
-- Tier1 for hotter call-count driven candidates
-
-`ExecResult` exposes tier and counter vectors so tests and diagnostics can inspect what happened.
+The VM records per-function call/opcode/dispatch/native-exec counters for diagnostics. Some result fields still use legacy `tier` names, but CLI `-jit` no longer routes through the old tiered compiled runner.
 
 ## Eligibility
 
-Not every method can run through the compiled runner. The compile policy checks method shape, bytecode features, and supported opcode subsets before allowing compiled execution.
+Not every method can run through LLVM yet. Unsupported methods stay on or fall back to the interpreter path.
 
-Unsupported methods stay on or fall back to the interpreter path.
+## LLVM ORC migration
+
+Build-time switch:
+
+```bash
+cmake -S Compiler -B Compiler/build-llvm -DSIMPLEVM_ENABLE_LLVM_JIT=ON
+```
+
+Runtime selection during the migration:
+
+```bash
+svm run -jit main.simple     # use JIT paths where supported
+svm run -int main.simple     # force interpreter
+```
+
+Until the LLVM JIT is complete, CLI execution defaults to interpreter mode and `-jit` opts in. Later this should flip so JIT is default and `-int` is the fallback/debug mode.
+
+The ORC backend should replace the compiled-runner dispatch gradually. It now caches generated ORC entries by module/function/code hash, verifies generated IR before installation, can run scalar parameterized hot callees from CLI tier dispatch, and can reject helper-bridged calls for CLI tier dispatch while keeping them enabled for direct backend tests. Current LLVM lowering covers scalar functions with constants including validated 128-bit placeholder constants, locals, uninitialized and numeric f32/f64-initialized globals in non-calling functions, integer/unsigned/floating arithmetic, checked i32/u32/i64/u64 arithmetic/div/mod, checked integer/float scalar conversions, checked/guard bounds, simple pointer guards/comparisons and pseudo-memory, trap/intrinsic-trap/syscall/throw/panic fallback, address/capture-local/global, algebraic wrapper, iterator/task placeholder, atomic placeholder, and vector placeholder ops, comparisons, simple conversions, forward branches, `JmpTable`, loop state merging for validated scalar/ref-stack cases, direct Simple calls inside loops, `Yield`, selected intrinsics, self calls, no-capture function literals via `NewClosure` + `CallIndirect`, and helper-bridged direct/import/native/indirect non-self calls. Import/indirect calls inside loops are still conservatively rejected until runtime ABI/state merging is hardened.
+
+Remaining migration order:
+
+1. add heap-aware aggregate/runtime trap helpers
+2. replace helper-bridged calls with true multi-function LLVM module emission
+3. route arrays/lists/strings/globals/imports through C ABI runtime helpers
+4. add GC safepoints/root maps
+5. keep interpreter parity tests until full coverage is reached
 
 ## Compiled runner
 
-The compiled runner executes a supported bytecode subset in a JIT-owned path. It supports scalar arithmetic, locals, selected control flow, direct/indirect/tail calls where eligible, and the other opcode behavior covered by JIT tests.
+The old compiled runner code remains in-tree for reference/tests, but CLI `-jit` no longer dispatches through it. New JIT work should target `LlvmJitBackend` and interpreter fallback only.
 
 Recursive compiled calls reuse the same compiled-runner context.
 

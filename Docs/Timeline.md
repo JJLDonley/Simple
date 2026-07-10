@@ -4,13 +4,27 @@ This is the canonical project roadmap. Native library prerequisites and native-l
 
 Order of work:
 
-1. Compiler / IR / bytecode prerequisites for language-neutral VM types and operations.
-2. Native ABI and language-level result/option/promise/handle types.
-3. VM Native Core resource registry and safety model.
-4. Low-level `System.*` APIs.
-5. High-level `Standard.*` APIs and approved aliases.
-6. Documentation, generated API references, and cross-platform tests.
-7. Lower-priority SRP/backlog cleanup only when it directly supports the above.
+1. Stabilize the current interpreter/CLI/test baseline.
+2. Complete compiler / IR / bytecode prerequisites for language-neutral VM types and operations.
+3. Complete the language surface: monomorphic generics, closures, `Result`/`Option`/`Promise`, and resource-safe control flow.
+4. Native ABI and language-level result/option/promise/handle types.
+5. VM Native Core resource registry and safety model.
+6. LLVM ORC JIT broad Tier 0, then optimized Tier 1.
+7. Low-level `System.*` APIs.
+8. High-level `Standard.*` APIs and approved aliases.
+9. Documentation, generated API references, and cross-platform tests.
+10. Lower-priority SRP/backlog cleanup only when it directly supports the above.
+
+Locked architecture decisions:
+
+- The interpreter is the semantic baseline. The LLVM ORC JIT may only accelerate validated SBC and must fallback or trap safely when unsupported.
+- SBC remains the portable artifact. JIT output is platform-local cacheable machine code, not a distribution format.
+- `data` is stable-layout ABI data. `artifact` is a managed language object. Methods never affect layout.
+- Generics are compile-time monomorphic. Every concrete instantiation is type-checked and emitted as a concrete specialized declaration.
+- Generic arguments may be any type with stable type identity: primitives, strings, arrays, lists, data, artifacts, enums, pointers, functions, handles, results/options/promises, and instantiated generic types.
+- Native calls are metadata-driven. Interpreter, JIT, future AOT, docs, and language reserved signatures must consume the same native-function metadata.
+- Host resources are generational opaque handles. Raw platform handles and VM heap internals are never exposed directly to Simple code.
+- `System.*` is explicit, low-level, capability-aware, and returns `Result`/`Option` for expected host failures. `Standard.*` is ergonomic and wraps `System.*`.
 
 ---
 
@@ -153,44 +167,169 @@ Language-neutral SBC metadata/opcodes status:
 
 ---
 
+## Phase 0.5: Language Completion and Monomorphic Generics
+
+This phase finishes the language surface that higher runtime and JIT work depends on. It must preserve phase boundaries: parsing owns syntax, RAST owns names/imports, TAST owns semantic facts, a new specialization phase owns generic instantiation, and IRB/IRE only lower concrete typed declarations.
+
+### Current Baseline Stabilization
+
+- [ ] Fix `build/bin/simplevm_tests` segfault when run from repository root.
+- [x] Make `ctest` execution independent of current working directory or force repository-root execution in CTest configuration.
+- [ ] Keep `svm run/check/emit/build/lsp` interpreter-mode tests green before expanding language/JIT features.
+- [ ] Split current LLVM ORC scaffolding into reviewable commits before adding broad feature lowering.
+
+### Generic Type Model
+
+- [ ] Define canonical type identity for every generic argument kind.
+  - [ ] primitives.
+  - [ ] `string`, `Bytes`, heap references, and managed artifacts.
+  - [ ] arrays/lists and nested aggregate types.
+  - [ ] stable-layout `data` types.
+  - [ ] enums and pointer types.
+  - [ ] function/procedure types including captured closures.
+  - [ ] `System.Handle<T>`, `Result<T,E>`, `Option<T>`, `Promise<T>`, `Channel<T>`.
+  - [ ] instantiated generic types as generic arguments.
+- [ ] Define deterministic generic symbol mangling.
+  - [ ] Human/debug form, e.g. `Map<string, List<i32>>`.
+  - [ ] Link/internal form with stable escaping or hash suffixes.
+  - [ ] Collision detection with diagnostic output.
+- [ ] Add generic declaration metadata to TAST and SIR/SBC debug/type metadata.
+- [ ] Reject recursive value containment without indirection; allow recursion through pointer/ref/handle.
+
+### Specialization Pipeline
+
+- [ ] Add `Lang/include/GEN/specializer.h`.
+- [ ] Add `Lang/src/GEN/specializer.cpp`.
+- [ ] Insert specialization after generic TAST validation and before IRB lowering.
+- [ ] Collect generic function/data/artifact declarations.
+- [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
+- [ ] Instantiate dependencies recursively with cycle detection.
+- [ ] Re-run semantic/type checks on each concrete specialization.
+- [ ] Cache/reuse equivalent specializations across a module graph.
+- [ ] Emit only concrete specialized declarations into IRB/IRE.
+
+### Generic Language Surface
+
+- [ ] Generic functions.
+- [ ] Generic `data` declarations with stable specialized layout.
+- [ ] Generic `artifact` declarations and methods.
+- [ ] Generic methods on non-generic and generic receivers.
+- [ ] Generic procedure/function value types.
+- [ ] Generic list/array element types where lowering/runtime supports the concrete specialization.
+- [ ] Generic native-facing types only when ABI metadata is complete.
+- [ ] Operation validity checked per specialization rather than by broad predeclared constraints.
+- [ ] Reserve trait/constraint syntax for later; do not block v1 generics on traits.
+
+### Closures and Procedure Values
+
+- [ ] Complete closure capture semantics for procedure literals.
+- [ ] Represent captured closures as heap objects with exact GC roots.
+- [ ] Allow procedure values in generic instantiations when the concrete storage/runtime path is supported.
+- [ ] Keep procedure values rejected at external FFI boundaries unless explicitly wrapped by a native callback ABI.
+- [ ] Support direct inline invocation of anonymous function literals after capture/lifetime rules are implemented.
+
+### Result / Option / Promise Language Surface
+
+- [ ] Define canonical `Result<T,E>` and `Option<T>` types in language-facing standard metadata.
+- [ ] Define canonical `Promise<T>` language type backed by VM promise/job records.
+- [ ] Add `try` propagation sugar for `Result<T,E>`.
+- [ ] Add optional unwrapping/control-flow sugar after `Option<T>` representation is stable.
+- [ ] Ensure result/option/promise generic instantiations lower through the monomorphic specialization path.
+
+### Resource-Safe Control Flow
+
+- [ ] Decide `defer` and/or scoped `using` syntax for deterministic cleanup.
+- [ ] Lower cleanup edges for normal return, error propagation, break/skip, trap-safe VM unwinding where supported.
+- [ ] Integrate resource cleanup with `System.Handle<T>` and native resource registry.
+
+---
+
 ## Phase 1: Native ABI Contract
 
-Artifacts are structs with methods for ABI purposes. Fields define layout; methods are language-level functions and do not affect ABI size/alignment/field order.
+The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by the VM runtime, native modules, LLVM ORC JIT helpers, and future AOT. External C FFI is a restricted boundary for declared `extern` calls and dynamic-library dispatch.
+
+`data` declarations are stable-layout ABI structs. `artifact` declarations are managed language objects unless explicitly lowered through a separate handle/reference ABI. Fields define layout; methods are language-level functions and do not affect ABI size, alignment, field order, or calling convention.
+
+### ABI Layers
+
+- [ ] Define Simple Native ABI based on `NativeCallContext` and `NativeCallResult`.
+  - [ ] Native handlers decode arguments through typed accessors.
+  - [ ] Native handlers build returns through typed builders.
+  - [ ] Resource, capability, allocation, blocking, and GC behavior are visible through metadata.
+- [ ] Define restricted External C FFI ABI.
+  - [ ] Permit primitives, pointers, stable `data` structs, and explicit ABI wrapper types.
+  - [ ] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions.
+  - [ ] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass.
+- [ ] Keep interpreter, LLVM ORC JIT, and future AOT on the same Simple Native ABI contract.
+
+### Exact ABI Mapping Table
 
 - [ ] Define exact ABI mapping table for every native-callable type.
-- [ ] Define scalar ABI representations:
-  - [ ] integer widths/sign.
-  - [ ] float widths.
-  - [ ] `bool` representation.
-  - [ ] `char` representation.
-  - [ ] enum representation.
-- [ ] Define artifact-as-struct ABI.
-  - [ ] field declaration order.
-  - [ ] field alignment.
-  - [ ] padding.
-  - [ ] total size.
-  - [ ] nested artifacts.
-  - [ ] by-value vs by-pointer thresholds.
-  - [ ] return-by-value rules.
-  - [ ] tests proving methods do not affect layout.
-- [ ] Define `string` and `Bytes` ABI.
-  - [ ] borrowed pointer + length vs VM handle vs copied buffer.
-  - [ ] lifetime rules for arguments.
-  - [ ] lifetime rules for results.
-- [ ] Define `System.Handle<T>` ABI.
-  - [ ] lowers to opaque `NativeHandleId`.
-  - [ ] native callees declare expected resource kind.
-  - [ ] kind/generation/closed-state validated before use.
-- [ ] Define `Result<T>` / `Option<T>` ABI.
-  - [ ] VM representation.
-  - [ ] native handler builders.
-  - [ ] external FFI restrictions.
-- [ ] Define `Promise<T>` ABI/runtime representation.
+- [ ] Scalar representations:
+  - [ ] signed/unsigned integers use exact-width two's-complement payloads.
+  - [ ] floats use IEEE-754 `f32`/`f64`.
+  - [ ] `bool` ABI is `u8` with only `0` or `1` valid.
+  - [ ] `char` ABI is `u32` Unicode scalar long-term; document current bytecode compatibility if still 16-bit internally.
+  - [ ] enums use declared or default underlying integer type.
+- [ ] Reference/handle representations:
+  - [ ] VM heap references are opaque VM refs, never raw host pointers.
+  - [ ] `System.Handle<T>` lowers to `NativeHandleId` packed as a VM word.
+  - [ ] `Promise<T>` lowers to a generational promise/job id.
+
+### Stable `data` Layout ABI
+
+- [ ] Field declaration order is layout order.
+- [ ] Alignment rules:
+  - [ ] 1-byte: `bool`, `i8`, `u8`.
+  - [ ] 2-byte: `i16`, `u16`.
+  - [ ] 4-byte: `i32`, `u32`, `f32`, `char`, enum32.
+  - [ ] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
+  - [ ] nested `data`: max field alignment, capped at 8 initially.
+- [ ] Padding is deterministic and zero-initialized where observable through ABI.
+- [ ] Total size rounds up to max alignment.
+- [ ] Nested `data` structs are allowed after recursive layout validation.
+- [ ] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
+- [ ] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
+- [ ] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
+- [ ] Return-by-value rules match parameter rules and are explicit in metadata.
+- [ ] Tests prove methods do not affect layout.
+- [ ] Tests cover padding, nested data, arrays, generics, and layout hashes.
+
+### Strings and Bytes ABI
+
+- [ ] Define `SimpleStringView { data, size, encoding }` for borrowed string arguments.
+- [ ] Strings are UTF-8 at ABI boundaries unless a different encoding is explicit.
+- [ ] Borrowed string/bytes views are valid only for the native call duration.
+- [ ] Native functions returning strings allocate/build VM-owned strings.
+- [ ] Define heap-owned `Bytes` as the canonical immutable byte sequence.
+- [ ] Define `SimpleBytesView { data, size }` for borrowed bytes arguments.
+- [ ] Define mutable buffers as resource handles, not borrowed mutable VM internals.
+- [ ] External FFI requires explicit `cstring`, pointer, or bytes wrapper types; no implicit `string` coercion.
+
+### Handles, Results, Options, Promises
+
+- [ ] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
+- [ ] Native callees declare expected resource kind; dispatch validates kind/generation/closed state before use.
+- [ ] Define canonical `Result<T,E>` representation.
+  - [ ] tag plus inline small payload or heap box for large/ref-containing payloads.
+  - [ ] native handler builders for ok/err.
+  - [ ] external FFI rejects generic `Result` unless explicitly wrapped.
+- [ ] Define canonical `Option<T>` representation.
+  - [ ] tag plus payload; nullable reference optimization may be added only when semantics remain identical.
+  - [ ] native handler builders for some/none.
+- [ ] Define `Promise<T>` runtime representation.
   - [ ] promise/job id payload.
-  - [ ] completion state.
-  - [ ] cancellation state.
+  - [ ] pending/done/failed/canceled states.
+  - [ ] cancellation flag and waiter list.
   - [ ] result payload roots and GC behavior.
-- [ ] Keep interpreter and future AOT on the same ABI contract.
+
+### ABI Metadata and Tests
+
+- [ ] Add ABI classification to type metadata: scalar, ref, handle, data-small, data-byref, variant, promise, opaque.
+- [ ] Add layout hash for stable `data` types and generic specializations.
+- [ ] Add ABI verifier checks for native-callable signatures.
+- [ ] Add interpreter/JIT shared tests for the same native ABI calls.
+- [ ] Document all mappings in `Docs/Language.md`, `Docs/VM.md`, `Docs/IR.md`, and `Docs/Byte.md`.
 
 ---
 
@@ -263,6 +402,71 @@ Extend `NativeFunctionSpec` with:
 - [ ] Add default CLI capability policy.
 - [ ] Add stricter sandbox policy later.
 - [ ] Document stable vs unsafe/system APIs.
+
+---
+
+## Phase 2.5: LLVM ORC JIT Completion
+
+The LLVM ORC JIT is an optional execution backend over verified SBC. CLI execution remains interpreter-first until Tier 0 coverage and root/safepoint behavior are broad enough to make JIT the default. `-int` must always force interpreter execution for debugging and parity.
+
+### JIT ABI and Runtime Interface
+
+- [ ] Define `JitCallContext` as the stable internal ABI for compiled Simple functions.
+  - [ ] argument access.
+  - [ ] return slot.
+  - [ ] locals/spill slots.
+  - [ ] globals access.
+  - [ ] heap/runtime helper access.
+  - [ ] trap/error builder.
+  - [ ] safepoint/root registration.
+- [ ] Define `JitStatus` result codes for halt, return, trap, fallback, and unsupported.
+- [ ] Keep helper-heavy context ABI as the correctness path. Direct scalar native signatures are optimization-only.
+- [ ] Cache ORC entries by module id, function id, code hash, ABI version, and runtime helper ABI version.
+
+### Tier 0: Broad Safe LLVM Lowering
+
+- [ ] Lower all scalar constants, locals, globals, arithmetic, comparisons, casts, and branches.
+- [ ] Lower loops with validated stack/local merge states.
+- [ ] Lower direct Simple calls through `JitCallContext` dispatch or compiled entry lookup.
+- [ ] Lower indirect/import/native calls through shared metadata dispatch helpers.
+- [ ] Lower heap operations through runtime helpers: strings, arrays, lists, artifacts, closures, result/option boxes.
+- [ ] Lower bounds/null/type checks to runtime trap helpers with equivalent interpreter diagnostics.
+- [ ] Add helper calls for allocation checkpoints, safepoints, write barriers, read barriers, pin/unpin, keepalive.
+- [ ] Fallback cleanly for unsupported opcodes/shapes without corrupting VM state.
+
+### GC and Safepoints
+
+- [ ] Register JIT frames with explicit root slots before any helper that may allocate or block.
+- [ ] Keep exact root facts for args, locals, operand stack values, captured refs, and temporary helper values.
+- [ ] Add safepoint metadata to lowered call sites and loop backedges.
+- [ ] Add tests that force GC from JIT helper calls.
+- [ ] Later: replace coarse root slots with LLVM stackmap/root-map integration.
+
+### Native Calls from JIT
+
+- [ ] JIT native calls use `NativeFunctionSpec` id and the same dispatcher as the interpreter.
+- [ ] Capability checks run identically in interpreter and JIT.
+- [ ] Resource kind/generation/closed-state checks run identically in interpreter and JIT.
+- [ ] Blocking/native calls publish safepoints and roots before entering host code.
+- [ ] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
+
+### Tier 1: Optimized Monomorphic Lowering
+
+- [ ] Emit multi-function LLVM modules for hot call groups.
+- [ ] Inline monomorphic Simple calls where recursion and code size policy permit.
+- [ ] Optimize monomorphized generic specializations as normal concrete functions.
+- [ ] Scalar-replace small stable `data` values.
+- [ ] Inline small aggregate field access and small fixed-array access where bounds are proven.
+- [ ] Add bounds-check elimination after verifier/type facts are available.
+- [ ] Add direct fast paths for pure runtime helpers while preserving fallback.
+
+### JIT Parity and Diagnostics
+
+- [ ] Every JIT-supported opcode has interpreter parity tests.
+- [ ] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
+- [ ] Runtime traps include opcode/function/pc/source debug context when available.
+- [ ] Test `-jit` and `-int` produce identical user-visible results for fixture suites.
+- [ ] Keep old compiled-runner code only as temporary reference/tests; remove once ORC parity replaces it.
 
 ---
 
@@ -550,7 +754,7 @@ This backlog is intentionally below native-library prerequisites and native-libr
 
 ## AOT / JIT / Runtime Follow-Up
 
-- [ ] AOT and interpreter share the same native ABI/resource contract.
-- [ ] JIT/AOT native calls use the same metadata as interpreter native calls.
-- [ ] Add stack maps/root facts for native calls that can allocate or block.
-- [ ] Add capability checks consistently across interpreter, JIT, and future AOT.
+- [ ] AOT uses the same Simple Native ABI, resource registry, capability policy, and native metadata as interpreter/JIT.
+- [ ] AOT consumes the same monomorphized concrete IR/SBC facts as LLVM ORC JIT.
+- [ ] AOT emits or links the same root/safepoint metadata required by heap-aware JIT execution.
+- [ ] AOT package/build work starts only after Phase 1 ABI and Phase 2.5 JIT helper ABI are stable.

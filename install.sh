@@ -2,121 +2,144 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PREFIX="${PREFIX:-/usr/local}"
-BINDIR="$PREFIX/bin"
+BUILD_DIR="${BUILD_DIR:-$ROOT_DIR/build}"
+CONFIG="${CONFIG:-Release}"
+JOBS="${JOBS:-2}"
+BINDIR="${BINDIR:-$HOME/.local/bin}"
+LLVM_JIT="${SIMPLEVM_ENABLE_LLVM_JIT:-${LLVM_JIT:-OFF}}"
 
-"$ROOT_DIR/build.sh"
+usage() {
+  cat <<EOF
+usage: install.sh [options]
 
-if [[ ! -d "$BINDIR" ]]; then
-  mkdir -p "$BINDIR" 2>/dev/null || sudo mkdir -p "$BINDIR"
-fi
+Build Simple, copy binaries to Compiler/bin, then install them to ~/.local/bin.
 
-install_bin() {
-  local src="$1"
-  local dst="$2"
-  if [[ -w "$BINDIR" ]]; then
-    install -m 0755 "$src" "$dst"
-  else
-    sudo install -m 0755 "$src" "$dst"
-  fi
+Options:
+  --llvm-jit           Build with LLVM ORC JIT enabled
+  --no-llvm-jit        Build without LLVM ORC JIT
+  --build-dir <dir>    CMake build dir (default: Compiler/build)
+  -j, --jobs <n>       Parallel build jobs (default: $JOBS)
+  -h, --help           Show this help
+
+Environment:
+  BUILD_DIR=/path
+  CONFIG=Release|Debug
+  JOBS=2
+  BINDIR=$HOME/.local/bin
+  SIMPLEVM_ENABLE_LLVM_JIT=ON|OFF
+  LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm
+  CC=clang-22 CXX=clang++-22
+EOF
 }
 
-install_bin "$ROOT_DIR/bin/svm" "$BINDIR/svm"
-install_bin "$ROOT_DIR/bin/simple" "$BINDIR/simple"
-
-updated_active=()
-install_active_command_if_safe() {
-  local name="$1"
-  local src="$2"
-  local active=""
-  active="$(command -v "$name" 2>/dev/null || true)"
-  if [[ -z "$active" ]]; then
-    return 0
-  fi
-  local active_real="$active"
-  if command -v readlink >/dev/null 2>&1; then
-    active_real="$(readlink -f "$active" 2>/dev/null || printf '%s' "$active")"
-  fi
-  if [[ "$active_real" == "$BINDIR/$name" ]]; then
-    return 0
-  fi
-  case "$active_real" in
-    "$HOME"/*)
-      mkdir -p "$(dirname "$active_real")"
-      install -m 0755 "$src" "$active_real"
-      updated_active+=("$active -> $active_real")
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --llvm-jit|--llvm)
+      LLVM_JIT=ON
+      shift
+      ;;
+    --no-llvm-jit|--no-llvm)
+      LLVM_JIT=OFF
+      shift
+      ;;
+    --build-dir)
+      BUILD_DIR="$2"
+      shift 2
+      ;;
+    -j|--jobs)
+      JOBS="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 1
       ;;
   esac
-}
+done
 
-install_active_command_if_safe "svm" "$ROOT_DIR/bin/svm"
-install_active_command_if_safe "simple" "$ROOT_DIR/bin/simple"
+case "$LLVM_JIT" in
+  1|true|TRUE|on|ON|yes|YES) LLVM_JIT=ON ;;
+  *) LLVM_JIT=OFF ;;
+esac
 
-path_has_dir() {
-  case ":$PATH:" in
-    *":$1:"*) return 0 ;;
-    *) return 1 ;;
-  esac
-}
+configure_args=(
+  -S "$ROOT_DIR"
+  -B "$BUILD_DIR"
+  -DCMAKE_BUILD_TYPE="$CONFIG"
+  -DSIMPLEVM_ENABLE_LLVM_JIT="$LLVM_JIT"
+)
 
-profile_file=""
-if [[ -n "${SIMPLE_PROFILE:-}" ]]; then
-  profile_file="$SIMPLE_PROFILE"
-elif [[ "${SHELL:-}" == */zsh ]]; then
-  profile_file="$HOME/.zshrc"
-elif [[ "${SHELL:-}" == */bash ]]; then
-  profile_file="$HOME/.bashrc"
-else
-  profile_file="$HOME/.profile"
-fi
-
-ensure_path_prepend() {
-  mkdir -p "$(dirname "$profile_file")"
-  touch "$profile_file"
-  if ! grep -F "export PATH=\"$BINDIR:\$PATH\"" "$profile_file" >/dev/null 2>&1; then
-    {
-      echo ""
-      echo "# Simple language PATH"
-      echo "export PATH=\"$BINDIR:\$PATH\""
-    } >> "$profile_file"
-    return 0
+if [[ "$LLVM_JIT" == "ON" ]]; then
+  if [[ -z "${LLVM_DIR:-}" && -d /usr/lib/llvm-22/lib/cmake/llvm ]]; then
+    export LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm
   fi
-  return 1
-}
-
-path_status="already on PATH"
-if ! path_has_dir "$BINDIR"; then
-  if ensure_path_prepend; then
-    path_status="added to $profile_file; restart your shell or run: export PATH=\"$BINDIR:\$PATH\""
-  else
-    path_status="configured in $profile_file; restart your shell"
+  if [[ -n "${LLVM_DIR:-}" ]]; then
+    configure_args+=(-DLLVM_DIR="$LLVM_DIR")
   fi
-else
-  resolved_svm="$(command -v svm 2>/dev/null || true)"
-  resolved_svm_real="$resolved_svm"
-  if [[ -n "$resolved_svm" ]] && command -v readlink >/dev/null 2>&1; then
-    resolved_svm_real="$(readlink -f "$resolved_svm" 2>/dev/null || printf '%s' "$resolved_svm")"
+  if [[ -z "${CC:-}" ]] && command -v clang-22 >/dev/null 2>&1; then
+    export CC=clang-22
   fi
-  if [[ -n "$resolved_svm_real" && "$resolved_svm_real" != "$BINDIR/svm" ]]; then
-    if ensure_path_prepend; then
-      path_status="shadowed by $resolved_svm; prepended $BINDIR in $profile_file. Restart your shell or run: export PATH=\"$BINDIR:\$PATH\""
-    else
-      path_status="shadowed by $resolved_svm; $profile_file already prepends $BINDIR. Restart your shell or run: export PATH=\"$BINDIR:\$PATH\""
-    fi
+  if [[ -z "${CXX:-}" ]] && command -v clang++-22 >/dev/null 2>&1; then
+    export CXX=clang++-22
+  fi
+  if [[ -n "${CC:-}" ]]; then
+    configure_args+=(-DCMAKE_C_COMPILER="$CC")
+  fi
+  if [[ -n "${CXX:-}" ]]; then
+    configure_args+=(-DCMAKE_CXX_COMPILER="$CXX")
   fi
 fi
+
+echo "Building Simple VM"
+echo "  source:   $ROOT_DIR"
+echo "  build:    $BUILD_DIR"
+echo "  install:  $BINDIR"
+echo "  llvm-jit: $LLVM_JIT"
+
+cmake "${configure_args[@]}"
+cmake --build "$BUILD_DIR" --target simplevm simple_stub --parallel "$JOBS"
+
+mkdir -p "$ROOT_DIR/bin"
+cp "$BUILD_DIR/bin/svm" "$ROOT_DIR/bin/svm"
+cp "$BUILD_DIR/bin/simple" "$ROOT_DIR/bin/simple"
+chmod +x "$ROOT_DIR/bin/svm" "$ROOT_DIR/bin/simple"
+
+mkdir -p "$BINDIR"
+install -m 0755 "$ROOT_DIR/bin/svm" "$BINDIR/svm"
+install -m 0755 "$ROOT_DIR/bin/simple" "$BINDIR/simple"
 
 cat <<EOF
+
 Installed:
   $BINDIR/svm
   $BINDIR/simple
 
-PATH: $path_status
+Source-tree copies:
+  $ROOT_DIR/bin/svm
+  $ROOT_DIR/bin/simple
 EOF
 
-if [[ ${#updated_active[@]} -gt 0 ]]; then
-  echo "Updated active PATH command(s):"
-  for item in "${updated_active[@]}"; do
-    echo "  $item"
-  done
+if [[ ":$PATH:" != *":$BINDIR:"* ]]; then
+  cat <<EOF
+
+$BINDIR is not currently on PATH.
+Add this to ~/.bashrc if you want svm/simple globally:
+
+  export PATH="$BINDIR:\$PATH"
+
+Then run:
+
+  source ~/.bashrc
+EOF
+else
+  echo ""
+  echo "$BINDIR is already on PATH; svm should be globally available."
 fi
+
+echo ""
+"$BINDIR/svm" -v || true

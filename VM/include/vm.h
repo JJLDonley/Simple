@@ -44,6 +44,8 @@ struct ExecResult {
   std::vector<uint32_t> jit_dispatch_counts;
   std::vector<uint32_t> jit_compiled_exec_counts;
   std::vector<uint32_t> jit_tier1_exec_counts;
+  std::vector<uint32_t> llvm_reject_counts;
+  std::vector<std::string> llvm_reject_reasons;
 };
 
 struct RuntimeLimits {

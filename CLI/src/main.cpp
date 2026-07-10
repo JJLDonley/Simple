@@ -24,6 +24,7 @@
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
 #include "vm.h"
+#include "jit/llvm_backend.h"
 #include "build_contract.h"
 #include "command_contract.h"
 #include "command_dispatch.h"
@@ -37,6 +38,15 @@ namespace {
 #endif
 
 const char* ToolVersion() { return SIMPLEVM_VERSION; }
+
+const char* JitTierName(Simple::VM::JitTier tier) {
+  switch (tier) {
+    case Simple::VM::JitTier::None: return "none";
+    case Simple::VM::JitTier::Tier0: return "tier0";
+    case Simple::VM::JitTier::Tier1: return "tier1";
+  }
+  return "unknown";
+}
 
 bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
   if (!out) return false;
@@ -290,13 +300,13 @@ int main(int argc, char** argv) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <module.sbc> [--no-verify]\n"
-                << "  " << tool_name << " <module.sbc> [--no-verify]\n";
+                << "  " << tool_name << " run <module.sbc> [-jit|-int] [--jit-stats] [--no-verify]\n"
+                << "  " << tool_name << " <module.sbc> [-jit|-int] [--jit-stats] [--no-verify]\n";
     } else if (compiler_frontend) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [--no-verify]\n"
+                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [-jit|-int] [--jit-stats] [--no-verify]\n"
                 << "  " << tool_name
                 << " build <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name
@@ -305,7 +315,7 @@ int main(int argc, char** argv) {
                 << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
                 << "  " << tool_name << " lsp\n"
-                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [--no-verify]\n";
+                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [-jit|-int] [--jit-stats] [--no-verify]\n";
     } else {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
@@ -319,7 +329,10 @@ int main(int argc, char** argv) {
 
   if (std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v" ||
       std::string(argv[1]) == "version") {
-    std::cout << tool_name << " " << ToolVersion() << "\n";
+    Simple::VM::Jit::LlvmJitStatus llvm_status = Simple::VM::Jit::GetLlvmJitStatus();
+    std::cout << tool_name << " " << ToolVersion() << "\n"
+              << "llvm-jit: " << (llvm_status.available ? "on" : "off")
+              << " (" << llvm_status.message << ")\n";
     return 0;
   }
 
@@ -334,13 +347,24 @@ int main(int argc, char** argv) {
   const bool is_command = Simple::CLI::IsKnownCommand(cmd);
   std::string path = ResolveImplicitSimplePath(is_command ? (argc > 2 ? argv[2] : "") : cmd);
   bool verify = true;
+  bool use_jit = false;
+  bool force_interpreter = true;
   bool build_exe = false;
   bool build_static = false;
+  bool print_jit_stats = false;
   bool build_mode_explicit = false;
   for (int i = 2; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--no-verify") {
       verify = false;
+    } else if (arg == "--jit-stats" || arg == "--jit-trace") {
+      print_jit_stats = true;
+    } else if (arg == "-jit" || arg == "--jit" || arg == "--llvm-jit") {
+      use_jit = true;
+      force_interpreter = false;
+    } else if (arg == "-int" || arg == "--int" || arg == "--interpreter") {
+      use_jit = false;
+      force_interpreter = true;
     } else if (arg == "-d" || arg == "--dynamic") {
       build_exe = true;
       build_static = false;
@@ -349,6 +373,9 @@ int main(int argc, char** argv) {
       build_exe = true;
       build_static = true;
       build_mode_explicit = true;
+    } else if (is_command && cmd != "emit" && arg != "--out" && !arg.empty() && arg[0] != '-' &&
+               (path.empty() || (!path.empty() && path[0] == '-'))) {
+      path = ResolveImplicitSimplePath(arg);
     }
   }
 
@@ -627,7 +654,45 @@ int main(int argc, char** argv) {
     }
   }
 
-  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, verify);
+  Simple::VM::ExecOptions exec_options;
+  exec_options.force_interpreter = force_interpreter;
+  Simple::VM::ExecResult exec = Simple::VM::ExecuteModule(load.module, verify, use_jit, exec_options);
+  if (print_jit_stats) {
+    Simple::VM::Jit::LlvmJitStatus llvm_status = Simple::VM::Jit::GetLlvmJitStatus();
+    std::cerr << "[jit] requested=" << (use_jit ? "yes" : "no")
+              << " force_interpreter=" << (force_interpreter ? "yes" : "no")
+              << " llvm=" << (llvm_status.available ? "on" : "off") << "\n";
+    const size_t count = std::max({exec.jit_tiers.size(), exec.call_counts.size(), exec.opcode_counts.size(),
+                                   exec.compile_counts.size(), exec.jit_dispatch_counts.size(),
+                                   exec.jit_compiled_exec_counts.size(), exec.jit_tier1_exec_counts.size(),
+                                   exec.llvm_reject_counts.size()});
+    for (size_t i = 0; i < count; ++i) {
+      uint32_t calls = i < exec.call_counts.size() ? exec.call_counts[i] : 0;
+      uint64_t ops = i < exec.opcode_counts.size() ? exec.opcode_counts[i] : 0;
+      uint32_t compiles = i < exec.compile_counts.size() ? exec.compile_counts[i] : 0;
+      uint32_t dispatches = i < exec.jit_dispatch_counts.size() ? exec.jit_dispatch_counts[i] : 0;
+      uint32_t compiled_execs = i < exec.jit_compiled_exec_counts.size() ? exec.jit_compiled_exec_counts[i] : 0;
+      uint32_t tier1_execs = i < exec.jit_tier1_exec_counts.size() ? exec.jit_tier1_exec_counts[i] : 0;
+      uint32_t llvm_rejects = i < exec.llvm_reject_counts.size() ? exec.llvm_reject_counts[i] : 0;
+      std::string llvm_reject_reason = i < exec.llvm_reject_reasons.size() ? exec.llvm_reject_reasons[i] : "";
+      Simple::VM::JitTier tier = i < exec.jit_tiers.size() ? exec.jit_tiers[i] : Simple::VM::JitTier::None;
+      if (calls == 0 && ops == 0 && compiles == 0 && dispatches == 0 && compiled_execs == 0 && tier1_execs == 0 &&
+          llvm_rejects == 0 && tier == Simple::VM::JitTier::None) {
+        continue;
+      }
+      std::cerr << "[jit] func#" << i
+                << " tier=" << JitTierName(tier)
+                << " calls=" << calls
+                << " opcodes=" << ops
+                << " compiles=" << compiles
+                << " dispatch=" << dispatches
+                << " compiled_exec=" << compiled_execs
+                << " tier1_exec=" << tier1_execs
+                << " llvm_reject=" << llvm_rejects;
+      if (!llvm_reject_reason.empty()) std::cerr << " reason=\"" << llvm_reject_reason << "\"";
+      std::cerr << "\n";
+    }
+  }
   if (exec.status == Simple::VM::ExecStatus::Trapped) {
     PrintError("runtime trap: " + exec.error);
     return 1;

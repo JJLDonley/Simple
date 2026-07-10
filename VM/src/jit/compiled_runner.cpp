@@ -5,6 +5,7 @@
 #include "heap.h"
 #include "interpreter/dispatch.h"
 #include "jit/failure_format.h"
+#include "jit/llvm_backend.h"
 #include "opcode.h"
 #include "runtime/values.h"
 
@@ -51,6 +52,21 @@ bool RunCompiledFunction(CompiledRunContext& context,
     return false;
   }
   const auto& module = *context.module;
+#if defined(SIMPLEVM_HAS_LLVM)
+  // CLI tier dispatch may use LLVM for scalar functions, but disallows helper-
+  // bridged runtime calls until the LLVM ABI carries full VM/runtime context.
+  {
+    Simple::VM::Jit::LlvmJitBackend llvm_backend({true, false});
+    std::string llvm_reason;
+    if (llvm_backend.TryRunFunction(module, func_index, args, out_ret, out_has_ret, llvm_reason)) {
+      return true;
+    }
+    if (!llvm_reason.empty() && llvm_reason != "unsupported") {
+      error = llvm_reason;
+      return false;
+    }
+  }
+#endif
   Heap& heap = *context.heap;
   const auto& jit_tiers = *context.jit_tiers;
   TierUpdater& update_tier = *context.update_tier;

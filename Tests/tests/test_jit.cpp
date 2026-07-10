@@ -10,6 +10,9 @@
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
+#include "jit/llvm_backend.h"
+#include "intrinsic_ids.h"
+#include "runtime/values.h"
 #include "test_utils.h"
 #include "vm.h"
 
@@ -24,6 +27,7 @@ using Simple::Byte::sbc::AppendU64;
 using Simple::Byte::sbc::AppendConstString;
 using Simple::Byte::sbc::AppendStringToPool;
 using Simple::Byte::sbc::BuildModule;
+using Simple::Byte::sbc::BuildModuleWithTables;
 using Simple::Byte::sbc::BuildModuleWithFunctionsAndSigs;
 using Simple::Byte::sbc::SigSpec;
 using Simple::Byte::sbc::SectionData;
@@ -198,6 +202,22 @@ std::vector<uint8_t> BuildModuleWithFunctionsAndSigsWithTables(
   }
 
   return module;
+}
+
+std::vector<uint8_t> BuildTypesI32Void() {
+  std::vector<uint8_t> types;
+  auto append_type = [&](Simple::Byte::TypeKind kind, uint32_t size) {
+    AppendU32(types, 0);
+    AppendU8(types, static_cast<uint8_t>(kind));
+    AppendU8(types, 0);
+    AppendU16(types, 0);
+    AppendU32(types, size);
+    AppendU32(types, 0);
+    AppendU32(types, 0);
+  };
+  append_type(Simple::Byte::TypeKind::I32, 4);
+  append_type(Simple::Byte::TypeKind::Void, 0);
+  return types;
 }
 
 std::vector<uint8_t> BuildTypesI32RefString() {
@@ -7845,7 +7865,1734 @@ bool RunJitOpcodeHotI32ArithmeticTailCallTest() {
   return true;
 }
 
+bool RunLlvmJitLeafI32SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitLocalsAndParamsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSig({code}, {3}, 0, 2, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+
+  std::vector<Simple::VM::Interpreter::Slot> args = {
+      Simple::VM::Runtime::PackI32(20), Simple::VM::Runtime::PackI32(1)};
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, args, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT locals/params run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT locals/params return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCacheSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSig({code}, {2}, 0, 2, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  std::vector<Simple::VM::Interpreter::Slot> args1 = {
+      Simple::VM::Runtime::PackI32(20), Simple::VM::Runtime::PackI32(22)};
+  if (!backend.TryRunFunction(load.module, 0, args1, ret, has_ret, error) ||
+      !has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected first cached LLVM JIT return 42: " << error << "\n";
+    return false;
+  }
+  std::vector<Simple::VM::Interpreter::Slot> args2 = {
+      Simple::VM::Runtime::PackI32(100), Simple::VM::Runtime::PackI32(23)};
+  if (!backend.TryRunFunction(load.module, 0, args2, ret, has_ret, error) ||
+      !has_ret || Simple::VM::Runtime::UnpackI32(ret) != 123) {
+    std::cerr << "expected second cached LLVM JIT return 123: " << error << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitFloatSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 20.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 2.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddF64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT float run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT float return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitYieldSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Yield));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT yield run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT yield return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitHaltSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Halt));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT halt run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT halt return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitJmpTableSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  for (const auto& [index, expected] : {std::pair<int32_t, int32_t>{0, 1},
+                                       std::pair<int32_t, int32_t>{1, 2},
+                                       std::pair<int32_t, int32_t>{7, 3}}) {
+    Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildJmpTableModule(index));
+    if (!load.ok) {
+      std::cerr << "load failed: " << load.error << "\n";
+      return false;
+    }
+    Simple::VM::Interpreter::Slot ret = 0;
+    bool has_ret = false;
+    std::string error;
+    if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+      std::cerr << "LLVM JIT jmptable run failed: " << error << "\n";
+      return false;
+    }
+    if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != expected) {
+      std::cerr << "expected LLVM JIT jmptable return " << expected << "\n";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool RunLlvmJitSqrtIntrinsicSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstF64));
+  AppendF64(code, 1764.0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, Simple::VM::kIntrinsicSqrtF64);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT sqrt intrinsic run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT sqrt intrinsic return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitIntrinsicSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, -40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, Simple::VM::kIntrinsicAbsI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, Simple::VM::kIntrinsicMaxI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT intrinsic run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 40) {
+    std::cerr << "expected LLVM JIT intrinsic return 40\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCallIndirectHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(entry, 1);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 42);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModuleWithFunctions({entry, callee}, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT indirect call helper run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT indirect call helper return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitNoCaptureClosureSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::NewClosure));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::CallIndirect));
+  AppendU32(entry, 0);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 42);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModuleWithFunctions({entry, callee}, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT no-capture closure run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT no-capture closure return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitVoidCallHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> entry;
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(entry, 1);
+  AppendU8(entry, 0);
+  AppendU8(entry, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> module = BuildModuleWithFunctionsAndSigsWithTables(
+      {entry, callee}, {0, 0}, {0, 0}, {SigSpec{1, 0, {}}, SigSpec{0, 0, {}}}, {}, BuildTypesI32Void());
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = true;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT void call helper run failed: " << error << "\n";
+    return false;
+  }
+  if (has_ret) {
+    std::cerr << "expected LLVM JIT void call helper to return no value\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitDirectTailCallHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 42);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 1);
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 1);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  SigSpec main_sig{0, 0, {}};
+  SigSpec callee_sig{0, 1, {0}};
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSigs({main_code, callee}, {0, 1}, {0, 1}, {main_sig, callee_sig}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT direct-tail-call helper run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT direct-tail-call helper return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitDirectCallHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 42);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctions({main_code, callee}, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT direct-call helper run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT direct-call helper return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCallImportHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 42);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctions({main_code, callee}, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT call-import helper run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT call-import helper return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCallNativeHelperSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallNative));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(callee, 42);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctions({main_code, callee}, {0, 0}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT call-native helper run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT call-native helper return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitSelfTailCallSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_offset = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_pos = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::TailCall));
+  AppendU32(code, 0);
+  AppendU8(code, 2);
+  int32_t rel = static_cast<int32_t>(else_pos) - static_cast<int32_t>(jmp_offset + 4);
+  WriteU32(code, jmp_offset, static_cast<uint32_t>(rel));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSig({code}, {2}, 2, 2, {2, 2}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  std::vector<Simple::VM::Interpreter::Slot> args = {
+      Simple::VM::Runtime::PackI32(42), Simple::VM::Runtime::PackI32(0)};
+  if (!backend.TryRunFunction(load.module, 0, args, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT self-tail-call run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT self-tail-call return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitSelfCallSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLeI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_offset = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_pos = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SubI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(code, 0);
+  AppendU8(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  int32_t rel = static_cast<int32_t>(else_pos) - static_cast<int32_t>(jmp_offset + 4);
+  WriteU32(code, jmp_offset, static_cast<uint32_t>(rel));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSig({code}, {1}, 2, 1, {2}));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {Simple::VM::Runtime::PackI32(42)}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT self-call run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT self-call return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitNullRefSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0x00000001FFFFFFFFull);
+  AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 0x0000000100000001ull);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::RefEq));
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolAnd));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT null/ref run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 1) {
+    std::cerr << "expected LLVM JIT null/ref return true\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitNarrowIntegerSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU8));
+  AppendU8(code, 255);
+  AppendU8(code, static_cast<uint8_t>(OpCode::IncU8));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI8));
+  AppendU8(code, 127);
+  AppendU8(code, static_cast<uint8_t>(OpCode::IncI8));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 170);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT narrow int run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT narrow int return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitUnsignedSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpEqU32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT unsigned run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 1) {
+    std::cerr << "expected LLVM JIT unsigned return true\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitBitopsConversionsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ShlI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::OrI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI32ToI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AndI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT bitops/conversions run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 46) {
+    std::cerr << "expected LLVM JIT bitops/conversions return 46\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitI64SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 10);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 4);
+  AppendU8(code, static_cast<uint8_t>(OpCode::MulI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI64));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT i64 run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI64(ret) != 42) {
+    std::cerr << "expected LLVM JIT i64 return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitGlobalSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 1, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT global run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT global return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitInitializedGlobalSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadGlobal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvF64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 1, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  uint32_t const_id = static_cast<uint32_t>(load.module.const_pool.size());
+  AppendU32(load.module.const_pool, 4);
+  AppendF64(load.module.const_pool, 42.0);
+  load.module.globals[0].init_const_id = const_id;
+
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT initialized global run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT initialized global return 42\n";
+    return false;
+  }
+  return true;
+}
+
+void AppendExtendedOpcode(std::vector<uint8_t>& code, Simple::Byte::ExtendedOpCode ext) {
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::CallNative));
+  AppendU32(code, Simple::Byte::kExtendedOpcodeSentinel);
+  AppendU8(code, Simple::Byte::kExtendedOpcodeArgSentinel);
+  AppendU16(code, static_cast<uint16_t>(ext));
+}
+
+bool RunLlvmJitCheckedI32SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 50);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 8);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedSubI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedMulI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedDivI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked i32 run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked i32 return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCheckedU32SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 4);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedAddU32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedSubU32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedMulU32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU32));
+  AppendU32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedDivU32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked u32 run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked u32 return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitChecked64SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 50);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(code, 8);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedSubI64);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedMulU64);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstU64));
+  AppendU64(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedDivU64);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConvI64ToI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked 64 run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked 64 return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCheckedConvSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvI32ToI64);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvI64ToI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked conv run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked conv return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCheckedFloatConvSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvI32ToF32);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvF32ToF64);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvF64ToF32);
+  AppendExtendedOpcode(code, ExtendedOpCode::CheckedConvF32ToI32);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked float conv run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked float conv return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCheckedBoundsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CheckedBounds));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 3));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT checked bounds run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT checked bounds return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitGuardBoundsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::GuardBounds);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 3));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT guard bounds run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT guard bounds return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitPointerOpsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::PtrAdd);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 100);
+  AppendExtendedOpcode(code, ExtendedOpCode::PtrCheckBounds);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 3));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT pointer ops run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT pointer ops return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitMemoryPseudoOpsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 123);
+  AppendExtendedOpcode(code, ExtendedOpCode::LoadPtr);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendExtendedOpcode(code, ExtendedOpCode::StorePtr);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendExtendedOpcode(code, ExtendedOpCode::MemCompare);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 4));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT memory pseudo ops run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT memory pseudo ops return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitConst128SmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> const_pool;
+  std::vector<uint8_t> blob(16, 0x7B);
+  uint32_t const_id = 0;
+  AppendConstBlob(const_pool, 1, blob, &const_id);
+
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI128));
+  AppendU32(code, const_id);
+  AppendU8(code, static_cast<uint8_t>(OpCode::IsNull));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 41);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  std::vector<uint8_t> empty;
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModuleWithTables(code, const_pool, empty, empty, 0, 0));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT const128 run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT const128 return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitTrapFallbackSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Intrinsic));
+  AppendU32(code, Simple::VM::kIntrinsicTrap);
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 1));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "expected LLVM JIT intrinsic trap to fail/fallback\n";
+    return false;
+  }
+  return error == "unsupported";
+}
+
+bool RunLlvmJitSysCallFallbackSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::SysCall));
+  AppendU32(code, 123);
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 0));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "expected LLVM JIT syscall to fail/fallback\n";
+    return false;
+  }
+  return error == "unsupported";
+}
+
+bool RunLlvmJitAddressTaskOpsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendExtendedOpcode(code, ExtendedOpCode::AddressOfLocal);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendExtendedOpcode(code, ExtendedOpCode::CaptureLocal);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendExtendedOpcode(code, ExtendedOpCode::MakeFuture);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 3));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT address/task ops run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 82) {
+    std::cerr << "expected LLVM JIT address/task ops return 82\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitPseudoExtendedOpsSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::ExtendedOpCode;
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 40);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendExtendedOpcode(code, ExtendedOpCode::ResultOk);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendExtendedOpcode(code, ExtendedOpCode::AtomicSub);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendExtendedOpcode(code, ExtendedOpCode::EnumMake);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 4));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT pseudo extended ops run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 43) {
+    std::cerr << "expected LLVM JIT pseudo extended ops return 43\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitCompareBoolSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 5);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 3);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpGtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstBool));
+  AppendU8(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::BoolOr));
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT compare/bool run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 1) {
+    std::cerr << "expected LLVM JIT compare/bool return 1\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitForwardBranchSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 2);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t jmp_offset = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 42);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  size_t else_pos = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  int32_t rel = static_cast<int32_t>(else_pos) - static_cast<int32_t>(jmp_offset + 4);
+  WriteU32(code, jmp_offset, static_cast<uint32_t>(rel));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 0, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT branch run failed: " << error << "\n";
+    return false;
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 42) {
+    std::cerr << "expected LLVM JIT branch return 42\n";
+    return false;
+  }
+  return true;
+}
+
+bool RunLlvmJitLoopSmokeTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(code, 1);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  size_t loop_start = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 6);
+  AppendU8(code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = code.size();
+  AppendI32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(code, 7);
+  AppendU8(code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = code.size();
+  AppendI32(code, 0);
+  size_t loop_end = code.size();
+  AppendU8(code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(code, 0);
+  AppendU8(code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(code, exit_jmp, static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(code, back_jmp, static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(BuildModule(code, 1, 2));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    return error == "unsupported";
+  }
+  if (!has_ret || Simple::VM::Runtime::UnpackI32(ret) != 7) {
+    std::cerr << "expected LLVM JIT loop return 7\n";
+    return false;
+  }
+  return true;
+}
+
 static const TestCase kJitTests[] = {
+  {"llvm_jit_leaf_i32_smoke", RunLlvmJitLeafI32SmokeTest},
+  {"llvm_jit_locals_params_smoke", RunLlvmJitLocalsAndParamsSmokeTest},
+  {"llvm_jit_cache_smoke", RunLlvmJitCacheSmokeTest},
+  {"llvm_jit_float_smoke", RunLlvmJitFloatSmokeTest},
+  {"llvm_jit_global_smoke", RunLlvmJitGlobalSmokeTest},
+  {"llvm_jit_initialized_global_smoke", RunLlvmJitInitializedGlobalSmokeTest},
+  {"llvm_jit_unsigned_smoke", RunLlvmJitUnsignedSmokeTest},
+  {"llvm_jit_checked_i32_smoke", RunLlvmJitCheckedI32SmokeTest},
+  {"llvm_jit_checked_u32_smoke", RunLlvmJitCheckedU32SmokeTest},
+  {"llvm_jit_checked_64_smoke", RunLlvmJitChecked64SmokeTest},
+  {"llvm_jit_checked_conv_smoke", RunLlvmJitCheckedConvSmokeTest},
+  {"llvm_jit_checked_float_conv_smoke", RunLlvmJitCheckedFloatConvSmokeTest},
+  {"llvm_jit_checked_bounds_smoke", RunLlvmJitCheckedBoundsSmokeTest},
+  {"llvm_jit_guard_bounds_smoke", RunLlvmJitGuardBoundsSmokeTest},
+  {"llvm_jit_pointer_ops_smoke", RunLlvmJitPointerOpsSmokeTest},
+  {"llvm_jit_memory_pseudo_ops_smoke", RunLlvmJitMemoryPseudoOpsSmokeTest},
+  {"llvm_jit_const128_smoke", RunLlvmJitConst128SmokeTest},
+  {"llvm_jit_trap_fallback_smoke", RunLlvmJitTrapFallbackSmokeTest},
+  {"llvm_jit_syscall_fallback_smoke", RunLlvmJitSysCallFallbackSmokeTest},
+  {"llvm_jit_address_task_ops_smoke", RunLlvmJitAddressTaskOpsSmokeTest},
+  {"llvm_jit_pseudo_extended_ops_smoke", RunLlvmJitPseudoExtendedOpsSmokeTest},
+  {"llvm_jit_self_call_smoke", RunLlvmJitSelfCallSmokeTest},
+  {"llvm_jit_direct_call_helper_smoke", RunLlvmJitDirectCallHelperSmokeTest},
+  {"llvm_jit_call_import_helper_smoke", RunLlvmJitCallImportHelperSmokeTest},
+  {"llvm_jit_call_native_helper_smoke", RunLlvmJitCallNativeHelperSmokeTest},
+  {"llvm_jit_call_indirect_helper_smoke", RunLlvmJitCallIndirectHelperSmokeTest},
+  {"llvm_jit_no_capture_closure_smoke", RunLlvmJitNoCaptureClosureSmokeTest},
+  {"llvm_jit_void_call_helper_smoke", RunLlvmJitVoidCallHelperSmokeTest},
+  {"llvm_jit_direct_tail_call_helper_smoke", RunLlvmJitDirectTailCallHelperSmokeTest},
+  {"llvm_jit_intrinsic_smoke", RunLlvmJitIntrinsicSmokeTest},
+  {"llvm_jit_yield_smoke", RunLlvmJitYieldSmokeTest},
+  {"llvm_jit_halt_smoke", RunLlvmJitHaltSmokeTest},
+  {"llvm_jit_jmptable_smoke", RunLlvmJitJmpTableSmokeTest},
+  {"llvm_jit_sqrt_intrinsic_smoke", RunLlvmJitSqrtIntrinsicSmokeTest},
+  {"llvm_jit_self_tail_call_smoke", RunLlvmJitSelfTailCallSmokeTest},
+  {"llvm_jit_null_ref_smoke", RunLlvmJitNullRefSmokeTest},
+  {"llvm_jit_narrow_integer_smoke", RunLlvmJitNarrowIntegerSmokeTest},
+  {"llvm_jit_bitops_conversions_smoke", RunLlvmJitBitopsConversionsSmokeTest},
+  {"llvm_jit_i64_smoke", RunLlvmJitI64SmokeTest},
+  {"llvm_jit_compare_bool_smoke", RunLlvmJitCompareBoolSmokeTest},
+  {"llvm_jit_forward_branch_smoke", RunLlvmJitForwardBranchSmokeTest},
+  {"llvm_jit_loop_smoke", RunLlvmJitLoopSmokeTest},
   {"jit_tier", RunJitTierTest},
   {"jit_call_indirect_dispatch", RunJitDispatchCallIndirectTest},
   {"jit_tailcall_dispatch", RunJitDispatchTailCallTest},

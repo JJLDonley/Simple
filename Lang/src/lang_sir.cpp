@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -4097,7 +4098,27 @@ bool EmitDefaultInit(EmitState& st, const TypeRef& type, std::string* error) {
     return PushStack(st, 1);
   }
   if (!type.dims.empty()) {
-    (*st.out) << "  const null\n";
+    TypeRef element_type;
+    if (!CloneElementType(type, &element_type)) {
+      if (error) *error = "failed to resolve default array/list element type";
+      return false;
+    }
+    const char* type_name = VmTypeNameForElement(element_type, st);
+    if (!type_name) {
+      if (error) *error = "unsupported default array/list element type";
+      return false;
+    }
+    const TypeDim& dim = type.dims.front();
+    if (dim.is_list) {
+      (*st.out) << "  newlist " << type_name << " 0\n";
+    } else {
+      uint64_t size = dim.has_size ? dim.size : 0;
+      if (size > static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+        if (error) *error = "fixed array default size too large";
+        return false;
+      }
+      (*st.out) << "  newarray " << type_name << " " << static_cast<uint32_t>(size) << "\n";
+    }
     return PushStack(st, 1);
   }
   if (type.name == "string") {
@@ -4562,8 +4583,12 @@ bool EmitFunction(EmitState& st,
 
   if (!st.global_init_func_name.empty() && emit_name == st.global_init_func_name) {
     for (const auto* glob : st.global_decls) {
-      if (!glob->has_init_expr) continue;
-      if (!EmitExpr(st, glob->init_expr, &glob->type, error)) return false;
+      if (!glob->has_init_expr && glob->type.dims.empty()) continue;
+      if (glob->has_init_expr) {
+        if (!EmitExpr(st, glob->init_expr, &glob->type, error)) return false;
+      } else {
+        if (!EmitDefaultInit(st, glob->type, error)) return false;
+      }
       auto git = st.global_indices.find(glob->name);
       if (git == st.global_indices.end()) {
         if (error) *error = "unknown global in init function '" + glob->name + "'";
@@ -4747,7 +4772,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     st.global_decls = globals;
     bool has_global_init = false;
     for (const auto* g : globals) {
-      if (g->has_init_expr) {
+      if (g->has_init_expr || !g->type.dims.empty()) {
         has_global_init = true;
         break;
       }

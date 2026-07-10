@@ -12,7 +12,9 @@ ExecResult AttachExecutionStats(ExecResult result,
                                 const std::vector<uint64_t>& compile_ticks_tier1,
                                 const std::vector<uint32_t>& jit_dispatch_counts,
                                 const std::vector<uint32_t>& jit_compiled_exec_counts,
-                                const std::vector<uint32_t>& jit_tier1_exec_counts) {
+                                const std::vector<uint32_t>& jit_tier1_exec_counts,
+                                const std::vector<uint32_t>& llvm_reject_counts,
+                                const std::vector<std::string>& llvm_reject_reasons) {
   result.jit_tiers = jit_tiers;
   result.call_counts = call_counts;
   result.opcode_counts = opcode_counts;
@@ -23,6 +25,8 @@ ExecResult AttachExecutionStats(ExecResult result,
   result.jit_dispatch_counts = jit_dispatch_counts;
   result.jit_compiled_exec_counts = jit_compiled_exec_counts;
   result.jit_tier1_exec_counts = jit_tier1_exec_counts;
+  result.llvm_reject_counts = llvm_reject_counts;
+  result.llvm_reject_reasons = llvm_reject_reasons;
   return result;
 }
 

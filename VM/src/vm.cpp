@@ -29,11 +29,8 @@
 #include "interpreter/globals.h"
 #include "interpreter/stack.h"
 #include "interpreter/traps.h"
-#include "jit/compile_policy.h"
-#include "jit/compiled_runner.h"
 #include "jit/failure_format.h"
-#include "jit/jit_scaffold.h"
-#include "jit/tier_updater.h"
+#include "jit/llvm_backend.h"
 #include "native/buffer.h"
 #include "native/channel.h"
 #include "native/dispatch.h"
@@ -133,7 +130,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<Slot> jit_locals;
   std::vector<uint32_t> call_counts(module.functions.size(), 0);
   std::vector<JitTier> jit_tiers(module.functions.size(), JitTier::None);
-  std::vector<Simple::VM::Jit::Stub> jit_stubs(module.functions.size());
   std::vector<uint64_t> opcode_counts(256, 0);
   std::vector<uint32_t> compile_counts(module.functions.size(), 0);
   std::vector<uint32_t> func_opcode_counts(module.functions.size(), 0);
@@ -142,40 +138,12 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   std::vector<uint32_t> jit_dispatch_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_compiled_exec_counts(module.functions.size(), 0);
   std::vector<uint32_t> jit_tier1_exec_counts(module.functions.size(), 0);
+  std::vector<uint32_t> llvm_reject_counts(module.functions.size(), 0);
+  std::vector<std::string> llvm_reject_reasons(module.functions.size());
   std::vector<std::FILE*> open_files;
   std::string dl_last_error;
   uint64_t compile_tick = 0;
-  const Simple::VM::Jit::Thresholds jit_thresholds = Simple::VM::Jit::ReadThresholdsFromEnv();
-  const uint32_t jit_tier0_threshold = jit_thresholds.tier0;
-  const uint32_t jit_tier1_threshold = jit_thresholds.tier1;
-  const uint32_t jit_opcode_threshold = jit_thresholds.opcode;
   Simple::VM::Native::NativeRegistry native_registry = Simple::VM::Native::BuildDefaultRegistry();
-  std::vector<uint8_t> compile_stack(module.functions.size(), 0);
-  Simple::VM::Jit::CompilePredicate can_compile_func;
-  can_compile_func.module = &module;
-  can_compile_func.verify_result = &vr;
-  can_compile_func.have_meta = have_meta;
-  can_compile_func.compile_stack = &compile_stack;
-  Simple::VM::Jit::TierUpdater update_tier;
-  update_tier.enable_jit = enable_jit;
-  update_tier.tier0_threshold = jit_tier0_threshold;
-  update_tier.tier1_threshold = jit_tier1_threshold;
-  update_tier.call_counts = &call_counts;
-  update_tier.jit_tiers = &jit_tiers;
-  update_tier.jit_stubs = &jit_stubs;
-  update_tier.compile_counts = &compile_counts;
-  update_tier.compile_ticks_tier0 = &compile_ticks_tier0;
-  update_tier.compile_ticks_tier1 = &compile_ticks_tier1;
-  update_tier.compile_tick = &compile_tick;
-  update_tier.can_compile = can_compile_func;
-  Simple::VM::Jit::CompiledRunContext compiled_context;
-  compiled_context.module = &module;
-  compiled_context.heap = &heap;
-  compiled_context.jit_tiers = &jit_tiers;
-  compiled_context.update_tier = &update_tier;
-  compiled_context.can_compile = &can_compile_func;
-  compiled_context.jit_compiled_exec_counts = &jit_compiled_exec_counts;
-  compiled_context.jit_tier1_exec_counts = &jit_tier1_exec_counts;
   for (size_t i = 0; i < module.globals.size(); ++i) {
     uint32_t const_id = module.globals[i].init_const_id;
     if (const_id == 0xFFFFFFFFu) continue;
@@ -227,7 +195,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
 
   size_t func_start = module.functions[entry_func_index].code_offset;
-  update_tier(entry_func_index);
+  call_counts[entry_func_index] += 1;
   Simple::VM::Interpreter::FrameState current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, entry_func_index, 0, 0, kNullRef);
   TrapContext trap_ctx;
   trap_ctx.current = &current;
@@ -238,6 +206,37 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
   TrapContextGuard trap_guard(&trap_ctx);
   size_t pc = func_start;
   size_t end = func_start + module.functions[entry_func_index].code_size;
+
+  auto is_llvm_unsupported = [](const std::string& reason) -> bool {
+    return reason.empty() || reason.rfind("unsupported", 0) == 0;
+  };
+  auto record_llvm_reject = [&](size_t index, const std::string& reason) {
+    if (index >= llvm_reject_counts.size()) return;
+    llvm_reject_counts[index] += 1;
+    if (!reason.empty()) llvm_reject_reasons[index] = reason;
+  };
+
+  if (enable_jit) {
+    Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
+    Slot native_ret = 0;
+    bool native_has_ret = false;
+    std::string llvm_reason;
+    if (llvm_backend.TryRunFunctionWithRuntime(module, entry_func_index, {}, &heap, &globals, &options, native_ret, native_has_ret, llvm_reason)) {
+      jit_tiers[entry_func_index] = JitTier::Tier1;
+      compile_counts[entry_func_index] += 1;
+      compile_ticks_tier1[entry_func_index] = ++compile_tick;
+      jit_compiled_exec_counts[entry_func_index] += 1;
+      jit_tier1_exec_counts[entry_func_index] += 1;
+      ExecResult result;
+      result.status = ExecStatus::Halted;
+      if (native_has_ret) result.exit_code = UnpackI32(native_ret);
+      return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
+    }
+    record_llvm_reject(entry_func_index, llvm_reason);
+    // Entry LLVM is opportunistic during migration. Any rejection or generated
+    // IR/runtime issue falls back to the interpreter, which remains semantic
+    // authority for diagnostics and traps.
+  }
 
   size_t op_counter = 0;
 
@@ -250,7 +249,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
       if (call_stack.empty()) {
         ExecResult done;
         done.status = ExecStatus::Halted;
-        return Simple::VM::Runtime::AttachExecutionStats(done, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+        return Simple::VM::Runtime::AttachExecutionStats(done, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
       }
       return Trap("pc out of bounds for function");
     }
@@ -263,14 +262,9 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
     if (current.func_index < func_opcode_counts.size()) {
       uint32_t& count = func_opcode_counts[current.func_index];
       count += 1;
-      if (enable_jit && count >= jit_opcode_threshold && jit_tiers[current.func_index] == JitTier::None) {
-        jit_tiers[current.func_index] = JitTier::Tier0;
-        jit_stubs[current.func_index].active = true;
-        jit_stubs[current.func_index].compiled =
-            jit_stubs[current.func_index].disabled ? false : can_compile_func(current.func_index);
-        compile_counts[current.func_index] += 1;
-        compile_ticks_tier0[current.func_index] = ++compile_tick;
-      }
+      // LLVM JIT migration: opcode hotness is retained for diagnostics only.
+      // The old tiered compiled-runner path is intentionally disabled; `-jit`
+      // means LLVM ORC attempts with interpreter fallback.
     }
     if (opcode == static_cast<uint8_t>(OpCode::CallNative)) {
       size_t operand_pc = pc;
@@ -1392,7 +1386,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (!stack.empty()) {
           result.exit_code = UnpackI32(stack.back());
         }
-        return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+        return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
       }
       case OpCode::Trap:
         return Trap("TRAP");
@@ -3539,26 +3533,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           if (has_ret) Push(stack, ret);
           break;
         }
-        if (enable_jit && jit_stubs[func_id].active) {
-          // JIT stub path currently falls back to interpreter execution.
+        if (enable_jit) {
           jit_dispatch_counts[func_id] += 1;
-        }
-
-        if (enable_jit && jit_stubs[func_id].compiled) {
-          update_tier(func_id);
-          jit_compiled_exec_counts[func_id] += 1;
-          if (jit_tiers[func_id] == JitTier::Tier1) {
-            jit_tier1_exec_counts[func_id] += 1;
-          }
+          Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;
           bool has_ret = false;
-          std::string error;
-          if (Simple::VM::Jit::RunCompiledFunction(compiled_context, func_id, call_args, ret, has_ret, error)) {
+          std::string llvm_reason;
+          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+            jit_tiers[func_id] = JitTier::Tier1;
+            jit_compiled_exec_counts[func_id] += 1;
+            jit_tier1_exec_counts[func_id] += 1;
             if (has_ret) Push(stack, ret);
             break;
           }
-          jit_stubs[func_id].compiled = false;
-          jit_stubs[func_id].disabled = true;
+          record_llvm_reject(func_id, llvm_reason);
+          if (!is_llvm_unsupported(llvm_reason)) return Trap(llvm_reason);
         }
 
         current.return_pc = pc;
@@ -3567,7 +3556,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);
-        update_tier(func_id);
+        call_counts[func_id] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, pc, stack.size(), kNullRef);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
@@ -3631,26 +3620,22 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
 
-        if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].active) {
-          // JIT stub path currently falls back to interpreter execution.
-          jit_dispatch_counts[static_cast<size_t>(func_index)] += 1;
-        }
-
-        if (enable_jit && jit_stubs[static_cast<size_t>(func_index)].compiled) {
-          update_tier(static_cast<size_t>(func_index));
-          jit_compiled_exec_counts[static_cast<size_t>(func_index)] += 1;
-          if (jit_tiers[static_cast<size_t>(func_index)] == JitTier::Tier1) {
-            jit_tier1_exec_counts[static_cast<size_t>(func_index)] += 1;
-          }
+        if (enable_jit) {
+          size_t target_index = static_cast<size_t>(func_index);
+          jit_dispatch_counts[target_index] += 1;
+          Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;
           bool has_ret = false;
-          std::string error;
-          if (Simple::VM::Jit::RunCompiledFunction(compiled_context, static_cast<size_t>(func_index), call_args, ret, has_ret, error)) {
+          std::string llvm_reason;
+          if (llvm_backend.TryRunFunctionWithRuntime(module, target_index, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+            jit_tiers[target_index] = JitTier::Tier1;
+            jit_compiled_exec_counts[target_index] += 1;
+            jit_tier1_exec_counts[target_index] += 1;
             if (has_ret) Push(stack, ret);
             break;
           }
-          jit_stubs[static_cast<size_t>(func_index)].compiled = false;
-          jit_stubs[static_cast<size_t>(func_index)].disabled = true;
+          record_llvm_reject(target_index, llvm_reason);
+          if (!is_llvm_unsupported(llvm_reason)) return Trap(llvm_reason);
         }
 
         current.return_pc = pc;
@@ -3659,7 +3644,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           return Trap("runtime limit exceeded: call depth");
         }
         call_stack.push_back(current);
-        update_tier(static_cast<size_t>(func_index));
+        call_counts[static_cast<size_t>(func_index)] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, static_cast<size_t>(func_index), pc, stack.size(), closure_ref);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
@@ -3674,10 +3659,6 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         uint32_t func_id = ReadU32(module.code, pc);
         uint8_t arg_count = ReadU8(module.code, pc);
         if (func_id >= module.functions.size()) return Trap("TAILCALL invalid function id");
-        if (enable_jit && jit_stubs[func_id].active) {
-          // JIT stub path currently falls back to interpreter execution.
-          jit_dispatch_counts[func_id] += 1;
-        }
         const auto& func = module.functions[func_id];
         if (func.method_id >= module.methods.size()) return Trap("TAILCALL invalid method id");
         const auto& method = module.methods[func.method_id];
@@ -3701,7 +3682,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             ExecResult result;
             result.status = ExecStatus::Halted;
             if (has_ret) result.exit_code = UnpackI32(ret);
-            return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+            return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
           }
           Simple::VM::Interpreter::FrameState caller = call_stack.back();
           call_stack.pop_back();
@@ -3716,21 +3697,21 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           break;
         }
 
-        if (enable_jit && jit_stubs[func_id].compiled) {
-          update_tier(func_id);
-          jit_compiled_exec_counts[func_id] += 1;
-          if (jit_tiers[func_id] == JitTier::Tier1) {
-            jit_tier1_exec_counts[func_id] += 1;
-          }
+        if (enable_jit) {
+          jit_dispatch_counts[func_id] += 1;
+          Simple::VM::Jit::LlvmJitBackend llvm_backend({true, true});
           Slot ret = 0;
           bool has_ret = false;
-          std::string error;
-          if (Simple::VM::Jit::RunCompiledFunction(compiled_context, func_id, call_args, ret, has_ret, error)) {
+          std::string llvm_reason;
+          if (llvm_backend.TryRunFunctionWithRuntime(module, func_id, call_args, &heap, &globals, &options, ret, has_ret, llvm_reason)) {
+            jit_tiers[func_id] = JitTier::Tier1;
+            jit_compiled_exec_counts[func_id] += 1;
+            jit_tier1_exec_counts[func_id] += 1;
             if (call_stack.empty()) {
               ExecResult result;
               result.status = ExecStatus::Halted;
               if (has_ret) result.exit_code = UnpackI32(ret);
-              return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+              return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
             }
             Simple::VM::Interpreter::FrameState caller = call_stack.back();
             call_stack.pop_back();
@@ -3744,15 +3725,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
             end = func_start + current_func.code_size;
             break;
           }
-          jit_stubs[func_id].compiled = false;
-          jit_stubs[func_id].disabled = true;
+          record_llvm_reject(func_id, llvm_reason);
+          if (!is_llvm_unsupported(llvm_reason)) return Trap(llvm_reason);
         }
 
         size_t return_pc = current.return_pc;
         size_t stack_base = current.stack_base;
         locals_arena.resize(current.locals_base);
         stack.resize(stack_base);
-        update_tier(func_id);
+        call_counts[func_id] += 1;
         current = Simple::VM::Interpreter::BuildFrame(module, locals_arena, func_id, return_pc, stack_base, kNullRef);
         for (size_t i = 0; i < call_args.size() && i < current.locals_count; ++i) {
           locals_arena[current.locals_base + i] = call_args[i];
@@ -3819,7 +3800,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
           ExecResult result;
           result.status = ExecStatus::Halted;
           if (has_ret) result.exit_code = UnpackI32(ret);
-          return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+          return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
         }
         Simple::VM::Interpreter::FrameState caller = call_stack.back();
         call_stack.pop_back();
@@ -3840,7 +3821,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
 
   ExecResult result;
   result.status = ExecStatus::Halted;
-  return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts);
+  return Simple::VM::Runtime::AttachExecutionStats(result, jit_tiers, call_counts, opcode_counts, compile_counts, func_opcode_counts, compile_ticks_tier0, compile_ticks_tier1, jit_dispatch_counts, jit_compiled_exec_counts, jit_tier1_exec_counts, llvm_reject_counts, llvm_reject_reasons);
 }
 
 } // namespace Simple::VM

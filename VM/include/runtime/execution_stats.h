@@ -18,7 +18,9 @@ ExecResult AttachExecutionStats(ExecResult result,
                                 const std::vector<uint64_t>& compile_ticks_tier1,
                                 const std::vector<uint32_t>& jit_dispatch_counts,
                                 const std::vector<uint32_t>& jit_compiled_exec_counts,
-                                const std::vector<uint32_t>& jit_tier1_exec_counts);
+                                const std::vector<uint32_t>& jit_tier1_exec_counts,
+                                const std::vector<uint32_t>& llvm_reject_counts,
+                                const std::vector<std::string>& llvm_reject_reasons);
 
 } // namespace Simple::VM::Runtime
 
