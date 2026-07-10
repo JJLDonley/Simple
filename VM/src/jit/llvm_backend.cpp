@@ -1082,28 +1082,54 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return spec.result_type == Simple::Byte::TypeKind::Unspecified || spec.result_type == result;
   };
+  auto import_name = [&](uint32_t func_id, std::string* module_name, std::string* symbol_name) -> bool {
+    if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
+      return false;
+    }
+    const size_t import_base = module.functions.size() - module.imports.size();
+    if (func_id < import_base) return false;
+    const size_t import_index = func_id - import_base;
+    if (import_index >= module.imports.size()) return false;
+    const auto& import_row = module.imports[import_index];
+    if (module_name) *module_name = Simple::Byte::ReadConstPoolString(module, import_row.module_name_str);
+    if (symbol_name) *symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
+    return true;
+  };
+  auto native_import_spec = [&](uint32_t func_id) -> const Simple::VM::Native::NativeFunctionSpec* {
+    std::string module_name;
+    std::string symbol_name;
+    if (!import_name(func_id, &module_name, &symbol_name) || module_name.empty() || symbol_name.empty()) return nullptr;
+    static const Simple::VM::Native::NativeRegistry* registry =
+        new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
+    return registry->Find(module_name, symbol_name);
+  };
+  auto helper_call_safepoint_flags = [&](uint32_t func_id) -> std::pair<bool, bool> {
+    if (func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
+      return {false, true};
+    }
+    std::string module_name;
+    std::string symbol_name;
+    if (!import_name(func_id, &module_name, &symbol_name)) return {true, true};
+    if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) return {true, false};
+    const auto* spec = native_import_spec(func_id);
+    if (!spec) return {true, true};
+    const bool may_block = spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking;
+    const bool may_allocate = spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation;
+    return {may_block, may_allocate};
+  };
   auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
     auto unsafe = [](const std::string& category, const std::string& why) {
       return "category=" + category + " reason=" + why;
     };
     if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature");
-    if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
-      return unsafe("native/import", "missing-import-metadata");
-    }
-    const size_t import_base = module.functions.size() - module.imports.size();
-    if (func_id < import_base) return unsafe("native/import", "invalid-import-index");
-    const size_t import_index = func_id - import_base;
-    if (import_index >= module.imports.size()) return unsafe("native/import", "invalid-import-index");
-    const auto& import_row = module.imports[import_index];
-    const std::string module_name = Simple::Byte::ReadConstPoolString(module, import_row.module_name_str);
-    const std::string symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
+    std::string module_name;
+    std::string symbol_name;
+    if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata");
     if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name");
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
       return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature");
     }
-    static const Simple::VM::Native::NativeRegistry* registry =
-        new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
-    const auto* spec = registry->Find(module_name, symbol_name);
+    const auto* spec = native_import_spec(func_id);
     if (!spec) return unsafe("native-registry", "missing-native-metadata");
     if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch");
     if (!spec->resources.empty()) return unsafe("native-registry", "resource-argument-or-result");
@@ -2397,7 +2423,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                               llvm::AllocaInst* call_args,
                               uint8_t arg_count,
                               llvm::AllocaInst* has_ret_ptr,
-                              size_t call_pc) -> llvm::Value* {
+                              size_t call_pc,
+                              bool may_block,
+                              bool may_allocate) -> llvm::Value* {
     llvm::Value* null_slots = llvm::ConstantPointerNull::get(slot_ptr);
     llvm::Value* local_snapshot = null_slots;
     if (!locals.empty()) {
@@ -2424,7 +2452,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(0),
                                builder.getInt32(static_cast<uint32_t>(func_index)),
                                builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)),
-                               builder.getInt8(0), builder.getInt8(0), has_ret_ptr});
+                               builder.getInt8(may_block ? 1 : 0), builder.getInt8(may_allocate ? 1 : 0), has_ret_ptr});
   };
   auto emit_trap_if = [&](llvm::Value* cond, const char* name) {
     llvm::BasicBlock* trap_block = llvm::BasicBlock::Create(*context, std::string(name) + ".trap", fn);
@@ -2458,7 +2486,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     } else {
       llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, std::string(opname) + "_has_ret");
       builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-      result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, pc);
+      const auto [may_block, may_allocate] = helper_call_safepoint_flags(target_func);
+      result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, pc,
+                                may_block, may_allocate);
     }
     const bool returns_void = sig_returns_void(target_sig);
     if (tail) {
@@ -4357,7 +4387,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_indirect_has_ret");
         builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-        llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr, instr_pc);
+        llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr, instr_pc,
+                                               true, true);
         if (!sig_returns_void(target_sig)) stack.push_back(result);
         break;
       }
@@ -4407,7 +4438,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         } else {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-          result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, instr_pc);
+          const auto [may_block, may_allocate] = helper_call_safepoint_flags(target_func);
+          result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr, instr_pc,
+                                    may_block, may_allocate);
         }
         const bool returns_void = sig_returns_void(target_sig);
         if (op == OpCode::TailCall) {
