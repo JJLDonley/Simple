@@ -10,7 +10,7 @@ case "$(uname -s)" in
     ;;
 esac
 
-VERSION="${VERSION:-v0.4.7}"
+VERSION="${VERSION:-v0.4.8}"
 RUN_TESTS=0
 SKIP_BUILD=0
 SKIP_RELEASE=0

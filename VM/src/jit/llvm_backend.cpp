@@ -1817,8 +1817,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
         }
-        if (import_like_call && !saw_unsafe_import_or_indirect_loop_call) {
-          std::string unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
+        if (!saw_unsafe_import_or_indirect_loop_call) {
+          std::string unsafe_detail;
+          if (import_like_call) {
+            unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
+          } else if (!sig_is_scalar_loop_call_safe(target_sig)) {
+            unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature";
+          }
           if (!unsafe_detail.empty()) {
             saw_unsafe_import_or_indirect_loop_call = true;
             unsafe_import_or_indirect_loop_call_pc = op_pc;
