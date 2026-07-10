@@ -48,6 +48,18 @@ bool IsKnownNativeResourceKindId(uint16_t id) {
   return NativeResourceKindFromId(id, &ignored) && ignored != NativeResourceKind::Unknown;
 }
 
+bool NativeResourceKindFromOpaqueTypeRow(const Simple::Byte::TypeRow& row,
+                                         NativeResourceKind* out_kind) {
+  if (!Simple::Byte::IsOpaqueHandleType(row)) return false;
+  NativeResourceKind kind = NativeResourceKind::Unknown;
+  if (!NativeResourceKindFromId(Simple::Byte::OpaqueHandleResourceKindId(row), &kind) ||
+      kind == NativeResourceKind::Unknown) {
+    return false;
+  }
+  if (out_kind) *out_kind = kind;
+  return true;
+}
+
 uint64_t PackNativeHandleId(NativeHandleId handle) {
   return (static_cast<uint64_t>(handle.generation) << 32u) | handle.index;
 }

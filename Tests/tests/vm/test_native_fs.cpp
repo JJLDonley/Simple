@@ -495,6 +495,7 @@ bool VmNativeResourceKindIdsAreStable() {
   using Simple::VM::Native::IsKnownNativeResourceKindId;
   using Simple::VM::Native::NativeResourceKind;
   using Simple::VM::Native::NativeResourceKindFromId;
+  using Simple::VM::Native::NativeResourceKindFromOpaqueTypeRow;
   using Simple::VM::Native::NativeResourceKindId;
 
   NativeResourceKind kind = NativeResourceKind::Unknown;
@@ -511,7 +512,16 @@ bool VmNativeResourceKindIdsAreStable() {
       IsKnownNativeResourceKindId(NativeResourceKindId(NativeResourceKind::Unknown))) {
     return false;
   }
-  return !NativeResourceKindFromId(999, &kind);
+  if (NativeResourceKindFromId(999, &kind)) return false;
+
+  Simple::Byte::TypeRow row;
+  row.flags = Simple::Byte::kTypeFlagOpaqueHandle;
+  row.reserved = NativeResourceKindId(NativeResourceKind::File);
+  if (!NativeResourceKindFromOpaqueTypeRow(row, &kind) || kind != NativeResourceKind::File) {
+    return false;
+  }
+  row.reserved = 999;
+  return !NativeResourceKindFromOpaqueTypeRow(row, &kind);
 }
 
 bool VmNativeResourceRegistryReportsShutdownFailures() {

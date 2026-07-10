@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "sbc_types.h"
+
 namespace Simple::VM::Native {
 
 enum class NativeResourceKind : uint16_t {
@@ -33,6 +35,8 @@ enum class NativeResourceKind : uint16_t {
 uint16_t NativeResourceKindId(NativeResourceKind kind);
 bool NativeResourceKindFromId(uint16_t id, NativeResourceKind* out_kind);
 bool IsKnownNativeResourceKindId(uint16_t id);
+bool NativeResourceKindFromOpaqueTypeRow(const Simple::Byte::TypeRow& row,
+                                         NativeResourceKind* out_kind);
 
 struct NativeHandleId {
   uint32_t index = 0;

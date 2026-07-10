@@ -96,6 +96,7 @@ Language-neutral SIR syntax/lowering status:
   - [x] Runtime ABI classifier maps opaque handle type rows to handle ABI values.
   - [x] Bytecode verifier accepts opaque handle values as packed handle words.
   - [x] Native resource kinds expose stable ids for opaque handle metadata.
+  - [x] Native layer maps opaque SBC type rows back to resource kinds.
 
 ### Bytecode / SBC Prerequisites
 
