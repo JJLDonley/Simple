@@ -206,11 +206,12 @@ This phase finishes the language surface that higher runtime and JIT work depend
 
 ### Specialization Pipeline
 
-- [ ] Add `Lang/include/GEN/specializer.h`.
-- [ ] Add `Lang/src/GEN/specializer.cpp`.
+- [x] Add `Lang/include/GEN/specializer.h`.
+- [x] Add `Lang/src/GEN/specializer.cpp`.
 - [ ] Insert specialization after generic TAST validation and before IRB lowering.
 - [x] Collect generic function/data/artifact declarations.
 - [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
+  - [x] Initial GEN collector walks type annotations in declarations, fields, methods, modules, and statements.
 - [ ] Instantiate dependencies recursively with cycle detection.
 - [ ] Re-run semantic/type checks on each concrete specialization.
 - [ ] Cache/reuse equivalent specializations across a module graph.

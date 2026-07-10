@@ -16,6 +16,7 @@
 #include "TAST/statements.h"
 #include "TAST/type_checker.h"
 #include "TAST/types.h"
+#include "GEN/specializer.h"
 #include "TAST/abi.h"
 #include "TAST/generics.h"
 
@@ -335,6 +336,43 @@ bool LangTastFnLiteralChecksTargetProcedureShape() {
   fn.fn_body_tokens.push_back({Simple::Lang::TokenKind::LBrace, "{", 0, 0});
   if (Simple::Lang::TAST::CheckFnLiteralAgainstType(fn, target, &error)) return false;
   return error.find("nested fn literals are not supported") != std::string::npos;
+}
+
+bool LangGenCollectsInstantiationRequests() {
+  using Simple::Lang::AST::DeclKind;
+
+  Simple::Lang::AST::Program program;
+  Simple::Lang::AST::Decl var;
+  var.kind = DeclKind::Variable;
+  var.var.name = "boxes";
+  var.var.type.name = "List";
+  Simple::Lang::AST::TypeRef box;
+  box.name = "Box";
+  box.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  var.var.type.type_args.push_back(box);
+  program.decls.push_back(var);
+
+  Simple::Lang::AST::Decl fn;
+  fn.kind = DeclKind::Function;
+  fn.func.name = "use";
+  fn.func.return_type.name = "Option";
+  fn.func.return_type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("string"));
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "value";
+  param.type.name = "Result";
+  param.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  param.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("string"));
+  fn.func.params.push_back(param);
+  program.decls.push_back(fn);
+
+  std::vector<Simple::Lang::GEN::GenericInstantiationRequest> requests;
+  if (!Simple::Lang::GEN::CollectInstantiationRequestsFromProgram(program, &requests)) return false;
+  if (requests.size() != 4) return false;
+  return requests[0].base_name == "Box" && requests[0].argument_identities.size() == 1 &&
+         requests[0].argument_identities[0] == "i32" && requests[1].base_name == "List" &&
+         requests[1].argument_identities[0] == "Box<i32>" &&
+         requests[2].base_name == "Option" && requests[2].argument_identities[0] == "string" &&
+         requests[3].base_name == "Result" && requests[3].argument_identities.size() == 2;
 }
 
 bool LangTastCollectsGenericDeclarationMetadata() {
@@ -1036,6 +1074,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
+  {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},
   {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},
   {"lang_tast_check_abi_shape_rejects_generic_types", LangTastCheckAbiShapeRejectsGenericTypes},
