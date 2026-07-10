@@ -337,38 +337,38 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 ### Resource Registry
 
-- [ ] Add `VM/include/native/resource_registry.h`.
-- [ ] Add `VM/src/native/resource_registry.cpp`.
-- [ ] Define `NativeHandleId` as opaque VM value payload.
+- [x] Add `VM/include/native/resource_registry.h`.
+- [x] Add `VM/src/native/resource_registry.cpp`.
+- [x] Define `NativeHandleId` as opaque VM value payload.
 - [ ] Map each public `System.Handle<T>` to `NativeHandleId` plus resource kind/generation.
-- [ ] Define `NativeResourceKind`:
-  - [ ] file, directory, socket, listener, process, thread, job, channel.
-  - [ ] FFI library/symbol.
-  - [ ] ASM unit/object/symbol.
-  - [ ] buffer, timer, watcher, terminal.
-- [ ] Define `NativeResourceRecord`:
-  - [ ] kind.
-  - [ ] generation/version.
-  - [ ] ownership flags.
-  - [ ] closed flag.
-  - [ ] debug label.
-  - [ ] platform handle payload.
-  - [ ] close/finalize callbacks.
-- [ ] Validate handle kind before every use.
-- [ ] Detect stale handle generation after close/reuse.
+- [x] Define `NativeResourceKind`:
+  - [x] file, directory, socket, listener, process, thread, job, channel.
+  - [x] FFI library/symbol.
+  - [x] ASM unit/object/symbol.
+  - [x] buffer, timer, watcher, terminal.
+- [x] Define `NativeResourceRecord`:
+  - [x] kind.
+  - [x] generation/version.
+  - [x] ownership flags.
+  - [x] closed flag.
+  - [x] debug label.
+  - [x] platform handle payload.
+  - [x] close/finalize callbacks.
+- [x] Validate handle kind before every use.
+- [x] Detect stale handle generation after close/reuse.
 - [ ] Define behavior for:
   - [ ] double close.
   - [ ] use after close.
   - [ ] wrong-kind handle use.
   - [ ] VM shutdown with live handles.
   - [ ] native callback failure during cleanup.
-- [ ] Add VM shutdown cleanup sweep.
+- [x] Add VM shutdown cleanup sweep.
 - [ ] Tests:
-  - [ ] leak cleanup on VM exit.
-  - [ ] double close.
-  - [ ] use-after-close.
-  - [ ] wrong-kind handle.
-  - [ ] many handles without stale reuse.
+  - [x] leak cleanup on registry shutdown.
+  - [x] double close.
+  - [x] use-after-close.
+  - [x] wrong-kind handle.
+  - [x] stale reuse detection.
 
 ### Native Metadata
 

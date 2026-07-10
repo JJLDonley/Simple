@@ -7,6 +7,7 @@
 #include <string>
 
 #include "native/fs.h"
+#include "native/resource_registry.h"
 
 namespace Simple::VM::Tests {
 namespace {
@@ -92,12 +93,60 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
   return removed && read == text && !std::filesystem::exists(path);
 }
 
+bool VmNativeResourceRegistryTracksHandleLifecycle() {
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRecord;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::NativeResourceStatus;
+
+  int close_count = 0;
+  NativeResourceRegistry registry;
+  NativeResourceRecord record;
+  record.kind = NativeResourceKind::File;
+  record.debug_label = "unit-file";
+  record.payload = &close_count;
+  record.close = [](void* payload, std::string*) -> bool {
+    ++*static_cast<int*>(payload);
+    return true;
+  };
+
+  const NativeHandleId handle = registry.Insert(record);
+  if (registry.LiveCount() != 1) return false;
+  if (Simple::VM::Native::UnpackNativeHandleId(Simple::VM::Native::PackNativeHandleId(handle)).generation !=
+      handle.generation) {
+    return false;
+  }
+
+  NativeResourceRecord* found = nullptr;
+  if (registry.Get(handle, NativeResourceKind::File, &found) != NativeResourceStatus::Ok || !found) {
+    return false;
+  }
+  if (registry.Get(handle, NativeResourceKind::Socket, nullptr) != NativeResourceStatus::WrongKind) {
+    return false;
+  }
+  if (registry.Close(handle, NativeResourceKind::File, nullptr) != NativeResourceStatus::Ok) return false;
+  if (close_count != 1 || registry.LiveCount() != 0) return false;
+  if (registry.Close(handle, NativeResourceKind::File, nullptr) != NativeResourceStatus::AlreadyClosed) {
+    return false;
+  }
+
+  const NativeHandleId reused = registry.Insert(record);
+  if (reused.index != handle.index || reused.generation == handle.generation) return false;
+  if (registry.Get(handle, NativeResourceKind::File, nullptr) != NativeResourceStatus::StaleHandle) {
+    return false;
+  }
+  registry.SweepShutdown();
+  return close_count == 2 && registry.LiveCount() == 0;
+}
+
 const TestCase kVmNativeFsTests[] = {
   {"vm_runtime_dispatches_registered_natives_by_metadata_first", VmRuntimeDispatchesRegisteredNativesByMetadataFirst},
   {"vm_dynamic_dl_dispatch_lives_in_ffi_module", VmDynamicDlDispatchLivesInFfiModule},
   {"vm_runtime_has_no_native_stdlib_forwarding_glue", VmRuntimeHasNoNativeStdlibForwardingGlue},
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
+  {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };
 
 const TestSection kVmNativeFsSections[] = {

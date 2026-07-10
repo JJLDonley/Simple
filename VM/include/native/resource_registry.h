@@ -1,0 +1,99 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace Simple::VM::Native {
+
+enum class NativeResourceKind : uint16_t {
+  Unknown = 0,
+  File,
+  Directory,
+  Socket,
+  Listener,
+  Process,
+  Thread,
+  Job,
+  Channel,
+  FfiLibrary,
+  FfiSymbol,
+  AsmUnit,
+  AsmObject,
+  AsmSymbol,
+  Buffer,
+  Timer,
+  Watcher,
+  Terminal,
+  JsonValue,
+  Logger,
+  Random,
+};
+
+struct NativeHandleId {
+  uint32_t index = 0;
+  uint32_t generation = 0;
+
+  bool IsNull() const { return generation == 0; }
+};
+
+uint64_t PackNativeHandleId(NativeHandleId handle);
+NativeHandleId UnpackNativeHandleId(uint64_t value);
+
+using NativeResourceCloseFn = bool (*)(void* payload, std::string* error);
+using NativeResourceFinalizeFn = void (*)(void* payload);
+
+struct NativeResourceRecord {
+  NativeResourceKind kind = NativeResourceKind::Unknown;
+  uint32_t generation = 0;
+  bool owned = true;
+  bool closed = true;
+  std::string debug_label;
+  void* payload = nullptr;
+  NativeResourceCloseFn close = nullptr;
+  NativeResourceFinalizeFn finalize = nullptr;
+};
+
+enum class NativeResourceStatus {
+  Ok,
+  InvalidHandle,
+  StaleHandle,
+  WrongKind,
+  AlreadyClosed,
+  CloseFailed,
+};
+
+const char* NativeResourceStatusName(NativeResourceStatus status);
+
+class NativeResourceRegistry {
+ public:
+  NativeResourceRegistry() = default;
+  NativeResourceRegistry(const NativeResourceRegistry&) = delete;
+  NativeResourceRegistry& operator=(const NativeResourceRegistry&) = delete;
+  NativeResourceRegistry(NativeResourceRegistry&&) = delete;
+  NativeResourceRegistry& operator=(NativeResourceRegistry&&) = delete;
+  ~NativeResourceRegistry();
+
+  NativeHandleId Insert(NativeResourceRecord record);
+  NativeResourceStatus Get(NativeHandleId handle,
+                           NativeResourceKind expected_kind,
+                           NativeResourceRecord** out_record);
+  NativeResourceStatus Close(NativeHandleId handle,
+                             NativeResourceKind expected_kind,
+                             std::string* error);
+  void SweepShutdown();
+
+  size_t LiveCount() const;
+  size_t SlotCount() const { return records_.size(); }
+
+ private:
+  struct Slot {
+    NativeResourceRecord record;
+    uint32_t generation = 0;
+    bool occupied = false;
+  };
+
+  std::vector<Slot> records_;
+};
+
+} // namespace Simple::VM::Native

@@ -76,6 +76,8 @@ Language imports map to VM runtime modules. `System.*` names are canonical. The 
 
 Native modules include time, filesystem/path/env/OS helpers, logging, buffers, JSON, channels, random values, and threads where implemented by tests.
 
+Native host resources use generational opaque handles. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown.
+
 ## Dynamic libraries / FFI
 
 `System.dl` supports dynamic-library calls on supported platforms through declared extern metadata. The runtime checks argument count, argument types, return shape, and ABI support. Recursive artifact ABI is rejected.
