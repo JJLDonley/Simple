@@ -286,10 +286,10 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] 2-byte: `i16`, `u16`.
   - [x] 4-byte: `i32`, `u32`, `f32`, `char`, enum32.
   - [x] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
-  - [ ] nested `data`: max field alignment, capped at 8 initially.
+  - [x] nested `data`: max field alignment, capped at 8 initially.
 - [x] Padding is deterministic and zero-initialized where observable through ABI.
 - [x] Total size rounds up to max alignment.
-- [ ] Nested `data` structs are allowed after recursive layout validation.
+- [x] Nested `data` structs are allowed after recursive layout validation in runtime ABI layout helpers.
 - [ ] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
 - [x] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
 - [x] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
@@ -300,6 +300,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Runtime ABI tests cover primitive padding and ref-containing aggregate classification.
   - [x] Runtime ABI layout records zero-initialized padding ranges.
   - [x] Runtime ABI tests cover parameter/return pass-mode classification.
+  - [x] Runtime ABI tests cover nested aggregate layout.
 
 ### Strings and Bytes ABI
 

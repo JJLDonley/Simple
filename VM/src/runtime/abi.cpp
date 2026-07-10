@@ -85,6 +85,14 @@ AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind) {
   }
 }
 
+AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout) {
+  return AbiTypeInfo{AbiClass::Aggregate,
+                     layout.size,
+                     std::min(layout.align, kMaxStableAggregateAlign),
+                     layout.native_callable,
+                     layout.external_ffi_callable};
+}
+
 AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type) {
   if (!type.native_callable || type.abi_class == AbiClass::Invalid) return AbiPassMode::Invalid;
   switch (type.abi_class) {

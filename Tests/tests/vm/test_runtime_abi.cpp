@@ -274,6 +274,30 @@ bool VmRuntimeAbiComputesStableLayoutHashes() {
          first.layout_hash == same.layout_hash && first.layout_hash != reordered.layout_hash;
 }
 
+bool VmRuntimeAbiComputesNestedAggregateLayout() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::GetAggregateAbiTypeInfo;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto inner = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I64),
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+  });
+  const auto outer = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I8),
+      GetAggregateAbiTypeInfo(inner),
+      GetPrimitiveAbiTypeInfo(TypeKind::I16),
+  });
+  return inner.size == 16 && inner.align == 8 &&
+         outer.fields.size() == 3 && outer.fields[0].offset == 0 &&
+         outer.fields[1].offset == 8 && outer.fields[2].offset == 24 &&
+         outer.align == 8 && outer.size == 32 && !outer.pass_by_value &&
+         outer.padding.size() == 2 && outer.padding[0].offset == 1 &&
+         outer.padding[0].size == 7 && outer.padding[1].offset == 26 &&
+         outer.padding[1].size == 6;
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -320,6 +344,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
+  {"vm_runtime_abi_computes_nested_aggregate_layout", VmRuntimeAbiComputesNestedAggregateLayout},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 
