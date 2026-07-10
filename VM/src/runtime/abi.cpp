@@ -75,6 +75,14 @@ bool IsSmallAbiAggregate(uint32_t size, bool contains_references) {
   return !contains_references && size <= 16;
 }
 
+bool IsValidBorrowedStringView(const SimpleStringView& view) {
+  return (view.data != nullptr || view.size == 0) && view.encoding == AbiStringEncoding::Utf8;
+}
+
+bool IsValidBorrowedBytesView(const SimpleBytesView& view) {
+  return view.data != nullptr || view.size == 0;
+}
+
 const char* TypeKindAbiName(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;
   switch (kind) {

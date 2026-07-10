@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -44,10 +45,27 @@ struct AbiAggregateLayout {
   std::vector<AbiFieldLayout> fields;
 };
 
+enum class AbiStringEncoding {
+  Utf8,
+};
+
+struct SimpleStringView {
+  const char* data = nullptr;
+  size_t size = 0;
+  AbiStringEncoding encoding = AbiStringEncoding::Utf8;
+};
+
+struct SimpleBytesView {
+  const uint8_t* data = nullptr;
+  size_t size = 0;
+};
+
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
 bool IsSmallAbiAggregate(uint32_t size, bool contains_references);
+bool IsValidBorrowedStringView(const SimpleStringView& view);
+bool IsValidBorrowedBytesView(const SimpleBytesView& view);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,

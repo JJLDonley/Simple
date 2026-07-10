@@ -46,6 +46,26 @@ bool VmRuntimeAbiAlignsStableDataFields() {
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
 }
 
+bool VmRuntimeAbiValidatesBorrowedViews() {
+  using Simple::VM::Runtime::AbiStringEncoding;
+  using Simple::VM::Runtime::IsValidBorrowedBytesView;
+  using Simple::VM::Runtime::IsValidBorrowedStringView;
+  using Simple::VM::Runtime::SimpleBytesView;
+  using Simple::VM::Runtime::SimpleStringView;
+
+  const char text[] = "abc";
+  const uint8_t bytes[] = {1, 2, 3};
+  const SimpleStringView good_string{text, 3, AbiStringEncoding::Utf8};
+  const SimpleStringView empty_string{nullptr, 0, AbiStringEncoding::Utf8};
+  const SimpleStringView bad_string{nullptr, 3, AbiStringEncoding::Utf8};
+  const SimpleBytesView good_bytes{bytes, 3};
+  const SimpleBytesView empty_bytes{nullptr, 0};
+  const SimpleBytesView bad_bytes{nullptr, 3};
+  return IsValidBorrowedStringView(good_string) && IsValidBorrowedStringView(empty_string) &&
+         !IsValidBorrowedStringView(bad_string) && IsValidBorrowedBytesView(good_bytes) &&
+         IsValidBorrowedBytesView(empty_bytes) && !IsValidBorrowedBytesView(bad_bytes);
+}
+
 bool VmRuntimeAbiValidatesCallableSignatures() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ValidateAbiCallableSignature;
@@ -100,6 +120,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
