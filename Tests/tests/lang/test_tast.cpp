@@ -482,6 +482,26 @@ bool LangGenBuildsSpecializationPlan() {
          error.find("generic specialization argument count mismatch") != std::string::npos;
 }
 
+bool LangGenNormalizesConcreteRequestMetadata() {
+  using Simple::Lang::GEN::GenericInstantiationRequest;
+  using Simple::Lang::GEN::NormalizeInstantiationRequests;
+
+  GenericInstantiationRequest missing{"Box", {"i32"}, 0, 0, {}};
+  GenericInstantiationRequest concrete{"Box", {"i32"}, 4, 2, {Simple::Lang::TAST::MakeSimpleType("i32")}};
+  std::vector<GenericInstantiationRequest> unique;
+  if (!NormalizeInstantiationRequests({missing, concrete}, &unique)) return false;
+  if (unique.size() != 1 || unique[0].argument_types.size() != 1 ||
+      unique[0].argument_types[0].name != "i32") {
+    return false;
+  }
+
+  Simple::Lang::AST::TypeRef invalid = Simple::Lang::TAST::MakeSimpleType("i32");
+  invalid.pointer_depth = 1;
+  GenericInstantiationRequest conflict{"Box", {"i32"}, 0, 0, {invalid}};
+  unique.clear();
+  return !NormalizeInstantiationRequests({concrete, conflict}, &unique);
+}
+
 bool LangGenResolvesInstantiationOrder() {
   using Simple::Lang::GEN::GenericInstantiationNode;
   using Simple::Lang::GEN::GenericInstantiationRequest;
@@ -1277,6 +1297,7 @@ const TestCase kLangTastTests[] = {
   {"lang_gen_builds_specialization_plan_from_program", LangGenBuildsSpecializationPlanFromProgram},
   {"lang_gen_builds_ordered_specialization_plan", LangGenBuildsOrderedSpecializationPlan},
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
+  {"lang_gen_normalizes_concrete_request_metadata", LangGenNormalizesConcreteRequestMetadata},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},
   {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},

@@ -298,10 +298,26 @@ bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationReques
                                     std::vector<GenericInstantiationRequest>* unique_requests) {
   if (!unique_requests) return false;
   unique_requests->clear();
-  std::unordered_set<std::string> seen;
+  std::unordered_map<std::string, size_t> by_key;
   for (const auto& request : requests) {
-    if (seen.insert(InstantiationRequestKey(request)).second) {
+    const std::string key = InstantiationRequestKey(request);
+    auto [it, inserted] = by_key.emplace(key, unique_requests->size());
+    if (inserted) {
       unique_requests->push_back(request);
+      continue;
+    }
+    GenericInstantiationRequest& existing = (*unique_requests)[it->second];
+    if (existing.argument_types.empty() && !request.argument_types.empty()) {
+      existing.argument_types = request.argument_types;
+      continue;
+    }
+    if (!existing.argument_types.empty() && !request.argument_types.empty()) {
+      if (existing.argument_types.size() != request.argument_types.size()) return false;
+      for (size_t i = 0; i < existing.argument_types.size(); ++i) {
+        if (!Simple::Lang::TAST::TypeEquals(existing.argument_types[i], request.argument_types[i])) {
+          return false;
+        }
+      }
     }
   }
   return true;

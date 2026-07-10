@@ -223,6 +223,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] GEN builds concrete substitution maps for specialization semantic re-checks.
 - [ ] Cache/reuse equivalent specializations across a module graph.
   - [x] GEN normalizes duplicate instantiation requests by deterministic request key.
+  - [x] GEN preserves concrete request type metadata while deduplicating equivalent instantiations.
   - [x] GEN builds deterministic specialization plans from declarations and requests.
   - [x] GEN detects specialization symbol collisions while planning.
 - [ ] Emit only concrete specialized declarations into IRB/IRE.
