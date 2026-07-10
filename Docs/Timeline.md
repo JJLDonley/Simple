@@ -466,7 +466,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [ ] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
 - [ ] Runtime traps include opcode/function/pc/source debug context when available.
 - [ ] Test `-jit` and `-int` produce identical user-visible results for fixture suites.
-- [ ] Keep old compiled-runner code only as temporary reference/tests; remove once ORC parity replaces it.
+- [x] Remove old compiled-runner code; JIT work targets LLVM ORC plus interpreter fallback only.
 
 ---
 

@@ -48,21 +48,6 @@ bool VmInterpreterModuleOwnsOpcodeLoopBoundaries() {
          text.find("ffi/") == std::string::npos;
 }
 
-bool VmJitTierUpdatesLiveInJitModule() {
-  std::ifstream vm("VM/src/vm.cpp");
-  std::ifstream header("VM/include/jit/tier_updater.h");
-  std::ifstream source("VM/src/jit/tier_updater.cpp");
-  if (!vm || !header || !source) return false;
-  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
-  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
-  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
-  return header_text.find("struct TierUpdater") != std::string::npos &&
-         source_text.find("UpdateTierForFunction(") != std::string::npos &&
-         vm_text.find("struct JitTierUpdater") == std::string::npos &&
-         vm_text.find("UpdateJitTierForFunction(") == std::string::npos &&
-         vm_text.find("auto update_tier = [") == std::string::npos;
-}
-
 bool VmGcStackMapCollectionLivesInGcModule() {
   std::ifstream vm("VM/src/vm.cpp");
   std::ifstream header("VM/include/gc/stack_map_collection.h");
@@ -157,51 +142,18 @@ bool VmExecutionStatsLiveInRuntimeModule() {
          vm_text.find("auto finish = [") == std::string::npos;
 }
 
-bool VmJitCompiledRunnerLivesInJitModule() {
+bool VmLlvmJitBackendLivesInJitModule() {
   std::ifstream vm("VM/src/vm.cpp");
-  std::ifstream header("VM/include/jit/compiled_runner.h");
-  std::ifstream source("VM/src/jit/compiled_runner.cpp");
+  std::ifstream header("VM/include/jit/llvm_backend.h");
+  std::ifstream source("VM/src/jit/llvm_backend.cpp");
   if (!vm || !header || !source) return false;
   const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
   const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
   const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
-  return header_text.find("struct CompiledRunContext") != std::string::npos &&
-         header_text.find("RunCompiledFunction(") != std::string::npos &&
-         source_text.find("bool RunCompiledFunction(") != std::string::npos &&
-         vm_text.find("auto run_compiled = [") == std::string::npos;
-}
-
-bool VmJitCompilePolicyLivesInJitModule() {
-  std::ifstream vm("VM/src/vm.cpp");
-  std::ifstream header("VM/include/jit/compile_policy.h");
-  std::ifstream source("VM/src/jit/compile_policy.cpp");
-  if (!vm || !header || !source) return false;
-  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
-  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
-  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
-  return header_text.find("CanCompileMethod(") != std::string::npos &&
-         header_text.find("struct CompilePredicate") != std::string::npos &&
-         source_text.find("bool CanCompileMethod(") != std::string::npos &&
-         source_text.find("CompilePredicate::operator()") != std::string::npos &&
-         vm_text.find("auto can_compile = [") == std::string::npos &&
-         vm_text.find("auto can_compile_func = [") == std::string::npos &&
-         vm_text.find("auto note_ref_op = [") == std::string::npos;
-}
-
-bool VmJitFailureFormattingLivesInJitModule() {
-  std::ifstream vm("VM/src/vm.cpp");
-  std::ifstream header("VM/include/jit/failure_format.h");
-  std::ifstream source("VM/src/jit/failure_format.cpp");
-  if (!vm || !header || !source) return false;
-  const std::string vm_text((std::istreambuf_iterator<char>(vm)), std::istreambuf_iterator<char>());
-  const std::string header_text((std::istreambuf_iterator<char>(header)), std::istreambuf_iterator<char>());
-  const std::string source_text((std::istreambuf_iterator<char>(source)), std::istreambuf_iterator<char>());
-  return header_text.find("struct CompiledFailureReporter") != std::string::npos &&
-         source_text.find("FormatCompiledFailure(") != std::string::npos &&
-         source_text.find("ReadU32Operand(module.code") != std::string::npos &&
-         source_text.find("ReadI32Operand(module.code") != std::string::npos &&
-         vm_text.find("auto jit_fail = [") == std::string::npos &&
-         vm_text.find("auto fail_compiled = [") == std::string::npos;
+  return header_text.find("class LlvmJitBackend") != std::string::npos &&
+         header_text.find("TryRunFunctionWithRuntime(") != std::string::npos &&
+         source_text.find("bool LlvmJitBackend::TryRunFunctionWithRuntime(") != std::string::npos &&
+         vm_text.find("class LlvmJitBackend") == std::string::npos;
 }
 
 bool VmTrapFormattingLivesInInterpreterModule() {
@@ -327,16 +279,13 @@ bool VmSplitInterpreterStackAndFrames() {
 const TestCase kVmInterpreterTests[] = {
   {"vm_interpreter_module_excludes_native_subsystems", VmInterpreterModuleExcludesNativeSubsystems},
   {"vm_interpreter_module_owns_opcode_loop_boundaries", VmInterpreterModuleOwnsOpcodeLoopBoundaries},
-  {"vm_jit_tier_updates_live_in_jit_module", VmJitTierUpdatesLiveInJitModule},
   {"vm_gc_stack_map_collection_lives_in_gc_module", VmGcStackMapCollectionLivesInGcModule},
   {"vm_frame_setup_lives_in_interpreter_module", VmFrameSetupLivesInInterpreterModule},
   {"vm_runtime_limits_live_in_runtime_module", VmRuntimeLimitsLiveInRuntimeModule},
   {"vm_constant_and_global_lookups_live_in_interpreter_module", VmConstantAndGlobalLookupsLiveInInterpreterModule},
   {"vm_print_any_lives_in_runtime_module", VmPrintAnyLivesInRuntimeModule},
   {"vm_execution_stats_live_in_runtime_module", VmExecutionStatsLiveInRuntimeModule},
-  {"vm_jit_compiled_runner_lives_in_jit_module", VmJitCompiledRunnerLivesInJitModule},
-  {"vm_jit_compile_policy_lives_in_jit_module", VmJitCompilePolicyLivesInJitModule},
-  {"vm_jit_failure_formatting_lives_in_jit_module", VmJitFailureFormattingLivesInJitModule},
+  {"vm_llvm_jit_backend_lives_in_jit_module", VmLlvmJitBackendLivesInJitModule},
   {"vm_trap_formatting_lives_in_interpreter_module", VmTrapFormattingLivesInInterpreterModule},
   {"vm_value_packing_helpers_live_in_runtime_module", VmValuePackingHelpersLiveInRuntimeModule},
   {"vm_import_dispatcher_lives_in_runtime_module", VmImportDispatcherLivesInRuntimeModule},

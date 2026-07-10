@@ -29,7 +29,6 @@
 #include "interpreter/globals.h"
 #include "interpreter/stack.h"
 #include "interpreter/traps.h"
-#include "jit/failure_format.h"
 #include "jit/llvm_backend.h"
 #include "native/buffer.h"
 #include "native/channel.h"
@@ -2650,11 +2649,15 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         if (IsNullRef(value)) return Trap("CLONE_OBJECT null reference");
         HeapObject* obj = heap.Get(UnpackRef(value));
         if (!obj) return Trap("CLONE_OBJECT invalid reference");
-        uint32_t handle = heap.Allocate(obj->header.kind, obj->header.type_id, obj->header.size);
+        const ObjectKind kind = obj->header.kind;
+        const uint32_t type_id = obj->header.type_id;
+        const uint32_t size = obj->header.size;
+        const std::vector<uint8_t> payload = obj->payload;
+        uint32_t handle = heap.Allocate(kind, type_id, size);
         if (handle == 0xFFFFFFFFu) return Trap("CLONE_OBJECT allocation failed");
         HeapObject* clone = heap.Get(handle);
         if (!clone) return Trap("CLONE_OBJECT allocation invalid");
-        clone->payload = obj->payload;
+        clone->payload = payload;
         Push(stack, PackRef(handle));
         break;
       }
@@ -2665,9 +2668,14 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
         HeapObject* obj_a = heap.Get(UnpackRef(a));
         HeapObject* obj_b = heap.Get(UnpackRef(b));
         if (!obj_a || !obj_b) return Trap("OBJECT_EQ invalid reference");
-        bool equal = obj_a->header.kind == obj_b->header.kind &&
-                     obj_a->header.type_id == obj_b->header.type_id &&
-                     obj_a->payload == obj_b->payload;
+        bool equal = false;
+        if (obj_a->header.kind == ObjectKind::String && obj_b->header.kind == ObjectKind::String) {
+          equal = ReadString(obj_a) == ReadString(obj_b);
+        } else {
+          equal = obj_a->header.kind == obj_b->header.kind &&
+                  obj_a->header.type_id == obj_b->header.type_id &&
+                  obj_a->payload == obj_b->payload;
+        }
         Push(stack, PackI32(equal ? 1 : 0));
         break;
       }

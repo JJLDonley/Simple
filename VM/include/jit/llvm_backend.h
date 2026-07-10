@@ -44,9 +44,9 @@ class LlvmJitBackend {
                          size_t func_index,
                          std::string& reason) const;
 
-  // Compile and execute a currently supported leaf subset through LLVM ORC.
+  // Compile and execute a currently supported subset through LLVM ORC.
   // Unsupported shapes return false with reason="unsupported" so callers can
-  // continue to the existing compiled runner/interpreter fallback.
+  // continue to interpreter fallback.
   bool TryRunFunction(const Simple::Byte::SbcModule& module,
                       size_t func_index,
                       const std::vector<Simple::VM::Interpreter::Slot>& args,

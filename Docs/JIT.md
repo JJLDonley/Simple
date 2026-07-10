@@ -8,14 +8,14 @@ The Simple JIT is an optional execution path layered on top of the VM. The inter
 - [Enabling JIT](#enabling-jit)
 - [Tiering](#tiering)
 - [Eligibility](#eligibility)
-- [Compiled runner](#compiled-runner)
+- [LLVM ORC backend](#llvm-orc-backend)
 - [Failure reporting](#failure-reporting)
 - [Correctness rule](#correctness-rule)
 - [Tests](#tests)
 
 ## Status
 
-The `-jit` path is now LLVM ORC first: it attempts to execute supported SBC functions as native LLVM code and falls back to the interpreter for unsupported shapes. The old tiered compiled-runner dispatch is no longer used by CLI execution.
+The `-jit` path is LLVM ORC first: it attempts to execute supported SBC functions as native LLVM code and falls back to the interpreter for unsupported shapes. The old tiered compiled-runner implementation has been removed.
 
 The LLVM ORC backend is present behind CMake option `SIMPLEVM_ENABLE_LLVM_JIT`. This is the migration path toward JVM/CLR-style execution:
 
@@ -37,7 +37,7 @@ ExecuteModule(module, verify, enable_jit, options)
 
 ## Tiering
 
-The VM records per-function call/opcode/dispatch/native-exec counters for diagnostics. Some result fields still use legacy `tier` names, but CLI `-jit` no longer routes through the old tiered compiled runner.
+The VM records per-function call/opcode/dispatch/native-exec counters for diagnostics. Some result fields still use legacy `tier` names while the stats ABI is cleaned up, but execution no longer routes through the old tiered compiled runner.
 
 ## Eligibility
 
@@ -60,7 +60,7 @@ svm run -int main.simple     # force interpreter
 
 Until the LLVM JIT is complete, CLI execution defaults to interpreter mode and `-jit` opts in. Later this should flip so JIT is default and `-int` is the fallback/debug mode.
 
-The ORC backend should replace the compiled-runner dispatch gradually. It now caches generated ORC entries by module/function/code hash, verifies generated IR before installation, can run scalar parameterized hot callees from CLI tier dispatch, and can reject helper-bridged calls for CLI tier dispatch while keeping them enabled for direct backend tests. Current LLVM lowering covers scalar functions with constants including validated 128-bit placeholder constants, locals, uninitialized and numeric f32/f64-initialized globals in non-calling functions, integer/unsigned/floating arithmetic, checked i32/u32/i64/u64 arithmetic/div/mod, checked integer/float scalar conversions, checked/guard bounds, simple pointer guards/comparisons and pseudo-memory, trap/intrinsic-trap/syscall/throw/panic fallback, address/capture-local/global, algebraic wrapper, iterator/task placeholder, atomic placeholder, and vector placeholder ops, comparisons, simple conversions, forward branches, `JmpTable`, loop state merging for validated scalar/ref-stack cases, direct Simple calls inside loops, `Yield`, selected intrinsics, self calls, no-capture function literals via `NewClosure` + `CallIndirect`, and helper-bridged direct/import/native/indirect non-self calls. Import/indirect calls inside loops are still conservatively rejected until runtime ABI/state merging is hardened.
+The ORC backend caches generated entries by module/function/code hash and verifies generated IR before installation. Current LLVM lowering covers scalar functions with constants including validated 128-bit placeholder constants, locals, uninitialized and numeric f32/f64-initialized globals in non-calling functions, integer/unsigned/floating arithmetic, checked i32/u32/i64/u64 arithmetic/div/mod, checked integer/float scalar conversions, checked/guard bounds, simple pointer guards/comparisons and pseudo-memory, trap/intrinsic-trap/syscall/throw/panic fallback, address/capture-local/global, algebraic wrapper, iterator/task placeholder, atomic placeholder, vector placeholder ops, comparisons, simple conversions, forward branches, `JmpTable`, loop state merging for validated scalar/ref-stack cases, direct Simple calls inside loops, `Yield`, selected intrinsics, self calls, no-capture function literals via `NewClosure` + `CallIndirect`, and helper-bridged direct/import/native/indirect non-self calls. Import/indirect calls inside loops are still conservatively rejected until runtime ABI/state merging is hardened.
 
 Remaining migration order:
 
@@ -70,11 +70,9 @@ Remaining migration order:
 4. add GC safepoints/root maps
 5. keep interpreter parity tests until full coverage is reached
 
-## Compiled runner
+## LLVM ORC backend
 
-The old compiled runner code remains in-tree for reference/tests, but CLI `-jit` no longer dispatches through it. New JIT work should target `LlvmJitBackend` and interpreter fallback only.
-
-Recursive compiled calls reuse the same compiled-runner context.
+New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed compiled runner must not be reintroduced as a compatibility path.
 
 ## Failure reporting
 
@@ -86,4 +84,4 @@ The JIT must never define different language semantics from the interpreter. If 
 
 ## Tests
 
-JIT behavior is covered by `Tests/tests/test_jit.cpp`, `Tests/tests/vm/test_jit.cpp`, and VM integration tests that inspect tier counters and compiled execution counters.
+JIT behavior is covered by LLVM ORC tests in `Tests/tests/test_jit.cpp`, `Tests/tests/vm/test_jit.cpp`, and VM integration tests that inspect JIT counters, reject reasons, and interpreter fallback.

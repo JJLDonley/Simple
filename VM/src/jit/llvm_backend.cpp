@@ -260,10 +260,14 @@ extern "C" uint64_t SimpleVmLlvmCloneObject(uint64_t ref_slot) {
   if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot)) { g_llvm_trap = true; return 0; }
   Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
   if (!obj) { g_llvm_trap = true; return 0; }
-  uint32_t handle = g_llvm_heap->Allocate(obj->header.kind, obj->header.type_id, obj->header.size);
+  const Simple::VM::ObjectKind kind = obj->header.kind;
+  const uint32_t type_id = obj->header.type_id;
+  const uint32_t size = obj->header.size;
+  const std::vector<uint8_t> payload = obj->payload;
+  uint32_t handle = g_llvm_heap->Allocate(kind, type_id, size);
   Simple::VM::HeapObject* clone = g_llvm_heap->Get(handle);
   if (!clone) { g_llvm_trap = true; return 0; }
-  clone->payload = obj->payload;
+  clone->payload = payload;
   return Simple::VM::Runtime::PackRef(handle);
 }
 
@@ -275,7 +279,13 @@ extern "C" uint64_t SimpleVmLlvmObjectEq(uint64_t lhs_slot, uint64_t rhs_slot) {
   Simple::VM::HeapObject* lhs = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(lhs_slot));
   Simple::VM::HeapObject* rhs = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(rhs_slot));
   if (!lhs || !rhs) { g_llvm_trap = true; return 0; }
-  bool equal = lhs->header.kind == rhs->header.kind && lhs->header.type_id == rhs->header.type_id && lhs->payload == rhs->payload;
+  bool equal = false;
+  if (lhs->header.kind == Simple::VM::ObjectKind::String && rhs->header.kind == Simple::VM::ObjectKind::String) {
+    equal = Simple::VM::ReadString(lhs) == Simple::VM::ReadString(rhs);
+  } else {
+    equal = lhs->header.kind == rhs->header.kind && lhs->header.type_id == rhs->header.type_id &&
+            lhs->payload == rhs->payload;
+  }
   return Simple::VM::Runtime::PackI32(equal ? 1 : 0);
 }
 
