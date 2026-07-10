@@ -60,12 +60,34 @@ struct SimpleBytesView {
   size_t size = 0;
 };
 
+enum class AbiVariantTag : uint32_t {
+  None = 0,
+  Some = 1,
+  Ok = 1,
+  Err = 2,
+};
+
+struct AbiVariantValue {
+  AbiVariantTag tag = AbiVariantTag::None;
+  uint32_t reserved = 0;
+  uint64_t payload = 0;
+};
+
+static_assert(sizeof(AbiVariantValue) == 16, "ABI variant value must stay 16 bytes");
+
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
 bool IsSmallAbiAggregate(uint32_t size, bool contains_references);
 bool IsValidBorrowedStringView(const SimpleStringView& view);
 bool IsValidBorrowedBytesView(const SimpleBytesView& view);
+AbiVariantValue MakeAbiOptionNone();
+AbiVariantValue MakeAbiOptionSome(uint64_t payload);
+AbiVariantValue MakeAbiResultOk(uint64_t payload);
+AbiVariantValue MakeAbiResultErr(uint64_t payload);
+bool IsAbiOptionSome(const AbiVariantValue& value);
+bool IsAbiResultOk(const AbiVariantValue& value);
+bool IsAbiResultErr(const AbiVariantValue& value);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,

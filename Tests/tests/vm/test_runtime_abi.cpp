@@ -46,6 +46,29 @@ bool VmRuntimeAbiAlignsStableDataFields() {
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
 }
 
+bool VmRuntimeAbiBuildsResultAndOptionValues() {
+  using Simple::VM::Runtime::AbiVariantTag;
+  using Simple::VM::Runtime::AbiVariantValue;
+  using Simple::VM::Runtime::IsAbiOptionSome;
+  using Simple::VM::Runtime::IsAbiResultErr;
+  using Simple::VM::Runtime::IsAbiResultOk;
+  using Simple::VM::Runtime::MakeAbiOptionNone;
+  using Simple::VM::Runtime::MakeAbiOptionSome;
+  using Simple::VM::Runtime::MakeAbiResultErr;
+  using Simple::VM::Runtime::MakeAbiResultOk;
+
+  static_assert(sizeof(AbiVariantValue) == 16, "ABI variants remain 16 bytes");
+  const AbiVariantValue none = MakeAbiOptionNone();
+  const AbiVariantValue some = MakeAbiOptionSome(42);
+  const AbiVariantValue ok = MakeAbiResultOk(7);
+  const AbiVariantValue err = MakeAbiResultErr(9);
+  return none.tag == AbiVariantTag::None && none.payload == 0 && !IsAbiOptionSome(none) &&
+         some.tag == AbiVariantTag::Some && some.payload == 42 && IsAbiOptionSome(some) &&
+         ok.tag == AbiVariantTag::Ok && ok.payload == 7 && IsAbiResultOk(ok) &&
+         err.tag == AbiVariantTag::Err && err.payload == 9 && IsAbiResultErr(err) &&
+         !IsAbiResultErr(ok);
+}
+
 bool VmRuntimeAbiValidatesBorrowedViews() {
   using Simple::VM::Runtime::AbiStringEncoding;
   using Simple::VM::Runtime::IsValidBorrowedBytesView;
@@ -120,6 +143,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},

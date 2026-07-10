@@ -83,6 +83,34 @@ bool IsValidBorrowedBytesView(const SimpleBytesView& view) {
   return view.data != nullptr || view.size == 0;
 }
 
+AbiVariantValue MakeAbiOptionNone() {
+  return AbiVariantValue{AbiVariantTag::None, 0, 0};
+}
+
+AbiVariantValue MakeAbiOptionSome(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Some, 0, payload};
+}
+
+AbiVariantValue MakeAbiResultOk(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Ok, 0, payload};
+}
+
+AbiVariantValue MakeAbiResultErr(uint64_t payload) {
+  return AbiVariantValue{AbiVariantTag::Err, 0, payload};
+}
+
+bool IsAbiOptionSome(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Some;
+}
+
+bool IsAbiResultOk(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Ok;
+}
+
+bool IsAbiResultErr(const AbiVariantValue& value) {
+  return value.tag == AbiVariantTag::Err;
+}
+
 const char* TypeKindAbiName(Simple::Byte::TypeKind kind) {
   using Simple::Byte::TypeKind;
   switch (kind) {

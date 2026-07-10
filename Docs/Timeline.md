@@ -312,13 +312,13 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 - [ ] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
 - [ ] Native callees declare expected resource kind; dispatch validates kind/generation/closed state before use.
-- [ ] Define canonical `Result<T,E>` representation.
-  - [ ] tag plus inline small payload or heap box for large/ref-containing payloads.
-  - [ ] native handler builders for ok/err.
-  - [ ] external FFI rejects generic `Result` unless explicitly wrapped.
-- [ ] Define canonical `Option<T>` representation.
-  - [ ] tag plus payload; nullable reference optimization may be added only when semantics remain identical.
-  - [ ] native handler builders for some/none.
+- [x] Define canonical `Result<T,E>` representation.
+  - [x] tag plus inline small payload or heap box for large/ref-containing payloads.
+  - [x] native handler builders for ok/err.
+  - [x] external FFI rejects generic `Result` unless explicitly wrapped.
+- [x] Define canonical `Option<T>` representation.
+  - [x] tag plus payload; nullable reference optimization may be added only when semantics remain identical.
+  - [x] native handler builders for some/none.
 - [ ] Define `Promise<T>` runtime representation.
   - [ ] promise/job id payload.
   - [ ] pending/done/failed/canceled states.
