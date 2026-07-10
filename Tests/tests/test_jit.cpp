@@ -9595,8 +9595,13 @@ bool RunJitCallContextHelpersTest() {
   if (!Simple::VM::Jit::PublishJitRootsFromContext(&context, module, {1, 0}, {1, 2}, {0, 1})) {
     return false;
   }
-  return context.root_refs.size() == 3 && context.root_refs[0] == 77 &&
-         context.root_refs[1] == 88 && context.root_refs[2] == 99;
+  if (context.root_refs.size() != 3 || context.root_refs[0] != 77 ||
+      context.root_refs[1] != 88 || context.root_refs[2] != 99) {
+    return false;
+  }
+  Simple::VM::Jit::ClearJitRoots(&context);
+  Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, 0b10);
+  return context.root_refs.size() == 1 && context.root_refs[0] == 88;
 }
 
 bool RunJitStatusCodeTest() {

@@ -97,6 +97,16 @@ bool IsJitRootType(const Simple::Byte::SbcModule& module, uint32_t type_id) {
   }
 }
 
+void PublishJitRootSlotsByMask(JitCallContext* context,
+                               const std::vector<Slot>& slots,
+                               uint64_t ref_mask) {
+  if (!context) return;
+  for (size_t i = 0; i < slots.size() && i < 64; ++i) {
+    if ((ref_mask & (uint64_t{1} << i)) == 0) continue;
+    if (!Simple::VM::Runtime::IsNullRef(slots[i])) RegisterJitRoot(context, Simple::VM::Runtime::UnpackRef(slots[i]));
+  }
+}
+
 bool PublishJitRootsFromContext(JitCallContext* context,
                                 const Simple::Byte::SbcModule& module,
                                 const std::vector<uint32_t>& arg_type_ids,

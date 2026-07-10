@@ -499,6 +499,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 
 - [ ] Register JIT frames with explicit root slots before any helper that may allocate or block.
 - [x] Publish explicit root refs from `JitCallContext` args, locals, and operand stack slots using SBC type metadata.
+- [x] Snapshot caller locals and operand stack into `JitCallContext` for LLVM helper dispatch roots.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [ ] Add safepoint metadata to lowered call sites and loop backedges.
 - [ ] Add tests that force GC from JIT helper calls.

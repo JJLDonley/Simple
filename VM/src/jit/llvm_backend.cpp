@@ -750,12 +750,22 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
                                              uint32_t func_index,
                                              uint64_t* args,
                                              uint32_t argc,
+                                             uint64_t* caller_locals,
+                                             uint32_t caller_local_count,
+                                             uint64_t caller_local_ref_mask,
+                                             uint64_t* caller_stack,
+                                             uint32_t caller_stack_count,
+                                             uint64_t caller_stack_ref_mask,
                                              uint8_t* has_ret) {
   if (has_ret) *has_ret = 0;
   if (!module) return 0;
   Simple::VM::Jit::JitCallContext context;
   context.args.reserve(argc);
   for (uint32_t i = 0; i < argc; ++i) context.args.push_back(args ? args[i] : 0);
+  context.locals.reserve(caller_local_count);
+  for (uint32_t i = 0; i < caller_local_count; ++i) context.locals.push_back(caller_locals ? caller_locals[i] : 0);
+  context.operand_stack.reserve(caller_stack_count);
+  for (uint32_t i = 0; i < caller_stack_count; ++i) context.operand_stack.push_back(caller_stack ? caller_stack[i] : 0);
   context.heap = g_llvm_heap;
   context.globals = g_llvm_globals;
 
@@ -787,6 +797,8 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
     g_llvm_trap = true;
     return 0;
   }
+  Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, caller_local_ref_mask);
+  Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.operand_stack, caller_stack_ref_mask);
 
   std::string reason;
   if (func_index < module->function_is_import.size() && module->function_is_import[func_index]) {
@@ -2006,6 +2018,21 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   if (saw_call && !options_.allow_runtime_calls) {
     return reject_cached("unsupported: runtime/helper calls need LLVM runtime ABI");
   }
+  uint64_t local_ref_mask = 0;
+  if (saw_call) {
+    if (method.local_count > 64 || func.stack_max > 64) {
+      return reject_cached("unsupported: helper call root snapshot exceeds 64 slots");
+    }
+    if (sig.param_type_start + sig.param_count > module.param_types.size()) {
+      reason = "LLVM JIT signature param metadata out of bounds";
+      return false;
+    }
+    for (uint16_t i = 0; i < sig.param_count && i < 64; ++i) {
+      if (Simple::VM::Jit::IsJitRootType(module, module.param_types[sig.param_type_start + i])) {
+        local_ref_mask |= uint64_t{1} << i;
+      }
+    }
+  }
   if (saw_backward_branch && saw_unsafe_import_or_indirect_loop_call) {
     return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
                          std::to_string(unsafe_import_or_indirect_loop_call_pc - func.code_offset) +
@@ -2181,7 +2208,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::Type* f64 = builder.getDoubleTy();
   llvm::PointerType* slot_ptr = llvm::PointerType::getUnqual(*context);
   llvm::FunctionType* fn_type = llvm::FunctionType::get(i64, {slot_ptr, i32}, false);
-  llvm::FunctionType* helper_type = llvm::FunctionType::get(i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr}, false);
+  llvm::FunctionType* helper_type = llvm::FunctionType::get(
+      i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, slot_ptr}, false);
   llvm::FunctionType* yield_type = llvm::FunctionType::get(builder.getVoidTy(), {}, false);
   llvm::FunctionType* trap_type = llvm::FunctionType::get(builder.getVoidTy(), {}, false);
   llvm::FunctionType* string_compare_type = llvm::FunctionType::get(i64, {i64, i64, i32}, false);
@@ -2359,6 +2387,35 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     incomings.push_back({pred, normalized});
     return true;
   };
+  auto emit_call_helper = [&](llvm::Value* target_func,
+                              llvm::AllocaInst* call_args,
+                              uint8_t arg_count,
+                              llvm::AllocaInst* has_ret_ptr) -> llvm::Value* {
+    llvm::Value* null_slots = llvm::ConstantPointerNull::get(slot_ptr);
+    llvm::Value* local_snapshot = null_slots;
+    if (!locals.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(locals.size())), "caller_locals");
+      for (size_t i = 0; i < locals.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(builder.CreateLoad(i64, locals[i]), ptr);
+      }
+      local_snapshot = snapshot;
+    }
+    llvm::Value* stack_snapshot = null_slots;
+    if (!stack.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(stack.size())), "caller_stack");
+      for (size_t i = 0; i < stack.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(to_slot(stack[i]), ptr);
+      }
+      stack_snapshot = snapshot;
+    }
+    return builder.CreateCall(call_helper,
+                              {module_ptr, target_func, call_args, builder.getInt32(arg_count),
+                               local_snapshot, builder.getInt32(static_cast<uint32_t>(locals.size())),
+                               builder.getInt64(local_ref_mask), stack_snapshot,
+                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(0), has_ret_ptr});
+  };
   auto emit_trap_if = [&](llvm::Value* cond, const char* name) {
     llvm::BasicBlock* trap_block = llvm::BasicBlock::Create(*context, std::string(name) + ".trap", fn);
     llvm::BasicBlock* cont_block = llvm::BasicBlock::Create(*context, std::string(name) + ".cont", fn);
@@ -2391,8 +2448,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     } else {
       llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, std::string(opname) + "_has_ret");
       builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-      result = builder.CreateCall(call_helper, {module_ptr, builder.getInt32(target_func), call_args,
-                                                builder.getInt32(arg_count), has_ret_ptr});
+      result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr);
     }
     const bool returns_void = sig_returns_void(target_sig);
     if (tail) {
@@ -4290,9 +4346,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_indirect_has_ret");
         builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-        llvm::Value* result = builder.CreateCall(call_helper,
-                                                {module_ptr, target_func, call_args,
-                                                 builder.getInt32(arg_count), has_ret_ptr});
+        llvm::Value* result = emit_call_helper(target_func, call_args, arg_count, has_ret_ptr);
         if (!sig_returns_void(target_sig)) stack.push_back(result);
         break;
       }
@@ -4342,9 +4396,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         } else {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-          result = builder.CreateCall(call_helper,
-                                      {module_ptr, builder.getInt32(target_func), call_args,
-                                       builder.getInt32(arg_count), has_ret_ptr});
+          result = emit_call_helper(builder.getInt32(target_func), call_args, arg_count, has_ret_ptr);
         }
         const bool returns_void = sig_returns_void(target_sig);
         if (op == OpCode::TailCall) {

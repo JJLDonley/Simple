@@ -56,5 +56,8 @@ bool PublishJitRootsFromContext(JitCallContext* context,
                                 const std::vector<uint32_t>& arg_type_ids,
                                 const std::vector<uint32_t>& local_type_ids,
                                 const std::vector<uint32_t>& stack_type_ids);
+void PublishJitRootSlotsByMask(JitCallContext* context,
+                               const std::vector<Slot>& slots,
+                               uint64_t ref_mask);
 
 } // namespace Simple::VM::Jit

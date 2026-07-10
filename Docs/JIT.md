@@ -72,7 +72,7 @@ Remaining migration order:
 
 ## LLVM ORC backend
 
-New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed compiled runner must not be reintroduced as a compatibility path. `JitCallContext` is the stable internal ABI for compiled Simple functions: it carries args, operand stack slots, locals, spills, globals, heap/runtime access, return slot, trap state, and explicit root refs. LLVM helper dispatch now uses this context as the correctness ABI before returning to compiled code, and helper entry publishes typed root refs from context slots before dispatch. LLVM ORC cache keys include module identity, function index, code range/hash, JIT cache ABI version, runtime helper ABI version, and whether runtime helpers are used.
+New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed compiled runner must not be reintroduced as a compatibility path. `JitCallContext` is the stable internal ABI for compiled Simple functions: it carries args, operand stack slots, locals, spills, globals, heap/runtime access, return slot, trap state, and explicit root refs. LLVM helper dispatch now uses this context as the correctness ABI before returning to compiled code. Helper entry publishes typed callee argument roots and captures caller local/operand-stack snapshots supplied by compiled call sites; parameter-local root masks are published before dispatch while exact stack/local maps continue to expand. LLVM ORC cache keys include module identity, function index, code range/hash, JIT cache ABI version, runtime helper ABI version, and whether runtime helpers are used.
 
 ## Failure reporting
 
