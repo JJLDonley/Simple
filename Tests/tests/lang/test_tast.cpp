@@ -408,7 +408,14 @@ bool LangGenBuildsSpecializationPlan() {
     return false;
   }
 
-  requests[0].argument_identities.push_back("extra");
+  requests[0].argument_identities[0] = "T";
+  plan.clear();
+  if (BuildSpecializationPlan({box, method}, requests, &plan, &error) ||
+      error.find("generic specialization is not concrete") == std::string::npos) {
+    return false;
+  }
+
+  requests[0].argument_identities = {"i32", "extra"};
   plan.clear();
   return !BuildSpecializationPlan({box, method}, requests, &plan, &error) &&
          error.find("generic specialization argument count mismatch") != std::string::npos;

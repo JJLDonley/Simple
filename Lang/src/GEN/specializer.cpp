@@ -24,6 +24,27 @@ std::string Hex64(uint64_t value) {
   return out.str();
 }
 
+bool IsTypeIdentityTokenChar(char ch) {
+  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+         (ch >= '0' && ch <= '9') || ch == '_';
+}
+
+bool ContainsTypeParameterToken(const std::string& identity,
+                                const std::vector<std::string>& type_params) {
+  size_t pos = 0;
+  while (pos < identity.size()) {
+    while (pos < identity.size() && !IsTypeIdentityTokenChar(identity[pos])) ++pos;
+    const size_t start = pos;
+    while (pos < identity.size() && IsTypeIdentityTokenChar(identity[pos])) ++pos;
+    if (start == pos) continue;
+    const std::string token = identity.substr(start, pos - start);
+    for (const std::string& param : type_params) {
+      if (token == param) return true;
+    }
+  }
+  return false;
+}
+
 std::string EscapeSymbolSegment(const std::string& value) {
   std::ostringstream out;
   for (const unsigned char ch : value) {
@@ -349,6 +370,14 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
         *error = "generic specialization argument count mismatch for " + request.base_name;
       }
       return false;
+    }
+    for (const std::string& argument : request.argument_identities) {
+      if (ContainsTypeParameterToken(argument, it->second->type_params)) {
+        if (error) {
+          *error = "generic specialization is not concrete for " + request.base_name;
+        }
+        return false;
+      }
     }
     GenericSpecializationPlan plan;
     plan.request = request;
