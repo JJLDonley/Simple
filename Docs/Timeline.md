@@ -406,7 +406,7 @@ Extend `NativeFunctionSpec` with:
   - [ ] terminal control.
 - [x] Add default allow-all CLI/VM capability policy with explicit deny-list-capable execution options.
 - [ ] Add stricter sandbox policy later.
-- [ ] Document stable vs unsafe/system APIs.
+- [x] Document stable vs unsafe/system APIs in native metadata and generated docs.
 - [x] Enforce native metadata capability tags during metadata dispatch.
 
 ---

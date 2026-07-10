@@ -1317,6 +1317,11 @@ NativeFunctionSpec WithCapability(NativeFunctionSpec spec, const char* capabilit
   return spec;
 }
 
+NativeFunctionSpec WithStability(NativeFunctionSpec spec, NativeStability stability) {
+  spec.stability = stability;
+  return spec;
+}
+
 NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary) {
   spec.doc_summary = summary;
   return spec;
@@ -1738,22 +1743,31 @@ void RegisterSystemJson(NativeRegistry& registry) {
 void RegisterSystemDl(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
   registry.Register(WithDoc(
-      WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
-                                           TypeKind::I64, DlOpen),
-                                  "ffi.dynamic_load"),
-                   NativeResourceKind::FfiLibrary, NativeResourceAccess::Output),
+      WithStability(
+          WithResource(WithCapability(MakeSpec("System.dl", "open", {TypeKind::String},
+                                               TypeKind::I64, DlOpen),
+                                      "ffi.dynamic_load"),
+                       NativeResourceKind::FfiLibrary, NativeResourceAccess::Output),
+          NativeStability::Unsafe),
       "Open a dynamic library handle."));
   registry.Register(WithDoc(
-      WithResource(WithCapability(MakeSpec("System.dl", "sym",
-                                           {TypeKind::I64, TypeKind::String}, TypeKind::I64,
-                                           DlSymbol),
-                                  "ffi.dynamic_load"),
-                   NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),
+      WithStability(
+          WithResource(WithCapability(MakeSpec("System.dl", "sym",
+                                               {TypeKind::I64, TypeKind::String}, TypeKind::I64,
+                                               DlSymbol),
+                                      "ffi.dynamic_load"),
+                       NativeResourceKind::FfiLibrary, NativeResourceAccess::Input, 0),
+          NativeStability::Unsafe),
       "Resolve a symbol from a dynamic library handle."));
-  registry.Register(WithResource(MakeSpec("System.dl", "close", {TypeKind::I64},
-                                         TypeKind::I32, DlClose),
-                                 NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0));
-  registry.Register(MakeSpec("System.dl", "last_error", {}, TypeKind::String, DlLastError));
+  registry.Register(WithStability(
+      WithResource(WithCapability(MakeSpec("System.dl", "close", {TypeKind::I64},
+                                           TypeKind::I32, DlClose),
+                                  "ffi.dynamic_load"),
+                   NativeResourceKind::FfiLibrary, NativeResourceAccess::InputOutput, 0),
+      NativeStability::Unsafe));
+  registry.Register(WithStability(MakeSpec("System.dl", "last_error", {}, TypeKind::String,
+                                           DlLastError),
+                                  NativeStability::Unsafe));
 }
 
 void RegisterSystemLog(NativeRegistry& registry) {
@@ -1863,8 +1877,11 @@ void RegisterSystemEnv(NativeRegistry& registry) {
                                             {TypeKind::String, TypeKind::String}, TypeKind::I32,
                                             EnvSet),
                                    "environment.write"));
-  registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
-  registry.Register(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch));
+  registry.Register(WithStability(MakeSpec("System.env", "platform", {}, TypeKind::String,
+                                           EnvPlatform),
+                                  NativeStability::Stable));
+  registry.Register(WithStability(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch),
+                                  NativeStability::Stable));
   registry.Register(WithCapability(MakeSpec("System.env", "exePath", {}, TypeKind::String,
                                             EnvExePath),
                                    "process.args"));

@@ -186,6 +186,22 @@ bool VmNativeFunctionMetadataDeclaresCapabilities() {
          HasCapability(registry.Find("System.random", "i32"), "randomness");
 }
 
+bool VmNativeFunctionMetadataDeclaresStability() {
+  using Simple::VM::Native::NativeStability;
+
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const auto* dl_open = registry.Find("System.dl", "open");
+  const auto* dl_sym = registry.Find("System.dl", "sym");
+  const auto* dl_close = registry.Find("System.dl", "close");
+  const auto* env_platform = registry.Find("System.env", "platform");
+  const auto* env_arch = registry.Find("System.env", "arch");
+  return dl_open && dl_open->stability == NativeStability::Unsafe &&
+         dl_sym && dl_sym->stability == NativeStability::Unsafe &&
+         dl_close && dl_close->stability == NativeStability::Unsafe &&
+         env_platform && env_platform->stability == NativeStability::Stable &&
+         env_arch && env_arch->stability == NativeStability::Stable;
+}
+
 bool VmNativeFunctionMetadataDeclaresResources() {
   using Simple::VM::Native::NativeBlockingBehavior;
   using Simple::VM::Native::NativeCleanupBehavior;
@@ -240,7 +256,7 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos &&
          docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `experimental` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 
@@ -362,6 +378,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_call_context_typed_accessors_and_builders_work", VmNativeCallContextTypedAccessorsAndBuildersWork},
   {"vm_native_registry_metadata_validates_specs", VmNativeRegistryMetadataValidatesSpecs},
   {"vm_native_function_metadata_declares_capabilities", VmNativeFunctionMetadataDeclaresCapabilities},
+  {"vm_native_function_metadata_declares_stability", VmNativeFunctionMetadataDeclaresStability},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
