@@ -91,6 +91,13 @@ std::unordered_map<std::string, std::string>& LlvmRejectCache() {
   return *cache;
 }
 
+bool LlvmTypeIdIsVoidLike(const Simple::Byte::SbcModule& module, uint32_t type_id) {
+  if (type_id == 0xFFFFFFFFu) return true;
+  if (type_id >= module.types.size()) return false;
+  const auto kind = static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind);
+  return kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Unspecified;
+}
+
 extern "C" void SimpleVmLlvmTrap() {
   g_llvm_trap = true;
 }
@@ -838,7 +845,7 @@ extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* mod
   } jit_root_frame_scope(&context.root_refs);
   Slot ret = 0;
   std::string error;
-  bool ret_present = sig.ret_type_id != 0xFFFFFFFFu;
+  const bool ret_present = !LlvmTypeIdIsVoidLike(*module, sig.ret_type_id);
   if (!Simple::VM::Ffi::DispatchDynamicDlCall(ptr_bits, *module, sig.ret_type_id, ret_present,
                                              ffi_arg_type_ids, context.args, 1, *context.heap, &ret, &error)) {
     g_llvm_dl_last_error = error;
@@ -1119,12 +1126,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return false;
   }
   const auto& sig = module.sigs[method.sig_id];
-  auto type_is_void = [&](uint32_t type_id) -> bool {
-    return type_id < module.types.size() &&
-           module.types[type_id].kind == static_cast<uint8_t>(Simple::Byte::TypeKind::Void);
-  };
   auto sig_returns_void = [&](const Simple::Byte::SigRow& row) -> bool {
-    return type_is_void(row.ret_type_id);
+    return LlvmTypeIdIsVoidLike(module, row.ret_type_id);
   };
   auto type_is_scalar_loop_call_safe = [&](uint32_t type_id) -> bool {
     if (type_id == 0xFFFFFFFFu) return true;
@@ -1185,19 +1188,24 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   };
   auto dl_call_loop_safe = [&](const Simple::Byte::SigRow& row) -> bool {
     if (row.param_count == 0 || row.param_type_start + row.param_count > module.param_types.size()) return false;
-    const uint32_t ptr_type_id = module.param_types[row.param_type_start];
-    if (ptr_type_id >= module.types.size()) return false;
-    const auto ptr_kind = static_cast<Simple::Byte::TypeKind>(module.types[ptr_type_id].kind);
-    if (ptr_kind != Simple::Byte::TypeKind::I64 && ptr_kind != Simple::Byte::TypeKind::U64) return false;
     if (!type_is_scalar_loop_call_safe(row.ret_type_id)) return false;
-    for (uint16_t i = 1; i < row.param_count; ++i) {
+    std::vector<uint32_t> param_type_ids;
+    param_type_ids.reserve(row.param_count);
+    for (uint16_t i = 0; i < row.param_count; ++i) {
       const uint32_t type_id = module.param_types[row.param_type_start + i];
       if (type_id >= module.types.size()) return false;
-      const auto kind = static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind);
-      if (kind == Simple::Byte::TypeKind::String) continue;
-      if (!type_is_scalar_loop_call_safe(type_id)) return false;
+      if (i != 0) {
+        const auto kind = static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind);
+        if (kind != Simple::Byte::TypeKind::String && !type_is_scalar_loop_call_safe(type_id)) return false;
+      }
+      param_type_ids.push_back(type_id);
     }
-    return true;
+    std::string abi_error;
+    return Simple::VM::Ffi::ValidateDynamicDlFunctionSignature(module,
+                                                              row.ret_type_id,
+                                                              !sig_returns_void(row),
+                                                              param_type_ids,
+                                                              &abi_error);
   };
   auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
                                                const Simple::Byte::SigRow& row) -> bool {

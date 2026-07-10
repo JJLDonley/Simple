@@ -12,6 +12,18 @@
 
 namespace Simple::VM::Ffi {
 
+bool ValidateDynamicDlCallSignature(const Simple::Byte::SbcModule& module,
+                                    uint32_t ret_type_id,
+                                    bool has_ret,
+                                    const std::vector<uint32_t>& arg_type_ids,
+                                    std::string* out_error);
+
+bool ValidateDynamicDlFunctionSignature(const Simple::Byte::SbcModule& module,
+                                        uint32_t ret_type_id,
+                                        bool has_ret,
+                                        const std::vector<uint32_t>& param_type_ids,
+                                        std::string* out_error);
+
 bool DispatchDynamicDlCall(int64_t ptr_bits,
                            const Simple::Byte::SbcModule& module,
                            uint32_t ret_type_id,

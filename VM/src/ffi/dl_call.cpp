@@ -889,16 +889,11 @@ bool FillScalarArgStorage(const SbcModule& module,
   }
 }
 
-bool DispatchDynamicDlCall(int64_t ptr_bits,
-                           const SbcModule& module,
-                           uint32_t ret_type_id,
-                           bool has_ret,
-                           const std::vector<uint32_t>& arg_type_ids,
-                           const std::vector<Slot>& args,
-                           size_t arg_base,
-                           Heap& heap,
-                           Slot* out_ret,
-                           std::string* out_error) {
+bool ValidateDynamicDlCallSignature(const SbcModule& module,
+                                    uint32_t ret_type_id,
+                                    bool has_ret,
+                                    const std::vector<uint32_t>& arg_type_ids,
+                                    std::string* out_error) {
   std::vector<Simple::VM::Runtime::AbiTypeInfo> parameter_abi;
   parameter_abi.reserve(arg_type_ids.size());
   for (uint32_t type_id : arg_type_ids) {
@@ -911,9 +906,43 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
   if (has_ret && !BuildExternalDlAbiTypeInfo(module, ret_type_id, &result_abi, out_error)) {
     return false;
   }
-  if (!Simple::VM::Runtime::ValidateExternalCAbiTypeInfos(parameter_abi, result_abi, out_error)) {
+  return Simple::VM::Runtime::ValidateExternalCAbiTypeInfos(parameter_abi, result_abi, out_error);
+}
+
+bool ValidateDynamicDlFunctionSignature(const SbcModule& module,
+                                        uint32_t ret_type_id,
+                                        bool has_ret,
+                                        const std::vector<uint32_t>& param_type_ids,
+                                        std::string* out_error) {
+  if (param_type_ids.empty()) {
+    if (out_error) *out_error = "System.dl.call missing function pointer parameter";
     return false;
   }
+  const uint32_t ptr_type_id = param_type_ids.front();
+  if (ptr_type_id >= module.types.size()) {
+    if (out_error) *out_error = "System.dl.call function pointer type id out of range";
+    return false;
+  }
+  const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
+  if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
+    if (out_error) *out_error = "System.dl.call function pointer must be i64/u64";
+    return false;
+  }
+  std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
+  return ValidateDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids, out_error);
+}
+
+bool DispatchDynamicDlCall(int64_t ptr_bits,
+                           const SbcModule& module,
+                           uint32_t ret_type_id,
+                           bool has_ret,
+                           const std::vector<uint32_t>& arg_type_ids,
+                           const std::vector<Slot>& args,
+                           size_t arg_base,
+                           Heap& heap,
+                           Slot* out_ret,
+                           std::string* out_error) {
+  if (!ValidateDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids, out_error)) return false;
 
   DlAbiCache cache;
   std::vector<std::string> owned_strings;

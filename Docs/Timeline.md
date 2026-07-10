@@ -517,6 +517,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Keep dynamic-DL helper dispatch rooted in `JitCallContext` argument/heap/trap state instead of library-specific direct-bind shims.
 - [x] Publish caller local/operand roots and safepoint metadata around accepted dynamic-DL helper paths.
 - [x] Route scalar dynamic-DL loop calls through `JitCallContext` helper dispatch instead of raw LLVM C calls.
+- [x] Validate dynamic-DL VM/native ABI signatures through the canonical FFI verifier before LLVM loop-call acceptance.
 - [x] Add an interpreter-vs-JIT reduced repro for scalar native/import calls inside loops.
 - [x] Add an interpreter-vs-JIT reduced repro for scalar dynamic-DL loop calls.
 - [x] Include aggregate field layout fingerprints in LLVM loop-call signature diagnostics.
