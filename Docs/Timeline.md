@@ -306,6 +306,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Runtime ABI tests cover nested aggregate layout.
   - [x] Runtime ABI tests cover recursive value-containment rejection.
   - [x] Runtime ABI tests cover method-insensitive stable data layout.
+  - [x] Runtime ABI tests cover fixed array layout.
 
 ### Strings and Bytes ABI
 

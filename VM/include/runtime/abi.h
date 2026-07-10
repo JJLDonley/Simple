@@ -64,6 +64,18 @@ struct AbiDataDeclaration {
   uint32_t method_count = 0;
 };
 
+struct AbiFixedArrayLayout {
+  AbiTypeInfo element_type;
+  uint32_t length = 0;
+  uint32_t element_stride = 0;
+  uint32_t size = 0;
+  uint32_t align = 1;
+  bool contains_references = false;
+  bool native_callable = true;
+  bool external_ffi_callable = true;
+  bool pass_by_value = true;
+};
+
 struct AbiAggregateLayout {
   uint32_t size = 0;
   uint32_t align = 1;
@@ -138,6 +150,8 @@ bool IsAbiResultErr(const AbiVariantValue& value);
 uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
 AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration);
+AbiFixedArrayLayout ComputeStableFixedArrayLayout(const AbiTypeInfo& element_type,
+                                                  uint32_t length);
 bool ValidateNoRecursiveValueContainment(
     const std::vector<std::vector<AbiContainmentField>>& type_fields,
     std::string* error);

@@ -355,6 +355,22 @@ bool VmRuntimeAbiComputesNestedAggregateLayout() {
          outer.padding[1].size == 6;
 }
 
+bool VmRuntimeAbiComputesFixedArrayLayout() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ComputeStableFixedArrayLayout;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto i16_array = ComputeStableFixedArrayLayout(GetPrimitiveAbiTypeInfo(TypeKind::I16), 3);
+  const auto i32_array = ComputeStableFixedArrayLayout(GetPrimitiveAbiTypeInfo(TypeKind::I32), 4);
+  const auto ref_array = ComputeStableFixedArrayLayout(GetPrimitiveAbiTypeInfo(TypeKind::String), 2);
+  return i16_array.element_stride == 2 && i16_array.size == 6 && i16_array.align == 2 &&
+         i16_array.pass_by_value && i16_array.external_ffi_callable &&
+         i32_array.element_stride == 4 && i32_array.size == 16 && i32_array.align == 4 &&
+         i32_array.pass_by_value && ref_array.element_stride == 8 && ref_array.size == 16 &&
+         ref_array.contains_references && !ref_array.pass_by_value &&
+         !ref_array.external_ffi_callable;
+}
+
 bool VmRuntimeAbiDataMethodsDoNotAffectLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::AbiDataDeclaration;
@@ -457,6 +473,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_nested_aggregate_layout", VmRuntimeAbiComputesNestedAggregateLayout},
+  {"vm_runtime_abi_computes_fixed_array_layout", VmRuntimeAbiComputesFixedArrayLayout},
   {"vm_runtime_abi_data_methods_do_not_affect_layout", VmRuntimeAbiDataMethodsDoNotAffectLayout},
   {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},

@@ -328,6 +328,29 @@ AbiAggregateLayout ComputeStableDataLayout(const AbiDataDeclaration& declaration
   return ComputeStableAggregateLayout(declaration.fields);
 }
 
+AbiFixedArrayLayout ComputeStableFixedArrayLayout(const AbiTypeInfo& element_type,
+                                                  uint32_t length) {
+  AbiFixedArrayLayout layout;
+  layout.element_type = element_type;
+  layout.length = length;
+  layout.align = ClampStableAggregateAlign(element_type.align);
+  layout.element_stride = AlignAbiOffset(element_type.size, layout.align);
+  layout.contains_references = IsReferenceAbiClass(element_type.abi_class);
+  layout.native_callable = element_type.native_callable;
+  layout.external_ffi_callable = element_type.external_ffi_callable && !layout.contains_references;
+  if (layout.native_callable && length > 0 && layout.element_stride != 0 &&
+      length <= UINT32_MAX / layout.element_stride) {
+    layout.size = layout.element_stride * length;
+  } else if (length == 0) {
+    layout.size = 0;
+  } else {
+    layout.native_callable = false;
+    layout.external_ffi_callable = false;
+  }
+  layout.pass_by_value = layout.native_callable && IsSmallAbiAggregate(layout.size, layout.contains_references);
+  return layout;
+}
+
 bool ValidateNoRecursiveValueContainment(
     const std::vector<std::vector<AbiContainmentField>>& type_fields,
     std::string* error) {
