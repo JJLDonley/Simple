@@ -17057,6 +17057,29 @@ bool RunOpaqueHandleTypeMetadataLoadTest() {
   return !load.ok && load.error.find("type reserved invalid") != std::string::npos;
 }
 
+bool RunOpaqueHandleVerifiesAsI64Test() {
+  std::vector<uint8_t> code;
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Enter));
+  AppendU16(code, 0);
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::ConstI64));
+  AppendI64(code, 0);
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Ret));
+
+  Simple::Byte::sbc::TypeSpec scalar;
+  Simple::Byte::sbc::TypeSpec handle;
+  handle.kind = static_cast<uint8_t>(Simple::Byte::TypeKind::Unspecified);
+  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle;
+  handle.reserved = 1;
+  handle.size = 8;
+  const std::vector<uint8_t> types = Simple::Byte::sbc::BuildTypeSection({scalar, handle});
+  const std::vector<uint8_t> module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
+      code, {}, types, {}, 0, 0, 1, 0, 0, 0, {});
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module);
+  if (!load.ok) return false;
+  Simple::Byte::VerifyResult verify = Simple::Byte::VerifyModule(load.module);
+  return verify.ok;
+}
+
 bool RunAddTest() {
   std::vector<uint8_t> module_bytes = BuildSimpleAddModule();
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(module_bytes);
@@ -24544,6 +24567,7 @@ static const TestCase kCoreTests[] = {
   {"opcode_metadata_verifier_vm_comparison", RunOpcodeMetadataVerifierVmComparisonTest},
   {"typed_metadata_builders", RunTypedMetadataBuildersTest},
   {"opaque_handle_type_metadata_load", RunOpaqueHandleTypeMetadataLoadTest},
+  {"opaque_handle_verifies_as_i64", RunOpaqueHandleVerifiesAsI64Test},
   {"add_i32", RunAddTest},
   {"globals", RunGlobalTest},
   {"dup", RunDupTest},
