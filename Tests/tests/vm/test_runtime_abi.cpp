@@ -35,6 +35,22 @@ bool VmRuntimeAbiMapsPrimitiveTypes() {
          !string_info.external_ffi_callable;
 }
 
+bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::AbiClass;
+  using Simple::VM::Runtime::GetEnumAbiTypeInfo;
+
+  const auto default_enum = GetEnumAbiTypeInfo(TypeKind::Unspecified);
+  const auto small_enum = GetEnumAbiTypeInfo(TypeKind::U8);
+  const auto wide_enum = GetEnumAbiTypeInfo(TypeKind::I64);
+  const auto bad_enum = GetEnumAbiTypeInfo(TypeKind::String);
+  return default_enum.abi_class == AbiClass::Scalar && default_enum.size == 4 &&
+         default_enum.align == 4 && small_enum.abi_class == AbiClass::Scalar &&
+         small_enum.size == 1 && small_enum.align == 1 &&
+         wide_enum.abi_class == AbiClass::Scalar && wide_enum.size == 8 &&
+         wide_enum.align == 8 && bad_enum.abi_class == AbiClass::Invalid;
+}
+
 bool VmRuntimeAbiAlignsStableDataFields() {
   using Simple::VM::Runtime::AlignAbiOffset;
   using Simple::VM::Runtime::IsSmallAbiAggregate;
@@ -334,6 +350,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
+  {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},

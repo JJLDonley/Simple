@@ -93,6 +93,24 @@ AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout) {
                      layout.external_ffi_callable};
 }
 
+AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind) {
+  using Simple::Byte::TypeKind;
+  if (underlying_kind == TypeKind::Unspecified) underlying_kind = TypeKind::I32;
+  switch (underlying_kind) {
+    case TypeKind::I8:
+    case TypeKind::U8:
+    case TypeKind::I16:
+    case TypeKind::U16:
+    case TypeKind::I32:
+    case TypeKind::U32:
+    case TypeKind::I64:
+    case TypeKind::U64:
+      return GetPrimitiveAbiTypeInfo(underlying_kind);
+    default:
+      return AbiTypeInfo{};
+  }
+}
+
 AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type) {
   if (!type.native_callable || type.abi_class == AbiClass::Invalid) return AbiPassMode::Invalid;
   switch (type.abi_class) {

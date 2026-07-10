@@ -98,6 +98,7 @@ struct AbiPromiseId {
 };
 
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
+AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind);
 AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout);
 AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type);
 AbiPassMode GetAbiReturnPassMode(const AbiTypeInfo& type);
