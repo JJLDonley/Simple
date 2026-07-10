@@ -9581,7 +9581,22 @@ bool RunJitCallContextHelpersTest() {
   Simple::VM::Jit::RegisterJitRoot(&context, 123);
   if (context.root_refs.size() != 1 || context.root_refs[0] != 123) return false;
   Simple::VM::Jit::ClearJitRoots(&context);
-  return context.root_refs.empty() && !Simple::VM::Jit::JitArg(context, 9, &value);
+  if (!context.root_refs.empty() || Simple::VM::Jit::JitArg(context, 9, &value)) return false;
+
+  Simple::Byte::SbcModule module;
+  module.types.resize(3);
+  module.types[0].kind = static_cast<uint8_t>(Simple::Byte::TypeKind::I32);
+  module.types[1].kind = static_cast<uint8_t>(Simple::Byte::TypeKind::Ref);
+  module.types[2].kind = static_cast<uint8_t>(Simple::Byte::TypeKind::String);
+  context.args = {Simple::VM::Runtime::PackRef(77), 0};
+  context.locals = {Simple::VM::Runtime::PackRef(Simple::VM::HeapLayout::kNullRef),
+                    Simple::VM::Runtime::PackRef(88)};
+  context.operand_stack = {Simple::VM::Runtime::PackI32(5), Simple::VM::Runtime::PackRef(99)};
+  if (!Simple::VM::Jit::PublishJitRootsFromContext(&context, module, {1, 0}, {1, 2}, {0, 1})) {
+    return false;
+  }
+  return context.root_refs.size() == 3 && context.root_refs[0] == 77 &&
+         context.root_refs[1] == 88 && context.root_refs[2] == 99;
 }
 
 bool RunJitStatusCodeTest() {

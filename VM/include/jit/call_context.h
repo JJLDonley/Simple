@@ -6,6 +6,7 @@
 
 #include "heap.h"
 #include "interpreter/stack.h"
+#include "sbc_types.h"
 
 namespace Simple::VM::Jit {
 
@@ -49,5 +50,11 @@ void ClearJitReturn(JitCallContext* context);
 void SetJitTrap(JitCallContext* context, JitCallTrapKind kind, std::string message);
 void RegisterJitRoot(JitCallContext* context, uint32_t ref);
 void ClearJitRoots(JitCallContext* context);
+bool IsJitRootType(const Simple::Byte::SbcModule& module, uint32_t type_id);
+bool PublishJitRootsFromContext(JitCallContext* context,
+                                const Simple::Byte::SbcModule& module,
+                                const std::vector<uint32_t>& arg_type_ids,
+                                const std::vector<uint32_t>& local_type_ids,
+                                const std::vector<uint32_t>& stack_type_ids);
 
 } // namespace Simple::VM::Jit

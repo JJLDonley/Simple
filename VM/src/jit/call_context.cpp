@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "runtime/values.h"
+
 namespace Simple::VM::Jit {
 
 bool JitArg(const JitCallContext& context, size_t index, Slot* out) {
@@ -79,6 +81,49 @@ void RegisterJitRoot(JitCallContext* context, uint32_t ref) {
 void ClearJitRoots(JitCallContext* context) {
   if (!context) return;
   context->root_refs.clear();
+}
+
+bool IsJitRootType(const Simple::Byte::SbcModule& module, uint32_t type_id) {
+  if (type_id >= module.types.size()) return false;
+  switch (static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind)) {
+    case Simple::Byte::TypeKind::Ref:
+    case Simple::Byte::TypeKind::String:
+    case Simple::Byte::TypeKind::Array:
+    case Simple::Byte::TypeKind::List:
+    case Simple::Byte::TypeKind::Function:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool PublishJitRootsFromContext(JitCallContext* context,
+                                const Simple::Byte::SbcModule& module,
+                                const std::vector<uint32_t>& arg_type_ids,
+                                const std::vector<uint32_t>& local_type_ids,
+                                const std::vector<uint32_t>& stack_type_ids) {
+  if (!context) return false;
+  if (arg_type_ids.size() > context->args.size() || local_type_ids.size() > context->locals.size() ||
+      stack_type_ids.size() > context->operand_stack.size()) {
+    return false;
+  }
+  auto publish_slot = [&](Slot slot, uint32_t type_id) -> bool {
+    if (type_id >= module.types.size()) return false;
+    if (!IsJitRootType(module, type_id)) return true;
+    if (!Simple::VM::Runtime::IsNullRef(slot)) RegisterJitRoot(context, Simple::VM::Runtime::UnpackRef(slot));
+    return true;
+  };
+  ClearJitRoots(context);
+  for (size_t i = 0; i < arg_type_ids.size(); ++i) {
+    if (!publish_slot(context->args[i], arg_type_ids[i])) return false;
+  }
+  for (size_t i = 0; i < local_type_ids.size(); ++i) {
+    if (!publish_slot(context->locals[i], local_type_ids[i])) return false;
+  }
+  for (size_t i = 0; i < stack_type_ids.size(); ++i) {
+    if (!publish_slot(context->operand_stack[i], stack_type_ids[i])) return false;
+  }
+  return true;
 }
 
 } // namespace Simple::VM::Jit

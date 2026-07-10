@@ -759,6 +759,35 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
   context.heap = g_llvm_heap;
   context.globals = g_llvm_globals;
 
+  std::vector<uint32_t> arg_type_ids;
+  if (func_index >= module->functions.size() || module->functions[func_index].method_id >= module->methods.size()) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, "LLVM JIT helper invalid function metadata");
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto& helper_method = module->methods[module->functions[func_index].method_id];
+  if (helper_method.sig_id >= module->sigs.size()) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, "LLVM JIT helper invalid signature metadata");
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto& helper_sig = module->sigs[helper_method.sig_id];
+  if (helper_sig.param_type_start + helper_sig.param_count > module->param_types.size() ||
+      helper_sig.param_count != argc) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, "LLVM JIT helper argument metadata mismatch");
+    g_llvm_trap = true;
+    return 0;
+  }
+  arg_type_ids.reserve(helper_sig.param_count);
+  for (uint16_t i = 0; i < helper_sig.param_count; ++i) {
+    arg_type_ids.push_back(module->param_types[helper_sig.param_type_start + i]);
+  }
+  if (!Simple::VM::Jit::PublishJitRootsFromContext(&context, *module, arg_type_ids, {}, {})) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, "LLVM JIT helper root publication failed");
+    g_llvm_trap = true;
+    return 0;
+  }
+
   std::string reason;
   if (func_index < module->function_is_import.size() && module->function_is_import[func_index]) {
     if (!context.heap) {
