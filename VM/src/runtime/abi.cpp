@@ -111,6 +111,17 @@ AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind) {
   }
 }
 
+AbiTypeInfo GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind kind) {
+  switch (kind) {
+    case AbiExternalWrapperKind::CString:
+      return AbiTypeInfo{AbiClass::Scalar, 8, 8, true, true};
+    case AbiExternalWrapperKind::StringView:
+    case AbiExternalWrapperKind::BytesView:
+      return AbiTypeInfo{AbiClass::Aggregate, 16, 8, true, true};
+  }
+  return AbiTypeInfo{};
+}
+
 AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type) {
   if (!type.native_callable || type.abi_class == AbiClass::Invalid) return AbiPassMode::Invalid;
   switch (type.abi_class) {

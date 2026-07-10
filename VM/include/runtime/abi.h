@@ -37,6 +37,12 @@ enum class AbiPassMode {
   Indirect,
 };
 
+enum class AbiExternalWrapperKind {
+  CString,
+  StringView,
+  BytesView,
+};
+
 struct AbiFieldLayout {
   uint32_t offset = 0;
   AbiTypeInfo type;
@@ -100,6 +106,7 @@ struct AbiPromiseId {
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
 AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind);
 AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout);
+AbiTypeInfo GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind kind);
 AbiPassMode GetAbiParameterPassMode(const AbiTypeInfo& type);
 AbiPassMode GetAbiReturnPassMode(const AbiTypeInfo& type);
 AbiPassMode GetAbiAggregatePassMode(const AbiAggregateLayout& layout);

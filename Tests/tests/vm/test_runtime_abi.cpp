@@ -217,6 +217,27 @@ bool VmRuntimeAbiMarksOpaqueVmReferences() {
          !IsOpaqueVmReferenceType(TypeKind::I64);
 }
 
+bool VmRuntimeAbiAcceptsExplicitExternalWrappers() {
+  using Simple::VM::Runtime::AbiClass;
+  using Simple::VM::Runtime::AbiExternalWrapperKind;
+  using Simple::VM::Runtime::AbiPassMode;
+  using Simple::VM::Runtime::GetAbiParameterPassMode;
+  using Simple::VM::Runtime::GetExternalCAbiWrapperTypeInfo;
+  using Simple::VM::Runtime::ValidateExternalCAbiTypeInfos;
+
+  const auto c_string = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::CString);
+  const auto string_view = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::StringView);
+  const auto bytes_view = GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind::BytesView);
+  std::string error;
+  return c_string.abi_class == AbiClass::Scalar && c_string.size == 8 && c_string.align == 8 &&
+         GetAbiParameterPassMode(c_string) == AbiPassMode::Direct &&
+         string_view.abi_class == AbiClass::Aggregate && string_view.size == 16 &&
+         string_view.align == 8 && bytes_view.abi_class == AbiClass::Aggregate &&
+         bytes_view.size == 16 && bytes_view.align == 8 &&
+         ValidateExternalCAbiTypeInfos({c_string, string_view, bytes_view}, c_string, &error) &&
+         error.empty();
+}
+
 bool VmRuntimeAbiValidatesExternalCSignatures() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -378,6 +399,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_classifies_pass_modes", VmRuntimeAbiClassifiesPassModes},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_marks_opaque_vm_references", VmRuntimeAbiMarksOpaqueVmReferences},
+  {"vm_runtime_abi_accepts_explicit_external_wrappers", VmRuntimeAbiAcceptsExplicitExternalWrappers},
   {"vm_runtime_abi_validates_external_c_signatures", VmRuntimeAbiValidatesExternalCSignatures},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
