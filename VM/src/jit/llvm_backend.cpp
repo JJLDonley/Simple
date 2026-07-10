@@ -1121,16 +1121,21 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     auto unsafe = [](const std::string& category, const std::string& why) {
       return "category=" + category + " reason=" + why;
     };
-    if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature");
     std::string module_name;
     std::string symbol_name;
     if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata");
     if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name");
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
+      if (!sig_is_scalar_loop_call_safe(row)) {
+        return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature");
+      }
       return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature");
     }
     const auto* spec = native_import_spec(func_id);
-    if (!spec) return unsafe("native-registry", "missing-native-metadata");
+    if (!spec) {
+      if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature");
+      return unsafe("native-registry", "missing-native-metadata");
+    }
     if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch");
     if (!spec->resources.empty()) return unsafe("native-registry", "resource-argument-or-result");
     if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call");

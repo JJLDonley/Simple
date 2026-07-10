@@ -240,12 +240,14 @@ std::vector<uint8_t> BuildTypesI32RefString() {
   return types;
 }
 
-std::vector<uint8_t> BuildSingleImportFunctionModule(const std::vector<uint8_t>& main_code,
-                                                     uint16_t main_locals,
-                                                     const std::string& module_name,
-                                                     const std::string& symbol_name,
-                                                     const SigSpec& import_sig) {
-  std::vector<uint8_t> const_pool;
+std::vector<uint8_t> BuildSingleImportFunctionModuleWithTypes(
+    const std::vector<uint8_t>& main_code,
+    uint16_t main_locals,
+    const std::string& module_name,
+    const std::string& symbol_name,
+    const SigSpec& import_sig,
+    const std::vector<uint8_t>& types,
+    std::vector<uint8_t> const_pool = {}) {
   const uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, module_name));
   const uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, symbol_name));
 
@@ -269,7 +271,7 @@ std::vector<uint8_t> BuildSingleImportFunctionModule(const std::vector<uint8_t>&
   AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Nop));
 
   std::vector<SectionData> sections;
-  sections.push_back({1, BuildTypesI32Void(), 2, 0});
+  sections.push_back({1, types, static_cast<uint32_t>(types.size() / 20), 0});
   sections.push_back({2, {}, 0, 0});
   sections.push_back({3, methods, 2, 0});
   sections.push_back({4, sigs, 2, 0});
@@ -279,6 +281,15 @@ std::vector<uint8_t> BuildSingleImportFunctionModule(const std::vector<uint8_t>&
   sections.push_back({10, imports, 1, 0});
   sections.push_back({8, code, 0, 0});
   return BuildModuleFromSections(sections);
+}
+
+std::vector<uint8_t> BuildSingleImportFunctionModule(const std::vector<uint8_t>& main_code,
+                                                     uint16_t main_locals,
+                                                     const std::string& module_name,
+                                                     const std::string& symbol_name,
+                                                     const SigSpec& import_sig) {
+  return BuildSingleImportFunctionModuleWithTypes(main_code, main_locals, module_name, symbol_name,
+                                                  import_sig, BuildTypesI32Void());
 }
 
 std::vector<uint8_t> BuildJitTailCallModule() {
@@ -9712,6 +9723,77 @@ bool RunLlvmJitScalarImportCallInsideLoopTest() {
   return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 6;
 }
 
+bool RunLlvmJitManagedArgImportCallInsideLoopTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> const_pool;
+  const uint32_t path_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "."));
+  uint32_t path_const = 0;
+  AppendConstString(const_pool, path_offset, &path_const);
+
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 2);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(main_code, path_const);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 1);
+  size_t loop_start = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  size_t loop_end = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(main_code, exit_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(main_code, back_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.path", "exists",
+                                               SigSpec{0, 1, {2}}, BuildTypesI32RefString(), const_pool));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  Simple::VM::Heap heap;
+  Simple::VM::ExecOptions options;
+  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, &options, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT managed-arg import loop run failed: " << error << "\n";
+    return false;
+  }
+  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 1;
+}
+
 bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -10017,6 +10099,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_compare_bool_smoke", RunLlvmJitCompareBoolSmokeTest},
   {"llvm_jit_forward_branch_smoke", RunLlvmJitForwardBranchSmokeTest},
   {"llvm_jit_scalar_import_call_inside_loop", RunLlvmJitScalarImportCallInsideLoopTest},
+  {"llvm_jit_managed_arg_import_call_inside_loop", RunLlvmJitManagedArgImportCallInsideLoopTest},
   {"llvm_jit_unsafe_import_call_inside_loop_rejects", RunLlvmJitUnsafeImportCallInsideLoopRejectsTest},
   {"llvm_jit_indirect_call_inside_loop_rejects", RunLlvmJitIndirectCallInsideLoopRejectsTest},
   {"llvm_jit_direct_ref_call_inside_loop_rejects", RunLlvmJitDirectRefCallInsideLoopRejectsTest},
