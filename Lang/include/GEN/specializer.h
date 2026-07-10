@@ -45,5 +45,10 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
 bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& program,
                                         std::vector<GenericSpecializationPlan>* out,
                                         std::string* error);
+bool BuildOrderedSpecializationPlan(
+    const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
+    const std::vector<GenericInstantiationNode>& nodes,
+    std::vector<GenericSpecializationPlan>* out,
+    std::string* error);
 
 } // namespace Simple::Lang::GEN

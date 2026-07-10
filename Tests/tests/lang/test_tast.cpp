@@ -375,6 +375,45 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
          error.find("duplicate generic parameter: T") != std::string::npos;
 }
 
+bool LangGenBuildsOrderedSpecializationPlan() {
+  using Simple::Lang::GEN::BuildOrderedSpecializationPlan;
+  using Simple::Lang::GEN::GenericInstantiationNode;
+  using Simple::Lang::GEN::GenericInstantiationRequest;
+  using Simple::Lang::GEN::GenericSpecializationPlan;
+  using Simple::Lang::TAST::GenericDeclarationKind;
+  using Simple::Lang::TAST::GenericDeclarationMetadata;
+
+  GenericDeclarationMetadata box;
+  box.kind = GenericDeclarationKind::Data;
+  box.name = "Box";
+  box.type_params = {"T"};
+  GenericDeclarationMetadata list;
+  list.kind = GenericDeclarationKind::Data;
+  list.name = "List";
+  list.type_params = {"T"};
+
+  GenericInstantiationRequest box_i32{"Box", {"i32"}, 0, 0};
+  GenericInstantiationRequest list_box{"List", {"Box<i32>"}, 0, 0};
+  std::vector<GenericInstantiationNode> nodes = {
+      GenericInstantiationNode{list_box, {box_i32}},
+      GenericInstantiationNode{box_i32, {}},
+  };
+  std::vector<GenericSpecializationPlan> plan;
+  std::string error;
+  if (!BuildOrderedSpecializationPlan({box, list}, nodes, &plan, &error) || !error.empty()) {
+    return false;
+  }
+  if (plan.size() != 2 || plan[0].request.base_name != "Box" ||
+      plan[1].request.base_name != "List") {
+    return false;
+  }
+
+  nodes[1].dependencies = {list_box};
+  plan.clear();
+  return !BuildOrderedSpecializationPlan({box, list}, nodes, &plan, &error) &&
+         error.find("generic instantiation cycle") != std::string::npos;
+}
+
 bool LangGenBuildsSpecializationPlan() {
   using Simple::Lang::GEN::BuildSpecializationPlan;
   using Simple::Lang::GEN::GenericInstantiationRequest;
@@ -1214,6 +1253,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
   {"lang_gen_builds_specialization_plan_from_program", LangGenBuildsSpecializationPlanFromProgram},
+  {"lang_gen_builds_ordered_specialization_plan", LangGenBuildsOrderedSpecializationPlan},
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},

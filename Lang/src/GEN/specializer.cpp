@@ -414,4 +414,14 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
   return BuildSpecializationPlan(declarations, unique_requests, out, error);
 }
 
+bool BuildOrderedSpecializationPlan(
+    const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
+    const std::vector<GenericInstantiationNode>& nodes,
+    std::vector<GenericSpecializationPlan>* out,
+    std::string* error) {
+  std::vector<GenericInstantiationRequest> ordered;
+  if (!ResolveInstantiationOrder(nodes, &ordered, error)) return false;
+  return BuildSpecializationPlan(declarations, ordered, out, error);
+}
+
 } // namespace Simple::Lang::GEN

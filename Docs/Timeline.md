@@ -217,6 +217,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] GEN collector walks extern/native signature type annotations.
 - [ ] Instantiate dependencies recursively with cycle detection.
   - [x] GEN resolves instantiation dependency order and reports cycles.
+  - [x] GEN builds ordered specialization plans from dependency graphs.
 - [ ] Re-run semantic/type checks on each concrete specialization.
 - [ ] Cache/reuse equivalent specializations across a module graph.
   - [x] GEN normalizes duplicate instantiation requests by deterministic request key.
