@@ -615,11 +615,13 @@ bool LangGenMaterializesConcreteProgram() {
   bool saw_fn = false;
   bool saw_box = false;
   bool saw_rewritten_var = false;
+  std::string concrete_fn_name;
   for (const auto& decl : concrete.decls) {
     if (decl.kind == DeclKind::Function) {
       if (!decl.func.generics.empty() || decl.func.name == "id" || decl.func.return_type.name != "i32") {
         return false;
       }
+      concrete_fn_name = decl.func.name;
       saw_fn = true;
     }
     if (decl.kind == DeclKind::Artifact) {
@@ -634,7 +636,16 @@ bool LangGenMaterializesConcreteProgram() {
       saw_rewritten_var = true;
     }
   }
-  return saw_fn && saw_box && saw_rewritten_var;
+  if (!saw_fn || !saw_box || !saw_rewritten_var) return false;
+
+  Simple::Lang::AST::Decl collision;
+  collision.kind = DeclKind::Function;
+  collision.func.name = concrete_fn_name;
+  collision.func.return_type = Simple::Lang::TAST::MakeSimpleType("void");
+  program.decls.push_back(collision);
+  concrete.decls.clear();
+  return !MaterializeConcreteProgram(program, plan, &concrete, &error) &&
+         error.find("duplicate top-level declaration") != std::string::npos;
 }
 
 bool LangGenNormalizesConcreteRequestMetadata() {

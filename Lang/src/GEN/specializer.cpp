@@ -296,6 +296,42 @@ bool IsConcreteDeclForMaterialization(const Simple::Lang::AST::Decl& decl) {
   }
 }
 
+const std::string* TopLevelDeclName(const Simple::Lang::AST::Decl& decl) {
+  switch (decl.kind) {
+    case Simple::Lang::AST::DeclKind::ModuleHeader:
+      return &decl.module_header.name;
+    case Simple::Lang::AST::DeclKind::Extern:
+      return &decl.ext.name;
+    case Simple::Lang::AST::DeclKind::Function:
+      return &decl.func.name;
+    case Simple::Lang::AST::DeclKind::Variable:
+      return &decl.var.name;
+    case Simple::Lang::AST::DeclKind::Artifact:
+      return &decl.artifact.name;
+    case Simple::Lang::AST::DeclKind::Module:
+      return &decl.module.name;
+    case Simple::Lang::AST::DeclKind::Enum:
+      return &decl.enm.name;
+    case Simple::Lang::AST::DeclKind::Import:
+      return nullptr;
+  }
+  return nullptr;
+}
+
+bool ValidateMaterializedTopLevelNames(const Simple::Lang::AST::Program& program,
+                                       std::string* error) {
+  std::unordered_set<std::string> names;
+  for (const auto& decl : program.decls) {
+    const std::string* name = TopLevelDeclName(decl);
+    if (!name || name->empty()) continue;
+    if (!names.insert(*name).second) {
+      if (error) *error = "duplicate top-level declaration: " + *name;
+      return false;
+    }
+  }
+  return true;
+}
+
 const Simple::Lang::AST::FuncDecl* FindFunctionDecl(const Simple::Lang::AST::Program& program,
                                                     const std::string& name) {
   for (const auto& decl : program.decls) {
@@ -880,6 +916,7 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
   for (auto& stmt : out->top_level_stmts) {
     if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
   }
+  if (!ValidateMaterializedTopLevelNames(*out, error)) return false;
   if (error) error->clear();
   return true;
 }

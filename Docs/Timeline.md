@@ -231,6 +231,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] GEN can materialize concrete function and artifact layout declarations from specialization plans.
   - [x] GEN can build a concrete-only AST program with generic declarations omitted and specializations appended.
   - [x] GEN rewrites materialized generic type/call references to specialized symbols.
+  - [x] GEN rejects materialized specialization names that collide with concrete top-level declarations.
 
 ### Generic Language Surface
 
