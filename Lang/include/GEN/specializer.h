@@ -19,5 +19,8 @@ bool CollectInstantiationRequestsFromType(const Simple::Lang::AST::TypeRef& type
                                           std::vector<GenericInstantiationRequest>* out);
 bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& program,
                                              std::vector<GenericInstantiationRequest>* out);
+std::string InstantiationRequestKey(const GenericInstantiationRequest& request);
+bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
+                                    std::vector<GenericInstantiationRequest>* unique_requests);
 
 } // namespace Simple::Lang::GEN

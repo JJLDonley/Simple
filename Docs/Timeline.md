@@ -215,6 +215,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [ ] Instantiate dependencies recursively with cycle detection.
 - [ ] Re-run semantic/type checks on each concrete specialization.
 - [ ] Cache/reuse equivalent specializations across a module graph.
+  - [x] GEN normalizes duplicate instantiation requests by deterministic request key.
 - [ ] Emit only concrete specialized declarations into IRB/IRE.
 
 ### Generic Language Surface

@@ -1,5 +1,6 @@
 #include "GEN/specializer.h"
 
+#include <unordered_set>
 #include <utility>
 
 namespace Simple::Lang::GEN {
@@ -158,6 +159,29 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
     }
   }
   return CollectFromStmtList(program.top_level_stmts, out);
+}
+
+std::string InstantiationRequestKey(const GenericInstantiationRequest& request) {
+  std::string key = request.base_name + "<";
+  for (size_t i = 0; i < request.argument_identities.size(); ++i) {
+    if (i != 0) key += ",";
+    key += request.argument_identities[i];
+  }
+  key += ">";
+  return key;
+}
+
+bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
+                                    std::vector<GenericInstantiationRequest>* unique_requests) {
+  if (!unique_requests) return false;
+  unique_requests->clear();
+  std::unordered_set<std::string> seen;
+  for (const auto& request : requests) {
+    if (seen.insert(InstantiationRequestKey(request)).second) {
+      unique_requests->push_back(request);
+    }
+  }
+  return true;
 }
 
 } // namespace Simple::Lang::GEN

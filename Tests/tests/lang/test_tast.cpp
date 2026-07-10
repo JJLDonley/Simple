@@ -368,9 +368,17 @@ bool LangGenCollectsInstantiationRequests() {
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> requests;
   if (!Simple::Lang::GEN::CollectInstantiationRequestsFromProgram(program, &requests)) return false;
   if (requests.size() != 4) return false;
+  std::vector<Simple::Lang::GEN::GenericInstantiationRequest> unique;
+  std::vector<Simple::Lang::GEN::GenericInstantiationRequest> duplicated = requests;
+  duplicated.push_back(requests[0]);
+  if (!Simple::Lang::GEN::NormalizeInstantiationRequests(duplicated, &unique) ||
+      unique.size() != requests.size()) {
+    return false;
+  }
   return requests[0].base_name == "Box" && requests[0].argument_identities.size() == 1 &&
-         requests[0].argument_identities[0] == "i32" && requests[1].base_name == "List" &&
-         requests[1].argument_identities[0] == "Box<i32>" &&
+         requests[0].argument_identities[0] == "i32" &&
+         Simple::Lang::GEN::InstantiationRequestKey(requests[0]) == "Box<i32>" &&
+         requests[1].base_name == "List" && requests[1].argument_identities[0] == "Box<i32>" &&
          requests[2].base_name == "Option" && requests[2].argument_identities[0] == "string" &&
          requests[3].base_name == "Result" && requests[3].argument_identities.size() == 2;
 }
