@@ -265,11 +265,12 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### Exact ABI Mapping Table
 
 - [ ] Define exact ABI mapping table for every native-callable type.
+  - [x] Add runtime primitive ABI classifier for current SBC `TypeKind` values.
 - [ ] Scalar representations:
-  - [ ] signed/unsigned integers use exact-width two's-complement payloads.
-  - [ ] floats use IEEE-754 `f32`/`f64`.
-  - [ ] `bool` ABI is `u8` with only `0` or `1` valid.
-  - [ ] `char` ABI is `u32` Unicode scalar long-term; document current bytecode compatibility if still 16-bit internally.
+  - [x] signed/unsigned integers use exact-width two's-complement payloads.
+  - [x] floats use IEEE-754 `f32`/`f64`.
+  - [x] `bool` ABI is `u8` with only `0` or `1` valid.
+  - [x] `char` ABI is `u32` Unicode scalar long-term; document current bytecode compatibility if still 16-bit internally.
   - [ ] enums use declared or default underlying integer type.
 - [ ] Reference/handle representations:
   - [ ] VM heap references are opaque VM refs, never raw host pointers.
@@ -279,17 +280,17 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### Stable `data` Layout ABI
 
 - [ ] Field declaration order is layout order.
-- [ ] Alignment rules:
-  - [ ] 1-byte: `bool`, `i8`, `u8`.
-  - [ ] 2-byte: `i16`, `u16`.
-  - [ ] 4-byte: `i32`, `u32`, `f32`, `char`, enum32.
-  - [ ] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
+- [x] Alignment rules:
+  - [x] 1-byte: `bool`, `i8`, `u8`.
+  - [x] 2-byte: `i16`, `u16`.
+  - [x] 4-byte: `i32`, `u32`, `f32`, `char`, enum32.
+  - [x] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
   - [ ] nested `data`: max field alignment, capped at 8 initially.
 - [ ] Padding is deterministic and zero-initialized where observable through ABI.
 - [ ] Total size rounds up to max alignment.
 - [ ] Nested `data` structs are allowed after recursive layout validation.
 - [ ] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
-- [ ] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
+- [x] By-value internal passing for no-ref structs at or below the chosen small aggregate threshold, initially `<= 16` bytes.
 - [ ] Larger/ref-containing aggregates pass by readonly pointer or VM-managed reference according to metadata.
 - [ ] Return-by-value rules match parameter rules and are explicit in metadata.
 - [ ] Tests prove methods do not affect layout.
@@ -325,7 +326,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 ### ABI Metadata and Tests
 
-- [ ] Add ABI classification to type metadata: scalar, ref, handle, data-small, data-byref, variant, promise, opaque.
+- [x] Add ABI classification helper for scalar, float, ref, aggregate, variant, promise, and opaque classes.
 - [ ] Add layout hash for stable `data` types and generic specializations.
 - [ ] Add ABI verifier checks for native-callable signatures.
 - [ ] Add interpreter/JIT shared tests for the same native ABI calls.

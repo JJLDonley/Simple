@@ -7,6 +7,7 @@ The Simple VM executes verified SBC modules and provides the runtime services us
 - [Execution API](#execution-api)
 - [Execution model](#execution-model)
 - [Values and slots](#values-and-slots)
+- [Runtime ABI classifier](#runtime-abi-classifier)
 - [Frames and calls](#frames-and-calls)
 - [Heap objects](#heap-objects)
 - [Runtime limits](#runtime-limits)
@@ -46,6 +47,10 @@ The interpreter is the correctness baseline.
 VM stack/local/global values are 64-bit slots. Integers, floats, references, and bit patterns are packed into slots by the runtime value helpers.
 
 Null references use the VM heap null sentinel. Runtime code distinguishes integer zero from null references by opcode/type context.
+
+## Runtime ABI classifier
+
+`VM/include/runtime/abi.h` maps current SBC `TypeKind` values to ABI classes, sizes, and alignments. Scalar integer/bool/char types use exact-width ABI payloads (`bool` is one byte, `char` is four bytes at the ABI boundary), floats use IEEE-754 widths, refs/strings/arrays/lists/functions are opaque VM references, and small no-reference aggregates are eligible for by-value internal passing when their stable layout is at most 16 bytes.
 
 ## Frames and calls
 

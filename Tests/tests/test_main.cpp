@@ -43,6 +43,7 @@ const TestSection* GetVmInterpreterSections(size_t* count);
 const TestSection* GetVmJitSections(size_t* count);
 const TestSection* GetVmNativeChannelSections(size_t* count);
 const TestSection* GetVmNativeFsSections(size_t* count);
+const TestSection* GetVmRuntimeAbiSections(size_t* count);
 const TestSection* GetVmRuntimeLimitsSections(size_t* count);
 #endif
 #if SIMPLEVM_TEST_INCLUDE_IR
@@ -235,6 +236,11 @@ int main(int argc, char** argv) {
       Simple::VM::Tests::GetVmNativeFsSections(&vm_native_fs_count);
   sections.insert(sections.end(), vm_native_fs_sections,
                   vm_native_fs_sections + vm_native_fs_count);
+  size_t vm_runtime_abi_count = 0;
+  const Simple::VM::Tests::TestSection* vm_runtime_abi_sections =
+      Simple::VM::Tests::GetVmRuntimeAbiSections(&vm_runtime_abi_count);
+  sections.insert(sections.end(), vm_runtime_abi_sections,
+                  vm_runtime_abi_sections + vm_runtime_abi_count);
   size_t vm_runtime_limits_count = 0;
   const Simple::VM::Tests::TestSection* vm_runtime_limits_sections =
       Simple::VM::Tests::GetVmRuntimeLimitsSections(&vm_runtime_limits_count);
