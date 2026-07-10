@@ -76,6 +76,13 @@ struct AbiVariantValue {
 
 static_assert(sizeof(AbiVariantValue) == 16, "ABI variant value must stay 16 bytes");
 
+struct AbiPromiseId {
+  uint32_t index = 0;
+  uint32_t generation = 0;
+
+  bool IsNull() const { return generation == 0; }
+};
+
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
 uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
@@ -86,6 +93,8 @@ AbiVariantValue MakeAbiOptionNone();
 AbiVariantValue MakeAbiOptionSome(uint64_t payload);
 AbiVariantValue MakeAbiResultOk(uint64_t payload);
 AbiVariantValue MakeAbiResultErr(uint64_t payload);
+uint64_t PackAbiPromiseId(AbiPromiseId promise);
+AbiPromiseId UnpackAbiPromiseId(uint64_t value);
 bool IsAbiOptionSome(const AbiVariantValue& value);
 bool IsAbiResultOk(const AbiVariantValue& value);
 bool IsAbiResultErr(const AbiVariantValue& value);

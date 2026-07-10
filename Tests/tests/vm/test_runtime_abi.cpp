@@ -46,6 +46,20 @@ bool VmRuntimeAbiAlignsStableDataFields() {
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
 }
 
+bool VmRuntimeAbiPacksPromiseIds() {
+  using Simple::VM::Runtime::AbiPromiseId;
+  using Simple::VM::Runtime::PackAbiPromiseId;
+  using Simple::VM::Runtime::UnpackAbiPromiseId;
+
+  const AbiPromiseId promise{123, 45};
+  const uint64_t packed = PackAbiPromiseId(promise);
+  const AbiPromiseId unpacked = UnpackAbiPromiseId(packed);
+  const AbiPromiseId null_promise{};
+  return packed == ((45ull << 32u) | 123ull) && unpacked.index == promise.index &&
+         unpacked.generation == promise.generation && null_promise.IsNull() &&
+         !promise.IsNull();
+}
+
 bool VmRuntimeAbiBuildsResultAndOptionValues() {
   using Simple::VM::Runtime::AbiVariantTag;
   using Simple::VM::Runtime::AbiVariantValue;
@@ -165,6 +179,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},

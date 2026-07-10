@@ -124,6 +124,17 @@ AbiVariantValue MakeAbiResultErr(uint64_t payload) {
   return AbiVariantValue{AbiVariantTag::Err, 0, payload};
 }
 
+uint64_t PackAbiPromiseId(AbiPromiseId promise) {
+  return (static_cast<uint64_t>(promise.generation) << 32u) | promise.index;
+}
+
+AbiPromiseId UnpackAbiPromiseId(uint64_t value) {
+  AbiPromiseId promise;
+  promise.index = static_cast<uint32_t>(value & 0xffffffffu);
+  promise.generation = static_cast<uint32_t>(value >> 32u);
+  return promise;
+}
+
 bool IsAbiOptionSome(const AbiVariantValue& value) {
   return value.tag == AbiVariantTag::Some;
 }

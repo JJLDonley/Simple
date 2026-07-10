@@ -275,7 +275,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [ ] Reference/handle representations:
   - [ ] VM heap references are opaque VM refs, never raw host pointers.
   - [x] `System.Handle<T>` lowers to `NativeHandleId` packed as a VM word.
-  - [ ] `Promise<T>` lowers to a generational promise/job id.
+  - [x] `Promise<T>` lowers to a generational promise/job id.
 
 ### Stable `data` Layout ABI
 
@@ -323,7 +323,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] tag plus payload; nullable reference optimization may be added only when semantics remain identical.
   - [x] native handler builders for some/none.
 - [ ] Define `Promise<T>` runtime representation.
-  - [ ] promise/job id payload.
+  - [x] promise/job id payload.
   - [ ] pending/done/failed/canceled states.
   - [ ] cancellation flag and waiter list.
   - [ ] result payload roots and GC behavior.
