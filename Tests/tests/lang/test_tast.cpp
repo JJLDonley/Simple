@@ -338,6 +338,45 @@ bool LangTastFnLiteralChecksTargetProcedureShape() {
   return error.find("nested fn literals are not supported") != std::string::npos;
 }
 
+bool LangGenBuildsSpecializationPlan() {
+  using Simple::Lang::GEN::BuildSpecializationPlan;
+  using Simple::Lang::GEN::GenericInstantiationRequest;
+  using Simple::Lang::GEN::GenericSpecializationPlan;
+  using Simple::Lang::GEN::SpecializedSymbolName;
+  using Simple::Lang::TAST::GenericDeclarationKind;
+  using Simple::Lang::TAST::GenericDeclarationMetadata;
+
+  GenericDeclarationMetadata box;
+  box.kind = GenericDeclarationKind::Data;
+  box.name = "Box";
+  box.type_params = {"T"};
+  GenericDeclarationMetadata method;
+  method.kind = GenericDeclarationKind::Method;
+  method.owner_name = "Box";
+  method.name = "map";
+  method.type_params = {"T", "U"};
+
+  std::vector<GenericSpecializationPlan> plan;
+  std::string error;
+  std::vector<GenericInstantiationRequest> requests = {
+      GenericInstantiationRequest{"Box", {"i32"}, 0, 0},
+      GenericInstantiationRequest{"Box.map", {"i32", "string"}, 0, 0},
+  };
+  if (!BuildSpecializationPlan({box, method}, requests, &plan, &error) || !error.empty()) {
+    return false;
+  }
+  if (plan.size() != 2 || plan[0].declaration.kind != GenericDeclarationKind::Data ||
+      plan[0].specialized_symbol != SpecializedSymbolName(requests[0]) ||
+      plan[1].declaration.owner_name != "Box") {
+    return false;
+  }
+
+  requests[0].argument_identities.push_back("extra");
+  plan.clear();
+  return !BuildSpecializationPlan({box, method}, requests, &plan, &error) &&
+         error.find("generic specialization argument count mismatch") != std::string::npos;
+}
+
 bool LangGenResolvesInstantiationOrder() {
   using Simple::Lang::GEN::GenericInstantiationNode;
   using Simple::Lang::GEN::GenericInstantiationRequest;
@@ -1111,6 +1150,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
+  {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},
   {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},

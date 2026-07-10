@@ -1,11 +1,42 @@
 #include "GEN/specializer.h"
 
+#include <iomanip>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 namespace Simple::Lang::GEN {
 namespace {
+
+uint64_t Fnv1a64(const std::string& value) {
+  uint64_t hash = 14695981039346656037ull;
+  for (const unsigned char ch : value) {
+    hash ^= static_cast<uint64_t>(ch);
+    hash *= 1099511628211ull;
+  }
+  return hash;
+}
+
+std::string Hex64(uint64_t value) {
+  std::ostringstream out;
+  out << std::hex << value;
+  return out.str();
+}
+
+std::string EscapeSymbolSegment(const std::string& value) {
+  std::ostringstream out;
+  for (const unsigned char ch : value) {
+    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+        (ch >= '0' && ch <= '9') || ch == '_' || ch == '.' || ch == '$') {
+      out << static_cast<char>(ch);
+    } else {
+      out << '%' << std::uppercase << std::hex << std::setw(2) << std::setfill('0')
+          << static_cast<uint32_t>(ch) << std::nouppercase << std::dec;
+    }
+  }
+  return out.str();
+}
 
 std::string JoinTypeArgs(const std::vector<Simple::Lang::AST::TypeRef>& args) {
   std::string out;
@@ -172,6 +203,11 @@ std::string InstantiationRequestKey(const GenericInstantiationRequest& request) 
   return key;
 }
 
+std::string SpecializedSymbolName(const GenericInstantiationRequest& request) {
+  const std::string key = InstantiationRequestKey(request);
+  return EscapeSymbolSegment(request.base_name) + "$g$" + Hex64(Fnv1a64(key));
+}
+
 bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
                                     std::vector<GenericInstantiationRequest>* unique_requests) {
   if (!unique_requests) return false;
@@ -226,6 +262,44 @@ bool ResolveInstantiationOrder(const std::vector<GenericInstantiationNode>& node
 
   for (const auto& node : nodes) {
     if (!visit(visit, node.request)) return false;
+  }
+  if (error) error->clear();
+  return true;
+}
+
+bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclarationMetadata>& declarations,
+                             const std::vector<GenericInstantiationRequest>& requests,
+                             std::vector<GenericSpecializationPlan>* out,
+                             std::string* error) {
+  if (!out) return false;
+  out->clear();
+  std::unordered_map<std::string, const Simple::Lang::TAST::GenericDeclarationMetadata*> by_name;
+  for (const auto& declaration : declarations) {
+    const std::string key = declaration.owner_name.empty()
+        ? declaration.name
+        : declaration.owner_name + "." + declaration.name;
+    if (!by_name.emplace(key, &declaration).second) {
+      if (error) *error = "duplicate generic declaration: " + key;
+      return false;
+    }
+  }
+  for (const auto& request : requests) {
+    auto it = by_name.find(request.base_name);
+    if (it == by_name.end()) {
+      if (error) *error = "missing generic declaration: " + request.base_name;
+      return false;
+    }
+    if (it->second->type_params.size() != request.argument_identities.size()) {
+      if (error) {
+        *error = "generic specialization argument count mismatch for " + request.base_name;
+      }
+      return false;
+    }
+    GenericSpecializationPlan plan;
+    plan.request = request;
+    plan.declaration = *it->second;
+    plan.specialized_symbol = SpecializedSymbolName(request);
+    out->push_back(std::move(plan));
   }
   if (error) error->clear();
   return true;
