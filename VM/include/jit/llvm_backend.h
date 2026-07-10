@@ -17,6 +17,16 @@ struct ExecOptions;
 
 namespace Simple::VM::Jit {
 
+constexpr uint32_t kLlvmJitCacheAbiVersion = 1;
+constexpr uint32_t kLlvmJitRuntimeHelperAbiVersion = 1;
+
+std::string BuildLlvmJitCacheKey(uintptr_t module_identity,
+                                 size_t function_index,
+                                 uint32_t code_offset,
+                                 uint32_t code_size,
+                                 uint64_t code_hash,
+                                 bool uses_runtime_helpers);
+
 struct LlvmJitOptions {
   bool optimize = true;
   // When false, reject SBC call/import/native-call shapes instead of lowering

@@ -9496,6 +9496,18 @@ bool RunLlvmJitForwardBranchSmokeTest() {
   return true;
 }
 
+bool RunLlvmJitCacheKeyIncludesAbiVersionsTest() {
+  const std::string standalone = Simple::VM::Jit::BuildLlvmJitCacheKey(123, 4, 8, 16, 99, false);
+  const std::string runtime = Simple::VM::Jit::BuildLlvmJitCacheKey(123, 4, 8, 16, 99, true);
+  return standalone.find("jitabi=" + std::to_string(Simple::VM::Jit::kLlvmJitCacheAbiVersion)) !=
+             std::string::npos &&
+         standalone.find("helperabi=" +
+                         std::to_string(Simple::VM::Jit::kLlvmJitRuntimeHelperAbiVersion)) !=
+             std::string::npos &&
+         standalone.find(":standalone") != std::string::npos &&
+         runtime.find(":rt") != std::string::npos && standalone != runtime;
+}
+
 bool RunJitCallContextHelpersTest() {
   Simple::VM::Jit::JitCallContext context;
   context.args = {11, 22};
@@ -9621,6 +9633,7 @@ bool RunLlvmJitLoopSmokeTest() {
 }
 
 static const TestCase kJitTests[] = {
+  {"llvm_jit_cache_key_includes_abi_versions", RunLlvmJitCacheKeyIncludesAbiVersionsTest},
   {"jit_call_context_helpers", RunJitCallContextHelpersTest},
   {"jit_status_codes", RunJitStatusCodeTest},
   {"jit_status_counts", RunJitStatusCountsTest},

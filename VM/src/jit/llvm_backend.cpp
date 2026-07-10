@@ -834,6 +834,22 @@ bool RunCachedEntry(const std::shared_ptr<CachedLlvmEntry>& cached,
 
 } // namespace
 
+std::string BuildLlvmJitCacheKey(uintptr_t module_identity,
+                                 size_t function_index,
+                                 uint32_t code_offset,
+                                 uint32_t code_size,
+                                 uint64_t code_hash,
+                                 bool uses_runtime_helpers) {
+  return std::to_string(module_identity) + ":" +
+         std::to_string(function_index) + ":" +
+         std::to_string(code_offset) + ":" +
+         std::to_string(code_size) + ":" +
+         std::to_string(code_hash) + ":jitabi=" +
+         std::to_string(kLlvmJitCacheAbiVersion) + ":helperabi=" +
+         std::to_string(kLlvmJitRuntimeHelperAbiVersion) + ":" +
+         (uses_runtime_helpers ? "rt" : "standalone");
+}
+
 LlvmJitBackend::LlvmJitBackend(LlvmJitOptions options) : options_(options) {
 #if defined(SIMPLEVM_HAS_LLVM)
   static const bool initialized = []() {
@@ -937,12 +953,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return false;
   }
 
-  const std::string cache_key = std::to_string(reinterpret_cast<uintptr_t>(&module)) + ":" +
-                                std::to_string(func_index) + ":" +
-                                std::to_string(func.code_offset) + ":" +
-                                std::to_string(func.code_size) + ":" +
-                                std::to_string(HashFunctionCode(module, func)) + ":" +
-                                (globals_ptr ? "rt" : "standalone");
+  const std::string cache_key = BuildLlvmJitCacheKey(reinterpret_cast<uintptr_t>(&module),
+                                                     func_index,
+                                                     func.code_offset,
+                                                     func.code_size,
+                                                     HashFunctionCode(module, func),
+                                                     globals_ptr != nullptr);
   {
     std::shared_ptr<CachedLlvmEntry> cached;
     {
