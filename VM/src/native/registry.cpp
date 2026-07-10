@@ -1393,6 +1393,18 @@ bool NativeCallContext::ArgString(size_t index, std::string* out) {
   return ReadStringArg(*this, index, out);
 }
 
+bool NativeCallContext::ArgStringView(size_t index, Simple::VM::Runtime::SimpleStringView* out) {
+  if (!out) return false;
+  std::string value;
+  if (!ArgString(index, &value)) return false;
+  borrowed_string_storage.push_back(std::move(value));
+  const std::string& stored = borrowed_string_storage.back();
+  out->data = stored.empty() ? nullptr : stored.data();
+  out->size = stored.size();
+  out->encoding = Simple::VM::Runtime::AbiStringEncoding::Utf8;
+  return true;
+}
+
 NativeCallResult NativeCallResult::Void() {
   NativeCallResult result;
   result.has_value = false;

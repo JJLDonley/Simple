@@ -24,6 +24,7 @@ struct NativeCallContext {
   std::vector<std::FILE*>* open_files = nullptr;
   std::string* dl_last_error = nullptr;
   NativeResourceRegistry* resource_registry = nullptr;
+  std::vector<std::string> borrowed_string_storage;
 
   bool ArgI32(size_t index, int32_t* out) const;
   bool ArgI64(size_t index, int64_t* out) const;
@@ -33,6 +34,7 @@ struct NativeCallContext {
   bool ArgHandle(size_t index, NativeHandleId* out) const;
   bool ArgBytesView(size_t index, Simple::VM::Runtime::SimpleBytesView* out) const;
   bool ArgString(size_t index, std::string* out);
+  bool ArgStringView(size_t index, Simple::VM::Runtime::SimpleStringView* out);
 };
 
 struct NativeCallResult {

@@ -253,7 +253,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### ABI Layers
 
 - [ ] Define Simple Native ABI based on `NativeCallContext` and `NativeCallResult`.
-  - [x] Native handlers decode arguments through typed accessors, including packed handles and borrowed byte views.
+  - [x] Native handlers decode arguments through typed accessors, including packed handles and borrowed string/byte views.
   - [x] Native handlers build returns through typed builders.
   - [x] Resource, capability, allocation, blocking, and GC behavior are visible through metadata.
 - [ ] Define restricted External C FFI ABI.
@@ -301,6 +301,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### Strings and Bytes ABI
 
 - [x] Define `SimpleStringView { data, size, encoding }` for borrowed string arguments.
+- [x] Add native-call typed accessor for borrowed UTF-8 string views.
 - [x] Strings are UTF-8 at ABI boundaries unless a different encoding is explicit.
 - [x] Borrowed string/bytes views are valid only for the native call duration.
 - [ ] Native functions returning strings allocate/build VM-owned strings.

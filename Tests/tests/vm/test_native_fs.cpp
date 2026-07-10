@@ -163,6 +163,7 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   uint32_t ref = 0;
   Simple::VM::Native::NativeHandleId handle_arg;
   std::string text;
+  Simple::VM::Runtime::SimpleStringView string_view;
   if (!context.ArgI32(0, &i32) || i32 != 42) return false;
   if (!context.ArgI64(1, &i64) || i64 != 9000000000ll) return false;
   if (!context.ArgF32(2, &f32) || f32 != f32_input) return false;
@@ -179,6 +180,11 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
     return false;
   }
   if (!context.ArgString(4, &text) || text != "typed") return false;
+  if (!context.ArgStringView(4, &string_view) || string_view.size != 5 ||
+      string_view.encoding != Simple::VM::Runtime::AbiStringEncoding::Utf8 ||
+      std::string(string_view.data, string_view.size) != "typed") {
+    return false;
+  }
   if (context.ArgI32(9, &i32)) return false;
 
   const auto void_result = Simple::VM::Native::NativeCallResult::Void();
