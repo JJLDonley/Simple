@@ -13,6 +13,7 @@ struct GenericInstantiationRequest {
   std::vector<std::string> argument_identities;
   uint32_t line = 0;
   uint32_t column = 0;
+  std::vector<Simple::Lang::AST::TypeRef> argument_types;
 };
 
 struct GenericInstantiationNode {
@@ -23,6 +24,8 @@ struct GenericInstantiationNode {
 struct GenericSpecializationBinding {
   std::string parameter_name;
   std::string type_identity;
+  bool has_concrete_type = false;
+  Simple::Lang::AST::TypeRef concrete_type;
 };
 
 struct GenericSpecializationPlan {
@@ -56,5 +59,8 @@ bool BuildOrderedSpecializationPlan(
     const std::vector<GenericInstantiationNode>& nodes,
     std::vector<GenericSpecializationPlan>* out,
     std::string* error);
+bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
+                                 Simple::Lang::TAST::GenericSubstitutionMap* out,
+                                 std::string* error);
 
 } // namespace Simple::Lang::GEN

@@ -364,9 +364,17 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
   }
   if (plan.size() != 1 || plan[0].declaration.name != "Box" ||
       plan[0].request.argument_identities.size() != 1 ||
-      plan[0].request.argument_identities[0] != "i32" || plan[0].bindings.size() != 1 ||
-      plan[0].bindings[0].parameter_name != "T" || plan[0].bindings[0].type_identity != "i32" ||
+      plan[0].request.argument_identities[0] != "i32" || plan[0].request.argument_types.size() != 1 ||
+      plan[0].bindings.size() != 1 || plan[0].bindings[0].parameter_name != "T" ||
+      plan[0].bindings[0].type_identity != "i32" || !plan[0].bindings[0].has_concrete_type ||
+      plan[0].bindings[0].concrete_type.name != "i32" ||
       plan[0].specialized_symbol.rfind("Box$g$", 0) != 0) {
+    return false;
+  }
+
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (!Simple::Lang::GEN::BuildGenericSubstitutionMap(plan[0], &substitutions, &error) ||
+      substitutions.size() != 1 || substitutions["T"].name != "i32") {
     return false;
   }
 
@@ -393,8 +401,8 @@ bool LangGenBuildsOrderedSpecializationPlan() {
   list.name = "List";
   list.type_params = {"T"};
 
-  GenericInstantiationRequest box_i32{"Box", {"i32"}, 0, 0};
-  GenericInstantiationRequest list_box{"List", {"Box<i32>"}, 0, 0};
+  GenericInstantiationRequest box_i32{"Box", {"i32"}, 0, 0, {}};
+  GenericInstantiationRequest list_box{"List", {"Box<i32>"}, 0, 0, {}};
   std::vector<GenericInstantiationNode> nodes = {
       GenericInstantiationNode{list_box, {box_i32}},
       GenericInstantiationNode{box_i32, {}},
@@ -416,6 +424,7 @@ bool LangGenBuildsOrderedSpecializationPlan() {
 }
 
 bool LangGenBuildsSpecializationPlan() {
+  using Simple::Lang::GEN::BuildGenericSubstitutionMap;
   using Simple::Lang::GEN::BuildSpecializationPlan;
   using Simple::Lang::GEN::GenericInstantiationRequest;
   using Simple::Lang::GEN::GenericSpecializationPlan;
@@ -436,8 +445,8 @@ bool LangGenBuildsSpecializationPlan() {
   std::vector<GenericSpecializationPlan> plan;
   std::string error;
   std::vector<GenericInstantiationRequest> requests = {
-      GenericInstantiationRequest{"Box", {"i32"}, 0, 0},
-      GenericInstantiationRequest{"Box.map", {"i32", "string"}, 0, 0},
+      GenericInstantiationRequest{"Box", {"i32"}, 0, 0, {}},
+      GenericInstantiationRequest{"Box.map", {"i32", "string"}, 0, 0, {}},
   };
   if (!BuildSpecializationPlan({box, method}, requests, &plan, &error) || !error.empty()) {
     return false;
@@ -448,6 +457,15 @@ bool LangGenBuildsSpecializationPlan() {
       plan[0].bindings[0].type_identity != "i32" || plan[1].declaration.owner_name != "Box" ||
       plan[1].bindings.size() != 2 || plan[1].bindings[1].parameter_name != "U" ||
       plan[1].bindings[1].type_identity != "string") {
+    return false;
+  }
+
+  if (plan[0].bindings[0].has_concrete_type || plan[1].bindings[0].has_concrete_type) {
+    return false;
+  }
+  Simple::Lang::TAST::GenericSubstitutionMap substitutions;
+  if (BuildGenericSubstitutionMap(plan[0], &substitutions, &error) ||
+      error.find("generic specialization missing concrete type") == std::string::npos) {
     return false;
   }
 
@@ -470,9 +488,9 @@ bool LangGenResolvesInstantiationOrder() {
   using Simple::Lang::GEN::InstantiationRequestKey;
   using Simple::Lang::GEN::ResolveInstantiationOrder;
 
-  GenericInstantiationRequest box{"Box", {"i32"}, 0, 0};
-  GenericInstantiationRequest list{"List", {"Box<i32>"}, 0, 0};
-  GenericInstantiationRequest option{"Option", {"List<Box<i32>>"}, 0, 0};
+  GenericInstantiationRequest box{"Box", {"i32"}, 0, 0, {}};
+  GenericInstantiationRequest list{"List", {"Box<i32>"}, 0, 0, {}};
+  GenericInstantiationRequest option{"Option", {"List<Box<i32>>"}, 0, 0, {}};
   std::vector<GenericInstantiationNode> nodes = {
       GenericInstantiationNode{option, {list}},
       GenericInstantiationNode{box, {}},

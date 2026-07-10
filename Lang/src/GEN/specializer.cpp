@@ -1,5 +1,7 @@
 #include "GEN/specializer.h"
 
+#include "TAST/types.h"
+
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
@@ -121,7 +123,11 @@ bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
     request.line = expr.line;
     request.column = expr.column;
     request.argument_identities.reserve(expr.type_args.size());
-    for (const auto& arg : expr.type_args) request.argument_identities.push_back(TypeRefIdentity(arg));
+    request.argument_types.reserve(expr.type_args.size());
+    for (const auto& arg : expr.type_args) {
+      request.argument_identities.push_back(TypeRefIdentity(arg));
+      request.argument_types.push_back(arg);
+    }
     out->push_back(std::move(request));
   }
   for (const auto& child : expr.children) {
@@ -222,7 +228,11 @@ bool CollectInstantiationRequestsFromType(const Simple::Lang::AST::TypeRef& type
     request.line = type.line;
     request.column = type.column;
     request.argument_identities.reserve(type.type_args.size());
-    for (const auto& arg : type.type_args) request.argument_identities.push_back(TypeRefIdentity(arg));
+    request.argument_types.reserve(type.type_args.size());
+    for (const auto& arg : type.type_args) {
+      request.argument_identities.push_back(TypeRefIdentity(arg));
+      request.argument_types.push_back(arg);
+    }
     out->push_back(std::move(request));
   }
   return true;
@@ -371,6 +381,13 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
       }
       return false;
     }
+    if (!request.argument_types.empty() &&
+        request.argument_types.size() != request.argument_identities.size()) {
+      if (error) {
+        *error = "generic specialization type metadata mismatch for " + request.base_name;
+      }
+      return false;
+    }
     for (const std::string& argument : request.argument_identities) {
       if (ContainsTypeParameterToken(argument, it->second->type_params)) {
         if (error) {
@@ -388,6 +405,10 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
       GenericSpecializationBinding binding;
       binding.parameter_name = it->second->type_params[i];
       binding.type_identity = request.argument_identities[i];
+      if (!request.argument_types.empty()) {
+        binding.has_concrete_type = true;
+        binding.concrete_type = request.argument_types[i];
+      }
       plan.bindings.push_back(std::move(binding));
     }
     out->push_back(std::move(plan));
@@ -429,6 +450,30 @@ bool BuildOrderedSpecializationPlan(
   std::vector<GenericInstantiationRequest> ordered;
   if (!ResolveInstantiationOrder(nodes, &ordered, error)) return false;
   return BuildSpecializationPlan(declarations, ordered, out, error);
+}
+
+bool BuildGenericSubstitutionMap(const GenericSpecializationPlan& plan,
+                                 Simple::Lang::TAST::GenericSubstitutionMap* out,
+                                 std::string* error) {
+  if (!out) return false;
+  out->clear();
+  for (const auto& binding : plan.bindings) {
+    if (!binding.has_concrete_type) {
+      if (error) {
+        *error = "generic specialization missing concrete type for " + binding.parameter_name;
+      }
+      return false;
+    }
+    auto [it, inserted] = out->emplace(binding.parameter_name, binding.concrete_type);
+    if (!inserted && !Simple::Lang::TAST::TypeEquals(it->second, binding.concrete_type)) {
+      if (error) {
+        *error = "generic specialization conflicting binding for " + binding.parameter_name;
+      }
+      return false;
+    }
+  }
+  if (error) error->clear();
+  return true;
 }
 
 } // namespace Simple::Lang::GEN
