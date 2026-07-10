@@ -324,6 +324,43 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
   return layout;
 }
 
+bool ValidateNoRecursiveValueContainment(
+    const std::vector<std::vector<AbiContainmentField>>& type_fields,
+    std::string* error) {
+  enum class VisitState : uint8_t { Unvisited, Visiting, Done };
+  std::vector<VisitState> states(type_fields.size(), VisitState::Unvisited);
+
+  auto dfs = [&](auto&& self, uint32_t type_index) -> bool {
+    if (type_index >= type_fields.size()) {
+      if (error) *error = "containment field type index out of range";
+      return false;
+    }
+    if (states[type_index] == VisitState::Visiting) {
+      if (error) *error = "recursive value containment at type " + std::to_string(type_index);
+      return false;
+    }
+    if (states[type_index] == VisitState::Done) return true;
+
+    states[type_index] = VisitState::Visiting;
+    for (const AbiContainmentField& field : type_fields[type_index]) {
+      if (field.indirect) continue;
+      if (field.type_index >= type_fields.size()) {
+        if (error) *error = "containment field type index out of range";
+        return false;
+      }
+      if (!self(self, field.type_index)) return false;
+    }
+    states[type_index] = VisitState::Done;
+    return true;
+  };
+
+  for (uint32_t i = 0; i < type_fields.size(); ++i) {
+    if (states[i] == VisitState::Unvisited && !dfs(dfs, i)) return false;
+  }
+  if (error) error->clear();
+  return true;
+}
+
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,
                                   bool external_ffi,

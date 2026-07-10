@@ -54,6 +54,11 @@ struct AbiPaddingRange {
   bool zero_initialized = true;
 };
 
+struct AbiContainmentField {
+  uint32_t type_index = 0;
+  bool indirect = false;
+};
+
 struct AbiAggregateLayout {
   uint32_t size = 0;
   uint32_t align = 1;
@@ -127,6 +132,9 @@ bool IsAbiResultOk(const AbiVariantValue& value);
 bool IsAbiResultErr(const AbiVariantValue& value);
 uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
+bool ValidateNoRecursiveValueContainment(
+    const std::vector<std::vector<AbiContainmentField>>& type_fields,
+    std::string* error);
 bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
                                   Simple::Byte::TypeKind result_type,
                                   bool external_ffi,

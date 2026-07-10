@@ -355,6 +355,36 @@ bool VmRuntimeAbiComputesNestedAggregateLayout() {
          outer.padding[1].size == 6;
 }
 
+bool VmRuntimeAbiRejectsRecursiveValueContainment() {
+  using Simple::VM::Runtime::AbiContainmentField;
+  using Simple::VM::Runtime::ValidateNoRecursiveValueContainment;
+
+  std::string error;
+  const std::vector<std::vector<AbiContainmentField>> direct_cycle = {
+      {AbiContainmentField{1, false}},
+      {AbiContainmentField{0, false}},
+  };
+  if (ValidateNoRecursiveValueContainment(direct_cycle, &error) ||
+      error.find("recursive value containment") == std::string::npos) {
+    return false;
+  }
+
+  error.clear();
+  const std::vector<std::vector<AbiContainmentField>> indirect_cycle = {
+      {AbiContainmentField{1, false}},
+      {AbiContainmentField{0, true}},
+  };
+  if (!ValidateNoRecursiveValueContainment(indirect_cycle, &error) || !error.empty()) {
+    return false;
+  }
+
+  const std::vector<std::vector<AbiContainmentField>> invalid_field = {
+      {AbiContainmentField{3, false}},
+  };
+  return !ValidateNoRecursiveValueContainment(invalid_field, &error) &&
+         error.find("out of range") != std::string::npos;
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -404,6 +434,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_layout_hashes", VmRuntimeAbiComputesStableLayoutHashes},
   {"vm_runtime_abi_computes_nested_aggregate_layout", VmRuntimeAbiComputesNestedAggregateLayout},
+  {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 
