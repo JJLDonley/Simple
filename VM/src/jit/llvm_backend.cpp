@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "ffi/dl_call.h"
 #include "interpreter/dispatch.h"
 #include "intrinsic_ids.h"
 #include "jit/call_context.h"
@@ -744,6 +745,74 @@ extern "C" void SimpleVmLlvmListResize(uint64_t ref_slot, uint64_t size_slot, ui
     else Simple::VM::WriteU32Payload(obj->payload, offset, static_cast<uint32_t>(fill_slot));
   }
   Simple::VM::WriteU32Payload(obj->payload, 0, new_length);
+}
+
+extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* module,
+                                              uint32_t func_index,
+                                              uint64_t* args,
+                                              uint32_t argc,
+                                              uint8_t* has_ret) {
+  if (has_ret) *has_ret = 0;
+  if (!module || !g_llvm_heap || func_index >= module->functions.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto& func = module->functions[func_index];
+  if (func.method_id >= module->methods.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto& method = module->methods[func.method_id];
+  if (method.sig_id >= module->sigs.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto& sig = module->sigs[method.sig_id];
+  if (argc != sig.param_count || sig.param_count == 0 ||
+      sig.param_type_start + sig.param_count > module->param_types.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const uint32_t ptr_type_id = module->param_types[sig.param_type_start];
+  if (ptr_type_id >= module->types.size()) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  const auto ptr_kind = static_cast<Simple::Byte::TypeKind>(module->types[ptr_type_id].kind);
+  if (ptr_kind != Simple::Byte::TypeKind::I64 && ptr_kind != Simple::Byte::TypeKind::U64) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  std::vector<Slot> call_args;
+  call_args.reserve(argc);
+  for (uint32_t i = 0; i < argc; ++i) call_args.push_back(args ? args[i] : 0);
+  const int64_t ptr_bits = Simple::VM::Runtime::UnpackI64(call_args[0]);
+  if (ptr_bits == 0) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  std::vector<uint32_t> arg_type_ids;
+  arg_type_ids.reserve(argc - 1u);
+  for (uint16_t i = 1; i < sig.param_count; ++i) {
+    const uint32_t type_id = module->param_types[sig.param_type_start + i];
+    if (type_id >= module->types.size()) {
+      g_llvm_trap = true;
+      return 0;
+    }
+    arg_type_ids.push_back(type_id);
+  }
+  Slot ret = 0;
+  std::string error;
+  bool ret_present = sig.ret_type_id != 0xFFFFFFFFu;
+  if (!Simple::VM::Ffi::DispatchDynamicDlCall(ptr_bits, *module, sig.ret_type_id, ret_present,
+                                             arg_type_ids, call_args, 1, *g_llvm_heap, &ret, &error)) {
+    g_llvm_dl_last_error = error;
+    g_llvm_trap = true;
+    return 0;
+  }
+  g_llvm_dl_last_error.clear();
+  if (has_ret) *has_ret = ret_present ? 1 : 0;
+  return ret;
 }
 
 extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* module,
@@ -2167,6 +2236,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     llvm::orc::SymbolMap symbols;
     symbols[mangle("SimpleVmLlvmCallFunction")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallFunction), llvm::JITSymbolFlags::Exported);
+    symbols[mangle("SimpleVmLlvmCallDynamicDl")] = llvm::orc::ExecutorSymbolDef(
+        llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmCallDynamicDl), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmYield")] = llvm::orc::ExecutorSymbolDef(
         llvm::orc::ExecutorAddr::fromPtr(&SimpleVmLlvmYield), llvm::JITSymbolFlags::Exported);
     symbols[mangle("SimpleVmLlvmTrap")] = llvm::orc::ExecutorSymbolDef(
@@ -2313,6 +2384,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionType* array_set_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i64, i64}, false);
   llvm::FunctionType* array_copy_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i64, i64, i64, i64}, false);
   llvm::FunctionCallee call_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallFunction", helper_type);
+  llvm::FunctionCallee dynamic_dl_helper = ir_module->getOrInsertFunction(
+      "SimpleVmLlvmCallDynamicDl", llvm::FunctionType::get(i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr}, false));
   llvm::FunctionCallee yield_helper = ir_module->getOrInsertFunction("SimpleVmLlvmYield", yield_type);
   llvm::FunctionCallee trap_helper = ir_module->getOrInsertFunction("SimpleVmLlvmTrap", trap_type);
   llvm::FunctionCallee print_any_helper = ir_module->getOrInsertFunction("SimpleVmLlvmPrintAny", llvm::FunctionType::get(builder.getVoidTy(), {i64, i32}, false));
@@ -4554,6 +4627,14 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
         }
+        const bool import_like_call =
+            target_func < module.function_is_import.size() && module.function_is_import[target_func];
+        const bool dynamic_dl_direct_call = import_like_call && [&]() {
+          std::string module_name;
+          std::string symbol_name;
+          return import_name(target_func, &module_name, &symbol_name) && module_name == "System.dl" &&
+                 symbol_name.rfind("call$", 0) == 0 && dl_call_loop_safe(target_sig);
+        }();
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
           return false;
@@ -4572,6 +4653,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         llvm::Value* result = nullptr;
         if (target_func == func_index) {
           result = builder.CreateCall(fn_type, fn, {call_args, builder.getInt32(arg_count)});
+        } else if (dynamic_dl_direct_call) {
+          llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "dynamic_dl_has_ret");
+          builder.CreateStore(builder.getInt8(0), has_ret_ptr);
+          result = builder.CreateCall(dynamic_dl_helper, {module_ptr, builder.getInt32(target_func), call_args,
+                                                         builder.getInt32(arg_count), has_ret_ptr});
         } else {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
