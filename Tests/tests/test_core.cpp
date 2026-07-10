@@ -16654,6 +16654,7 @@ bool RunNativeRegistryModuleTest() {
          stdlib_markdown.find("## System.fs") != std::string::npos &&
          stdlib_markdown.find("| `readText` | `(string) -> string` | `may-block` | `filesystem.read` | `-` |") != std::string::npos &&
          stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` | `non-blocking` | `-` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("out:file:to-caller:vm-shutdown") != std::string::npos &&
          random_i32 && os_time &&
          os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&
          os_args_count_result.value == 2 && os_args_get_result.string_value == "legacy-arg" &&

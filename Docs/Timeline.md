@@ -381,8 +381,8 @@ Extend `NativeFunctionSpec` with:
 - [x] module and function name.
 - [x] parameter/return types.
 - [x] resource inputs/outputs metadata shape.
-- [ ] ownership transfer rules beyond input/output/input-output access.
-- [ ] cleanup behavior metadata beyond resource kind/use.
+- [x] ownership transfer rules beyond input/output/input-output access.
+- [x] cleanup behavior metadata beyond resource kind/use.
 - [x] blocking behavior metadata shape.
 - [x] capability tags metadata shape.
 - [x] platform availability metadata shape.
@@ -707,7 +707,7 @@ Rules:
 - [x] Generate platform availability table in native metadata docs.
 - [x] Test every public native function has metadata.
 - [ ] Test every resource-producing function declares resource kind and cleanup behavior.
-  - [x] File and FFI library metadata tests cover resource outputs/inputs.
+  - [x] File and FFI library metadata tests cover resource outputs/inputs, ownership, and cleanup behavior.
 - [x] Unit tests for resource registry.
 - [x] VM tests for handle lifecycle edge cases.
 - [ ] Native family tests:

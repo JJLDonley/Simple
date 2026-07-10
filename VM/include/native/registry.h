@@ -57,9 +57,24 @@ enum class NativeStability {
   Unsafe,
 };
 
+enum class NativeOwnershipRule {
+  None,
+  Borrow,
+  TransferToCaller,
+  TransferToCallee,
+};
+
+enum class NativeCleanupBehavior {
+  None,
+  CloseRequired,
+  AutoCloseOnVmShutdown,
+};
+
 struct NativeResourceUse {
   NativeResourceKind kind = NativeResourceKind::Unknown;
   NativeResourceAccess access = NativeResourceAccess::Input;
+  NativeOwnershipRule ownership = NativeOwnershipRule::None;
+  NativeCleanupBehavior cleanup = NativeCleanupBehavior::None;
   uint32_t parameter_index = 0xffffffffu;
 };
 

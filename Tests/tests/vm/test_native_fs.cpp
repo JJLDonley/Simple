@@ -97,6 +97,8 @@ bool VmSplitNativeFsWritesReadsAndRemovesText() {
 
 bool VmNativeFunctionMetadataDeclaresResources() {
   using Simple::VM::Native::NativeBlockingBehavior;
+  using Simple::VM::Native::NativeCleanupBehavior;
+  using Simple::VM::Native::NativeOwnershipRule;
   using Simple::VM::Native::NativeResourceAccess;
   using Simple::VM::Native::NativeResourceKind;
 
@@ -110,18 +112,24 @@ bool VmNativeFunctionMetadataDeclaresResources() {
   if (fs_open->resources.size() != 1 ||
       fs_open->resources[0].kind != NativeResourceKind::File ||
       fs_open->resources[0].access != NativeResourceAccess::Output ||
+      fs_open->resources[0].ownership != NativeOwnershipRule::TransferToCaller ||
+      fs_open->resources[0].cleanup != NativeCleanupBehavior::AutoCloseOnVmShutdown ||
       fs_open->blocking != NativeBlockingBehavior::MayBlock) {
     return false;
   }
   if (fs_read->resources.size() != 1 ||
       fs_read->resources[0].kind != NativeResourceKind::File ||
       fs_read->resources[0].access != NativeResourceAccess::Input ||
+      fs_read->resources[0].ownership != NativeOwnershipRule::Borrow ||
+      fs_read->resources[0].cleanup != NativeCleanupBehavior::None ||
       fs_read->resources[0].parameter_index != 0 ||
       fs_read->capability_tags.empty()) {
     return false;
   }
   if (fs_close->resources.size() != 1 ||
-      fs_close->resources[0].access != NativeResourceAccess::InputOutput) {
+      fs_close->resources[0].access != NativeResourceAccess::InputOutput ||
+      fs_close->resources[0].ownership != NativeOwnershipRule::TransferToCallee ||
+      fs_close->resources[0].cleanup != NativeCleanupBehavior::CloseRequired) {
     return false;
   }
   return dl_open->resources.size() == 1 &&
@@ -139,9 +147,9 @@ bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
              std::string::npos &&
          docs.find("| `readText` | `(string) -> string` | `may-block` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
              std::string::npos &&
-         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file` | `all` | `experimental` | Open a file descriptor handle. |") !=
+         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0` | `all` | `experimental` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `experimental` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 

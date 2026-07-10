@@ -1283,11 +1283,36 @@ NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
   return spec;
 }
 
+NativeOwnershipRule DefaultOwnershipForAccess(NativeResourceAccess access) {
+  switch (access) {
+    case NativeResourceAccess::Input:
+      return NativeOwnershipRule::Borrow;
+    case NativeResourceAccess::Output:
+      return NativeOwnershipRule::TransferToCaller;
+    case NativeResourceAccess::InputOutput:
+      return NativeOwnershipRule::TransferToCallee;
+  }
+  return NativeOwnershipRule::None;
+}
+
+NativeCleanupBehavior DefaultCleanupForAccess(NativeResourceAccess access) {
+  switch (access) {
+    case NativeResourceAccess::Input:
+      return NativeCleanupBehavior::None;
+    case NativeResourceAccess::Output:
+      return NativeCleanupBehavior::AutoCloseOnVmShutdown;
+    case NativeResourceAccess::InputOutput:
+      return NativeCleanupBehavior::CloseRequired;
+  }
+  return NativeCleanupBehavior::None;
+}
+
 NativeFunctionSpec WithResource(NativeFunctionSpec spec,
                                 NativeResourceKind kind,
                                 NativeResourceAccess access,
                                 uint32_t parameter_index = 0xffffffffu) {
-  spec.resources.push_back(NativeResourceUse{kind, access, parameter_index});
+  spec.resources.push_back(NativeResourceUse{kind, access, DefaultOwnershipForAccess(access),
+                                             DefaultCleanupForAccess(access), parameter_index});
   return spec;
 }
 
@@ -1431,6 +1456,32 @@ std::string ResourceAccessMarkdown(NativeResourceAccess access) {
   return "unknown";
 }
 
+std::string OwnershipMarkdown(NativeOwnershipRule ownership) {
+  switch (ownership) {
+    case NativeOwnershipRule::None:
+      return "none";
+    case NativeOwnershipRule::Borrow:
+      return "borrow";
+    case NativeOwnershipRule::TransferToCaller:
+      return "to-caller";
+    case NativeOwnershipRule::TransferToCallee:
+      return "to-callee";
+  }
+  return "unknown";
+}
+
+std::string CleanupMarkdown(NativeCleanupBehavior cleanup) {
+  switch (cleanup) {
+    case NativeCleanupBehavior::None:
+      return "none";
+    case NativeCleanupBehavior::CloseRequired:
+      return "close-required";
+    case NativeCleanupBehavior::AutoCloseOnVmShutdown:
+      return "vm-shutdown";
+  }
+  return "unknown";
+}
+
 std::string TagsMarkdown(const std::vector<std::string>& tags) {
   if (tags.empty()) return "-";
   std::ostringstream out;
@@ -1457,6 +1508,7 @@ std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
     const NativeResourceUse& resource = resources[i];
     out << ResourceAccessMarkdown(resource.access) << ":" << ResourceKindMarkdown(resource.kind);
     if (resource.parameter_index != 0xffffffffu) out << "@" << resource.parameter_index;
+    out << ":" << OwnershipMarkdown(resource.ownership) << ":" << CleanupMarkdown(resource.cleanup);
   }
   return out.str();
 }
