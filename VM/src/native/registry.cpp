@@ -1333,6 +1333,66 @@ NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary) {
 
 } // namespace
 
+bool NativeCallContext::ArgI32(size_t index, int32_t* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = UnpackI32(args[index]);
+  return true;
+}
+
+bool NativeCallContext::ArgI64(size_t index, int64_t* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = UnpackI64(args[index]);
+  return true;
+}
+
+bool NativeCallContext::ArgRef(size_t index, uint32_t* out) const {
+  if (!out || index >= args.size()) return false;
+  *out = UnpackRef(args[index]);
+  return true;
+}
+
+bool NativeCallContext::ArgString(size_t index, std::string* out) {
+  return ReadStringArg(*this, index, out);
+}
+
+NativeCallResult NativeCallResult::Void() {
+  NativeCallResult result;
+  result.has_value = false;
+  return result;
+}
+
+NativeCallResult NativeCallResult::I32(int32_t value) {
+  NativeCallResult result;
+  result.value = PackI32(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::I64(int64_t value) {
+  NativeCallResult result;
+  result.value = PackI64(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::Ref(uint32_t value) {
+  NativeCallResult result;
+  result.value = PackRef(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::String(std::string value) {
+  NativeCallResult result;
+  result.string_value = std::move(value);
+  return result;
+}
+
+NativeCallResult NativeCallResult::Error(std::string message) {
+  NativeCallResult result;
+  result.ok = false;
+  result.has_value = false;
+  result.error = std::move(message);
+  return result;
+}
+
 bool NativeRegistry::Register(NativeFunctionSpec spec) {
   if (spec.module_name.empty() || spec.symbol_name.empty() || !spec.handler) return false;
   if (Find(spec.module_name, spec.symbol_name)) return false;

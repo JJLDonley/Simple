@@ -253,9 +253,9 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 ### ABI Layers
 
 - [ ] Define Simple Native ABI based on `NativeCallContext` and `NativeCallResult`.
-  - [ ] Native handlers decode arguments through typed accessors.
-  - [ ] Native handlers build returns through typed builders.
-  - [ ] Resource, capability, allocation, blocking, and GC behavior are visible through metadata.
+  - [x] Native handlers decode arguments through typed accessors.
+  - [x] Native handlers build returns through typed builders.
+  - [x] Resource, capability, allocation, blocking, and GC behavior are visible through metadata.
 - [ ] Define restricted External C FFI ABI.
   - [ ] Permit primitives, pointers, stable `data` structs, and explicit ABI wrapper types.
   - [ ] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions.

@@ -21,6 +21,11 @@ struct NativeCallContext {
   const std::vector<std::string>* argv = nullptr;
   std::vector<std::FILE*>* open_files = nullptr;
   std::string* dl_last_error = nullptr;
+
+  bool ArgI32(size_t index, int32_t* out) const;
+  bool ArgI64(size_t index, int64_t* out) const;
+  bool ArgRef(size_t index, uint32_t* out) const;
+  bool ArgString(size_t index, std::string* out);
 };
 
 struct NativeCallResult {
@@ -29,6 +34,13 @@ struct NativeCallResult {
   Slot value = 0;
   std::string string_value;
   std::string error;
+
+  static NativeCallResult Void();
+  static NativeCallResult I32(int32_t value);
+  static NativeCallResult I64(int64_t value);
+  static NativeCallResult Ref(uint32_t value);
+  static NativeCallResult String(std::string value);
+  static NativeCallResult Error(std::string message);
 };
 
 using NativeFunctionHandler = std::function<NativeCallResult(NativeCallContext&)>;

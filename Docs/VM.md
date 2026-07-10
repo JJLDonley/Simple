@@ -83,7 +83,7 @@ Native modules include time, filesystem/path/env/OS helpers, logging, buffers, J
 
 Native host resources use generational opaque handles. `NativeResourceRegistry` validates handle index, generation, kind, and closed state before use, and sweeps owned live resources during registry shutdown. Shutdown sweep is best-effort: close callback failures are counted, records are still marked closed, and finalize callbacks still run.
 
-Native function metadata records layer, module, symbol, parameter/result types, resource uses, ownership transfer, cleanup behavior, blocking behavior, capability tags, platform availability, stability, and documentation summaries. `ValidateNativeRegistryMetadata` checks required metadata invariants. The interpreter and JIT use this shared metadata instead of ad hoc native signatures. `ExecOptions::capability_policy` defaults to allow-all for current CLI compatibility, and metadata dispatch rejects calls whose capability tags are not allowed by a stricter host policy.
+Native function metadata records layer, module, symbol, parameter/result types, resource uses, ownership transfer, cleanup behavior, blocking behavior, capability tags, platform availability, stability, and documentation summaries. `NativeCallContext` exposes typed argument accessors, and `NativeCallResult` exposes typed result builders. `ValidateNativeRegistryMetadata` checks required metadata invariants. The interpreter and JIT use this shared metadata instead of ad hoc native signatures. `ExecOptions::capability_policy` defaults to allow-all for current CLI compatibility, and metadata dispatch rejects calls whose capability tags are not allowed by a stricter host policy.
 
 ## Dynamic libraries / FFI
 
