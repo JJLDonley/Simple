@@ -2051,7 +2051,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   if (saw_call && !options_.allow_runtime_calls) {
     return reject_cached("unsupported: runtime/helper calls need LLVM runtime ABI");
   }
-  uint64_t local_ref_mask = 0;
   if (saw_call) {
     if (method.local_count > 64 || func.stack_max > 64) {
       return reject_cached("unsupported: helper call root snapshot exceeds 64 slots");
@@ -2059,11 +2058,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (sig.param_type_start + sig.param_count > module.param_types.size()) {
       reason = "LLVM JIT signature param metadata out of bounds";
       return false;
-    }
-    for (uint16_t i = 0; i < sig.param_count && i < 64; ++i) {
-      if (Simple::VM::Jit::IsJitRootType(module, module.param_types[sig.param_type_start + i])) {
-        local_ref_mask |= uint64_t{1} << i;
-      }
     }
   }
   if (saw_backward_branch && saw_unsafe_import_or_indirect_loop_call) {
@@ -2331,6 +2325,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   std::unordered_map<size_t, llvm::BasicBlock*> blocks;
   std::unordered_map<size_t, std::vector<llvm::Value*>> block_stacks;
   std::unordered_map<size_t, std::vector<uint32_t>> block_stack_types;
+  std::unordered_map<size_t, std::vector<uint32_t>> block_local_types;
   std::unordered_map<size_t, std::vector<std::pair<llvm::BasicBlock*, std::vector<llvm::Value*>>>> block_stack_incomings;
   std::unordered_map<llvm::Value*, uint32_t> value_type_ids;
   std::vector<uint32_t> local_type_ids;
@@ -2399,16 +2394,40 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   auto note_value_type = [&](llvm::Value* value, uint32_t type_id) {
     if (value && type_id != kUnknownJitTypeId) value_type_ids[value] = type_id;
   };
-  auto stack_ref_mask = [&]() -> uint64_t {
+  auto root_mask_for_type_ids = [&](const std::vector<uint32_t>& type_ids) -> uint64_t {
     uint64_t mask = 0;
-    const size_t limit = std::min<size_t>(stack.size(), 64);
+    const size_t limit = std::min<size_t>(type_ids.size(), 64);
     for (size_t i = 0; i < limit; ++i) {
-      const uint32_t type_id = value_type_id(stack[i]);
-      if (type_id != kUnknownJitTypeId && Simple::VM::Jit::IsJitRootType(module, type_id)) {
+      if (type_ids[i] != kUnknownJitTypeId && Simple::VM::Jit::IsJitRootType(module, type_ids[i])) {
         mask |= uint64_t{1} << i;
       }
     }
     return mask;
+  };
+  auto stack_ref_mask = [&]() -> uint64_t {
+    std::vector<uint32_t> stack_type_ids;
+    stack_type_ids.reserve(stack.size());
+    for (llvm::Value* value : stack) stack_type_ids.push_back(value_type_id(value));
+    return root_mask_for_type_ids(stack_type_ids);
+  };
+  auto local_ref_mask = [&]() -> uint64_t {
+    return root_mask_for_type_ids(local_type_ids);
+  };
+  auto merge_local_types = [&](size_t target) -> bool {
+    auto existing_it = block_local_types.find(target);
+    if (existing_it == block_local_types.end()) {
+      block_local_types[target] = local_type_ids;
+      return true;
+    }
+    std::vector<uint32_t>& existing = existing_it->second;
+    if (existing.size() != local_type_ids.size()) {
+      reason = "LLVM JIT branch local root map mismatch";
+      return false;
+    }
+    for (size_t i = 0; i < existing.size(); ++i) {
+      if (existing[i] != local_type_ids[i]) existing[i] = kUnknownJitTypeId;
+    }
+    return true;
   };
   auto merge_block_stack = [&](size_t target, const std::vector<llvm::Value*>& incoming_stack,
                                llvm::BasicBlock* pred) -> bool {
@@ -2423,6 +2442,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       normalized.push_back(slot_value);
       normalized_types.push_back(type_id);
     }
+    if (!merge_local_types(target)) return false;
     auto existing_it = block_stacks.find(target);
     if (existing_it == block_stacks.end()) {
       block_stacks[target] = normalized;
@@ -2484,7 +2504,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return builder.CreateCall(call_helper,
                               {module_ptr, target_func, call_args, builder.getInt32(arg_count),
                                local_snapshot, builder.getInt32(static_cast<uint32_t>(locals.size())),
-                               builder.getInt64(local_ref_mask), stack_snapshot,
+                               builder.getInt64(local_ref_mask()), stack_snapshot,
                                builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(stack_ref_mask()),
                                builder.getInt32(static_cast<uint32_t>(func_index)),
                                builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)),
@@ -2547,6 +2567,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       builder.SetInsertPoint(block_it->second);
       auto stack_it = block_stacks.find(pc);
       if (stack_it != block_stacks.end()) stack = stack_it->second;
+      auto local_type_it = block_local_types.find(pc);
+      if (local_type_it != block_local_types.end()) local_type_ids = local_type_it->second;
     }
     const bool skipping_unreachable = builder.GetInsertBlock()->getTerminator() != nullptr;
     const size_t instr_pc = pc;
