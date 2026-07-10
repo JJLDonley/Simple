@@ -334,6 +334,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 - [x] Define `NativeHandleId { index, generation }` as the opaque VM payload for `System.Handle<T>`.
 - [x] Native callees declare expected resource kind; metadata dispatch validates kind/generation/closed state before use.
+- [x] Native call context exposes typed resource-handle validation for handlers.
 - [x] Define canonical `Result<T,E>` representation.
   - [x] tag plus inline small payload or heap box for large/ref-containing payloads.
   - [x] native handler builders for ok/err.

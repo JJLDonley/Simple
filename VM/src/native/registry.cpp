@@ -1419,6 +1419,18 @@ bool NativeCallContext::ArgHandle(size_t index, NativeHandleId* out) const {
   return true;
 }
 
+NativeResourceStatus NativeCallContext::ArgResourceHandle(size_t index,
+                                                         NativeResourceKind expected_kind,
+                                                         NativeHandleId* out_handle,
+                                                         NativeResourceRecord** out_record) const {
+  if (out_handle) *out_handle = NativeHandleId{};
+  if (out_record) *out_record = nullptr;
+  if (!resource_registry || index >= args.size()) return NativeResourceStatus::InvalidHandle;
+  const NativeHandleId handle = UnpackNativeHandleId(args[index]);
+  if (out_handle) *out_handle = handle;
+  return resource_registry->Get(handle, expected_kind, out_record);
+}
+
 bool NativeCallContext::ArgBytesView(size_t index, Simple::VM::Runtime::SimpleBytesView* out) const {
   if (!out || !heap || index >= args.size()) return false;
   const uint32_t ref = UnpackRef(args[index]);

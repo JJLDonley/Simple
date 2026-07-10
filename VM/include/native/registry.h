@@ -33,6 +33,10 @@ struct NativeCallContext {
   bool ArgF64(size_t index, double* out) const;
   bool ArgRef(size_t index, uint32_t* out) const;
   bool ArgHandle(size_t index, NativeHandleId* out) const;
+  NativeResourceStatus ArgResourceHandle(size_t index,
+                                         NativeResourceKind expected_kind,
+                                         NativeHandleId* out_handle,
+                                         NativeResourceRecord** out_record) const;
   bool ArgBytesView(size_t index, Simple::VM::Runtime::SimpleBytesView* out) const;
   bool ArgString(size_t index, std::string* out);
   bool ArgStringView(size_t index, Simple::VM::Runtime::SimpleStringView* out);

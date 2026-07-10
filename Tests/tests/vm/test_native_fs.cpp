@@ -373,6 +373,45 @@ bool VmNativeDispatchAllocatesVmOwnedStrings() {
          Simple::VM::U16ToAscii(Simple::VM::ReadString(obj)) == "owned";
 }
 
+bool VmNativeCallContextValidatesResourceHandleArgs() {
+  using Simple::VM::Native::NativeCallContext;
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Native::NativeResourceRecord;
+  using Simple::VM::Native::NativeResourceRegistry;
+  using Simple::VM::Native::NativeResourceStatus;
+  using Simple::VM::Native::PackNativeHandleId;
+
+  NativeResourceRegistry registry;
+  NativeResourceRecord file;
+  file.kind = NativeResourceKind::File;
+  file.debug_label = "typed-resource";
+  const NativeHandleId file_handle = registry.Insert(file);
+  NativeResourceRecord socket;
+  socket.kind = NativeResourceKind::Socket;
+  const NativeHandleId socket_handle = registry.Insert(socket);
+
+  NativeCallContext context;
+  context.resource_registry = &registry;
+  context.args = {PackNativeHandleId(file_handle), PackNativeHandleId(socket_handle)};
+
+  NativeHandleId decoded;
+  NativeResourceRecord* record = nullptr;
+  if (context.ArgResourceHandle(0, NativeResourceKind::File, &decoded, &record) !=
+          NativeResourceStatus::Ok ||
+      decoded.index != file_handle.index || !record || record->debug_label != "typed-resource") {
+    return false;
+  }
+  if (context.ArgResourceHandle(1, NativeResourceKind::File, &decoded, &record) !=
+      NativeResourceStatus::WrongKind) {
+    return false;
+  }
+  std::string error;
+  registry.Close(file_handle, NativeResourceKind::File, &error);
+  return context.ArgResourceHandle(0, NativeResourceKind::File, &decoded, &record) ==
+         NativeResourceStatus::AlreadyClosed;
+}
+
 bool VmNativeDispatchValidatesResourceHandles() {
   using Simple::VM::Native::NativeCleanupBehavior;
   using Simple::VM::Native::NativeFunctionSpec;
@@ -632,6 +671,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_allocates_vm_owned_strings", VmNativeDispatchAllocatesVmOwnedStrings},
+  {"vm_native_call_context_validates_resource_handle_args", VmNativeCallContextValidatesResourceHandleArgs},
   {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_fs_open_close_uses_resource_registry", VmNativeFsOpenCloseUsesResourceRegistry},
