@@ -550,6 +550,83 @@ bool LangGenSpecializesConcreteDeclarations() {
          concrete_box.name == box_plan->specialized_symbol && concrete_box.fields[0].type.name == "i32";
 }
 
+bool LangGenMaterializesConcreteProgram() {
+  using Simple::Lang::AST::DeclKind;
+  using Simple::Lang::GEN::BuildSpecializationPlanFromProgram;
+  using Simple::Lang::GEN::GenericSpecializationPlan;
+  using Simple::Lang::GEN::MaterializeConcreteProgram;
+
+  Simple::Lang::AST::Program program;
+  Simple::Lang::AST::Decl ext;
+  ext.kind = DeclKind::Extern;
+  ext.ext.name = "native";
+  ext.ext.return_type = Simple::Lang::TAST::MakeSimpleType("i32");
+  program.decls.push_back(ext);
+
+  Simple::Lang::AST::Decl fn_decl;
+  fn_decl.kind = DeclKind::Function;
+  fn_decl.func.name = "id";
+  fn_decl.func.generics = {"T"};
+  fn_decl.func.return_type = Simple::Lang::TAST::MakeSimpleType("T");
+  Simple::Lang::AST::ParamDecl param;
+  param.name = "value";
+  param.type = Simple::Lang::TAST::MakeSimpleType("T");
+  fn_decl.func.params.push_back(param);
+  program.decls.push_back(fn_decl);
+
+  Simple::Lang::AST::Decl box_decl;
+  box_decl.kind = DeclKind::Artifact;
+  box_decl.artifact.name = "Box";
+  box_decl.artifact.generics = {"T"};
+  Simple::Lang::AST::VarDecl field;
+  field.name = "value";
+  field.type = Simple::Lang::TAST::MakeSimpleType("T");
+  box_decl.artifact.fields.push_back(field);
+  program.decls.push_back(box_decl);
+
+  Simple::Lang::AST::Decl use_box;
+  use_box.kind = DeclKind::Variable;
+  use_box.var.name = "boxed";
+  use_box.var.type.name = "Box";
+  use_box.var.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.decls.push_back(use_box);
+
+  Simple::Lang::AST::Stmt call_stmt;
+  call_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  call_stmt.expr.kind = Simple::Lang::AST::ExprKind::Call;
+  Simple::Lang::AST::Expr callee;
+  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
+  callee.text = "id";
+  call_stmt.expr.children.push_back(callee);
+  call_stmt.expr.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.top_level_stmts.push_back(call_stmt);
+
+  std::vector<GenericSpecializationPlan> plan;
+  std::string error;
+  if (!BuildSpecializationPlanFromProgram(program, &plan, &error) || plan.size() != 2) return false;
+  Simple::Lang::AST::Program concrete;
+  if (!MaterializeConcreteProgram(program, plan, &concrete, &error) || !error.empty()) return false;
+  if (concrete.top_level_stmts.size() != 1 || concrete.decls.size() != 4) return false;
+  bool saw_fn = false;
+  bool saw_box = false;
+  for (const auto& decl : concrete.decls) {
+    if (decl.kind == DeclKind::Function) {
+      if (!decl.func.generics.empty() || decl.func.name == "id" || decl.func.return_type.name != "i32") {
+        return false;
+      }
+      saw_fn = true;
+    }
+    if (decl.kind == DeclKind::Artifact) {
+      if (!decl.artifact.generics.empty() || decl.artifact.name == "Box" ||
+          decl.artifact.fields[0].type.name != "i32") {
+        return false;
+      }
+      saw_box = true;
+    }
+  }
+  return saw_fn && saw_box;
+}
+
 bool LangGenNormalizesConcreteRequestMetadata() {
   using Simple::Lang::GEN::GenericInstantiationRequest;
   using Simple::Lang::GEN::NormalizeInstantiationRequests;
@@ -1366,6 +1443,7 @@ const TestCase kLangTastTests[] = {
   {"lang_gen_builds_ordered_specialization_plan", LangGenBuildsOrderedSpecializationPlan},
   {"lang_gen_builds_specialization_plan", LangGenBuildsSpecializationPlan},
   {"lang_gen_specializes_concrete_declarations", LangGenSpecializesConcreteDeclarations},
+  {"lang_gen_materializes_concrete_program", LangGenMaterializesConcreteProgram},
   {"lang_gen_normalizes_concrete_request_metadata", LangGenNormalizesConcreteRequestMetadata},
   {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},

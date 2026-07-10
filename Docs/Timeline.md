@@ -229,6 +229,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [ ] Emit only concrete specialized declarations into IRB/IRE.
   - [x] GEN rejects non-concrete specialization requests during planning.
   - [x] GEN can materialize concrete function and artifact layout declarations from specialization plans.
+  - [x] GEN can build a concrete-only AST program with generic declarations omitted and specializations appended.
 
 ### Generic Language Surface
 

@@ -278,6 +278,44 @@ bool ApplySubstitutionToFunction(Simple::Lang::AST::FuncDecl* fn,
   return true;
 }
 
+bool ArtifactHasGenericMethods(const Simple::Lang::AST::ArtifactDecl& artifact) {
+  for (const auto& method : artifact.methods) {
+    if (!method.generics.empty()) return true;
+  }
+  return false;
+}
+
+bool IsConcreteDeclForMaterialization(const Simple::Lang::AST::Decl& decl) {
+  switch (decl.kind) {
+    case Simple::Lang::AST::DeclKind::Function:
+      return decl.func.generics.empty();
+    case Simple::Lang::AST::DeclKind::Artifact:
+      return decl.artifact.generics.empty() && !ArtifactHasGenericMethods(decl.artifact);
+    default:
+      return true;
+  }
+}
+
+const Simple::Lang::AST::FuncDecl* FindFunctionDecl(const Simple::Lang::AST::Program& program,
+                                                    const std::string& name) {
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Function && decl.func.name == name) {
+      return &decl.func;
+    }
+  }
+  return nullptr;
+}
+
+const Simple::Lang::AST::ArtifactDecl* FindArtifactDecl(const Simple::Lang::AST::Program& program,
+                                                        const std::string& name) {
+  for (const auto& decl : program.decls) {
+    if (decl.kind == Simple::Lang::AST::DeclKind::Artifact && decl.artifact.name == name) {
+      return &decl.artifact;
+    }
+  }
+  return nullptr;
+}
+
 } // namespace
 
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type) {
@@ -630,6 +668,53 @@ bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& 
   }
   for (auto& method : out->methods) {
     if (!ApplySubstitutionToFunction(&method, substitutions)) return false;
+  }
+  if (error) error->clear();
+  return true;
+}
+
+bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
+                                const std::vector<GenericSpecializationPlan>& plans,
+                                Simple::Lang::AST::Program* out,
+                                std::string* error) {
+  if (!out) return false;
+  out->decls.clear();
+  out->top_level_stmts = source.top_level_stmts;
+  for (const auto& decl : source.decls) {
+    if (IsConcreteDeclForMaterialization(decl)) out->decls.push_back(decl);
+  }
+  for (const auto& plan : plans) {
+    Simple::Lang::AST::Decl decl;
+    switch (plan.declaration.kind) {
+      case Simple::Lang::TAST::GenericDeclarationKind::Function: {
+        const auto* source_fn = FindFunctionDecl(source, plan.declaration.name);
+        if (!source_fn) {
+          if (error) *error = "missing generic function declaration: " + plan.declaration.name;
+          return false;
+        }
+        decl.kind = Simple::Lang::AST::DeclKind::Function;
+        if (!SpecializeFunctionDeclaration(*source_fn, plan, &decl.func, error)) return false;
+        out->decls.push_back(std::move(decl));
+        break;
+      }
+      case Simple::Lang::TAST::GenericDeclarationKind::Artifact:
+      case Simple::Lang::TAST::GenericDeclarationKind::Data: {
+        const auto* source_artifact = FindArtifactDecl(source, plan.declaration.name);
+        if (!source_artifact) {
+          if (error) *error = "missing generic artifact declaration: " + plan.declaration.name;
+          return false;
+        }
+        decl.kind = Simple::Lang::AST::DeclKind::Artifact;
+        if (!SpecializeArtifactLayoutDeclaration(*source_artifact, plan, &decl.artifact, error)) {
+          return false;
+        }
+        out->decls.push_back(std::move(decl));
+        break;
+      }
+      case Simple::Lang::TAST::GenericDeclarationKind::Method:
+        if (error) *error = "generic method materialization requires receiver specialization";
+        return false;
+    }
   }
   if (error) error->clear();
   return true;

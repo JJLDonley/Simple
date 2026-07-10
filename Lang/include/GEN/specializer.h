@@ -70,5 +70,9 @@ bool SpecializeArtifactLayoutDeclaration(const Simple::Lang::AST::ArtifactDecl& 
                                          const GenericSpecializationPlan& plan,
                                          Simple::Lang::AST::ArtifactDecl* out,
                                          std::string* error);
+bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
+                                const std::vector<GenericSpecializationPlan>& plans,
+                                Simple::Lang::AST::Program* out,
+                                std::string* error);
 
 } // namespace Simple::Lang::GEN
