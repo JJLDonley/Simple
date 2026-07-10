@@ -1917,12 +1917,15 @@ void RegisterSystemPath(NativeRegistry& registry) {
                              PathExt));
   registry.Register(MakeSpec("System.path", "normalize", {TypeKind::String}, TypeKind::String,
                              PathNormalize));
-  registry.Register(MakeSpec("System.path", "exists", {TypeKind::String}, TypeKind::I32,
-                             PathExists));
-  registry.Register(MakeSpec("System.path", "isFile", {TypeKind::String}, TypeKind::I32,
-                             PathIsFile));
-  registry.Register(MakeSpec("System.path", "isDir", {TypeKind::String}, TypeKind::I32,
-                             PathIsDir));
+  registry.Register(WithCapability(MakeSpec("System.path", "exists", {TypeKind::String},
+                                            TypeKind::I32, PathExists),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MakeSpec("System.path", "isFile", {TypeKind::String},
+                                            TypeKind::I32, PathIsFile),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MakeSpec("System.path", "isDir", {TypeKind::String},
+                                            TypeKind::I32, PathIsDir),
+                                   "filesystem.read"));
 }
 
 void RegisterSystemFs(NativeRegistry& registry) {
@@ -1968,17 +1971,26 @@ void RegisterSystemFs(NativeRegistry& registry) {
   registry.Register(WithResource(MakeSpec("System.fs", "close", {TypeKind::I32},
                                          TypeKind::Unspecified, FsClose),
                                  NativeResourceKind::File, NativeResourceAccess::InputOutput, 0));
-  registry.Register(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd));
-  registry.Register(MakeSpec("System.fs", "copy", {TypeKind::String, TypeKind::String},
-                             TypeKind::I32, FsCopy));
-  registry.Register(MakeSpec("System.fs", "remove", {TypeKind::String}, TypeKind::I32,
-                             FsRemove));
-  registry.Register(MakeSpec("System.fs", "mkdir", {TypeKind::String}, TypeKind::I32,
-                             FsMkdir));
-  registry.Register(MakeSpec("System.fs", "mkdirAll", {TypeKind::String}, TypeKind::I32,
-                             FsMkdirAll));
-  registry.Register(MakeSpec("System.fs", "setCwd", {TypeKind::String}, TypeKind::I32,
-                             FsSetCwd));
+  registry.Register(WithCapability(MakeSpec("System.fs", "cwd", {}, TypeKind::String, FsCwd),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(
+      WithCapability(MayBlock(MakeSpec("System.fs", "copy",
+                                       {TypeKind::String, TypeKind::String}, TypeKind::I32,
+                                       FsCopy)),
+                     "filesystem.read"),
+      "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "remove", {TypeKind::String},
+                                                   TypeKind::I32, FsRemove)),
+                                   "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "mkdir", {TypeKind::String},
+                                                   TypeKind::I32, FsMkdir)),
+                                   "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "mkdirAll", {TypeKind::String},
+                                                   TypeKind::I32, FsMkdirAll)),
+                                   "filesystem.write"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.fs", "setCwd", {TypeKind::String},
+                                                   TypeKind::I32, FsSetCwd)),
+                                   "filesystem.write"));
 }
 
 void RegisterSystemEnv(NativeRegistry& registry) {

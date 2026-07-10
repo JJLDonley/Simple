@@ -407,6 +407,7 @@ Extend `NativeFunctionSpec` with:
 
 - [ ] Add capability tags:
   - [x] filesystem read/write.
+  - [x] path metadata filesystem queries.
   - [ ] process spawn.
   - [x] process argument access.
   - [x] environment read/write.

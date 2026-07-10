@@ -244,6 +244,10 @@ bool VmNativeFunctionMetadataDeclaresCapabilities() {
          HasCapability(registry.Find("System.env", "set"), "environment.write") &&
          HasCapability(registry.Find("System.env", "argsCount"), "process.args") &&
          HasCapability(registry.Find("System.os", "time_mono_ns"), "clock.time") &&
+         HasCapability(registry.Find("System.fs", "copy"), "filesystem.read") &&
+         HasCapability(registry.Find("System.fs", "copy"), "filesystem.write") &&
+         HasCapability(registry.Find("System.fs", "remove"), "filesystem.write") &&
+         HasCapability(registry.Find("System.path", "exists"), "filesystem.read") &&
          HasCapability(registry.Find("System.os", "sleep_ms"), "threading") &&
          HasCapability(registry.Find("System.thread", "yield"), "threading") &&
          HasCapability(registry.Find("System.random", "i32"), "randomness");
@@ -437,7 +441,13 @@ bool VmNativeDispatchEnforcesCapabilities() {
   handled = Simple::VM::Native::DispatchMetadataImport(
       registry, "System.fs", "readText", {path_ref}, Simple::Byte::TypeKind::String,
       context, &ret, &has_ret, &error);
-  return handled && error.empty();
+  if (!handled || !error.empty()) return false;
+
+  error.clear();
+  handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.fs", "copy", {path_ref, path_ref}, Simple::Byte::TypeKind::I32,
+      context, &ret, &has_ret, &error);
+  return handled && error.find("denied capability: filesystem.write") != std::string::npos;
 }
 
 bool VmNativeFsOpenCloseUsesResourceRegistry() {
