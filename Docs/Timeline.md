@@ -287,7 +287,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] 4-byte: `i32`, `u32`, `f32`, `char`, enum32.
   - [x] 8-byte: `i64`, `u64`, `f64`, pointer, ref, handle.
   - [ ] nested `data`: max field alignment, capped at 8 initially.
-- [ ] Padding is deterministic and zero-initialized where observable through ABI.
+- [x] Padding is deterministic and zero-initialized where observable through ABI.
 - [x] Total size rounds up to max alignment.
 - [ ] Nested `data` structs are allowed after recursive layout validation.
 - [ ] Recursive value containment is rejected; recursive pointer/ref/handle containment is allowed.
@@ -298,6 +298,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [ ] Tests cover padding, nested data, arrays, generics, and layout hashes.
   - [x] Runtime ABI tests cover deterministic stable aggregate layout hashes.
   - [x] Runtime ABI tests cover primitive padding and ref-containing aggregate classification.
+  - [x] Runtime ABI layout records zero-initialized padding ranges.
 
 ### Strings and Bytes ABI
 

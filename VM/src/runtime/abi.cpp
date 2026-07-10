@@ -209,6 +209,12 @@ uint64_t ComputeStableAggregateLayoutHash(const AbiAggregateLayout& layout) {
     HashU32(&hash, field.offset);
     HashTypeInfo(&hash, field.type);
   }
+  HashU32(&hash, static_cast<uint32_t>(layout.padding.size()));
+  for (const AbiPaddingRange& range : layout.padding) {
+    HashU32(&hash, range.offset);
+    HashU32(&hash, range.size);
+    HashBool(&hash, range.zero_initialized);
+  }
   return hash;
 }
 
@@ -227,7 +233,11 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
     }
 
     const uint32_t field_align = ClampStableAggregateAlign(field.align);
-    offset = AlignAbiOffset(offset, field_align);
+    const uint32_t aligned_offset = AlignAbiOffset(offset, field_align);
+    if (aligned_offset > offset) {
+      layout.padding.push_back(AbiPaddingRange{offset, aligned_offset - offset, true});
+    }
+    offset = aligned_offset;
     layout.fields.push_back(AbiFieldLayout{offset, field});
     offset += field.size;
     layout.align = std::max(layout.align, field_align);
@@ -238,6 +248,9 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
   }
 
   layout.size = AlignAbiOffset(offset, layout.align);
+  if (layout.size > offset) {
+    layout.padding.push_back(AbiPaddingRange{offset, layout.size - offset, true});
+  }
   layout.pass_by_value = layout.native_callable && IsSmallAbiAggregate(layout.size, layout.contains_references);
   layout.layout_hash = ComputeStableAggregateLayoutHash(layout);
   return layout;

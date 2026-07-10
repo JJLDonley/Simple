@@ -260,6 +260,10 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
       layout.fields[1].offset != 4 || layout.fields[2].offset != 8) {
     return false;
   }
+  if (layout.padding.size() != 1 || layout.padding[0].offset != 1 ||
+      layout.padding[0].size != 3 || !layout.padding[0].zero_initialized) {
+    return false;
+  }
   if (layout.size != 16 || layout.align != 8 || !layout.pass_by_value) return false;
   if (!layout.native_callable || !layout.external_ffi_callable || layout.contains_references) {
     return false;
@@ -270,8 +274,10 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
       GetPrimitiveAbiTypeInfo(TypeKind::String),
   });
   return ref_layout.fields.size() == 2 && ref_layout.fields[1].offset == 8 &&
-         ref_layout.size == 16 && ref_layout.contains_references &&
-         !ref_layout.pass_by_value && !ref_layout.external_ffi_callable;
+         ref_layout.padding.size() == 1 && ref_layout.padding[0].offset == 4 &&
+         ref_layout.padding[0].size == 4 && ref_layout.size == 16 &&
+         ref_layout.contains_references && !ref_layout.pass_by_value &&
+         !ref_layout.external_ffi_callable;
 }
 
 const TestCase kVmRuntimeAbiTests[] = {

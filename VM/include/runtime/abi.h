@@ -35,6 +35,12 @@ struct AbiFieldLayout {
   AbiTypeInfo type;
 };
 
+struct AbiPaddingRange {
+  uint32_t offset = 0;
+  uint32_t size = 0;
+  bool zero_initialized = true;
+};
+
 struct AbiAggregateLayout {
   uint32_t size = 0;
   uint32_t align = 1;
@@ -44,6 +50,7 @@ struct AbiAggregateLayout {
   bool pass_by_value = true;
   uint64_t layout_hash = 0;
   std::vector<AbiFieldLayout> fields;
+  std::vector<AbiPaddingRange> padding;
 };
 
 enum class AbiStringEncoding {
