@@ -716,6 +716,170 @@ bool MaterializeConcreteProgram(const Simple::Lang::AST::Program& source,
         return false;
     }
   }
+  std::unordered_map<std::string, std::string> specialized_symbols;
+  for (const auto& plan : plans) {
+    specialized_symbols.emplace(InstantiationRequestKey(plan.request), plan.specialized_symbol);
+  }
+
+  auto build_key = [](const std::string& base,
+                      const std::vector<Simple::Lang::AST::TypeRef>& args) -> std::string {
+    std::string key = base + "<";
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i != 0) key += ",";
+      key += TypeRefIdentity(args[i]);
+    }
+    key += ">";
+    return key;
+  };
+
+  auto rewrite_type = [&](auto&& self, Simple::Lang::AST::TypeRef* type) -> bool {
+    if (!type) return false;
+    for (auto& arg : type->type_args) {
+      if (!self(self, &arg)) return false;
+    }
+    if (type->is_proc) {
+      for (auto& param : type->proc_params) {
+        if (!self(self, &param)) return false;
+      }
+      if (type->proc_return && !self(self, type->proc_return.get())) return false;
+    }
+    if (!type->name.empty() && !type->type_args.empty() && type->pointer_depth == 0 && type->dims.empty()) {
+      const auto it = specialized_symbols.find(build_key(type->name, type->type_args));
+      if (it != specialized_symbols.end()) {
+        type->name = it->second;
+        type->type_args.clear();
+      }
+    }
+    return true;
+  };
+
+  auto rewrite_var = [&](auto&& rewrite_expr, auto&& rewrite_type_fn,
+                         Simple::Lang::AST::VarDecl* var) -> bool {
+    if (!var) return false;
+    if (!rewrite_type_fn(rewrite_type_fn, &var->type)) return false;
+    return !var->has_init_expr || rewrite_expr(rewrite_expr, rewrite_type_fn, &var->init_expr);
+  };
+
+  auto rewrite_stmt = [&](auto&& self, auto&& rewrite_expr, auto&& rewrite_type_fn,
+                          Simple::Lang::AST::Stmt* stmt) -> bool {
+    if (!stmt) return false;
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->expr)) return false;
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->target)) return false;
+    if (!rewrite_var(rewrite_expr, rewrite_type_fn, &stmt->var_decl)) return false;
+    for (auto& branch : stmt->if_branches) {
+      if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &branch.first)) return false;
+      for (auto& nested : branch.second) {
+        if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+      }
+    }
+    for (auto& nested : stmt->else_branch) {
+      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    }
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->if_cond)) return false;
+    for (auto& nested : stmt->if_then) {
+      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    }
+    for (auto& nested : stmt->if_else) {
+      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    }
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_cond)) return false;
+    for (auto& nested : stmt->loop_body) {
+      if (!self(self, rewrite_expr, rewrite_type_fn, &nested)) return false;
+    }
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_iter)) return false;
+    if (!rewrite_expr(rewrite_expr, rewrite_type_fn, &stmt->loop_step)) return false;
+    return !stmt->has_loop_var_decl || rewrite_var(rewrite_expr, rewrite_type_fn, &stmt->loop_var_decl);
+  };
+
+  auto rewrite_expr = [&](auto&& self, auto&& rewrite_type_fn,
+                          Simple::Lang::AST::Expr* expr) -> bool {
+    if (!expr) return false;
+    for (auto& arg : expr->type_args) {
+      if (!rewrite_type_fn(rewrite_type_fn, &arg)) return false;
+    }
+    if (expr->kind == Simple::Lang::AST::ExprKind::Call && !expr->type_args.empty() &&
+        !expr->children.empty()) {
+      const auto it = specialized_symbols.find(build_key(CalleeName(expr->children[0]), expr->type_args));
+      if (it != specialized_symbols.end()) {
+        if (expr->children[0].kind == Simple::Lang::AST::ExprKind::Identifier) {
+          expr->children[0].text = it->second;
+        } else {
+          expr->children[0].text = it->second;
+        }
+        expr->type_args.clear();
+      }
+    }
+    for (auto& param : expr->fn_params) {
+      if (!rewrite_type_fn(rewrite_type_fn, &param.type)) return false;
+    }
+    for (auto& child : expr->children) {
+      if (!self(self, rewrite_type_fn, &child)) return false;
+    }
+    for (auto& arg : expr->args) {
+      if (!self(self, rewrite_type_fn, &arg)) return false;
+    }
+    for (auto& value : expr->field_values) {
+      if (!self(self, rewrite_type_fn, &value)) return false;
+    }
+    for (auto& branch : expr->switch_branches) {
+      if (!branch.is_default && !self(self, rewrite_type_fn, &branch.condition)) return false;
+      if (branch.has_inline_value && !self(self, rewrite_type_fn, &branch.value)) return false;
+      for (auto& stmt : branch.block) {
+        if (!rewrite_stmt(rewrite_stmt, self, rewrite_type_fn, &stmt)) return false;
+      }
+    }
+    return true;
+  };
+
+  auto rewrite_function = [&](Simple::Lang::AST::FuncDecl* fn) -> bool {
+    if (!fn) return false;
+    if (!rewrite_type(rewrite_type, &fn->return_type)) return false;
+    for (auto& param : fn->params) {
+      if (!rewrite_type(rewrite_type, &param.type)) return false;
+    }
+    for (auto& stmt : fn->body) {
+      if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
+    }
+    return true;
+  };
+
+  for (auto& decl : out->decls) {
+    switch (decl.kind) {
+      case Simple::Lang::AST::DeclKind::Extern:
+        if (!rewrite_type(rewrite_type, &decl.ext.return_type)) return false;
+        for (auto& param : decl.ext.params) {
+          if (!rewrite_type(rewrite_type, &param.type)) return false;
+        }
+        break;
+      case Simple::Lang::AST::DeclKind::Function:
+        if (!rewrite_function(&decl.func)) return false;
+        break;
+      case Simple::Lang::AST::DeclKind::Variable:
+        if (!rewrite_var(rewrite_expr, rewrite_type, &decl.var)) return false;
+        break;
+      case Simple::Lang::AST::DeclKind::Artifact:
+        for (auto& field : decl.artifact.fields) {
+          if (!rewrite_var(rewrite_expr, rewrite_type, &field)) return false;
+        }
+        for (auto& method : decl.artifact.methods) {
+          if (!rewrite_function(&method)) return false;
+        }
+        break;
+      case Simple::Lang::AST::DeclKind::Module:
+        for (auto& var : decl.module.variables) {
+          if (!rewrite_var(rewrite_expr, rewrite_type, &var)) return false;
+        }
+        for (auto& fn : decl.module.functions) {
+          if (!rewrite_function(&fn)) return false;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  for (auto& stmt : out->top_level_stmts) {
+    if (!rewrite_stmt(rewrite_stmt, rewrite_expr, rewrite_type, &stmt)) return false;
+  }
   if (error) error->clear();
   return true;
 }

@@ -607,8 +607,14 @@ bool LangGenMaterializesConcreteProgram() {
   Simple::Lang::AST::Program concrete;
   if (!MaterializeConcreteProgram(program, plan, &concrete, &error) || !error.empty()) return false;
   if (concrete.top_level_stmts.size() != 1 || concrete.decls.size() != 4) return false;
+  const auto& rewritten_call = concrete.top_level_stmts[0].expr;
+  if (!rewritten_call.type_args.empty() || rewritten_call.children.empty() ||
+      rewritten_call.children[0].text == "id") {
+    return false;
+  }
   bool saw_fn = false;
   bool saw_box = false;
+  bool saw_rewritten_var = false;
   for (const auto& decl : concrete.decls) {
     if (decl.kind == DeclKind::Function) {
       if (!decl.func.generics.empty() || decl.func.name == "id" || decl.func.return_type.name != "i32") {
@@ -623,8 +629,12 @@ bool LangGenMaterializesConcreteProgram() {
       }
       saw_box = true;
     }
+    if (decl.kind == DeclKind::Variable && decl.var.name == "boxed") {
+      if (decl.var.type.name == "Box" || !decl.var.type.type_args.empty()) return false;
+      saw_rewritten_var = true;
+    }
   }
-  return saw_fn && saw_box;
+  return saw_fn && saw_box && saw_rewritten_var;
 }
 
 bool LangGenNormalizesConcreteRequestMetadata() {
