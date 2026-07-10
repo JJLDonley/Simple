@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include "native/capability_policy.h"
+
 namespace Simple::VM::Native {
 namespace {
 
@@ -93,6 +95,15 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   if (args.size() != spec->parameter_types.size()) {
     if (out_error) *out_error = module_name + "." + symbol_name + " arg count mismatch";
     return true;
+  }
+  if (runtime.capability_policy) {
+    std::string denied_tag;
+    if (!AllowsCapabilities(*runtime.capability_policy, spec->capability_tags, &denied_tag)) {
+      if (out_error) {
+        *out_error = module_name + "." + symbol_name + " denied capability: " + denied_tag;
+      }
+      return true;
+    }
   }
 
   NativeCallContext context;

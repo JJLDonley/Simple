@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "simple_api.h"
+#include "native/capability_policy.h"
 #include "sbc_types.h"
 
 namespace Simple::VM {
@@ -62,6 +63,7 @@ struct RuntimeLimits {
 struct ExecOptions {
   std::vector<std::string> argv;
   RuntimeLimits limits;
+  Simple::VM::Native::CapabilityPolicy capability_policy;
   bool force_interpreter = false;
   std::function<bool(const std::string& module, const std::string& symbol,
                      const std::vector<uint64_t>& args, uint64_t& out_ret,

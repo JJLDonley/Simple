@@ -68,6 +68,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/jit/llvm_backend.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
+  ${SIMPLEVM_VM_ROOT}/src/native/capability_policy.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/channel.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/dispatch.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/env.cpp

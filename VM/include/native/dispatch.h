@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "heap.h"
+#include "native/capability_policy.h"
 #include "native/registry.h"
 #include "sbc_types.h"
 
@@ -16,6 +17,7 @@ struct MetadataDispatchContext {
   const std::vector<std::string>* argv = nullptr;
   std::vector<std::FILE*>* open_files = nullptr;
   std::string* dl_last_error = nullptr;
+  const CapabilityPolicy* capability_policy = nullptr;
 };
 
 bool DispatchMetadataImport(const NativeRegistry& registry,

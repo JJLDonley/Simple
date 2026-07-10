@@ -84,6 +84,7 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
   native_context.argv = &options.argv;
   native_context.open_files = &open_files;
   native_context.dl_last_error = &dl_last_error;
+  native_context.capability_policy = &options.capability_policy;
   if (Simple::VM::Native::DispatchMetadataImport(native_registry,
                                                  mod,
                                                  sym,

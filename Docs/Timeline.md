@@ -401,9 +401,10 @@ Extend `NativeFunctionSpec` with:
   - [ ] clock/time.
   - [ ] randomness.
   - [ ] terminal control.
-- [ ] Add default CLI capability policy.
+- [x] Add default allow-all CLI/VM capability policy with explicit deny-list-capable execution options.
 - [ ] Add stricter sandbox policy later.
 - [ ] Document stable vs unsafe/system APIs.
+- [x] Enforce native metadata capability tags during metadata dispatch.
 
 ---
 

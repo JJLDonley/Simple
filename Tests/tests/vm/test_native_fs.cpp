@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 
+#include "native/dispatch.h"
 #include "native/fs.h"
 #include "native/registry.h"
 #include "native/resource_registry.h"
@@ -131,6 +132,34 @@ bool VmNativeFunctionMetadataDeclaresResources() {
          !dl_open->capability_tags.empty();
 }
 
+bool VmNativeDispatchEnforcesCapabilities() {
+  Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  Simple::VM::Heap heap;
+  const uint64_t path_ref = Simple::VM::CreateString(heap, u"missing.txt");
+  Simple::VM::Native::CapabilityPolicy policy;
+  policy.allow_all = false;
+
+  Simple::VM::Native::MetadataDispatchContext context;
+  context.heap = &heap;
+  context.capability_policy = &policy;
+  uint64_t ret = 0;
+  bool has_ret = true;
+  std::string error;
+  bool handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.fs", "readText", {path_ref}, Simple::Byte::TypeKind::String,
+      context, &ret, &has_ret, &error);
+  if (!handled || error.find("denied capability: filesystem.read") == std::string::npos) {
+    return false;
+  }
+
+  policy.allowed_tags.push_back("filesystem.read");
+  error.clear();
+  handled = Simple::VM::Native::DispatchMetadataImport(
+      registry, "System.fs", "readText", {path_ref}, Simple::Byte::TypeKind::String,
+      context, &ret, &has_ret, &error);
+  return handled && error.empty();
+}
+
 bool VmNativeResourceRegistryTracksHandleLifecycle() {
   using Simple::VM::Native::NativeHandleId;
   using Simple::VM::Native::NativeResourceKind;
@@ -185,6 +214,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_registry_uses_named_metadata_handlers", VmNativeRegistryUsesNamedMetadataHandlers},
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
+  {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };
 
