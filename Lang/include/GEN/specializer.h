@@ -20,10 +20,16 @@ struct GenericInstantiationNode {
   std::vector<GenericInstantiationRequest> dependencies;
 };
 
+struct GenericSpecializationBinding {
+  std::string parameter_name;
+  std::string type_identity;
+};
+
 struct GenericSpecializationPlan {
   GenericInstantiationRequest request;
   Simple::Lang::TAST::GenericDeclarationMetadata declaration;
   std::string specialized_symbol;
+  std::vector<GenericSpecializationBinding> bindings;
 };
 
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type);

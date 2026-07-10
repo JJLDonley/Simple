@@ -219,6 +219,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
   - [x] GEN resolves instantiation dependency order and reports cycles.
   - [x] GEN builds ordered specialization plans from dependency graphs.
 - [ ] Re-run semantic/type checks on each concrete specialization.
+  - [x] GEN specialization plans retain parameter-to-concrete-type bindings for semantic re-check hooks.
 - [ ] Cache/reuse equivalent specializations across a module graph.
   - [x] GEN normalizes duplicate instantiation requests by deterministic request key.
   - [x] GEN builds deterministic specialization plans from declarations and requests.

@@ -364,7 +364,8 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
   }
   if (plan.size() != 1 || plan[0].declaration.name != "Box" ||
       plan[0].request.argument_identities.size() != 1 ||
-      plan[0].request.argument_identities[0] != "i32" ||
+      plan[0].request.argument_identities[0] != "i32" || plan[0].bindings.size() != 1 ||
+      plan[0].bindings[0].parameter_name != "T" || plan[0].bindings[0].type_identity != "i32" ||
       plan[0].specialized_symbol.rfind("Box$g$", 0) != 0) {
     return false;
   }
@@ -443,7 +444,10 @@ bool LangGenBuildsSpecializationPlan() {
   }
   if (plan.size() != 2 || plan[0].declaration.kind != GenericDeclarationKind::Data ||
       plan[0].specialized_symbol != SpecializedSymbolName(requests[0]) ||
-      plan[1].declaration.owner_name != "Box") {
+      plan[0].bindings.size() != 1 || plan[0].bindings[0].parameter_name != "T" ||
+      plan[0].bindings[0].type_identity != "i32" || plan[1].declaration.owner_name != "Box" ||
+      plan[1].bindings.size() != 2 || plan[1].bindings[1].parameter_name != "U" ||
+      plan[1].bindings[1].type_identity != "string") {
     return false;
   }
 

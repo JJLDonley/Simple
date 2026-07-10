@@ -383,6 +383,13 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
     plan.request = request;
     plan.declaration = *it->second;
     plan.specialized_symbol = SpecializedSymbolName(request);
+    plan.bindings.reserve(it->second->type_params.size());
+    for (size_t i = 0; i < it->second->type_params.size(); ++i) {
+      GenericSpecializationBinding binding;
+      binding.parameter_name = it->second->type_params[i];
+      binding.type_identity = request.argument_identities[i];
+      plan.bindings.push_back(std::move(binding));
+    }
     out->push_back(std::move(plan));
   }
   std::unordered_map<std::string, std::string> symbol_to_key;
