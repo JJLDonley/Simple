@@ -440,6 +440,48 @@ bool VmNativeDispatchEnforcesCapabilities() {
   return handled && error.empty();
 }
 
+bool VmNativeFsOpenCloseUsesResourceRegistry() {
+  using Simple::VM::Native::BuildDefaultRegistry;
+  using Simple::VM::Native::DispatchMetadataImport;
+  using Simple::VM::Native::MetadataDispatchContext;
+  using Simple::VM::Native::NativeHandleId;
+  using Simple::VM::Native::NativeResourceRegistry;
+
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "simple_vm_registry_file.tmp";
+  std::filesystem::remove(path);
+
+  const std::string path_text = path.string();
+  const std::u16string path_u16(path_text.begin(), path_text.end());
+  Simple::VM::Heap heap;
+  const uint64_t path_ref = Simple::VM::CreateString(heap, path_u16);
+  auto registry = BuildDefaultRegistry();
+  NativeResourceRegistry resources;
+  std::vector<std::FILE*> open_files;
+  std::vector<NativeHandleId> file_handles;
+  MetadataDispatchContext context;
+  context.heap = &heap;
+  context.open_files = &open_files;
+  context.file_handles = &file_handles;
+  context.resource_registry = &resources;
+
+  uint64_t ret = 0;
+  bool has_ret = false;
+  std::string error;
+  bool handled = DispatchMetadataImport(registry, "System.fs", "open", {path_ref, 1},
+                                        Simple::Byte::TypeKind::I32, context, &ret, &has_ret, &error);
+  if (!handled || !error.empty() || !has_ret || static_cast<int32_t>(ret) != 0 ||
+      resources.LiveCount() != 1 || file_handles.size() != 1 || open_files.size() != 1 || open_files[0]) {
+    std::filesystem::remove(path);
+    return false;
+  }
+
+  handled = DispatchMetadataImport(registry, "System.fs", "close", {0},
+                                   Simple::Byte::TypeKind::Unspecified, context, &ret, &has_ret, &error);
+  const bool ok = handled && error.empty() && resources.LiveCount() == 0;
+  std::filesystem::remove(path);
+  return ok;
+}
+
 bool VmNativeResourceRegistryReportsShutdownFailures() {
   using Simple::VM::Native::NativeResourceKind;
   using Simple::VM::Native::NativeResourceRecord;
@@ -536,6 +578,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_dispatch_allocates_vm_owned_strings", VmNativeDispatchAllocatesVmOwnedStrings},
   {"vm_native_dispatch_validates_resource_handles", VmNativeDispatchValidatesResourceHandles},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},
+  {"vm_native_fs_open_close_uses_resource_registry", VmNativeFsOpenCloseUsesResourceRegistry},
   {"vm_native_resource_registry_reports_shutdown_failures", VmNativeResourceRegistryReportsShutdownFailures},
   {"vm_native_resource_registry_tracks_handle_lifecycle", VmNativeResourceRegistryTracksHandleLifecycle},
 };

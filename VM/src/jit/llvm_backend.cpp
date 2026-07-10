@@ -59,6 +59,8 @@ thread_local std::vector<Slot>* g_llvm_globals = nullptr;
 thread_local const Simple::Byte::SbcModule* g_llvm_module = nullptr;
 thread_local const Simple::VM::ExecOptions* g_llvm_exec_options = nullptr;
 thread_local std::vector<std::FILE*> g_llvm_open_files;
+thread_local std::vector<Simple::VM::Native::NativeHandleId> g_llvm_file_handles;
+thread_local Simple::VM::Native::NativeResourceRegistry g_llvm_resource_registry;
 thread_local std::string g_llvm_dl_last_error;
 
 using EntryFn = uint64_t (*)(uint64_t*, uint32_t);
@@ -762,7 +764,8 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
     const Simple::VM::ExecOptions& options = g_llvm_exec_options ? *g_llvm_exec_options : default_options;
     std::string error;
     if (!Simple::VM::Runtime::DispatchImportCallByName(*module, options, *registry, *g_llvm_heap,
-                                                       g_llvm_open_files, g_llvm_dl_last_error,
+                                                       g_llvm_open_files, g_llvm_file_handles,
+                                                       g_llvm_resource_registry, g_llvm_dl_last_error,
                                                        func_index, call_args, ret, ret_present, error)) {
       g_llvm_trap = true;
       return 0;

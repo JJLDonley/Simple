@@ -114,6 +114,10 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
         if (out_error) *out_error = module_name + "." + symbol_name + " resource parameter index out of range";
         return true;
       }
+      if (module_name == "System.dl" || resource.parameter_index >= spec->parameter_types.size() ||
+          spec->parameter_types[resource.parameter_index] != Simple::Byte::TypeKind::I64) {
+        continue;
+      }
       const NativeHandleId handle = UnpackNativeHandleId(args[resource.parameter_index]);
       const NativeResourceStatus status = runtime.resource_registry->Get(handle, resource.kind, nullptr);
       if (status != NativeResourceStatus::Ok) {
@@ -131,6 +135,7 @@ bool DispatchMetadataImport(const NativeRegistry& registry,
   context.heap = runtime.heap;
   context.argv = runtime.argv;
   context.open_files = runtime.open_files;
+  context.file_handles = runtime.file_handles;
   context.dl_last_error = runtime.dl_last_error;
   context.resource_registry = runtime.resource_registry;
   NativeCallResult result = spec->handler(context);

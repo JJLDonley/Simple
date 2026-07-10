@@ -14,6 +14,8 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
                               const Simple::VM::Native::NativeRegistry& native_registry,
                               Heap& heap,
                               std::vector<std::FILE*>& open_files,
+                              std::vector<Simple::VM::Native::NativeHandleId>& file_handles,
+                              Simple::VM::Native::NativeResourceRegistry& resource_registry,
                               std::string& dl_last_error,
                               uint32_t func_id,
                               const std::vector<Slot>& args,
@@ -83,7 +85,9 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
   native_context.heap = &heap;
   native_context.argv = &options.argv;
   native_context.open_files = &open_files;
+  native_context.file_handles = &file_handles;
   native_context.dl_last_error = &dl_last_error;
+  native_context.resource_registry = &resource_registry;
   native_context.capability_policy = &options.capability_policy;
   if (Simple::VM::Native::DispatchMetadataImport(native_registry,
                                                  mod,
