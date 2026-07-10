@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -42,6 +43,10 @@ extern "C" int32_t SimpleVmLlvmTestAddOneI32(int32_t value) {
 
 extern "C" int64_t SimpleVmLlvmTestAddOneI64(int64_t value) {
   return value + 1;
+}
+
+extern "C" int32_t SimpleVmLlvmTestCStringLength(const char* value) {
+  return value ? static_cast<int32_t>(std::strlen(value)) : -1;
 }
 
 std::vector<uint8_t> BuildModuleWithFunctions(const std::vector<std::vector<uint8_t>>& funcs,
@@ -9892,6 +9897,75 @@ bool RunLlvmJitDynamicDlScalarCallInsideLoopTest() {
   return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 4;
 }
 
+bool RunLlvmJitDynamicDlStringArgInsideLoopTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> const_pool;
+  const uint32_t text_offset = static_cast<uint32_t>(AppendStringToPool(const_pool, "jit"));
+  uint32_t text_const = 0;
+  AppendConstString(const_pool, text_offset, &text_const);
+
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 2);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstString));
+  AppendU32(main_code, text_const);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 1);
+  size_t loop_start = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI64));
+  AppendI64(main_code, static_cast<int64_t>(reinterpret_cast<intptr_t>(&SimpleVmLlvmTestCStringLength)));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 2);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  size_t loop_end = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(main_code, exit_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(main_code, back_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildSingleImportFunctionModuleWithTypes(main_code, 2, "System.dl", "call$cstring",
+                                               SigSpec{0, 2, {3, 2}}, BuildTypesI32RefStringI64(), const_pool));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  Simple::VM::Heap heap;
+  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, nullptr, ret, has_ret, error)) {
+    std::cerr << "LLVM JIT dynamic dl string loop run failed: " << error << "\n";
+    return false;
+  }
+  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 3;
+}
+
 bool RunLlvmJitDynamicDlContextHelperInsideLoopTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -10539,6 +10613,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_pre_loop_allocating_import_with_loop", RunLlvmJitPreLoopAllocatingImportWithLoopTest},
   {"llvm_jit_dynamic_dl_scalar_call_inside_loop", RunLlvmJitDynamicDlScalarCallInsideLoopTest},
   {"llvm_jit_dynamic_dl_context_helper_inside_loop", RunLlvmJitDynamicDlContextHelperInsideLoopTest},
+  {"llvm_jit_dynamic_dl_string_arg_inside_loop", RunLlvmJitDynamicDlStringArgInsideLoopTest},
   {"llvm_jit_dynamic_dl_managed_signature_diagnostic", RunLlvmJitDynamicDlManagedSignatureDiagnosticTest},
   {"llvm_jit_managed_arg_import_call_inside_loop", RunLlvmJitManagedArgImportCallInsideLoopTest},
   {"llvm_jit_resource_input_import_call_inside_loop", RunLlvmJitResourceInputImportCallInsideLoopTest},

@@ -1303,12 +1303,20 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return true;
   };
   auto dl_call_loop_safe = [&](const Simple::Byte::SigRow& row) -> bool {
-    std::vector<Simple::Byte::TypeKind> params;
-    Simple::Byte::TypeKind result = Simple::Byte::TypeKind::Unspecified;
-    if (!signature_type_kinds(row, &params, &result) || params.empty()) return false;
-    if (params[0] != Simple::Byte::TypeKind::I64 && params[0] != Simple::Byte::TypeKind::U64) return false;
-    std::vector<Simple::Byte::TypeKind> ffi_params(params.begin() + 1, params.end());
-    return Simple::VM::Runtime::ValidateExternalCAbiSignature(ffi_params, result, nullptr);
+    if (row.param_count == 0 || row.param_type_start + row.param_count > module.param_types.size()) return false;
+    const uint32_t ptr_type_id = module.param_types[row.param_type_start];
+    if (ptr_type_id >= module.types.size()) return false;
+    const auto ptr_kind = static_cast<Simple::Byte::TypeKind>(module.types[ptr_type_id].kind);
+    if (ptr_kind != Simple::Byte::TypeKind::I64 && ptr_kind != Simple::Byte::TypeKind::U64) return false;
+    if (!type_is_scalar_loop_call_safe(row.ret_type_id)) return false;
+    for (uint16_t i = 1; i < row.param_count; ++i) {
+      const uint32_t type_id = module.param_types[row.param_type_start + i];
+      if (type_id >= module.types.size()) return false;
+      const auto kind = static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind);
+      if (kind == Simple::Byte::TypeKind::String) continue;
+      if (!type_is_scalar_loop_call_safe(type_id)) return false;
+    }
+    return true;
   };
   auto artifact_has_fields = [&](uint32_t type_id,
                                  std::initializer_list<Simple::Byte::TypeKind> kinds,
@@ -1525,11 +1533,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name", target);
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
       if (dl_call_is_void_color(row) || dl_call_is_void_cstring_i32_i32_i32_color(row) ||
-          dl_call_is_void_texture2d_vector2_color(row)) return std::string();
+          dl_call_is_void_texture2d_vector2_color(row) || dl_call_loop_safe(row)) return std::string();
       if (!sig_is_scalar_loop_call_safe(row)) {
         return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature", target);
       }
-      return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature", target);
+      return unsafe("dynamic-dl/external-c", "invalid-abi-signature", target);
     }
     const auto* spec = native_import_spec(func_id);
     if (!spec) {
