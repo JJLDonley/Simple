@@ -167,6 +167,25 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
          string_result.string_value == "ok" && !error_result.ok && error_result.error == "bad";
 }
 
+bool HasCapability(const Simple::VM::Native::NativeFunctionSpec* spec, const std::string& tag) {
+  if (!spec) return false;
+  for (const std::string& candidate : spec->capability_tags) {
+    if (candidate == tag) return true;
+  }
+  return false;
+}
+
+bool VmNativeFunctionMetadataDeclaresCapabilities() {
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  return HasCapability(registry.Find("System.env", "get"), "environment.read") &&
+         HasCapability(registry.Find("System.env", "set"), "environment.write") &&
+         HasCapability(registry.Find("System.env", "argsCount"), "process.args") &&
+         HasCapability(registry.Find("System.os", "time_mono_ns"), "clock.time") &&
+         HasCapability(registry.Find("System.os", "sleep_ms"), "threading") &&
+         HasCapability(registry.Find("System.thread", "yield"), "threading") &&
+         HasCapability(registry.Find("System.random", "i32"), "randomness");
+}
+
 bool VmNativeFunctionMetadataDeclaresResources() {
   using Simple::VM::Native::NativeBlockingBehavior;
   using Simple::VM::Native::NativeCleanupBehavior;
@@ -342,6 +361,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_split_native_fs_writes_reads_and_removes_text", VmSplitNativeFsWritesReadsAndRemovesText},
   {"vm_native_call_context_typed_accessors_and_builders_work", VmNativeCallContextTypedAccessorsAndBuildersWork},
   {"vm_native_registry_metadata_validates_specs", VmNativeRegistryMetadataValidatesSpecs},
+  {"vm_native_function_metadata_declares_capabilities", VmNativeFunctionMetadataDeclaresCapabilities},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},
   {"vm_native_dispatch_enforces_capabilities", VmNativeDispatchEnforcesCapabilities},

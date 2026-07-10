@@ -395,13 +395,14 @@ Extend `NativeFunctionSpec` with:
 - [ ] Add capability tags:
   - [x] filesystem read/write.
   - [ ] process spawn.
-  - [ ] environment read/write.
+  - [x] process argument access.
+  - [x] environment read/write.
   - [ ] network client/server.
   - [x] FFI/dynamic loading.
   - [ ] native assembly/code generation.
-  - [ ] threading.
-  - [ ] clock/time.
-  - [ ] randomness.
+  - [x] threading.
+  - [x] clock/time.
+  - [x] randomness.
   - [ ] terminal control.
 - [x] Add default allow-all CLI/VM capability policy with explicit deny-list-capable execution options.
 - [ ] Add stricter sandbox policy later.

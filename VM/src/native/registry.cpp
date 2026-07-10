@@ -1670,37 +1670,60 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
 
 void RegisterSystemRandom(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.random", "seed", {TypeKind::I64}, TypeKind::Unspecified,
-                             RandomSeed));
-  registry.Register(MakeSpec("System.random", "i32", {}, TypeKind::I32, RandomI32));
-  registry.Register(MakeSpec("System.random", "range", {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
-                             RandomRange));
-  registry.Register(MakeSpec("System.random", "f64", {}, TypeKind::F64, RandomF64));
+  registry.Register(WithCapability(MakeSpec("System.random", "seed", {TypeKind::I64},
+                                            TypeKind::Unspecified, RandomSeed),
+                                   "randomness"));
+  registry.Register(WithCapability(MakeSpec("System.random", "i32", {}, TypeKind::I32,
+                                            RandomI32),
+                                   "randomness"));
+  registry.Register(WithCapability(MakeSpec("System.random", "range",
+                                            {TypeKind::I32, TypeKind::I32}, TypeKind::I32,
+                                            RandomRange),
+                                   "randomness"));
+  registry.Register(WithCapability(MakeSpec("System.random", "f64", {}, TypeKind::F64,
+                                            RandomF64),
+                                   "randomness"));
 }
 
 void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.os", "args_count", {}, TypeKind::I32, EnvArgsCount));
-  registry.Register(MakeSpec("System.os", "args_get", {TypeKind::I32}, TypeKind::String,
-                             EnvArg));
-  registry.Register(MakeSpec("System.os", "env_get", {TypeKind::String}, TypeKind::String,
-                             EnvGet));
-  registry.Register(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs));
-  registry.Register(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs));
-  registry.Register(MakeSpec("System.os", "sleep_ms", {TypeKind::I32}, TypeKind::Unspecified,
-                             OsSleepMs));
-  registry.Register(MakeSpec("System.os", "cwd_get", {}, TypeKind::String, OsCwdGet));
-  registry.Register(MakeSpec("System.os", "formatWallNs", {TypeKind::I64}, TypeKind::String,
-                             OsFormatWallNs));
+  registry.Register(WithCapability(MakeSpec("System.os", "args_count", {}, TypeKind::I32,
+                                            EnvArgsCount),
+                                   "process.args"));
+  registry.Register(WithCapability(MakeSpec("System.os", "args_get", {TypeKind::I32},
+                                            TypeKind::String, EnvArg),
+                                   "process.args"));
+  registry.Register(WithCapability(MakeSpec("System.os", "env_get", {TypeKind::String},
+                                            TypeKind::String, EnvGet),
+                                   "environment.read"));
+  registry.Register(WithCapability(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64,
+                                            OsTimeMonoNs),
+                                   "clock.time"));
+  registry.Register(WithCapability(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64,
+                                            OsTimeWallNs),
+                                   "clock.time"));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.os", "sleep_ms", {TypeKind::I32},
+                                                     TypeKind::Unspecified, OsSleepMs)),
+                                   "threading"));
+  registry.Register(WithCapability(MakeSpec("System.os", "cwd_get", {}, TypeKind::String,
+                                            OsCwdGet),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MakeSpec("System.os", "formatWallNs", {TypeKind::I64},
+                                            TypeKind::String, OsFormatWallNs),
+                                   "clock.time"));
 }
 
 void RegisterSystemThread(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.thread", "sleep", {TypeKind::I32}, TypeKind::Unspecified,
-                             ThreadSleep));
-  registry.Register(MakeSpec("System.thread", "yield", {}, TypeKind::Unspecified, ThreadYield));
-  registry.Register(MakeSpec("System.thread", "hardwareConcurrency", {}, TypeKind::I32,
-                             ThreadHardwareConcurrency));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.thread", "sleep", {TypeKind::I32},
+                                                     TypeKind::Unspecified, ThreadSleep)),
+                                   "threading"));
+  registry.Register(WithCapability(MakeSpec("System.thread", "yield", {}, TypeKind::Unspecified,
+                                            ThreadYield),
+                                   "threading"));
+  registry.Register(WithCapability(MakeSpec("System.thread", "hardwareConcurrency", {},
+                                            TypeKind::I32, ThreadHardwareConcurrency),
+                                   "threading"));
 }
 
 void RegisterSystemJson(NativeRegistry& registry) {
@@ -1827,15 +1850,24 @@ void RegisterSystemFs(NativeRegistry& registry) {
 
 void RegisterSystemEnv(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(MakeSpec("System.env", "argsCount", {}, TypeKind::I32, EnvArgsCount));
-  registry.Register(MakeSpec("System.env", "arg", {TypeKind::I32}, TypeKind::String, EnvArg));
-  registry.Register(MakeSpec("System.env", "get", {TypeKind::String}, TypeKind::String,
-                             EnvGet));
-  registry.Register(MakeSpec("System.env", "set", {TypeKind::String, TypeKind::String},
-                             TypeKind::I32, EnvSet));
+  registry.Register(WithCapability(MakeSpec("System.env", "argsCount", {}, TypeKind::I32,
+                                            EnvArgsCount),
+                                   "process.args"));
+  registry.Register(WithCapability(MakeSpec("System.env", "arg", {TypeKind::I32},
+                                            TypeKind::String, EnvArg),
+                                   "process.args"));
+  registry.Register(WithCapability(MakeSpec("System.env", "get", {TypeKind::String},
+                                            TypeKind::String, EnvGet),
+                                   "environment.read"));
+  registry.Register(WithCapability(MakeSpec("System.env", "set",
+                                            {TypeKind::String, TypeKind::String}, TypeKind::I32,
+                                            EnvSet),
+                                   "environment.write"));
   registry.Register(MakeSpec("System.env", "platform", {}, TypeKind::String, EnvPlatform));
   registry.Register(MakeSpec("System.env", "arch", {}, TypeKind::String, EnvArch));
-  registry.Register(MakeSpec("System.env", "exePath", {}, TypeKind::String, EnvExePath));
+  registry.Register(WithCapability(MakeSpec("System.env", "exePath", {}, TypeKind::String,
+                                            EnvExePath),
+                                   "process.args"));
 }
 
 void RegisterSystemIo(NativeRegistry& registry) {
