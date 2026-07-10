@@ -60,8 +60,19 @@ void AppendDims(const Simple::Lang::AST::TypeRef& type, std::string* out) {
   }
 }
 
+bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
+                     std::vector<GenericInstantiationRequest>* out);
 bool CollectFromStmt(const Simple::Lang::AST::Stmt& stmt,
                      std::vector<GenericInstantiationRequest>* out);
+
+std::string CalleeName(const Simple::Lang::AST::Expr& expr) {
+  if (expr.kind == Simple::Lang::AST::ExprKind::Identifier) return expr.text;
+  if (expr.kind == Simple::Lang::AST::ExprKind::Member && !expr.children.empty()) {
+    const std::string base = CalleeName(expr.children[0]);
+    return base.empty() ? expr.text : base + "." + expr.text;
+  }
+  return expr.text;
+}
 
 bool CollectFromTypeList(const std::vector<Simple::Lang::AST::TypeRef>& types,
                          std::vector<GenericInstantiationRequest>* out) {
@@ -79,24 +90,62 @@ bool CollectFromStmtList(const std::vector<Simple::Lang::AST::Stmt>& stmts,
   return true;
 }
 
+bool CollectFromExpr(const Simple::Lang::AST::Expr& expr,
+                     std::vector<GenericInstantiationRequest>* out) {
+  if (!CollectFromTypeList(expr.type_args, out)) return false;
+  if (expr.kind == Simple::Lang::AST::ExprKind::Call && !expr.type_args.empty() &&
+      !expr.children.empty()) {
+    GenericInstantiationRequest request;
+    request.base_name = CalleeName(expr.children[0]);
+    request.line = expr.line;
+    request.column = expr.column;
+    request.argument_identities.reserve(expr.type_args.size());
+    for (const auto& arg : expr.type_args) request.argument_identities.push_back(TypeRefIdentity(arg));
+    out->push_back(std::move(request));
+  }
+  for (const auto& child : expr.children) {
+    if (!CollectFromExpr(child, out)) return false;
+  }
+  for (const auto& arg : expr.args) {
+    if (!CollectFromExpr(arg, out)) return false;
+  }
+  for (const auto& value : expr.field_values) {
+    if (!CollectFromExpr(value, out)) return false;
+  }
+  for (const auto& branch : expr.switch_branches) {
+    if (!branch.is_default && !CollectFromExpr(branch.condition, out)) return false;
+    if (branch.has_inline_value && !CollectFromExpr(branch.value, out)) return false;
+    if (!CollectFromStmtList(branch.block, out)) return false;
+  }
+  return true;
+}
+
 bool CollectFromStmt(const Simple::Lang::AST::Stmt& stmt,
                      std::vector<GenericInstantiationRequest>* out) {
   using Simple::Lang::AST::StmtKind;
   switch (stmt.kind) {
     case StmtKind::VarDecl:
-      return CollectInstantiationRequestsFromType(stmt.var_decl.type, out);
+      return CollectInstantiationRequestsFromType(stmt.var_decl.type, out) &&
+             (!stmt.var_decl.has_init_expr || CollectFromExpr(stmt.var_decl.init_expr, out));
     case StmtKind::IfStmt:
-      return CollectFromStmtList(stmt.if_then, out) && CollectFromStmtList(stmt.if_else, out);
+      return CollectFromExpr(stmt.if_cond, out) && CollectFromStmtList(stmt.if_then, out) &&
+             CollectFromStmtList(stmt.if_else, out);
     case StmtKind::IfChain:
       for (const auto& branch : stmt.if_branches) {
-        if (!CollectFromStmtList(branch.second, out)) return false;
+        if (!CollectFromExpr(branch.first, out) || !CollectFromStmtList(branch.second, out)) return false;
       }
       return CollectFromStmtList(stmt.else_branch, out);
     case StmtKind::WhileLoop:
-      return CollectFromStmtList(stmt.loop_body, out);
+      return CollectFromExpr(stmt.loop_cond, out) && CollectFromStmtList(stmt.loop_body, out);
     case StmtKind::ForLoop:
       return (!stmt.has_loop_var_decl || CollectInstantiationRequestsFromType(stmt.loop_var_decl.type, out)) &&
-             CollectFromStmtList(stmt.loop_body, out);
+             CollectFromExpr(stmt.loop_iter, out) && CollectFromExpr(stmt.loop_cond, out) &&
+             CollectFromExpr(stmt.loop_step, out) && CollectFromStmtList(stmt.loop_body, out);
+    case StmtKind::Return:
+    case StmtKind::Expr:
+      return CollectFromExpr(stmt.expr, out);
+    case StmtKind::Assign:
+      return CollectFromExpr(stmt.target, out) && CollectFromExpr(stmt.expr, out);
     default:
       return true;
   }

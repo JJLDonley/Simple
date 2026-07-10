@@ -470,9 +470,19 @@ bool LangGenCollectsInstantiationRequests() {
   fn.func.params.push_back(param);
   program.decls.push_back(fn);
 
+  Simple::Lang::AST::Stmt call_stmt;
+  call_stmt.kind = Simple::Lang::AST::StmtKind::Expr;
+  call_stmt.expr.kind = Simple::Lang::AST::ExprKind::Call;
+  Simple::Lang::AST::Expr callee;
+  callee.kind = Simple::Lang::AST::ExprKind::Identifier;
+  callee.text = "identity";
+  call_stmt.expr.children.push_back(callee);
+  call_stmt.expr.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.top_level_stmts.push_back(call_stmt);
+
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> requests;
   if (!Simple::Lang::GEN::CollectInstantiationRequestsFromProgram(program, &requests)) return false;
-  if (requests.size() != 4) return false;
+  if (requests.size() != 5) return false;
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> unique;
   std::vector<Simple::Lang::GEN::GenericInstantiationRequest> duplicated = requests;
   duplicated.push_back(requests[0]);
@@ -485,7 +495,8 @@ bool LangGenCollectsInstantiationRequests() {
          Simple::Lang::GEN::InstantiationRequestKey(requests[0]) == "Box<i32>" &&
          requests[1].base_name == "List" && requests[1].argument_identities[0] == "Box<i32>" &&
          requests[2].base_name == "Option" && requests[2].argument_identities[0] == "string" &&
-         requests[3].base_name == "Result" && requests[3].argument_identities.size() == 2;
+         requests[3].base_name == "Result" && requests[3].argument_identities.size() == 2 &&
+         requests[4].base_name == "identity" && requests[4].argument_identities[0] == "i32";
 }
 
 bool LangTastCollectsGenericDeclarationMetadata() {

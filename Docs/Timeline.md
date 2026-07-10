@@ -213,6 +213,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [x] Collect generic function/data/artifact declarations.
 - [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
   - [x] Initial GEN collector walks type annotations in declarations, fields, methods, modules, and statements.
+  - [x] GEN collector records explicit generic call-site type arguments.
 - [ ] Instantiate dependencies recursively with cycle detection.
   - [x] GEN resolves instantiation dependency order and reports cycles.
 - [ ] Re-run semantic/type checks on each concrete specialization.
