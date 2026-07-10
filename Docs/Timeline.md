@@ -511,6 +511,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Direct-bind verified raylib `void(Color)`, `void(cstring, i32, i32, i32, Color)`, and `void(Texture2D, Vector2, Color)` dynamic FFI calls from LLVM loops.
 - [x] Include rejected loop-call SBC signature shapes in LLVM JIT diagnostics.
 - [x] Route scalar dynamic-DL LLVM helper calls through `JitCallContext` snapshots/root publication.
+- [x] Bump the LLVM runtime-helper ABI version after changing the dynamic-DL helper signature.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.
