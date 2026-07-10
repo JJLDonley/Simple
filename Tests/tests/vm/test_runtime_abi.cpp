@@ -50,6 +50,32 @@ bool VmRuntimeAbiValidatesScalarValues() {
          !IsValidAbiScalarValue(TypeKind::String, 1);
 }
 
+bool VmRuntimeAbiMapsOpaqueHandleTypeRows() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::AbiClass;
+  using Simple::VM::Runtime::GetAbiParameterPassMode;
+  using Simple::VM::Runtime::GetSbcTypeAbiTypeInfo;
+  using Simple::VM::Runtime::AbiPassMode;
+
+  Simple::Byte::TypeRow handle;
+  handle.kind = static_cast<uint8_t>(TypeKind::Unspecified);
+  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle;
+  handle.reserved = 1;
+  handle.size = 8;
+  const auto handle_info = GetSbcTypeAbiTypeInfo(handle);
+
+  Simple::Byte::TypeRow scalar;
+  scalar.kind = static_cast<uint8_t>(TypeKind::I64);
+  scalar.size = 8;
+  const auto scalar_info = GetSbcTypeAbiTypeInfo(scalar);
+
+  return handle_info.abi_class == AbiClass::Handle && handle_info.size == 8 &&
+         handle_info.align == 8 && handle_info.native_callable &&
+         !handle_info.external_ffi_callable &&
+         GetAbiParameterPassMode(handle_info) == AbiPassMode::Direct &&
+         scalar_info.abi_class == AbiClass::Scalar && scalar_info.size == 8;
+}
+
 bool VmRuntimeAbiMapsEnumUnderlyingTypes() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::AbiClass;
@@ -476,6 +502,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_validates_scalar_values", VmRuntimeAbiValidatesScalarValues},
+  {"vm_runtime_abi_maps_opaque_handle_type_rows", VmRuntimeAbiMapsOpaqueHandleTypeRows},
   {"vm_runtime_abi_maps_enum_underlying_types", VmRuntimeAbiMapsEnumUnderlyingTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
   {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},

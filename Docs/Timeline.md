@@ -92,6 +92,8 @@ Language-neutral SIR syntax/lowering status:
   - [x] sandbox enter/exit forms.
 - [x] Preserve generic VM type arguments in SIR/SBC metadata where represented.
 - [ ] Preserve opaque handle resource kind through validation, SIR, SBC metadata, and native dispatch.
+  - [x] SBC loader validates opaque handle resource kind metadata.
+  - [x] Runtime ABI classifier maps opaque handle type rows to handle ABI values.
 
 ### Bytecode / SBC Prerequisites
 
@@ -359,6 +361,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Add `VM/src/native/resource_registry.cpp`.
 - [x] Define `NativeHandleId` as opaque VM value payload.
 - [ ] Map each public `System.Handle<T>` to `NativeHandleId` plus resource kind/generation.
+  - [x] Runtime ABI maps opaque handle type rows to packed `NativeHandleId` values.
   - [x] Back legacy file descriptors with `NativeResourceRegistry` handles internally.
   - [x] Remove legacy `open_files` native dispatch storage.
 - [x] Define `NativeResourceKind`:

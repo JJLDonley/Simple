@@ -93,6 +93,13 @@ AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout) {
                      layout.external_ffi_callable};
 }
 
+AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row) {
+  if (Simple::Byte::IsOpaqueHandleType(row)) {
+    return AbiTypeInfo{AbiClass::Handle, 8, 8, true, false};
+  }
+  return GetPrimitiveAbiTypeInfo(static_cast<Simple::Byte::TypeKind>(row.kind));
+}
+
 AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind) {
   using Simple::Byte::TypeKind;
   if (underlying_kind == TypeKind::Unspecified) underlying_kind = TypeKind::I32;

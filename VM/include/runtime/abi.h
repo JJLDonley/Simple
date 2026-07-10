@@ -126,6 +126,7 @@ struct AbiPromiseId {
 };
 
 AbiTypeInfo GetPrimitiveAbiTypeInfo(Simple::Byte::TypeKind kind);
+AbiTypeInfo GetSbcTypeAbiTypeInfo(const Simple::Byte::TypeRow& row);
 AbiTypeInfo GetEnumAbiTypeInfo(Simple::Byte::TypeKind underlying_kind);
 AbiTypeInfo GetAggregateAbiTypeInfo(const AbiAggregateLayout& layout);
 AbiTypeInfo GetExternalCAbiWrapperTypeInfo(AbiExternalWrapperKind kind);
