@@ -17,6 +17,7 @@
 #include "TAST/type_checker.h"
 #include "TAST/types.h"
 #include "GEN/specializer.h"
+#include "IRB/ir_builder.h"
 #include "TAST/abi.h"
 #include "TAST/generics.h"
 
@@ -357,6 +358,13 @@ bool LangGenBuildsSpecializationPlanFromProgram() {
   value.var.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
   program.decls.push_back(value);
 
+  Simple::Lang::AST::Decl builtin_generic;
+  builtin_generic.kind = DeclKind::Variable;
+  builtin_generic.var.name = "items";
+  builtin_generic.var.type.name = "List";
+  builtin_generic.var.type.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
+  program.decls.push_back(builtin_generic);
+
   std::vector<GenericSpecializationPlan> plan;
   std::string error;
   if (!BuildSpecializationPlanFromProgram(program, &plan, &error) || !error.empty()) {
@@ -572,6 +580,12 @@ bool LangGenMaterializesConcreteProgram() {
   param.name = "value";
   param.type = Simple::Lang::TAST::MakeSimpleType("T");
   fn_decl.func.params.push_back(param);
+  Simple::Lang::AST::Stmt ret;
+  ret.kind = Simple::Lang::AST::StmtKind::Return;
+  ret.has_return_expr = true;
+  ret.expr.kind = Simple::Lang::AST::ExprKind::Identifier;
+  ret.expr.text = "value";
+  fn_decl.func.body.push_back(ret);
   program.decls.push_back(fn_decl);
 
   Simple::Lang::AST::Decl box_decl;
@@ -598,6 +612,11 @@ bool LangGenMaterializesConcreteProgram() {
   callee.kind = Simple::Lang::AST::ExprKind::Identifier;
   callee.text = "id";
   call_stmt.expr.children.push_back(callee);
+  Simple::Lang::AST::Expr arg;
+  arg.kind = Simple::Lang::AST::ExprKind::Literal;
+  arg.literal_kind = Simple::Lang::AST::LiteralKind::Integer;
+  arg.text = "1";
+  call_stmt.expr.args.push_back(arg);
   call_stmt.expr.type_args.push_back(Simple::Lang::TAST::MakeSimpleType("i32"));
   program.top_level_stmts.push_back(call_stmt);
 
@@ -637,6 +656,22 @@ bool LangGenMaterializesConcreteProgram() {
     }
   }
   if (!saw_fn || !saw_box || !saw_rewritten_var) return false;
+
+  Simple::Lang::RAST::ResolvedProgram resolved;
+  resolved.program = &program;
+  Simple::Lang::TAST::TypedProgram typed;
+  typed.resolved = &resolved;
+  Simple::Lang::IRB::Module module;
+  if (!Simple::Lang::IRB::BuildModule(typed, &module, &error)) return false;
+  if (module.sir_text.find("func id ") != std::string::npos ||
+      module.sir_text.find("func id$g$") == std::string::npos) {
+    return false;
+  }
+  bool ir_has_specialized_box = false;
+  for (const auto& layout : module.ir.artifact_layouts) {
+    if (layout.name.find("Box$g$") != std::string::npos) ir_has_specialized_box = true;
+  }
+  if (!ir_has_specialized_box) return false;
 
   Simple::Lang::AST::Decl collision;
   collision.kind = DeclKind::Function;

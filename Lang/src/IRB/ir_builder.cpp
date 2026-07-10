@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "GEN/specializer.h"
 #include "IRE/sir_emitter.h"
 
 namespace Simple::Lang::IRB {
@@ -212,10 +213,27 @@ bool BuildModule(const Simple::Lang::TAST::TypedProgram& typed,
   }
   out->ir = {};
   out->sir_text.clear();
-  if (!Simple::Lang::IRE::EmitSir(*typed.resolved->program, &out->sir_text, error)) return false;
+  const Simple::Lang::AST::Program* lowering_program = typed.resolved->program;
+  Simple::Lang::AST::Program concrete_program;
+  std::vector<Simple::Lang::GEN::GenericSpecializationPlan> generic_plan;
+  if (!Simple::Lang::GEN::BuildSpecializationPlanFromProgram(*typed.resolved->program,
+                                                             &generic_plan,
+                                                             error)) {
+    return false;
+  }
+  if (!generic_plan.empty()) {
+    if (!Simple::Lang::GEN::MaterializeConcreteProgram(*typed.resolved->program,
+                                                       generic_plan,
+                                                       &concrete_program,
+                                                       error)) {
+      return false;
+    }
+    lowering_program = &concrete_program;
+  }
+  if (!Simple::Lang::IRE::EmitSir(*lowering_program, &out->sir_text, error)) return false;
   PopulateSirLines(out->sir_text, &out->sir_lines);
   PopulateAllocationsFromSir(out->sir_text, &out->ir);
-  PopulateArtifactLayouts(*typed.resolved->program, &out->ir);
+  PopulateArtifactLayouts(*lowering_program, &out->ir);
   return true;
 }
 

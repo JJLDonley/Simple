@@ -210,11 +210,13 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [x] Add `Lang/src/GEN/specializer.cpp`.
 - [ ] Insert specialization after generic TAST validation and before IRB lowering.
   - [x] GEN exposes whole-program specialization plan construction from AST/TAST metadata.
+  - [x] IRB materializes GEN specializations before SIR emission/lowering.
 - [x] Collect generic function/data/artifact declarations.
 - [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
   - [x] Initial GEN collector walks type annotations in declarations, fields, methods, modules, and statements.
   - [x] GEN collector records explicit generic call-site type arguments.
   - [x] GEN collector walks extern/native signature type annotations.
+  - [x] GEN whole-program planning filters requests to declared user generics.
 - [ ] Instantiate dependencies recursively with cycle detection.
   - [x] GEN resolves instantiation dependency order and reports cycles.
   - [x] GEN builds ordered specialization plans from dependency graphs.

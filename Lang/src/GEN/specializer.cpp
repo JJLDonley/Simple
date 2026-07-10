@@ -616,10 +616,23 @@ bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& progra
   if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &declarations, error)) {
     return false;
   }
+  std::unordered_set<std::string> declared_generics;
+  for (const auto& declaration : declarations) {
+    declared_generics.insert(declaration.owner_name.empty()
+                                 ? declaration.name
+                                 : declaration.owner_name + "." + declaration.name);
+  }
   std::vector<GenericInstantiationRequest> requests;
   if (!CollectInstantiationRequestsFromProgram(program, &requests)) return false;
+  std::vector<GenericInstantiationRequest> declared_requests;
+  declared_requests.reserve(requests.size());
+  for (const auto& request : requests) {
+    if (declared_generics.find(request.base_name) != declared_generics.end()) {
+      declared_requests.push_back(request);
+    }
+  }
   std::vector<GenericInstantiationRequest> unique_requests;
-  if (!NormalizeInstantiationRequests(requests, &unique_requests)) return false;
+  if (!NormalizeInstantiationRequests(declared_requests, &unique_requests)) return false;
   return BuildSpecializationPlan(declarations, unique_requests, out, error);
 }
 
