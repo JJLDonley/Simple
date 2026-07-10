@@ -223,6 +223,23 @@ std::vector<uint8_t> BuildTypesI32Void() {
   return types;
 }
 
+std::vector<uint8_t> BuildTypesUnspecifiedI32F32() {
+  std::vector<uint8_t> types;
+  auto append_type = [&](Simple::Byte::TypeKind kind, uint32_t size) {
+    AppendU32(types, 0);
+    AppendU8(types, static_cast<uint8_t>(kind));
+    AppendU8(types, 0);
+    AppendU16(types, 0);
+    AppendU32(types, size);
+    AppendU32(types, 0);
+    AppendU32(types, 0);
+  };
+  append_type(Simple::Byte::TypeKind::Unspecified, 0);
+  append_type(Simple::Byte::TypeKind::I32, 4);
+  append_type(Simple::Byte::TypeKind::F32, 4);
+  return types;
+}
+
 std::vector<uint8_t> BuildTypesI32RefString() {
   std::vector<uint8_t> types;
   auto append_type = [&](Simple::Byte::TypeKind kind, uint32_t size) {
@@ -10085,6 +10102,74 @@ bool RunLlvmJitIndirectCallInsideLoopRejectsTest() {
          error.find("reason=unknown-target-effects") != std::string::npos;
 }
 
+bool RunLlvmJitDirectUnspecifiedVoidCallInsideLoopTest() {
+  Simple::VM::Jit::LlvmJitBackend backend;
+  if (!backend.Status().available) return true;
+
+  using Simple::Byte::OpCode;
+  std::vector<uint8_t> main_code;
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  size_t loop_start = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 3);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::CmpLtI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
+  size_t exit_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstF32));
+  AppendF32(main_code, 1.0f);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Call));
+  AppendU32(main_code, 1);
+  AppendU8(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 1);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::AddI32));
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Jmp));
+  size_t back_jmp = main_code.size();
+  AppendI32(main_code, 0);
+  size_t loop_end = main_code.size();
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::LoadLocal));
+  AppendU32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::Ret));
+  WriteU32(main_code, exit_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_end) - static_cast<int32_t>(exit_jmp + 4)));
+  WriteU32(main_code, back_jmp,
+           static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
+
+  std::vector<uint8_t> callee;
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
+  AppendU16(callee, 0);
+  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
+
+  Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
+      BuildModuleWithFunctionsAndSigsWithTables({main_code, callee}, {1, 0}, {0, 1},
+                                                {SigSpec{1, 0, {}}, SigSpec{0, 1, {2}}},
+                                                {}, BuildTypesUnspecifiedI32F32()));
+  if (!load.ok) {
+    std::cerr << "load failed: " << load.error << "\n";
+    return false;
+  }
+  Simple::VM::Interpreter::Slot ret = 0;
+  bool has_ret = false;
+  std::string error;
+  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+    std::cerr << "direct unspecified-void loop call failed: " << error << "\n";
+    return false;
+  }
+  return has_ret && Simple::VM::Runtime::UnpackI32(ret) == 3;
+}
+
 bool RunLlvmJitDirectRefCallInsideLoopRejectsTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -10262,6 +10347,7 @@ static const TestCase kJitTests[] = {
   {"llvm_jit_resource_input_import_call_inside_loop", RunLlvmJitResourceInputImportCallInsideLoopTest},
   {"llvm_jit_unsafe_import_call_inside_loop_rejects", RunLlvmJitUnsafeImportCallInsideLoopRejectsTest},
   {"llvm_jit_indirect_call_inside_loop_rejects", RunLlvmJitIndirectCallInsideLoopRejectsTest},
+  {"llvm_jit_direct_unspecified_void_call_inside_loop", RunLlvmJitDirectUnspecifiedVoidCallInsideLoopTest},
   {"llvm_jit_direct_ref_call_inside_loop_rejects", RunLlvmJitDirectRefCallInsideLoopRejectsTest},
   {"llvm_jit_loop_smoke", RunLlvmJitLoopSmokeTest},
   {"jit_disabled", RunJitDisabledTest},

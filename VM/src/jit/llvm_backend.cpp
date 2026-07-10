@@ -1020,10 +1020,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return type_is_void(row.ret_type_id);
   };
   auto type_is_scalar_loop_call_safe = [&](uint32_t type_id) -> bool {
+    if (type_id == 0xFFFFFFFFu) return true;
     if (type_id >= module.types.size()) return false;
     const auto& row = module.types[type_id];
     if (Simple::Byte::IsManagedArtifactType(row) || Simple::Byte::IsOpaqueHandleType(row)) return false;
     switch (static_cast<Simple::Byte::TypeKind>(row.kind)) {
+      case Simple::Byte::TypeKind::Unspecified:
       case Simple::Byte::TypeKind::Void:
       case Simple::Byte::TypeKind::I8:
       case Simple::Byte::TypeKind::I16:
@@ -1054,11 +1056,15 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   auto signature_type_kinds = [&](const Simple::Byte::SigRow& row,
                                   std::vector<Simple::Byte::TypeKind>* params,
                                   Simple::Byte::TypeKind* result) -> bool {
-    if (row.ret_type_id >= module.types.size() ||
+    if ((row.ret_type_id != 0xFFFFFFFFu && row.ret_type_id >= module.types.size()) ||
         row.param_type_start + row.param_count > module.param_types.size()) {
       return false;
     }
-    if (result) *result = static_cast<Simple::Byte::TypeKind>(module.types[row.ret_type_id].kind);
+    if (result) {
+      *result = row.ret_type_id == 0xFFFFFFFFu
+                    ? Simple::Byte::TypeKind::Unspecified
+                    : static_cast<Simple::Byte::TypeKind>(module.types[row.ret_type_id].kind);
+    }
     if (params) {
       params->clear();
       params->reserve(row.param_count);

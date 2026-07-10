@@ -505,6 +505,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Register published JIT helper roots with GC tracing while helper dispatch is active.
 - [x] Scope unsafe loop-call rejection to calls inside backward-branch ranges so pre-loop native setup does not block hot-loop JIT.
 - [x] Include native/import/direct call target labels in LLVM loop-call rejection diagnostics.
+- [x] Treat unspecified-return direct Simple calls as void-safe for scalar loop-call lowering.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.
