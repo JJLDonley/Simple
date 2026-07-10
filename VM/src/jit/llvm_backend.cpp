@@ -305,17 +305,66 @@ bool LlvmReadCString(Simple::VM::Heap* heap, uint64_t ref_slot, std::string* out
   *out = Simple::VM::U16ToAscii(Simple::VM::ReadString(obj));
   return true;
 }
+
+struct LlvmJitRootFrameScope {
+  const std::vector<uint32_t>* roots = nullptr;
+  explicit LlvmJitRootFrameScope(const std::vector<uint32_t>* refs) : roots(refs) {
+    Simple::VM::Jit::PushJitRootFrame(roots);
+  }
+  ~LlvmJitRootFrameScope() { Simple::VM::Jit::PopJitRootFrame(roots); }
+};
+
+void LlvmPopulateDirectDlContext(Simple::VM::Jit::JitCallContext* context,
+                                 uint64_t* args,
+                                 uint32_t argc,
+                                 uint64_t* caller_locals,
+                                 uint32_t caller_local_count,
+                                 uint64_t caller_local_ref_mask,
+                                 uint64_t* caller_stack,
+                                 uint32_t caller_stack_count,
+                                 uint64_t caller_stack_ref_mask,
+                                 uint32_t caller_func_index,
+                                 uint32_t caller_pc,
+                                 uint64_t arg_ref_mask) {
+  if (!context) return;
+  context->args.reserve(argc);
+  for (uint32_t i = 0; i < argc; ++i) context->args.push_back(args ? args[i] : 0);
+  context->locals.reserve(caller_local_count);
+  for (uint32_t i = 0; i < caller_local_count; ++i) context->locals.push_back(caller_locals ? caller_locals[i] : 0);
+  context->operand_stack.reserve(caller_stack_count);
+  for (uint32_t i = 0; i < caller_stack_count; ++i) context->operand_stack.push_back(caller_stack ? caller_stack[i] : 0);
+  context->heap = g_llvm_heap;
+  context->globals = g_llvm_globals;
+  Simple::VM::Jit::PublishJitRootSlotsByMask(context, context->args, arg_ref_mask);
+  Simple::VM::Jit::PublishJitRootSlotsByMask(context, context->locals, caller_local_ref_mask);
+  Simple::VM::Jit::PublishJitRootSlotsByMask(context, context->operand_stack, caller_stack_ref_mask);
+  Simple::VM::Jit::MarkJitSafepoint(context, caller_func_index, caller_pc, true, false);
+}
 } // namespace
 
-extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(uint64_t fn_slot, uint64_t color_slot) {
+extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(const Simple::Byte::SbcModule* module,
+                                                 uint64_t* args,
+                                                 uint32_t argc,
+                                                 uint64_t* caller_locals,
+                                                 uint32_t caller_local_count,
+                                                 uint64_t caller_local_ref_mask,
+                                                 uint64_t* caller_stack,
+                                                 uint32_t caller_stack_count,
+                                                 uint64_t caller_stack_ref_mask,
+                                                 uint32_t caller_func_index,
+                                                 uint32_t caller_pc,
+                                                 uint8_t* has_ret) {
+  (void)module;
+  if (has_ret) *has_ret = 0;
   Simple::VM::Jit::JitCallContext context;
-  context.args = {fn_slot, color_slot};
-  context.heap = g_llvm_heap;
-  context.globals = g_llvm_globals;
+  LlvmPopulateDirectDlContext(&context, args, argc, caller_locals, caller_local_count, caller_local_ref_mask,
+                              caller_stack, caller_stack_count, caller_stack_ref_mask,
+                              caller_func_index, caller_pc, 1ull << 1);
+  LlvmJitRootFrameScope roots(&context.root_refs);
   Simple::VM::Jit::Slot fn_arg = 0;
   Simple::VM::Jit::Slot color_arg = 0;
   LlvmRaylibColor color{};
-  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &color_arg) ||
+  if (argc != 2 || !Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &color_arg) ||
       !LlvmReadRaylibColor(context.heap, color_arg, &color)) {
     Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
                                 "LLVM JIT raylib Color direct-bind argument mismatch");
@@ -328,16 +377,25 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(uint64_t fn_slot, uint64_t color
   return context.return_value;
 }
 
-extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot,
-                                                                  uint64_t text_slot,
-                                                                  uint64_t x_slot,
-                                                                  uint64_t y_slot,
-                                                                  uint64_t size_slot,
-                                                                  uint64_t color_slot) {
+extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(const Simple::Byte::SbcModule* module,
+                                                                  uint64_t* args,
+                                                                  uint32_t argc,
+                                                                  uint64_t* caller_locals,
+                                                                  uint32_t caller_local_count,
+                                                                  uint64_t caller_local_ref_mask,
+                                                                  uint64_t* caller_stack,
+                                                                  uint32_t caller_stack_count,
+                                                                  uint64_t caller_stack_ref_mask,
+                                                                  uint32_t caller_func_index,
+                                                                  uint32_t caller_pc,
+                                                                  uint8_t* has_ret) {
+  (void)module;
+  if (has_ret) *has_ret = 0;
   Simple::VM::Jit::JitCallContext context;
-  context.args = {fn_slot, text_slot, x_slot, y_slot, size_slot, color_slot};
-  context.heap = g_llvm_heap;
-  context.globals = g_llvm_globals;
+  LlvmPopulateDirectDlContext(&context, args, argc, caller_locals, caller_local_count, caller_local_ref_mask,
+                              caller_stack, caller_stack_count, caller_stack_ref_mask,
+                              caller_func_index, caller_pc, (1ull << 1) | (1ull << 5));
+  LlvmJitRootFrameScope roots(&context.root_refs);
   Simple::VM::Jit::Slot fn_arg = 0;
   Simple::VM::Jit::Slot text_arg = 0;
   Simple::VM::Jit::Slot x_arg = 0;
@@ -346,7 +404,7 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot
   Simple::VM::Jit::Slot color_arg = 0;
   std::string text;
   LlvmRaylibColor color{};
-  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &text_arg) ||
+  if (argc != 6 || !Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &text_arg) ||
       !Simple::VM::Jit::JitArg(context, 2, &x_arg) || !Simple::VM::Jit::JitArg(context, 3, &y_arg) ||
       !Simple::VM::Jit::JitArg(context, 4, &size_arg) || !Simple::VM::Jit::JitArg(context, 5, &color_arg) ||
       !LlvmReadCString(context.heap, text_arg, &text) || !LlvmReadRaylibColor(context.heap, color_arg, &color)) {
@@ -366,14 +424,25 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot
   return context.return_value;
 }
 
-extern "C" uint64_t SimpleVmLlvmCallDlVoidTexture2DVector2Color(uint64_t fn_slot,
-                                                                  uint64_t texture_slot,
-                                                                  uint64_t position_slot,
-                                                                  uint64_t color_slot) {
+extern "C" uint64_t SimpleVmLlvmCallDlVoidTexture2DVector2Color(const Simple::Byte::SbcModule* module,
+                                                                  uint64_t* args,
+                                                                  uint32_t argc,
+                                                                  uint64_t* caller_locals,
+                                                                  uint32_t caller_local_count,
+                                                                  uint64_t caller_local_ref_mask,
+                                                                  uint64_t* caller_stack,
+                                                                  uint32_t caller_stack_count,
+                                                                  uint64_t caller_stack_ref_mask,
+                                                                  uint32_t caller_func_index,
+                                                                  uint32_t caller_pc,
+                                                                  uint8_t* has_ret) {
+  (void)module;
+  if (has_ret) *has_ret = 0;
   Simple::VM::Jit::JitCallContext context;
-  context.args = {fn_slot, texture_slot, position_slot, color_slot};
-  context.heap = g_llvm_heap;
-  context.globals = g_llvm_globals;
+  LlvmPopulateDirectDlContext(&context, args, argc, caller_locals, caller_local_count, caller_local_ref_mask,
+                              caller_stack, caller_stack_count, caller_stack_ref_mask,
+                              caller_func_index, caller_pc, (1ull << 1) | (1ull << 2) | (1ull << 3));
+  LlvmJitRootFrameScope roots(&context.root_refs);
   Simple::VM::Jit::Slot fn_arg = 0;
   Simple::VM::Jit::Slot texture_arg = 0;
   Simple::VM::Jit::Slot position_arg = 0;
@@ -381,7 +450,7 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidTexture2DVector2Color(uint64_t fn_slot
   LlvmRaylibTexture2D texture{};
   LlvmRaylibVector2 position{};
   LlvmRaylibColor color{};
-  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &texture_arg) ||
+  if (argc != 4 || !Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &texture_arg) ||
       !Simple::VM::Jit::JitArg(context, 2, &position_arg) || !Simple::VM::Jit::JitArg(context, 3, &color_arg) ||
       !LlvmReadRaylibTexture2D(context.heap, texture_arg, &texture) ||
       !LlvmReadRaylibVector2(context.heap, position_arg, &position) ||
@@ -2741,19 +2810,20 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionType* array_set_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i64, i64}, false);
   llvm::FunctionType* array_copy_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i64, i64, i64, i64}, false);
   llvm::FunctionCallee call_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallFunction", helper_type);
-  llvm::FunctionCallee dynamic_dl_helper = ir_module->getOrInsertFunction(
-      "SimpleVmLlvmCallDynamicDl",
-      llvm::FunctionType::get(i64,
-                              {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32,
-                               slot_ptr},
-                              false));
-  llvm::FunctionCallee dl_color_helper = ir_module->getOrInsertFunction(
-      "SimpleVmLlvmCallDlVoidColor", llvm::FunctionType::get(i64, {i64, i64}, false));
+  llvm::FunctionType* dynamic_dl_type = llvm::FunctionType::get(
+      i64,
+      {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32, slot_ptr},
+      false);
+  llvm::FunctionType* direct_dl_type = llvm::FunctionType::get(
+      i64,
+      {slot_ptr, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32, slot_ptr},
+      false);
+  llvm::FunctionCallee dynamic_dl_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallDynamicDl", dynamic_dl_type);
+  llvm::FunctionCallee dl_color_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallDlVoidColor", direct_dl_type);
   llvm::FunctionCallee dl_cstring_i32_i32_i32_color_helper = ir_module->getOrInsertFunction(
-      "SimpleVmLlvmCallDlVoidCStringI32I32I32Color",
-      llvm::FunctionType::get(i64, {i64, i64, i64, i64, i64, i64}, false));
+      "SimpleVmLlvmCallDlVoidCStringI32I32I32Color", direct_dl_type);
   llvm::FunctionCallee dl_texture2d_vector2_color_helper = ir_module->getOrInsertFunction(
-      "SimpleVmLlvmCallDlVoidTexture2DVector2Color", llvm::FunctionType::get(i64, {i64, i64, i64, i64}, false));
+      "SimpleVmLlvmCallDlVoidTexture2DVector2Color", direct_dl_type);
   llvm::FunctionCallee yield_helper = ir_module->getOrInsertFunction("SimpleVmLlvmYield", yield_type);
   llvm::FunctionCallee trap_helper = ir_module->getOrInsertFunction("SimpleVmLlvmTrap", trap_type);
   llvm::FunctionCallee print_any_helper = ir_module->getOrInsertFunction("SimpleVmLlvmPrintAny", llvm::FunctionType::get(builder.getVoidTy(), {i64, i32}, false));
@@ -3040,6 +3110,39 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                builder.getInt64(local_ref_mask()), stack_snapshot,
                                builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(stack_ref_mask()),
                                builder.getInt32(static_cast<uint32_t>(func_index)),
+                               builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)), has_ret_ptr});
+  };
+  auto emit_direct_dl_helper = [&](llvm::FunctionCallee callee,
+                                   llvm::AllocaInst* call_args,
+                                   uint8_t arg_count,
+                                   llvm::AllocaInst* has_ret_ptr,
+                                   size_t call_pc) -> llvm::Value* {
+    llvm::Value* null_slots = llvm::ConstantPointerNull::get(slot_ptr);
+    llvm::Value* local_snapshot = null_slots;
+    if (!locals.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(locals.size())),
+                                                       "direct_dl_caller_locals");
+      for (size_t i = 0; i < locals.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(builder.CreateLoad(i64, locals[i]), ptr);
+      }
+      local_snapshot = snapshot;
+    }
+    llvm::Value* stack_snapshot = null_slots;
+    if (!stack.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(stack.size())),
+                                                       "direct_dl_caller_stack");
+      for (size_t i = 0; i < stack.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(to_slot(stack[i]), ptr);
+      }
+      stack_snapshot = snapshot;
+    }
+    return builder.CreateCall(callee,
+                              {module_ptr, call_args, builder.getInt32(arg_count), local_snapshot,
+                               builder.getInt32(static_cast<uint32_t>(locals.size())), builder.getInt64(local_ref_mask()),
+                               stack_snapshot, builder.getInt32(static_cast<uint32_t>(stack.size())),
+                               builder.getInt64(stack_ref_mask()), builder.getInt32(static_cast<uint32_t>(func_index)),
                                builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)), has_ret_ptr});
   };
   auto emit_trap_if = [&](llvm::Value* cond, const char* name) {
@@ -5087,25 +5190,17 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           llvm::Value* native_ret = builder.CreateCall(llvm::FunctionType::get(i32, {i32}, false), raw_fn, {native_arg});
           result = builder.CreateZExt(native_ret, i64);
         } else if (dynamic_dl_color_direct_bind) {
-          llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
-          llvm::Value* color_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
-          result = builder.CreateCall(dl_color_helper, {fn_slot, color_slot});
+          llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "direct_dl_color_has_ret");
+          builder.CreateStore(builder.getInt8(0), has_ret_ptr);
+          result = emit_direct_dl_helper(dl_color_helper, call_args, arg_count, has_ret_ptr, instr_pc);
         } else if (dynamic_dl_cstring_i32_i32_i32_color_direct_bind) {
-          llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
-          llvm::Value* text_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
-          llvm::Value* x_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(2)));
-          llvm::Value* y_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(3)));
-          llvm::Value* size_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(4)));
-          llvm::Value* color_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(5)));
-          result = builder.CreateCall(dl_cstring_i32_i32_i32_color_helper,
-                                      {fn_slot, text_slot, x_slot, y_slot, size_slot, color_slot});
+          llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "direct_dl_text_has_ret");
+          builder.CreateStore(builder.getInt8(0), has_ret_ptr);
+          result = emit_direct_dl_helper(dl_cstring_i32_i32_i32_color_helper, call_args, arg_count, has_ret_ptr, instr_pc);
         } else if (dynamic_dl_texture2d_vector2_color_direct_bind) {
-          llvm::Value* fn_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(0)));
-          llvm::Value* texture_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(1)));
-          llvm::Value* position_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(2)));
-          llvm::Value* color_slot = builder.CreateLoad(i64, builder.CreateGEP(i64, call_args, builder.getInt64(3)));
-          result = builder.CreateCall(dl_texture2d_vector2_color_helper,
-                                      {fn_slot, texture_slot, position_slot, color_slot});
+          llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "direct_dl_texture_has_ret");
+          builder.CreateStore(builder.getInt8(0), has_ret_ptr);
+          result = emit_direct_dl_helper(dl_texture2d_vector2_color_helper, call_args, arg_count, has_ret_ptr, instr_pc);
         } else if (dynamic_dl_direct_call) {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "dynamic_dl_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
