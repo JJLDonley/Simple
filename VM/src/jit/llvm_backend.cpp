@@ -17,6 +17,7 @@
 #include "native/registry.h"
 #include "native/time.h"
 #include "opcode.h"
+#include "runtime/abi.h"
 #include "runtime/import_dispatch.h"
 #include "runtime/print_any.h"
 #include "runtime/values.h"
@@ -980,6 +981,44 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return true;
   };
+  auto signature_type_kinds = [&](const Simple::Byte::SigRow& row,
+                                  std::vector<Simple::Byte::TypeKind>* params,
+                                  Simple::Byte::TypeKind* result) -> bool {
+    if (row.ret_type_id >= module.types.size() ||
+        row.param_type_start + row.param_count > module.param_types.size()) {
+      return false;
+    }
+    if (result) *result = static_cast<Simple::Byte::TypeKind>(module.types[row.ret_type_id].kind);
+    if (params) {
+      params->clear();
+      params->reserve(row.param_count);
+      for (uint16_t i = 0; i < row.param_count; ++i) {
+        const uint32_t type_id = module.param_types[row.param_type_start + i];
+        if (type_id >= module.types.size()) return false;
+        params->push_back(static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind));
+      }
+    }
+    return true;
+  };
+  auto dl_call_loop_safe = [&](const Simple::Byte::SigRow& row) -> bool {
+    std::vector<Simple::Byte::TypeKind> params;
+    Simple::Byte::TypeKind result = Simple::Byte::TypeKind::Unspecified;
+    if (!signature_type_kinds(row, &params, &result) || params.empty()) return false;
+    if (params[0] != Simple::Byte::TypeKind::I64 && params[0] != Simple::Byte::TypeKind::U64) return false;
+    std::vector<Simple::Byte::TypeKind> ffi_params(params.begin() + 1, params.end());
+    return Simple::VM::Runtime::ValidateExternalCAbiSignature(ffi_params, result, nullptr);
+  };
+  auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
+                                               const Simple::Byte::SigRow& row) -> bool {
+    std::vector<Simple::Byte::TypeKind> params;
+    Simple::Byte::TypeKind result = Simple::Byte::TypeKind::Unspecified;
+    if (!signature_type_kinds(row, &params, &result)) return false;
+    if (spec.parameter_types.size() != params.size()) return false;
+    for (size_t i = 0; i < params.size(); ++i) {
+      if (spec.parameter_types[i] != params[i]) return false;
+    }
+    return spec.result_type == Simple::Byte::TypeKind::Unspecified || spec.result_type == result;
+  };
   auto import_metadata_loop_call_safe = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> bool {
     if (!sig_is_scalar_loop_call_safe(row)) return false;
     if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
@@ -994,12 +1033,12 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     const std::string symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
     if (module_name.empty() || symbol_name.empty()) return false;
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
-      return true;
+      return dl_call_loop_safe(row);
     }
     static const Simple::VM::Native::NativeRegistry* registry =
         new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
     const auto* spec = registry->Find(module_name, symbol_name);
-    return spec && spec->resources.empty() &&
+    return spec && native_metadata_matches_signature(*spec, row) && spec->resources.empty() &&
            spec->blocking == Simple::VM::Native::NativeBlockingBehavior::NonBlocking &&
            spec->allocation == Simple::VM::Native::NativeAllocationBehavior::NoAllocation &&
            spec->gc_behavior == Simple::VM::Native::NativeGcBehavior::NoSafepoint;

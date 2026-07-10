@@ -34,7 +34,7 @@
 
 namespace {
 #ifndef SIMPLEVM_VERSION
-#define SIMPLEVM_VERSION "v0.4.3"
+#define SIMPLEVM_VERSION "v0.4.4"
 #endif
 
 const char* ToolVersion() { return SIMPLEVM_VERSION; }
