@@ -2,12 +2,41 @@
 
 #include "runtime/abi.h"
 #include "runtime/promise.h"
+#include "runtime/type_identity.h"
 
 #include <string>
 #include <vector>
 
 namespace Simple::VM::Tests {
 namespace {
+
+bool VmRuntimeAbiBuildsCanonicalTypeIdentities() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Native::NativeResourceKind;
+  using Simple::VM::Runtime::CanonicalAggregateTypeIdentity;
+  using Simple::VM::Runtime::CanonicalHandleTypeIdentity;
+  using Simple::VM::Runtime::CanonicalOptionTypeIdentity;
+  using Simple::VM::Runtime::CanonicalPrimitiveTypeIdentity;
+  using Simple::VM::Runtime::CanonicalPromiseTypeIdentity;
+  using Simple::VM::Runtime::CanonicalResultTypeIdentity;
+  using Simple::VM::Runtime::ComputeStableAggregateLayout;
+  using Simple::VM::Runtime::GetPrimitiveAbiTypeInfo;
+
+  const auto layout = ComputeStableAggregateLayout({
+      GetPrimitiveAbiTypeInfo(TypeKind::I32),
+      GetPrimitiveAbiTypeInfo(TypeKind::F64),
+  });
+  const std::string data_id = CanonicalAggregateTypeIdentity(layout);
+  return CanonicalPrimitiveTypeIdentity(TypeKind::I32) == "i32" &&
+         CanonicalPrimitiveTypeIdentity(TypeKind::String) == "string" &&
+         CanonicalHandleTypeIdentity(NativeResourceKind::File) == "handle#1" &&
+         data_id.rfind("data#", 0) == 0 &&
+         data_id.find(":" + std::to_string(layout.size) + ":" + std::to_string(layout.align)) !=
+             std::string::npos &&
+         CanonicalOptionTypeIdentity("i32") == "option<i32>" &&
+         CanonicalResultTypeIdentity("i32", "string") == "result<i32,string>" &&
+         CanonicalPromiseTypeIdentity("string") == "promise<string>";
+}
 
 bool VmRuntimeAbiMapsPrimitiveTypes() {
   using Simple::Byte::TypeKind;
@@ -536,6 +565,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 }
 
 const TestCase kVmRuntimeAbiTests[] = {
+  {"vm_runtime_abi_builds_canonical_type_identities", VmRuntimeAbiBuildsCanonicalTypeIdentities},
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_validates_scalar_values", VmRuntimeAbiValidatesScalarValues},
   {"vm_runtime_abi_maps_opaque_handle_type_rows", VmRuntimeAbiMapsOpaqueHandleTypeRows},

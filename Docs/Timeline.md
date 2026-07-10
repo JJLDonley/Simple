@@ -187,13 +187,15 @@ This phase finishes the language surface that higher runtime and JIT work depend
 ### Generic Type Model
 
 - [ ] Define canonical type identity for every generic argument kind.
-  - [ ] primitives.
-  - [ ] `string`, `Bytes`, heap references, and managed artifacts.
+  - [x] primitives.
+  - [x] `string`, heap references, and managed artifacts.
+  - [ ] `Bytes`.
   - [ ] arrays/lists and nested aggregate types.
   - [x] stable-layout `data` types.
   - [ ] enums and pointer types.
   - [ ] function/procedure types including captured closures.
-  - [ ] `System.Handle<T>`, `Result<T,E>`, `Option<T>`, `Promise<T>`, `Channel<T>`.
+  - [x] `System.Handle<T>`, `Result<T,E>`, `Option<T>`, `Promise<T>`.
+  - [ ] `Channel<T>`.
   - [ ] instantiated generic types as generic arguments.
 - [ ] Define deterministic generic symbol mangling.
   - [ ] Human/debug form, e.g. `Map<string, List<i32>>`.

@@ -90,6 +90,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/runtime/print_any.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/promise.cpp
   ${SIMPLEVM_VM_ROOT}/src/runtime/runtime_limits.cpp
+  ${SIMPLEVM_VM_ROOT}/src/runtime/type_identity.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/opcode.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_loader.cpp
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_verifier.cpp
