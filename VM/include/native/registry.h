@@ -25,6 +25,8 @@ struct NativeCallContext {
   NativeResourceRegistry* resource_registry = nullptr;
   std::vector<std::string> borrowed_string_storage;
 
+  bool ArgBool(size_t index, bool* out) const;
+  bool ArgChar(size_t index, uint32_t* out) const;
   bool ArgI32(size_t index, int32_t* out) const;
   bool ArgI64(size_t index, int64_t* out) const;
   bool ArgF32(size_t index, float* out) const;
@@ -44,6 +46,8 @@ struct NativeCallResult {
   std::string error;
 
   static NativeCallResult Void();
+  static NativeCallResult Bool(bool value);
+  static NativeCallResult Char(uint32_t value);
   static NativeCallResult I32(int32_t value);
   static NativeCallResult I64(int64_t value);
   static NativeCallResult F32(float value);

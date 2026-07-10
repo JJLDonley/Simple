@@ -182,13 +182,15 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   std::memcpy(&f64_bits, &f64_input, sizeof(f64_bits));
   Simple::VM::Native::NativeCallContext context;
   context.heap = &heap;
-  context.args = {42, 9000000000ull, f32_bits, f64_bits, text_ref};
+  context.args = {42, 9000000000ull, f32_bits, f64_bits, text_ref, 1, 0x41};
 
   int32_t i32 = 0;
   int64_t i64 = 0;
   float f32 = 0.0f;
   double f64 = 0.0;
   uint32_t ref = 0;
+  bool bool_value = false;
+  uint32_t char_value = 0;
   Simple::VM::Native::NativeHandleId handle_arg;
   std::string text;
   Simple::VM::Runtime::SimpleStringView string_view;
@@ -197,14 +199,22 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   if (!context.ArgF32(2, &f32) || f32 != f32_input) return false;
   if (!context.ArgF64(3, &f64) || f64 != f64_input) return false;
   if (!context.ArgRef(4, &ref) || ref != text_ref) return false;
+  if (!context.ArgBool(5, &bool_value) || !bool_value) return false;
+  if (!context.ArgChar(6, &char_value) || char_value != 0x41) return false;
+  context.args[5] = 2;
+  if (context.ArgBool(5, &bool_value)) return false;
+  context.args[5] = 1;
+  context.args[6] = 0xD800;
+  if (context.ArgChar(6, &char_value)) return false;
+  context.args[6] = 0x41;
   context.args.push_back(bytes_ref);
   Simple::VM::Runtime::SimpleBytesView bytes_view;
-  if (!context.ArgBytesView(5, &bytes_view) || bytes_view.size != 3 ||
+  if (!context.ArgBytesView(7, &bytes_view) || bytes_view.size != 3 ||
       bytes_view.data[0] != 4 || bytes_view.data[2] != 6) {
     return false;
   }
   context.args.push_back(Simple::VM::Native::PackNativeHandleId({7, 3}));
-  if (!context.ArgHandle(6, &handle_arg) || handle_arg.index != 7 || handle_arg.generation != 3) {
+  if (!context.ArgHandle(8, &handle_arg) || handle_arg.index != 7 || handle_arg.generation != 3) {
     return false;
   }
   if (!context.ArgString(4, &text) || text != "typed") return false;
@@ -216,6 +226,9 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   if (context.ArgI32(9, &i32)) return false;
 
   const auto void_result = Simple::VM::Native::NativeCallResult::Void();
+  const auto bool_result = Simple::VM::Native::NativeCallResult::Bool(true);
+  const auto char_result = Simple::VM::Native::NativeCallResult::Char(0x41);
+  const auto bad_char_result = Simple::VM::Native::NativeCallResult::Char(0xD800);
   const auto i32_result = Simple::VM::Native::NativeCallResult::I32(-7);
   const auto i64_result = Simple::VM::Native::NativeCallResult::I64(-99);
   const auto f32_result = Simple::VM::Native::NativeCallResult::F32(f32_input);
@@ -224,7 +237,8 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   const auto handle_result = Simple::VM::Native::NativeCallResult::Handle({9, 4});
   const auto string_result = Simple::VM::Native::NativeCallResult::String("ok");
   const auto error_result = Simple::VM::Native::NativeCallResult::Error("bad");
-  return !void_result.has_value && i32_result.value == static_cast<uint32_t>(-7) &&
+  return !void_result.has_value && bool_result.value == 1 && char_result.value == 0x41 &&
+         !bad_char_result.ok && i32_result.value == static_cast<uint32_t>(-7) &&
          static_cast<int64_t>(i64_result.value) == -99 && f32_result.value == f32_bits &&
          f64_result.value == f64_bits && ref_result.value == text_ref &&
          handle_result.value == Simple::VM::Native::PackNativeHandleId({9, 4}) &&

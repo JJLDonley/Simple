@@ -1363,6 +1363,26 @@ NativeFunctionSpec WithDoc(NativeFunctionSpec spec, const char* summary) {
 
 } // namespace
 
+bool NativeCallContext::ArgBool(size_t index, bool* out) const {
+  if (!out || index >= args.size()) return false;
+  const uint64_t value = static_cast<uint64_t>(UnpackI32(args[index]));
+  if (!Simple::VM::Runtime::IsValidAbiScalarValue(Simple::Byte::TypeKind::Bool, value)) {
+    return false;
+  }
+  *out = value != 0;
+  return true;
+}
+
+bool NativeCallContext::ArgChar(size_t index, uint32_t* out) const {
+  if (!out || index >= args.size()) return false;
+  const uint64_t value = static_cast<uint64_t>(UnpackI32(args[index]));
+  if (!Simple::VM::Runtime::IsValidAbiScalarValue(Simple::Byte::TypeKind::Char, value)) {
+    return false;
+  }
+  *out = static_cast<uint32_t>(value);
+  return true;
+}
+
 bool NativeCallContext::ArgI32(size_t index, int32_t* out) const {
   if (!out || index >= args.size()) return false;
   *out = UnpackI32(args[index]);
@@ -1435,6 +1455,24 @@ bool NativeCallContext::ArgStringView(size_t index, Simple::VM::Runtime::SimpleS
 NativeCallResult NativeCallResult::Void() {
   NativeCallResult result;
   result.has_value = false;
+  return result;
+}
+
+NativeCallResult NativeCallResult::Bool(bool value) {
+  NativeCallResult result;
+  result.value = PackI32(value ? 1 : 0);
+  return result;
+}
+
+NativeCallResult NativeCallResult::Char(uint32_t value) {
+  NativeCallResult result;
+  if (!Simple::VM::Runtime::IsValidAbiScalarValue(Simple::Byte::TypeKind::Char, value)) {
+    result.ok = false;
+    result.has_value = false;
+    result.error = "invalid char ABI value";
+    return result;
+  }
+  result.value = PackI32(static_cast<int32_t>(value));
   return result;
 }
 
