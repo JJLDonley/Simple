@@ -504,6 +504,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 
 ### Native Calls from JIT
 
+- [x] CLI JIT stats include function names so hot native/import loop blockers can be identified.
 - [ ] JIT native calls use `NativeFunctionSpec` id and the same dispatcher as the interpreter.
 - [ ] Capability checks run identically in interpreter and JIT.
 - [x] Resource kind/generation/closed-state checks run through shared metadata dispatch before native handlers.
@@ -523,7 +524,8 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 ### JIT Parity and Diagnostics
 
 - [ ] Every JIT-supported opcode has interpreter parity tests.
-- [ ] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
+- [x] Every JIT fallback reason is counted and optionally printed by `--jit-stats`.
+- [x] `--jit-stats` reports function names alongside function indexes.
 - [ ] Runtime traps include opcode/function/pc/source debug context when available.
 - [ ] Test `-jit` and `-int` produce identical user-visible results for fixture suites.
 - [x] Remove old compiled-runner code; JIT work targets LLVM ORC plus interpreter fallback only.

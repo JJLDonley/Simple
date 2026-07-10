@@ -35,49 +35,63 @@ bool RunCliContractExpectFail(const std::string& command) {
   return !RunCliContractCommand(command);
 }
 
+std::string CliToolPath(const std::string& name) {
+  const auto build_path = std::filesystem::path("build") / "bin" / name;
+  if (std::filesystem::exists(build_path)) return build_path.string();
+  return (std::filesystem::path("bin") / name).string();
+}
+
 bool CliSimpleStubWithoutPayloadFails() {
   int exit_code = -1;
-  const std::string stderr_text = RunCliContractCaptureStderr("bin/simple", &exit_code);
+  const std::string stderr_text = RunCliContractCaptureStderr(CliToolPath("simple"), &exit_code);
   return exit_code == 1 && stderr_text.find("no embedded SBC payload") != std::string::npos;
 }
 
 bool CliSimpleRejectsSimpleSource() {
-  return RunCliContractExpectFail("bin/simple run Tests/simple/hello.simple");
+  return RunCliContractExpectFail(CliToolPath("simple") + " run Tests/simple/hello.simple");
 }
 
 bool CliSimpleRejectsBuildCommand() {
-  return RunCliContractExpectFail("bin/simple build Tests/simple/hello.simple");
+  return RunCliContractExpectFail(CliToolPath("simple") + " build Tests/simple/hello.simple");
 }
 
 bool CliSimpleRejectsCompileCommand() {
-  return RunCliContractExpectFail("bin/simple compile Tests/simple/hello.simple");
+  return RunCliContractExpectFail(CliToolPath("simple") + " compile Tests/simple/hello.simple");
 }
 
 bool CliSimpleRejectsCheckCommand() {
-  return RunCliContractExpectFail("bin/simple check Tests/simple/hello.simple");
+  return RunCliContractExpectFail(CliToolPath("simple") + " check Tests/simple/hello.simple");
 }
 
 bool CliSimpleRejectsSir() {
-  return RunCliContractExpectFail("bin/simple run Tests/sir/fib_iter.sir");
+  return RunCliContractExpectFail(CliToolPath("simple") + " run Tests/sir/fib_iter.sir");
 }
 
 bool CliSvmRunSimple() {
-  return RunCliContractCommand("bin/svm run Tests/simple/hello.simple");
+  return RunCliContractCommand(CliToolPath("svm") + " run Tests/simple/hello.simple");
 }
 
 bool CliExitCodeContract() {
   int exit_code = -1;
-  RunCliContractCaptureStderr("bin/svm --version", &exit_code);
+  RunCliContractCaptureStderr(CliToolPath("svm") + " --version", &exit_code);
   if (exit_code != 0) return false;
 
-  RunCliContractCaptureStderr("bin/svm check Tests/simple/hello.simple", &exit_code);
+  RunCliContractCaptureStderr(CliToolPath("svm") + " check Tests/simple/hello.simple", &exit_code);
   if (exit_code != 0) return false;
 
-  RunCliContractCaptureStderr("bin/svm run Tests/simple/add_fn.simple", &exit_code);
+  RunCliContractCaptureStderr(CliToolPath("svm") + " run Tests/simple/add_fn.simple", &exit_code);
   if (exit_code != 42) return false;
 
-  RunCliContractCaptureStderr("bin/svm check Tests/simple_bad/type_mismatch.simple", &exit_code);
+  RunCliContractCaptureStderr(CliToolPath("svm") + " check Tests/simple_bad/type_mismatch.simple", &exit_code);
   return exit_code == 1;
+}
+
+bool CliJitStatsPrintFunctionNames() {
+  int exit_code = -1;
+  const std::string stderr_text = RunCliContractCaptureStderr(
+      CliToolPath("svm") + " run Tests/simple/add_fn.simple -jit --jit-stats", &exit_code);
+  return exit_code == 42 && stderr_text.find("[jit] func#") != std::string::npos &&
+         stderr_text.find("name=\"main\"") != std::string::npos;
 }
 
 bool CliSplitContractDetectsToolModesAndCommands() {
@@ -106,6 +120,7 @@ const TestCase kCliContractTests[] = {
   {"cli_simple_rejects_sir", CliSimpleRejectsSir},
   {"cli_svm_run_simple", CliSvmRunSimple},
   {"cli_exit_code_contract", CliExitCodeContract},
+  {"cli_jit_stats_print_function_names", CliJitStatsPrintFunctionNames},
   {"cli_split_contract_detects_tool_modes_and_commands", CliSplitContractDetectsToolModesAndCommands},
   {"cli_split_contract_classifies_input_extensions", CliSplitContractClassifiesInputExtensions},
 };

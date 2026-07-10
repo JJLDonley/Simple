@@ -82,7 +82,11 @@ bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string
       if (error) *error = "function sig_id out of range";
       return false;
     }
-    Simple::Byte::sbc::AppendU32(methods, 0); // name_str
+    uint32_t name_str = 0;
+    if (module.emit_method_names && !func.name.empty()) {
+      name_str = static_cast<uint32_t>(Simple::Byte::sbc::AppendStringToPool(const_pool, func.name));
+    }
+    Simple::Byte::sbc::AppendU32(methods, name_str);
     Simple::Byte::sbc::AppendU32(methods, sig_id);
     Simple::Byte::sbc::AppendU32(methods, static_cast<uint32_t>(offset));
     Simple::Byte::sbc::AppendU16(methods, func.local_count);

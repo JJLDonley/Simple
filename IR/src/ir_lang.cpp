@@ -4079,6 +4079,7 @@ bool LowerIrTextToModule(const IrTextModule& text, Simple::IR::IrModule* out, st
     std::vector<uint8_t> code;
     if (!builder.Finish(&code, error)) return false;
     Simple::IR::IrFunction out_fn;
+    out_fn.name = fn.name;
     out_fn.code = std::move(code);
     out_fn.local_count = fn.locals;
     out_fn.stack_max = fn.stack_max;

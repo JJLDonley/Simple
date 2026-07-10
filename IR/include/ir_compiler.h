@@ -11,6 +11,7 @@
 namespace Simple::IR {
 
 struct IrFunction {
+  std::string name;
   std::vector<uint8_t> code;
   uint16_t local_count = 0;
   uint32_t sig_id = 0;
@@ -33,6 +34,7 @@ struct IrModule {
   std::vector<uint8_t> debug_bytes;
 
   uint32_t entry_method_id = 0;
+  bool emit_method_names = false;
 };
 
 SIMPLEVM_API bool CompileToSbc(const IrModule& module, std::vector<uint8_t>* out, std::string* error);

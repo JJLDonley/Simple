@@ -34,7 +34,7 @@
 
 namespace {
 #ifndef SIMPLEVM_VERSION
-#define SIMPLEVM_VERSION "v0.4.0"
+#define SIMPLEVM_VERSION "v0.4.1"
 #endif
 
 const char* ToolVersion() { return SIMPLEVM_VERSION; }
@@ -46,6 +46,25 @@ const char* JitTierName(Simple::VM::JitTier tier) {
     case Simple::VM::JitTier::Tier1: return "tier1";
   }
   return "unknown";
+}
+
+std::string JitFunctionName(const Simple::Byte::SbcModule& module, size_t index) {
+  if (index >= module.functions.size()) return {};
+  for (const auto& export_row : module.exports) {
+    if (export_row.func_id == index && export_row.symbol_name_str < module.const_pool.size()) {
+      return Simple::Byte::ReadConstPoolString(module, export_row.symbol_name_str);
+    }
+  }
+  const uint32_t method_id = module.functions[index].method_id;
+  if (method_id >= module.methods.size()) return {};
+  for (const auto& sym : module.debug_syms) {
+    if (sym.kind == 5 && sym.symbol_id == method_id && sym.name_str < module.const_pool.size()) {
+      return Simple::Byte::ReadConstPoolString(module, sym.name_str);
+    }
+  }
+  const uint32_t name_offset = module.methods[method_id].name_str;
+  if (name_offset == 0 || name_offset >= module.const_pool.size()) return {};
+  return Simple::Byte::ReadConstPoolString(module, name_offset);
 }
 
 bool ReadFileText(const std::string& path, std::string* out, std::string* error) {
@@ -76,7 +95,8 @@ bool EmitSirFromSimpleFile(const std::string& path, std::string* out, std::strin
 bool CompileSirToSbc(const std::string& text,
                      const std::string& name,
                      std::vector<uint8_t>* out,
-                     std::string* error) {
+                     std::string* error,
+                     bool emit_method_names = false) {
   if (!out) return false;
   Simple::IR::Text::IrTextModule parsed;
   if (!Simple::IR::Text::ParseIrTextModule(text, &parsed, error)) {
@@ -88,6 +108,7 @@ bool CompileSirToSbc(const std::string& text,
     if (error) *error = "IR text lower failed (" + name + "): " + *error;
     return false;
   }
+  module.emit_method_names = emit_method_names;
   if (!Simple::IR::CompileToSbc(module, out, error)) {
     if (error) *error = "IR compile failed (" + name + "): " + *error;
     return false;
@@ -103,7 +124,7 @@ bool CompileSimpleFileToSbc(const std::string& path,
     if (error) *error = "simple compile failed (" + path + "): " + *error;
     return false;
   }
-  return CompileSirToSbc(sir, path, out, error);
+  return CompileSirToSbc(sir, path, out, error, true);
 }
 
 bool WriteFileBytes(const std::string& path,
@@ -689,8 +710,10 @@ int main(int argc, char** argv) {
           llvm_rejects == 0 && tier == Simple::VM::JitTier::None) {
         continue;
       }
-      std::cerr << "[jit] func#" << i
-                << " tier=" << JitTierName(tier)
+      std::cerr << "[jit] func#" << i;
+      const std::string function_name = JitFunctionName(load.module, i);
+      if (!function_name.empty()) std::cerr << " name=\"" << function_name << "\"";
+      std::cerr << " tier=" << JitTierName(tier)
                 << " calls=" << calls
                 << " opcodes=" << ops
                 << " compiles=" << compiles
