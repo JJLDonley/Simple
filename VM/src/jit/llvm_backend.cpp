@@ -1089,6 +1089,14 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return spec.result_type == Simple::Byte::TypeKind::Unspecified || spec.result_type == result;
   };
+  auto function_name = [&](uint32_t func_id) -> std::string {
+    if (func_id >= module.functions.size()) return {};
+    const uint32_t method_id = module.functions[func_id].method_id;
+    if (method_id >= module.methods.size()) return {};
+    const uint32_t name_offset = module.methods[method_id].name_str;
+    if (name_offset == 0 || name_offset >= module.const_pool.size()) return {};
+    return Simple::Byte::ReadConstPoolString(module, name_offset);
+  };
   auto import_name = [&](uint32_t func_id, std::string* module_name, std::string* symbol_name) -> bool {
     if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
       return false;
@@ -1101,6 +1109,17 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (module_name) *module_name = Simple::Byte::ReadConstPoolString(module, import_row.module_name_str);
     if (symbol_name) *symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
     return true;
+  };
+  auto call_target_label = [&](uint32_t func_id, bool import_like_call) -> std::string {
+    std::string module_name;
+    std::string symbol_name;
+    if (import_like_call && import_name(func_id, &module_name, &symbol_name) &&
+        !module_name.empty() && !symbol_name.empty()) {
+      return module_name + "." + symbol_name;
+    }
+    std::string name = function_name(func_id);
+    if (!name.empty()) return name;
+    return "func#" + std::to_string(func_id);
   };
   auto native_import_spec = [&](uint32_t func_id) -> const Simple::VM::Native::NativeFunctionSpec* {
     std::string module_name;
@@ -1132,29 +1151,30 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     return true;
   };
   auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
-    auto unsafe = [](const std::string& category, const std::string& why) {
-      return "category=" + category + " reason=" + why;
+    auto unsafe = [](const std::string& category, const std::string& why, const std::string& target) {
+      return "category=" + category + " reason=" + why + (target.empty() ? std::string() : " target=" + target);
     };
+    const std::string target = call_target_label(func_id, true);
     std::string module_name;
     std::string symbol_name;
-    if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata");
-    if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name");
+    if (!import_name(func_id, &module_name, &symbol_name)) return unsafe("native/import", "missing-import-metadata", target);
+    if (module_name.empty() || symbol_name.empty()) return unsafe("native/import", "missing-import-name", target);
     if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
       if (!sig_is_scalar_loop_call_safe(row)) {
-        return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature");
+        return unsafe("dynamic-dl/external-c", "non-scalar-or-managed-signature", target);
       }
-      return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature");
+      return dl_call_loop_safe(row) ? std::string() : unsafe("dynamic-dl/external-c", "invalid-abi-signature", target);
     }
     const auto* spec = native_import_spec(func_id);
     if (!spec) {
-      if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature");
-      return unsafe("native-registry", "missing-native-metadata");
+      if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature", target);
+      return unsafe("native-registry", "missing-native-metadata", target);
     }
-    if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch");
-    if (!native_resources_loop_safe(*spec)) return unsafe("native-registry", "resource-argument-or-result");
-    if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call");
-    if (spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation) return unsafe("native-registry", "allocating-call");
-    if (spec->gc_behavior != Simple::VM::Native::NativeGcBehavior::NoSafepoint) return unsafe("native-registry", "gc-safepoint-call");
+    if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch", target);
+    if (!native_resources_loop_safe(*spec)) return unsafe("native-registry", "resource-argument-or-result", target);
+    if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call", target);
+    if (spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation) return unsafe("native-registry", "allocating-call", target);
+    if (spec->gc_behavior != Simple::VM::Native::NativeGcBehavior::NoSafepoint) return unsafe("native-registry", "gc-safepoint-call", target);
     return std::string();
   };
   const uint16_t param_count = sig.param_count;
@@ -1891,7 +1911,8 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         if (import_like_call) {
           unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
         } else if (!sig_is_scalar_loop_call_safe(target_sig)) {
-          unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature";
+          unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature target=" +
+                          call_target_label(target_func, false);
         }
         if (!unsafe_detail.empty()) {
           unsafe_loop_call_candidates.push_back({op_pc, op, std::move(unsafe_detail)});

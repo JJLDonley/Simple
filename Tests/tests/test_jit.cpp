@@ -10010,7 +10010,8 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
              std::string::npos &&
          error.find("op=CallImport") != std::string::npos && error.find("pc=") != std::string::npos &&
          error.find("category=native-registry") != std::string::npos &&
-         error.find("reason=blocking-call") != std::string::npos;
+         error.find("reason=blocking-call") != std::string::npos &&
+         error.find("target=System.os.sleep_ms") != std::string::npos;
 }
 
 bool RunLlvmJitIndirectCallInsideLoopRejectsTest() {
