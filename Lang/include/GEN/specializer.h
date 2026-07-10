@@ -14,6 +14,11 @@ struct GenericInstantiationRequest {
   uint32_t column = 0;
 };
 
+struct GenericInstantiationNode {
+  GenericInstantiationRequest request;
+  std::vector<GenericInstantiationRequest> dependencies;
+};
+
 std::string TypeRefIdentity(const Simple::Lang::AST::TypeRef& type);
 bool CollectInstantiationRequestsFromType(const Simple::Lang::AST::TypeRef& type,
                                           std::vector<GenericInstantiationRequest>* out);
@@ -22,5 +27,8 @@ bool CollectInstantiationRequestsFromProgram(const Simple::Lang::AST::Program& p
 std::string InstantiationRequestKey(const GenericInstantiationRequest& request);
 bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationRequest>& requests,
                                     std::vector<GenericInstantiationRequest>* unique_requests);
+bool ResolveInstantiationOrder(const std::vector<GenericInstantiationNode>& nodes,
+                               std::vector<GenericInstantiationRequest>* ordered_requests,
+                               std::string* error);
 
 } // namespace Simple::Lang::GEN

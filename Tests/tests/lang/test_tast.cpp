@@ -338,6 +338,35 @@ bool LangTastFnLiteralChecksTargetProcedureShape() {
   return error.find("nested fn literals are not supported") != std::string::npos;
 }
 
+bool LangGenResolvesInstantiationOrder() {
+  using Simple::Lang::GEN::GenericInstantiationNode;
+  using Simple::Lang::GEN::GenericInstantiationRequest;
+  using Simple::Lang::GEN::InstantiationRequestKey;
+  using Simple::Lang::GEN::ResolveInstantiationOrder;
+
+  GenericInstantiationRequest box{"Box", {"i32"}, 0, 0};
+  GenericInstantiationRequest list{"List", {"Box<i32>"}, 0, 0};
+  GenericInstantiationRequest option{"Option", {"List<Box<i32>>"}, 0, 0};
+  std::vector<GenericInstantiationNode> nodes = {
+      GenericInstantiationNode{option, {list}},
+      GenericInstantiationNode{box, {}},
+      GenericInstantiationNode{list, {box}},
+  };
+  std::vector<GenericInstantiationRequest> ordered;
+  std::string error;
+  if (!ResolveInstantiationOrder(nodes, &ordered, &error) || !error.empty()) return false;
+  if (ordered.size() != 3 || InstantiationRequestKey(ordered[0]) != "Box<i32>" ||
+      InstantiationRequestKey(ordered[1]) != "List<Box<i32>>" ||
+      InstantiationRequestKey(ordered[2]) != "Option<List<Box<i32>>>" ) {
+    return false;
+  }
+
+  nodes[1].dependencies = {option};
+  ordered.clear();
+  return !ResolveInstantiationOrder(nodes, &ordered, &error) &&
+         error.find("generic instantiation cycle") != std::string::npos;
+}
+
 bool LangGenCollectsInstantiationRequests() {
   using Simple::Lang::AST::DeclKind;
 
@@ -1082,6 +1111,7 @@ const TestCase kLangTastTests[] = {
   {"lang_tast_calls_check_reserved_time_arg_types", LangTastCallsCheckReservedTimeArgTypes},
   {"lang_tast_calls_check_type_arg_counts", LangTastCallsCheckTypeArgCounts},
   {"lang_tast_fn_literal_checks_target_procedure_shape", LangTastFnLiteralChecksTargetProcedureShape},
+  {"lang_gen_resolves_instantiation_order", LangGenResolvesInstantiationOrder},
   {"lang_gen_collects_instantiation_requests", LangGenCollectsInstantiationRequests},
   {"lang_tast_collects_generic_declaration_metadata", LangTastCollectsGenericDeclarationMetadata},
   {"lang_split_tast_abi_and_generics_smoke", LangSplitTastAbiAndGenericsSmoke},

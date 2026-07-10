@@ -1,5 +1,6 @@
 #include "GEN/specializer.h"
 
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -181,6 +182,52 @@ bool NormalizeInstantiationRequests(const std::vector<GenericInstantiationReques
       unique_requests->push_back(request);
     }
   }
+  return true;
+}
+
+bool ResolveInstantiationOrder(const std::vector<GenericInstantiationNode>& nodes,
+                               std::vector<GenericInstantiationRequest>* ordered_requests,
+                               std::string* error) {
+  if (!ordered_requests) return false;
+  ordered_requests->clear();
+  enum class VisitState : uint8_t { Unvisited, Visiting, Done };
+  std::unordered_map<std::string, const GenericInstantiationNode*> by_key;
+  std::unordered_map<std::string, VisitState> states;
+  for (const auto& node : nodes) {
+    const std::string key = InstantiationRequestKey(node.request);
+    if (!by_key.emplace(key, &node).second) {
+      if (error) *error = "duplicate instantiation node: " + key;
+      return false;
+    }
+    states.emplace(key, VisitState::Unvisited);
+  }
+
+  auto visit = [&](auto&& self, const GenericInstantiationRequest& request) -> bool {
+    const std::string key = InstantiationRequestKey(request);
+    auto state_it = states.find(key);
+    if (state_it == states.end()) {
+      if (error) *error = "missing instantiation dependency: " + key;
+      return false;
+    }
+    if (state_it->second == VisitState::Visiting) {
+      if (error) *error = "generic instantiation cycle at " + key;
+      return false;
+    }
+    if (state_it->second == VisitState::Done) return true;
+    state_it->second = VisitState::Visiting;
+    const GenericInstantiationNode* node = by_key[key];
+    for (const auto& dependency : node->dependencies) {
+      if (!self(self, dependency)) return false;
+    }
+    state_it->second = VisitState::Done;
+    ordered_requests->push_back(node->request);
+    return true;
+  };
+
+  for (const auto& node : nodes) {
+    if (!visit(visit, node.request)) return false;
+  }
+  if (error) error->clear();
   return true;
 }
 
