@@ -5,6 +5,11 @@
 #include "runtime/values.h"
 
 namespace Simple::VM::Jit {
+namespace {
+
+thread_local std::vector<const std::vector<uint32_t>*> g_jit_root_frames;
+
+} // namespace
 
 bool JitArg(const JitCallContext& context, size_t index, Slot* out) {
   if (!out || index >= context.args.size()) return false;
@@ -122,6 +127,34 @@ void PublishJitRootSlotsByMask(JitCallContext* context,
   for (size_t i = 0; i < slots.size() && i < 64; ++i) {
     if ((ref_mask & (uint64_t{1} << i)) == 0) continue;
     if (!Simple::VM::Runtime::IsNullRef(slots[i])) RegisterJitRoot(context, Simple::VM::Runtime::UnpackRef(slots[i]));
+  }
+}
+
+void PushJitRootFrame(const std::vector<uint32_t>* root_refs) {
+  if (!root_refs) return;
+  g_jit_root_frames.push_back(root_refs);
+}
+
+void PopJitRootFrame(const std::vector<uint32_t>* root_refs) {
+  if (g_jit_root_frames.empty()) return;
+  if (g_jit_root_frames.back() == root_refs) {
+    g_jit_root_frames.pop_back();
+    return;
+  }
+  for (auto it = g_jit_root_frames.rbegin(); it != g_jit_root_frames.rend(); ++it) {
+    if (*it == root_refs) {
+      g_jit_root_frames.erase(std::next(it).base());
+      return;
+    }
+  }
+}
+
+void MarkPublishedJitRoots(Heap& heap) {
+  for (const std::vector<uint32_t>* refs : g_jit_root_frames) {
+    if (!refs) continue;
+    for (uint32_t ref : *refs) {
+      if (ref != Simple::VM::HeapLayout::kNullRef) heap.Mark(ref);
+    }
   }
 }
 

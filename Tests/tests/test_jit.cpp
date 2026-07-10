@@ -9628,6 +9628,16 @@ bool RunJitCallContextHelpersTest() {
   Simple::VM::Jit::ClearJitRoots(&context);
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.operand_stack, 0b10);
   if (context.root_refs.size() != 1 || context.root_refs[0] != 99) return false;
+  Simple::VM::Heap root_heap;
+  uint32_t live_ref = Simple::VM::CreateString(root_heap, u"live");
+  uint32_t dead_ref = Simple::VM::CreateString(root_heap, u"dead");
+  std::vector<uint32_t> published_roots = {live_ref};
+  Simple::VM::Jit::PushJitRootFrame(&published_roots);
+  root_heap.ResetMarks();
+  Simple::VM::Jit::MarkPublishedJitRoots(root_heap);
+  root_heap.Sweep();
+  Simple::VM::Jit::PopJitRootFrame(&published_roots);
+  if (!root_heap.Get(live_ref) || root_heap.Get(dead_ref)) return false;
   Simple::VM::Jit::MarkJitSafepoint(&context, 7, 11, true, false);
   if (!context.safepoint.active || context.safepoint.function_index != 7 || context.safepoint.pc != 11 ||
       !context.safepoint.may_block || context.safepoint.may_allocate) {

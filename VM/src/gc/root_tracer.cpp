@@ -1,5 +1,7 @@
 #include "gc/root_tracer.h"
 
+#include "jit/call_context.h"
+
 namespace Simple::VM::Gc {
 namespace {
 
@@ -54,6 +56,7 @@ void TraceRoots(const RootTraceContext& context) {
     }
     if (context.current) TraceLocals(heap, *context.locals_arena, *context.current);
   }
+  Simple::VM::Jit::MarkPublishedJitRoots(heap);
 }
 
 } // namespace Simple::VM::Gc

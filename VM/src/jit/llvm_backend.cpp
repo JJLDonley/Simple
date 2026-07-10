@@ -804,6 +804,13 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, caller_local_ref_mask);
   Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.operand_stack, caller_stack_ref_mask);
   Simple::VM::Jit::MarkJitSafepoint(&context, caller_func_index, caller_pc, may_block != 0, may_allocate != 0);
+  struct JitRootFrameScope {
+    const std::vector<uint32_t>* roots = nullptr;
+    explicit JitRootFrameScope(const std::vector<uint32_t>* refs) : roots(refs) {
+      Simple::VM::Jit::PushJitRootFrame(roots);
+    }
+    ~JitRootFrameScope() { Simple::VM::Jit::PopJitRootFrame(roots); }
+  } jit_root_frame_scope(&context.root_refs);
 
   std::string reason;
   if (func_index < module->function_is_import.size() && module->function_is_import[func_index]) {
