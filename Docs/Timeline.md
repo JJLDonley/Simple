@@ -209,6 +209,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [x] Add `Lang/include/GEN/specializer.h`.
 - [x] Add `Lang/src/GEN/specializer.cpp`.
 - [ ] Insert specialization after generic TAST validation and before IRB lowering.
+  - [x] GEN exposes whole-program specialization plan construction from AST/TAST metadata.
 - [x] Collect generic function/data/artifact declarations.
 - [ ] Collect concrete instantiation requests from call sites, type annotations, literals, fields, globals, imports, and native signatures.
   - [x] Initial GEN collector walks type annotations in declarations, fields, methods, modules, and statements.
@@ -218,6 +219,7 @@ This phase finishes the language surface that higher runtime and JIT work depend
 - [ ] Cache/reuse equivalent specializations across a module graph.
   - [x] GEN normalizes duplicate instantiation requests by deterministic request key.
   - [x] GEN builds deterministic specialization plans from declarations and requests.
+  - [x] GEN detects specialization symbol collisions while planning.
 - [ ] Emit only concrete specialized declarations into IRB/IRE.
 
 ### Generic Language Surface

@@ -301,8 +301,33 @@ bool BuildSpecializationPlan(const std::vector<Simple::Lang::TAST::GenericDeclar
     plan.specialized_symbol = SpecializedSymbolName(request);
     out->push_back(std::move(plan));
   }
+  std::unordered_map<std::string, std::string> symbol_to_key;
+  for (const auto& plan : *out) {
+    const std::string request_key = InstantiationRequestKey(plan.request);
+    const auto [it, inserted] = symbol_to_key.emplace(plan.specialized_symbol, request_key);
+    if (!inserted && it->second != request_key) {
+      if (error) {
+        *error = "generic specialization symbol collision for " + plan.specialized_symbol;
+      }
+      return false;
+    }
+  }
   if (error) error->clear();
   return true;
+}
+
+bool BuildSpecializationPlanFromProgram(const Simple::Lang::AST::Program& program,
+                                        std::vector<GenericSpecializationPlan>* out,
+                                        std::string* error) {
+  std::vector<Simple::Lang::TAST::GenericDeclarationMetadata> declarations;
+  if (!Simple::Lang::TAST::CollectGenericDeclarationMetadata(program, &declarations, error)) {
+    return false;
+  }
+  std::vector<GenericInstantiationRequest> requests;
+  if (!CollectInstantiationRequestsFromProgram(program, &requests)) return false;
+  std::vector<GenericInstantiationRequest> unique_requests;
+  if (!NormalizeInstantiationRequests(requests, &unique_requests)) return false;
+  return BuildSpecializationPlan(declarations, unique_requests, out, error);
 }
 
 } // namespace Simple::Lang::GEN
