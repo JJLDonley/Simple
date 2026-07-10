@@ -1372,6 +1372,23 @@ bool NativeCallContext::ArgHandle(size_t index, NativeHandleId* out) const {
   return true;
 }
 
+bool NativeCallContext::ArgBytesView(size_t index, Simple::VM::Runtime::SimpleBytesView* out) const {
+  if (!out || !heap || index >= args.size()) return false;
+  const uint32_t ref = UnpackRef(args[index]);
+  const HeapObject* obj = heap->Get(ref);
+  if (!obj || obj->header.kind != ObjectKind::Bytes ||
+      obj->payload.size() < HeapLayout::kBytesDataOffset) {
+    return false;
+  }
+  const uint32_t length = ReadU32Payload(obj->payload, HeapLayout::kBytesLengthOffset);
+  if (HeapLayout::kBytesDataOffset + static_cast<size_t>(length) > obj->payload.size()) {
+    return false;
+  }
+  out->data = length == 0 ? nullptr : obj->payload.data() + HeapLayout::kBytesDataOffset;
+  out->size = length;
+  return true;
+}
+
 bool NativeCallContext::ArgString(size_t index, std::string* out) {
   return ReadStringArg(*this, index, out);
 }

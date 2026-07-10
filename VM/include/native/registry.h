@@ -10,6 +10,7 @@
 
 #include "heap.h"
 #include "native/resource_registry.h"
+#include "runtime/abi.h"
 #include "sbc_types.h"
 
 namespace Simple::VM::Native {
@@ -30,6 +31,7 @@ struct NativeCallContext {
   bool ArgF64(size_t index, double* out) const;
   bool ArgRef(size_t index, uint32_t* out) const;
   bool ArgHandle(size_t index, NativeHandleId* out) const;
+  bool ArgBytesView(size_t index, Simple::VM::Runtime::SimpleBytesView* out) const;
   bool ArgString(size_t index, std::string* out);
 };
 

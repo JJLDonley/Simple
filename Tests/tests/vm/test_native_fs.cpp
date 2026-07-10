@@ -145,6 +145,7 @@ bool VmNativeRegistryMetadataValidatesSpecs() {
 bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   Simple::VM::Heap heap;
   const uint32_t text_ref = Simple::VM::CreateString(heap, u"typed");
+  const uint32_t bytes_ref = Simple::VM::CreateBytes(heap, {4, 5, 6});
   float f32_input = 1.25f;
   uint32_t f32_bits = 0;
   std::memcpy(&f32_bits, &f32_input, sizeof(f32_bits));
@@ -167,8 +168,14 @@ bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
   if (!context.ArgF32(2, &f32) || f32 != f32_input) return false;
   if (!context.ArgF64(3, &f64) || f64 != f64_input) return false;
   if (!context.ArgRef(4, &ref) || ref != text_ref) return false;
+  context.args.push_back(bytes_ref);
+  Simple::VM::Runtime::SimpleBytesView bytes_view;
+  if (!context.ArgBytesView(5, &bytes_view) || bytes_view.size != 3 ||
+      bytes_view.data[0] != 4 || bytes_view.data[2] != 6) {
+    return false;
+  }
   context.args.push_back(Simple::VM::Native::PackNativeHandleId({7, 3}));
-  if (!context.ArgHandle(5, &handle_arg) || handle_arg.index != 7 || handle_arg.generation != 3) {
+  if (!context.ArgHandle(6, &handle_arg) || handle_arg.index != 7 || handle_arg.generation != 3) {
     return false;
   }
   if (!context.ArgString(4, &text) || text != "typed") return false;
