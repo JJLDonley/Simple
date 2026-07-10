@@ -104,6 +104,33 @@ bool VmNativeRegistryMetadataValidatesSpecs() {
     return false;
   }
 
+  Simple::VM::Native::NativeFunctionSpec safe_direct;
+  safe_direct.module_name = "System.good";
+  safe_direct.symbol_name = "direct";
+  safe_direct.result_type = Simple::Byte::TypeKind::I32;
+  safe_direct.direct_binding_safe = true;
+  safe_direct.handler = [](Simple::VM::Native::NativeCallContext&) {
+    return Simple::VM::Native::NativeCallResult::I32(0);
+  };
+  if (!Simple::VM::Native::IsDirectNativeBindingSafe(safe_direct)) return false;
+
+  Simple::VM::Native::NativeFunctionSpec bad_direct;
+  bad_direct.module_name = "System.bad";
+  bad_direct.symbol_name = "unsafeDirect";
+  bad_direct.result_type = Simple::Byte::TypeKind::I32;
+  bad_direct.blocking = Simple::VM::Native::NativeBlockingBehavior::MayBlock;
+  bad_direct.direct_binding_safe = true;
+  bad_direct.handler = [](Simple::VM::Native::NativeCallContext&) {
+    return Simple::VM::Native::NativeCallResult::I32(0);
+  };
+  Simple::VM::Native::NativeRegistry direct_registry;
+  if (!direct_registry.Register(std::move(bad_direct))) return false;
+  error.clear();
+  if (Simple::VM::Native::ValidateNativeRegistryMetadata(direct_registry, &error) ||
+      error.find("direct native binding marked safe") == std::string::npos) {
+    return false;
+  }
+
   Simple::VM::Native::NativeFunctionSpec bad;
   bad.module_name = "System.bad";
   bad.symbol_name = "leak";
@@ -292,13 +319,13 @@ bool VmNativeFunctionMetadataDeclaresResources() {
 bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   const std::string docs = Simple::VM::Native::GenerateStdLibMarkdown(registry);
-  return docs.find("| Symbol | Signature | Blocking | Allocation | GC | Capabilities | Resources | Platforms | Stability | Summary |") !=
+  return docs.find("| Symbol | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |") !=
              std::string::npos &&
-         docs.find("| `readText` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
+         docs.find("| `readText` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
              std::string::npos &&
-         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
+         docs.find("| `open` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `-` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `no-alloc` | `no-safepoint` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `(i64, string) -> i64` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 

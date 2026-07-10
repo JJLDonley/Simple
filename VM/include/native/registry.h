@@ -123,6 +123,7 @@ struct NativeFunctionSpec {
   NativeBlockingBehavior blocking = NativeBlockingBehavior::NonBlocking;
   NativeAllocationBehavior allocation = NativeAllocationBehavior::NoAllocation;
   NativeGcBehavior gc_behavior = NativeGcBehavior::NoSafepoint;
+  bool direct_binding_safe = false;
   std::vector<std::string> capability_tags;
   std::vector<std::string> platforms;
   NativeStability stability = NativeStability::Experimental;
@@ -165,6 +166,7 @@ void RegisterSystemIo(NativeRegistry& registry);
 void RegisterSystemDl(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
 bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error);
+bool IsDirectNativeBindingSafe(const NativeFunctionSpec& spec);
 std::string GenerateStdLibMarkdown(const NativeRegistry& registry);
 
 } // namespace Simple::VM::Native

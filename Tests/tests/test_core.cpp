@@ -16648,8 +16648,8 @@ bool RunNativeRegistryModuleTest() {
   return registry.Size() == 1 && result.ok && result.value == 123 &&
          stdlib_markdown_complete &&
          stdlib_markdown.find("## System.fs") != std::string::npos &&
-         stdlib_markdown.find("| `readText` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `filesystem.read` | `-` |") != std::string::npos &&
-         stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `readText` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` | `-` |") != std::string::npos &&
          stdlib_markdown.find("out:file:to-caller:vm-shutdown") != std::string::npos &&
          random_i32 && os_time &&
          os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&

@@ -1488,6 +1488,12 @@ size_t NativeRegistry::Size() const {
   return functions_.size();
 }
 
+bool IsDirectNativeBindingSafe(const NativeFunctionSpec& spec) {
+  return spec.direct_binding_safe && spec.blocking == NativeBlockingBehavior::NonBlocking &&
+         spec.allocation == NativeAllocationBehavior::NoAllocation &&
+         spec.gc_behavior == NativeGcBehavior::NoSafepoint && spec.resources.empty();
+}
+
 bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error) {
   for (const NativeFunctionSpec& spec : registry.Functions()) {
     const std::string name = spec.module_name + "." + spec.symbol_name;
@@ -1503,6 +1509,15 @@ bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string*
     if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
                                                            false, &abi_error)) {
       if (error) *error = name + " has invalid ABI signature: " + abi_error;
+      return false;
+    }
+    if (spec.allocation == NativeAllocationBehavior::MayAllocateVm &&
+        spec.gc_behavior != NativeGcBehavior::MaySafepoint) {
+      if (error) *error = name + " VM allocation metadata must declare GC safepoint behavior";
+      return false;
+    }
+    if (spec.direct_binding_safe && !IsDirectNativeBindingSafe(spec)) {
+      if (error) *error = name + " direct native binding marked safe with unsafe metadata";
       return false;
     }
     for (const NativeResourceUse& resource : spec.resources) {
@@ -1582,6 +1597,10 @@ std::string GcMarkdown(NativeGcBehavior gc_behavior) {
       return "may-safepoint";
   }
   return "unknown";
+}
+
+std::string DirectBindingMarkdown(bool direct_binding_safe) {
+  return direct_binding_safe ? "safe" : "-";
 }
 
 std::string StabilityMarkdown(NativeStability stability) {
@@ -1727,8 +1746,8 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Signature | Blocking | Allocation | GC | Capabilities | Resources | Platforms | Stability | Summary |\n"
-        << "|---|---|---|---|---|---|---|---|---|---|\n";
+    out << "| Symbol | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |\n"
+        << "|---|---|---|---|---|---|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
       out << "| `" << spec->symbol_name << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
@@ -1739,6 +1758,7 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
           << BlockingMarkdown(spec->blocking) << "` | `"
           << AllocationMarkdown(spec->allocation) << "` | `"
           << GcMarkdown(spec->gc_behavior) << "` | `"
+          << DirectBindingMarkdown(spec->direct_binding_safe) << "` | `"
           << TagsMarkdown(spec->capability_tags) << "` | `"
           << ResourcesMarkdown(spec->resources) << "` | `"
           << PlatformsMarkdown(spec->platforms) << "` | `"
