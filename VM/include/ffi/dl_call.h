@@ -12,6 +12,25 @@
 
 namespace Simple::VM::Ffi {
 
+struct DynamicDlAbiValidation {
+  bool abi_valid = false;
+  bool vm_marshal_supported = false;
+  bool may_allocate = false;
+  bool may_block = true;
+  bool needs_roots = false;
+  std::string reason;
+};
+
+DynamicDlAbiValidation AnalyzeDynamicDlCallSignature(const Simple::Byte::SbcModule& module,
+                                                    uint32_t ret_type_id,
+                                                    bool has_ret,
+                                                    const std::vector<uint32_t>& arg_type_ids);
+
+DynamicDlAbiValidation AnalyzeDynamicDlFunctionSignature(const Simple::Byte::SbcModule& module,
+                                                        uint32_t ret_type_id,
+                                                        bool has_ret,
+                                                        const std::vector<uint32_t>& param_type_ids);
+
 bool ValidateDynamicDlCallSignature(const Simple::Byte::SbcModule& module,
                                     uint32_t ret_type_id,
                                     bool has_ret,

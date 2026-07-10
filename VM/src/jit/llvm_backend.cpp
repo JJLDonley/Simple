@@ -1200,12 +1200,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       }
       param_type_ids.push_back(type_id);
     }
-    std::string abi_error;
-    return Simple::VM::Ffi::ValidateDynamicDlFunctionSignature(module,
-                                                              row.ret_type_id,
-                                                              !sig_returns_void(row),
-                                                              param_type_ids,
-                                                              &abi_error);
+    const auto abi = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module,
+                                                                        row.ret_type_id,
+                                                                        !sig_returns_void(row),
+                                                                        param_type_ids);
+    return abi.abi_valid && abi.vm_marshal_supported;
   };
   auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
                                                const Simple::Byte::SigRow& row) -> bool {

@@ -889,11 +889,98 @@ bool FillScalarArgStorage(const SbcModule& module,
   }
 }
 
-bool ValidateDynamicDlCallSignature(const SbcModule& module,
-                                    uint32_t ret_type_id,
-                                    bool has_ret,
-                                    const std::vector<uint32_t>& arg_type_ids,
-                                    std::string* out_error) {
+bool IsDlScalarParamMarshalSupported(TypeKind kind) {
+  switch (kind) {
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::I64:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::U64:
+    case TypeKind::F32:
+    case TypeKind::F64:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+    case TypeKind::String:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsDlScalarReturnMarshalSupported(TypeKind kind) {
+  return IsDlScalarParamMarshalSupported(kind) || kind == TypeKind::Ref;
+}
+
+bool ValidateDlVmMarshalType(const SbcModule& module,
+                             uint32_t type_id,
+                             bool is_return,
+                             std::unordered_set<uint32_t>& visiting,
+                             bool* may_allocate,
+                             bool* needs_roots,
+                             std::string* out_error) {
+  if (type_id >= module.types.size()) {
+    if (out_error) *out_error = "System.dl.call type id out of range";
+    return false;
+  }
+  const auto& row = module.types[type_id];
+  const TypeKind kind = static_cast<TypeKind>(row.kind);
+  if (kind == TypeKind::String) {
+    if (needs_roots) *needs_roots = true;
+    if (is_return && may_allocate) *may_allocate = true;
+    return true;
+  }
+  if (IsStructTypeId(module, type_id)) {
+    if (!visiting.insert(type_id).second) {
+      if (out_error) *out_error = "System.dl.call recursive struct marshal is unsupported";
+      return false;
+    }
+    if (needs_roots) *needs_roots = true;
+    if (is_return && may_allocate) *may_allocate = true;
+    if (row.field_start + row.field_count > module.fields.size()) {
+      if (out_error) *out_error = "System.dl.call struct field range out of bounds";
+      visiting.erase(type_id);
+      return false;
+    }
+    for (uint32_t i = 0; i < row.field_count; ++i) {
+      const uint32_t field_type_id = module.fields[row.field_start + i].type_id;
+      if (!ValidateDlVmMarshalType(module, field_type_id, is_return, visiting, may_allocate, needs_roots, out_error)) {
+        visiting.erase(type_id);
+        return false;
+      }
+    }
+    visiting.erase(type_id);
+    return true;
+  }
+  const bool ok = is_return ? IsDlScalarReturnMarshalSupported(kind) : IsDlScalarParamMarshalSupported(kind);
+  if (!ok && out_error) *out_error = "System.dl.call unsupported VM marshal type";
+  return ok;
+}
+
+bool ValidateDlVmMarshalSignature(const SbcModule& module,
+                                  uint32_t ret_type_id,
+                                  bool has_ret,
+                                  const std::vector<uint32_t>& arg_type_ids,
+                                  bool* may_allocate,
+                                  bool* needs_roots,
+                                  std::string* out_error) {
+  std::unordered_set<uint32_t> visiting;
+  for (uint32_t type_id : arg_type_ids) {
+    if (!ValidateDlVmMarshalType(module, type_id, false, visiting, may_allocate, needs_roots, out_error)) return false;
+  }
+  if (has_ret && !ValidateDlVmMarshalType(module, ret_type_id, true, visiting, may_allocate, needs_roots, out_error)) {
+    return false;
+  }
+  return true;
+}
+
+bool ValidateDlNativeAbiSignature(const SbcModule& module,
+                                  uint32_t ret_type_id,
+                                  bool has_ret,
+                                  const std::vector<uint32_t>& arg_type_ids,
+                                  std::string* out_error) {
   std::vector<Simple::VM::Runtime::AbiTypeInfo> parameter_abi;
   parameter_abi.reserve(arg_type_ids.size());
   for (uint32_t type_id : arg_type_ids) {
@@ -903,10 +990,97 @@ bool ValidateDynamicDlCallSignature(const SbcModule& module,
   }
   Simple::VM::Runtime::AbiTypeInfo result_abi =
       Simple::VM::Runtime::GetPrimitiveAbiTypeInfo(TypeKind::Unspecified);
-  if (has_ret && !BuildExternalDlAbiTypeInfo(module, ret_type_id, &result_abi, out_error)) {
+  if (has_ret && !BuildExternalDlAbiTypeInfo(module, ret_type_id, &result_abi, out_error)) return false;
+  if (!Simple::VM::Runtime::ValidateExternalCAbiTypeInfos(parameter_abi, result_abi, out_error)) return false;
+
+  DlAbiCache cache;
+  std::vector<ffi_type*> ffi_arg_types(arg_type_ids.size(), nullptr);
+  for (size_t i = 0; i < arg_type_ids.size(); ++i) {
+    ffi_arg_types[i] = BuildDlFfiType(module, arg_type_ids[i], cache, out_error);
+    if (!ffi_arg_types[i]) return false;
+  }
+  ffi_type* ffi_ret_type = &ffi_type_void;
+  if (has_ret) {
+    ffi_ret_type = BuildDlFfiType(module, ret_type_id, cache, out_error);
+    if (!ffi_ret_type) return false;
+  }
+  ffi_cif cif;
+  if (ffi_prep_cif(&cif,
+                   FFI_DEFAULT_ABI,
+                   static_cast<unsigned int>(arg_type_ids.size()),
+                   ffi_ret_type,
+                   ffi_arg_types.data()) != FFI_OK) {
+    if (out_error) *out_error = "System.dl.call ffi_prep_cif failed";
     return false;
   }
-  return Simple::VM::Runtime::ValidateExternalCAbiTypeInfos(parameter_abi, result_abi, out_error);
+  for (uint32_t type_id : arg_type_ids) {
+    if (IsStructTypeId(module, type_id) && !PrepareStructOffsets(module, type_id, cache, out_error)) return false;
+  }
+  if (has_ret && IsStructTypeId(module, ret_type_id) && !PrepareStructOffsets(module, ret_type_id, cache, out_error)) {
+    return false;
+  }
+  return true;
+}
+
+DynamicDlAbiValidation AnalyzeDynamicDlCallSignature(const SbcModule& module,
+                                                    uint32_t ret_type_id,
+                                                    bool has_ret,
+                                                    const std::vector<uint32_t>& arg_type_ids) {
+  DynamicDlAbiValidation result;
+  std::string error;
+  result.vm_marshal_supported = ValidateDlVmMarshalSignature(module,
+                                                             ret_type_id,
+                                                             has_ret,
+                                                             arg_type_ids,
+                                                             &result.may_allocate,
+                                                             &result.needs_roots,
+                                                             &error);
+  if (!result.vm_marshal_supported) {
+    result.reason = error;
+    return result;
+  }
+  error.clear();
+  result.abi_valid = ValidateDlNativeAbiSignature(module, ret_type_id, has_ret, arg_type_ids, &error);
+  if (!result.abi_valid) {
+    result.reason = error;
+    return result;
+  }
+  result.may_block = true;
+  return result;
+}
+
+DynamicDlAbiValidation AnalyzeDynamicDlFunctionSignature(const SbcModule& module,
+                                                        uint32_t ret_type_id,
+                                                        bool has_ret,
+                                                        const std::vector<uint32_t>& param_type_ids) {
+  DynamicDlAbiValidation result;
+  if (param_type_ids.empty()) {
+    result.reason = "System.dl.call missing function pointer parameter";
+    return result;
+  }
+  const uint32_t ptr_type_id = param_type_ids.front();
+  if (ptr_type_id >= module.types.size()) {
+    result.reason = "System.dl.call function pointer type id out of range";
+    return result;
+  }
+  const auto ptr_kind = static_cast<TypeKind>(module.types[ptr_type_id].kind);
+  if (ptr_kind != TypeKind::I64 && ptr_kind != TypeKind::U64) {
+    result.reason = "System.dl.call function pointer must be i64/u64";
+    return result;
+  }
+  std::vector<uint32_t> arg_type_ids(param_type_ids.begin() + 1, param_type_ids.end());
+  return AnalyzeDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids);
+}
+
+bool ValidateDynamicDlCallSignature(const SbcModule& module,
+                                    uint32_t ret_type_id,
+                                    bool has_ret,
+                                    const std::vector<uint32_t>& arg_type_ids,
+                                    std::string* out_error) {
+  DynamicDlAbiValidation result = AnalyzeDynamicDlCallSignature(module, ret_type_id, has_ret, arg_type_ids);
+  if (result.abi_valid && result.vm_marshal_supported) return true;
+  if (out_error) *out_error = result.reason;
+  return false;
 }
 
 bool ValidateDynamicDlFunctionSignature(const SbcModule& module,

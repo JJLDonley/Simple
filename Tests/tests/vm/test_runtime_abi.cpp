@@ -1,5 +1,6 @@
 #include "test_utils.h"
 
+#include "ffi/dl_call.h"
 #include "runtime/abi.h"
 #include "runtime/promise.h"
 #include "runtime/type_identity.h"
@@ -570,6 +571,62 @@ bool VmRuntimeAbiRejectsRecursiveValueContainment() {
          error.find("out of range") != std::string::npos;
 }
 
+bool VmRuntimeAbiValidatesDynamicDlAbi() {
+  using Simple::Byte::TypeKind;
+
+  Simple::Byte::SbcModule module;
+  Simple::Byte::TypeRow i32;
+  i32.kind = static_cast<uint8_t>(TypeKind::I32);
+  i32.size = 4;
+  module.types.push_back(i32);
+  Simple::Byte::TypeRow i64;
+  i64.kind = static_cast<uint8_t>(TypeKind::I64);
+  i64.size = 8;
+  module.types.push_back(i64);
+  Simple::Byte::TypeRow string;
+  string.kind = static_cast<uint8_t>(TypeKind::String);
+  string.size = 8;
+  module.types.push_back(string);
+  Simple::Byte::TypeRow ref;
+  ref.kind = static_cast<uint8_t>(TypeKind::Ref);
+  ref.size = 8;
+  module.types.push_back(ref);
+  Simple::Byte::TypeRow point;
+  point.kind = static_cast<uint8_t>(TypeKind::Unspecified);
+  point.size = 8;
+  point.field_start = 0;
+  point.field_count = 2;
+  module.types.push_back(point);
+  module.fields.push_back(Simple::Byte::FieldRow{0, 0, 0, 0});
+  module.fields.push_back(Simple::Byte::FieldRow{0, 0, 4, 0});
+
+  auto scalar = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 0});
+  if (!scalar.abi_valid || !scalar.vm_marshal_supported || scalar.may_allocate || scalar.needs_roots) return false;
+
+  auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 2});
+  if (!cstring.abi_valid || !cstring.vm_marshal_supported || !cstring.needs_roots || cstring.may_allocate) return false;
+
+  auto aggregate = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, false, {1, 4});
+  if (!aggregate.abi_valid || !aggregate.vm_marshal_supported || !aggregate.needs_roots || aggregate.may_allocate) {
+    return false;
+  }
+
+  auto aggregate_ret = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 4, true, {1});
+  if (!aggregate_ret.abi_valid || !aggregate_ret.vm_marshal_supported || !aggregate_ret.needs_roots ||
+      !aggregate_ret.may_allocate) {
+    return false;
+  }
+
+  auto bad_ptr = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {0, 0});
+  if (bad_ptr.abi_valid || bad_ptr.vm_marshal_supported || bad_ptr.reason.find("function pointer") == std::string::npos) {
+    return false;
+  }
+
+  auto bad_ref_param = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 3});
+  return !bad_ref_param.abi_valid && !bad_ref_param.vm_marshal_supported &&
+         bad_ref_param.reason.find("unsupported VM marshal type") != std::string::npos;
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -627,6 +684,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_computes_fixed_array_layout", VmRuntimeAbiComputesFixedArrayLayout},
   {"vm_runtime_abi_data_methods_do_not_affect_layout", VmRuntimeAbiDataMethodsDoNotAffectLayout},
   {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
+  {"vm_runtime_abi_validates_dynamic_dl_abi", VmRuntimeAbiValidatesDynamicDlAbi},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 
