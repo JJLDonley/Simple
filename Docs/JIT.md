@@ -72,7 +72,7 @@ Remaining migration order:
 
 ## LLVM ORC backend
 
-New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed compiled runner must not be reintroduced as a compatibility path.
+New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed compiled runner must not be reintroduced as a compatibility path. `JitCallContext` is the stable internal ABI for compiled Simple functions: it carries args, locals, spills, globals, heap/runtime access, return slot, trap state, and explicit root refs.
 
 ## Failure reporting
 

@@ -64,6 +64,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/interpreter/globals.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/stack.cpp
   ${SIMPLEVM_VM_ROOT}/src/interpreter/traps.cpp
+  ${SIMPLEVM_VM_ROOT}/src/jit/call_context.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/llvm_backend.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/status.cpp

@@ -10,6 +10,7 @@
 #include "sbc_emitter.h"
 #include "sbc_loader.h"
 #include "sbc_verifier.h"
+#include "jit/call_context.h"
 #include "jit/llvm_backend.h"
 #include "intrinsic_ids.h"
 #include "runtime/execution_stats.h"
@@ -9495,6 +9496,36 @@ bool RunLlvmJitForwardBranchSmokeTest() {
   return true;
 }
 
+bool RunJitCallContextHelpersTest() {
+  Simple::VM::Jit::JitCallContext context;
+  context.args = {11, 22};
+  context.locals = {0, 0};
+  std::vector<Simple::VM::Jit::Slot> globals = {7};
+  context.globals = &globals;
+
+  Simple::VM::Jit::Slot value = 0;
+  if (!Simple::VM::Jit::JitArg(context, 1, &value) || value != 22) return false;
+  if (!Simple::VM::Jit::SetJitLocal(&context, 0, 33)) return false;
+  if (!Simple::VM::Jit::JitLocal(context, 0, &value) || value != 33) return false;
+  if (!Simple::VM::Jit::SetJitGlobal(&context, 0, 44)) return false;
+  if (!Simple::VM::Jit::JitGlobal(context, 0, &value) || value != 44 || globals[0] != 44) return false;
+
+  Simple::VM::Jit::SetJitReturn(&context, 55);
+  if (!context.has_return || context.return_value != 55) return false;
+  Simple::VM::Jit::ClearJitReturn(&context);
+  if (context.has_return || context.return_value != 0) return false;
+
+  Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Fallback, "fallback");
+  if (context.trap.kind != Simple::VM::Jit::JitCallTrapKind::Fallback ||
+      context.trap.message != "fallback") {
+    return false;
+  }
+  Simple::VM::Jit::RegisterJitRoot(&context, 123);
+  if (context.root_refs.size() != 1 || context.root_refs[0] != 123) return false;
+  Simple::VM::Jit::ClearJitRoots(&context);
+  return context.root_refs.empty() && !Simple::VM::Jit::JitArg(context, 9, &value);
+}
+
 bool RunJitStatusCodeTest() {
   using Simple::VM::Jit::ClassifyJitReason;
   using Simple::VM::Jit::JitStatusCode;
@@ -9590,6 +9621,7 @@ bool RunLlvmJitLoopSmokeTest() {
 }
 
 static const TestCase kJitTests[] = {
+  {"jit_call_context_helpers", RunJitCallContextHelpersTest},
   {"jit_status_codes", RunJitStatusCodeTest},
   {"jit_status_counts", RunJitStatusCountsTest},
   {"llvm_jit_leaf_i32_smoke", RunLlvmJitLeafI32SmokeTest},
