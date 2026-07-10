@@ -43,7 +43,7 @@ AbiPromiseId PromiseRegistry::Create() {
     if (slot.occupied && slot.record.state == PromiseState::Pending) continue;
     slot.generation = slot.generation == 0 ? kFirstPromiseGeneration : slot.generation + 1;
     if (slot.generation == 0) slot.generation = kFirstPromiseGeneration;
-    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending, false, 0, {}, {}};
+    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending, false, false, 0, {}, {}};
     slot.occupied = true;
     return slot.record.id;
   }
@@ -51,7 +51,7 @@ AbiPromiseId PromiseRegistry::Create() {
   Slot slot;
   slot.generation = kFirstPromiseGeneration;
   slot.record = PromiseRecord{AbiPromiseId{static_cast<uint32_t>(records_.size()), slot.generation},
-                              PromiseState::Pending, false, 0, {}, {}};
+                              PromiseState::Pending, false, false, 0, {}, {}};
   slot.occupied = true;
   records_.push_back(std::move(slot));
   return records_.back().record.id;
@@ -68,11 +68,15 @@ PromiseStatus PromiseRegistry::Get(AbiPromiseId id, const PromiseRecord** out) c
 }
 
 PromiseStatus PromiseRegistry::Resolve(AbiPromiseId id, uint64_t payload) {
-  return Complete(id, PromiseState::Done, payload, {});
+  return Complete(id, PromiseState::Done, false, payload, {});
+}
+
+PromiseStatus PromiseRegistry::ResolveRef(AbiPromiseId id, uint32_t ref) {
+  return Complete(id, PromiseState::Done, true, ref, {});
 }
 
 PromiseStatus PromiseRegistry::Fail(AbiPromiseId id, std::string error) {
-  return Complete(id, PromiseState::Failed, 0, std::move(error));
+  return Complete(id, PromiseState::Failed, false, 0, std::move(error));
 }
 
 PromiseStatus PromiseRegistry::RequestCancel(AbiPromiseId id) {
@@ -88,7 +92,7 @@ PromiseStatus PromiseRegistry::RequestCancel(AbiPromiseId id) {
 PromiseStatus PromiseRegistry::Cancel(AbiPromiseId id) {
   PromiseStatus status = RequestCancel(id);
   if (status != PromiseStatus::Ok) return status;
-  return Complete(id, PromiseState::Canceled, 0, {});
+  return Complete(id, PromiseState::Canceled, false, 0, {});
 }
 
 PromiseStatus PromiseRegistry::AddWaiter(AbiPromiseId id, AbiPromiseId waiter) {
@@ -112,8 +116,21 @@ PromiseStatus PromiseRegistry::DrainWaiters(AbiPromiseId id, std::vector<AbiProm
   return PromiseStatus::Ok;
 }
 
+std::vector<uint32_t> PromiseRegistry::CollectRootRefs() const {
+  std::vector<uint32_t> roots;
+  for (const Slot& slot : records_) {
+    if (!slot.occupied) continue;
+    const PromiseRecord& record = slot.record;
+    if (record.state == PromiseState::Done && record.payload_is_ref) {
+      roots.push_back(static_cast<uint32_t>(record.payload));
+    }
+  }
+  return roots;
+}
+
 PromiseStatus PromiseRegistry::Complete(AbiPromiseId id,
                                         PromiseState state,
+                                        bool payload_is_ref,
                                         uint64_t payload,
                                         std::string error) {
   PromiseRecord* record = nullptr;
@@ -124,6 +141,7 @@ PromiseStatus PromiseRegistry::Complete(AbiPromiseId id,
   record = &slot.record;
   if (record->state != PromiseState::Pending) return PromiseStatus::NotPending;
   record->state = state;
+  record->payload_is_ref = payload_is_ref;
   record->payload = payload;
   record->error = std::move(error);
   return PromiseStatus::Ok;

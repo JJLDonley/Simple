@@ -326,7 +326,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] promise/job id payload.
   - [x] pending/done/failed/canceled states.
   - [x] cancellation flag and waiter list.
-  - [ ] result payload roots and GC behavior.
+  - [x] result payload roots and GC behavior.
 
 ### ABI Metadata and Tests
 

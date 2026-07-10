@@ -4,6 +4,7 @@
 #include "runtime/promise.h"
 
 #include <string>
+#include <vector>
 
 namespace Simple::VM::Tests {
 namespace {
@@ -87,6 +88,11 @@ bool VmRuntimePromiseRegistryTracksStates() {
       record->error != "boom") {
     return false;
   }
+
+  const auto rooted = registry.Create();
+  if (registry.ResolveRef(rooted, 1234) != PromiseStatus::Ok) return false;
+  const std::vector<uint32_t> roots = registry.CollectRootRefs();
+  if (roots.size() != 1 || roots[0] != 1234) return false;
 
   const auto canceled = registry.Create();
   if (registry.Cancel(canceled) != PromiseStatus::Ok) return false;
