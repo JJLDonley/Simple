@@ -870,9 +870,28 @@ extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* mod
                                               uint32_t func_index,
                                               uint64_t* args,
                                               uint32_t argc,
+                                              uint64_t* caller_locals,
+                                              uint32_t caller_local_count,
+                                              uint64_t caller_local_ref_mask,
+                                              uint64_t* caller_stack,
+                                              uint32_t caller_stack_count,
+                                              uint64_t caller_stack_ref_mask,
+                                              uint32_t caller_func_index,
+                                              uint32_t caller_pc,
                                               uint8_t* has_ret) {
   if (has_ret) *has_ret = 0;
-  if (!module || !g_llvm_heap || func_index >= module->functions.size()) {
+  Simple::VM::Jit::JitCallContext context;
+  context.args.reserve(argc);
+  for (uint32_t i = 0; i < argc; ++i) context.args.push_back(args ? args[i] : 0);
+  context.locals.reserve(caller_local_count);
+  for (uint32_t i = 0; i < caller_local_count; ++i) context.locals.push_back(caller_locals ? caller_locals[i] : 0);
+  context.operand_stack.reserve(caller_stack_count);
+  for (uint32_t i = 0; i < caller_stack_count; ++i) context.operand_stack.push_back(caller_stack ? caller_stack[i] : 0);
+  context.heap = g_llvm_heap;
+  context.globals = g_llvm_globals;
+  if (!module || !context.heap || func_index >= module->functions.size()) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT dynamic dl helper invalid function metadata");
     g_llvm_trap = true;
     return 0;
   }
@@ -889,6 +908,8 @@ extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* mod
   const auto& sig = module->sigs[method.sig_id];
   if (argc != sig.param_count || sig.param_count == 0 ||
       sig.param_type_start + sig.param_count > module->param_types.size()) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT dynamic dl helper argument metadata mismatch");
     g_llvm_trap = true;
     return 0;
   }
@@ -902,36 +923,53 @@ extern "C" uint64_t SimpleVmLlvmCallDynamicDl(const Simple::Byte::SbcModule* mod
     g_llvm_trap = true;
     return 0;
   }
-  std::vector<Slot> call_args;
-  call_args.reserve(argc);
-  for (uint32_t i = 0; i < argc; ++i) call_args.push_back(args ? args[i] : 0);
-  const int64_t ptr_bits = Simple::VM::Runtime::UnpackI64(call_args[0]);
+  const int64_t ptr_bits = Simple::VM::Runtime::UnpackI64(context.args[0]);
   if (ptr_bits == 0) {
     g_llvm_trap = true;
     return 0;
   }
-  std::vector<uint32_t> arg_type_ids;
-  arg_type_ids.reserve(argc - 1u);
-  for (uint16_t i = 1; i < sig.param_count; ++i) {
+  std::vector<uint32_t> all_arg_type_ids;
+  all_arg_type_ids.reserve(sig.param_count);
+  std::vector<uint32_t> ffi_arg_type_ids;
+  ffi_arg_type_ids.reserve(argc - 1u);
+  for (uint16_t i = 0; i < sig.param_count; ++i) {
     const uint32_t type_id = module->param_types[sig.param_type_start + i];
     if (type_id >= module->types.size()) {
       g_llvm_trap = true;
       return 0;
     }
-    arg_type_ids.push_back(type_id);
+    all_arg_type_ids.push_back(type_id);
+    if (i != 0) ffi_arg_type_ids.push_back(type_id);
   }
+  if (!Simple::VM::Jit::PublishJitRootsFromContext(&context, *module, all_arg_type_ids, {}, {})) {
+    g_llvm_trap = true;
+    return 0;
+  }
+  Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.locals, caller_local_ref_mask);
+  Simple::VM::Jit::PublishJitRootSlotsByMask(&context, context.operand_stack, caller_stack_ref_mask);
+  Simple::VM::Jit::MarkJitSafepoint(&context, caller_func_index, caller_pc, true, false);
+  struct JitRootFrameScope {
+    const std::vector<uint32_t>* roots = nullptr;
+    explicit JitRootFrameScope(const std::vector<uint32_t>* refs) : roots(refs) {
+      Simple::VM::Jit::PushJitRootFrame(roots);
+    }
+    ~JitRootFrameScope() { Simple::VM::Jit::PopJitRootFrame(roots); }
+  } jit_root_frame_scope(&context.root_refs);
   Slot ret = 0;
   std::string error;
   bool ret_present = sig.ret_type_id != 0xFFFFFFFFu;
   if (!Simple::VM::Ffi::DispatchDynamicDlCall(ptr_bits, *module, sig.ret_type_id, ret_present,
-                                             arg_type_ids, call_args, 1, *g_llvm_heap, &ret, &error)) {
+                                             ffi_arg_type_ids, context.args, 1, *context.heap, &ret, &error)) {
     g_llvm_dl_last_error = error;
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, error);
     g_llvm_trap = true;
     return 0;
   }
   g_llvm_dl_last_error.clear();
-  if (has_ret) *has_ret = ret_present ? 1 : 0;
-  return ret;
+  if (ret_present) Simple::VM::Jit::SetJitReturn(&context, ret);
+  else Simple::VM::Jit::ClearJitReturn(&context);
+  if (has_ret) *has_ret = context.has_return ? 1 : 0;
+  return context.return_value;
 }
 
 extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* module,
@@ -2645,7 +2683,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   llvm::FunctionType* array_copy_type = llvm::FunctionType::get(builder.getVoidTy(), {i64, i64, i64, i64, i64}, false);
   llvm::FunctionCallee call_helper = ir_module->getOrInsertFunction("SimpleVmLlvmCallFunction", helper_type);
   llvm::FunctionCallee dynamic_dl_helper = ir_module->getOrInsertFunction(
-      "SimpleVmLlvmCallDynamicDl", llvm::FunctionType::get(i64, {slot_ptr, i32, slot_ptr, i32, slot_ptr}, false));
+      "SimpleVmLlvmCallDynamicDl",
+      llvm::FunctionType::get(i64,
+                              {slot_ptr, i32, slot_ptr, i32, slot_ptr, i32, i64, slot_ptr, i32, i64, i32, i32,
+                               slot_ptr},
+                              false));
   llvm::FunctionCallee dl_color_helper = ir_module->getOrInsertFunction(
       "SimpleVmLlvmCallDlVoidColor", llvm::FunctionType::get(i64, {i64, i64}, false));
   llvm::FunctionCallee dl_cstring_i32_i32_i32_color_helper = ir_module->getOrInsertFunction(
@@ -2906,6 +2948,40 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                builder.getInt32(static_cast<uint32_t>(func_index)),
                                builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)),
                                builder.getInt8(may_block ? 1 : 0), builder.getInt8(may_allocate ? 1 : 0), has_ret_ptr});
+  };
+  auto emit_dynamic_dl_helper = [&](uint32_t target_func,
+                                    llvm::AllocaInst* call_args,
+                                    uint8_t arg_count,
+                                    llvm::AllocaInst* has_ret_ptr,
+                                    size_t call_pc) -> llvm::Value* {
+    llvm::Value* null_slots = llvm::ConstantPointerNull::get(slot_ptr);
+    llvm::Value* local_snapshot = null_slots;
+    if (!locals.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(locals.size())),
+                                                       "dynamic_dl_caller_locals");
+      for (size_t i = 0; i < locals.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(builder.CreateLoad(i64, locals[i]), ptr);
+      }
+      local_snapshot = snapshot;
+    }
+    llvm::Value* stack_snapshot = null_slots;
+    if (!stack.empty()) {
+      llvm::AllocaInst* snapshot = create_entry_alloca(i64, builder.getInt32(static_cast<uint32_t>(stack.size())),
+                                                       "dynamic_dl_caller_stack");
+      for (size_t i = 0; i < stack.size(); ++i) {
+        llvm::Value* ptr = builder.CreateGEP(i64, snapshot, builder.getInt64(static_cast<uint64_t>(i)));
+        builder.CreateStore(to_slot(stack[i]), ptr);
+      }
+      stack_snapshot = snapshot;
+    }
+    return builder.CreateCall(dynamic_dl_helper,
+                              {module_ptr, builder.getInt32(target_func), call_args, builder.getInt32(arg_count),
+                               local_snapshot, builder.getInt32(static_cast<uint32_t>(locals.size())),
+                               builder.getInt64(local_ref_mask()), stack_snapshot,
+                               builder.getInt32(static_cast<uint32_t>(stack.size())), builder.getInt64(stack_ref_mask()),
+                               builder.getInt32(static_cast<uint32_t>(func_index)),
+                               builder.getInt32(static_cast<uint32_t>(call_pc - func.code_offset)), has_ret_ptr});
   };
   auto emit_trap_if = [&](llvm::Value* cond, const char* name) {
     llvm::BasicBlock* trap_block = llvm::BasicBlock::Create(*context, std::string(name) + ".trap", fn);
@@ -4974,8 +5050,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         } else if (dynamic_dl_direct_call) {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "dynamic_dl_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
-          result = builder.CreateCall(dynamic_dl_helper, {module_ptr, builder.getInt32(target_func), call_args,
-                                                         builder.getInt32(arg_count), has_ret_ptr});
+          result = emit_dynamic_dl_helper(target_func, call_args, arg_count, has_ret_ptr, instr_pc);
         } else {
           llvm::AllocaInst* has_ret_ptr = create_entry_alloca(builder.getInt8Ty(), nullptr, "call_has_ret");
           builder.CreateStore(builder.getInt8(0), has_ret_ptr);
