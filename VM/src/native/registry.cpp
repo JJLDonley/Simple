@@ -1,5 +1,7 @@
 #include "native/registry.h"
 
+#include "runtime/abi.h"
+
 #include <algorithm>
 #include <cstring>
 #include <map>
@@ -1447,11 +1449,11 @@ bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string*
       if (error) *error = name + " missing handler";
       return false;
     }
-    for (Simple::Byte::TypeKind param : spec.parameter_types) {
-      if (param == Simple::Byte::TypeKind::Unspecified || param == Simple::Byte::TypeKind::Never) {
-        if (error) *error = name + " has invalid parameter type";
-        return false;
-      }
+    std::string abi_error;
+    if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
+                                                           false, &abi_error)) {
+      if (error) *error = name + " has invalid ABI signature: " + abi_error;
+      return false;
     }
     for (const NativeResourceUse& resource : spec.resources) {
       if (resource.kind == NativeResourceKind::Unknown) {

@@ -329,7 +329,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 
 - [x] Add ABI classification helper for scalar, float, ref, aggregate, variant, promise, and opaque classes.
 - [ ] Add layout hash for stable `data` types and generic specializations.
-- [ ] Add ABI verifier checks for native-callable signatures.
+- [x] Add ABI verifier checks for native-callable signatures.
 - [ ] Add interpreter/JIT shared tests for the same native ABI calls.
 - [ ] Document all mappings in `Docs/Language.md`, `Docs/VM.md`, `Docs/IR.md`, and `Docs/Byte.md`.
 

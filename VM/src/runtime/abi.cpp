@@ -1,6 +1,7 @@
 #include "runtime/abi.h"
 
 #include <algorithm>
+#include <string>
 
 namespace Simple::VM::Runtime {
 namespace {
@@ -74,6 +75,41 @@ bool IsSmallAbiAggregate(uint32_t size, bool contains_references) {
   return !contains_references && size <= 16;
 }
 
+const char* TypeKindAbiName(Simple::Byte::TypeKind kind) {
+  using Simple::Byte::TypeKind;
+  switch (kind) {
+    case TypeKind::Unspecified: return "unspecified";
+    case TypeKind::Void: return "void";
+    case TypeKind::Bool: return "bool";
+    case TypeKind::I8: return "i8";
+    case TypeKind::U8: return "u8";
+    case TypeKind::I16: return "i16";
+    case TypeKind::U16: return "u16";
+    case TypeKind::I32: return "i32";
+    case TypeKind::U32: return "u32";
+    case TypeKind::I64: return "i64";
+    case TypeKind::U64: return "u64";
+    case TypeKind::F32: return "f32";
+    case TypeKind::F64: return "f64";
+    case TypeKind::Char: return "char";
+    case TypeKind::String: return "string";
+    case TypeKind::Array: return "array";
+    case TypeKind::List: return "list";
+    case TypeKind::Ref: return "ref";
+    case TypeKind::Ptr: return "ptr";
+    case TypeKind::Function: return "function";
+    case TypeKind::Result: return "result";
+    case TypeKind::Option: return "option";
+    case TypeKind::Vector: return "vector";
+    case TypeKind::Never: return "never";
+    default: return "unknown";
+  }
+}
+
+bool IsVoidLikeResult(Simple::Byte::TypeKind kind) {
+  return kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Unspecified;
+}
+
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields) {
   AbiAggregateLayout layout;
   layout.fields.reserve(fields.size());
@@ -102,6 +138,39 @@ AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& 
   layout.size = AlignAbiOffset(offset, layout.align);
   layout.pass_by_value = layout.native_callable && IsSmallAbiAggregate(layout.size, layout.contains_references);
   return layout;
+}
+
+bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
+                                  Simple::Byte::TypeKind result_type,
+                                  bool external_ffi,
+                                  std::string* error) {
+  for (size_t i = 0; i < parameter_types.size(); ++i) {
+    const Simple::Byte::TypeKind kind = parameter_types[i];
+    if (kind == Simple::Byte::TypeKind::Void || kind == Simple::Byte::TypeKind::Unspecified ||
+        kind == Simple::Byte::TypeKind::Never) {
+      if (error) *error = "parameter " + std::to_string(i) + " has non-value ABI type " + TypeKindAbiName(kind);
+      return false;
+    }
+    const AbiTypeInfo info = GetPrimitiveAbiTypeInfo(kind);
+    if (info.abi_class == AbiClass::Invalid || !info.native_callable ||
+        (external_ffi && !info.external_ffi_callable)) {
+      if (error) *error = "parameter " + std::to_string(i) + " is not callable by ABI as " + TypeKindAbiName(kind);
+      return false;
+    }
+  }
+
+  if (result_type == Simple::Byte::TypeKind::Never) {
+    if (error) *error = "result has non-returning ABI type never";
+    return false;
+  }
+  const AbiTypeInfo result_info = GetPrimitiveAbiTypeInfo(result_type);
+  if (!IsVoidLikeResult(result_type) &&
+      (result_info.abi_class == AbiClass::Invalid || !result_info.native_callable ||
+       (external_ffi && !result_info.external_ffi_callable))) {
+    if (error) *error = std::string("result is not callable by ABI as ") + TypeKindAbiName(result_type);
+    return false;
+  }
+  return true;
 }
 
 } // namespace Simple::VM::Runtime

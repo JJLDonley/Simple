@@ -2,6 +2,8 @@
 
 #include "runtime/abi.h"
 
+#include <string>
+
 namespace Simple::VM::Tests {
 namespace {
 
@@ -44,6 +46,29 @@ bool VmRuntimeAbiAlignsStableDataFields() {
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
 }
 
+bool VmRuntimeAbiValidatesCallableSignatures() {
+  using Simple::Byte::TypeKind;
+  using Simple::VM::Runtime::ValidateAbiCallableSignature;
+
+  std::string error;
+  if (!ValidateAbiCallableSignature({TypeKind::I32, TypeKind::String}, TypeKind::I64,
+                                    false, &error) || !error.empty()) {
+    return false;
+  }
+  if (ValidateAbiCallableSignature({TypeKind::Void}, TypeKind::I32, false, &error) ||
+      error.find("parameter 0") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  if (ValidateAbiCallableSignature({TypeKind::String}, TypeKind::I32, true, &error) ||
+      error.find("parameter 0") == std::string::npos) {
+    return false;
+  }
+  error.clear();
+  return !ValidateAbiCallableSignature({TypeKind::I32}, TypeKind::Never, false, &error) &&
+         error.find("never") != std::string::npos;
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -75,6 +100,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_abi_validates_callable_signatures", VmRuntimeAbiValidatesCallableSignatures},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 

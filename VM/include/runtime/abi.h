@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "sbc_types.h"
@@ -48,5 +49,9 @@ uint32_t AlignAbiOffset(uint32_t offset, uint32_t alignment);
 bool IsReferenceAbiClass(AbiClass abi_class);
 bool IsSmallAbiAggregate(uint32_t size, bool contains_references);
 AbiAggregateLayout ComputeStableAggregateLayout(const std::vector<AbiTypeInfo>& fields);
+bool ValidateAbiCallableSignature(const std::vector<Simple::Byte::TypeKind>& parameter_types,
+                                  Simple::Byte::TypeKind result_type,
+                                  bool external_ffi,
+                                  std::string* error);
 
 } // namespace Simple::VM::Runtime

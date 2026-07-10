@@ -122,8 +122,24 @@ bool VmNativeRegistryMetadataValidatesSpecs() {
   };
   if (!registry.Register(std::move(bad))) return false;
   error.clear();
-  return !Simple::VM::Native::ValidateNativeRegistryMetadata(registry, &error) &&
-         error.find("resource output missing cleanup behavior") != std::string::npos;
+  if (Simple::VM::Native::ValidateNativeRegistryMetadata(registry, &error) ||
+      error.find("resource output missing cleanup behavior") == std::string::npos) {
+    return false;
+  }
+
+  Simple::VM::Native::NativeRegistry abi_registry;
+  Simple::VM::Native::NativeFunctionSpec bad_abi;
+  bad_abi.module_name = "System.bad";
+  bad_abi.symbol_name = "voidParam";
+  bad_abi.parameter_types = {Simple::Byte::TypeKind::Void};
+  bad_abi.result_type = Simple::Byte::TypeKind::I32;
+  bad_abi.handler = [](Simple::VM::Native::NativeCallContext&) {
+    return Simple::VM::Native::NativeCallResult::I32(0);
+  };
+  if (!abi_registry.Register(std::move(bad_abi))) return false;
+  error.clear();
+  return !Simple::VM::Native::ValidateNativeRegistryMetadata(abi_registry, &error) &&
+         error.find("invalid ABI signature") != std::string::npos;
 }
 
 bool VmNativeCallContextTypedAccessorsAndBuildersWork() {
