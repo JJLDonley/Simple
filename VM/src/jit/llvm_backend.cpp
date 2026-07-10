@@ -20,6 +20,7 @@
 #include "runtime/import_dispatch.h"
 #include "runtime/print_any.h"
 #include "runtime/values.h"
+#include "sbc_loader.h"
 
 #if defined(SIMPLEVM_HAS_LLVM)
 #include <llvm/ADT/StringRef.h>
@@ -979,6 +980,30 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     }
     return true;
   };
+  auto import_metadata_loop_call_safe = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> bool {
+    if (!sig_is_scalar_loop_call_safe(row)) return false;
+    if (module.imports.empty() || func_id >= module.function_is_import.size() || !module.function_is_import[func_id]) {
+      return false;
+    }
+    const size_t import_base = module.functions.size() - module.imports.size();
+    if (func_id < import_base) return false;
+    const size_t import_index = func_id - import_base;
+    if (import_index >= module.imports.size()) return false;
+    const auto& import_row = module.imports[import_index];
+    const std::string module_name = Simple::Byte::ReadConstPoolString(module, import_row.module_name_str);
+    const std::string symbol_name = Simple::Byte::ReadConstPoolString(module, import_row.symbol_name_str);
+    if (module_name.empty() || symbol_name.empty()) return false;
+    if (module_name == "System.dl" && symbol_name.rfind("call$", 0) == 0) {
+      return true;
+    }
+    static const Simple::VM::Native::NativeRegistry* registry =
+        new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
+    const auto* spec = registry->Find(module_name, symbol_name);
+    return spec && spec->resources.empty() &&
+           spec->blocking == Simple::VM::Native::NativeBlockingBehavior::NonBlocking &&
+           spec->allocation == Simple::VM::Native::NativeAllocationBehavior::NoAllocation &&
+           spec->gc_behavior == Simple::VM::Native::NativeGcBehavior::NoSafepoint;
+  };
   const uint16_t param_count = sig.param_count;
   if (args.size() != param_count) {
     reason = "LLVM JIT arg count mismatch";
@@ -1679,8 +1704,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         uint32_t target_func = ReadU32(module.code, scan_pc);
         uint8_t arg_count = ReadU8(module.code, scan_pc);
         const bool import_like_call =
-            op == OpCode::CallImport ||
-            (target_func < module.function_is_import.size() && module.function_is_import[target_func]);
+            target_func < module.function_is_import.size() && module.function_is_import[target_func];
         if (target_func >= module.functions.size()) {
           reason = "LLVM JIT CALL invalid function id";
           return false;
@@ -1700,7 +1724,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
         }
-        if (import_like_call && !sig_is_scalar_loop_call_safe(target_sig) &&
+        if (import_like_call && !import_metadata_loop_call_safe(target_func, target_sig) &&
             !saw_unsafe_import_or_indirect_loop_call) {
           saw_unsafe_import_or_indirect_loop_call = true;
           unsafe_import_or_indirect_loop_call_pc = op_pc;

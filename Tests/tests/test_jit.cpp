@@ -29,6 +29,7 @@ using Simple::Byte::sbc::AppendU64;
 using Simple::Byte::sbc::AppendConstString;
 using Simple::Byte::sbc::AppendStringToPool;
 using Simple::Byte::sbc::BuildModule;
+using Simple::Byte::sbc::BuildModuleFromSections;
 using Simple::Byte::sbc::BuildModuleWithTables;
 using Simple::Byte::sbc::BuildModuleWithFunctionsAndSigs;
 using Simple::Byte::sbc::SigSpec;
@@ -237,6 +238,47 @@ std::vector<uint8_t> BuildTypesI32RefString() {
   append_type(Simple::Byte::TypeKind::Ref, 4);
   append_type(Simple::Byte::TypeKind::String, 4);
   return types;
+}
+
+std::vector<uint8_t> BuildSingleImportFunctionModule(const std::vector<uint8_t>& main_code,
+                                                     uint16_t main_locals,
+                                                     const std::string& module_name,
+                                                     const std::string& symbol_name,
+                                                     const SigSpec& import_sig) {
+  std::vector<uint8_t> const_pool;
+  const uint32_t mod_off = static_cast<uint32_t>(AppendStringToPool(const_pool, module_name));
+  const uint32_t sym_off = static_cast<uint32_t>(AppendStringToPool(const_pool, symbol_name));
+
+  std::vector<uint8_t> methods;
+  AppendU32(methods, 0); AppendU32(methods, 0); AppendU32(methods, 0); AppendU16(methods, main_locals); AppendU16(methods, 0);
+  AppendU32(methods, 0); AppendU32(methods, 1); AppendU32(methods, static_cast<uint32_t>(main_code.size())); AppendU16(methods, 0); AppendU16(methods, 0);
+
+  std::vector<uint8_t> sigs;
+  AppendU32(sigs, 0); AppendU16(sigs, 0); AppendU16(sigs, 0); AppendU32(sigs, 0);
+  AppendU32(sigs, import_sig.ret_type_id); AppendU16(sigs, import_sig.param_count); AppendU16(sigs, 0); AppendU32(sigs, 0);
+  for (uint32_t type_id : import_sig.param_types) AppendU32(sigs, type_id);
+
+  std::vector<uint8_t> functions;
+  AppendU32(functions, 0); AppendU32(functions, 0); AppendU32(functions, static_cast<uint32_t>(main_code.size())); AppendU32(functions, 16);
+  AppendU32(functions, 1); AppendU32(functions, static_cast<uint32_t>(main_code.size())); AppendU32(functions, 0); AppendU32(functions, 1);
+
+  std::vector<uint8_t> imports;
+  AppendU32(imports, mod_off); AppendU32(imports, sym_off); AppendU32(imports, 1); AppendU32(imports, 0);
+
+  std::vector<uint8_t> code = main_code;
+  AppendU8(code, static_cast<uint8_t>(Simple::Byte::OpCode::Nop));
+
+  std::vector<SectionData> sections;
+  sections.push_back({1, BuildTypesI32Void(), 2, 0});
+  sections.push_back({2, {}, 0, 0});
+  sections.push_back({3, methods, 2, 0});
+  sections.push_back({4, sigs, 2, 0});
+  sections.push_back({5, const_pool, 0, 0});
+  sections.push_back({6, {}, 0, 0});
+  sections.push_back({7, functions, 2, 0});
+  sections.push_back({10, imports, 1, 0});
+  sections.push_back({8, code, 0, 0});
+  return BuildModuleFromSections(sections);
 }
 
 std::vector<uint8_t> BuildJitTailCallModule() {
@@ -9617,16 +9659,8 @@ bool RunLlvmJitScalarImportCallInsideLoopTest() {
   WriteU32(main_code, back_jmp,
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
-  std::vector<uint8_t> callee;
-  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
-  AppendU16(callee, 0);
-  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstI32));
-  AppendI32(callee, 1);
-  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
-
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildModuleWithFunctionsAndSigsWithTables({main_code, callee}, {1, 0}, {0, 0},
-                                                {SigSpec{0, 0, {}}}, {}, BuildTypesI32Void()));
+      BuildSingleImportFunctionModule(main_code, 1, "System.os", "args_count", SigSpec{0, 0, {}}));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;
@@ -9634,7 +9668,10 @@ bool RunLlvmJitScalarImportCallInsideLoopTest() {
   Simple::VM::Interpreter::Slot ret = 0;
   bool has_ret = false;
   std::string error;
-  if (!backend.TryRunFunction(load.module, 0, {}, ret, has_ret, error)) {
+  Simple::VM::Heap heap;
+  Simple::VM::ExecOptions options;
+  options.argv.push_back("jit-test");
+  if (!backend.TryRunFunctionWithRuntime(load.module, 0, {}, &heap, nullptr, &options, ret, has_ret, error)) {
     std::cerr << "LLVM JIT scalar import loop run failed: " << error << "\n";
     return false;
   }
@@ -9662,10 +9699,11 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
   AppendU8(main_code, static_cast<uint8_t>(OpCode::JmpFalse));
   size_t exit_jmp = main_code.size();
   AppendI32(main_code, 0);
+  AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
+  AppendI32(main_code, 0);
   AppendU8(main_code, static_cast<uint8_t>(OpCode::CallImport));
   AppendU32(main_code, 1);
-  AppendU8(main_code, 0);
-  AppendU8(main_code, static_cast<uint8_t>(OpCode::Pop));
+  AppendU8(main_code, 1);
   AppendU8(main_code, static_cast<uint8_t>(OpCode::ConstI32));
   AppendI32(main_code, 1);
   AppendU8(main_code, static_cast<uint8_t>(OpCode::StoreLocal));
@@ -9682,16 +9720,8 @@ bool RunLlvmJitUnsafeImportCallInsideLoopRejectsTest() {
   WriteU32(main_code, back_jmp,
            static_cast<uint32_t>(static_cast<int32_t>(loop_start) - static_cast<int32_t>(back_jmp + 4)));
 
-  std::vector<uint8_t> callee;
-  AppendU8(callee, static_cast<uint8_t>(OpCode::Enter));
-  AppendU16(callee, 0);
-  AppendU8(callee, static_cast<uint8_t>(OpCode::ConstNull));
-  AppendU8(callee, static_cast<uint8_t>(OpCode::Ret));
-
   Simple::Byte::LoadResult load = Simple::Byte::LoadModuleFromBytes(
-      BuildModuleWithFunctionsAndSigsWithTables({main_code, callee}, {1, 0}, {0, 1},
-                                                {SigSpec{0, 0, {}}, SigSpec{2, 0, {}}},
-                                                {}, BuildTypesI32RefString()));
+      BuildSingleImportFunctionModule(main_code, 1, "System.os", "sleep_ms", SigSpec{1, 1, {0}}));
   if (!load.ok) {
     std::cerr << "load failed: " << load.error << "\n";
     return false;

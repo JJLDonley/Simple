@@ -510,6 +510,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Resource kind/generation/closed-state checks run through shared metadata dispatch before native handlers.
 - [ ] Blocking/native calls publish safepoints and roots before entering host code.
 - [x] Scalar/void import and indirect helper calls are allowed through the shared helper ABI inside LLVM-lowered loops.
+- [x] Native import loop enabling is gated by metadata: non-blocking, no allocation, no GC safepoint, and no resources.
 - [x] Direct native binding is allowed only for pure, non-blocking, non-allocating, no-resource helpers after metadata marks them safe.
 
 ### Tier 1: Optimized Monomorphic Lowering
