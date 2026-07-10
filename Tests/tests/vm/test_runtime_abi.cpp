@@ -60,10 +60,22 @@ bool VmRuntimePromiseRegistryTracksStates() {
       record->state != PromiseState::Pending) {
     return false;
   }
+  const auto waiter = registry.Create();
+  if (registry.AddWaiter(first, waiter) != PromiseStatus::Ok) return false;
+  if (registry.RequestCancel(first) != PromiseStatus::Ok) return false;
+  if (registry.Get(first, &record) != PromiseStatus::Ok || !record->cancellation_requested ||
+      record->waiters.size() != 1) {
+    return false;
+  }
+  std::vector<Simple::VM::Runtime::AbiPromiseId> drained;
+  if (registry.DrainWaiters(first, &drained) != PromiseStatus::Ok || drained.size() != 1 ||
+      drained[0].index != waiter.index) {
+    return false;
+  }
   if (registry.Resolve(first, 99) != PromiseStatus::Ok) return false;
   if (registry.Resolve(first, 100) != PromiseStatus::NotPending) return false;
   if (registry.Get(first, &record) != PromiseStatus::Ok || record->state != PromiseState::Done ||
-      record->payload != 99) {
+      record->payload != 99 || !record->waiters.empty()) {
     return false;
   }
 
@@ -77,8 +89,12 @@ bool VmRuntimePromiseRegistryTracksStates() {
   }
 
   const auto canceled = registry.Create();
-  return registry.Cancel(canceled) == PromiseStatus::Ok &&
-         PromiseStatusName(PromiseStatus::NotPending) == std::string("not pending");
+  if (registry.Cancel(canceled) != PromiseStatus::Ok) return false;
+  if (registry.Get(canceled, &record) != PromiseStatus::Ok ||
+      record->state != PromiseState::Canceled || !record->cancellation_requested) {
+    return false;
+  }
+  return PromiseStatusName(PromiseStatus::NotPending) == std::string("not pending");
 }
 
 bool VmRuntimeAbiPacksPromiseIds() {

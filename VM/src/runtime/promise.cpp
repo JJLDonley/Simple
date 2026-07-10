@@ -43,7 +43,7 @@ AbiPromiseId PromiseRegistry::Create() {
     if (slot.occupied && slot.record.state == PromiseState::Pending) continue;
     slot.generation = slot.generation == 0 ? kFirstPromiseGeneration : slot.generation + 1;
     if (slot.generation == 0) slot.generation = kFirstPromiseGeneration;
-    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending, 0, {}};
+    slot.record = PromiseRecord{AbiPromiseId{i, slot.generation}, PromiseState::Pending, false, 0, {}, {}};
     slot.occupied = true;
     return slot.record.id;
   }
@@ -51,7 +51,7 @@ AbiPromiseId PromiseRegistry::Create() {
   Slot slot;
   slot.generation = kFirstPromiseGeneration;
   slot.record = PromiseRecord{AbiPromiseId{static_cast<uint32_t>(records_.size()), slot.generation},
-                              PromiseState::Pending, 0, {}};
+                              PromiseState::Pending, false, 0, {}, {}};
   slot.occupied = true;
   records_.push_back(std::move(slot));
   return records_.back().record.id;
@@ -75,8 +75,41 @@ PromiseStatus PromiseRegistry::Fail(AbiPromiseId id, std::string error) {
   return Complete(id, PromiseState::Failed, 0, std::move(error));
 }
 
+PromiseStatus PromiseRegistry::RequestCancel(AbiPromiseId id) {
+  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
+  Slot& slot = records_[id.index];
+  if (!slot.occupied) return PromiseStatus::InvalidId;
+  if (slot.generation != id.generation) return PromiseStatus::StaleId;
+  if (slot.record.state != PromiseState::Pending) return PromiseStatus::NotPending;
+  slot.record.cancellation_requested = true;
+  return PromiseStatus::Ok;
+}
+
 PromiseStatus PromiseRegistry::Cancel(AbiPromiseId id) {
+  PromiseStatus status = RequestCancel(id);
+  if (status != PromiseStatus::Ok) return status;
   return Complete(id, PromiseState::Canceled, 0, {});
+}
+
+PromiseStatus PromiseRegistry::AddWaiter(AbiPromiseId id, AbiPromiseId waiter) {
+  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
+  Slot& slot = records_[id.index];
+  if (!slot.occupied) return PromiseStatus::InvalidId;
+  if (slot.generation != id.generation) return PromiseStatus::StaleId;
+  if (slot.record.state != PromiseState::Pending) return PromiseStatus::NotPending;
+  slot.record.waiters.push_back(waiter);
+  return PromiseStatus::Ok;
+}
+
+PromiseStatus PromiseRegistry::DrainWaiters(AbiPromiseId id, std::vector<AbiPromiseId>* out_waiters) {
+  if (!out_waiters) return PromiseStatus::InvalidId;
+  if (id.IsNull() || id.index >= records_.size()) return PromiseStatus::InvalidId;
+  Slot& slot = records_[id.index];
+  if (!slot.occupied) return PromiseStatus::InvalidId;
+  if (slot.generation != id.generation) return PromiseStatus::StaleId;
+  *out_waiters = std::move(slot.record.waiters);
+  slot.record.waiters.clear();
+  return PromiseStatus::Ok;
 }
 
 PromiseStatus PromiseRegistry::Complete(AbiPromiseId id,

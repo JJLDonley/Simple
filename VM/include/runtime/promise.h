@@ -18,8 +18,10 @@ enum class PromiseState : uint8_t {
 struct PromiseRecord {
   AbiPromiseId id;
   PromiseState state = PromiseState::Pending;
+  bool cancellation_requested = false;
   uint64_t payload = 0;
   std::string error;
+  std::vector<AbiPromiseId> waiters;
 };
 
 enum class PromiseStatus {
@@ -42,7 +44,10 @@ class PromiseRegistry {
   PromiseStatus Get(AbiPromiseId id, const PromiseRecord** out) const;
   PromiseStatus Resolve(AbiPromiseId id, uint64_t payload);
   PromiseStatus Fail(AbiPromiseId id, std::string error);
+  PromiseStatus RequestCancel(AbiPromiseId id);
   PromiseStatus Cancel(AbiPromiseId id);
+  PromiseStatus AddWaiter(AbiPromiseId id, AbiPromiseId waiter);
+  PromiseStatus DrainWaiters(AbiPromiseId id, std::vector<AbiPromiseId>* out_waiters);
   size_t Size() const { return records_.size(); }
 
  private:

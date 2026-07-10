@@ -325,7 +325,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [ ] Define `Promise<T>` runtime representation.
   - [x] promise/job id payload.
   - [x] pending/done/failed/canceled states.
-  - [ ] cancellation flag and waiter list.
+  - [x] cancellation flag and waiter list.
   - [ ] result payload roots and GC behavior.
 
 ### ABI Metadata and Tests
