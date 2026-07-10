@@ -1259,10 +1259,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   uint16_t local_count = 0;
   bool saw_ret = false;
   bool saw_call = false;
-  bool saw_unsafe_import_or_indirect_loop_call = false;
-  size_t unsafe_import_or_indirect_loop_call_pc = 0;
-  OpCode unsafe_import_or_indirect_loop_call_op = OpCode::Nop;
-  std::string unsafe_import_or_indirect_loop_call_detail;
+  struct UnsafeLoopCallCandidate {
+    size_t pc = 0;
+    OpCode op = OpCode::Nop;
+    std::string detail;
+  };
+  std::vector<UnsafeLoopCallCandidate> unsafe_loop_call_candidates;
+  std::vector<std::pair<size_t, size_t>> backward_branch_ranges;
   bool saw_backward_branch = false;
   bool saw_branch = false;
   bool saw_global_access = false;
@@ -1793,7 +1796,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         for (int32_t rel : table.rels) {
           int64_t target = static_cast<int64_t>(scan_pc) + rel;
           saw_branch = true;
-          if (target < static_cast<int64_t>(scan_pc)) saw_backward_branch = true;
+          if (target < static_cast<int64_t>(scan_pc)) {
+            saw_backward_branch = true;
+            backward_branch_ranges.push_back({static_cast<size_t>(target), op_pc});
+          }
           if (target < static_cast<int64_t>(func.code_offset) || target > static_cast<int64_t>(end_pc)) {
             reason = "LLVM JIT JMP_TABLE target out of bounds";
             return false;
@@ -1812,7 +1818,10 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         int32_t rel = ReadI32(module.code, scan_pc);
         saw_branch = true;
         int64_t target = static_cast<int64_t>(scan_pc) + rel;
-        if (target < static_cast<int64_t>(scan_pc)) saw_backward_branch = true;
+        if (target < static_cast<int64_t>(scan_pc)) {
+          saw_backward_branch = true;
+          backward_branch_ranges.push_back({static_cast<size_t>(target), op_pc});
+        }
         if (target < static_cast<int64_t>(func.code_offset) || target > static_cast<int64_t>(end_pc)) {
           reason = "LLVM JIT jump target out of bounds";
           return false;
@@ -1840,14 +1849,11 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL_INDIRECT arg count mismatch";
           return false;
         }
-        if (!saw_unsafe_import_or_indirect_loop_call) {
-          saw_unsafe_import_or_indirect_loop_call = true;
-          unsafe_import_or_indirect_loop_call_pc = op_pc;
-          unsafe_import_or_indirect_loop_call_op = op;
-          unsafe_import_or_indirect_loop_call_detail = sig_is_scalar_loop_call_safe(target_sig)
-                                                      ? "category=indirect/procedure reason=unknown-target-effects"
-                                                      : "category=indirect/procedure reason=non-scalar-or-managed-signature";
-        }
+        unsafe_loop_call_candidates.push_back({op_pc,
+                                               op,
+                                               sig_is_scalar_loop_call_safe(target_sig)
+                                                   ? "category=indirect/procedure reason=unknown-target-effects"
+                                                   : "category=indirect/procedure reason=non-scalar-or-managed-signature"});
         break;
       }
       case OpCode::CallImport:
@@ -1881,19 +1887,14 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL arg count mismatch";
           return false;
         }
-        if (!saw_unsafe_import_or_indirect_loop_call) {
-          std::string unsafe_detail;
-          if (import_like_call) {
-            unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
-          } else if (!sig_is_scalar_loop_call_safe(target_sig)) {
-            unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature";
-          }
-          if (!unsafe_detail.empty()) {
-            saw_unsafe_import_or_indirect_loop_call = true;
-            unsafe_import_or_indirect_loop_call_pc = op_pc;
-            unsafe_import_or_indirect_loop_call_op = op;
-            unsafe_import_or_indirect_loop_call_detail = std::move(unsafe_detail);
-          }
+        std::string unsafe_detail;
+        if (import_like_call) {
+          unsafe_detail = describe_import_loop_call_safety(target_func, target_sig);
+        } else if (!sig_is_scalar_loop_call_safe(target_sig)) {
+          unsafe_detail = "category=direct-simple reason=non-scalar-or-managed-signature";
+        }
+        if (!unsafe_detail.empty()) {
+          unsafe_loop_call_candidates.push_back({op_pc, op, std::move(unsafe_detail)});
         }
         if (target_func == func_index && arg_count != param_count) {
           reason = "LLVM JIT self CALL arg count mismatch";
@@ -2079,13 +2080,23 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       return false;
     }
   }
-  if (saw_backward_branch && saw_unsafe_import_or_indirect_loop_call) {
-    return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
-                         std::to_string(unsafe_import_or_indirect_loop_call_pc - func.code_offset) +
-                         " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(unsafe_import_or_indirect_loop_call_op)) +
-                         (unsafe_import_or_indirect_loop_call_detail.empty()
-                              ? std::string()
-                              : " " + unsafe_import_or_indirect_loop_call_detail));
+  if (saw_backward_branch && !unsafe_loop_call_candidates.empty()) {
+    const UnsafeLoopCallCandidate* loop_call = nullptr;
+    for (const auto& candidate : unsafe_loop_call_candidates) {
+      for (const auto& range : backward_branch_ranges) {
+        if (candidate.pc >= range.first && candidate.pc <= range.second) {
+          loop_call = &candidate;
+          break;
+        }
+      }
+      if (loop_call) break;
+    }
+    if (loop_call) {
+      return reject_cached("unsupported: import/indirect call inside loop needs LLVM state merge/runtime ABI at pc=" +
+                           std::to_string(loop_call->pc - func.code_offset) +
+                           " op=" + Simple::Byte::OpCodeName(static_cast<uint8_t>(loop_call->op)) +
+                           (loop_call->detail.empty() ? std::string() : " " + loop_call->detail));
+    }
   }
   (void)saw_call;
   (void)saw_branch;

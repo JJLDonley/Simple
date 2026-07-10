@@ -503,6 +503,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Publish exact known operand-stack root masks for LLVM helper dispatch snapshots.
 - [x] Publish exact known local root masks at helper call sites, including conservative branch-merge invalidation.
 - [x] Register published JIT helper roots with GC tracing while helper dispatch is active.
+- [x] Scope unsafe loop-call rejection to calls inside backward-branch ranges so pre-loop native setup does not block hot-loop JIT.
 - [ ] Keep exact root facts for captured refs and temporary helper values.
 - [x] Add safepoint metadata to lowered helper call sites, including metadata-derived blocking/allocation flags.
 - [ ] Add safepoint metadata to loop backedges.
