@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
 #include "runtime/abi.h"
+#include "runtime/promise.h"
 
 #include <string>
 
@@ -44,6 +45,40 @@ bool VmRuntimeAbiAlignsStableDataFields() {
   const uint32_t size = AlignAbiOffset(offset, 8);
   return size == 16 && IsSmallAbiAggregate(size, false) &&
          !IsSmallAbiAggregate(size, true) && !IsSmallAbiAggregate(24, false);
+}
+
+bool VmRuntimePromiseRegistryTracksStates() {
+  using Simple::VM::Runtime::PromiseRegistry;
+  using Simple::VM::Runtime::PromiseState;
+  using Simple::VM::Runtime::PromiseStatus;
+  using Simple::VM::Runtime::PromiseStatusName;
+
+  PromiseRegistry registry;
+  const auto first = registry.Create();
+  const Simple::VM::Runtime::PromiseRecord* record = nullptr;
+  if (registry.Get(first, &record) != PromiseStatus::Ok || !record ||
+      record->state != PromiseState::Pending) {
+    return false;
+  }
+  if (registry.Resolve(first, 99) != PromiseStatus::Ok) return false;
+  if (registry.Resolve(first, 100) != PromiseStatus::NotPending) return false;
+  if (registry.Get(first, &record) != PromiseStatus::Ok || record->state != PromiseState::Done ||
+      record->payload != 99) {
+    return false;
+  }
+
+  const auto reused = registry.Create();
+  if (reused.index != first.index || reused.generation == first.generation) return false;
+  if (registry.Get(first, nullptr) != PromiseStatus::StaleId) return false;
+  if (registry.Fail(reused, "boom") != PromiseStatus::Ok) return false;
+  if (registry.Get(reused, &record) != PromiseStatus::Ok || record->state != PromiseState::Failed ||
+      record->error != "boom") {
+    return false;
+  }
+
+  const auto canceled = registry.Create();
+  return registry.Cancel(canceled) == PromiseStatus::Ok &&
+         PromiseStatusName(PromiseStatus::NotPending) == std::string("not pending");
 }
 
 bool VmRuntimeAbiPacksPromiseIds() {
@@ -179,6 +214,7 @@ bool VmRuntimeAbiComputesStableAggregateLayout() {
 const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_maps_primitive_types", VmRuntimeAbiMapsPrimitiveTypes},
   {"vm_runtime_abi_aligns_stable_data_fields", VmRuntimeAbiAlignsStableDataFields},
+  {"vm_runtime_promise_registry_tracks_states", VmRuntimePromiseRegistryTracksStates},
   {"vm_runtime_abi_packs_promise_ids", VmRuntimeAbiPacksPromiseIds},
   {"vm_runtime_abi_builds_result_and_option_values", VmRuntimeAbiBuildsResultAndOptionValues},
   {"vm_runtime_abi_validates_borrowed_views", VmRuntimeAbiValidatesBorrowedViews},
