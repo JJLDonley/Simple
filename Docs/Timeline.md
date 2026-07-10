@@ -473,6 +473,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Define `JitCallContext` as the stable internal ABI for compiled Simple functions.
   - [x] argument access.
   - [x] return slot.
+  - [x] operand stack slots.
   - [x] locals/spill slots.
   - [x] globals access.
   - [x] heap/runtime helper access.
@@ -480,7 +481,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
   - [x] safepoint/root registration.
 - [x] Define `JitStatus` result codes for halt, return, trap, fallback, and unsupported.
 - [x] Aggregate JIT status counts in execution stats.
-- [ ] Keep helper-heavy context ABI as the correctness path. Direct scalar native signatures are optimization-only.
+- [x] Keep helper-heavy context ABI as the correctness path. Direct scalar native signatures are optimization-only.
 - [x] Cache ORC entries by module id, function id, code hash, ABI version, and runtime helper ABI version.
 
 ### Tier 0: Broad Safe LLVM Lowering

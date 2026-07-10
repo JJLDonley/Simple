@@ -10,6 +10,25 @@ bool JitArg(const JitCallContext& context, size_t index, Slot* out) {
   return true;
 }
 
+bool JitStackSlot(const JitCallContext& context, size_t index, Slot* out) {
+  if (!out || index >= context.operand_stack.size()) return false;
+  *out = context.operand_stack[index];
+  return true;
+}
+
+bool PushJitStack(JitCallContext* context, Slot value) {
+  if (!context) return false;
+  context->operand_stack.push_back(value);
+  return true;
+}
+
+bool PopJitStack(JitCallContext* context, Slot* out) {
+  if (!context || !out || context->operand_stack.empty()) return false;
+  *out = context->operand_stack.back();
+  context->operand_stack.pop_back();
+  return true;
+}
+
 bool JitLocal(const JitCallContext& context, size_t index, Slot* out) {
   if (!out || index >= context.locals.size()) return false;
   *out = context.locals[index];

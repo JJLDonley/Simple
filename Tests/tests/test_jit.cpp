@@ -9559,6 +9559,10 @@ bool RunJitCallContextHelpersTest() {
 
   Simple::VM::Jit::Slot value = 0;
   if (!Simple::VM::Jit::JitArg(context, 1, &value) || value != 22) return false;
+  if (!Simple::VM::Jit::PushJitStack(&context, 66)) return false;
+  if (!Simple::VM::Jit::JitStackSlot(context, 0, &value) || value != 66) return false;
+  if (!Simple::VM::Jit::PopJitStack(&context, &value) || value != 66 ||
+      !context.operand_stack.empty()) return false;
   if (!Simple::VM::Jit::SetJitLocal(&context, 0, 33)) return false;
   if (!Simple::VM::Jit::JitLocal(context, 0, &value) || value != 33) return false;
   if (!Simple::VM::Jit::SetJitGlobal(&context, 0, 44)) return false;

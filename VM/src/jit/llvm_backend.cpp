@@ -14,6 +14,7 @@
 
 #include "interpreter/dispatch.h"
 #include "intrinsic_ids.h"
+#include "jit/call_context.h"
 #include "native/registry.h"
 #include "native/time.h"
 #include "opcode.h"
@@ -752,34 +753,50 @@ extern "C" uint64_t SimpleVmLlvmCallFunction(const Simple::Byte::SbcModule* modu
                                              uint8_t* has_ret) {
   if (has_ret) *has_ret = 0;
   if (!module) return 0;
-  std::vector<Slot> call_args;
-  call_args.reserve(argc);
-  for (uint32_t i = 0; i < argc; ++i) call_args.push_back(args ? args[i] : 0);
-  Slot ret = 0;
-  bool ret_present = false;
+  Simple::VM::Jit::JitCallContext context;
+  context.args.reserve(argc);
+  for (uint32_t i = 0; i < argc; ++i) context.args.push_back(args ? args[i] : 0);
+  context.heap = g_llvm_heap;
+  context.globals = g_llvm_globals;
+
   std::string reason;
   if (func_index < module->function_is_import.size() && module->function_is_import[func_index]) {
-    if (!g_llvm_heap) { g_llvm_trap = true; return 0; }
+    if (!context.heap) {
+      Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, "LLVM JIT import missing heap");
+      g_llvm_trap = true;
+      return 0;
+    }
     static Simple::VM::Native::NativeRegistry* registry = new Simple::VM::Native::NativeRegistry(Simple::VM::Native::BuildDefaultRegistry());
     Simple::VM::ExecOptions default_options;
     const Simple::VM::ExecOptions& options = g_llvm_exec_options ? *g_llvm_exec_options : default_options;
+    Slot ret = 0;
+    bool ret_present = false;
     std::string error;
-    if (!Simple::VM::Runtime::DispatchImportCallByName(*module, options, *registry, *g_llvm_heap,
+    if (!Simple::VM::Runtime::DispatchImportCallByName(*module, options, *registry, *context.heap,
                                                        g_llvm_file_handles, g_llvm_resource_registry,
                                                        g_llvm_dl_last_error,
-                                                       func_index, call_args, ret, ret_present, error)) {
+                                                       func_index, context.args, ret, ret_present, error)) {
+      Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, error);
       g_llvm_trap = true;
       return 0;
     }
+    if (ret_present) Simple::VM::Jit::SetJitReturn(&context, ret);
+    else Simple::VM::Jit::ClearJitReturn(&context);
   } else {
     Simple::VM::Jit::LlvmJitBackend backend;
-    if (!backend.TryRunFunctionWithRuntime(*module, func_index, call_args, g_llvm_heap, g_llvm_globals, g_llvm_exec_options, ret, ret_present, reason)) {
+    Slot ret = 0;
+    bool ret_present = false;
+    if (!backend.TryRunFunctionWithRuntime(*module, func_index, context.args, context.heap, context.globals,
+                                           g_llvm_exec_options, ret, ret_present, reason)) {
+      Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap, reason);
       g_llvm_trap = true;
       return 0;
     }
+    if (ret_present) Simple::VM::Jit::SetJitReturn(&context, ret);
+    else Simple::VM::Jit::ClearJitReturn(&context);
   }
-  if (has_ret) *has_ret = ret_present ? 1 : 0;
-  return ret;
+  if (has_ret) *has_ret = context.has_return ? 1 : 0;
+  return context.return_value;
 }
 
 std::string ToString(llvm::Error error) {

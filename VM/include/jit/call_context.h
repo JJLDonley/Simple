@@ -25,6 +25,7 @@ struct JitCallTrap {
 
 struct JitCallContext {
   std::vector<Slot> args;
+  std::vector<Slot> operand_stack;
   std::vector<Slot> locals;
   std::vector<Slot> spills;
   std::vector<Slot>* globals = nullptr;
@@ -36,6 +37,9 @@ struct JitCallContext {
 };
 
 bool JitArg(const JitCallContext& context, size_t index, Slot* out);
+bool JitStackSlot(const JitCallContext& context, size_t index, Slot* out);
+bool PushJitStack(JitCallContext* context, Slot value);
+bool PopJitStack(JitCallContext* context, Slot* out);
 bool JitLocal(const JitCallContext& context, size_t index, Slot* out);
 bool SetJitLocal(JitCallContext* context, size_t index, Slot value);
 bool JitGlobal(const JitCallContext& context, size_t index, Slot* out);
