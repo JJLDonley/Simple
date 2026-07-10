@@ -256,17 +256,20 @@ struct LlvmRaylibColor {
   uint8_t a;
 };
 
-bool LlvmReadArtifactPayload(uint64_t ref_slot, size_t min_size, const std::vector<uint8_t>** out) {
-  if (!g_llvm_heap || Simple::VM::Runtime::IsNullRef(ref_slot) || !out) return false;
-  Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
+bool LlvmReadArtifactPayload(Simple::VM::Heap* heap,
+                             uint64_t ref_slot,
+                             size_t min_size,
+                             const std::vector<uint8_t>** out) {
+  if (!heap || Simple::VM::Runtime::IsNullRef(ref_slot) || !out) return false;
+  Simple::VM::HeapObject* obj = heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
   if (!obj || obj->header.kind != Simple::VM::ObjectKind::Artifact || obj->payload.size() < min_size) return false;
   *out = &obj->payload;
   return true;
 }
 
-bool LlvmReadRaylibTexture2D(uint64_t ref_slot, LlvmRaylibTexture2D* out) {
+bool LlvmReadRaylibTexture2D(Simple::VM::Heap* heap, uint64_t ref_slot, LlvmRaylibTexture2D* out) {
   const std::vector<uint8_t>* payload = nullptr;
-  if (!out || !LlvmReadArtifactPayload(ref_slot, 20, &payload)) return false;
+  if (!out || !LlvmReadArtifactPayload(heap, ref_slot, 20, &payload)) return false;
   out->id = Simple::VM::ReadU32Payload(*payload, 0);
   out->width = static_cast<int32_t>(Simple::VM::ReadU32Payload(*payload, 4));
   out->height = static_cast<int32_t>(Simple::VM::ReadU32Payload(*payload, 8));
@@ -275,9 +278,9 @@ bool LlvmReadRaylibTexture2D(uint64_t ref_slot, LlvmRaylibTexture2D* out) {
   return true;
 }
 
-bool LlvmReadRaylibVector2(uint64_t ref_slot, LlvmRaylibVector2* out) {
+bool LlvmReadRaylibVector2(Simple::VM::Heap* heap, uint64_t ref_slot, LlvmRaylibVector2* out) {
   const std::vector<uint8_t>* payload = nullptr;
-  if (!out || !LlvmReadArtifactPayload(ref_slot, 8, &payload)) return false;
+  if (!out || !LlvmReadArtifactPayload(heap, ref_slot, 8, &payload)) return false;
   uint32_t x_bits = Simple::VM::ReadU32Payload(*payload, 0);
   uint32_t y_bits = Simple::VM::ReadU32Payload(*payload, 4);
   std::memcpy(&out->x, &x_bits, sizeof(out->x));
@@ -285,9 +288,9 @@ bool LlvmReadRaylibVector2(uint64_t ref_slot, LlvmRaylibVector2* out) {
   return true;
 }
 
-bool LlvmReadRaylibColor(uint64_t ref_slot, LlvmRaylibColor* out) {
+bool LlvmReadRaylibColor(Simple::VM::Heap* heap, uint64_t ref_slot, LlvmRaylibColor* out) {
   const std::vector<uint8_t>* payload = nullptr;
-  if (!out || !LlvmReadArtifactPayload(ref_slot, 16, &payload)) return false;
+  if (!out || !LlvmReadArtifactPayload(heap, ref_slot, 16, &payload)) return false;
   out->r = (*payload)[0];
   out->g = (*payload)[4];
   out->b = (*payload)[8];
@@ -295,9 +298,9 @@ bool LlvmReadRaylibColor(uint64_t ref_slot, LlvmRaylibColor* out) {
   return true;
 }
 
-bool LlvmReadCString(uint64_t ref_slot, std::string* out) {
-  if (!g_llvm_heap || !out || Simple::VM::Runtime::IsNullRef(ref_slot)) return false;
-  Simple::VM::HeapObject* obj = g_llvm_heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
+bool LlvmReadCString(Simple::VM::Heap* heap, uint64_t ref_slot, std::string* out) {
+  if (!heap || !out || Simple::VM::Runtime::IsNullRef(ref_slot)) return false;
+  Simple::VM::HeapObject* obj = heap->Get(Simple::VM::Runtime::UnpackRef(ref_slot));
   if (!obj || obj->header.kind != Simple::VM::ObjectKind::String) return false;
   *out = Simple::VM::U16ToAscii(Simple::VM::ReadString(obj));
   return true;
@@ -305,14 +308,24 @@ bool LlvmReadCString(uint64_t ref_slot, std::string* out) {
 } // namespace
 
 extern "C" uint64_t SimpleVmLlvmCallDlVoidColor(uint64_t fn_slot, uint64_t color_slot) {
+  Simple::VM::Jit::JitCallContext context;
+  context.args = {fn_slot, color_slot};
+  context.heap = g_llvm_heap;
+  context.globals = g_llvm_globals;
+  Simple::VM::Jit::Slot fn_arg = 0;
+  Simple::VM::Jit::Slot color_arg = 0;
   LlvmRaylibColor color{};
-  if (!LlvmReadRaylibColor(color_slot, &color)) {
+  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &color_arg) ||
+      !LlvmReadRaylibColor(context.heap, color_arg, &color)) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT raylib Color direct-bind argument mismatch");
     g_llvm_trap = true;
     return 0;
   }
   using Fn = void (*)(LlvmRaylibColor);
-  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_slot))(color);
-  return 0;
+  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_arg))(color);
+  Simple::VM::Jit::ClearJitReturn(&context);
+  return context.return_value;
 }
 
 extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot,
@@ -321,37 +334,67 @@ extern "C" uint64_t SimpleVmLlvmCallDlVoidCStringI32I32I32Color(uint64_t fn_slot
                                                                   uint64_t y_slot,
                                                                   uint64_t size_slot,
                                                                   uint64_t color_slot) {
+  Simple::VM::Jit::JitCallContext context;
+  context.args = {fn_slot, text_slot, x_slot, y_slot, size_slot, color_slot};
+  context.heap = g_llvm_heap;
+  context.globals = g_llvm_globals;
+  Simple::VM::Jit::Slot fn_arg = 0;
+  Simple::VM::Jit::Slot text_arg = 0;
+  Simple::VM::Jit::Slot x_arg = 0;
+  Simple::VM::Jit::Slot y_arg = 0;
+  Simple::VM::Jit::Slot size_arg = 0;
+  Simple::VM::Jit::Slot color_arg = 0;
   std::string text;
   LlvmRaylibColor color{};
-  if (!LlvmReadCString(text_slot, &text) || !LlvmReadRaylibColor(color_slot, &color)) {
+  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &text_arg) ||
+      !Simple::VM::Jit::JitArg(context, 2, &x_arg) || !Simple::VM::Jit::JitArg(context, 3, &y_arg) ||
+      !Simple::VM::Jit::JitArg(context, 4, &size_arg) || !Simple::VM::Jit::JitArg(context, 5, &color_arg) ||
+      !LlvmReadCString(context.heap, text_arg, &text) || !LlvmReadRaylibColor(context.heap, color_arg, &color)) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT raylib text direct-bind argument mismatch");
     g_llvm_trap = true;
     return 0;
   }
   using Fn = void (*)(const char*, int32_t, int32_t, int32_t, LlvmRaylibColor);
-  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_slot))(
+  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_arg))(
       text.c_str(),
-      Simple::VM::Runtime::UnpackI32(x_slot),
-      Simple::VM::Runtime::UnpackI32(y_slot),
-      Simple::VM::Runtime::UnpackI32(size_slot),
+      Simple::VM::Runtime::UnpackI32(x_arg),
+      Simple::VM::Runtime::UnpackI32(y_arg),
+      Simple::VM::Runtime::UnpackI32(size_arg),
       color);
-  return 0;
+  Simple::VM::Jit::ClearJitReturn(&context);
+  return context.return_value;
 }
 
 extern "C" uint64_t SimpleVmLlvmCallDlVoidTexture2DVector2Color(uint64_t fn_slot,
                                                                   uint64_t texture_slot,
                                                                   uint64_t position_slot,
                                                                   uint64_t color_slot) {
+  Simple::VM::Jit::JitCallContext context;
+  context.args = {fn_slot, texture_slot, position_slot, color_slot};
+  context.heap = g_llvm_heap;
+  context.globals = g_llvm_globals;
+  Simple::VM::Jit::Slot fn_arg = 0;
+  Simple::VM::Jit::Slot texture_arg = 0;
+  Simple::VM::Jit::Slot position_arg = 0;
+  Simple::VM::Jit::Slot color_arg = 0;
   LlvmRaylibTexture2D texture{};
   LlvmRaylibVector2 position{};
   LlvmRaylibColor color{};
-  if (!LlvmReadRaylibTexture2D(texture_slot, &texture) || !LlvmReadRaylibVector2(position_slot, &position) ||
-      !LlvmReadRaylibColor(color_slot, &color)) {
+  if (!Simple::VM::Jit::JitArg(context, 0, &fn_arg) || !Simple::VM::Jit::JitArg(context, 1, &texture_arg) ||
+      !Simple::VM::Jit::JitArg(context, 2, &position_arg) || !Simple::VM::Jit::JitArg(context, 3, &color_arg) ||
+      !LlvmReadRaylibTexture2D(context.heap, texture_arg, &texture) ||
+      !LlvmReadRaylibVector2(context.heap, position_arg, &position) ||
+      !LlvmReadRaylibColor(context.heap, color_arg, &color)) {
+    Simple::VM::Jit::SetJitTrap(&context, Simple::VM::Jit::JitCallTrapKind::Trap,
+                                "LLVM JIT raylib texture direct-bind argument mismatch");
     g_llvm_trap = true;
     return 0;
   }
   using Fn = void (*)(LlvmRaylibTexture2D, LlvmRaylibVector2, LlvmRaylibColor);
-  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_slot))(texture, position, color);
-  return 0;
+  reinterpret_cast<Fn>(static_cast<uintptr_t>(fn_arg))(texture, position, color);
+  Simple::VM::Jit::ClearJitReturn(&context);
+  return context.return_value;
 }
 
 extern "C" void SimpleVmLlvmStoreField32(uint64_t ref_slot, uint32_t offset, uint64_t value_slot) {
