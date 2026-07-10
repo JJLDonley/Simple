@@ -513,7 +513,8 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [ ] Capability checks run identically in interpreter and JIT.
 - [x] Resource kind/generation/closed-state checks run through shared metadata dispatch before native handlers.
 - [ ] Blocking/native calls publish safepoints and roots before entering host code.
-- [x] Scalar/void direct, import, and indirect helper calls are allowed through the shared helper ABI inside LLVM-lowered loops.
+- [x] Scalar/void direct and import helper calls are allowed through the shared helper ABI inside LLVM-lowered loops.
+- [x] Indirect/procedure calls inside loops reject until exact target metadata/effects are available.
 - [x] Ref/string/resource direct calls inside loops reject until caller-frame roots/safepoints are complete.
 - [x] Native import loop enabling is gated by metadata: matching signature, non-blocking, no allocation, no GC safepoint, and no resources.
 - [x] Dynamic `System.dl.call$...` loop enabling requires scalar/void signatures that pass the external C ABI verifier.

@@ -1821,11 +1821,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL_INDIRECT arg count mismatch";
           return false;
         }
-        if (!sig_is_scalar_loop_call_safe(target_sig) && !saw_unsafe_import_or_indirect_loop_call) {
+        if (!saw_unsafe_import_or_indirect_loop_call) {
           saw_unsafe_import_or_indirect_loop_call = true;
           unsafe_import_or_indirect_loop_call_pc = op_pc;
           unsafe_import_or_indirect_loop_call_op = op;
-          unsafe_import_or_indirect_loop_call_detail = "category=indirect/procedure reason=non-scalar-or-managed-signature";
+          unsafe_import_or_indirect_loop_call_detail = sig_is_scalar_loop_call_safe(target_sig)
+                                                      ? "category=indirect/procedure reason=unknown-target-effects"
+                                                      : "category=indirect/procedure reason=non-scalar-or-managed-signature";
         }
         break;
       }
