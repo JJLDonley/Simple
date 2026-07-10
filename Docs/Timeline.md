@@ -507,7 +507,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Include native/import/direct call target labels in LLVM loop-call rejection diagnostics.
 - [x] Treat unspecified-return direct Simple calls as void-safe for scalar loop-call lowering.
 - [x] Route accepted scalar dynamic `System.dl.call$...` loop calls through a specialized LLVM helper instead of full helper dispatch.
-- [x] Direct-bind verified dynamic `System.dl.call$...` `i32(i32)` calls from LLVM loops.
+- [x] Remove dynamic `System.dl.call$...` scalar direct-bind shims; scalar loop calls use the canonical helper path.
 - [x] Remove raylib-specific dynamic-DL direct binds from LLVM; dynamic FFI loop acceptance now goes through generic VM ABI/native ABI gates only.
 - [x] Include rejected loop-call SBC signature shapes in LLVM JIT diagnostics.
 - [x] Route scalar dynamic-DL LLVM helper calls through `JitCallContext` snapshots/root publication.
@@ -515,8 +515,8 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Allow verified dynamic-DL borrowed C-string input calls inside LLVM loops through the `JitCallContext` helper path.
 - [x] Include loop bytecode ranges in unsafe LLVM loop-call rejection diagnostics.
 - [x] Keep dynamic-DL helper dispatch rooted in `JitCallContext` argument/heap/trap state instead of library-specific direct-bind shims.
-- [x] Publish caller local/operand roots and safepoint metadata around accepted dynamic-DL helper/direct-bind paths.
-- [x] Route the dynamic-DL `i32(i32)` direct-bind path through `JitCallContext` instead of raw LLVM C calls.
+- [x] Publish caller local/operand roots and safepoint metadata around accepted dynamic-DL helper paths.
+- [x] Route scalar dynamic-DL loop calls through `JitCallContext` helper dispatch instead of raw LLVM C calls.
 - [x] Add an interpreter-vs-JIT reduced repro for scalar native/import calls inside loops.
 - [x] Add an interpreter-vs-JIT reduced repro for scalar dynamic-DL loop calls.
 - [x] Include aggregate field layout fingerprints in LLVM loop-call signature diagnostics.
