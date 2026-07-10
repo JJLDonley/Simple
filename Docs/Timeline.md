@@ -261,9 +261,10 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
   - [x] Permit stable `data` structs through external C ABI type-info verifier.
   - [x] Permit explicit ABI wrapper types.
   - [x] Reject managed artifacts, closures, VM heap internals, and implicit `string -> char*` coercions in external C ABI verifier.
-  - [ ] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass.
+  - [x] Use libffi/platform ABI only after Simple ABI metadata and layout checks pass.
     - [x] Runtime verifier accepts only external-callable primitive/pointer/stable aggregate type infos.
     - [x] Runtime verifier accepts explicit external C wrappers for C string, string view, and bytes view.
+    - [x] Dynamic library call dispatch gates libffi setup behind external ABI type-info validation.
 - [ ] Keep interpreter, LLVM ORC JIT, and future AOT on the same Simple Native ABI contract.
 
 ### Exact ABI Mapping Table

@@ -46,6 +46,7 @@ bool VmDynamicDlDispatchLivesInFfiModule() {
   return header_text.find("DispatchDynamicDlCall(") != std::string::npos &&
          source_text.find("bool DispatchDynamicDlCall(") != std::string::npos &&
          source_text.find("struct DlAbiCache") != std::string::npos &&
+         source_text.find("ValidateExternalCAbiTypeInfos") != std::string::npos &&
          source_text.find("ConvertDlArg") != std::string::npos &&
          vm_text.find("bool DispatchDynamicDlCall(") == std::string::npos &&
          vm_text.find("struct DlAbiCache") == std::string::npos &&

@@ -11,6 +11,7 @@
 #include <ffi.h>
 #endif
 
+#include "runtime/abi.h"
 #include "runtime/values.h"
 
 namespace Simple::VM::Ffi {
@@ -379,6 +380,64 @@ ffi_type* PrimitiveFfiType(TypeKind kind) {
     default:
       return nullptr;
   }
+}
+
+bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
+                                uint32_t type_id,
+                                std::unordered_set<uint32_t>& visiting,
+                                Simple::VM::Runtime::AbiTypeInfo* out,
+                                std::string* out_error) {
+  if (!out) return false;
+  if (type_id >= module.types.size()) {
+    if (out_error) *out_error = "System.dl.call type id out of range";
+    return false;
+  }
+  const auto& row = module.types[type_id];
+  const TypeKind kind = static_cast<TypeKind>(row.kind);
+  if (kind == TypeKind::String) {
+    *out = Simple::VM::Runtime::GetExternalCAbiWrapperTypeInfo(
+        Simple::VM::Runtime::AbiExternalWrapperKind::CString);
+    return true;
+  }
+  if (kind != TypeKind::Unspecified || row.field_count == 0) {
+    *out = Simple::VM::Runtime::GetPrimitiveAbiTypeInfo(kind);
+    return true;
+  }
+  if (!visiting.insert(type_id).second) {
+    if (out_error) *out_error = "System.dl.call recursive struct ABI is unsupported";
+    return false;
+  }
+  if (row.field_start + row.field_count > module.fields.size()) {
+    if (out_error) *out_error = "System.dl.call struct field range out of bounds";
+    visiting.erase(type_id);
+    return false;
+  }
+  std::vector<Simple::VM::Runtime::AbiTypeInfo> fields;
+  fields.reserve(row.field_count);
+  for (uint32_t i = 0; i < row.field_count; ++i) {
+    Simple::VM::Runtime::AbiTypeInfo field;
+    if (!BuildExternalDlAbiTypeInfo(module,
+                                    module.fields[row.field_start + i].type_id,
+                                    visiting,
+                                    &field,
+                                    out_error)) {
+      visiting.erase(type_id);
+      return false;
+    }
+    fields.push_back(field);
+  }
+  visiting.erase(type_id);
+  *out = Simple::VM::Runtime::GetAggregateAbiTypeInfo(
+      Simple::VM::Runtime::ComputeStableAggregateLayout(fields));
+  return true;
+}
+
+bool BuildExternalDlAbiTypeInfo(const SbcModule& module,
+                                uint32_t type_id,
+                                Simple::VM::Runtime::AbiTypeInfo* out,
+                                std::string* out_error) {
+  std::unordered_set<uint32_t> visiting;
+  return BuildExternalDlAbiTypeInfo(module, type_id, visiting, out, out_error);
 }
 
 ffi_type* BuildDlFfiType(const SbcModule& module,
@@ -840,6 +899,22 @@ bool DispatchDynamicDlCall(int64_t ptr_bits,
                            Heap& heap,
                            Slot* out_ret,
                            std::string* out_error) {
+  std::vector<Simple::VM::Runtime::AbiTypeInfo> parameter_abi;
+  parameter_abi.reserve(arg_type_ids.size());
+  for (uint32_t type_id : arg_type_ids) {
+    Simple::VM::Runtime::AbiTypeInfo type;
+    if (!BuildExternalDlAbiTypeInfo(module, type_id, &type, out_error)) return false;
+    parameter_abi.push_back(type);
+  }
+  Simple::VM::Runtime::AbiTypeInfo result_abi =
+      Simple::VM::Runtime::GetPrimitiveAbiTypeInfo(TypeKind::Unspecified);
+  if (has_ret && !BuildExternalDlAbiTypeInfo(module, ret_type_id, &result_abi, out_error)) {
+    return false;
+  }
+  if (!Simple::VM::Runtime::ValidateExternalCAbiTypeInfos(parameter_abi, result_abi, out_error)) {
+    return false;
+  }
+
   DlAbiCache cache;
   std::vector<std::string> owned_strings;
   std::vector<ffi_type*> ffi_arg_types(arg_type_ids.size(), nullptr);
