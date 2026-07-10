@@ -66,6 +66,7 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_VM_ROOT}/src/interpreter/traps.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/jit_scaffold.cpp
   ${SIMPLEVM_VM_ROOT}/src/jit/llvm_backend.cpp
+  ${SIMPLEVM_VM_ROOT}/src/jit/status.cpp
   ${SIMPLEVM_VM_ROOT}/src/vm.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/buffer.cpp
   ${SIMPLEVM_VM_ROOT}/src/native/capability_policy.cpp

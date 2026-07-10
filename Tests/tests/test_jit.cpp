@@ -9494,6 +9494,25 @@ bool RunLlvmJitForwardBranchSmokeTest() {
   return true;
 }
 
+bool RunJitStatusCodeTest() {
+  using Simple::VM::Jit::ClassifyJitReason;
+  using Simple::VM::Jit::JitStatusCode;
+  using Simple::VM::Jit::JitStatusCodeName;
+
+  return JitStatusCodeName(JitStatusCode::Halt) == std::string("halt") &&
+         JitStatusCodeName(JitStatusCode::Return) == std::string("return") &&
+         JitStatusCodeName(JitStatusCode::Trap) == std::string("trap") &&
+         JitStatusCodeName(JitStatusCode::Fallback) == std::string("fallback") &&
+         JitStatusCodeName(JitStatusCode::Unsupported) == std::string("unsupported") &&
+         ClassifyJitReason(nullptr) == JitStatusCode::Return &&
+         ClassifyJitReason("") == JitStatusCode::Return &&
+         ClassifyJitReason("halt") == JitStatusCode::Halt &&
+         ClassifyJitReason("trap: division by zero") == JitStatusCode::Trap &&
+         ClassifyJitReason("unsupported: intrinsic 4") == JitStatusCode::Unsupported &&
+         ClassifyJitReason("unsupported") == JitStatusCode::Unsupported &&
+         ClassifyJitReason("LLVM JIT branch stack height mismatch") == JitStatusCode::Fallback;
+}
+
 bool RunLlvmJitLoopSmokeTest() {
   Simple::VM::Jit::LlvmJitBackend backend;
   if (!backend.Status().available) return true;
@@ -9551,6 +9570,7 @@ bool RunLlvmJitLoopSmokeTest() {
 }
 
 static const TestCase kJitTests[] = {
+  {"jit_status_codes", RunJitStatusCodeTest},
   {"llvm_jit_leaf_i32_smoke", RunLlvmJitLeafI32SmokeTest},
   {"llvm_jit_locals_params_smoke", RunLlvmJitLocalsAndParamsSmokeTest},
   {"llvm_jit_cache_smoke", RunLlvmJitCacheSmokeTest},

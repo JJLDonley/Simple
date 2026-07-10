@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "interpreter/stack.h"
+#include "jit/status.h"
 #include "sbc_types.h"
 
 namespace Simple::VM {

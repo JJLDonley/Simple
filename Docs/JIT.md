@@ -76,7 +76,7 @@ New JIT work targets `LlvmJitBackend` and interpreter fallback only. The removed
 
 ## Failure reporting
 
-Compiled-path failures include opcode, program counter, and decoded operand context where possible. The error should make it clear which opcode and location failed without corrupting VM state.
+Compiled-path failures include opcode, program counter, and decoded operand context where possible. The error should make it clear which opcode and location failed without corrupting VM state. `JitStatusCode` classifies outcomes as `halt`, `return`, `trap`, `fallback`, or `unsupported` so callers can distinguish semantic exits from safe interpreter fallback.
 
 ## Correctness rule
 
