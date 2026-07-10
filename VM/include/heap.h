@@ -10,6 +10,7 @@ namespace Simple::VM {
 
 enum class ObjectKind : uint8_t {
   String,
+  Bytes,
   Array,
   List,
   Artifact,
@@ -40,6 +41,15 @@ constexpr std::size_t StringPayloadSize(uint32_t code_units) {
 }
 constexpr std::size_t StringCodeUnitOffset(uint32_t index) {
   return kStringDataOffset + static_cast<std::size_t>(index) * 2u;
+}
+
+constexpr std::size_t kBytesLengthOffset = 0;
+constexpr std::size_t kBytesDataOffset = 4;
+constexpr std::size_t BytesPayloadSize(uint32_t length) {
+  return kBytesDataOffset + static_cast<std::size_t>(length);
+}
+constexpr std::size_t BytesElementOffset(uint32_t index) {
+  return kBytesDataOffset + static_cast<std::size_t>(index);
 }
 
 constexpr std::size_t kArrayLengthOffset = 0;
@@ -79,8 +89,8 @@ constexpr std::size_t ClosureUpvalueOffset(uint32_t index) {
 }
 
 constexpr bool IsRefKind(ObjectKind kind) {
-  return kind == ObjectKind::String || kind == ObjectKind::Array || kind == ObjectKind::List ||
-         kind == ObjectKind::Artifact || kind == ObjectKind::Closure;
+  return kind == ObjectKind::String || kind == ObjectKind::Bytes || kind == ObjectKind::Array ||
+         kind == ObjectKind::List || kind == ObjectKind::Artifact || kind == ObjectKind::Closure;
 }
 
 } // namespace HeapLayout
@@ -98,6 +108,8 @@ std::u16string AsciiToU16(const std::string& text);
 std::string U16ToAscii(const std::u16string& text);
 uint32_t CreateString(Heap& heap, const std::u16string& text);
 std::u16string ReadString(const HeapObject* obj);
+uint32_t CreateBytes(Heap& heap, const std::vector<uint8_t>& bytes);
+std::vector<uint8_t> ReadBytes(const HeapObject* obj);
 
 class Heap {
  public:

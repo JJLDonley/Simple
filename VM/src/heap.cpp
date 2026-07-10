@@ -110,6 +110,32 @@ std::u16string ReadString(const HeapObject* obj) {
   return out;
 }
 
+uint32_t CreateBytes(Heap& heap, const std::vector<uint8_t>& bytes) {
+  const uint32_t length = static_cast<uint32_t>(bytes.size());
+  const uint32_t size = static_cast<uint32_t>(HeapLayout::BytesPayloadSize(length));
+  const uint32_t handle = heap.Allocate(ObjectKind::Bytes, 0, size);
+  HeapObject* obj = heap.Get(handle);
+  if (!obj) return HeapLayout::kNullRef;
+  WriteU32Payload(obj->payload, HeapLayout::kBytesLengthOffset, length);
+  for (uint32_t i = 0; i < length; ++i) {
+    obj->payload[HeapLayout::BytesElementOffset(i)] = bytes[i];
+  }
+  return handle;
+}
+
+std::vector<uint8_t> ReadBytes(const HeapObject* obj) {
+  if (!obj || obj->header.kind != ObjectKind::Bytes) return {};
+  const uint32_t length = ReadU32Payload(obj->payload, HeapLayout::kBytesLengthOffset);
+  std::vector<uint8_t> out;
+  out.reserve(length);
+  for (uint32_t i = 0; i < length; ++i) {
+    const std::size_t offset = HeapLayout::BytesElementOffset(i);
+    if (offset >= obj->payload.size()) return {};
+    out.push_back(obj->payload[offset]);
+  }
+  return out;
+}
+
 void Heap::SetLimits(uint32_t max_objects, uint64_t max_bytes) {
   max_objects_ = max_objects;
   max_bytes_ = max_bytes;
@@ -176,6 +202,7 @@ void Heap::Mark(uint32_t handle) {
 
   switch (obj->header.kind) {
     case ObjectKind::String:
+    case ObjectKind::Bytes:
       return;
     case ObjectKind::Array:
       if (obj->header.type_id != 0) mark_payload_refs(HeapLayout::kArrayDataOffset, obj->payload.size());

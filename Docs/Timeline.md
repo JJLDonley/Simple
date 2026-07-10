@@ -303,7 +303,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Strings are UTF-8 at ABI boundaries unless a different encoding is explicit.
 - [x] Borrowed string/bytes views are valid only for the native call duration.
 - [ ] Native functions returning strings allocate/build VM-owned strings.
-- [ ] Define heap-owned `Bytes` as the canonical immutable byte sequence.
+- [x] Define heap-owned `Bytes` as the canonical immutable byte sequence.
 - [x] Define `SimpleBytesView { data, size }` for borrowed bytes arguments.
 - [ ] Define mutable buffers as resource handles, not borrowed mutable VM internals.
 - [ ] External FFI requires explicit `cstring`, pointer, or bytes wrapper types; no implicit `string` coercion.

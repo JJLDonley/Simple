@@ -15751,6 +15751,8 @@ std::vector<uint8_t> BuildGcModule() {
 bool RunHeapLayoutHelpersTest() {
   static_assert(Simple::VM::HeapLayout::StringPayloadSize(3) == 10);
   static_assert(Simple::VM::HeapLayout::StringCodeUnitOffset(2) == 8);
+  static_assert(Simple::VM::HeapLayout::BytesPayloadSize(3) == 7);
+  static_assert(Simple::VM::HeapLayout::BytesElementOffset(2) == 6);
   static_assert(Simple::VM::HeapLayout::ArrayPayloadSize(4, 4) == 20);
   static_assert(Simple::VM::HeapLayout::ArrayElementOffset(3, 4) == 16);
   static_assert(Simple::VM::HeapLayout::ListPayloadSize(4, 4) == 24);
@@ -15760,6 +15762,7 @@ bool RunHeapLayoutHelpersTest() {
   static_assert(Simple::VM::HeapLayout::ClosurePayloadSize(2) == 16);
   static_assert(Simple::VM::HeapLayout::ClosureUpvalueOffset(1) == 12);
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::String)) return false;
+  if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Bytes)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Array)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::List)) return false;
   if (!Simple::VM::HeapLayout::IsRefKind(Simple::VM::ObjectKind::Artifact)) return false;
@@ -23807,6 +23810,22 @@ void WriteHeapU32(Simple::VM::HeapObject* obj, size_t offset, uint32_t value) {
   obj->payload[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xffu);
 }
 
+bool RunHeapBytesCreateReadTest() {
+  Simple::VM::Heap heap;
+  const std::vector<uint8_t> input = {0, 1, 2, 255};
+  const uint32_t handle = Simple::VM::CreateBytes(heap, input);
+  const Simple::VM::HeapObject* obj = heap.Get(handle);
+  if (!obj || obj->header.kind != Simple::VM::ObjectKind::Bytes) return false;
+  if (obj->payload.size() != Simple::VM::HeapLayout::BytesPayloadSize(static_cast<uint32_t>(input.size()))) {
+    return false;
+  }
+  const std::vector<uint8_t> output = Simple::VM::ReadBytes(obj);
+  heap.ResetMarks();
+  heap.Mark(handle);
+  heap.Sweep();
+  return output == input && heap.Get(handle) != nullptr;
+}
+
 bool RunHeapNestedListRefTraceTest() {
   Simple::VM::Heap heap;
   uint32_t text = heap.Allocate(Simple::VM::ObjectKind::String, 0, 8);
@@ -24445,6 +24464,7 @@ static const TestCase kCoreTests[] = {
   {"runtime_value_packing_helpers", RunRuntimeValuePackingHelpersTest},
   {"byte_const_pool_string_helper", RunByteConstPoolStringHelperTest},
   {"heap_layout_helpers", RunHeapLayoutHelpersTest},
+  {"heap_bytes_create_read", RunHeapBytesCreateReadTest},
   {"native_buffer_module", RunNativeBufferModuleTest},
   {"native_channel_module", RunNativeChannelModuleTest},
   {"native_env_module", RunNativeEnvModuleTest},
