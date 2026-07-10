@@ -95,6 +95,7 @@ Language-neutral SIR syntax/lowering status:
   - [x] SBC loader validates opaque handle resource kind metadata.
   - [x] Runtime ABI classifier maps opaque handle type rows to handle ABI values.
   - [x] Bytecode verifier accepts opaque handle values as packed handle words.
+  - [x] SBC loader rejects conflicting type layout flags.
   - [x] Native resource kinds expose stable ids for opaque handle metadata.
   - [x] Native layer maps opaque SBC type rows back to resource kinds.
 

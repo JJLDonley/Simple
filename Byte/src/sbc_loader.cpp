@@ -193,6 +193,11 @@ LoadResult LoadModuleFromBytes(const std::vector<uint8_t>& bytes) {
       if (!ReadU32At(bytes, off + 16, &row.field_count)) return Fail("type row read failed");
       if (row.kind > static_cast<uint8_t>(TypeKind::Vector)) return Fail("type kind invalid");
       auto kind = static_cast<TypeKind>(row.kind);
+      const uint8_t layout_flags = static_cast<uint8_t>(row.flags &
+          (kTypeFlagManagedArtifact | kTypeFlagStableData | kTypeFlagOpaqueHandle));
+      if (layout_flags != 0u && (layout_flags & static_cast<uint8_t>(layout_flags - 1u)) != 0u) {
+        return Fail("type layout flags conflict");
+      }
       switch (kind) {
         case TypeKind::Void:
         case TypeKind::Never:

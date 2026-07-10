@@ -120,6 +120,14 @@ struct TypeRow {
   uint32_t field_count = 0;
 };
 
+inline bool IsManagedArtifactType(const TypeRow& row) {
+  return (row.flags & kTypeFlagManagedArtifact) != 0u;
+}
+
+inline bool IsStableDataType(const TypeRow& row) {
+  return (row.flags & kTypeFlagStableData) != 0u;
+}
+
 inline bool IsOpaqueHandleType(const TypeRow& row) {
   return (row.flags & kTypeFlagOpaqueHandle) != 0u;
 }

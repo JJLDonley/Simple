@@ -17054,7 +17054,18 @@ bool RunOpaqueHandleTypeMetadataLoadTest() {
   const std::vector<uint8_t> bad_reserved_module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
       code, {}, bad_reserved_types, {}, 0, 0, 0, 0, 0, 0, {});
   load = Simple::Byte::LoadModuleFromBytes(bad_reserved_module);
-  return !load.ok && load.error.find("type reserved invalid") != std::string::npos;
+  if (load.ok || load.error.find("type reserved invalid") == std::string::npos) {
+    return false;
+  }
+
+  handle.flags = Simple::Byte::kTypeFlagOpaqueHandle | Simple::Byte::kTypeFlagStableData;
+  handle.reserved = 1;
+  const std::vector<uint8_t> conflict_types =
+      Simple::Byte::sbc::BuildTypeSection({scalar, handle});
+  const std::vector<uint8_t> conflict_module = Simple::Byte::sbc::BuildModuleWithTablesAndSig(
+      code, {}, conflict_types, {}, 0, 0, 0, 0, 0, 0, {});
+  load = Simple::Byte::LoadModuleFromBytes(conflict_module);
+  return !load.ok && load.error.find("type layout flags conflict") != std::string::npos;
 }
 
 bool RunOpaqueHandleVerifiesAsI64Test() {

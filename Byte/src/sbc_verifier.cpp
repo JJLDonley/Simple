@@ -232,7 +232,7 @@ VerifyResult VerifyModule(const SbcModule& module) {
         return ValType::Ref;
       case TypeKind::Unspecified:
         if (IsOpaqueHandleType(row)) return ValType::I64;
-        if ((row.flags & kTypeFlagManagedArtifact) != 0u) return ValType::Ref;
+        if (IsManagedArtifactType(row)) return ValType::Ref;
         return ValType::Unknown;
       default:
         return ValType::Unknown;
