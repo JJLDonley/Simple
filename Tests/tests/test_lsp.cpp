@@ -3652,6 +3652,43 @@ bool LspCallHierarchyReturnsFunctionCalls() {
          out_contents.find("\"from\":{\"name\":\"caller\"") != std::string::npos;
 }
 
+bool LspCallHierarchyIndexesWorkspaceFiles() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_call_hierarchy_workspace_test";
+  const auto nested_dir = dir / "nested";
+  fs::create_directories(nested_dir);
+  const auto main_path = dir / "main.simple";
+  const auto nested_path = nested_dir / "nested.simple";
+  {
+    std::ofstream nested(nested_path);
+    nested << "nestedFunc : i32 () { return 7 }\ncaller : i32 () { return callee() }";
+  }
+  const std::string main_uri = "file://" + main_path.generic_string();
+  const std::string nested_uri = "file://" + nested_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_call_hierarchy_workspace_in.txt");
+  const std::string out_path = TempPath("simple_lsp_call_hierarchy_workspace_out.txt");
+  const std::string err_path = TempPath("simple_lsp_call_hierarchy_workspace_err.txt");
+  const std::string text = "callee : i32 () { return 1 }\nmain : i32 () { return nestedFunc() }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string main_item = "{\"name\":\"main\",\"kind\":12,\"uri\":\"" + main_uri + "\",\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":4}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":4}}}";
+  const std::string outgoing_req = "{\"jsonrpc\":\"2.0\",\"id\":66,\"method\":\"callHierarchy/outgoingCalls\",\"params\":{\"item\":" + main_item + "}}";
+  const std::string callee_item = "{\"name\":\"callee\",\"kind\":12,\"uri\":\"" + main_uri + "\",\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":6}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":6}}}";
+  const std::string incoming_req = "{\"jsonrpc\":\"2.0\",\"id\":67,\"method\":\"callHierarchy/incomingCalls\",\"params\":{\"item\":" + callee_item + "}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(outgoing_req) + BuildLspFrame(incoming_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":66") != std::string::npos &&
+         out_contents.find("\"to\":{\"name\":\"nestedFunc\"") != std::string::npos &&
+         out_contents.find(nested_uri) != std::string::npos &&
+         out_contents.find("\"id\":67") != std::string::npos &&
+         out_contents.find("\"from\":{\"name\":\"caller\"") != std::string::npos;
+}
+
 bool LspCallHierarchyReturnsNamespaceMemberCalls() {
   const std::string in_path = TempPath("simple_lsp_call_hierarchy_member_in.txt");
   const std::string out_path = TempPath("simple_lsp_call_hierarchy_member_out.txt");
@@ -3935,6 +3972,7 @@ const TestCase kLspTests[] = {
   {"lsp_range_formatting_returns_line_edit", LspRangeFormattingReturnsLineEdit},
   {"lsp_linked_editing_range_returns_identifier_ranges", LspLinkedEditingRangeReturnsIdentifierRanges},
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
+  {"lsp_call_hierarchy_indexes_workspace_files", LspCallHierarchyIndexesWorkspaceFiles},
   {"lsp_call_hierarchy_returns_namespace_member_calls", LspCallHierarchyReturnsNamespaceMemberCalls},
   {"lsp_inlay_hint_returns_parameter_hints", LspInlayHintReturnsParameterHints},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},

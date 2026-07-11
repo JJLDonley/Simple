@@ -3475,12 +3475,18 @@ bool FindFunctionDecl(const std::unordered_map<std::string, std::string>& open_d
     }
     return false;
   };
-  const auto preferred = open_docs.find(preferred_uri);
-  if (preferred != open_docs.end() && find_in_doc(preferred_uri, preferred->second)) return true;
-  const auto sorted_uris = SortedOpenDocUris(open_docs, preferred_uri);
-  for (const auto& uri : sorted_uris) {
-    const auto it = open_docs.find(uri);
-    if (it != open_docs.end() && find_in_doc(uri, it->second)) return true;
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+  const auto preferred = workspace_docs.find(preferred_uri);
+  if (preferred != workspace_docs.end() && find_in_doc(preferred_uri, preferred->second)) return true;
+  std::vector<std::string> uris;
+  uris.reserve(workspace_docs.size());
+  for (const auto& [doc_uri, _] : workspace_docs) {
+    if (doc_uri != preferred_uri) uris.push_back(doc_uri);
+  }
+  std::sort(uris.begin(), uris.end());
+  for (const auto& doc_uri : uris) {
+    const auto it = workspace_docs.find(doc_uri);
+    if (it != workspace_docs.end() && find_in_doc(doc_uri, it->second)) return true;
   }
   return false;
 }
@@ -3628,7 +3634,8 @@ void ReplyIncomingCallHierarchy(std::ostream& out,
                                 const std::string& item_name,
                                 const std::unordered_map<std::string, std::string>& open_docs) {
   std::string result;
-  for (const auto& [uri, text] : open_docs) {
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+  for (const auto& [uri, text] : workspace_docs) {
     const auto refs = LexTokenRefs(text);
     for (const auto& function_ref : refs) {
       if (!IsFunctionDeclAt(refs, function_ref.index)) continue;

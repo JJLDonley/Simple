@@ -38,7 +38,7 @@ VS Code support for the Simple language. The extension starts the real `svm lsp`
 - `Simple: Toggle JIT Default`
 - `Simple: Toggle Trace`
 
-The extension never invokes the `simple` runtime stub for compiler/editor commands.
+The extension never invokes the `simple` runtime stub for compiler/editor commands. Commands run `svm` from the document directory and pass module-style inputs for `.simple` files, e.g. `svm run main` beside `main.simple`.
 
 ## Local Development
 

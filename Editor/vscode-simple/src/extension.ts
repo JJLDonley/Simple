@@ -189,13 +189,15 @@ async function commandDocument(resource?: unknown): Promise<vscode.TextDocument 
   return activeSimpleDocument();
 }
 
-function workspaceCwd(document?: vscode.TextDocument): string | undefined {
-  if (document) {
-    const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-    if (folder) return folder.uri.fsPath;
-    if (document.uri.scheme === 'file') return path.dirname(document.uri.fsPath);
-  }
+function commandCwd(document?: vscode.TextDocument): string | undefined {
+  if (document?.uri.scheme === 'file') return path.dirname(document.uri.fsPath);
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+function cliInputArg(document: vscode.TextDocument): string {
+  const file = currentFilePath(document);
+  if (file.endsWith('.simple')) return path.basename(file, '.simple');
+  return path.basename(file);
 }
 
 async function runSvm(context: vscode.ExtensionContext, label: string, args: string[], document?: vscode.TextDocument): Promise<void> {
@@ -205,7 +207,7 @@ async function runSvm(context: vscode.ExtensionContext, label: string, args: str
   taskOutputChannel.appendLine(`> ${svm} ${args.join(' ')}`);
   await new Promise<void>((resolve) => {
     const proc = childProcess.spawn(svm, args, {
-      cwd: workspaceCwd(document),
+      cwd: commandCwd(document),
       env: simpleProcessEnv(),
       shell: process.platform === 'win32'
     });
@@ -274,7 +276,7 @@ function binaryOutputPath(document: vscode.TextDocument): string {
 }
 
 function runArgs(document: vscode.TextDocument, forceJit: boolean): string[] {
-  const args = ['run', currentFilePath(document)];
+  const args = ['run', cliInputArg(document)];
   const jitByDefault = vscode.workspace.getConfiguration('simple').get<boolean>('jitByDefault', false);
   if (forceJit || jitByDefault) args.push('-jit', '--jit-stats');
   return args;
@@ -334,8 +336,8 @@ class SimpleTaskProvider implements vscode.TaskProvider {
   async provideTasks(): Promise<vscode.Task[]> {
     const document = activeSimpleDocument(false);
     if (!document) return [];
-    const file = currentFilePath(document);
-    const cwd = workspaceCwd(document);
+    const file = cliInputArg(document);
+    const cwd = commandCwd(document);
     const folder = vscode.workspace.getWorkspaceFolder(document.uri);
     const scope = folder ?? vscode.TaskScope.Workspace;
     const tasks = [
@@ -357,7 +359,7 @@ class SimpleTaskProvider implements vscode.TaskProvider {
     const args = Array.isArray(definition.args) ? definition.args.filter((v): v is string => typeof v === 'string') : [];
     if (!command) return undefined;
     const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-    return simpleTask(this.context, task.name, [command, ...args], folder ?? vscode.TaskScope.Workspace, workspaceCwd(document));
+    return simpleTask(this.context, task.name, [command, ...args], folder ?? vscode.TaskScope.Workspace, commandCwd(document));
   }
 }
 
@@ -388,7 +390,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
 
   registerCommand(context, COMMANDS.checkCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
-    if (doc) await runSvm(context, 'Simple check', ['check', currentFilePath(doc)], doc);
+    if (doc) await runSvm(context, 'Simple check', ['check', cliInputArg(doc)], doc);
   });
   registerCommand(context, COMMANDS.runCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
@@ -405,7 +407,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
       vscode.window.showWarningMessage('Simple build supports .simple and .sir files.');
       return;
     }
-    await runSvm(context, 'Simple build', ['build', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
+    await runSvm(context, 'Simple build', ['build', cliInputArg(doc), '--out', binaryOutputPath(doc)], doc);
   });
   registerCommand(context, COMMANDS.compileCurrentFile, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
@@ -414,7 +416,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
       vscode.window.showWarningMessage('Simple compile supports .simple and .sir files.');
       return;
     }
-    await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
+    await runSvm(context, 'Simple compile', ['compile', cliInputArg(doc), '--out', binaryOutputPath(doc)], doc);
   });
   registerCommand(context, COMMANDS.emitSir, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
@@ -423,7 +425,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
       vscode.window.showWarningMessage('Simple SIR emission supports .simple files.');
       return;
     }
-    await runSvm(context, 'Simple emit SIR', ['emit', '-ir', currentFilePath(doc), '--out', outputPath(doc, 'sir')], doc);
+    await runSvm(context, 'Simple emit SIR', ['emit', '-ir', cliInputArg(doc), '--out', outputPath(doc, 'sir')], doc);
   });
   registerCommand(context, COMMANDS.emitSbc, async (resource?: unknown) => {
     const doc = await commandDocument(resource);
@@ -432,7 +434,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
       vscode.window.showWarningMessage('Simple SBC emission supports .simple and .sir files.');
       return;
     }
-    await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', currentFilePath(doc), '--out', outputPath(doc, 'sbc')], doc);
+    await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', cliInputArg(doc), '--out', outputPath(doc, 'sbc')], doc);
   });
 }
 

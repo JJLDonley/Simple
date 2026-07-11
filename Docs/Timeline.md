@@ -851,7 +851,7 @@ Simple toolchain facts this plan must respect:
   - [x] default build task for active `.simple` file.
   - [x] run/check/emit tasks for active file.
   - [x] optional problem matcher for `path:line:column: message` diagnostics emitted by `svm`.
-- [x] Route all command tasks through `svm` with workspace-aware cwd.
+- [x] Route all command tasks through `svm` with document-directory cwd and module-style `.simple` inputs.
 - [x] Add optional configured output directory.
 - [x] Never invoke the `simple` runtime stub for check/build/emit/lsp.
 
@@ -870,7 +870,8 @@ Next Simple-specific LSP capabilities:
 - [x] Linked editing ranges for same-document Simple identifier declarations/usages.
 - [x] Call hierarchy prepare/incoming/outgoing for Simple top-level functions across opened documents.
 - [x] Call hierarchy for namespace/member functions.
-- [ ] Call hierarchy for imports and native wrappers.
+- [x] Call hierarchy across indexed imported/workspace functions.
+- [ ] Call hierarchy for native wrappers.
 - [x] Folding ranges for brace-delimited Simple regions.
 - [x] Selection ranges for token -> enclosing brace-region nesting.
 - [x] Inlay hints for Simple function-call parameter names.
