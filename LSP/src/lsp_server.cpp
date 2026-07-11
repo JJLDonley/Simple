@@ -752,6 +752,8 @@ struct TokenRef {
 };
 
 std::vector<TokenRef> LexTokenRefs(const std::string& text);
+std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
+    const std::unordered_map<std::string, std::string>& open_docs);
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
 bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
 const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character);
@@ -1993,6 +1995,7 @@ bool IsKeywordToken(Simple::Lang::TokenKind kind) {
     case TK::KwModule:
     case TK::KwNamespace:
     case TK::KwImport:
+    case TK::KwUsing:
     case TK::KwExtern:
     case TK::KwAs:
     case TK::KwTrue:
@@ -3012,7 +3015,7 @@ bool IsValidIdentifierName(const std::string& name) {
   static const std::unordered_set<std::string> kReserved = {
       "while", "for", "break", "skip", "return", "if", "else", "default",
       "fn", "callback", "self", "artifact", "enum", "module", "namespace",
-      "import", "extern", "as",
+      "import", "using", "extern", "as",
       "true", "false",
   };
   if (name.empty()) return false;
@@ -3147,6 +3150,26 @@ void ReplyDefinition(std::ostream& out,
                            LocationJson(best_uri, best_token) + "]}");
 }
 
+bool IsGenericTypeArgumentAt(const std::vector<TokenRef>& refs, size_t idx) {
+  if (idx == 0 || idx >= refs.size()) return false;
+  using TK = Simple::Lang::TokenKind;
+  if (refs[idx].token.kind != TK::Identifier) return false;
+  if (refs[idx - 1].token.kind != TK::Lt && refs[idx - 1].token.kind != TK::Comma) return false;
+  int depth = 0;
+  for (size_t i = idx + 1; i > 0; --i) {
+    const size_t j = i - 1;
+    if (refs[j].token.kind == TK::Gt) ++depth;
+    if (refs[j].token.kind == TK::Lt) {
+      if (depth == 0) {
+        return j > 0 && refs[j - 1].token.kind == TK::Identifier;
+      }
+      --depth;
+    }
+    if (refs[j].token.kind == TK::Semicolon || refs[j].token.kind == TK::LBrace || refs[j].token.kind == TK::RBrace) break;
+  }
+  return false;
+}
+
 void ReplyTypeDefinition(std::ostream& out,
                          const std::string& id_raw,
                          const std::string& uri,
@@ -3170,14 +3193,15 @@ void ReplyTypeDefinition(std::ostream& out,
   const size_t idx = target->index;
   if (idx > 0 && (refs[idx - 1].token.kind == TK::Colon || refs[idx - 1].token.kind == TK::Arrow)) {
     type_name = target->token.text;
+  } else if (IsGenericTypeArgumentAt(refs, idx)) {
+    type_name = target->token.text;
   } else if (idx + 1 < refs.size() && refs[idx + 1].token.kind == TK::DoubleColon) {
     type_name = target->token.text;
   } else if (!ResolveDeclaredTypeForIdent(doc_it->second, target->token.text, &type_name)) {
-    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
-    for (const auto& other_uri : sorted_uris) {
-      const auto other_it = open_docs.find(other_uri);
-      if (other_it == open_docs.end()) continue;
-      if (ResolveDeclaredTypeForIdent(other_it->second, target->token.text, &type_name)) break;
+    const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+    for (const auto& [other_uri, other_text] : workspace_docs) {
+      if (other_uri == uri) continue;
+      if (ResolveDeclaredTypeForIdent(other_text, target->token.text, &type_name)) break;
     }
   }
 
@@ -3204,11 +3228,10 @@ void ReplyTypeDefinition(std::ostream& out,
 
   find_in_doc(uri, doc_it->second);
   if (!found) {
-    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
-    for (const auto& other_uri : sorted_uris) {
-      const auto other_it = open_docs.find(other_uri);
-      if (other_it == open_docs.end()) continue;
-      find_in_doc(other_uri, other_it->second);
+    const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+    for (const auto& [other_uri, other_text] : workspace_docs) {
+      if (other_uri == uri) continue;
+      find_in_doc(other_uri, other_text);
       if (found) break;
     }
   }

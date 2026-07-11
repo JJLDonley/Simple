@@ -1521,6 +1521,39 @@ bool LspSemanticTokensClassifyModuleKeyword() {
   return false;
 }
 
+bool LspSemanticTokensClassifyUsingKeyword() {
+  const std::string in_path = TempPath("simple_lsp_tokens_using_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_using_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_using_err.txt");
+  const std::string uri = "file:///workspace/tokens_using.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"using IO\\nmain : i32 () { return 0; }\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":60,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const std::string input =
+      BuildLspFrame(init_req) +
+      BuildLspFrame(open_req) +
+      BuildLspFrame(tokens_req) +
+      BuildLspFrame(shutdown_req) +
+      BuildLspFrame(exit_req);
+  if (!WriteBinaryFile(in_path, input)) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  if (!ReadFileText(err_path).empty() || out_contents.find("\"id\":60") == std::string::npos) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!DecodeSemanticData(out_contents, &entries)) return false;
+  for (const auto& entry : entries) {
+    if (entry.line == 0 && entry.col == 0 && entry.len == 5 && entry.type == 0) return true;
+  }
+  return false;
+}
+
 bool LspSemanticTokensMarkFunctionDeclarations() {
   const std::string in_path = TempPath("simple_lsp_tokens_decl_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_decl_out.txt");
@@ -3243,6 +3276,30 @@ bool LspTypeDefinitionProviderResolvesVariableUsageTypes() {
          out_contents.find("\"character\":0") != std::string::npos;
 }
 
+bool LspTypeDefinitionProviderResolvesGenericTypeArguments() {
+  const std::string in_path = TempPath("simple_lsp_type_generic_in.txt");
+  const std::string out_path = TempPath("simple_lsp_type_generic_out.txt");
+  const std::string err_path = TempPath("simple_lsp_type_generic_err.txt");
+  const std::string uri = "file:///workspace/type_generic.simple";
+  const std::string text =
+      "Point :: artifact { x : i32 }\\n"
+      "main : i32 () {\\n"
+      "  handle : Handle<Point> = 0;\\n"
+      "  return 0;\\n"
+      "}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string type_req = "{\"jsonrpc\":\"2.0\",\"id\":61,\"method\":\"textDocument/typeDefinition\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":18}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(type_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":61") != std::string::npos &&
+         out_contents.find("\"line\":0") != std::string::npos &&
+         out_contents.find("\"character\":0") != std::string::npos;
+}
+
 bool LspInitializeAdvertisesModernNavigationProviders() {
   const std::string in_path = TempPath("simple_lsp_modern_init_in.txt");
   const std::string out_path = TempPath("simple_lsp_modern_init_out.txt");
@@ -3710,6 +3767,7 @@ const TestCase kLspTests[] = {
   {"lsp_signature_help_for_user_function", LspSignatureHelpForUserFunction},
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},
+  {"lsp_semantic_tokens_classify_using_keyword", LspSemanticTokensClassifyUsingKeyword},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",
    LspSemanticTokensDebugEnvDoesNotBreakResponse},
@@ -3770,6 +3828,7 @@ const TestCase kLspTests[] = {
   {"lsp_code_action_returns_quick_build_emit_commands", LspCodeActionReturnsQuickBuildEmitCommands},
   {"lsp_type_definition_provider_resolves_local_artifact_types", LspTypeDefinitionProviderResolvesLocalArtifactTypes},
   {"lsp_type_definition_provider_resolves_variable_usage_types", LspTypeDefinitionProviderResolvesVariableUsageTypes},
+  {"lsp_type_definition_provider_resolves_generic_type_arguments", LspTypeDefinitionProviderResolvesGenericTypeArguments},
   {"lsp_initialize_advertises_modern_navigation_providers", LspInitializeAdvertisesModernNavigationProviders},
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},

@@ -68,20 +68,8 @@ async function discoverSvm(context: vscode.ExtensionContext): Promise<string | u
   const bundled = path.join(context.extensionPath, 'bin', executableName());
   if (pathExists(bundled)) return bundled;
 
-  for (const folder of vscode.workspace.workspaceFolders ?? []) {
-    const root = folder.uri.fsPath;
-    const candidates = [
-      path.join(root, 'Compiler', 'bin', executableName()),
-      path.join(root, 'Compiler', 'build', 'bin', executableName()),
-      path.join(root, 'bin', executableName()),
-      path.join(root, 'build', 'bin', executableName())
-    ];
-    for (const candidate of candidates) {
-      if (pathExists(candidate)) return candidate;
-    }
-  }
-
   if (await commandWorks('svm')) return 'svm';
+
   return undefined;
 }
 

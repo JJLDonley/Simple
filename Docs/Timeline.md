@@ -821,8 +821,8 @@ Simple toolchain facts this plan must respect:
 - [x] Support `svm` discovery in this order:
   - [x] explicit `simple.compilerPath` setting.
   - [x] bundled release binary under the extension/package layout when present.
-  - [x] workspace-local `Compiler/bin/svm` or `Compiler/build/bin/svm` for source checkouts.
   - [x] `svm` on `PATH`.
+  - [x] No workspace-local compiler path probing in the distributed extension.
 - [x] Show a clear error with settings shortcut when no usable `svm` is found.
 - [x] Add extension smoke validation for command registration and package manifest validity.
 - [ ] Add extension smoke tests for activation and configured path resolution.
@@ -865,7 +865,8 @@ Next Simple-specific LSP capabilities:
 
 - [x] Full and range formatting backed by a Simple indentation formatter for `.simple` source.
 - [x] Type-definition lookup for artifact/enum type declarations and typed variable usages.
-- [ ] Type-definition lookup for generic/handle/native ABI type uses.
+- [x] Type-definition lookup for generic/handle type arguments.
+- [ ] Type-definition lookup for native ABI type uses.
 - [x] Linked editing ranges for same-document Simple identifier declarations/usages.
 - [x] Call hierarchy prepare/incoming/outgoing for Simple top-level functions across opened documents.
 - [ ] Call hierarchy for methods, imports, and native wrappers.

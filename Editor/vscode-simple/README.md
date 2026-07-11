@@ -10,11 +10,11 @@ VS Code support for the Simple language. The extension starts the real `svm lsp`
 - Provides bracket/comment language configuration
 - Adds Simple command palette, editor-title, editor-context, and explorer-context commands
 - Adds Simple tasks for check/run/build/emit flows with a `path:line:column: message` problem matcher
-- Discovers `svm` from `simple.compilerPath`, bundled binaries, workspace build outputs, then `PATH`
+- Discovers `svm` from `simple.compilerPath`, bundled binaries, then PATH `svm`
 
 ## Settings
 
-- `simple.compilerPath`: optional path to `svm`; empty means auto-discover
+- `simple.compilerPath`: optional path to `svm`; empty means auto-discover bundled or PATH `svm`
 - `simple.outputDirectory`: optional generated output directory; relative paths resolve from the workspace folder
 - `simple.jitByDefault`: run the default Run command with `-jit --jit-stats`
 - `simple.trace`: pass Simple trace environment variables to `svm` commands and the LSP server

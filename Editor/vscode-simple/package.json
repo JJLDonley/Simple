@@ -259,7 +259,7 @@
         "simple.compilerPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the svm executable. Empty means discover bundled, workspace-local, then PATH svm."
+          "description": "Path to the svm executable. Empty means discover bundled svm, then PATH svm."
         },
         "simple.lspArgs": {
           "type": "array",

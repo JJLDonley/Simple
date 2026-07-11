@@ -54,5 +54,9 @@ const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
 if (!extensionText.includes('svm')) fail('extension must discover and invoke svm');
 if (!extensionText.includes('registerTaskProvider')) fail('compiled extension must register Simple task provider');
 if (!extensionText.includes('SIMPLE_LSP_TRACE')) fail('compiled extension must pass trace environment to svm');
+if (!extensionText.includes("commandWorks('svm')")) fail('extension must discover PATH svm');
+for (const forbidden of ["'Compiler', 'bin'", "'Compiler', 'build'", "'build', 'bin'"]) {
+  if (extensionText.includes(forbidden)) fail(`distributed extension must not probe workspace-local compiler path: ${forbidden}`);
+}
 if (extensionText.includes('simple.lspPath')) fail('compiled extension still references obsolete simple.lspPath');
 console.log('extension manifest ok');
