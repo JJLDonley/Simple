@@ -4925,16 +4925,11 @@ void ReplyCodeLens(std::ostream& out,
               "\",\"arguments\":[\"" + JsonEscape(uri) + "\"]}}";
   };
 
-  bool emitted_check_file_lens = false;
   for (const auto& ref : refs) {
     if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
     if (ref.depth != 0) continue;
     if (!IsDeclNameAt(refs, ref.index)) continue;
     if (SymbolKindFor(refs, ref.index) != 12) continue;
-    if (!emitted_check_file_lens) {
-      append_lens(ref.token, "Simple: Check file", "simple.checkCurrentFile");
-      emitted_check_file_lens = true;
-    }
     if (FunctionLooksLikeTest(ref.token.text)) {
       append_lens(ref.token, "Simple: Run test file", "simple.runCurrentFile");
       append_lens(ref.token, "Simple: Run test file with JIT", "simple.runCurrentFileWithJit");

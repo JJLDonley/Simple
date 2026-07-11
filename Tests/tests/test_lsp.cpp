@@ -4314,7 +4314,7 @@ bool LspCodeLensReturnsSimpleCommands() {
     search_pos += std::string("simple.checkCurrentFile").size();
   }
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":45") != std::string::npos &&
-         check_count == 1 &&
+         check_count == 0 &&
          out_contents.find("simple.runCurrentFile") != std::string::npos &&
          out_contents.find("simple.runCurrentFileWithJit") != std::string::npos;
 }
