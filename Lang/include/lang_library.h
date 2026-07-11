@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace Simple::Lang {
@@ -112,6 +113,23 @@ enum class StandardResultMember { Ok, Err, IsOk, Unwrap };
 enum class StandardOptionMember { Some, None, IsSome, Unwrap };
 
 enum class SystemBufferMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
+
+
+using SystemMember = std::variant<SystemIOMember, SystemFSMember, SystemPathMember, SystemEnvMember,
+                                  SystemOSMember, SystemTimeMember, SystemFFIMember, SystemASMMember,
+                                  SystemBufferMember, SystemBytesMember, SystemJsonMember, SystemLogMember,
+                                  SystemRandomMember, SystemThreadMember, SystemJobMember, SystemChannelMember,
+                                  SystemProcessMember, SystemNetMember, SystemHTTPMember, SystemTerminalMember,
+                                  SystemCapabilityMember, SystemRuntimeMember, SystemDebugMember>;
+
+using StandardMember = std::variant<StandardIOMember, StandardConsoleMember, StandardFSMember,
+                                    StandardPathMember, StandardBufferMember, StandardBytesMember,
+                                    StandardTextMember, StandardJsonMember, StandardMathMember,
+                                    StandardRandomMember, StandardTimeMember, StandardLogMember,
+                                    StandardProcessMember, StandardNetMember, StandardHTTPMember,
+                                    StandardHTTPSMember, StandardTerminalMember, StandardPromiseMember,
+                                    StandardChannelMember, StandardCollectionsMember, StandardResultMember,
+                                    StandardOptionMember>;
 
 struct LibraryModuleId {
   LibraryRoot root;
@@ -1123,6 +1141,72 @@ inline std::vector<std::string_view> MemberNames(LibraryModuleId module) {
   return module.root == LibraryRoot::System
              ? MemberNames(static_cast<SystemModule>(module.module_index))
              : MemberNames(static_cast<StandardModule>(module.module_index));
+}
+
+
+template <typename T>
+inline std::optional<T> ParseEnumMember(std::string_view member, std::initializer_list<T> values) {
+  for (T value : values) {
+    if (ToMember(value) == member) return value;
+  }
+  return std::nullopt;
+}
+
+inline std::optional<SystemMember> ParseMember(SystemModule module, std::string_view member) {
+  switch (module) {
+    case SystemModule::IO: if (auto value = ParseEnumMember<SystemIOMember>(member, {SystemIOMember::Stdin, SystemIOMember::Stdout, SystemIOMember::Stderr, SystemIOMember::Write, SystemIOMember::WriteText, SystemIOMember::Flush, SystemIOMember::BufferNew, SystemIOMember::BufferLen, SystemIOMember::BufferFill, SystemIOMember::BufferCopy})) return SystemMember(*value); break;
+    case SystemModule::FS: if (auto value = ParseEnumMember<SystemFSMember>(member, {SystemFSMember::Open, SystemFSMember::Close, SystemFSMember::Read, SystemFSMember::Write, SystemFSMember::Flush, SystemFSMember::Seek, SystemFSMember::Tell, SystemFSMember::Stat, SystemFSMember::Exists, SystemFSMember::IsFile, SystemFSMember::IsDir, SystemFSMember::ListDir, SystemFSMember::NextDirEntry, SystemFSMember::CloseDir, SystemFSMember::Mkdir, SystemFSMember::MkdirAll, SystemFSMember::Remove, SystemFSMember::Copy, SystemFSMember::Rename, SystemFSMember::Cwd, SystemFSMember::SetCwd, SystemFSMember::ReadText, SystemFSMember::WriteText, SystemFSMember::ReadBytes, SystemFSMember::WriteBytes})) return SystemMember(*value); break;
+    case SystemModule::Path: if (auto value = ParseEnumMember<SystemPathMember>(member, {SystemPathMember::Separator, SystemPathMember::Delimiter, SystemPathMember::IsAbsolute, SystemPathMember::Normalize, SystemPathMember::Absolute, SystemPathMember::Relative, SystemPathMember::Join, SystemPathMember::Dirname, SystemPathMember::Basename, SystemPathMember::Ext, SystemPathMember::Stem, SystemPathMember::Exists, SystemPathMember::IsFile, SystemPathMember::IsDir})) return SystemMember(*value); break;
+    case SystemModule::Env: if (auto value = ParseEnumMember<SystemEnvMember>(member, {SystemEnvMember::ArgsCount, SystemEnvMember::Arg, SystemEnvMember::Get, SystemEnvMember::Set, SystemEnvMember::Unset, SystemEnvMember::ExePath})) return SystemMember(*value); break;
+    case SystemModule::OS: if (auto value = ParseEnumMember<SystemOSMember>(member, {SystemOSMember::Platform, SystemOSMember::Arch, SystemOSMember::IsLinux, SystemOSMember::IsMacos, SystemOSMember::IsWindows, SystemOSMember::Pid, SystemOSMember::CpuCount, SystemOSMember::PageSize, SystemOSMember::Exit, SystemOSMember::SleepMs, SystemOSMember::ArgsCount, SystemOSMember::ArgsGet, SystemOSMember::EnvGet, SystemOSMember::CwdGet, SystemOSMember::TimeMonoNs, SystemOSMember::TimeWallNs, SystemOSMember::FormatWallNs})) return SystemMember(*value); break;
+    case SystemModule::Time: if (auto value = ParseEnumMember<SystemTimeMember>(member, {SystemTimeMember::MonoNs, SystemTimeMember::WallNs, SystemTimeMember::SleepNs, SystemTimeMember::SleepMs, SystemTimeMember::TimerStart, SystemTimeMember::TimerCancel, SystemTimeMember::MonoSnake, SystemTimeMember::WallSnake})) return SystemMember(*value); break;
+    case SystemModule::FFI: if (auto value = ParseEnumMember<SystemFFIMember>(member, {SystemFFIMember::Supported, SystemFFIMember::Open, SystemFFIMember::Symbol, SystemFFIMember::Sym, SystemFFIMember::Close, SystemFFIMember::LastError, SystemFFIMember::LastErrorSnake, SystemFFIMember::CallI32, SystemFFIMember::CallI64, SystemFFIMember::CallF32, SystemFFIMember::CallF64, SystemFFIMember::CallStr0})) return SystemMember(*value); break;
+    case SystemModule::ASM: if (auto value = ParseEnumMember<SystemASMMember>(member, {SystemASMMember::FromC, SystemASMMember::FromDynASM, SystemASMMember::Compile, SystemASMMember::Symbol, SystemASMMember::LinkStub, SystemASMMember::LinkAot, SystemASMMember::CloseUnit, SystemASMMember::CloseObject})) return SystemMember(*value); break;
+    case SystemModule::Buffer: if (auto value = ParseEnumMember<SystemBufferMember>(member, {SystemBufferMember::New, SystemBufferMember::Len, SystemBufferMember::Get, SystemBufferMember::Set, SystemBufferMember::Slice, SystemBufferMember::Copy, SystemBufferMember::ReadU16LE, SystemBufferMember::ReadU32LE, SystemBufferMember::ReadU64LE, SystemBufferMember::WriteU16LE, SystemBufferMember::WriteU32LE, SystemBufferMember::WriteU64LE})) return SystemMember(*value); break;
+    case SystemModule::Bytes: if (auto value = ParseEnumMember<SystemBytesMember>(member, {SystemBytesMember::New, SystemBytesMember::Len, SystemBytesMember::Get, SystemBytesMember::Set, SystemBytesMember::Slice, SystemBytesMember::Copy, SystemBytesMember::ReadU16LE, SystemBytesMember::ReadU32LE, SystemBytesMember::ReadU64LE, SystemBytesMember::WriteU16LE, SystemBytesMember::WriteU32LE, SystemBytesMember::WriteU64LE})) return SystemMember(*value); break;
+    case SystemModule::Json: if (auto value = ParseEnumMember<SystemJsonMember>(member, {SystemJsonMember::Parse, SystemJsonMember::Free, SystemJsonMember::Stringify, SystemJsonMember::Kind, SystemJsonMember::Get, SystemJsonMember::At, SystemJsonMember::Len, SystemJsonMember::AsString, SystemJsonMember::AsI64, SystemJsonMember::AsF64, SystemJsonMember::AsBool})) return SystemMember(*value); break;
+    case SystemModule::Log: if (auto value = ParseEnumMember<SystemLogMember>(member, {SystemLogMember::Log, SystemLogMember::SetLevel, SystemLogMember::SetFile, SystemLogMember::Flush, SystemLogMember::Info, SystemLogMember::Warn, SystemLogMember::Error})) return SystemMember(*value); break;
+    case SystemModule::Random: if (auto value = ParseEnumMember<SystemRandomMember>(member, {SystemRandomMember::Seed, SystemRandomMember::I32, SystemRandomMember::I64, SystemRandomMember::F64, SystemRandomMember::FillBytes, SystemRandomMember::Range})) return SystemMember(*value); break;
+    case SystemModule::Thread: if (auto value = ParseEnumMember<SystemThreadMember>(member, {SystemThreadMember::Yield, SystemThreadMember::SleepMs, SystemThreadMember::Sleep, SystemThreadMember::HardwareConcurrency, SystemThreadMember::Spawn, SystemThreadMember::Join, SystemThreadMember::Detach})) return SystemMember(*value); break;
+    case SystemModule::Job: if (auto value = ParseEnumMember<SystemJobMember>(member, {SystemJobMember::Spawn, SystemJobMember::Cancel, SystemJobMember::Poll, SystemJobMember::Await})) return SystemMember(*value); break;
+    case SystemModule::Channel: if (auto value = ParseEnumMember<SystemChannelMember>(member, {SystemChannelMember::NewI32, SystemChannelMember::SendI32, SystemChannelMember::TrySendI32, SystemChannelMember::RecvI32, SystemChannelMember::TryRecvI32, SystemChannelMember::PendingI32, SystemChannelMember::NewI64, SystemChannelMember::SendI64, SystemChannelMember::TrySendI64, SystemChannelMember::RecvI64, SystemChannelMember::TryRecvI64, SystemChannelMember::PendingI64, SystemChannelMember::NewF32, SystemChannelMember::SendF32, SystemChannelMember::TrySendF32, SystemChannelMember::RecvF32, SystemChannelMember::TryRecvF32, SystemChannelMember::PendingF32, SystemChannelMember::NewF64, SystemChannelMember::SendF64, SystemChannelMember::TrySendF64, SystemChannelMember::RecvF64, SystemChannelMember::TryRecvF64, SystemChannelMember::PendingF64, SystemChannelMember::NewBool, SystemChannelMember::SendBool, SystemChannelMember::TrySendBool, SystemChannelMember::RecvBool, SystemChannelMember::TryRecvBool, SystemChannelMember::PendingBool, SystemChannelMember::NewString, SystemChannelMember::SendString, SystemChannelMember::TrySendString, SystemChannelMember::RecvString, SystemChannelMember::TryRecvString, SystemChannelMember::PendingString, SystemChannelMember::NewBytes, SystemChannelMember::SendBytes, SystemChannelMember::TrySendBytes, SystemChannelMember::RecvBytes, SystemChannelMember::TryRecvBytes, SystemChannelMember::PendingBytes, SystemChannelMember::Close})) return SystemMember(*value); break;
+    case SystemModule::Process: if (auto value = ParseEnumMember<SystemProcessMember>(member, {SystemProcessMember::Spawn, SystemProcessMember::Wait, SystemProcessMember::Kill, SystemProcessMember::Stdin, SystemProcessMember::Stdout, SystemProcessMember::Stderr})) return SystemMember(*value); break;
+    case SystemModule::Net: if (auto value = ParseEnumMember<SystemNetMember>(member, {SystemNetMember::TcpConnect, SystemNetMember::TcpListen, SystemNetMember::Accept, SystemNetMember::Send, SystemNetMember::Recv, SystemNetMember::Close, SystemNetMember::UdpOpen, SystemNetMember::UdpSendTo, SystemNetMember::UdpRecvFrom})) return SystemMember(*value); break;
+    case SystemModule::HTTP: if (auto value = ParseEnumMember<SystemHTTPMember>(member, {SystemHTTPMember::ClientRequest, SystemHTTPMember::SetHeader, SystemHTTPMember::WriteBody, SystemHTTPMember::Send, SystemHTTPMember::ResponseStatus, SystemHTTPMember::ResponseBody, SystemHTTPMember::CloseResponse, SystemHTTPMember::ListenHttp, SystemHTTPMember::ListenHttps, SystemHTTPMember::Accept, SystemHTTPMember::WriteResponse, SystemHTTPMember::CloseServer})) return SystemMember(*value); break;
+    case SystemModule::Terminal: if (auto value = ParseEnumMember<SystemTerminalMember>(member, {SystemTerminalMember::Open, SystemTerminalMember::Close, SystemTerminalMember::EnterRaw, SystemTerminalMember::ExitRaw, SystemTerminalMember::EnterAltScreen, SystemTerminalMember::ExitAltScreen, SystemTerminalMember::Size, SystemTerminalMember::Clear, SystemTerminalMember::ClearLine, SystemTerminalMember::MoveCursor, SystemTerminalMember::ShowCursor, SystemTerminalMember::HideCursor, SystemTerminalMember::Write, SystemTerminalMember::WriteAt, SystemTerminalMember::Flush, SystemTerminalMember::PollEvent, SystemTerminalMember::ReadEvent})) return SystemMember(*value); break;
+    case SystemModule::Capability: if (auto value = ParseEnumMember<SystemCapabilityMember>(member, {SystemCapabilityMember::Has, SystemCapabilityMember::Require, SystemCapabilityMember::Deny})) return SystemMember(*value); break;
+    case SystemModule::Runtime: if (auto value = ParseEnumMember<SystemRuntimeMember>(member, {SystemRuntimeMember::Version, SystemRuntimeMember::GcCollect, SystemRuntimeMember::GcStats, SystemRuntimeMember::HeapStats, SystemRuntimeMember::JitEnabled, SystemRuntimeMember::JitStats})) return SystemMember(*value); break;
+    case SystemModule::Debug: if (auto value = ParseEnumMember<SystemDebugMember>(member, {SystemDebugMember::Trap, SystemDebugMember::Assert, SystemDebugMember::StackTrace, SystemDebugMember::Breakpoint})) return SystemMember(*value); break;
+  }
+  return std::nullopt;
+}
+
+inline std::optional<StandardMember> ParseMember(StandardModule module, std::string_view member) {
+  switch (module) {
+    case StandardModule::IO: if (auto value = ParseEnumMember<StandardIOMember>(member, {StandardIOMember::Print, StandardIOMember::Println, StandardIOMember::ReadLine})) return StandardMember(*value); break;
+    case StandardModule::Console: if (auto value = ParseEnumMember<StandardConsoleMember>(member, {StandardConsoleMember::Write, StandardConsoleMember::WriteLine, StandardConsoleMember::ReadLine, StandardConsoleMember::Clear, StandardConsoleMember::SetColor, StandardConsoleMember::ResetColor})) return StandardMember(*value); break;
+    case StandardModule::FS: if (auto value = ParseEnumMember<StandardFSMember>(member, {StandardFSMember::ReadText, StandardFSMember::WriteText, StandardFSMember::AppendText, StandardFSMember::ReadBytes, StandardFSMember::WriteBytes, StandardFSMember::Exists, StandardFSMember::IsFile, StandardFSMember::IsDir, StandardFSMember::Copy, StandardFSMember::Move, StandardFSMember::Remove, StandardFSMember::EnsureDir, StandardFSMember::List, StandardFSMember::Walk, StandardFSMember::Mkdir, StandardFSMember::MkdirAll, StandardFSMember::ListDir, StandardFSMember::Cwd, StandardFSMember::SetCwd})) return StandardMember(*value); break;
+    case StandardModule::Path: if (auto value = ParseEnumMember<StandardPathMember>(member, {StandardPathMember::Join, StandardPathMember::Dirname, StandardPathMember::Basename, StandardPathMember::Ext, StandardPathMember::Stem, StandardPathMember::Normalize, StandardPathMember::Absolute, StandardPathMember::Relative})) return StandardMember(*value); break;
+    case StandardModule::Buffer: if (auto value = ParseEnumMember<StandardBufferMember>(member, {StandardBufferMember::New, StandardBufferMember::WithCapacity, StandardBufferMember::Len, StandardBufferMember::Capacity, StandardBufferMember::Clear, StandardBufferMember::WriteBytes, StandardBufferMember::WriteString, StandardBufferMember::WriteU16LE, StandardBufferMember::WriteU32LE, StandardBufferMember::WriteU64LE, StandardBufferMember::ReadU16LE, StandardBufferMember::ReadU32LE, StandardBufferMember::ReadU64LE, StandardBufferMember::ToBytes, StandardBufferMember::FromBytes})) return StandardMember(*value); break;
+    case StandardModule::Bytes: if (auto value = ParseEnumMember<StandardBytesMember>(member, {StandardBytesMember::New, StandardBytesMember::FromString, StandardBytesMember::ToString, StandardBytesMember::Concat, StandardBytesMember::Slice, StandardBytesMember::ToHex, StandardBytesMember::FromHex, StandardBytesMember::ToBase64, StandardBytesMember::FromBase64})) return StandardMember(*value); break;
+    case StandardModule::Text: if (auto value = ParseEnumMember<StandardTextMember>(member, {StandardTextMember::Len, StandardTextMember::IsEmpty, StandardTextMember::Contains, StandardTextMember::StartsWith, StandardTextMember::EndsWith, StandardTextMember::Trim, StandardTextMember::Split, StandardTextMember::Join, StandardTextMember::Replace})) return StandardMember(*value); break;
+    case StandardModule::Json: if (auto value = ParseEnumMember<StandardJsonMember>(member, {StandardJsonMember::Parse, StandardJsonMember::Stringify, StandardJsonMember::Get, StandardJsonMember::At, StandardJsonMember::AsString, StandardJsonMember::AsI64, StandardJsonMember::AsF64, StandardJsonMember::AsBool})) return StandardMember(*value); break;
+    case StandardModule::Math: if (auto value = ParseEnumMember<StandardMathMember>(member, {StandardMathMember::PI, StandardMathMember::Abs, StandardMathMember::Min, StandardMathMember::Max, StandardMathMember::Sqrt, StandardMathMember::Clamp, StandardMathMember::Lerp})) return StandardMember(*value); break;
+    case StandardModule::Random: if (auto value = ParseEnumMember<StandardRandomMember>(member, {StandardRandomMember::Seed, StandardRandomMember::I32, StandardRandomMember::I64, StandardRandomMember::Range, StandardRandomMember::F64, StandardRandomMember::Bool, StandardRandomMember::Bytes, StandardRandomMember::FillBytes})) return StandardMember(*value); break;
+    case StandardModule::Time: if (auto value = ParseEnumMember<StandardTimeMember>(member, {StandardTimeMember::MonoNs, StandardTimeMember::NowNs, StandardTimeMember::SleepMs, StandardTimeMember::FormatWallNs, StandardTimeMember::MonoSnake, StandardTimeMember::WallSnake})) return StandardMember(*value); break;
+    case StandardModule::Log: if (auto value = ParseEnumMember<StandardLogMember>(member, {StandardLogMember::Debug, StandardLogMember::Info, StandardLogMember::Warn, StandardLogMember::Error, StandardLogMember::SetLevel, StandardLogMember::SetFile})) return StandardMember(*value); break;
+    case StandardModule::Process: if (auto value = ParseEnumMember<StandardProcessMember>(member, {StandardProcessMember::Run, StandardProcessMember::RunText})) return StandardMember(*value); break;
+    case StandardModule::Net: if (auto value = ParseEnumMember<StandardNetMember>(member, {StandardNetMember::Connect, StandardNetMember::Listen, StandardNetMember::Read, StandardNetMember::Write, StandardNetMember::Close})) return StandardMember(*value); break;
+    case StandardModule::HTTP: if (auto value = ParseEnumMember<StandardHTTPMember>(member, {StandardHTTPMember::Get, StandardHTTPMember::Post, StandardHTTPMember::Put, StandardHTTPMember::Delete, StandardHTTPMember::Serve})) return StandardMember(*value); break;
+    case StandardModule::HTTPS: if (auto value = ParseEnumMember<StandardHTTPSMember>(member, {StandardHTTPSMember::Get, StandardHTTPSMember::Post, StandardHTTPSMember::Serve})) return StandardMember(*value); break;
+    case StandardModule::Terminal: if (auto value = ParseEnumMember<StandardTerminalMember>(member, {StandardTerminalMember::Open, StandardTerminalMember::Close, StandardTerminalMember::WithRaw, StandardTerminalMember::WithAltScreen, StandardTerminalMember::Clear, StandardTerminalMember::Size, StandardTerminalMember::MoveCursor, StandardTerminalMember::WriteAt, StandardTerminalMember::ReadEvent, StandardTerminalMember::PollEvent})) return StandardMember(*value); break;
+    case StandardModule::Promise: if (auto value = ParseEnumMember<StandardPromiseMember>(member, {StandardPromiseMember::Run, StandardPromiseMember::Await, StandardPromiseMember::Poll, StandardPromiseMember::Cancel, StandardPromiseMember::IsDone})) return StandardMember(*value); break;
+    case StandardModule::Channel: if (auto value = ParseEnumMember<StandardChannelMember>(member, {StandardChannelMember::New, StandardChannelMember::Send, StandardChannelMember::TrySend, StandardChannelMember::Recv, StandardChannelMember::TryRecv, StandardChannelMember::Close})) return StandardMember(*value); break;
+    case StandardModule::Collections: if (auto value = ParseEnumMember<StandardCollectionsMember>(member, {StandardCollectionsMember::List, StandardCollectionsMember::Map, StandardCollectionsMember::Set, StandardCollectionsMember::Queue, StandardCollectionsMember::Stack})) return StandardMember(*value); break;
+    case StandardModule::Result: if (auto value = ParseEnumMember<StandardResultMember>(member, {StandardResultMember::Ok, StandardResultMember::Err, StandardResultMember::IsOk, StandardResultMember::Unwrap})) return StandardMember(*value); break;
+    case StandardModule::Option: if (auto value = ParseEnumMember<StandardOptionMember>(member, {StandardOptionMember::Some, StandardOptionMember::None, StandardOptionMember::IsSome, StandardOptionMember::Unwrap})) return StandardMember(*value); break;
+  }
+  return std::nullopt;
 }
 
 inline std::optional<LibrarySymbol> ParseLibraryMember(LibraryModuleId module,

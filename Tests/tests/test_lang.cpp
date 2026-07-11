@@ -2403,6 +2403,13 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (!buffer_symbol || buffer_symbol->member_name != "readU32LE") return false;
   const auto std_bytes_symbol = ParseLibrarySymbol("StandardBytes", "toBase64");
   if (!std_bytes_symbol || std_bytes_symbol->member_name != "toBase64") return false;
+  const auto parsed_system_member = ParseMember(SystemModule::Buffer, "readU32LE");
+  if (!parsed_system_member || !std::holds_alternative<SystemBufferMember>(*parsed_system_member) ||
+      std::get<SystemBufferMember>(*parsed_system_member) != SystemBufferMember::ReadU32LE) return false;
+  const auto parsed_standard_member = ParseMember(StandardModule::Bytes, "toBase64");
+  if (!parsed_standard_member || !std::holds_alternative<StandardBytesMember>(*parsed_standard_member) ||
+      std::get<StandardBytesMember>(*parsed_standard_member) != StandardBytesMember::ToBase64) return false;
+  if (ParseMember(StandardModule::Bytes, "definitelyMissing")) return false;
   if (ParseLibrarySymbol("StandardBytes", "definitelyMissing")) return false;
   if (!ParseLibraryImportPath("System.Buffer")) return false;
   if (!ParseLibraryImportPath("Standard.Buffer")) return false;
