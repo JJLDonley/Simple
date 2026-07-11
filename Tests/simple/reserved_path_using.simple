@@ -1,5 +1,7 @@
 import Standard.Path
+import Standard.FS
 using Standard.Path
+using Standard.FS
 
 main : i32 () {
   p : string = join("Tests/simple", "hello.simple")

@@ -87,18 +87,19 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
+  if (canonical_module == "StandardPath") return {"join", "dirname", "basename", "ext", "normalize"};
   if (canonical_module == "Path") {
-    out = {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"};
+    out = {"join", "dirname", "basename", "ext", "normalize"};
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
   if (canonical_module == "StandardFS") {
-    return {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
-            "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+    return {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir",
+            "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
   }
   if (canonical_module == "FS") {
-    out = {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
-           "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+    out = {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir",
+           "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
@@ -219,12 +220,13 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
     return member == "argsCount" || member == "arg" || member == "get" || member == "set" ||
            member == "platform" || member == "arch" || member == "exePath";
   }
-  if (canonical_module == "Path") {
+  if (canonical_module == "StandardPath" || canonical_module == "Path") {
     return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-           member == "normalize" || member == "exists" || member == "isFile" || member == "isDir";
+           member == "normalize";
   }
   if (canonical_module == "StandardFS" || canonical_module == "FS") {
     return member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
+           member == "exists" || member == "isFile" || member == "isDir" ||
            member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
            member == "listDir" || member == "cwd" || member == "setCwd";
   }

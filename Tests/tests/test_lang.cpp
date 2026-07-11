@@ -1698,6 +1698,23 @@ bool LangRejectStandardFsHandleApis() {
   return error.find("unknown module member") != std::string::npos;
 }
 
+bool LangRejectStandardPathFsProbeApis() {
+  const char* src =
+      "import Standard.Path\n"
+      "main : void () { ok : bool = Standard.Path.exists(\".\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateStandardFsProbeApis() {
+  const char* src =
+      "import Standard.FS\n"
+      "main : void () { ok : bool = Standard.FS.exists(\".\"); file :: bool = Standard.FS.isFile(\".\"); dir :: bool = Standard.FS.isDir(\".\"); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangRejectStandardIoBufferApis() {
   const char* src =
       "import Standard.IO\n"
@@ -3287,6 +3304,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},
   {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
   {"lang_reject_standard_fs_handle_apis", LangRejectStandardFsHandleApis},
+  {"lang_reject_standard_path_fs_probe_apis", LangRejectStandardPathFsProbeApis},
+  {"lang_validate_standard_fs_probe_apis", LangValidateStandardFsProbeApis},
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},

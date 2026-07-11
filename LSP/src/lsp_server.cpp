@@ -1060,9 +1060,10 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
       {"Random", {"seed", "i32", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
-      {"Path", {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"}},
-      {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
-      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
+      {"StandardPath", {"join", "dirname", "basename", "ext", "normalize"}},
+      {"Path", {"join", "dirname", "basename", "ext", "normalize"}},
+      {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
+      {"FS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
                    "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32",
@@ -1395,6 +1396,11 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
       out->return_type = "bool";
       return true;
     }
+    if (member == "exists" || member == "isFile" || member == "isDir") {
+      out->params = {"path"};
+      out->return_type = "bool";
+      return true;
+    }
     if (member == "copy") {
       out->params = {"from", "to"};
       out->return_type = "bool";
@@ -1416,7 +1422,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Path") {
+  if (module == "Path" || module == "StandardPath") {
     if (member == "join") {
       out->params = {"lhs", "rhs"};
       out->return_type = "string";
@@ -1425,11 +1431,6 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "dirname" || member == "basename" || member == "ext" || member == "normalize") {
       out->params = {"path"};
       out->return_type = "string";
-      return true;
-    }
-    if (member == "exists" || member == "isFile" || member == "isDir") {
-      out->params = {"path"};
-      out->return_type = "bool";
       return true;
     }
     return false;

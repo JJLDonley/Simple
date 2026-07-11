@@ -531,6 +531,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    if (member == "exists" || member == "isFile" || member == "isDir") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
     if (member == "copy") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("string"));
@@ -550,7 +556,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Path") {
+  if (resolved == "Path" || resolved == "StandardPath") {
     if (member == "join") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("string"));
@@ -564,12 +570,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "exists" || member == "isFile" || member == "isDir") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
+
   }
   if (resolved == "Env") {
     if (member == "argsCount") {

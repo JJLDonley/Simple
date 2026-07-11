@@ -1,15 +1,16 @@
 import Standard.Path
+import Standard.FS
 
 main : i32 () {
   p : string = Standard.Path.join("Tests", "simple/hello.simple")
-  if (!Standard.Path.exists(p)) { return 0 }
-  if (!Standard.Path.isFile(p)) { return 0 }
-  if (Standard.Path.isDir(p)) { return 0 }
+  if (!Standard.FS.exists(p)) { return 0 }
+  if (!Standard.FS.isFile(p)) { return 0 }
+  if (Standard.FS.isDir(p)) { return 0 }
   if (len(Standard.Path.basename(p)) != 12) { return 0 }
   if (len(Standard.Path.ext(p)) != 7) { return 0 }
   d : string = Standard.Path.dirname(p)
-  if (!Standard.Path.isDir(d)) { return 0 }
+  if (!Standard.FS.isDir(d)) { return 0 }
   n : string = Standard.Path.normalize("Tests/simple/../simple/hello.simple")
-  if (!Standard.Path.exists(n)) { return 0 }
+  if (!Standard.FS.exists(n)) { return 0 }
   return 1
 }
