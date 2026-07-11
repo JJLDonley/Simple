@@ -1,10 +1,10 @@
-import Time
-using Time
+import System.Time
+using System.Time
 
 main : i32 () {
-  Time.mono_ns()
-  wall : i64 = Time.wall_ns()
-  text : string = Time.formatWallNs(wall)
+  System.Time.mono_ns()
+  wall : i64 = System.Time.wall_ns()
+  text : string = System.Time.formatWallNs(wall)
   if (len(text) != 30) { return 1 }
   using_text : string = formatWallNs(wall)
   if (len(using_text) != 30) { return 2 }

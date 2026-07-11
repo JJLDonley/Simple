@@ -1,5 +1,5 @@
-import FS
-using FS
+import Standard.FS
+using Standard.FS
 
 main : i32 () {
   path : string = "/tmp/simple_reserved_fs_using.txt"

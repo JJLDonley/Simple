@@ -1,11 +1,11 @@
-import IO
+import Standard.IO
 
 main : i32 () {
-  src : i32[] = IO.buffer_new(4)
-  dst : i32[] = IO.buffer_new(4)
-  if (IO.buffer_len(src) != 4) { return 1 }
-  if (IO.buffer_fill(src, 7, 3) != 3) { return 2 }
-  if (IO.buffer_copy(dst, src, 4) != 4) { return 3 }
+  src : i32[] = Standard.IO.buffer_new(4)
+  dst : i32[] = Standard.IO.buffer_new(4)
+  if (Standard.IO.buffer_len(src) != 4) { return 1 }
+  if (Standard.IO.buffer_fill(src, 7, 3) != 3) { return 2 }
+  if (Standard.IO.buffer_copy(dst, src, 4) != 4) { return 3 }
   if (dst[0] != 7) { return 4 }
   if (dst[1] != 7) { return 5 }
   if (dst[2] != 7) { return 6 }

@@ -1,4 +1,5 @@
+import Standard.IO
 main : i32 () {
-  IO.print("hello\n")
-  IO.print("tab\tend")
+  Standard.IO.print("hello\n")
+  Standard.IO.print("tab\tend")
 }

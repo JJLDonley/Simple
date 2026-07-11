@@ -15,10 +15,10 @@ bool LangDlImportsEmitSystemNamespace() {
   std::string sir;
   std::string error;
   const char* source = R"simple(
-import DL
+import System.FFI
 
 main :: i32 () {
-  h : i64 = DL.open("libc.so.6")
+  h : i64 = System.FFI.open("libc.so.6")
   return 0
 }
 )simple";

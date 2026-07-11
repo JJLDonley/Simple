@@ -1,5 +1,5 @@
-import Path
-using Path
+import Standard.Path
+using Standard.Path
 
 main : i32 () {
   p : string = join("Tests/simple", "hello.simple")

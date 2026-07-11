@@ -1,5 +1,6 @@
+import Standard.IO
 main : i32 () {
-  IO.print("hi")
-  IO.println(42)
+  Standard.IO.print("hi")
+  Standard.IO.println(42)
   return 0
 }

@@ -122,10 +122,10 @@ svm emit -sbc Tests/simple/hello.simple --out hello.sbc
 Create `hello.simple`:
 
 ```simple
-import IO
+import Standard.IO
 
 main : i32 () {
-  IO.println("hello from Simple")
+  Standard.IO.println("hello from Simple")
   return 0
 }
 ```
@@ -151,15 +151,15 @@ svm emit -sbc hello.simple --out hello.sbc
 Top-level statements are also valid for script-style programs:
 
 ```simple
-import IO
+import Standard.IO
 
-IO.println("script start")
+Standard.IO.println("script start")
 
 add : i32 (a : i32, b : i32) {
   return a + b
 }
 
-IO.println("sum={}", add(2, 3))
+Standard.IO.println("sum={}", add(2, 3))
 ```
 
 ---
@@ -185,7 +185,7 @@ add : i32 (a : i32, b : i32) {
 }
 
 log : void (message : string) {
-  IO.println(message)
+  Standard.IO.println(message)
 }
 ```
 
@@ -294,15 +294,15 @@ main : i32 () {
 Native interop uses strict `extern` declarations. Unsupported ABI shapes are rejected instead of guessed.
 
 ```simple
-import DL
-import IO
+import System.FFI
+import Standard.IO
 
 extern raylib.InitWindow : void (w : i32, h : i32, title : string)
 extern raylib.CloseWindow : void ()
 
-lib : i64 = DL.open("libraylib.so", raylib)
+lib : i64 = System.FFI.open("libraylib.so", raylib)
 if (lib == 0) {
-  IO.println("raylib load failed: {}", DL.last_error())
+  Standard.IO.println("raylib load failed: {}", System.FFI.last_error())
   return 1
 }
 

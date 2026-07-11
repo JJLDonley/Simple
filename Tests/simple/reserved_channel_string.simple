@@ -1,9 +1,9 @@
-import Channel
+import System.Channel
 
 main : i32 () {
-  ch : i64 = Channel.newString()
-  if (!Channel.sendString(ch, "hello")) { return 0 }
-  s : string = Channel.recvString(ch)
-  Channel.close(ch)
+  ch : i64 = System.Channel.newString()
+  if (!System.Channel.sendString(ch, "hello")) { return 0 }
+  s : string = System.Channel.recvString(ch)
+  System.Channel.close(ch)
   return len(s)
 }

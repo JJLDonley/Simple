@@ -38,7 +38,7 @@ This page is the canonical language reference for the syntax and behavior covere
 ## Quick example
 
 ```simple
-import IO
+import Standard.IO
 
 Point :: data {
   x : i32
@@ -60,7 +60,7 @@ add : i32 (a : i32, b : i32) {
 main : i32 () {
   p : Point = { .x = 3, .y = 4 }
   c : Counter = { .value = 6 }
-  IO.println("next={}", c.inc())
+  Standard.IO.println("next={}", c.inc())
   return add(p.x, p.y)
 }
 ```
@@ -301,7 +301,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `import Module.Name` | RAST | Import source/module identity. |
 | ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
 | ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
-| ✅ | `DL.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
+| ✅ | `System.FFI.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
 | ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Type.Member`. |
 | ❌ | unknown module/member/import | RAST/TAST | Rejected. |
 | ❌ | unsupported extern ABI type | TAST | Rejected. |
@@ -402,7 +402,7 @@ A file may start with an optional module header and may then contain imports, ex
 
 ```simple
 module Examples.Math
-import Math
+import Standard.Math
 
 square : i32 (x : i32) {
   return x * x
@@ -831,11 +831,11 @@ main : i32 () {
 IO formatting validates placeholder calls. Examples use standard-library printing:
 
 ```simple
-import IO
+import Standard.IO
 
 main : void () {
-  IO.print("answer={}", 42)
-  IO.println(" done")
+  Standard.IO.print("answer={}", 42)
+  Standard.IO.println(" done")
 }
 ```
 
@@ -893,7 +893,7 @@ Math :: namespace {
 }
 
 main : i32 () {
-  return Math.add(Math.base, 3)
+  return Standard.Math.add(Standard.Math.base, 3)
 }
 ```
 
@@ -923,16 +923,16 @@ Imports accept quoted paths, unquoted module paths, and aliases:
 ```simple
 import "raylib"
 import "raylib" as Ray
-import IO
-import FS as FileSystem
+import Standard.IO
+import Standard.FS as FileSystem
 import System.io
 ```
 
 `using` imports members into unqualified call scope:
 
 ```simple
-import Channel
-using Channel
+import System.Channel
+using System.Channel
 
 main : i32 () {
   ch : i64 = newI32()
@@ -993,13 +993,13 @@ The standard library is part of the language-facing runtime surface. Reserved im
 | `Buffer` | `new`, `len`, `readU16LE`, `readU32LE`, `writeU16LE`, `writeU32LE`, `slice`, `copy` |
 | `Json` | `parse`, `stringify`, `free` |
 | `Channel` | typed channel creation plus `send*`, `trySend*`, `recv*`, `tryRecv*`, `pending*`, `close` |
-| `DL` | `open`, `sym`, `close`, `last_error`, `supported`; also `DL.Open(path, ffi)` fixture style |
+| `DL` | `open`, `sym`, `close`, `last_error`, `supported`; also `System.FFI.Open(path, ffi)` fixture style |
 
 `using ModuleName` exposes module members for unqualified calls where that module supports it:
 
 ```simple
-import Buffer
-using Buffer
+import System.Bytes
+using System.Bytes
 
 main : i32 () {
   b : i32[] = new(4)
@@ -1043,11 +1043,11 @@ Extern names may be module-qualified. Calls are checked for argument count and t
 Dynamic-library usage is exposed through `DL` / `System.dl` runtime APIs. Example shape from fixtures:
 
 ```simple
-import DL
+import System.FFI
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
-lib :: i64 = DL.Open("Tests/ffi/libsimpleffi.so", ffi)
+lib :: i64 = System.FFI.Open("Tests/ffi/libsimpleffi.so", ffi)
 
 main : i32 () {
   return ffi.simple_add_i32(40, 2)

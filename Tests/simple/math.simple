@@ -1,6 +1,7 @@
+import Standard.IO
 main : i32 () {
     x :: f64 = 55.5555
     squared :: f64 = x * x
-    IO.println(squared)
+    Standard.IO.println(squared)
     return 0
 }

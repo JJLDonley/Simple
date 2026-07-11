@@ -7,7 +7,7 @@ import System.X
 import Standard.X
 ```
 
-Short public imports are removed from the final model. During migration they may remain only to keep existing tests/examples compiling until their replacements land.
+Short public imports are rejected. They are diagnostics only, not compatibility aliases.
 
 ## Final import rule
 
@@ -22,11 +22,11 @@ import Standard.FS
 
 Invalid in the final model:
 
-```simple
-import IO
-import FS
-import DL
-import Time
+```txt
+legacy IO import is rejected; use Standard.IO
+legacy FS import is rejected; use Standard.FS or System.FS
+legacy DL import is rejected; use System.FFI
+legacy Time import is rejected; use System.Time or Standard.Time
 ```
 
 ## Current-to-final mapping
@@ -55,8 +55,8 @@ import Time
 
 1. Add `Docs/System.md`, `Docs/Standard.md`, and this inventory.
 2. Accept canonical `System.*` and `Standard.*` imports through transitional mapping to current implementations.
-3. Update tests, docs, playgrounds, and LSP expectations to canonical imports.
-4. Reject short imports with diagnostics and suggested replacements.
+3. Update tests, docs, playgrounds, and LSP expectations to canonical imports. Done for in-repo tests/docs.
+4. Reject short imports with diagnostics and suggested replacements. Done for reserved imports.
 5. Replace transitional mappings with real low-level `System.*` APIs.
 6. Implement source-level `Standard.*` wrappers over `System.*`.
 7. Switch final APIs to `Result`/`Option`/`Bytes`/typed handles as those language features complete.
@@ -66,11 +66,11 @@ import Time
 Old imports should fail with direct replacements:
 
 ```txt
-import IO      -> use Standard.IO
-import FS      -> use Standard.FS or System.FS
-import DL      -> use System.FFI
-import Buffer  -> use Standard.Bytes or System.Bytes
-import Channel -> use System.Channel
+legacy IO      -> use Standard.IO
+legacy FS      -> use Standard.FS or System.FS
+legacy DL      -> use System.FFI
+legacy Buffer  -> use Standard.Bytes or System.Bytes
+legacy Channel -> use System.Channel
 ```
 
 These are diagnostics, not aliases.

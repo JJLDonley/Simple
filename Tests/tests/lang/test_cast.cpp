@@ -380,7 +380,7 @@ bool LangParsesImportDeclAlias() {
 
 
 bool LangParsesImportDeclUnquotedPath() {
-  const char* src = "import IO";
+  const char* src = "import Standard.IO";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;
@@ -506,7 +506,7 @@ bool LangParsesSelf() {
 
 
 bool LangParsesQualifiedMember() {
-  const char* src = "main : i32 () { return Math.PI; }";
+  const char* src = "main : i32 () { return Standard.Math.PI; }";
   Simple::Lang::Program program;
   std::string error;
   if (!Simple::Lang::CAST::ParseProgramFromString(src, &program, &error)) return false;

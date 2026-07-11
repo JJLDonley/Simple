@@ -70,9 +70,9 @@ import System.Time
 not:
 
 ```simple
-import FS
-import DL
-import Time
+import Standard.FS
+import System.FFI
+import System.Time
 ```
 
 Old imports must eventually produce diagnostics with suggested canonical replacements, not aliases.

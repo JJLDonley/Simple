@@ -1,12 +1,12 @@
-import Json
+import System.Json
 
 main : i32 () {
-  h : i64 = Json.parse("{\"answer\":42,\"ok\":true,\"items\":[1,2,null]}")
+  h : i64 = System.Json.parse("{\"answer\":42,\"ok\":true,\"items\":[1,2,null]}")
   if (h == 0) { return 1 }
-  text : string = Json.stringify(h)
+  text : string = System.Json.stringify(h)
   if (len(text) == 0) { return 2 }
-  if (!Json.free(h)) { return 3 }
-  bad : i64 = Json.parse("{bad")
+  if (!System.Json.free(h)) { return 3 }
+  bad : i64 = System.Json.parse("{bad")
   if (bad != 0) { return 4 }
   return 0
 }

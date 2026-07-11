@@ -364,8 +364,8 @@ bool LangTopLevelReturnDisallowed() {
 bool LangTopLevelIoPrintlnArithmetic() {
   const char* src =
       "import \"IO\"\n"
-      "IO.println(\"Hello World\");\n"
-      "IO.println(10 + 20 + 60 / 3);\n";
+      "Standard.IO.println(\"Hello World\");\n"
+      "Standard.IO.println(10 + 20 + 60 / 3);\n";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -948,7 +948,7 @@ bool LangSimpleBadTypeMismatch() {
 bool LangSimpleBadPrintArray() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/print_array.simple",
-      "IO.print");
+      "Standard.IO.print");
 }
 
 bool LangSimpleBadImportUnknown() {
@@ -1012,7 +1012,7 @@ bool LangSimpleBadCallArgCount() {
 bool LangSimpleBadModuleFuncReturnMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/module_func_return_mismatch.simple",
-      "Math.bad");
+      "Standard.Math.bad");
 }
 
 bool LangSimpleBadUnknownType() {
@@ -1334,7 +1334,7 @@ bool LangSirEmitsFunctionCall() {
 
 bool LangSirEmitsIoPrintString() {
   const char* src =
-      "main : i32 () { IO.print(\"hi\"); return 1; }";
+      "main : i32 () { Standard.IO.print(\"hi\"); return 1; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1343,7 +1343,7 @@ bool LangSirEmitsIoPrintString() {
 
 bool LangSirEmitsIoPrintI32() {
   const char* src =
-      "main : i32 () { IO.print(42); return 2; }";
+      "main : i32 () { Standard.IO.print(42); return 2; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1352,7 +1352,7 @@ bool LangSirEmitsIoPrintI32() {
 
 bool LangSirEmitsIoPrintNewline() {
   const char* src =
-      "main : i32 () { IO.print(\"hello\\n\"); return 3; }";
+      "main : i32 () { Standard.IO.print(\"hello\\n\"); return 3; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1361,7 +1361,7 @@ bool LangSirEmitsIoPrintNewline() {
 
 bool LangSirEmitsIoPrintFormat() {
   const char* src =
-      "main : i32 () { x : i32 = 7; IO.println(\"value={}\", x); return x; }";
+      "main : i32 () { x : i32 = 7; Standard.IO.println(\"value={}\", x); return x; }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1382,7 +1382,7 @@ bool LangSirEmitsExternAbiFlatten() {
 
 bool LangSirImplicitMainReturn() {
   const char* src =
-      "main : i32 () { IO.print(\"hi\") }";
+      "main : i32 () { Standard.IO.print(\"hi\") }";
   std::string sir;
   std::string error;
   if (!Simple::Lang::IRE::EmitSirFromString(src, &sir, &error)) return false;
@@ -1578,16 +1578,16 @@ bool LangSirEmitsFnLiteralCall() {
 
 bool LangValidateSystemImportMixedCaseOk() {
   const char* src =
-      "import IO\n"
-      "main : void () { IO.println(1); }";
+      "import Standard.IO\n"
+      "main : void () { Standard.IO.println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemImportImplicitLowerAlias() {
   const char* src =
-      "import IO\n"
-      "using IO\n"
+      "import Standard.IO\n"
+      "using Standard.IO\n"
       "main : void () { println(1); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -1649,24 +1649,24 @@ bool LangDiagnosticsFormatStructuredDiagnostic() {
 
 bool LangValidateSystemOsCapabilityConstants() {
   const char* src =
-      "import OS\n"
-      "main : i32 () { if (OS.is_linux || OS.is_macos || OS.is_windows) { return 1 } return 0 }";
+      "import System.OS\n"
+      "main : i32 () { if (System.OS.is_linux || System.OS.is_macos || System.OS.is_windows) { return 1 } return 0 }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateSystemDlCapabilityConstant() {
   const char* src =
-      "import DL\n"
-      "main : i32 () { if (DL.supported) { return 1 } return 0 }";
+      "import System.FFI\n"
+      "main : i32 () { if (System.FFI.supported) { return 1 } return 0 }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateUnknownReservedMemberSuggestsClosest() {
   const char* src =
-      "import IO\n"
-      "main : void () { IO.printlnn(1); }";
+      "import Standard.IO\n"
+      "main : void () { Standard.IO.printlnn(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'println'") != std::string::npos;
@@ -1674,16 +1674,16 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
 
 bool LangValidateNativeMetadataReservedFsFdApis() {
   const char* src =
-      "import FS\n"
-      "main : void () { fd : i32 = FS.open(\"/tmp/missing\", 0); FS.close(fd); }";
+      "import Standard.FS\n"
+      "main : void () { fd : i32 = Standard.FS.open(\"/tmp/missing\", 0); Standard.FS.close(fd); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateNativeMetadataReservedFsSuggestion() {
   const char* src =
-      "import FS\n"
-      "main : void () { fd : i32 = FS.opne(\"/tmp/missing\", 0); }";
+      "import Standard.FS\n"
+      "main : void () { fd : i32 = Standard.FS.opne(\"/tmp/missing\", 0); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'open'") != std::string::npos;
@@ -1691,13 +1691,13 @@ bool LangValidateNativeMetadataReservedFsSuggestion() {
 
 bool LangValidateSystemIoBufferApis() {
   const char* src =
-      "import IO\n"
+      "import Standard.IO\n"
       "main : i32 () {\n"
-      "  a : i32[] = IO.buffer_new(4);\n"
-      "  b : i32[] = IO.buffer_new(4);\n"
-      "  IO.buffer_fill(a, 7, 3);\n"
-      "  IO.buffer_copy(b, a, 4);\n"
-      "  return IO.buffer_len(b);\n"
+      "  a : i32[] = Standard.IO.buffer_new(4);\n"
+      "  b : i32[] = Standard.IO.buffer_new(4);\n"
+      "  Standard.IO.buffer_fill(a, 7, 3);\n"
+      "  Standard.IO.buffer_copy(b, a, 4);\n"
+      "  return Standard.IO.buffer_len(b);\n"
       "}";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -2161,7 +2161,7 @@ bool LangValidateImmutableSelfFieldAssign() {
 bool LangValidateImmutableModuleAssign() {
   const char* src =
     "Math :: namespace { PI :: f64 = 3.14; }"
-    "main : void () { Math.PI = 0.0; }";
+    "main : void () { Standard.Math.PI = 0.0; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2179,10 +2179,17 @@ bool LangValidateAssignToFunctionFail() {
 bool LangValidateAssignToModuleFunctionFail() {
   const char* src =
     "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
-    "main : void () { Math.add = 1; }";
+    "main : void () { Standard.Math.add = 1; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
+}
+
+bool LangRejectLegacyReservedImports() {
+  const char* src = "import IO\nmain : void () { }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("use Standard.IO") != std::string::npos;
 }
 
 bool LangValidateCanonicalSystemStandardImports() {
@@ -2207,9 +2214,9 @@ bool LangValidateNamespaceExternManifestAndCall() {
   {
     std::ofstream raylib(dir / "raylib.simple", std::ios::binary);
     raylib << "module Raylib\n"
-           << "import DL\n"
+           << "import System.FFI\n"
            << "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
-           << "lib :: i64 = DL.Open(\"libraylib.so\", Raylib)\n";
+           << "lib :: i64 = System.FFI.Open(\"libraylib.so\", Raylib)\n";
   }
   {
     std::ofstream main_file(dir / "main.simple", std::ios::binary);
@@ -2245,7 +2252,7 @@ bool LangValidateProcValueRejectsArtifactMethod() {
 bool LangValidateProcValueRejectsModuleFunction() {
   const char* src =
     "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
-    "main : void () { f : fn i32 (i32, i32) = Math.add; }";
+    "main : void () { f : fn i32 (i32, i32) = Standard.Math.add; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
@@ -2276,7 +2283,7 @@ bool LangValidateIncDecInvalidTarget() {
 bool LangValidateUnknownModuleMember() {
   const char* src =
     "Math :: namespace { x : i32 = 1; }"
-    "main : i32 () { return Math.y; }";
+    "main : i32 () { return Standard.Math.y; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2429,7 +2436,7 @@ bool LangValidateCallNonFunction() {
 bool LangValidateCallModuleFuncCount() {
   const char* src =
     "Math :: namespace { add : i32 (a : i32, b : i32) { return a; } }"
-    "main : i32 () { return Math.add(1); }";
+    "main : i32 () { return Standard.Math.add(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2438,7 +2445,7 @@ bool LangValidateCallModuleFuncCount() {
 bool LangValidateCallModuleVar() {
   const char* src =
     "Math :: namespace { PI :: f64 = 3.14; }"
-    "main : i32 () { return Math.PI(1); }";
+    "main : i32 () { return Standard.Math.PI(1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
@@ -2463,41 +2470,41 @@ bool LangValidateCallFieldAsMethod() {
 }
 
 bool LangValidateIoPrintArgCountFail() {
-  const char* src = "main : void () { IO.print(); }";
+  const char* src = "main : void () { Standard.IO.print(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintTypeArgsOk() {
-  const char* src = "main : void () { IO.print<i32>(1); }";
+  const char* src = "main : void () { Standard.IO.print<i32>(1); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintRejectsArray() {
-  const char* src = "main : void () { a : i32[] = [1,2]; IO.print(a); }";
+  const char* src = "main : void () { a : i32[] = [1,2]; Standard.IO.print(a); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintFormatOk() {
-  const char* src = "main : void () { x : i32 = 42; IO.println(\"x={}\", x); }";
+  const char* src = "main : void () { x : i32 = 42; Standard.IO.println(\"x={}\", x); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateIoPrintFormatPlaceholderMismatch() {
-  const char* src = "main : void () { IO.println(\"x={}, y={}\", 1); }";
+  const char* src = "main : void () { Standard.IO.println(\"x={}, y={}\", 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format placeholder count mismatch") != std::string::npos;
 }
 
 bool LangValidateIoPrintFormatNeedsStringLiteral() {
-  const char* src = "main : void () { fmt : string = \"x={}\"; IO.println(fmt, 1); }";
+  const char* src = "main : void () { fmt : string = \"x={}\"; Standard.IO.println(fmt, 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format call expects string literal") != std::string::npos;
@@ -2634,7 +2641,7 @@ bool LangValidateFnParamWithFnArgOk() {
   const char* src =
       "invoke : void (cb : fn void (x : i32), x : i32) { cb(x) }\n"
       "main : i32 () {\n"
-      "  printv : fn void (v : i32) = (v) { IO.println(v) }\n"
+      "  printv : fn void (v : i32) = (v) { Standard.IO.println(v) }\n"
       "  invoke(printv, 42)\n"
       "  return 0\n"
       "}";
@@ -3464,6 +3471,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
   {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
+  {"lang_reject_legacy_reserved_imports", LangRejectLegacyReservedImports},
   {"lang_validate_canonical_system_standard_imports", LangValidateCanonicalSystemStandardImports},
   {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},

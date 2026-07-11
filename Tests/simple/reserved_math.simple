@@ -1,10 +1,10 @@
-import Math
+import Standard.Math
 
 main : i32 () {
-  a :: i32 = Math.abs(-5)
-  b :: i32 = Math.min(3, 7)
-  c :: i32 = Math.max(3, 7)
-  d :: f64 = Math.sqrt(9.0)
+  a :: i32 = Standard.Math.abs(-5)
+  b :: i32 = Standard.Math.min(3, 7)
+  c :: i32 = Standard.Math.max(3, 7)
+  d :: f64 = Standard.Math.sqrt(9.0)
   if (a != 5) { return 1 }
   if (b != 3) { return 2 }
   if (c != 7) { return 3 }

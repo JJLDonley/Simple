@@ -1,8 +1,8 @@
-import DL
+import System.FFI
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
-lib :: i64 = DL.Open("Tests/ffi/libsimpleffi.so", ffi)
+lib :: i64 = System.FFI.Open("Tests/ffi/libsimpleffi.so", ffi)
 
 AddViaGlobal : i32 (a : i32, b : i32) {
   return lib.simple_add_i32(a, b)
@@ -13,7 +13,7 @@ main : i32 () {
     return 0
   }
   out : i32 = AddViaGlobal(20, 22)
-  DL.Close(lib)
+  System.FFI.Close(lib)
   if (out == 42) {
     return 1
   }

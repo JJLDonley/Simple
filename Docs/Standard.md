@@ -64,9 +64,9 @@ import Standard.Path
 not:
 
 ```simple
-import IO
-import FS
-import Path
+import Standard.IO
+import Standard.FS
+import Standard.Path
 ```
 
 Old imports must eventually produce diagnostics with canonical replacements, not aliases.

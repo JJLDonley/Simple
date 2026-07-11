@@ -1,5 +1,5 @@
-import Channel
-using Channel
+import System.Channel
+using System.Channel
 
 main : i32 () {
   i64ch : i64 = newI64()

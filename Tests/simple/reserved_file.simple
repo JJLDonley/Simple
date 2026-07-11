@@ -1,6 +1,6 @@
-import File
+import System.FS
 
 main : i32 () {
-  File.close(-1)
+  System.FS.close(-1)
   return 0
 }

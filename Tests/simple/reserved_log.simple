@@ -1,21 +1,21 @@
-import Log
-import FS
+import Standard.Log
+import Standard.FS
 
 main : i32 () {
   path : string = "/tmp/simple_reserved_log_sink.txt"
-  FS.remove(path)
-  Log.setLevel(3)
-  Log.info("hidden")
-  Log.warn("hidden")
-  Log.error("shown")
-  Log.log("also shown", 3)
-  if (!Log.setFile(path)) { return 0 }
-  Log.error("file shown")
-  Log.log("file also shown", 3)
-  text : string = FS.readText(path)
-  Log.setFile("")
-  Log.setLevel(0)
-  FS.remove(path)
+  Standard.FS.remove(path)
+  Standard.Log.setLevel(3)
+  Standard.Log.info("hidden")
+  Standard.Log.warn("hidden")
+  Standard.Log.error("shown")
+  Standard.Log.log("also shown", 3)
+  if (!Standard.Log.setFile(path)) { return 0 }
+  Standard.Log.error("file shown")
+  Standard.Log.log("file also shown", 3)
+  text : string = Standard.FS.readText(path)
+  Standard.Log.setFile("")
+  Standard.Log.setLevel(0)
+  Standard.FS.remove(path)
   if (len(text) == 0) { return 0 }
   return 1
 }

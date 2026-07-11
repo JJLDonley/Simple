@@ -1,3 +1,4 @@
+import Standard.IO
 main : i32 () {
-  IO.print("hi")
+  Standard.IO.print("hi")
 }

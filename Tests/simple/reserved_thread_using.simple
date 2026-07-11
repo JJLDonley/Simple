@@ -1,5 +1,5 @@
-import Thread
-using Thread
+import System.Thread
+using System.Thread
 
 main : i32 () {
   yield()

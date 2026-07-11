@@ -153,6 +153,12 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
     if (decl.kind != DeclKind::Import) continue;
     if (decl.import_decl.is_using) continue;
     if (IsReservedImportPath(decl.import_decl.path)) continue;
+    std::string replacement;
+    if (LegacyReservedImportReplacement(decl.import_decl.path, &replacement)) {
+      if (error) *error = "unsupported import path: " + decl.import_decl.path + "; use " + replacement;
+      visiting->erase(key);
+      return false;
+    }
     fs::path import_file;
     if (!ResolveLocalImportPath(base_dir, project_index, module_index, decl.import_decl.path, &import_file, error)) {
       visiting->erase(key);

@@ -3474,6 +3474,11 @@ bool ValidateProgram(const Program& program, std::string* error) {
         }
         std::string canonical_import;
         if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
+          std::string replacement;
+          if (LegacyReservedImportReplacement(decl.import_decl.path, &replacement)) {
+            if (error) *error = "unsupported import path: " + decl.import_decl.path + "; use " + replacement;
+            return false;
+          }
           ctx.imported_modules.insert(decl.import_decl.path);
           break;
         }

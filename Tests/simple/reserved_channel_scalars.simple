@@ -1,25 +1,25 @@
-import Channel
+import System.Channel
 
 main : i32 () {
-  i64ch : i64 = Channel.newI64()
-  f32ch : i64 = Channel.newF32()
-  f64ch : i64 = Channel.newF64()
-  boolch : i64 = Channel.newBool()
+  i64ch : i64 = System.Channel.newI64()
+  f32ch : i64 = System.Channel.newF32()
+  f64ch : i64 = System.Channel.newF64()
+  boolch : i64 = System.Channel.newBool()
 
-  Channel.sendI64(i64ch, 40)
-  Channel.sendF32(f32ch, 1.5)
-  Channel.sendF64(f64ch, 2.5)
-  Channel.sendBool(boolch, true)
+  System.Channel.sendI64(i64ch, 40)
+  System.Channel.sendF32(f32ch, 1.5)
+  System.Channel.sendF64(f64ch, 2.5)
+  System.Channel.sendBool(boolch, true)
 
-  a : i64 = Channel.recvI64(i64ch)
-  b : f32 = Channel.recvF32(f32ch)
-  c : f64 = Channel.recvF64(f64ch)
-  d : bool = Channel.recvBool(boolch)
+  a : i64 = System.Channel.recvI64(i64ch)
+  b : f32 = System.Channel.recvF32(f32ch)
+  c : f64 = System.Channel.recvF64(f64ch)
+  d : bool = System.Channel.recvBool(boolch)
 
-  Channel.close(i64ch)
-  Channel.close(f32ch)
-  Channel.close(f64ch)
-  Channel.close(boolch)
+  System.Channel.close(i64ch)
+  System.Channel.close(f32ch)
+  System.Channel.close(f64ch)
+  System.Channel.close(boolch)
 
   if (!d) { return 0 }
   return @i32(a) + @i32(b) + @i32(c)

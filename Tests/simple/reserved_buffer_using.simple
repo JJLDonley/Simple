@@ -1,5 +1,5 @@
-import Buffer
-using Buffer
+import System.Bytes
+using System.Bytes
 
 main : i32 () {
   b : i32[] = new(4)

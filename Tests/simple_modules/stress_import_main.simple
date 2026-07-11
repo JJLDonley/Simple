@@ -1,10 +1,10 @@
 import "./stress_import_mid"
-import IO
+import Standard.IO
 
 main : i32 () {
   if (mid_value() != 7) {
     return 1
   }
-  IO.println("stress import chain")
+  Standard.IO.println("stress import chain")
   return 0
 }

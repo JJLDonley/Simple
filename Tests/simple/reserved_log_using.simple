@@ -1,5 +1,5 @@
-import Log
-using Log
+import Standard.Log
+using Standard.Log
 
 main : i32 () {
   setLevel(4)

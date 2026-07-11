@@ -17,24 +17,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     const char* name;
     const char* canonical;
   };
-  static constexpr std::array<ReservedImportEntry, 48> kReserved = {{
-      {"Math", "Math"},
-      {"IO", "IO"},
-      {"Time", "Time"},
-      {"DL", "DL"},
-      {"OS", "OS"},
-      {"File", "File"},
-      {"Buffer", "Buffer"},
-      {"Http", "Http"},
-      {"Socket", "Socket"},
-      {"Log", "Log"},
-      {"Json", "Json"},
-      {"Thread", "Thread"},
-      {"Channel", "Channel"},
-      {"Random", "Random"},
-      {"Env", "Env"},
-      {"Path", "Path"},
-      {"FS", "FS"},
+  static constexpr std::array<ReservedImportEntry, 31> kReserved = {{
       {"System.Math", "Math"},
       {"System.IO", "IO"},
       {"System.Time", "Time"},
@@ -79,6 +62,29 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
 inline bool IsReservedImportPath(const std::string& path) {
   std::string canonical;
   return CanonicalizeReservedImportPath(path, &canonical);
+}
+
+inline bool LegacyReservedImportReplacement(const std::string& path, std::string* out) {
+  if (!out) return false;
+  if (path == "IO") *out = "Standard.IO";
+  else if (path == "Math") *out = "Standard.Math";
+  else if (path == "Time") *out = "System.Time or Standard.Time";
+  else if (path == "DL") *out = "System.FFI";
+  else if (path == "OS") *out = "System.OS";
+  else if (path == "File") *out = "System.FS";
+  else if (path == "FS") *out = "Standard.FS or System.FS";
+  else if (path == "Path") *out = "Standard.Path or System.Path";
+  else if (path == "Env") *out = "System.Env";
+  else if (path == "Random") *out = "Standard.Random or System.Random";
+  else if (path == "Buffer") *out = "Standard.Bytes or System.Bytes";
+  else if (path == "Json") *out = "System.Json or Standard.Json";
+  else if (path == "Log") *out = "Standard.Log or System.Log";
+  else if (path == "Thread") *out = "System.Thread";
+  else if (path == "Channel") *out = "System.Channel";
+  else if (path == "Http") *out = "Standard.HTTP or System.HTTP";
+  else if (path == "Socket") *out = "Standard.Net or System.Net";
+  else return false;
+  return true;
 }
 
 inline std::string DefaultImportAlias(const std::string& import_path) {

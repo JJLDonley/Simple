@@ -127,8 +127,8 @@ bool LangRastResolverCollectsSwitchBranchLocals() {
 
 bool LangRastResolverDisambiguatesMemberRefs() {
   const char* src =
-      "import IO\n"
-      "import DL\n"
+      "import Standard.IO\n"
+      "import System.FFI\n"
       "Box :: artifact {\n"
       "  v : i32\n"
       "  score : i32 () { return self.v; }\n"
@@ -139,12 +139,12 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "Mode :: enum { Off = 0, On = 1 }\n"
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "extern ffi.simple_add_i32 : i32 (a : i32, b : i32)\n"
-      "glib :: i64 = DL.Open(\"libffi.so\", ffi)\n"
+      "glib :: i64 = System.FFI.Open(\"libffi.so\", ffi)\n"
       "UseGlobal : i32 () { return glib.simple_add_i32(3, 4); }\n"
       "main : i32 () {\n"
-      "  IO.println(1);\n"
+      "  Standard.IO.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
-      "  lib : i64 = DL.Open(\"libffi.so\", ffi);\n"
+      "  lib : i64 = System.FFI.Open(\"libffi.so\", ffi);\n"
       "  dyn : i32 = lib.simple_add_i32(1, 2);\n"
       "  x : i32 = Config.Max;\n"
       "  m : Mode = Mode.On;\n"
@@ -190,7 +190,7 @@ bool LangRastResolverDisambiguatesMemberRefs() {
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ExternSymbol &&
         ref.qualified_name == "Ray.InitWindow") saw_extern = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::ReservedModuleFunction &&
-        ref.qualified_name == "IO.println") saw_reserved = true;
+        ref.qualified_name == "Standard.IO.println") saw_reserved = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
         ref.qualified_name == "ffi.simple_add_i32" && ref.base == "lib") saw_dl_manifest = true;
     if (ref.kind == Simple::Lang::RAST::MemberRefKind::DLManifestCall &&
@@ -229,7 +229,7 @@ bool LangRastMemberLookupFindsDeclMembers() {
       "Math", "zzzzzz", module_members);
 
   return suggestion.find("did you mean 'answer'") != std::string::npos &&
-         no_suggestion == "unknown module member: Math.zzzzzz" &&
+         no_suggestion == "unknown module member: Standard.Math.zzzzzz" &&
          saw_module_var &&
          saw_module_func &&
          Simple::Lang::RAST::ModuleMembers(nullptr).empty() &&
@@ -248,7 +248,7 @@ bool LangRastMemberResolutionRecordsMemberRefs() {
                                            Simple::Lang::RAST::MemberRefKind::ModuleMember,
                                            "Math",
                                            "answer",
-                                           "Math.answer",
+                                           "Standard.Math.answer",
                                            7);
   const auto* ref = Simple::Lang::RAST::ResolveMemberAccess(&program, "Math", "answer");
   return program.member_refs.size() == 1 && ref &&
@@ -421,7 +421,7 @@ bool LangRastDeclarationResolutionFindsDeclSymbols() {
 
 bool LangRastImportGraphResolvesReservedAliases() {
   const char* src =
-      "import FS as FileSystem\n"
+      "import Standard.FS as FileSystem\n"
       "main : void () {}";
   Simple::Lang::Program cast_program;
   Simple::Lang::AST::Program ast_program;

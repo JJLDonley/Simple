@@ -1,4 +1,4 @@
-import Math as SysMath
+import Standard.Math as SysMath
 
 Math :: namespace {
   add :: i32 (a : i32, b : i32) { return a + b }

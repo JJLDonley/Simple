@@ -1,5 +1,5 @@
-import Env
-using Env
+import System.Env
+using System.Env
 
 main : i32 () {
   set("SIMPLE_TEST_ENV_USING", "yes")

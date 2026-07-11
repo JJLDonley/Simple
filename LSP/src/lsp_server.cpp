@@ -644,6 +644,10 @@ bool ParseImportDeclLine(const std::string& line_text,
   }
 
   std::string alias = DefaultImportAlias(import_path);
+  std::string canonical_import;
+  if (Simple::Lang::CanonicalizeReservedImportPath(import_path, &canonical_import)) {
+    alias = canonical_import;
+  }
   while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
   if (pos + 2 <= trimmed.size() && trimmed.compare(pos, 2, "as") == 0) {
     pos += 2;
@@ -994,7 +998,14 @@ bool ImportPrefixAtPosition(const std::string& text,
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
   static const std::vector<std::string> kReservedImports = {
-      "IO", "Math", "Time", "File", "Buffer", "Http", "Socket", "DL", "OS", "Log", "Thread", "Channel", "Random", "Env", "Path", "FS"};
+      "System.IO", "System.FS", "System.Path", "System.Env", "System.OS", "System.Time", "System.FFI",
+      "System.ASM", "System.Bytes", "System.Buffer", "System.Json", "System.Log", "System.Random",
+      "System.Thread", "System.Job", "System.Channel", "System.Process", "System.Net", "System.HTTP",
+      "System.Terminal", "System.Capability", "System.Runtime", "System.Debug", "Standard.IO",
+      "Standard.Console", "Standard.FS", "Standard.Path", "Standard.Bytes", "Standard.Text", "Standard.Json",
+      "Standard.Math", "Standard.Random", "Standard.Time", "Standard.Log", "Standard.Process", "Standard.Net",
+      "Standard.HTTP", "Standard.HTTPS", "Standard.Terminal", "Standard.Promise", "Standard.Channel",
+      "Standard.Collections", "Standard.Result", "Standard.Option"};
   std::vector<std::string> labels = kReservedImports;
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
@@ -2276,8 +2287,8 @@ void ReplyCompletion(std::ostream& out,
       if (seen->insert(label).second) labels.push_back(label);
     };
     std::unordered_set<std::string> seen(labels.begin(), labels.end());
-    add_label("IO.println", &seen);
-    add_label("IO.print", &seen);
+    add_label("Standard.IO.println", &seen);
+    add_label("Standard.IO.print", &seen);
     if (doc_it != open_docs.end()) {
       const auto reserved_labels = CollectReservedModuleMemberLabels(doc_it->second);
       for (const auto& label : reserved_labels) add_label(label, &seen);
@@ -2360,7 +2371,7 @@ void ReplySignatureHelp(std::ostream& out,
   }
   const std::string call_name = CallNameAtPosition(it->second, line, character);
   const uint32_t active_parameter = ActiveParameterAtPosition(it->second, line, character);
-  if (call_name == "IO.println" || call_name == "IO.print") {
+  if (call_name == "Standard.IO.println" || call_name == "Standard.IO.print") {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(

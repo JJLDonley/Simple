@@ -1,5 +1,5 @@
-import Json
-using Json
+import System.Json
+using System.Json
 
 main : i32 () {
   h : i64 = parse("[true,false,null,{\"x\":1}]")

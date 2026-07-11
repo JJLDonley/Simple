@@ -1,11 +1,11 @@
-import Channel
+import System.Channel
 
 main : i32 () {
-  ch : i64 = Channel.newI32()
-  if (!Channel.sendI32(ch, 42)) { return 0 }
-  a : i32 = Channel.tryRecvI32(ch)
-  Channel.sendI32(ch, 7)
-  b : i32 = Channel.recvI32(ch)
-  Channel.close(ch)
+  ch : i64 = System.Channel.newI32()
+  if (!System.Channel.sendI32(ch, 42)) { return 0 }
+  a : i32 = System.Channel.tryRecvI32(ch)
+  System.Channel.sendI32(ch, 7)
+  b : i32 = System.Channel.recvI32(ch)
+  System.Channel.close(ch)
   return a + b
 }
