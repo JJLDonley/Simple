@@ -182,7 +182,7 @@ function highlightSimple(source) {
     }
 
     if (/[:=+\-*\/<>!@|&.]/.test(ch)) {
-      const m = source.slice(i).match(/^(::|==|!=|<=|>=|->|\+=|-=|&&|\|\||[=:;+\-*\/<>!@|&.])/);
+      const m = source.slice(i).match(/^(::|==|!=|<=|>=|->|=>|\.\.|\|>|\+=|-=|&&|\|\||[=:;+\-*\/<>!@|&.])/);
       out += `<span class="tok-operator">${escapeHtml(m ? m[0] : ch)}</span>`;
       i += m ? m[0].length : 1;
       continue;
