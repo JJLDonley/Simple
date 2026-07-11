@@ -236,6 +236,35 @@ bool ResolveReservedModuleName(const ValidateContext& ctx,
   return RAST::ResolveReservedModuleName(ctx.reserved_imports, ctx.reserved_import_aliases, name, out);
 }
 
+bool ResolveReservedModuleId(const ValidateContext& ctx,
+                             const std::string& name,
+                             LibraryModuleId* out) {
+  return RAST::ResolveReservedModuleId(ctx.reserved_imports, ctx.reserved_import_aliases, name, out);
+}
+
+bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
+  return id.root == LibraryRoot::System && static_cast<SystemModule>(id.module_index) == module;
+}
+
+bool IsLibraryModule(LibraryModuleId id, StandardModule module) {
+  return id.root == LibraryRoot::Standard && static_cast<StandardModule>(id.module_index) == module;
+}
+
+bool IsCanonicalLibraryModule(const std::string& canonical, StandardModule module) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && IsLibraryModule(*id, module);
+}
+
+bool IsLibraryRootEnabled(const ValidateContext& ctx, LibraryRoot root) {
+  for (const auto& module : ctx.reserved_imports) {
+    if (module.root == root) return true;
+  }
+  for (const auto& entry : ctx.reserved_import_aliases) {
+    if (entry.second.root == root) return true;
+  }
+  return false;
+}
+
 bool GetDlOpenManifestModule(const Expr& expr,
                              const ValidateContext& ctx,
                              std::string* out_module) {
@@ -321,15 +350,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   auto list_i32 = []() { return MakeListType("i32"); };
 
   const auto module_id = ParseCanonicalLibraryModule(resolved);
-  if (!module_id) {
-    if (resolved == "File") {
-      const auto file_member = member;
-      if (file_member == "open") { add(simple("string")); add(simple("i32")); return set_ret(simple("i32")); }
-      if (file_member == "close") { add(simple("i32")); return set_ret(simple("void")); }
-      if (file_member == "read" || file_member == "write") { add(simple("i32")); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
-    }
-    return TryGetNativeReservedModuleCallTarget(resolved, member, out);
-  }
+  if (!module_id) return TryGetNativeReservedModuleCallTarget(resolved, member, out);
 
   if (module_id->root == LibraryRoot::Standard) {
     const StandardModule mod = static_cast<StandardModule>(module_id->module_index);
@@ -1205,7 +1226,7 @@ bool CheckCallTarget(const Expr& callee,
     std::string using_module;
     if (ResolveUsingReservedCallTarget(ctx, callee.text, &using_module, &using_info) ||
         ResolveUsingModuleExternCallTarget(ctx, callee.text, &using_module, &using_info)) {
-      if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
+      if (IsCanonicalLibraryModule(using_module, StandardModule::IO) && IsIoPrintName(callee.text)) {
         if (arg_count == 0) {
           if (error) *error = "call argument count mismatch for " + callee.text;
           return false;
@@ -1301,11 +1322,11 @@ bool CheckCallTarget(const Expr& callee,
         if (IsReservedModuleEnabled(ctx, module_name)) {
           CallTargetInfo info;
           if (GetReservedModuleCallTarget(ctx, module_name, callee.text, &info)) {
-            std::string resolved_module;
+            LibraryModuleId resolved_module{};
             const bool is_System_dl_open =
-                ResolveReservedModuleName(ctx, module_name, &resolved_module) &&
-                resolved_module == "DL" &&
-                NormalizeDlMemberName(callee.text) == "open";
+                ResolveReservedModuleId(ctx, module_name, &resolved_module) &&
+                IsLibraryModule(resolved_module, SystemModule::FFI) &&
+                ParseMember(SystemModule::FFI, NormalizeDlMemberName(callee.text)) == SystemMember(SystemFFIMember::Open);
             if (!is_System_dl_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
@@ -1729,16 +1750,15 @@ bool CheckCallArgTypes(const Expr& call_expr,
     const Expr& base = callee.children[0];
     std::string module_name;
     if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
-      std::string mod = module_name;
-      std::string resolved_mod;
-      if (ResolveReservedModuleName(ctx, module_name, &resolved_mod)) mod = resolved_mod;
+      LibraryModuleId mod{};
+      if (!ResolveReservedModuleId(ctx, module_name, &mod)) return true;
       const std::string& name = callee.text;
       auto infer_arg = [&](size_t index, TypeRef* out_type) -> bool {
         if (!out_type) return false;
         if (index >= call_expr.args.size()) return false;
         return InferExprType(call_expr.args[index], ctx, scopes, current_artifact, out_type);
       };
-      if (mod == "Math") {
+      if (IsLibraryModule(mod, StandardModule::Math)) {
         std::vector<TypeRef> arg_types;
         arg_types.reserve(call_expr.args.size());
         for (size_t i = 0; i < call_expr.args.size(); ++i) {
@@ -1748,7 +1768,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
         }
         return CheckReservedMathCallArgTypes(name, arg_types, error);
       }
-      if (mod == "IO") {
+      if (IsLibraryModule(mod, SystemModule::IO)) {
         std::vector<TypeRef> arg_types;
         arg_types.reserve(call_expr.args.size());
         for (size_t i = 0; i < call_expr.args.size(); ++i) {
@@ -1758,7 +1778,7 @@ bool CheckCallArgTypes(const Expr& call_expr,
         }
         return CheckReservedIoBufferCallArgTypes(name, arg_types, error);
       }
-      if (mod == "Time") {
+      if (IsLibraryModule(mod, SystemModule::Time)) {
         std::vector<TypeRef> arg_types;
         arg_types.reserve(call_expr.args.size());
         for (size_t i = 0; i < call_expr.args.size(); ++i) {
@@ -1768,7 +1788,8 @@ bool CheckCallArgTypes(const Expr& call_expr,
         }
         return CheckReservedTimeCallArgTypes(name, arg_types, error);
       }
-      if (mod == "DL" && NormalizeDlMemberName(name) == "open") {
+      if (IsLibraryModule(mod, SystemModule::FFI) &&
+          ParseMember(SystemModule::FFI, NormalizeDlMemberName(name)) == SystemMember(SystemFFIMember::Open)) {
         TypeRef path;
         if (!call_expr.args.empty() && !infer_arg(0, &path)) return true;
         std::vector<TypeRef> arg_types(call_expr.args.size());
@@ -1776,13 +1797,13 @@ bool CheckCallArgTypes(const Expr& call_expr,
         if (!CheckReservedDlOpenArgTypes(arg_types, error)) return false;
         if (call_expr.args.size() == 2) {
           if (call_expr.args[1].kind != ExprKind::Identifier) {
-            if (error) *error = "DL.open manifest must be an extern module identifier";
+            if (error) *error = "System.FFI.open manifest must be an extern module identifier";
             return false;
           }
           const std::string manifest = call_expr.args[1].text;
           auto mod_it = ctx.externs_by_module.find(manifest);
           if (mod_it == ctx.externs_by_module.end() || mod_it->second.empty()) {
-            if (error) *error = "DL.open manifest has no extern symbols: " + manifest;
+            if (error) *error = "System.FFI.open manifest has no extern symbols: " + manifest;
             return false;
           }
           for (const auto& entry : mod_it->second) {
@@ -1790,16 +1811,6 @@ bool CheckCallArgTypes(const Expr& call_expr,
           }
         }
         return true;
-      }
-      if (mod == "File") {
-        std::vector<TypeRef> arg_types;
-        arg_types.reserve(call_expr.args.size());
-        for (size_t i = 0; i < call_expr.args.size(); ++i) {
-          TypeRef arg;
-          if (!infer_arg(i, &arg)) return true;
-          arg_types.push_back(std::move(arg));
-        }
-        return CheckReservedFileCallArgTypes(name, arg_types, error);
       }
       CallTargetInfo reserved_info;
       if (GetReservedModuleCallTarget(ctx, module_name, name, &reserved_info)) {
@@ -2694,18 +2705,7 @@ bool CheckExpr(const Expr& expr,
         }
         return true;
       }
-      if (expr.text == "System") {
-        if (IsReservedModuleEnabled(ctx, "Math") || IsReservedModuleEnabled(ctx, "IO") ||
-            IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
-            IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
-            IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread") ||
-            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "SystemRandom") ||
-            IsReservedModuleEnabled(ctx, "StandardRandom") ||
-            IsReservedModuleEnabled(ctx, "Env") || IsReservedModuleEnabled(ctx, "Path") ||
-            IsReservedModuleEnabled(ctx, "FS")) {
-          return true;
-        }
-      }
+      if (expr.text == "System" && IsLibraryRootEnabled(ctx, LibraryRoot::System)) return true;
       if (IsBuiltinValueIdentifierName(expr.text)) return true;
       if (FindLocal(scopes, expr.text)) return true;
       if (current_artifact && IsArtifactMemberName(current_artifact, expr.text)) {
@@ -2910,7 +2910,7 @@ bool CheckExpr(const Expr& expr,
         if (expr.children[0].kind == ExprKind::Identifier && IsIoPrintName(expr.children[0].text)) {
           std::string using_module;
           is_using_io_print = ResolveUsingReservedCallTarget(ctx, expr.children[0].text, &using_module, nullptr) &&
-                              using_module == "StandardIO";
+                              IsCanonicalLibraryModule(using_module, StandardModule::IO);
         }
         if (!IsIoPrintCallExpr(expr.children[0], ctx) && !is_using_io_print &&
             !(expr.children[0].kind == ExprKind::Identifier &&

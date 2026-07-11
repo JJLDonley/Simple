@@ -1653,7 +1653,11 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   const auto alias_it = aliases.find(alias);
   if (alias_it == aliases.end()) return false;
   std::string module = alias_it->second;
-  if (module == "DL") member = NormalizeCoreDlMember(member);
+  const auto module_id = Simple::Lang::ParseCanonicalLibraryModule(module);
+  if (module_id && module_id->root == Simple::Lang::LibraryRoot::System &&
+      static_cast<Simple::Lang::SystemModule>(module_id->module_index) == Simple::Lang::SystemModule::FFI) {
+    member = NormalizeCoreDlMember(member);
+  }
   *out_module = std::move(module);
   *out_member = std::move(member);
   return true;
@@ -2298,8 +2302,15 @@ void ReplySignatureHelp(std::ostream& out,
 
   std::string imported_module;
   std::string imported_member;
+  auto imported_module_id = [&]() -> std::optional<Simple::Lang::LibraryModuleId> {
+    return Simple::Lang::ParseCanonicalLibraryModule(imported_module);
+  };
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "StandardIO" && (imported_member == "print" || imported_member == "println")) {
+      imported_module_id() && imported_module_id()->root == Simple::Lang::LibraryRoot::Standard &&
+      static_cast<Simple::Lang::StandardModule>(imported_module_id()->module_index) == Simple::Lang::StandardModule::IO &&
+      Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member) &&
+      (std::get<Simple::Lang::StandardIOMember>(*Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member)) == Simple::Lang::StandardIOMember::Print ||
+       std::get<Simple::Lang::StandardIOMember>(*Simple::Lang::ParseMember(Simple::Lang::StandardModule::IO, imported_member)) == Simple::Lang::StandardIOMember::Println)) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(
@@ -2316,7 +2327,9 @@ void ReplySignatureHelp(std::ostream& out,
   }
 
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "DL" && imported_member == "open") {
+      imported_module_id() && imported_module_id()->root == Simple::Lang::LibraryRoot::System &&
+      static_cast<Simple::Lang::SystemModule>(imported_module_id()->module_index) == Simple::Lang::SystemModule::FFI &&
+      Simple::Lang::ParseMember(Simple::Lang::SystemModule::FFI, imported_member) == Simple::Lang::SystemMember(Simple::Lang::SystemFFIMember::Open)) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(
@@ -2736,10 +2749,8 @@ bool MemberAccessInfoFromText(const std::string& text,
 }
 
 bool IsReservedModuleAliasToken(const std::string& name) {
-  static const std::unordered_set<std::string> kReserved = {
-      "IO", "DL", "OS", "Time", "Math", "Log", "File", "Buffer", "Http", "Socket", "Thread", "Channel", "Random", "Env", "Path", "FS",
-  };
-  return kReserved.find(name) != kReserved.end();
+  return Simple::Lang::ParseLibraryImportPath(name).has_value() ||
+         Simple::Lang::ParseCanonicalLibraryModule(name).has_value();
 }
 
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
