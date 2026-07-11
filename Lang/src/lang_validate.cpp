@@ -498,7 +498,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "FS") {
+  if (resolved == "FS" || resolved == "StandardFS") {
     if (member == "readText") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("string");

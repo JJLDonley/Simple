@@ -1674,19 +1674,28 @@ bool LangValidateUnknownReservedMemberSuggestsClosest() {
 
 bool LangValidateNativeMetadataReservedFsFdApis() {
   const char* src =
-      "import Standard.FS\n"
-      "main : void () { fd : i32 = Standard.FS.open(\"/tmp/missing\", 0); Standard.FS.close(fd); }";
+      "import System.FS\n"
+      "main : void () { fd : i32 = System.FS.open(\"/tmp/missing\", 0); System.FS.close(fd); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateNativeMetadataReservedFsSuggestion() {
   const char* src =
-      "import Standard.FS\n"
-      "main : void () { fd : i32 = Standard.FS.opne(\"/tmp/missing\", 0); }";
+      "import System.FS\n"
+      "main : void () { fd : i32 = System.FS.opne(\"/tmp/missing\", 0); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("did you mean 'open'") != std::string::npos;
+}
+
+bool LangRejectStandardFsHandleApis() {
+  const char* src =
+      "import Standard.FS\n"
+      "main : void () { fd : i32 = Standard.FS.open(\"/tmp/missing\", 0); Standard.FS.close(fd); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
 }
 
 bool LangRejectStandardIoBufferApis() {
@@ -3277,6 +3286,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
   {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},
   {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
+  {"lang_reject_standard_fs_handle_apis", LangRejectStandardFsHandleApis},
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},

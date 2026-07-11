@@ -92,6 +92,10 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
+  if (canonical_module == "StandardFS") {
+    return {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
+            "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
+  }
   if (canonical_module == "FS") {
     out = {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove",
            "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
@@ -219,7 +223,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
     return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
            member == "normalize" || member == "exists" || member == "isFile" || member == "isDir";
   }
-  if (canonical_module == "FS") {
+  if (canonical_module == "StandardFS" || canonical_module == "FS") {
     return member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
            member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
            member == "listDir" || member == "cwd" || member == "setCwd";

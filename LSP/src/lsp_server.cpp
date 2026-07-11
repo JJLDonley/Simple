@@ -1061,6 +1061,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"Random", {"seed", "i32", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
       {"Path", {"join", "dirname", "basename", "ext", "normalize", "exists", "isFile", "isDir"}},
+      {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"FS", {"readText", "writeText", "readBytes", "writeBytes", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
                    "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64",
@@ -1373,7 +1374,7 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "FS") {
+  if (module == "FS" || module == "StandardFS") {
     if (member == "readText") {
       out->params = {"path"};
       out->return_type = "string";

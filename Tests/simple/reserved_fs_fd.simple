@@ -1,8 +1,8 @@
-import Standard.FS
+import System.FS
 
 main : i32 () {
-  fd : i32 = Standard.FS.open("/tmp/simple_reserved_missing_fd.txt", 0)
-  Standard.FS.close(fd)
+  fd : i32 = System.FS.open("/tmp/simple_reserved_missing_fd.txt", 0)
+  System.FS.close(fd)
   if (fd != -1) { return 0 }
   return 1
 }

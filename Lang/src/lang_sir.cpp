@@ -436,7 +436,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "FS" &&
+    } else if ((module == "FS" || module == "StandardFS") &&
                (member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
                 member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
                 member == "listDir" || member == "cwd" || member == "setCwd")) {
@@ -1746,7 +1746,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2880,7 +2880,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5391,8 +5391,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("FS") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("FS")) {
+  auto add_fs_imports = [&](const std::string& canonical_module, bool include_handles) {
+    for (const auto& alias : reserved_aliases_for(canonical_module)) {
       std::vector<TypeRef> read_text_params;
       read_text_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.fs", "readText", std::move(read_text_params), make_type("string"))) return false;
@@ -5410,22 +5410,24 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       std::vector<TypeRef> list_dir_params;
       list_dir_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.fs", "listDir", std::move(list_dir_params), make_list_type("string"))) return false;
-      std::vector<TypeRef> open_params;
-      open_params.push_back(make_type("string"));
-      open_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.fs", "open", std::move(open_params), make_type("i32"))) return false;
-      std::vector<TypeRef> close_params;
-      close_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.fs", "close", std::move(close_params), make_type("void"))) return false;
-      auto make_rw_params = [&]() {
-        std::vector<TypeRef> params;
-        params.push_back(make_type("i32"));
-        params.push_back(make_list_type("i32"));
-        params.push_back(make_type("i32"));
-        return params;
-      };
-      if (!add_reserved_import(alias, "System.fs", "read", make_rw_params(), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "System.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      if (include_handles) {
+        std::vector<TypeRef> open_params;
+        open_params.push_back(make_type("string"));
+        open_params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "System.fs", "open", std::move(open_params), make_type("i32"))) return false;
+        std::vector<TypeRef> close_params;
+        close_params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "System.fs", "close", std::move(close_params), make_type("void"))) return false;
+        auto make_rw_params = [&]() {
+          std::vector<TypeRef> params;
+          params.push_back(make_type("i32"));
+          params.push_back(make_list_type("i32"));
+          params.push_back(make_type("i32"));
+          return params;
+        };
+        if (!add_reserved_import(alias, "System.fs", "read", make_rw_params(), make_type("i32"))) return false;
+        if (!add_reserved_import(alias, "System.fs", "write", make_rw_params(), make_type("i32"))) return false;
+      }
       std::vector<TypeRef> copy_params;
       copy_params.push_back(make_type("string"));
       copy_params.push_back(make_type("string"));
@@ -5437,7 +5439,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       }
       if (!add_reserved_import(alias, "System.fs", "cwd", {}, make_type("string"))) return false;
     }
-  }
+    return true;
+  };
+  if (st.reserved_imports.find("FS") != st.reserved_imports.end() && !add_fs_imports("FS", true)) return false;
+  if (st.reserved_imports.find("StandardFS") != st.reserved_imports.end() && !add_fs_imports("StandardFS", false)) return false;
 
   if (st.reserved_imports.find("Path") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Path")) {
