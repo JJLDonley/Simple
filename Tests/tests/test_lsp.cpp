@@ -3247,6 +3247,65 @@ bool LspDocumentLinkResolvesLocalImports() {
          out_contents.find("dep.simple") != std::string::npos;
 }
 
+bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_test";
+  fs::create_directories(dir);
+  const auto main_path = dir / "main.simple";
+  const auto sibling_path = dir / "sibling.simple";
+  {
+    std::ofstream sibling(sibling_path);
+    sibling << "siblingFunc : i32 () { return 7 }";
+  }
+  const std::string main_uri = "file://" + main_path.generic_string();
+  const std::string sibling_uri = "file://" + sibling_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_workspace_symbols_file_in.txt");
+  const std::string out_path = TempPath("simple_lsp_workspace_symbols_file_out.txt");
+  const std::string err_path = TempPath("simple_lsp_workspace_symbols_file_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"main : i32 () { return 0 }\"}}}";
+  const std::string symbol_req = "{\"jsonrpc\":\"2.0\",\"id\":50,\"method\":\"workspace/symbol\",\"params\":{\"query\":\"sibling\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(symbol_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":50") != std::string::npos &&
+         out_contents.find("siblingFunc") != std::string::npos &&
+         out_contents.find(sibling_uri) != std::string::npos;
+}
+
+bool LspReferencesIndexSiblingSimpleFiles() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_references_files_test";
+  fs::create_directories(dir);
+  const auto main_path = dir / "main.simple";
+  const auto sibling_path = dir / "sibling.simple";
+  {
+    std::ofstream sibling(sibling_path);
+    sibling << "useIt : i32 () { return shared() }";
+  }
+  const std::string main_uri = "file://" + main_path.generic_string();
+  const std::string sibling_uri = "file://" + sibling_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_references_file_in.txt");
+  const std::string out_path = TempPath("simple_lsp_references_file_out.txt");
+  const std::string err_path = TempPath("simple_lsp_references_file_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"shared : i32 () { return 1 }\"}}}";
+  const std::string refs_req = "{\"jsonrpc\":\"2.0\",\"id\":51,\"method\":\"textDocument/references\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":0,\"character\":1},\"context\":{\"includeDeclaration\":true}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(refs_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":51") != std::string::npos &&
+         out_contents.find(sibling_uri) != std::string::npos;
+}
+
 bool LspLinkedEditingRangeReturnsIdentifierRanges() {
   const std::string in_path = TempPath("simple_lsp_linked_editing_in.txt");
   const std::string out_path = TempPath("simple_lsp_linked_editing_out.txt");
@@ -3496,6 +3555,8 @@ const TestCase kLspTests[] = {
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
+  {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
+  {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},
   {"lsp_linked_editing_range_returns_identifier_ranges", LspLinkedEditingRangeReturnsIdentifierRanges},
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},

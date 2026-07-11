@@ -871,7 +871,8 @@ Next Simple-specific LSP capabilities:
 - [x] Code lenses for check/run/JIT-run commands on top-level Simple functions and entrypoints.
 - [ ] Code lenses for exported functions, tests/examples, and persisted JIT stats.
 - [ ] Code actions for unresolved imports, missing modules, unknown identifiers, signature mismatch fixes, and quick emit/build actions.
-- [ ] Workspace symbols and references across opened documents plus indexed `.simple` files, not only the active document.
+- [x] Workspace symbols and references across opened documents plus sibling indexed `.simple` files.
+- [ ] Workspace symbols and references across full project roots/module maps.
 - [ ] Range-based document sync with incremental text changes tested across open/change/close.
 
 ### Simple LSP Architecture
@@ -881,7 +882,8 @@ Next Simple-specific LSP capabilities:
   completion, hover, signature help, inlay hints, document links, folding, selection ranges,
   call hierarchy, code actions, code lenses, and workspace index.
 - [ ] Build a reusable opened-document store with URI, version, language id, text, dirty flag, and incremental change application.
-- [ ] Build a Simple workspace index over `.simple`, `.sir`, `.sbc`, module/import paths, declarations, exported symbols, type IDs, and native metadata.
+- [x] Build an initial Simple workspace index over opened document directories and sibling `.simple` files.
+- [ ] Extend the workspace index over `.sir`, `.sbc`, module/import paths, declarations, exported symbols, type IDs, and native metadata.
 - [ ] Cache parse/RAST/TAST/SIR facts per document with invalidation on text/file/import changes.
 - [ ] Reuse the compiler pipeline exactly for diagnostics; LSP should only map spans/ranges and shape JSON-RPC responses.
 - [x] Advertise folding ranges, selection ranges, and document links only after protocol-level tests cover initialize + requests.

@@ -2961,6 +2961,34 @@ void ReplyTypeDefinition(std::ostream& out,
                            (found ? ("[" + LocationJson(best_uri, best_token) + "]") : "[]") + "}");
 }
 
+std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
+    const std::unordered_map<std::string, std::string>& open_docs) {
+  std::unordered_map<std::string, std::string> docs = open_docs;
+  std::unordered_set<std::string> visited_dirs;
+  for (const auto& [uri, _] : open_docs) {
+    std::string path_text;
+    if (!FileUriToPath(uri, &path_text)) continue;
+    const std::filesystem::path dir = std::filesystem::path(path_text).parent_path();
+    if (dir.empty()) continue;
+    const std::string dir_key = std::filesystem::absolute(dir).lexically_normal().generic_string();
+    if (!visited_dirs.insert(dir_key).second) continue;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+      if (ec) break;
+      if (!entry.is_regular_file(ec) || ec) continue;
+      if (entry.path().extension() != ".simple") continue;
+      const std::string file_uri = PathToFileUri(entry.path());
+      if (docs.find(file_uri) != docs.end()) continue;
+      std::ifstream in(entry.path(), std::ios::binary);
+      if (!in) continue;
+      std::ostringstream buffer;
+      buffer << in.rdbuf();
+      docs.emplace(file_uri, buffer.str());
+    }
+  }
+  return docs;
+}
+
 void ReplyReferences(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -2995,8 +3023,9 @@ void ReplyReferences(std::ostream& out,
     }
   };
 
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
   collect_hits(uri, refs);
-  for (const auto& [other_uri, other_text] : open_docs) {
+  for (const auto& [other_uri, other_text] : workspace_docs) {
     if (other_uri == uri) continue;
     const auto other_refs = LexTokenRefs(other_text);
     collect_hits(other_uri, other_refs);
@@ -3322,7 +3351,8 @@ void ReplyWorkspaceSymbols(std::ostream& out,
 
   const std::string query_lc = LowerAscii(query);
   std::vector<SymbolInfo> symbols;
-  for (const auto& [uri, text] : open_docs) {
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+  for (const auto& [uri, text] : workspace_docs) {
     const auto refs = LexTokenRefs(text);
     for (const auto& ref : refs) {
       if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
