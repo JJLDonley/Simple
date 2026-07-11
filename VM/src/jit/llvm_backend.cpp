@@ -1,5 +1,6 @@
 #include "jit/llvm_backend.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
@@ -975,10 +976,36 @@ std::string ToString(llvm::Error error) {
 
 uint64_t HashFunctionCode(const Simple::Byte::SbcModule& module, const Simple::Byte::FunctionRow& func) {
   uint64_t hash = 1469598103934665603ull;
+  auto mix = [&](uint64_t value) {
+    hash ^= value;
+    hash *= 1099511628211ull;
+  };
   const size_t end = func.code_offset + func.code_size;
   for (size_t i = func.code_offset; i < end; ++i) {
-    hash ^= static_cast<uint64_t>(module.code[i]);
-    hash *= 1099511628211ull;
+    mix(static_cast<uint64_t>(module.code[i]));
+  }
+  for (uint8_t byte : module.const_pool) mix(byte);
+  for (const auto& method : module.methods) {
+    mix(method.sig_id);
+    mix(method.local_count);
+    mix(method.flags);
+  }
+  for (const auto& sig : module.sigs) {
+    mix(sig.ret_type_id);
+    mix(sig.param_count);
+    mix(sig.param_type_start);
+  }
+  for (uint32_t type_id : module.param_types) mix(type_id);
+  for (const auto& type : module.types) {
+    mix(type.kind);
+    mix(type.flags);
+    mix(type.size);
+  }
+  for (const auto& import : module.imports) {
+    mix(import.module_name_str);
+    mix(import.symbol_name_str);
+    mix(import.sig_id);
+    mix(import.flags);
   }
   return hash;
 }
@@ -1908,6 +1935,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           return false;
         }
         uint32_t id = ReadU32(module.code, scan_pc);
+        if (id == Simple::VM::kIntrinsicTrap) saw_ret = true;
         switch (id) {
           case Simple::VM::kIntrinsicTrap:
           case Simple::VM::kIntrinsicBreakpoint:
@@ -1948,6 +1976,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           return false;
         }
         ReadU32(module.code, scan_pc);
+        saw_ret = true;
         break;
       case OpCode::Line:
         if (scan_pc + 8 > end_pc) {
@@ -2050,6 +2079,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       case OpCode::Call:
       case OpCode::TailCall: {
         saw_call = true;
+        if (op == OpCode::TailCall) saw_ret = true;
         if (scan_pc + 5 > end_pc) {
           reason = "LLVM JIT CALL operand out of bounds";
           return false;
@@ -2333,6 +2363,9 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     reason = ToString(jit_or_error.takeError());
     return false;
   }
+  std::sort(block_offsets.begin(), block_offsets.end());
+  block_offsets.erase(std::unique(block_offsets.begin(), block_offsets.end()), block_offsets.end());
+
   std::unique_ptr<llvm::orc::LLJIT> jit = std::move(*jit_or_error);
   {
     llvm::orc::MangleAndInterner mangle(jit->getExecutionSession(), jit->getDataLayout());
@@ -2799,7 +2832,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     if (arg_count != target_sig.param_count) { reason = std::string("LLVM JIT ") + opname + " arg count mismatch"; return false; }
     if (target_func == func_index && arg_count != param_count) { reason = std::string("LLVM JIT ") + opname + " self arg count mismatch"; return false; }
     if (stack.size() < arg_count) { reason = std::string("LLVM JIT ") + opname + " stack underflow"; return false; }
-    llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count), std::string(opname) + "_args");
+    llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count == 0 ? 1 : arg_count), std::string(opname) + "_args");
     for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
       llvm::Value* arg = to_slot(stack.back());
       stack.pop_back();
@@ -4725,7 +4758,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
         }
         llvm::Value* target_func = to_i32(stack.back());
         stack.pop_back();
-        llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count), "call_indirect_args");
+        llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count == 0 ? 1 : arg_count), "call_indirect_args");
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           llvm::Value* arg = to_slot(stack.back());
           stack.pop_back();
@@ -4783,7 +4816,7 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
           reason = "LLVM JIT CALL stack underflow";
           return false;
         }
-        llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count), "call_args");
+        llvm::AllocaInst* call_args = create_entry_alloca(i64, builder.getInt32(arg_count == 0 ? 1 : arg_count), "call_args");
         for (int i = static_cast<int>(arg_count) - 1; i >= 0; --i) {
           llvm::Value* arg = to_slot(stack.back());
           stack.pop_back();
