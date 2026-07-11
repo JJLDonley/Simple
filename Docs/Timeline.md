@@ -852,6 +852,8 @@ Byte/memory naming is intentional: `Buffer` means mutable/native/runtime/cursor-
 
 ## Phase 5: High-Level `Standard.*` APIs
 
+For the `v0.6` library stabilization scope, see [`LibraryDomainAudit_v0.6.md`](LibraryDomainAudit_v0.6.md). The explicit WIP/deferred domains for that milestone are `System.Net`, `System.HTTP`, `System.Process`, `System.ASM`, `Standard.HTTP`, and `Standard.Promise`.
+
 `Standard.*` is ergonomic, source-level where possible, and built over `System.*`. It never bypasses `System.*` ownership, capability, blocking, allocation, or cleanup rules. The final public model has no top-level short aliases and no duplicate Standard roots that expose raw System members.
 
 Required `Standard.*` modules:
