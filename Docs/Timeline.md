@@ -879,7 +879,8 @@ Next Simple-specific LSP capabilities:
 - [ ] Inlay hints for inferred locals, generic instantiations, ABI/native-call effects, and optional JIT-safety facts.
 - [x] Document links for local `import` paths.
 - [x] Document links for module-header imports and known standard/native docs.
-- [ ] Document links for module-map entries and generated SIR/SBC outputs.
+- [x] Document links for module-map entries.
+- [ ] Document links for generated SIR/SBC outputs.
 - [x] Code lenses for check/run/JIT-run commands on top-level Simple functions and entrypoints.
 - [x] Code lenses for tests/examples.
 - [ ] Code lenses for exported functions and persisted JIT stats.

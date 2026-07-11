@@ -84,7 +84,7 @@
         },
         {
           "name": "meta.declaration.variable.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(:)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?|[A-Za-z_][A-Za-z0-9_]*\\{\\d*\\})(?=\\s|[,;=)])",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::|:)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?|[A-Za-z_][A-Za-z0-9_]*\\{\\d*\\})(?=\\s|[,;=)])",
           "captures": {
             "1": { "name": "variable.other.definition.simple" },
             "2": { "name": "punctuation.separator.type.simple" },

@@ -1603,6 +1603,38 @@ bool LspSemanticTokensClassifyUsingKeyword() {
   return false;
 }
 
+bool LspSemanticTokensClassifyImmutableVariablesAndParameters() {
+  const std::string in_path = TempPath("simple_lsp_tokens_immutable_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_immutable_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_immutable_err.txt");
+  const std::string uri = "file:///workspace/tokens_immutable.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"limit :: i32 = 1;\\nuse : i32 (x : i32, y :: i64) { return x; }\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":72,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(tokens_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!ReadFileText(err_path).empty() || !DecodeSemanticData(ReadFileText(out_path), &entries)) return false;
+  bool saw_limit_decl = false;
+  bool saw_limit_type = false;
+  bool saw_immutable_param = false;
+  bool saw_immutable_param_type = false;
+  for (const auto& entry : entries) {
+    if (entry.line == 0 && entry.col == 0 && entry.len == 5 && entry.type == 3 && (entry.modifiers & 1)) saw_limit_decl = true;
+    if (entry.line == 0 && entry.col == 9 && entry.len == 3 && entry.type == 1) saw_limit_type = true;
+    if (entry.line == 1 && entry.col == 20 && entry.len == 1 && entry.type == 4 && (entry.modifiers & 1)) saw_immutable_param = true;
+    if (entry.line == 1 && entry.col == 25 && entry.len == 3 && entry.type == 1) saw_immutable_param_type = true;
+  }
+  return saw_limit_decl && saw_limit_type && saw_immutable_param && saw_immutable_param_type;
+}
+
 bool LspSemanticTokensMarkFunctionDeclarations() {
   const std::string in_path = TempPath("simple_lsp_tokens_decl_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_decl_out.txt");
@@ -3524,6 +3556,37 @@ bool LspDocumentLinkResolvesReservedImportDocs() {
          out_contents.find("Compiler/Docs/Language.md#reservedsystem-modules-and-standard-library") != std::string::npos;
 }
 
+bool LspDocumentLinkResolvesModuleMapEntries() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_doclink_module_map_test";
+  fs::create_directories(dir / "src");
+  const auto map_path = dir / "simple.modules";
+  const auto target_path = dir / "src" / "thing.simple";
+  {
+    std::ofstream target(target_path);
+    target << "module Tools.Thing\nthing : i32 () { return 1 }";
+  }
+  const std::string uri = "file://" + map_path.generic_string();
+  const std::string target_uri = "file://" + target_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_doclink_module_map_in.txt");
+  const std::string out_path = TempPath("simple_lsp_doclink_module_map_out.txt");
+  const std::string err_path = TempPath("simple_lsp_doclink_module_map_err.txt");
+  const std::string text = "Tools.Thing=src/thing.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string link_req = "{\"jsonrpc\":\"2.0\",\"id\":71,\"method\":\"textDocument/documentLink\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(link_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":71") != std::string::npos &&
+         out_contents.find("\"target\":\"" + target_uri + "\"") != std::string::npos &&
+         out_contents.find("\"character\":12") != std::string::npos;
+}
+
 bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
   const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_test";
@@ -3948,6 +4011,7 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},
   {"lsp_semantic_tokens_classify_using_keyword", LspSemanticTokensClassifyUsingKeyword},
+  {"lsp_semantic_tokens_classify_immutable_variables_and_parameters", LspSemanticTokensClassifyImmutableVariablesAndParameters},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",
    LspSemanticTokensDebugEnvDoesNotBreakResponse},
@@ -4016,6 +4080,7 @@ const TestCase kLspTests[] = {
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
   {"lsp_document_link_resolves_module_header_imports", LspDocumentLinkResolvesModuleHeaderImports},
   {"lsp_document_link_resolves_reserved_import_docs", LspDocumentLinkResolvesReservedImportDocs},
+  {"lsp_document_link_resolves_module_map_entries", LspDocumentLinkResolvesModuleMapEntries},
   {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
   {"lsp_workspace_symbols_index_nested_simple_files", LspWorkspaceSymbolsIndexNestedSimpleFiles},
   {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},

@@ -2090,7 +2090,7 @@ struct SemanticTokenEntry {
 bool IsKeywordText(const std::string& text) {
   static const std::unordered_set<std::string> kKeywords = {
       "while", "for", "break", "skip", "return", "if", "else", "default", "switch",
-      "fn", "callback", "self", "artifact", "enum", "module", "namespace", "import", "extern", "as",
+      "fn", "callback", "self", "artifact", "enum", "module", "namespace", "import", "using", "extern", "as",
       "true", "false",
   };
   return kKeywords.find(text) != kKeywords.end();
@@ -2116,7 +2116,8 @@ bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
 bool IsParameterDeclNameAt(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
-  if (i + 1 >= refs.size() || refs[i + 1].token.kind != TK::Colon) return false;
+  if (i + 1 >= refs.size() ||
+      (refs[i + 1].token.kind != TK::Colon && refs[i + 1].token.kind != TK::DoubleColon)) return false;
   if (i > 0 && (refs[i - 1].token.kind == TK::LParen || refs[i - 1].token.kind == TK::Comma)) {
     return true;
   }
@@ -2250,7 +2251,7 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
     if (artifact_field_indices.find(i) != artifact_field_indices.end()) return 5; // property
     if (i > 0 && refs[i - 1].token.kind == TK::KwImport) return 7; // import module stem
     if (i > 0 && refs[i - 1].token.kind == TK::At && IsPrimitiveTypeName(token.text)) return 1;
-    if (i > 0 && refs[i - 1].token.kind == TK::Colon) return 1; // type position
+    if (i > 0 && (refs[i - 1].token.kind == TK::Colon || refs[i - 1].token.kind == TK::DoubleColon)) return 1; // type position
     if (IsDeclNameAt(refs, i)) return 3; // variable-like declaration
     if (IsPrimitiveTypeName(token.text)) return 1;
   }
@@ -2639,7 +2640,8 @@ void ReplySemanticTokensFull(std::ostream& out,
                                                                artifact_field_indices,
                                                                member_depths,
                                                                member_receivers);
-      if (token_type == 3 && token.kind == Simple::Lang::TokenKind::Identifier) {
+      if (token_type == 3 && token.kind == Simple::Lang::TokenKind::Identifier &&
+          !IsDeclNameAt(refs, i)) {
         continue;
       }
       entries.push_back(SemanticTokenEntry{
@@ -3836,6 +3838,39 @@ bool ImportLooksLikeFilePath(const std::string& import_path) {
          (import_path.size() >= 7 && import_path.substr(import_path.size() - 7) == ".simple");
 }
 
+bool ParseSimpleModulesMapLine(const std::string& line_text,
+                               std::string* out_name,
+                               std::string* out_path,
+                               size_t* out_path_pos) {
+  if (!out_name || !out_path || !out_path_pos) return false;
+  const std::string trimmed = TrimCopy(line_text);
+  if (trimmed.empty() || trimmed.rfind("//", 0) == 0 || trimmed[0] == '#') return false;
+  const size_t eq = line_text.find('=');
+  if (eq == std::string::npos) return false;
+  std::string name = TrimCopy(line_text.substr(0, eq));
+  if (name.empty()) return false;
+  size_t value = eq + 1;
+  while (value < line_text.size() && std::isspace(static_cast<unsigned char>(line_text[value]))) ++value;
+  if (value >= line_text.size()) return false;
+  std::string path;
+  size_t path_pos = value;
+  if (line_text[value] == '"') {
+    path_pos = value + 1;
+    const size_t end = line_text.find('"', path_pos);
+    if (end == std::string::npos || end == path_pos) return false;
+    path = line_text.substr(path_pos, end - path_pos);
+  } else {
+    size_t end = value;
+    while (end < line_text.size() && !std::isspace(static_cast<unsigned char>(line_text[end]))) ++end;
+    if (end == value) return false;
+    path = line_text.substr(value, end - value);
+  }
+  *out_name = std::move(name);
+  *out_path = std::move(path);
+  *out_path_pos = path_pos;
+  return true;
+}
+
 void ReplyDocumentLinks(std::ostream& out,
                         const std::string& id_raw,
                         const std::string& uri,
@@ -3854,6 +3889,20 @@ void ReplyDocumentLinks(std::ostream& out,
   for (size_t i = 0; i <= doc_it->second.size(); ++i) {
     if (i != doc_it->second.size() && doc_it->second[i] != '\n') continue;
     const std::string line = doc_it->second.substr(start, i - start);
+    std::string map_name;
+    std::string map_path;
+    size_t map_path_pos = 0;
+    if (std::filesystem::path(doc_path).filename() == "simple.modules" &&
+        ParseSimpleModulesMapLine(line, &map_name, &map_path, &map_path_pos)) {
+      std::filesystem::path target_path(map_path);
+      if (target_path.is_relative() && !base_dir.empty()) target_path = base_dir / target_path;
+      const std::string link = "{\"range\":" +
+          JsonRange(line_index, static_cast<uint32_t>(map_path_pos), line_index,
+                    static_cast<uint32_t>(map_path_pos + map_path.size())) +
+          ",\"target\":\"" + JsonEscape(PathToFileUri(target_path)) + "\"}";
+      if (!result.empty()) result += ",";
+      result += link;
+    }
     std::string import_path;
     std::string alias;
     if (ParseImportDeclLine(line, &import_path, &alias)) {
