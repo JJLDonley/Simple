@@ -89,7 +89,7 @@
             "2": { "name": "entity.name.namespace.simple" },
             "3": { "name": "entity.name.function.simple" },
             "4": { "name": "punctuation.separator.type.simple" },
-            "5": { "name": "storage.type.simple" },
+            "5": { "name": "entity.name.type.simple" },
             "6": { "name": "storage.modifier.type.simple" },
             "7": { "name": "punctuation.section.group.begin.simple" }
           }
@@ -100,7 +100,7 @@
           "captures": {
             "1": { "name": "entity.name.function.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
-            "3": { "name": "storage.type.simple" },
+            "3": { "name": "entity.name.type.simple" },
             "4": { "name": "punctuation.definition.array-size.begin.simple" },
             "5": { "name": "constant.numeric.array-size.simple" },
             "6": { "name": "punctuation.definition.array-size.end.simple" },
@@ -113,7 +113,7 @@
           "captures": {
             "1": { "name": "entity.name.function.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
-            "3": { "name": "storage.type.simple" },
+            "3": { "name": "entity.name.type.simple" },
             "4": { "name": "storage.modifier.type.simple" },
             "5": { "name": "punctuation.section.group.begin.simple" }
           }
@@ -125,7 +125,7 @@
             "1": { "name": "variable.other.definition.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
             "3": { "name": "keyword.declaration.simple" },
-            "4": { "name": "storage.type.simple" },
+            "4": { "name": "entity.name.type.simple" },
             "5": { "name": "meta.parameters.simple" }
           }
         },
@@ -135,7 +135,7 @@
           "captures": {
             "1": { "name": "variable.other.definition.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
-            "3": { "name": "storage.type.simple" },
+            "3": { "name": "entity.name.type.simple" },
             "4": { "name": "punctuation.definition.array-size.begin.simple" },
             "5": { "name": "constant.numeric.array-size.simple" },
             "6": { "name": "punctuation.definition.array-size.end.simple" }
@@ -147,7 +147,7 @@
           "captures": {
             "1": { "name": "variable.other.definition.simple" },
             "2": { "name": "punctuation.separator.type.simple" },
-            "3": { "name": "storage.type.simple" },
+            "3": { "name": "entity.name.type.simple" },
             "4": { "name": "storage.modifier.type.simple" }
           }
         }
@@ -206,7 +206,7 @@
     "types": {
       "patterns": [
         {
-          "name": "storage.type.simple",
+          "name": "entity.name.type.simple",
           "match": "\\b(?:void|bool|char|string|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64)(?:\\{\\d*\\}|\\[\\]|\\*)*(?=$|\\b|\\s|[,;=)])"
         }
       ]

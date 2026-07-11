@@ -47,6 +47,7 @@ struct EmitState {
   std::unordered_set<std::string> reserved_imports;
   std::unordered_map<std::string, std::string> reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
+  std::unordered_set<std::string> using_modules;
   std::unordered_map<std::string, std::string> extern_ids;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>> extern_ids_by_module;
   std::unordered_map<std::string, std::vector<TypeRef>> extern_params;
@@ -477,6 +478,24 @@ bool ResolveUsingReservedMember(const EmitState& st,
       found = true;
       result = module;
     }
+  }
+  if (!found) return false;
+  if (out_module) *out_module = std::move(result);
+  return true;
+}
+
+bool ResolveUsingModuleExternMember(const EmitState& st,
+                                    const std::string& member,
+                                    std::string* out_module) {
+  bool found = false;
+  std::string result;
+  for (const auto& module : st.using_modules) {
+    auto mod_it = st.extern_ids_by_module.find(module);
+    if (mod_it == st.extern_ids_by_module.end()) continue;
+    if (mod_it->second.find(member) == mod_it->second.end()) continue;
+    if (found) return false;
+    found = true;
+    result = module;
   }
   if (!found) return false;
   if (out_module) *out_module = std::move(result);
@@ -1619,6 +1638,13 @@ bool InferExprType(const Expr& expr,
             if (ret_it == ret_mod_it->second.end()) return false;
             return CloneTypeRef(ret_it->second, out);
           }
+        }
+        if (ResolveUsingModuleExternMember(st, callee.text, &using_module)) {
+          auto ret_mod_it = st.extern_returns_by_module.find(using_module);
+          if (ret_mod_it == st.extern_returns_by_module.end()) return false;
+          auto ret_it = ret_mod_it->second.find(callee.text);
+          if (ret_it == ret_mod_it->second.end()) return false;
+          return CloneTypeRef(ret_it->second, out);
         }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
@@ -2795,6 +2821,36 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
+        }
+        if (ResolveUsingModuleExternMember(st, callee.text, &using_module)) {
+          auto ext_mod_it = st.extern_ids_by_module.find(using_module);
+          const std::string qualified_name = using_module + "." + callee.text;
+          if (ext_mod_it == st.extern_ids_by_module.end()) {
+            if (error) *error = "missing extern module for '" + qualified_name + "'";
+            return false;
+          }
+          auto id_it = ext_mod_it->second.find(callee.text);
+          auto params_it = st.extern_params_by_module[using_module].find(callee.text);
+          auto ret_it = st.extern_returns_by_module[using_module].find(callee.text);
+          if (id_it == ext_mod_it->second.end() ||
+              params_it == st.extern_params_by_module[using_module].end() ||
+              ret_it == st.extern_returns_by_module[using_module].end()) {
+            if (error) *error = "missing signature for extern '" + qualified_name + "'";
+            return false;
+          }
+          const auto& params = params_it->second;
+          if (expr.args.size() != params.size()) {
+            if (error) *error = "call argument count mismatch for '" + qualified_name + "'";
+            return false;
+          }
+          for (size_t i = 0; i < params.size(); ++i) {
+            if (!EmitExpr(st, expr.args[i], &params[i], error)) return false;
+          }
+          (*st.out) << "  call " << id_it->second << " " << params.size() << "\n";
+          if (st.stack_cur >= params.size()) st.stack_cur -= static_cast<uint32_t>(params.size());
+          else st.stack_cur = 0;
+          if (ret_it->second.name != "void") PushStack(st, 1);
+          return true;
         }
       }
       if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
@@ -4685,12 +4741,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (decl.kind == DeclKind::Import) {
         if (decl.import_decl.is_using) {
           const auto alias_it = st.reserved_import_aliases.find(decl.import_decl.path);
-          if (alias_it == st.reserved_import_aliases.end()) {
-            if (error) *error = "using requires prior import: " + decl.import_decl.path;
-            return false;
+          if (alias_it != st.reserved_import_aliases.end()) {
+            st.reserved_imports.insert(alias_it->second);
+            st.using_reserved_modules.insert(alias_it->second);
+          } else {
+            const size_t dot = decl.import_decl.path.rfind('.');
+            st.using_modules.insert(dot == std::string::npos ? decl.import_decl.path : decl.import_decl.path.substr(dot + 1));
           }
-          st.reserved_imports.insert(alias_it->second);
-          st.using_reserved_modules.insert(alias_it->second);
         } else {
           std::string canonical_import;
           if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {

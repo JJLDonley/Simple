@@ -2188,10 +2188,10 @@ bool LangValidateNamespaceExternManifestAndCall() {
   const char* src =
     "import DL\n"
     "Raylib :: namespace { extern InitWindow : void (w : i32, h : i32, title : string) }\n"
-    "main : void () { lib : i64 = DL.Open(\"libraylib.so\", Raylib); Raylib.InitWindow(1, 2, \"ok\"); }";
+    "using Raylib\n"
+    "main : void () { lib : i64 = DL.Open(\"libraylib.so\", Raylib); Raylib.InitWindow(1, 2, \"ok\"); InitWindow(1, 2, \"ok\"); }";
   std::string error;
-  if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
-  return true;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateAssignToArtifactMethodFail() {

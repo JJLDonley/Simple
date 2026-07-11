@@ -41,6 +41,7 @@ struct ValidateContext {
   std::unordered_set<std::string> reserved_imports;
   std::unordered_map<std::string, std::string> reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
+  std::unordered_set<std::string> using_modules;
 };
 
 struct LocalInfo {
@@ -288,6 +289,34 @@ bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
     found = true;
     found_module = module;
     found_info = std::move(candidate);
+  }
+  if (!found) return false;
+  if (out_module) *out_module = std::move(found_module);
+  if (out) *out = std::move(found_info);
+  return true;
+}
+
+bool ResolveUsingModuleExternCallTarget(const ValidateContext& ctx,
+                                        const std::string& member,
+                                        std::string* out_module,
+                                        CallTargetInfo* out) {
+  bool found = false;
+  std::string found_module;
+  CallTargetInfo found_info;
+  for (const auto& module : ctx.using_modules) {
+    auto mod_it = ctx.externs_by_module.find(module);
+    if (mod_it == ctx.externs_by_module.end()) continue;
+    auto ext_it = mod_it->second.find(member);
+    if (ext_it == mod_it->second.end()) continue;
+    if (found) return false;
+    found = true;
+    found_module = module;
+    found_info.params.clear();
+    found_info.return_type = ext_it->second->return_type;
+    found_info.return_mutability = ext_it->second->return_mutability;
+    found_info.type_params.clear();
+    found_info.is_proc = false;
+    for (const auto& param : ext_it->second->params) found_info.params.push_back(param.type);
   }
   if (!found) return false;
   if (out_module) *out_module = std::move(found_module);
@@ -1410,7 +1439,8 @@ bool CheckCallTarget(const Expr& callee,
     }
     CallTargetInfo using_info;
     std::string using_module;
-    if (ResolveUsingReservedCallTarget(ctx, callee.text, &using_module, &using_info)) {
+    if (ResolveUsingReservedCallTarget(ctx, callee.text, &using_module, &using_info) ||
+        ResolveUsingModuleExternCallTarget(ctx, callee.text, &using_module, &using_info)) {
       if (using_module == "IO" && IsIoPrintName(callee.text)) {
         if (arg_count == 0) {
           if (error) *error = "call argument count mismatch for " + callee.text;
@@ -1658,7 +1688,8 @@ bool GetCallTargetInfo(const Expr& callee,
       }
       return false;
     }
-    if (ResolveUsingReservedCallTarget(ctx, callee.text, nullptr, out)) return true;
+    if (ResolveUsingReservedCallTarget(ctx, callee.text, nullptr, out) ||
+        ResolveUsingModuleExternCallTarget(ctx, callee.text, nullptr, out)) return true;
     return false;
   }
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
@@ -2939,7 +2970,8 @@ bool CheckExpr(const Expr& expr,
         PrefixErrorLocation(expr.line, expr.column, error);
         return false;
       }
-      if (ResolveUsingReservedCallTarget(ctx, expr.text, nullptr, nullptr)) {
+      if (ResolveUsingReservedCallTarget(ctx, expr.text, nullptr, nullptr) ||
+          ResolveUsingModuleExternCallTarget(ctx, expr.text, nullptr, nullptr)) {
         return true;
       }
       if (error) *error = "undeclared identifier: " + expr.text;
@@ -3403,14 +3435,17 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Import:
       {
         if (decl.import_decl.is_using) {
-          if (!CheckUsingImportHasPriorAlias(decl.import_decl.path,
-                                             ctx.reserved_import_aliases,
-                                             error)) {
-            return false;
+          if (CheckUsingImportHasPriorAlias(decl.import_decl.path,
+                                            ctx.reserved_import_aliases,
+                                            nullptr)) {
+            const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
+            ctx.reserved_imports.insert(alias_it->second);
+            ctx.using_reserved_modules.insert(alias_it->second);
+            break;
           }
-          const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
-          ctx.reserved_imports.insert(alias_it->second);
-          ctx.using_reserved_modules.insert(alias_it->second);
+          const size_t dot = decl.import_decl.path.rfind('.');
+          const std::string leaf = dot == std::string::npos ? decl.import_decl.path : decl.import_decl.path.substr(dot + 1);
+          ctx.using_modules.insert(ctx.modules.find(decl.import_decl.path) != ctx.modules.end() ? decl.import_decl.path : leaf);
           break;
         }
         std::string canonical_import;

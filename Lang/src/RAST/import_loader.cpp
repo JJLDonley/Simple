@@ -158,7 +158,8 @@ bool AppendProgramWithLocalImports(const std::filesystem::path& file_path,
 
   for (auto& decl : program.decls) {
     if (decl.kind == DeclKind::ModuleHeader) continue;
-    if (decl.kind == DeclKind::Import && !IsReservedImportPath(decl.import_decl.path)) continue;
+    if (decl.kind == DeclKind::Import && !decl.import_decl.is_using &&
+        !IsReservedImportPath(decl.import_decl.path)) continue;
     out->decls.push_back(std::move(decl));
   }
   for (auto& stmt : program.top_level_stmts) {
