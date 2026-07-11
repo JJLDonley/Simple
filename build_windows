@@ -87,9 +87,14 @@ find_exe() {
 }
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
-  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release \
-    -DSIMPLEVM_VERSION_OVERRIDE="$VERSION" \
-    "${CMAKE_ARGS[@]}"
+  if [[ "${#CMAKE_ARGS[@]}" -gt 0 ]]; then
+    cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release \
+      -DSIMPLEVM_VERSION_OVERRIDE="$VERSION" \
+      "${CMAKE_ARGS[@]}"
+  else
+    cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release \
+      -DSIMPLEVM_VERSION_OVERRIDE="$VERSION"
+  fi
   cmake --build "$BUILD_DIR" --config Release --target simplevm_runtime_static simplevm_runtime_shared simplevm simple_stub --parallel "${JOBS:-2}"
   if [[ "$RUN_TESTS" -eq 1 ]]; then
     cmake --build "$BUILD_DIR" --config Release --target simplevm_tests --parallel "${JOBS:-2}"
