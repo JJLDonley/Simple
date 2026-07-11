@@ -2004,6 +2004,14 @@ std::string SummaryMarkdown(const std::string& summary) {
   return summary.empty() ? "-" : summary;
 }
 
+std::string AvailabilityMarkdown(Simple::Lang::LibraryApiAvailability availability) {
+  switch (availability) {
+    case Simple::Lang::LibraryApiAvailability::Implemented: return "implemented";
+    case Simple::Lang::LibraryApiAvailability::Planned: return "planned";
+  }
+  return "planned";
+}
+
 std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
   if (resources.empty()) return "-";
   std::ostringstream out;
@@ -2020,21 +2028,31 @@ std::string ResourcesMarkdown(const std::vector<NativeResourceUse>& resources) {
 std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
   std::map<std::string, std::vector<const NativeFunctionSpec*>> modules;
   for (const NativeFunctionSpec& spec : registry.Functions()) {
-    modules[spec.module_name].push_back(&spec);
+    const std::string module_key = spec.library_module
+                                       ? std::string(Simple::Lang::ToImportPath(*spec.library_module))
+                                       : spec.module_name;
+    modules[module_key].push_back(&spec);
   }
   std::ostringstream out;
   out << "# Native Standard Library Metadata\n\n";
-  out << "Generated from `NativeRegistry` metadata.\n";
+  out << "Generated from `NativeRegistry` metadata plus library catalog module/member ids.\n";
   for (auto& entry : modules) {
     std::sort(entry.second.begin(), entry.second.end(), [](const NativeFunctionSpec* lhs,
                                                            const NativeFunctionSpec* rhs) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Layer | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |\n"
-        << "|---|---|---|---|---|---|---|---|---|---|---|---|\n";
+    out << "| Symbol | Catalog | Availability | Layer | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |\n"
+        << "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
-      out << "| `" << spec->symbol_name << "` | `" << LayerMarkdown(spec->layer) << "` | `(";
+      const auto catalog_meta = spec->library_module
+                                    ? Simple::Lang::GetLibraryMemberMetadata(*spec->library_module, spec->symbol_name)
+                                    : Simple::Lang::LibraryMemberMetadata{};
+      out << "| `" << spec->symbol_name << "` | `"
+          << (spec->library_module ? Simple::Lang::ToImportPath(*spec->library_module) : std::string_view("-"))
+          << "` | `"
+          << (spec->library_module ? AvailabilityMarkdown(catalog_meta.availability) : std::string("-"))
+          << "` | `" << LayerMarkdown(spec->layer) << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
         if (i > 0) out << ", ";
         out << TypeKindMarkdown(spec->parameter_types[i]);

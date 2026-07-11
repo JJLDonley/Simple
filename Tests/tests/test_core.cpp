@@ -16678,8 +16678,8 @@ bool RunNativeRegistryModuleTest() {
          default_metadata_valid && missing_doc_rejected && bad_layer_rejected &&
          stdlib_markdown_complete &&
          stdlib_markdown.find("## System.FS") != std::string::npos &&
-         stdlib_markdown.find("| `readText` | `system` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` |") != std::string::npos &&
-         stdlib_markdown.find("| `buffer_copy` | `system` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `readText` | `System.FS` | `implemented` | `system` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `buffer_copy` | `System.IO` | `implemented` | `system` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` | `-` |") != std::string::npos &&
          stdlib_markdown.find("out:file:to-caller:vm-shutdown") != std::string::npos &&
          random_i32 && os_time &&
          os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&

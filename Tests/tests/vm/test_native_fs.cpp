@@ -359,13 +359,13 @@ bool VmNativeFunctionMetadataDeclaresResources() {
 bool VmNativeGeneratedDocsIncludeCapabilitiesAndResources() {
   const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
   const std::string docs = Simple::VM::Native::GenerateStdLibMarkdown(registry);
-  return docs.find("| Symbol | Layer | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |") !=
+  return docs.find("| Symbol | Catalog | Availability | Layer | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |") !=
              std::string::npos &&
-         docs.find("| `readText` | `system` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
+         docs.find("| `readText` | `System.FS` | `implemented` | `system` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` | `all` | `experimental` | Read a UTF-8 text file. |") !=
              std::string::npos &&
-         docs.find("| `open` | `system` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `-` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
+         docs.find("| `open` | `System.FS` | `implemented` | `system` | `(string, i32) -> i32` | `may-block` | `no-alloc` | `no-safepoint` | `-` | `filesystem.open` | `out:file:to-caller:vm-shutdown` | `all` | `experimental` | Open a file descriptor handle. |") !=
              std::string::npos &&
-         docs.find("| `sym` | `system` | `(i64, string) -> i64` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
+         docs.find("| `sym` | `System.FFI` | `implemented` | `system` | `(i64, string) -> i64` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `ffi.dynamic_load` | `in:ffi-library@0:borrow:none` | `all` | `unsafe` | Resolve a symbol from a dynamic library handle. |") !=
              std::string::npos;
 }
 
