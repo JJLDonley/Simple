@@ -23,6 +23,7 @@
 #include "TAST/type_checker.h"
 #include "TAST/control_flow.h"
 #include "TAST/types.h"
+#include "lang_library.h"
 #include "IRB/ir_builder.h"
 #include "IRE/sir_emitter.h"
 #include "Lexer/lexer.h"
@@ -2379,6 +2380,29 @@ bool LangValidateAssignToModuleFunctionFail() {
   return true;
 }
 
+bool LangLibraryCatalogCoversAllModulesAndMembers() {
+  using namespace Simple::Lang;
+  if (kSystemModules.size() != 23 || kStandardModules.size() != 22) return false;
+  if (AllLibraryImportPaths().size() != kSystemModules.size() + kStandardModules.size()) return false;
+  if (ToImportPath(SystemModule::Buffer) != "System.Buffer") return false;
+  if (ToImportPath(StandardModule::Buffer) != "Standard.Buffer") return false;
+  if (ToNativeModule(SystemModule::Buffer) != "System.buffer") return false;
+  if (ToCanonicalName(SystemModule::Buffer) != "SystemBuffer") return false;
+  if (ToCanonicalName(StandardModule::Buffer) != "StandardBuffer") return false;
+  if (ToMember(SystemBufferMember::ReadU32LE) != "readU32LE") return false;
+  if (ToMember(SystemFSMember::NextDirEntry) != "nextDirEntry") return false;
+  if (ToMember(SystemFFIMember::LastError) != "lastError") return false;
+  if (ToMember(StandardBytesMember::ToBase64) != "toBase64") return false;
+  if (ToMember(StandardBufferMember::WithCapacity) != "withCapacity") return false;
+  if (MemberNames(SystemModule::Buffer).size() != 12) return false;
+  if (MemberNames(StandardModule::Buffer).size() != 15) return false;
+  if (!ParseLibraryImportPath("System.Buffer")) return false;
+  if (!ParseLibraryImportPath("Standard.Buffer")) return false;
+  if (ParseLibraryImportPath("Buffer")) return false;
+  const auto replacement = LegacyReservedImportReplacementView("Buffer");
+  return replacement && replacement->find("System.Buffer") != std::string_view::npos;
+}
+
 bool LangRejectLegacyReservedImports() {
   const char* src = "import IO\nmain : void () { }";
   std::string error;
@@ -3732,6 +3756,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
   {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
+  {"lang_library_catalog_covers_all_modules_and_members", LangLibraryCatalogCoversAllModulesAndMembers},
   {"lang_reject_legacy_reserved_imports", LangRejectLegacyReservedImports},
   {"lang_validate_canonical_system_standard_imports", LangValidateCanonicalSystemStandardImports},
   {"lang_validate_all_planned_system_standard_imports", LangValidateAllPlannedSystemStandardImports},
