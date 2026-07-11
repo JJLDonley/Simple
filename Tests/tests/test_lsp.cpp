@@ -3652,6 +3652,31 @@ bool LspCallHierarchyReturnsFunctionCalls() {
          out_contents.find("\"from\":{\"name\":\"caller\"") != std::string::npos;
 }
 
+bool LspCallHierarchyReturnsNamespaceMemberCalls() {
+  const std::string in_path = TempPath("simple_lsp_call_hierarchy_member_in.txt");
+  const std::string out_path = TempPath("simple_lsp_call_hierarchy_member_out.txt");
+  const std::string err_path = TempPath("simple_lsp_call_hierarchy_member_err.txt");
+  const std::string uri = "file:///workspace/member_calls.simple";
+  const std::string text =
+      "Math :: namespace { add : i32 () { return one() } }\\n"
+      "one : i32 () { return 1 }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string item = "{\"name\":\"add\",\"kind\":12,\"uri\":\"" + uri + "\",\"range\":{\"start\":{\"line\":0,\"character\":20},\"end\":{\"line\":0,\"character\":23}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":20},\"end\":{\"line\":0,\"character\":23}}}";
+  const std::string outgoing_req = "{\"jsonrpc\":\"2.0\",\"id\":64,\"method\":\"callHierarchy/outgoingCalls\",\"params\":{\"item\":" + item + "}}";
+  const std::string one_item = "{\"name\":\"one\",\"kind\":12,\"uri\":\"" + uri + "\",\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":3}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":3}}}";
+  const std::string incoming_req = "{\"jsonrpc\":\"2.0\",\"id\":65,\"method\":\"callHierarchy/incomingCalls\",\"params\":{\"item\":" + one_item + "}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(outgoing_req) + BuildLspFrame(incoming_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":64") != std::string::npos &&
+         out_contents.find("\"to\":{\"name\":\"one\"") != std::string::npos &&
+         out_contents.find("\"id\":65") != std::string::npos &&
+         out_contents.find("\"from\":{\"name\":\"add\"") != std::string::npos;
+}
+
 bool LspInlayHintReturnsParameterHints() {
   const std::string in_path = TempPath("simple_lsp_inlay_in.txt");
   const std::string out_path = TempPath("simple_lsp_inlay_out.txt");
@@ -3910,6 +3935,7 @@ const TestCase kLspTests[] = {
   {"lsp_range_formatting_returns_line_edit", LspRangeFormattingReturnsLineEdit},
   {"lsp_linked_editing_range_returns_identifier_ranges", LspLinkedEditingRangeReturnsIdentifierRanges},
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
+  {"lsp_call_hierarchy_returns_namespace_member_calls", LspCallHierarchyReturnsNamespaceMemberCalls},
   {"lsp_inlay_hint_returns_parameter_hints", LspInlayHintReturnsParameterHints},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},
   {"lsp_code_lens_returns_test_and_example_commands", LspCodeLensReturnsTestAndExampleCommands},

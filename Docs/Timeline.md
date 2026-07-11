@@ -869,7 +869,8 @@ Next Simple-specific LSP capabilities:
 - [ ] Type-definition lookup for native ABI type uses.
 - [x] Linked editing ranges for same-document Simple identifier declarations/usages.
 - [x] Call hierarchy prepare/incoming/outgoing for Simple top-level functions across opened documents.
-- [ ] Call hierarchy for methods, imports, and native wrappers.
+- [x] Call hierarchy for namespace/member functions.
+- [ ] Call hierarchy for imports and native wrappers.
 - [x] Folding ranges for brace-delimited Simple regions.
 - [x] Selection ranges for token -> enclosing brace-region nesting.
 - [x] Inlay hints for Simple function-call parameter names.

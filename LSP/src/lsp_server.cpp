@@ -3443,7 +3443,7 @@ uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
 
 bool IsFunctionDeclAt(const std::vector<TokenRef>& refs, size_t i) {
   return i < refs.size() && refs[i].token.kind == Simple::Lang::TokenKind::Identifier &&
-         refs[i].depth == 0 && IsDeclNameAt(refs, i) && SymbolKindFor(refs, i) == 12;
+         IsDeclNameAt(refs, i) && SymbolKindFor(refs, i) == 12;
 }
 
 bool IsCallExpressionAt(const std::vector<TokenRef>& refs, size_t i) {
