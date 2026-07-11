@@ -329,6 +329,38 @@ bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
   return true;
 }
 
+bool LibraryTypeToTypeRef(const LibraryTypeSpec& spec, TypeRef* out) {
+  if (!out || spec.name.empty()) return false;
+  std::string name(spec.name);
+  if (name.size() >= 2 && name.substr(name.size() - 2) == "[]") {
+    *out = MakeListType(name.substr(0, name.size() - 2));
+    return true;
+  }
+  *out = MakeSimpleType(name);
+  return true;
+}
+
+bool ApplyLibrarySignatureToCallTarget(const LibrarySignatureSpec& signature,
+                                       CallTargetInfo* out) {
+  if (!out) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = signature.is_proc;
+  out->type_params.reserve(signature.type_params.size());
+  for (std::string_view type_param : signature.type_params) {
+    out->type_params.emplace_back(type_param);
+  }
+  out->params.reserve(signature.params.size());
+  for (const LibraryParamSpec& param : signature.params) {
+    TypeRef param_type;
+    if (!LibraryTypeToTypeRef(param.type, &param_type)) return false;
+    out->params.push_back(std::move(param_type));
+  }
+  if (!LibraryTypeToTypeRef(signature.return_type, &out->return_type)) return false;
+  out->return_mutability = Mutability::Mutable;
+  return true;
+}
+
 bool GetReservedModuleCallTarget(const ValidateContext& ctx,
                                  const std::string& module,
                                  const std::string& member,
@@ -336,378 +368,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
   std::string resolved;
   if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
   if (!out) return false;
-  out->params.clear();
-  out->type_params.clear();
-  out->is_proc = false;
-
-  auto set_ret = [&](TypeRef ret) {
-    out->return_type = std::move(ret);
-    out->return_mutability = Mutability::Mutable;
-    return true;
-  };
-  auto add = [&](TypeRef param) { out->params.push_back(std::move(param)); };
-  auto simple = [](const char* name) { return MakeSimpleType(name); };
-  auto list_i32 = []() { return MakeListType("i32"); };
 
   const auto module_id = ParseCanonicalLibraryModule(resolved);
   if (!module_id) return TryGetNativeReservedModuleCallTarget(resolved, member, out);
-
-  if (module_id->root == LibraryRoot::Standard) {
-    const StandardModule mod = static_cast<StandardModule>(module_id->module_index);
-    const auto parsed = ParseMember(mod, member);
-    if (!parsed) return false;
-    switch (mod) {
-      case StandardModule::IO:
-        if (std::holds_alternative<StandardIOMember>(*parsed) &&
-            (std::get<StandardIOMember>(*parsed) == StandardIOMember::Print ||
-             std::get<StandardIOMember>(*parsed) == StandardIOMember::Println)) {
-          add(simple("T")); out->type_params = {"T"}; return set_ret(simple("void"));
-        }
-        return false;
-      case StandardModule::Math: {
-        const auto m = std::get<StandardMathMember>(*parsed);
-        if (m == StandardMathMember::Abs || m == StandardMathMember::Sqrt) { add(simple("T")); out->type_params = {"T"}; return set_ret(simple("T")); }
-        if (m == StandardMathMember::Min || m == StandardMathMember::Max) { add(simple("T")); add(simple("T")); out->type_params = {"T"}; return set_ret(simple("T")); }
-        return false;
-      }
-      case StandardModule::Time: {
-        const auto m = std::get<StandardTimeMember>(*parsed);
-        if (m == StandardTimeMember::MonoSnake || m == StandardTimeMember::WallSnake ||
-            m == StandardTimeMember::MonoNs || m == StandardTimeMember::NowNs) return set_ret(simple("i64"));
-        if (m == StandardTimeMember::FormatWallNs) { add(simple("i64")); return set_ret(simple("string")); }
-        if (m == StandardTimeMember::SleepMs) { add(simple("i32")); return set_ret(simple("void")); }
-        return false;
-      }
-      case StandardModule::FS: {
-        const auto m = std::get<StandardFSMember>(*parsed);
-        if (m == StandardFSMember::ReadText) { add(simple("string")); return set_ret(simple("string")); }
-        if (m == StandardFSMember::WriteText) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
-        if (m == StandardFSMember::ReadBytes) { add(simple("string")); return set_ret(list_i32()); }
-        if (m == StandardFSMember::WriteBytes) { add(simple("string")); add(list_i32()); return set_ret(simple("bool")); }
-        if (m == StandardFSMember::Exists || m == StandardFSMember::IsFile || m == StandardFSMember::IsDir) { add(simple("string")); return set_ret(simple("bool")); }
-        if (m == StandardFSMember::Copy) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
-        if (m == StandardFSMember::Remove || m == StandardFSMember::Mkdir || m == StandardFSMember::MkdirAll || m == StandardFSMember::SetCwd) { add(simple("string")); return set_ret(simple("bool")); }
-        if (m == StandardFSMember::ListDir) { add(simple("string")); return set_ret(MakeListType("string")); }
-        if (m == StandardFSMember::Cwd) return set_ret(simple("string"));
-        return false;
-      }
-      case StandardModule::Path: {
-        const auto m = std::get<StandardPathMember>(*parsed);
-        if (m == StandardPathMember::Join) { add(simple("string")); add(simple("string")); return set_ret(simple("string")); }
-        if (m == StandardPathMember::Dirname || m == StandardPathMember::Basename || m == StandardPathMember::Ext || m == StandardPathMember::Stem || m == StandardPathMember::Normalize) { add(simple("string")); return set_ret(simple("string")); }
-        return false;
-      }
-      case StandardModule::Random: {
-        const auto m = std::get<StandardRandomMember>(*parsed);
-        if (m == StandardRandomMember::Seed) { add(simple("i64")); return set_ret(simple("void")); }
-        if (m == StandardRandomMember::I32 || m == StandardRandomMember::Range) { if (m == StandardRandomMember::Range) { add(simple("i32")); add(simple("i32")); } return set_ret(simple("i32")); }
-        if (m == StandardRandomMember::I64) return set_ret(simple("i64"));
-        if (m == StandardRandomMember::F64) return set_ret(simple("f64"));
-        return false;
-      }
-      case StandardModule::Bytes: {
-        const auto m = std::get<StandardBytesMember>(*parsed);
-        if (m == StandardBytesMember::New) { add(simple("i32")); return set_ret(list_i32()); }
-        if (m == StandardBytesMember::Slice) { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32()); }
-        return false;
-      }
-      case StandardModule::Log: {
-        const auto m = std::get<StandardLogMember>(*parsed);
-        if (m == StandardLogMember::Info || m == StandardLogMember::Warn || m == StandardLogMember::Error) { add(simple("string")); return set_ret(simple("void")); }
-        if (m == StandardLogMember::SetLevel) { add(simple("i32")); return set_ret(simple("void")); }
-        if (m == StandardLogMember::SetFile) { add(simple("string")); return set_ret(simple("bool")); }
-        return false;
-      }
-      case StandardModule::Console:
-      case StandardModule::Buffer:
-      case StandardModule::Text:
-      case StandardModule::Json:
-      case StandardModule::Process:
-      case StandardModule::Net:
-      case StandardModule::HTTP:
-      case StandardModule::HTTPS:
-      case StandardModule::Terminal:
-      case StandardModule::Promise:
-      case StandardModule::Channel:
-      case StandardModule::Collections:
-      case StandardModule::Result:
-      case StandardModule::Option:
-        return false;
-    }
-    return false;
-  }
-
-  const SystemModule mod = static_cast<SystemModule>(module_id->module_index);
-  const auto normalized_member = mod == SystemModule::FFI ? NormalizeDlMemberName(member) : member;
-  const auto parsed = ParseMember(mod, normalized_member);
-  if (!parsed) return false;
-  switch (mod) {
-    case SystemModule::IO: {
-      const auto m = std::get<SystemIOMember>(*parsed);
-      if (m == SystemIOMember::BufferNew) { add(simple("i32")); return set_ret(list_i32()); }
-      if (m == SystemIOMember::BufferLen) { add(list_i32()); return set_ret(simple("i32")); }
-      if (m == SystemIOMember::BufferFill) { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
-      if (m == SystemIOMember::BufferCopy) { add(list_i32()); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
-      return false;
-    }
-    case SystemModule::Time: {
-      const auto m = std::get<SystemTimeMember>(*parsed);
-      if (m == SystemTimeMember::MonoSnake || m == SystemTimeMember::WallSnake || m == SystemTimeMember::MonoNs || m == SystemTimeMember::WallNs) return set_ret(simple("i64"));
-      return false;
-    }
-    case SystemModule::FFI: {
-      const auto m = std::get<SystemFFIMember>(*parsed);
-      if (m == SystemFFIMember::Open) { add(simple("string")); return set_ret(simple("i64")); }
-      if (m == SystemFFIMember::Sym || m == SystemFFIMember::Symbol) { add(simple("i64")); add(simple("string")); return set_ret(simple("i64")); }
-      if (m == SystemFFIMember::Close) { add(simple("i64")); return set_ret(simple("i32")); }
-      if (m == SystemFFIMember::LastError || m == SystemFFIMember::LastErrorSnake) return set_ret(simple("string"));
-      if (m == SystemFFIMember::CallI32) { add(simple("i64")); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
-      if (m == SystemFFIMember::CallI64) { add(simple("i64")); add(simple("i64")); add(simple("i64")); return set_ret(simple("i64")); }
-      if (m == SystemFFIMember::CallF32) { add(simple("i64")); add(simple("f32")); add(simple("f32")); return set_ret(simple("f32")); }
-      if (m == SystemFFIMember::CallF64) { add(simple("i64")); add(simple("f64")); add(simple("f64")); return set_ret(simple("f64")); }
-      if (m == SystemFFIMember::CallStr0) { add(simple("i64")); return set_ret(simple("string")); }
-      return false;
-    }
-    case SystemModule::FS: {
-      const auto m = std::get<SystemFSMember>(*parsed);
-      if (m == SystemFSMember::ReadText) { add(simple("string")); return set_ret(simple("string")); }
-      if (m == SystemFSMember::WriteText) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemFSMember::ReadBytes) { add(simple("string")); return set_ret(list_i32()); }
-      if (m == SystemFSMember::WriteBytes) { add(simple("string")); add(list_i32()); return set_ret(simple("bool")); }
-      if (m == SystemFSMember::ListDir) { add(simple("string")); return set_ret(MakeListType("string")); }
-      if (m == SystemFSMember::Exists || m == SystemFSMember::IsFile || m == SystemFSMember::IsDir) { add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemFSMember::Copy) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemFSMember::Remove || m == SystemFSMember::Mkdir || m == SystemFSMember::MkdirAll || m == SystemFSMember::SetCwd) { add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemFSMember::Cwd) return set_ret(simple("string"));
-      if (m == SystemFSMember::Open) { add(simple("string")); add(simple("i32")); return set_ret(simple("i32")); }
-      if (m == SystemFSMember::Close) { add(simple("i32")); return set_ret(simple("void")); }
-      if (m == SystemFSMember::Read || m == SystemFSMember::Write) { add(simple("i32")); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
-      return false;
-    }
-    case SystemModule::Path: {
-      const auto m = std::get<SystemPathMember>(*parsed);
-      if (m == SystemPathMember::Separator || m == SystemPathMember::Delimiter) return set_ret(simple("string"));
-      if (m == SystemPathMember::IsAbsolute) { add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemPathMember::Join) { add(simple("string")); add(simple("string")); return set_ret(simple("string")); }
-      if (m == SystemPathMember::Dirname || m == SystemPathMember::Basename || m == SystemPathMember::Ext || m == SystemPathMember::Stem || m == SystemPathMember::Normalize) { add(simple("string")); return set_ret(simple("string")); }
-      return false;
-    }
-    case SystemModule::Env: {
-      const auto m = std::get<SystemEnvMember>(*parsed);
-      if (m == SystemEnvMember::ArgsCount) return set_ret(simple("i32"));
-      if (m == SystemEnvMember::Arg) { add(simple("i32")); return set_ret(simple("string")); }
-      if (m == SystemEnvMember::Get) { add(simple("string")); return set_ret(simple("string")); }
-      if (m == SystemEnvMember::Set) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemEnvMember::Unset) { add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemEnvMember::ExePath) return set_ret(simple("string"));
-      return false;
-    }
-    case SystemModule::OS: {
-      const auto m = std::get<SystemOSMember>(*parsed);
-      if (m == SystemOSMember::Platform || m == SystemOSMember::Arch) return set_ret(simple("string"));
-      if (m == SystemOSMember::IsLinux || m == SystemOSMember::IsMacos || m == SystemOSMember::IsWindows) return set_ret(simple("bool"));
-      if (m == SystemOSMember::Pid || m == SystemOSMember::CpuCount || m == SystemOSMember::PageSize) return set_ret(simple("i32"));
-      if (m == SystemOSMember::Exit || m == SystemOSMember::SleepMs) { add(simple("i32")); return set_ret(simple("void")); }
-      return false;
-    }
-    case SystemModule::Random: {
-      const auto m = std::get<SystemRandomMember>(*parsed);
-      if (m == SystemRandomMember::Seed) { add(simple("i64")); return set_ret(simple("void")); }
-      if (m == SystemRandomMember::I32) return set_ret(simple("i32"));
-      if (m == SystemRandomMember::I64) return set_ret(simple("i64"));
-      if (m == SystemRandomMember::F64) return set_ret(simple("f64"));
-      if (m == SystemRandomMember::FillBytes) { add(list_i32()); return set_ret(simple("bool")); }
-      return false;
-    }
-    case SystemModule::Channel: {
-      const auto m = std::get<SystemChannelMember>(*parsed);
-      auto channel_value_type = [](SystemChannelMember value) -> TypeRef {
-        switch (value) {
-          case SystemChannelMember::NewI64:
-          case SystemChannelMember::SendI64:
-          case SystemChannelMember::TrySendI64:
-          case SystemChannelMember::RecvI64:
-          case SystemChannelMember::TryRecvI64:
-          case SystemChannelMember::PendingI64:
-            return MakeSimpleType("i64");
-          case SystemChannelMember::NewF32:
-          case SystemChannelMember::SendF32:
-          case SystemChannelMember::TrySendF32:
-          case SystemChannelMember::RecvF32:
-          case SystemChannelMember::TryRecvF32:
-          case SystemChannelMember::PendingF32:
-            return MakeSimpleType("f32");
-          case SystemChannelMember::NewF64:
-          case SystemChannelMember::SendF64:
-          case SystemChannelMember::TrySendF64:
-          case SystemChannelMember::RecvF64:
-          case SystemChannelMember::TryRecvF64:
-          case SystemChannelMember::PendingF64:
-            return MakeSimpleType("f64");
-          case SystemChannelMember::NewBool:
-          case SystemChannelMember::SendBool:
-          case SystemChannelMember::TrySendBool:
-          case SystemChannelMember::RecvBool:
-          case SystemChannelMember::TryRecvBool:
-          case SystemChannelMember::PendingBool:
-            return MakeSimpleType("bool");
-          case SystemChannelMember::NewString:
-          case SystemChannelMember::SendString:
-          case SystemChannelMember::TrySendString:
-          case SystemChannelMember::RecvString:
-          case SystemChannelMember::TryRecvString:
-          case SystemChannelMember::PendingString:
-            return MakeSimpleType("string");
-          case SystemChannelMember::NewBytes:
-          case SystemChannelMember::SendBytes:
-          case SystemChannelMember::TrySendBytes:
-          case SystemChannelMember::RecvBytes:
-          case SystemChannelMember::TryRecvBytes:
-          case SystemChannelMember::PendingBytes:
-            return MakeListType("i32");
-          case SystemChannelMember::NewI32:
-          case SystemChannelMember::SendI32:
-          case SystemChannelMember::TrySendI32:
-          case SystemChannelMember::RecvI32:
-          case SystemChannelMember::TryRecvI32:
-          case SystemChannelMember::PendingI32:
-          case SystemChannelMember::Close:
-            return MakeSimpleType("i32");
-        }
-        return MakeSimpleType("i32");
-      };
-      switch (m) {
-        case SystemChannelMember::NewI32:
-        case SystemChannelMember::NewI64:
-        case SystemChannelMember::NewF32:
-        case SystemChannelMember::NewF64:
-        case SystemChannelMember::NewBool:
-        case SystemChannelMember::NewString:
-        case SystemChannelMember::NewBytes:
-          return set_ret(simple("i64"));
-        case SystemChannelMember::SendI32:
-        case SystemChannelMember::TrySendI32:
-        case SystemChannelMember::SendI64:
-        case SystemChannelMember::TrySendI64:
-        case SystemChannelMember::SendF32:
-        case SystemChannelMember::TrySendF32:
-        case SystemChannelMember::SendF64:
-        case SystemChannelMember::TrySendF64:
-        case SystemChannelMember::SendBool:
-        case SystemChannelMember::TrySendBool:
-        case SystemChannelMember::SendString:
-        case SystemChannelMember::TrySendString:
-        case SystemChannelMember::SendBytes:
-        case SystemChannelMember::TrySendBytes:
-          add(simple("i64")); add(channel_value_type(m)); return set_ret(simple("bool"));
-        case SystemChannelMember::RecvI32:
-        case SystemChannelMember::TryRecvI32:
-        case SystemChannelMember::RecvI64:
-        case SystemChannelMember::TryRecvI64:
-        case SystemChannelMember::RecvF32:
-        case SystemChannelMember::TryRecvF32:
-        case SystemChannelMember::RecvF64:
-        case SystemChannelMember::TryRecvF64:
-        case SystemChannelMember::RecvBool:
-        case SystemChannelMember::TryRecvBool:
-        case SystemChannelMember::RecvString:
-        case SystemChannelMember::TryRecvString:
-        case SystemChannelMember::RecvBytes:
-        case SystemChannelMember::TryRecvBytes:
-          add(simple("i64")); return set_ret(channel_value_type(m));
-        case SystemChannelMember::PendingI32:
-        case SystemChannelMember::PendingI64:
-        case SystemChannelMember::PendingF32:
-        case SystemChannelMember::PendingF64:
-        case SystemChannelMember::PendingBool:
-        case SystemChannelMember::PendingString:
-        case SystemChannelMember::PendingBytes:
-          add(simple("i64")); return set_ret(simple("i32"));
-        case SystemChannelMember::Close:
-          add(simple("i64")); return set_ret(simple("void"));
-      }
-      return false;
-    }
-    case SystemModule::Thread: {
-      const auto m = std::get<SystemThreadMember>(*parsed);
-      if (m == SystemThreadMember::Sleep) { add(simple("i32")); return set_ret(simple("void")); }
-      if (m == SystemThreadMember::Yield) return set_ret(simple("void"));
-      if (m == SystemThreadMember::HardwareConcurrency) return set_ret(simple("i32"));
-      return false;
-    }
-    case SystemModule::Json: {
-      const auto m = std::get<SystemJsonMember>(*parsed);
-      if (m == SystemJsonMember::Parse) { add(simple("string")); return set_ret(simple("i64")); }
-      if (m == SystemJsonMember::Stringify) { add(simple("i64")); return set_ret(simple("string")); }
-      if (m == SystemJsonMember::Free) { add(simple("i64")); return set_ret(simple("bool")); }
-      return false;
-    }
-    case SystemModule::Buffer: {
-      const auto m = std::get<SystemBufferMember>(*parsed);
-      switch (m) {
-        case SystemBufferMember::New: add(simple("i32")); return set_ret(list_i32());
-        case SystemBufferMember::Len: add(list_i32()); return set_ret(simple("i32"));
-        case SystemBufferMember::ReadU16LE:
-        case SystemBufferMember::ReadU32LE:
-          add(list_i32()); add(simple("i32")); return set_ret(simple("i32"));
-        case SystemBufferMember::WriteU16LE:
-        case SystemBufferMember::WriteU32LE:
-          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool"));
-        case SystemBufferMember::Slice:
-          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32());
-        case SystemBufferMember::Copy:
-          add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32"));
-        case SystemBufferMember::Get:
-        case SystemBufferMember::Set:
-        case SystemBufferMember::ReadU64LE:
-        case SystemBufferMember::WriteU64LE:
-          return false;
-      }
-      return false;
-    }
-    case SystemModule::Bytes: {
-      const auto m = std::get<SystemBytesMember>(*parsed);
-      switch (m) {
-        case SystemBytesMember::New: add(simple("i32")); return set_ret(list_i32());
-        case SystemBytesMember::Len: add(list_i32()); return set_ret(simple("i32"));
-        case SystemBytesMember::ReadU16LE:
-        case SystemBytesMember::ReadU32LE:
-          add(list_i32()); add(simple("i32")); return set_ret(simple("i32"));
-        case SystemBytesMember::WriteU16LE:
-        case SystemBytesMember::WriteU32LE:
-          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool"));
-        case SystemBytesMember::Slice:
-          add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32());
-        case SystemBytesMember::Copy:
-          add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32"));
-        case SystemBytesMember::Get:
-        case SystemBytesMember::Set:
-        case SystemBytesMember::ReadU64LE:
-        case SystemBytesMember::WriteU64LE:
-          return false;
-      }
-      return false;
-    }
-    case SystemModule::Log: {
-      const auto m = std::get<SystemLogMember>(*parsed);
-      if (m == SystemLogMember::Log) { add(simple("i32")); add(simple("string")); return set_ret(simple("void")); }
-      if (m == SystemLogMember::SetLevel) { add(simple("i32")); return set_ret(simple("void")); }
-      if (m == SystemLogMember::SetFile) { add(simple("string")); return set_ret(simple("bool")); }
-      if (m == SystemLogMember::Flush) return set_ret(simple("bool"));
-      return false;
-    }
-    case SystemModule::ASM:
-    case SystemModule::Job:
-    case SystemModule::Process:
-    case SystemModule::Net:
-    case SystemModule::HTTP:
-    case SystemModule::Terminal:
-    case SystemModule::Capability:
-    case SystemModule::Runtime:
-    case SystemModule::Debug:
-      return false;
-  }
-  return TryGetNativeReservedModuleCallTarget(resolved, member, out);
+  const auto signature = GetLibrarySignature(*module_id, member);
+  if (!signature) return false;
+  return ApplyLibrarySignatureToCallTarget(*signature, out);
 }
 
 bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
