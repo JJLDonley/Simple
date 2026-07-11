@@ -69,6 +69,17 @@ for (const requiredGrammarScope of [
   if (!grammarText.includes(requiredGrammarScope)) fail(`grammar missing complex-type hover scope: ${requiredGrammarScope}`);
 }
 const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
+const externPattern = (grammar.repository?.declarations?.patterns ?? []).find((pattern) => pattern.name === 'meta.declaration.extern.simple');
+if (externPattern?.captures?.['3']?.name !== 'entity.name.function.declaration.simple') {
+  fail('extern declaration function name must use function declaration scope');
+}
+if (externPattern?.captures?.['5']?.name !== 'support.type.simple') {
+  fail('extern declaration return type must use type support scope');
+}
+if (externPattern?.captures?.['3']?.name === externPattern?.captures?.['5']?.name) {
+  fail('extern function name and return type scopes must not match');
+}
+
 for (const [name, sample] of [
   ['meta.declaration.namespace.simple', 'Tools :: namespace'],
   ['meta.declaration.extern.simple', 'extern InitWindow : void (width : i32, height : i32, title : string)'],
