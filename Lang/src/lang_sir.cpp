@@ -5274,18 +5274,11 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   };
   auto native_module_for_reserved = [](const std::string& reserved, std::string* out) -> bool {
     if (!out) return false;
-    if (reserved == "IO") *out = "System.io";
-    else if (reserved == "DL") *out = "System.dl";
-    else if (reserved == "OS") *out = "System.os";
-    else if (reserved == "Thread") *out = "System.thread";
-    else if (reserved == "SystemRandom" || reserved == "StandardRandom") *out = "System.random";
-    else if (reserved == "Env") *out = "System.env";
-    else if (reserved == "Path") *out = "System.path";
-    else if (reserved == "FS") *out = "System.fs";
-    else if (reserved == "SystemJson") *out = "System.json";
-    else if (IsSystemBufferLikeCanonical(reserved) || IsStandardBufferLikeCanonical(reserved)) *out = std::string(ToNativeModule(SystemModule::Buffer));
-    else if (reserved == "SystemLog" || reserved == "StandardLog") *out = "System.log";
-    else return false;
+    const auto module = ParseCanonicalLibraryModule(reserved);
+    if (!module) return false;
+    const std::string_view native = ToNativeModule(*module);
+    if (native.empty()) return false;
+    *out = std::string(native);
     return true;
   };
   auto add_native_reserved_imports = [&](const std::string& reserved,

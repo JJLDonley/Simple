@@ -978,6 +978,35 @@ inline std::array<std::string_view, kSystemBufferMembers.size()> SystemBufferMem
 }
 
 // Transitional native names. Phase 3 in Docs/Timeline.md removes the lowercase runtime modules.
+inline std::optional<SystemModule> NativeBackingModule(StandardModule module) {
+  switch (module) {
+    case StandardModule::IO: return SystemModule::IO;
+    case StandardModule::FS: return SystemModule::FS;
+    case StandardModule::Path: return SystemModule::Path;
+    case StandardModule::Buffer: return SystemModule::Buffer;
+    case StandardModule::Bytes: return SystemModule::Buffer;
+    case StandardModule::Json: return SystemModule::Json;
+    case StandardModule::Random: return SystemModule::Random;
+    case StandardModule::Time: return SystemModule::Time;
+    case StandardModule::Log: return SystemModule::Log;
+    case StandardModule::Process: return SystemModule::Process;
+    case StandardModule::Net: return SystemModule::Net;
+    case StandardModule::HTTP: return SystemModule::HTTP;
+    case StandardModule::HTTPS: return SystemModule::HTTP;
+    case StandardModule::Terminal: return SystemModule::Terminal;
+    case StandardModule::Promise: return SystemModule::Job;
+    case StandardModule::Channel: return SystemModule::Channel;
+    case StandardModule::Console:
+    case StandardModule::Text:
+    case StandardModule::Math:
+    case StandardModule::Collections:
+    case StandardModule::Result:
+    case StandardModule::Option:
+      return std::nullopt;
+  }
+  return std::nullopt;
+}
+
 inline std::string_view ToNativeModule(SystemModule module) {
   switch (module) {
     case SystemModule::IO: return "System.io";
@@ -996,6 +1025,14 @@ inline std::string_view ToNativeModule(SystemModule module) {
     case SystemModule::Channel: return "System.channel";
     default: return {};
   }
+}
+
+inline std::string_view ToNativeModule(LibraryModuleId module) {
+  if (module.root == LibraryRoot::System) {
+    return ToNativeModule(static_cast<SystemModule>(module.module_index));
+  }
+  const auto backing = NativeBackingModule(static_cast<StandardModule>(module.module_index));
+  return backing ? ToNativeModule(*backing) : std::string_view{};
 }
 
 inline std::string_view ToCanonicalName(SystemModule module) {

@@ -19,19 +19,15 @@ const Simple::VM::Native::NativeRegistry& ReservedNativeRegistry() {
 
 bool NativeModuleNameForReserved(const std::string& canonical_module, std::string* out) {
   if (!out) return false;
-  if (canonical_module == "IO") *out = "System.io";
-  else if (canonical_module == "DL") *out = "System.dl";
-  else if (canonical_module == "OS") *out = "System.os";
-  else if (canonical_module == "Thread") *out = "System.thread";
-  else if (canonical_module == "SystemRandom" || canonical_module == "StandardRandom") *out = "System.random";
-  else if (canonical_module == "Env") *out = "System.env";
-  else if (canonical_module == "Path") *out = "System.path";
-  else if (canonical_module == "FS") *out = "System.fs";
-  else if (canonical_module == "SystemJson") *out = "System.json";
-  else if (IsSystemBufferLikeCanonical(canonical_module) ||
-           canonical_module == ToCanonicalName(StandardModule::Bytes)) *out = std::string(ToNativeModule(SystemModule::Buffer));
-  else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
-  else return false;
+  if (canonical_module == "File") {
+    *out = std::string(ToNativeModule(SystemModule::FS));
+    return true;
+  }
+  const auto module = ParseCanonicalLibraryModule(canonical_module);
+  if (!module) return false;
+  const std::string_view native = ToNativeModule(*module);
+  if (native.empty()) return false;
+  *out = std::string(native);
   return true;
 }
 
