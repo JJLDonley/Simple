@@ -4086,7 +4086,7 @@ bool LspInlayHintReturnsParameterHints() {
   const std::string out_path = TempPath("simple_lsp_inlay_out.txt");
   const std::string err_path = TempPath("simple_lsp_inlay_err.txt");
   const std::string uri = "file:///workspace/inlay.simple";
-  const std::string text = "add : i32 (lhs : i32, rhs : i32) { return lhs + rhs }\\nmain : i32 () { return add(1, 2) }";
+  const std::string text = "add : i32 (lhs : i32, rhs :: i32) { return lhs + rhs }\\nmain : i32 () { return add(1, 2) }";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
   const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
   const std::string hint_req = "{\"jsonrpc\":\"2.0\",\"id\":52,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":40}}}}";
@@ -4098,9 +4098,55 @@ bool LspInlayHintReturnsParameterHints() {
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":52") != std::string::npos &&
          out_contents.find("\"label\":\"lhs:\"") != std::string::npos &&
          out_contents.find("\"label\":\"rhs:\"") != std::string::npos &&
-         out_contents.find("\"label\":\" -> i32\"") != std::string::npos &&
+         out_contents.find("\"label\":\": i32\"") != std::string::npos &&
+         out_contents.find("->") == std::string::npos &&
          out_contents.find("\"kind\":1") != std::string::npos &&
          out_contents.find("\"kind\":2") != std::string::npos;
+}
+
+bool LspInlayHintReturnsExternParameterHints() {
+  const std::string in_path = TempPath("simple_lsp_inlay_extern_in.txt");
+  const std::string out_path = TempPath("simple_lsp_inlay_extern_out.txt");
+  const std::string err_path = TempPath("simple_lsp_inlay_extern_err.txt");
+  const std::string lib_uri = "file:///workspace/inlay_raylib.simple";
+  const std::string main_uri = "file:///workspace/inlay_main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"module Raylib\\nextern ffi.LoadRenderTexture :: RenderTexture2D (width : i32, height : i32)\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Raylib\\nusing Raylib\\nmain : RenderTexture2D () { return LoadRenderTexture(8, 8) }\"}}}";
+  const std::string hint_req = "{\"jsonrpc\":\"2.0\",\"id\":85,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":2,\"character\":80}}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_lib) + BuildLspFrame(open_main) + BuildLspFrame(hint_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":85") != std::string::npos &&
+         out_contents.find("\"label\":\"width:\"") != std::string::npos &&
+         out_contents.find("\"label\":\"height:\"") != std::string::npos &&
+         out_contents.find("\"label\":\": RenderTexture2D\"") != std::string::npos &&
+         out_contents.find("->") == std::string::npos;
+}
+
+bool LspInlayHintDoesNotInventPartialFunctionFacts() {
+  const std::string in_path = TempPath("simple_lsp_inlay_partial_in.txt");
+  const std::string out_path = TempPath("simple_lsp_inlay_partial_out.txt");
+  const std::string err_path = TempPath("simple_lsp_inlay_partial_err.txt");
+  const std::string uri = "file:///workspace/inlay_partial.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"draw (\"}}}";
+  const std::string hint_req = "{\"jsonrpc\":\"2.0\",\"id\":86,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":10}}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hint_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":86") != std::string::npos &&
+         out_contents.find("\"result\":[]") != std::string::npos;
 }
 
 bool LspCodeLensReturnsSimpleCommands() {
@@ -4354,6 +4400,8 @@ const TestCase kLspTests[] = {
   {"lsp_call_hierarchy_indexes_workspace_files", LspCallHierarchyIndexesWorkspaceFiles},
   {"lsp_call_hierarchy_returns_namespace_member_calls", LspCallHierarchyReturnsNamespaceMemberCalls},
   {"lsp_inlay_hint_returns_parameter_hints", LspInlayHintReturnsParameterHints},
+  {"lsp_inlay_hint_returns_extern_parameter_hints", LspInlayHintReturnsExternParameterHints},
+  {"lsp_inlay_hint_does_not_invent_partial_function_facts", LspInlayHintDoesNotInventPartialFunctionFacts},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},
   {"lsp_code_lens_returns_test_and_example_commands", LspCodeLensReturnsTestAndExampleCommands},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},

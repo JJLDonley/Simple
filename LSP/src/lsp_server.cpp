@@ -4650,7 +4650,7 @@ void ReplyInlayHints(std::ostream& out,
       if (!result.empty()) result += ",";
       result += "{\"position\":{\"line\":" + std::to_string(hint_line) +
                 ",\"character\":" + std::to_string(hint_col) +
-                "},\"label\":\"" + JsonEscape(" -> " + return_type) + "\",\"kind\":1}";
+                "},\"label\":\"" + JsonEscape(": " + return_type) + "\",\"kind\":1}";
     }
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
