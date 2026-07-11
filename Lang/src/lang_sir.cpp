@@ -13,6 +13,7 @@
 
 #include "CAST/parser.h"
 #include "lang_reserved.h"
+#include "RAST/reserved_resolution.h"
 #include "TAST/type_checker.h"
 #include "native/registry.h"
 #include "TAST/control_flow.h"
@@ -403,88 +404,20 @@ bool ResolveUsingReservedMember(const EmitState& st,
   bool found = false;
   std::string result;
   for (const auto& module : st.using_reserved_modules) {
-    if (module == "Math" && (member == "abs" || member == "sqrt" || member == "min" || member == "max")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "StandardIO" && IsIoPrintName(member)) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if ((module == "Time" && (member == "mono_ns" || member == "wall_ns")) ||
-               (module == "StandardTime" && (member == "mono_ns" || member == "wall_ns" || member == "formatWallNs"))) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "Thread" &&
-               (member == "sleep" || member == "yield" || member == "hardwareConcurrency")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes")) ||
-               (module == "StandardRandom" &&
-                (member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64"))) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "Env" &&
-               (member == "argsCount" || member == "arg" || member == "get" || member == "set" ||
-                member == "unset" || member == "exePath")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (((module == "Path") &&
-                (member == "separator" || member == "delimiter" || member == "isAbsolute" || member == "join" ||
-                 member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize")) ||
-               ((module == "StandardPath") &&
-                (member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-                 member == "stem" || member == "normalize"))) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if ((module == "FS" || module == "StandardFS") &&
-               (member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
-                member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
-                member == "listDir" || member == "cwd" || member == "setCwd")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "Channel" &&
-               (member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" ||
-                member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" ||
-                member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" ||
-                member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" ||
-                member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" ||
-                member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" ||
-                member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" ||
-                member == "pendingI32" || member == "pendingI64" || member == "pendingF32" || member == "pendingF64" ||
-                member == "pendingBool" || member == "pendingString" || member == "pendingBytes" || member == "close")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "SystemJson" && (member == "parse" || member == "stringify" || member == "free")) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if ((IsSystemBufferLikeCanonical(module) && IsSystemBufferMember(member)) ||
-               (module == ToCanonicalName(StandardModule::Bytes) && (member == "new" || member == "slice"))) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if ((module == "SystemLog" && (member == "log" || member == "setLevel" || member == "setFile" || member == "flush")) ||
-               (module == "StandardLog" &&
-                (member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile"))) {
-      if (found) return false;
-      found = true;
-      result = module;
-    } else if (module == "DL" && (NormalizeCoreDlMember(member) == "open" ||
-                                  NormalizeCoreDlMember(member) == "sym" ||
-                                  NormalizeCoreDlMember(member) == "close" ||
-                                  NormalizeCoreDlMember(member) == "last_error")) {
-      if (found) return false;
-      found = true;
-      result = module;
+    const auto id = ParseCanonicalLibraryModule(module);
+    if (!id) continue;
+    const std::string normalized_member =
+        (id->root == LibraryRoot::System &&
+         static_cast<SystemModule>(id->module_index) == SystemModule::FFI)
+            ? NormalizeCoreDlMember(member)
+            : member;
+    if (!RAST::IsReservedModuleFunction(module, normalized_member) &&
+        !RAST::GetReservedModuleVarType(module, normalized_member, nullptr)) {
+      continue;
     }
+    if (found) return false;
+    found = true;
+    result = module;
   }
   if (!found) return false;
   if (out_module) *out_module = std::move(result);

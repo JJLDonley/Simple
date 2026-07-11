@@ -11,7 +11,9 @@
 
 namespace Simple::Lang::RAST {
 
+bool NativeModuleNameForReserved(LibraryModuleId module, std::string* out);
 bool NativeModuleNameForReserved(const std::string& canonical_module, std::string* out);
+std::vector<std::string> ReservedModuleMembers(LibraryModuleId module);
 std::vector<std::string> ReservedModuleMembers(const std::string& canonical_module);
 bool IsIoPrintName(const std::string& name);
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member);
@@ -21,6 +23,10 @@ bool GetReservedModuleVarType(const std::string& canonical_module,
 bool IsReservedModuleEnabled(const Simple::Lang::LibraryModuleSet& reserved_imports,
                              const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                              const std::string& name);
+bool ResolveReservedModuleId(const Simple::Lang::LibraryModuleSet& reserved_imports,
+                             const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
+                             const std::string& name,
+                             LibraryModuleId* out);
 bool ResolveReservedModuleName(const Simple::Lang::LibraryModuleSet& reserved_imports,
                                const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                                const std::string& name,
