@@ -64,8 +64,17 @@
     "declarations": {
       "patterns": [
         {
+          "name": "meta.declaration.namespace.simple",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::)\\s*(namespace)\\b",
+          "captures": {
+            "1": { "name": "entity.name.namespace.simple" },
+            "2": { "name": "keyword.operator.simple" },
+            "3": { "name": "keyword.declaration.simple" }
+          }
+        },
+        {
           "name": "meta.declaration.aggregate.simple",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::)\\s*(artifact|data|enum|namespace)\\b",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(::)\\s*(artifact|data|enum)\\b",
           "captures": {
             "1": { "name": "entity.name.type.simple" },
             "2": { "name": "keyword.operator.simple" },

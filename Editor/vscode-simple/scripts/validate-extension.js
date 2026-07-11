@@ -63,12 +63,14 @@ for (const requiredGrammarScope of [
   'constant.numeric.array-size.simple',
   'punctuation.definition.array-size.begin.simple',
   'punctuation.definition.array-size.end.simple',
-  'storage.modifier.type.simple'
+  'storage.modifier.type.simple',
+  'meta.declaration.namespace.simple'
 ]) {
   if (!grammarText.includes(requiredGrammarScope)) fail(`grammar missing complex-type hover scope: ${requiredGrammarScope}`);
 }
 const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
 for (const [name, sample] of [
+  ['meta.declaration.namespace.simple', 'Raylib :: namespace'],
   ['meta.declaration.aggregate.simple', 'Packet :: data'],
   ['meta.declaration.variable.simple', 'colors :: Color[]'],
   ['meta.declaration.variable.simple', 'grid :: Color[][]'],
