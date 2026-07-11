@@ -62,9 +62,23 @@ for (const requiredGrammarScope of [
   'meta.declaration.function.static-array-return.simple',
   'constant.numeric.array-size.simple',
   'punctuation.definition.array-size.begin.simple',
-  'punctuation.definition.array-size.end.simple'
+  'punctuation.definition.array-size.end.simple',
+  'storage.modifier.type.simple'
 ]) {
-  if (!grammarText.includes(requiredGrammarScope)) fail(`grammar missing static-array hover scope: ${requiredGrammarScope}`);
+  if (!grammarText.includes(requiredGrammarScope)) fail(`grammar missing complex-type hover scope: ${requiredGrammarScope}`);
+}
+const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
+for (const [name, sample] of [
+  ['meta.declaration.variable.simple', 'colors :: Color[]'],
+  ['meta.declaration.variable.simple', 'texture : Texture2D'],
+  ['meta.declaration.variable.simple', 'image : Image*'],
+  ['meta.declaration.variable.static-array.simple', 'posX : f32{10000}'],
+  ['meta.declaration.function.simple', 'makeColors : Color[] (count : i32)'],
+  ['meta.declaration.function.static-array-return.simple', 'makeBuffer : f32{10000} ()']
+]) {
+  const pattern = declarationPatterns.get(name);
+  if (!pattern) fail(`grammar declaration pattern missing: ${name}`);
+  if (!new RegExp(pattern).test(sample)) fail(`grammar pattern ${name} does not match canonical type syntax: ${sample}`);
 }
 
 const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
