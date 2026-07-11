@@ -69,6 +69,8 @@ set(SIMPLEVM_LSP_ROOT ${SIMPLEVM_ROOT}/LSP)
 set(SIMPLEVM_CLI_ROOT ${SIMPLEVM_ROOT}/CLI)
 set(SIMPLEVM_TEST_ROOT ${SIMPLEVM_ROOT}/Tests/tests)
 set(SIMPLEVM_RUNTIME_SRC
+  ${SIMPLEVM_LIBRARY_ROOT}/src/library_catalog.cpp
+  ${SIMPLEVM_LIBRARY_ROOT}/src/library_legacy.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_call.cpp
   ${SIMPLEVM_VM_ROOT}/src/ffi/dl_runtime.cpp
   ${SIMPLEVM_VM_ROOT}/src/gc/root_tracer.cpp
@@ -112,7 +114,6 @@ set(SIMPLEVM_RUNTIME_SRC
   ${SIMPLEVM_BYTE_ROOT}/src/sbc_verifier.cpp
 )
 set(SIMPLEVM_FRONTEND_SRC
-  ${SIMPLEVM_LIBRARY_ROOT}/src/library_catalog.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_builder.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_compiler.cpp
   ${SIMPLEVM_IR_ROOT}/src/ir_lang.cpp
