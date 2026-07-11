@@ -593,10 +593,10 @@ import Channel
 
 Canonical naming requirements:
 
-- [ ] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Bytes`, `System.Time`; remove lowercase runtime names such as `System.FS`, `System.FFI`, `System.Buffer`, `System.OS`, `System.IO`, `System.Channel`.
-- [ ] Compiler reserved-import internals use canonical names only; remove canonical values such as `IO`, `DL`, `FS`, `Time`, `Thread`, `Channel`, `Math`, `Path`, `Env`, `SystemBytes`, and `StandardBytes`.
+- [x] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Buffer`, `System.OS`, `System.IO`, `System.Channel`; lowercase runtime names are rejected as stale serialized/import metadata.
+- [ ] Compiler reserved-import internals use enum IDs; remaining transitional canonical-string APIs are being retired from downstream call sites.
 - [ ] RAST/TAST/SIR/IR/import metadata stores `System.X` / `Standard.X`, never short internal aliases.
-- [ ] Native import lowering emits canonical module names and symbols; no compatibility remapping table remains in final mode.
+- [x] Native import lowering emits canonical module names and symbols; stale lowercase compatibility execution is rejected.
 - [ ] LSP completions, hover, signature help, semantic tokens, document links, snippets, and diagnostics use canonical names only.
 - [ ] Docs, README, examples, playgrounds, Website samples, tests, generated stdlib references, and editor assets contain no lowercase runtime modules and no legacy import examples except explicit rejection diagnostics.
 - [ ] Public byte/memory modules use the final four-part model where implemented: `System.Buffer` for low-level mutable native/runtime buffers, `System.Bytes` for low-level immutable/owned byte values, `Standard.Buffer` for ergonomic growable/cursor buffers, and `Standard.Bytes` for ergonomic byte-value conversion/helpers.
