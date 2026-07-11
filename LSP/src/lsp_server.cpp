@@ -3963,6 +3963,20 @@ void ReplyInlayHints(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+bool UriLooksLikeTestOrExample(const std::string& uri) {
+  const std::string lower = LowerAscii(uri);
+  return lower.find("/test") != std::string::npos ||
+         lower.find("/examples/") != std::string::npos ||
+         lower.find("/example") != std::string::npos ||
+         lower.find("/playground/") != std::string::npos;
+}
+
+bool FunctionLooksLikeTest(const std::string& name) {
+  const std::string lower = LowerAscii(name);
+  return lower == "test" || lower.rfind("test_", 0) == 0 ||
+         lower.rfind("test", 0) == 0 || lower.find("_test") != std::string::npos;
+}
+
 void ReplyCodeLens(std::ostream& out,
                    const std::string& id_raw,
                    const std::string& uri,
@@ -3990,9 +4004,13 @@ void ReplyCodeLens(std::ostream& out,
     if (!IsDeclNameAt(refs, ref.index)) continue;
     if (SymbolKindFor(refs, ref.index) != 12) continue;
     append_lens(ref.token, "Simple: Check file", "simple.checkCurrentFile");
-    if (ref.token.text == "main" || ref.token.text == "__script_entry") {
-      append_lens(ref.token, "Simple: Run file", "simple.runCurrentFile");
-      append_lens(ref.token, "Simple: Run file with JIT", "simple.runCurrentFileWithJit");
+    if (FunctionLooksLikeTest(ref.token.text)) {
+      append_lens(ref.token, "Simple: Run test file", "simple.runCurrentFile");
+      append_lens(ref.token, "Simple: Run test file with JIT", "simple.runCurrentFileWithJit");
+    } else if (ref.token.text == "main" || ref.token.text == "__script_entry") {
+      const bool example_file = UriLooksLikeTestOrExample(uri);
+      append_lens(ref.token, example_file ? "Simple: Run example" : "Simple: Run file", "simple.runCurrentFile");
+      append_lens(ref.token, example_file ? "Simple: Run example with JIT" : "Simple: Run file with JIT", "simple.runCurrentFileWithJit");
     }
   }
 

@@ -3570,6 +3570,27 @@ bool LspCodeLensReturnsSimpleCommands() {
          out_contents.find("simple.runCurrentFileWithJit") != std::string::npos;
 }
 
+bool LspCodeLensReturnsTestAndExampleCommands() {
+  const std::string in_path = TempPath("simple_lsp_codelens_tests_in.txt");
+  const std::string out_path = TempPath("simple_lsp_codelens_tests_out.txt");
+  const std::string err_path = TempPath("simple_lsp_codelens_tests_err.txt");
+  const std::string uri = "file:///workspace/Tests/simple/example.simple";
+  const std::string text = "test_math : i32 () { return 1 }\nmain : i32 () { return test_math() }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string lens_req = "{\"jsonrpc\":\"2.0\",\"id\":59,\"method\":\"textDocument/codeLens\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(lens_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":59") != std::string::npos &&
+         out_contents.find("Simple: Run test file") != std::string::npos &&
+         out_contents.find("Simple: Run test file with JIT") != std::string::npos &&
+         out_contents.find("Simple: Run example") != std::string::npos &&
+         out_contents.find("Simple: Run example with JIT") != std::string::npos;
+}
+
 bool LspCancelRequestSuppressesResponse() {
   const std::string in_path = TempPath("simple_lsp_cancel_in.txt");
   const std::string out_path = TempPath("simple_lsp_cancel_out.txt");
@@ -3763,6 +3784,7 @@ const TestCase kLspTests[] = {
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
   {"lsp_inlay_hint_returns_parameter_hints", LspInlayHintReturnsParameterHints},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},
+  {"lsp_code_lens_returns_test_and_example_commands", LspCodeLensReturnsTestAndExampleCommands},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
   {"lsp_responses_follow_request_order", LspResponsesFollowRequestOrder},
 };

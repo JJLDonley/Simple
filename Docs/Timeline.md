@@ -877,7 +877,8 @@ Next Simple-specific LSP capabilities:
 - [x] Document links for module-header imports and known standard/native docs.
 - [ ] Document links for module-map entries and generated SIR/SBC outputs.
 - [x] Code lenses for check/run/JIT-run commands on top-level Simple functions and entrypoints.
-- [ ] Code lenses for exported functions, tests/examples, and persisted JIT stats.
+- [x] Code lenses for tests/examples.
+- [ ] Code lenses for exported functions and persisted JIT stats.
 - [x] Code actions for unknown identifiers and quick emit/build actions.
 - [ ] Code actions for unresolved imports, missing modules, and signature mismatch fixes.
 - [x] Workspace symbols and references across opened documents plus sibling indexed `.simple` files.
