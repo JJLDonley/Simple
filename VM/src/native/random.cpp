@@ -26,6 +26,12 @@ int64_t I64() {
   return static_cast<int64_t>(g_engine() & 0x7fffffffffffffffull);
 }
 
+void FillBytes(std::vector<uint8_t>* out) {
+  if (!out) return;
+  std::lock_guard<std::mutex> lock(g_mutex);
+  for (uint8_t& byte : *out) byte = static_cast<uint8_t>(g_engine() & 0xffu);
+}
+
 int32_t Range(int32_t lo, int32_t hi) {
   if (hi <= lo) return lo;
   std::uniform_int_distribution<int32_t> dist(lo, hi - 1);

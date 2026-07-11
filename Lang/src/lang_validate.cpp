@@ -632,6 +632,12 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    if (resolved == "SystemRandom" && member == "fillBytes") {
+      out->params.push_back(MakeListType("i32"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
     return false;
   }
   if (resolved == "Channel") {

@@ -1059,7 +1059,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
                    "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
-      {"SystemRandom", {"seed", "i32", "i64", "f64"}},
+      {"SystemRandom", {"seed", "i32", "i64", "f64", "fillBytes"}},
       {"StandardRandom", {"seed", "i32", "i64", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
       {"StandardPath", {"join", "dirname", "basename", "ext", "normalize"}},
@@ -1492,6 +1492,11 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     if (member == "f64") {
       out->return_type = "f64";
+      return true;
+    }
+    if (module == "SystemRandom" && member == "fillBytes") {
+      out->params = {"bytes"};
+      out->return_type = "bool";
       return true;
     }
     return false;

@@ -117,6 +117,17 @@ NativeCallResult RandomI64(NativeCallContext&) {
   return NativeCallResult::I64(Random::I64());
 }
 
+NativeCallResult RandomFillBytes(NativeCallContext& context) {
+  HeapObject* obj = context.heap && !context.args.empty()
+                        ? context.heap->Get(UnpackRef(context.args[0]))
+                        : nullptr;
+  if (!Buffer::IsBuffer(obj)) return NativeCallResult::I32(0);
+  std::vector<uint8_t> bytes(Buffer::Len(obj));
+  Random::FillBytes(&bytes);
+  for (uint32_t i = 0; i < bytes.size(); ++i) Buffer::WriteLE(obj, i, 1u, bytes[i]);
+  return NativeCallResult::I32(1);
+}
+
 NativeCallResult RandomRange(NativeCallContext& context) {
   int32_t min_value = 0;
   int32_t max_value = 0;
@@ -1943,6 +1954,9 @@ void RegisterSystemRandom(NativeRegistry& registry) {
                                    "randomness"));
   registry.Register(WithCapability(MakeSpec("System.random", "i64", {}, TypeKind::I64,
                                             RandomI64),
+                                   "randomness"));
+  registry.Register(WithCapability(MakeSpec("System.random", "fillBytes", {TypeKind::Ref},
+                                            TypeKind::I32, RandomFillBytes),
                                    "randomness"));
   registry.Register(WithCapability(MakeSpec("System.random", "range",
                                             {TypeKind::I32, TypeKind::I32}, TypeKind::I32,

@@ -420,7 +420,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "i64" || member == "f64")) ||
+    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes")) ||
                (module == "StandardRandom" &&
                 (member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64"))) {
       if (found) return false;
@@ -5490,20 +5490,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  auto add_random_imports = [&](const std::string& canonical_module, bool include_range) {
+  auto add_random_imports = [&](const std::string& canonical_module, bool include_standard_helpers) {
     for (const auto& alias : reserved_aliases_for(canonical_module)) {
       std::vector<TypeRef> seed_params;
       seed_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.random", "seed", std::move(seed_params), make_type("void"))) return false;
       if (!add_reserved_import(alias, "System.random", "i32", {}, make_type("i32"))) return false;
       if (!add_reserved_import(alias, "System.random", "i64", {}, make_type("i64"))) return false;
-      if (include_range) {
+      if (include_standard_helpers) {
         std::vector<TypeRef> range_params;
         range_params.push_back(make_type("i32"));
         range_params.push_back(make_type("i32"));
         if (!add_reserved_import(alias, "System.random", "range", std::move(range_params), make_type("i32"))) return false;
       }
       if (!add_reserved_import(alias, "System.random", "f64", {}, make_type("f64"))) return false;
+      if (!include_standard_helpers) {
+        std::vector<TypeRef> fill_params;
+        fill_params.push_back(make_list_type("i32"));
+        if (!add_reserved_import(alias, "System.random", "fillBytes", std::move(fill_params), make_type("bool"))) return false;
+      }
     }
     return true;
   };
