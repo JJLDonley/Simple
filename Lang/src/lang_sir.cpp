@@ -5336,10 +5336,6 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     if (auto module = ParseCanonicalLibraryModule(name)) return module;
     return std::nullopt;
   };
-  auto has_reserved_name = [&](const std::string& name) {
-    const auto module = module_id_for_name(name);
-    return module && st.reserved_imports.find(*module) != st.reserved_imports.end();
-  };
   auto reserved_aliases_for = [&](const std::string& name) {
     std::vector<std::string> aliases;
     aliases.push_back(name);
@@ -5489,83 +5485,16 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       !add_catalog_reserved_imports(system_id(SystemModule::Env),
                                     reserved_aliases_for_id(system_id(SystemModule::Env)))) return false;
 
-  auto add_random_imports = [&](const std::string& canonical_module, bool include_standard_helpers) {
-    for (const auto& alias : reserved_aliases_for(canonical_module)) {
-      std::vector<TypeRef> seed_params;
-      seed_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "System.Random", "seed", std::move(seed_params), make_type("void"))) return false;
-      if (!add_reserved_import(alias, "System.Random", "i32", {}, make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "System.Random", "i64", {}, make_type("i64"))) return false;
-      if (include_standard_helpers) {
-        std::vector<TypeRef> range_params;
-        range_params.push_back(make_type("i32"));
-        range_params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "System.Random", "range", std::move(range_params), make_type("i32"))) return false;
-      }
-      if (!add_reserved_import(alias, "System.Random", "f64", {}, make_type("f64"))) return false;
-      if (!include_standard_helpers) {
-        std::vector<TypeRef> fill_params;
-        fill_params.push_back(make_list_type("i32"));
-        if (!add_reserved_import(alias, "System.Random", "fillBytes", std::move(fill_params), make_type("bool"))) return false;
-      }
-    }
-    return true;
-  };
   if (has_reserved_module(system_id(SystemModule::Random)) &&
-      !add_random_imports(std::string(ToCanonicalName(system_id(SystemModule::Random))), false)) return false;
+      !add_catalog_reserved_imports(system_id(SystemModule::Random),
+                                    reserved_aliases_for_id(system_id(SystemModule::Random)))) return false;
   if (has_reserved_module(standard_id(StandardModule::Random)) &&
-      !add_random_imports(std::string(ToCanonicalName(standard_id(StandardModule::Random))), true)) return false;
+      !add_catalog_reserved_imports(standard_id(StandardModule::Random),
+                                    reserved_aliases_for_id(standard_id(StandardModule::Random)))) return false;
 
-  if (has_reserved_module(system_id(SystemModule::Channel))) {
-    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Channel))) {
-      auto add_channel = [&](const std::string& suffix, const std::string& type_name) -> bool {
-        if (!add_reserved_import(alias, "System.Channel", "new" + suffix, {}, make_type("i64"))) return false;
-
-        std::vector<TypeRef> send_params;
-        send_params.push_back(make_type("i64"));
-        send_params.push_back(make_type(type_name.c_str()));
-        std::vector<TypeRef> try_send_params = send_params;
-        if (!add_reserved_import(alias, "System.Channel", "send" + suffix, std::move(send_params), make_type("bool"))) return false;
-        if (!add_reserved_import(alias, "System.Channel", "trySend" + suffix, std::move(try_send_params), make_type("bool"))) return false;
-
-        std::vector<TypeRef> recv_params;
-        recv_params.push_back(make_type("i64"));
-        std::vector<TypeRef> try_recv_params = recv_params;
-        if (!add_reserved_import(alias, "System.Channel", "recv" + suffix, std::move(recv_params), make_type(type_name.c_str()))) return false;
-        if (!add_reserved_import(alias, "System.Channel", "tryRecv" + suffix, std::move(try_recv_params), make_type(type_name.c_str()))) return false;
-        std::vector<TypeRef> pending_params;
-        pending_params.push_back(make_type("i64"));
-        if (!add_reserved_import(alias, "System.Channel", "pending" + suffix, std::move(pending_params), make_type("i32"))) return false;
-        return true;
-      };
-      if (!add_channel("I32", "i32")) return false;
-      if (!add_channel("I64", "i64")) return false;
-      if (!add_channel("F32", "f32")) return false;
-      if (!add_channel("F64", "f64")) return false;
-      if (!add_channel("Bool", "bool")) return false;
-      if (!add_channel("String", "string")) return false;
-
-      if (!add_reserved_import(alias, "System.Channel", "newBytes", {}, make_type("i64"))) return false;
-      std::vector<TypeRef> send_bytes_params;
-      send_bytes_params.push_back(make_type("i64"));
-      send_bytes_params.push_back(make_list_type("i32"));
-      std::vector<TypeRef> try_send_bytes_params = send_bytes_params;
-      if (!add_reserved_import(alias, "System.Channel", "sendBytes", std::move(send_bytes_params), make_type("bool"))) return false;
-      if (!add_reserved_import(alias, "System.Channel", "trySendBytes", std::move(try_send_bytes_params), make_type("bool"))) return false;
-      std::vector<TypeRef> recv_bytes_params;
-      recv_bytes_params.push_back(make_type("i64"));
-      std::vector<TypeRef> try_recv_bytes_params = recv_bytes_params;
-      if (!add_reserved_import(alias, "System.Channel", "recvBytes", std::move(recv_bytes_params), make_list_type("i32"))) return false;
-      if (!add_reserved_import(alias, "System.Channel", "tryRecvBytes", std::move(try_recv_bytes_params), make_list_type("i32"))) return false;
-      std::vector<TypeRef> pending_bytes_params;
-      pending_bytes_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "System.Channel", "pendingBytes", std::move(pending_bytes_params), make_type("i32"))) return false;
-
-      std::vector<TypeRef> close_params;
-      close_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "System.Channel", "close", std::move(close_params), make_type("void"))) return false;
-    }
-  }
+  if (has_reserved_module(system_id(SystemModule::Channel)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Channel),
+                                    reserved_aliases_for_id(system_id(SystemModule::Channel)))) return false;
 
   if (has_reserved_module(system_id(SystemModule::Thread)) &&
       !add_catalog_reserved_imports(system_id(SystemModule::Thread),
@@ -5579,82 +5508,22 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       !add_catalog_reserved_imports(system_id(SystemModule::Json),
                                     reserved_aliases_for_id(system_id(SystemModule::Json)))) return false;
 
-  auto add_bytes_imports = [&](const std::string& canonical, bool low_level) {
-    for (const auto& alias : reserved_aliases_for(canonical)) {
-      std::vector<TypeRef> new_params;
-      new_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.Buffer", "new", std::move(new_params), make_list_type("i32"))) return false;
-      if (low_level) {
-        std::vector<TypeRef> len_params;
-        len_params.push_back(make_list_type("i32"));
-        if (!add_reserved_import(alias, "System.Buffer", "len", std::move(len_params), make_type("i32"))) return false;
-      }
-      if (low_level) for (const std::string member : {"readU16LE", "readU32LE"}) {
-        std::vector<TypeRef> params;
-        params.push_back(make_list_type("i32"));
-        params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "System.Buffer", member, std::move(params), make_type("i32"))) return false;
-      }
-      if (low_level) for (const std::string member : {"writeU16LE", "writeU32LE"}) {
-        std::vector<TypeRef> params;
-        params.push_back(make_list_type("i32"));
-        params.push_back(make_type("i32"));
-        params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "System.Buffer", member, std::move(params), make_type("bool"))) return false;
-      }
-      std::vector<TypeRef> slice_params;
-      slice_params.push_back(make_list_type("i32"));
-      slice_params.push_back(make_type("i32"));
-      slice_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.Buffer", "slice", std::move(slice_params), make_list_type("i32"))) return false;
-      if (low_level) {
-        std::vector<TypeRef> copy_params;
-        copy_params.push_back(make_list_type("i32"));
-        copy_params.push_back(make_type("i32"));
-        copy_params.push_back(make_list_type("i32"));
-        copy_params.push_back(make_type("i32"));
-        copy_params.push_back(make_type("i32"));
-        if (!add_reserved_import(alias, "System.Buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
-      }
-    }
-    return true;
-  };
-  const std::string system_buffer_name(ToCanonicalName(SystemModule::Buffer));
-  const std::string system_bytes_name(ToCanonicalName(SystemModule::Bytes));
-  const std::string standard_bytes_name(ToCanonicalName(StandardModule::Bytes));
-  if (has_reserved_name(system_buffer_name) && !add_bytes_imports(system_buffer_name, true)) return false;
-  if (has_reserved_name(system_bytes_name) && !add_bytes_imports(system_bytes_name, true)) return false;
-  if (has_reserved_name(standard_bytes_name) && !add_bytes_imports(standard_bytes_name, false)) return false;
+  if (has_reserved_module(system_id(SystemModule::Buffer)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Buffer),
+                                    reserved_aliases_for_id(system_id(SystemModule::Buffer)))) return false;
+  if (has_reserved_module(system_id(SystemModule::Bytes)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Bytes),
+                                    reserved_aliases_for_id(system_id(SystemModule::Bytes)))) return false;
+  if (has_reserved_module(standard_id(StandardModule::Bytes)) &&
+      !add_catalog_reserved_imports(standard_id(StandardModule::Bytes),
+                                    reserved_aliases_for_id(standard_id(StandardModule::Bytes)))) return false;
 
-  auto add_log_control_imports = [&](const std::string& alias) {
-    std::vector<TypeRef> level_params;
-    level_params.push_back(make_type("i32"));
-    if (!add_reserved_import(alias, "System.Log", "setLevel", std::move(level_params), make_type("void"))) return false;
-    std::vector<TypeRef> file_params;
-    file_params.push_back(make_type("string"));
-    if (!add_reserved_import(alias, "System.Log", "setFile", std::move(file_params), make_type("bool"))) return false;
-    return true;
-  };
-  if (has_reserved_module(system_id(SystemModule::Log))) {
-    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Log))) {
-      std::vector<TypeRef> params;
-      params.push_back(make_type("i32"));
-      params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "System.Log", "log", std::move(params), make_type("void"))) return false;
-      if (!add_reserved_import(alias, "System.Log", "flush", {}, make_type("bool"))) return false;
-      if (!add_log_control_imports(alias)) return false;
-    }
-  }
-  if (has_reserved_module(standard_id(StandardModule::Log))) {
-    for (const auto& alias : reserved_aliases_for_id(standard_id(StandardModule::Log))) {
-      for (const std::string member : {"info", "warn", "error"}) {
-        std::vector<TypeRef> message_params;
-        message_params.push_back(make_type("string"));
-        if (!add_reserved_import(alias, "System.Log", member, std::move(message_params), make_type("void"))) return false;
-      }
-      if (!add_log_control_imports(alias)) return false;
-    }
-  }
+  if (has_reserved_module(system_id(SystemModule::Log)) &&
+      !add_catalog_reserved_imports(system_id(SystemModule::Log),
+                                    reserved_aliases_for_id(system_id(SystemModule::Log)))) return false;
+  if (has_reserved_module(standard_id(StandardModule::Log)) &&
+      !add_catalog_reserved_imports(standard_id(StandardModule::Log),
+                                    reserved_aliases_for_id(standard_id(StandardModule::Log)))) return false;
 
   for (const LibraryModuleId native_reserved : {system_id(SystemModule::IO),
                                                system_id(SystemModule::FFI),
