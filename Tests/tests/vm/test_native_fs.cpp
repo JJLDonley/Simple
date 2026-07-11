@@ -278,10 +278,14 @@ bool VmNativeFunctionMetadataDeclaresLibraryModuleIds() {
   const auto* fs_open = registry.Find("System.FS", "open");
   const auto* ffi_open = registry.Find("System.FFI", "open");
   const auto* standard_missing = registry.Find("Standard.FS", "readText");
+  const auto* fs_open_by_id = registry.Find(Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS), "open");
+  const auto* ffi_open_by_id = registry.Find(Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI), "open");
   return fs_open && fs_open->library_module &&
          *fs_open->library_module == Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS) &&
+         fs_open_by_id == fs_open &&
          ffi_open && ffi_open->library_module &&
          *ffi_open->library_module == Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI) &&
+         ffi_open_by_id == ffi_open &&
          standard_missing == nullptr;
 }
 

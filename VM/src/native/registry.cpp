@@ -1659,6 +1659,14 @@ const NativeFunctionSpec* NativeRegistry::Find(const std::string& module_name,
   return nullptr;
 }
 
+const NativeFunctionSpec* NativeRegistry::Find(Simple::Lang::LibraryModuleId module,
+                                               const std::string& symbol_name) const {
+  for (const NativeFunctionSpec& spec : functions_) {
+    if (spec.library_module && *spec.library_module == module && spec.symbol_name == symbol_name) return &spec;
+  }
+  return nullptr;
+}
+
 const std::vector<NativeFunctionSpec>& NativeRegistry::Functions() const {
   return functions_;
 }
@@ -1745,6 +1753,18 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
   if (spec.module_name.rfind("System.", 0) == 0 && spec.layer != NativeLayer::System) {
     if (error) *error = name + " system native function must declare system layer";
     return false;
+  }
+  if (spec.library_module) {
+    const auto parsed_module = Simple::Lang::ParseLibraryImportPath(spec.module_name);
+    if (!parsed_module) {
+      if (error) *error = name + " native module catalog id has non-catalog module name";
+      return false;
+    }
+    const Simple::Lang::LibraryModuleId expected{parsed_module->root, parsed_module->module_index};
+    if (!(*spec.library_module == expected)) {
+      if (error) *error = name + " native module catalog id mismatch";
+      return false;
+    }
   }
   if (spec.doc_summary.empty()) {
     if (error) *error = name + " missing doc summary";
