@@ -1,7 +1,11 @@
+import * as childProcess from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+
+const TASK_TYPE = 'simple';
+const PROBLEM_MATCHER = '$simple-svm';
 
 const COMMANDS = {
   restartLanguageServer: 'simple.restartLanguageServer',
@@ -45,7 +49,7 @@ function pathExists(candidate: string): boolean {
 
 async function commandWorks(command: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const proc = require('child_process').spawn(command, ['version'], { shell: process.platform === 'win32' });
+    const proc = childProcess.spawn(command, ['version'], { shell: process.platform === 'win32' });
     proc.on('error', () => resolve(false));
     proc.on('close', (code: number | null) => resolve(code === 0));
   });
@@ -158,13 +162,20 @@ async function restartClient(context: vscode.ExtensionContext): Promise<void> {
   }
 }
 
-function activeSimpleDocument(): vscode.TextDocument | undefined {
+function activeSimpleDocument(showWarning = true): vscode.TextDocument | undefined {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'simple') {
-    vscode.window.showWarningMessage('Open a .simple file first.');
+    if (showWarning) vscode.window.showWarningMessage('Open a .simple file first.');
     return undefined;
   }
   return editor.document;
+}
+
+async function commandDocument(resource?: unknown): Promise<vscode.TextDocument | undefined> {
+  if (resource instanceof vscode.Uri && resource.scheme === 'file' && resource.fsPath.endsWith('.simple')) {
+    return vscode.workspace.openTextDocument(resource);
+  }
+  return activeSimpleDocument();
 }
 
 function workspaceCwd(document?: vscode.TextDocument): string | undefined {
@@ -182,7 +193,7 @@ async function runSvm(context: vscode.ExtensionContext, label: string, args: str
   taskOutputChannel.show(true);
   taskOutputChannel.appendLine(`> ${svm} ${args.join(' ')}`);
   await new Promise<void>((resolve) => {
-    const proc = require('child_process').spawn(svm, args, {
+    const proc = childProcess.spawn(svm, args, {
       cwd: workspaceCwd(document),
       shell: process.platform === 'win32'
     });
@@ -212,7 +223,86 @@ function outputPath(document: vscode.TextDocument, extension: string): string {
   return path.join(path.dirname(file), `${path.basename(file, path.extname(file))}.${extension}`);
 }
 
-function registerCommand(context: vscode.ExtensionContext, command: string, callback: () => unknown): void {
+function simpleTask(context: vscode.ExtensionContext,
+                    name: string,
+                    args: string[],
+                    scope: vscode.WorkspaceFolder | vscode.TaskScope,
+                    cwd?: string): vscode.Task {
+  const definition: vscode.TaskDefinition = { type: TASK_TYPE, command: args[0], args: args.slice(1) };
+  const execution = new vscode.CustomExecution(async () => {
+    const svm = await requireSvm(context);
+    if (!svm) throw new Error('Simple compiler not found');
+    return new SimpleTaskPseudoterminal(svm, args, cwd);
+  });
+  const task = new vscode.Task(definition, scope, name, 'Simple', execution, [PROBLEM_MATCHER]);
+  task.group = args[0] === 'build' ? vscode.TaskGroup.Build : undefined;
+  return task;
+}
+
+class SimpleTaskPseudoterminal implements vscode.Pseudoterminal {
+  private readonly writeEmitter = new vscode.EventEmitter<string>();
+  private readonly closeEmitter = new vscode.EventEmitter<number>();
+  private proc: childProcess.ChildProcess | undefined;
+  readonly onDidWrite = this.writeEmitter.event;
+  readonly onDidClose = this.closeEmitter.event;
+
+  constructor(private readonly command: string,
+              private readonly args: string[],
+              private readonly cwd?: string) {}
+
+  open(): void {
+    this.writeEmitter.fire(`> ${this.command} ${this.args.join(' ')}\r\n`);
+    this.proc = childProcess.spawn(this.command, this.args, {
+      cwd: this.cwd,
+      shell: process.platform === 'win32'
+    });
+    this.proc.stdout?.on('data', (data: Buffer) => this.writeEmitter.fire(data.toString().replace(/\n/g, '\r\n')));
+    this.proc.stderr?.on('data', (data: Buffer) => this.writeEmitter.fire(data.toString().replace(/\n/g, '\r\n')));
+    this.proc.on('error', (error: Error) => {
+      this.writeEmitter.fire(`${error.message}\r\n`);
+      this.closeEmitter.fire(1);
+    });
+    this.proc.on('close', (code: number | null) => this.closeEmitter.fire(code ?? 1));
+  }
+
+  close(): void {
+    this.proc?.kill();
+  }
+}
+
+class SimpleTaskProvider implements vscode.TaskProvider {
+  constructor(private readonly context: vscode.ExtensionContext) {}
+
+  async provideTasks(): Promise<vscode.Task[]> {
+    const document = activeSimpleDocument(false);
+    if (!document) return [];
+    const file = currentFilePath(document);
+    const cwd = workspaceCwd(document);
+    const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+    const scope = folder ?? vscode.TaskScope.Workspace;
+    return [
+      simpleTask(this.context, 'Simple: check current file', ['check', file], scope, cwd),
+      simpleTask(this.context, 'Simple: run current file', ['run', file], scope, cwd),
+      simpleTask(this.context, 'Simple: run current file with JIT', ['run', file, '-jit', '--jit-stats'], scope, cwd),
+      simpleTask(this.context, 'Simple: build current file', ['build', file], scope, cwd),
+      simpleTask(this.context, 'Simple: emit SIR', ['emit', '-ir', file, '--out', outputPath(document, 'sir')], scope, cwd),
+      simpleTask(this.context, 'Simple: emit SBC', ['emit', '-sbc', file, '--out', outputPath(document, 'sbc')], scope, cwd)
+    ];
+  }
+
+  async resolveTask(task: vscode.Task): Promise<vscode.Task | undefined> {
+    const document = activeSimpleDocument(false);
+    if (!document) return undefined;
+    const definition = task.definition;
+    const command = typeof definition.command === 'string' ? definition.command : undefined;
+    const args = Array.isArray(definition.args) ? definition.args.filter((v): v is string => typeof v === 'string') : [];
+    if (!command) return undefined;
+    const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+    return simpleTask(this.context, task.name, [command, ...args], folder ?? vscode.TaskScope.Workspace, workspaceCwd(document));
+  }
+}
+
+function registerCommand(context: vscode.ExtensionContext, command: string, callback: (...args: unknown[]) => unknown): void {
   context.subscriptions.push(vscode.commands.registerCommand(command, callback));
 }
 
@@ -223,32 +313,32 @@ function registerCommands(context: vscode.ExtensionContext): void {
   registerCommand(context, COMMANDS.showVersion, () => runSvm(context, 'Simple version', ['version']));
   registerCommand(context, COMMANDS.showHelp, () => runSvm(context, 'Simple help', ['help']));
 
-  registerCommand(context, COMMANDS.checkCurrentFile, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.checkCurrentFile, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple check', ['check', currentFilePath(doc)], doc);
   });
-  registerCommand(context, COMMANDS.runCurrentFile, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.runCurrentFile, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple run', ['run', currentFilePath(doc)], doc);
   });
-  registerCommand(context, COMMANDS.runCurrentFileWithJit, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.runCurrentFileWithJit, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple run with JIT', ['run', currentFilePath(doc), '-jit', '--jit-stats'], doc);
   });
-  registerCommand(context, COMMANDS.buildCurrentFile, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.buildCurrentFile, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple build', ['build', currentFilePath(doc)], doc);
   });
-  registerCommand(context, COMMANDS.compileCurrentFile, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.compileCurrentFile, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc)], doc);
   });
-  registerCommand(context, COMMANDS.emitSir, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.emitSir, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple emit SIR', ['emit', '-ir', currentFilePath(doc), '--out', outputPath(doc, 'sir')], doc);
   });
-  registerCommand(context, COMMANDS.emitSbc, async () => {
-    const doc = activeSimpleDocument();
+  registerCommand(context, COMMANDS.emitSbc, async (resource?: unknown) => {
+    const doc = await commandDocument(resource);
     if (doc) await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', currentFilePath(doc), '--out', outputPath(doc, 'sbc')], doc);
   });
 }
@@ -267,6 +357,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateRestartStatusVisibility));
   updateRestartStatusVisibility();
   registerCommands(context);
+  context.subscriptions.push(vscode.tasks.registerTaskProvider(TASK_TYPE, new SimpleTaskProvider(context)));
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (event) => {

@@ -13,6 +13,9 @@ if (pkg.main !== './out/extension.js') fail('package main must point at compiled
 if (!fs.existsSync(path.join(root, pkg.main))) fail(`compiled extension missing: ${pkg.main}`);
 if (pkg.contributes?.configuration?.properties?.['simple.lspPath']) fail('simple.lspPath is obsolete; use simple.compilerPath');
 if (!pkg.contributes?.configuration?.properties?.['simple.compilerPath']) fail('simple.compilerPath setting missing');
+if (!Array.isArray(pkg.contributes?.taskDefinitions) || !pkg.contributes.taskDefinitions.some((t) => t.type === 'simple')) fail('simple task definition missing');
+if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
+if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
 
 const commands = new Set((pkg.contributes?.commands ?? []).map((c) => c.command));
 for (const command of [
@@ -34,5 +37,6 @@ for (const command of [
 
 const extensionText = fs.readFileSync(path.join(root, pkg.main), 'utf8');
 if (!extensionText.includes('svm')) fail('extension must discover and invoke svm');
+if (!extensionText.includes('registerTaskProvider')) fail('compiled extension must register Simple task provider');
 if (extensionText.includes('simple.lspPath')) fail('compiled extension still references obsolete simple.lspPath');
 console.log('extension manifest ok');

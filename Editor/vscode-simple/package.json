@@ -193,6 +193,38 @@
           "when": "editorLangId == simple",
           "group": "simple@50"
         }
+      ],
+      "explorer/context": [
+        {
+          "command": "simple.checkCurrentFile",
+          "when": "resourceExtname == .simple",
+          "group": "simple@10"
+        },
+        {
+          "command": "simple.runCurrentFile",
+          "when": "resourceExtname == .simple",
+          "group": "simple@20"
+        },
+        {
+          "command": "simple.runCurrentFileWithJit",
+          "when": "resourceExtname == .simple",
+          "group": "simple@30"
+        },
+        {
+          "command": "simple.buildCurrentFile",
+          "when": "resourceExtname == .simple",
+          "group": "simple@40"
+        },
+        {
+          "command": "simple.emitSir",
+          "when": "resourceExtname == .simple",
+          "group": "simple@50"
+        },
+        {
+          "command": "simple.emitSbc",
+          "when": "resourceExtname == .simple",
+          "group": "simple@60"
+        }
       ]
     },
     "configuration": {
@@ -214,7 +246,44 @@
           "description": "Arguments passed to svm to start the Simple LSP server."
         }
       }
-    }
+    },
+    "taskDefinitions": [
+      {
+        "type": "simple",
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "svm subcommand, such as check, run, build, or emit."
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Arguments after the svm subcommand."
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "simple-svm",
+        "owner": "simple",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",
