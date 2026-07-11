@@ -671,7 +671,29 @@ bool LspHoverIncludesImmutableDeclaredType() {
   if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":68") != std::string::npos &&
-         out_contents.find("limit : i32") != std::string::npos;
+         out_contents.find("limit :: i32") != std::string::npos;
+}
+
+bool LspHoverPrefersExactImmutableDeclaration() {
+  const std::string in_path = TempPath("simple_lsp_hover_exact_immutable_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_exact_immutable_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_exact_immutable_err.txt");
+  const std::string uri = "file:///workspace/hover_exact_immutable.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"circleCount : i32 () { return 1 }\\ncircleCount :: i32 = 10000;\"}}}";
+  const std::string hover_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":69,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":2}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":69") != std::string::npos &&
+         out_contents.find("circleCount :: i32") != std::string::npos;
 }
 
 bool LspHoverIncludesFunctionParameterType() {
@@ -698,7 +720,7 @@ bool LspHoverIncludesFunctionParameterType() {
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":69") != std::string::npos &&
          out_contents.find("x : i32") != std::string::npos &&
          out_contents.find("\"id\":70") != std::string::npos &&
-         out_contents.find("y : i64") != std::string::npos;
+         out_contents.find("y :: i64") != std::string::npos;
 }
 
 bool LspHoverResolvesTypeAcrossOpenDocuments() {
@@ -3648,6 +3670,44 @@ bool LspWorkspaceSymbolsIndexNestedSimpleFiles() {
          out_contents.find(nested_uri) != std::string::npos;
 }
 
+bool LspWorkspaceSymbolsIndexModuleMapFiles() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_module_map_test";
+  const auto external_dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_module_map_external";
+  fs::create_directories(dir);
+  fs::create_directories(external_dir);
+  const auto main_path = dir / "main.simple";
+  const auto map_path = dir / "simple.modules";
+  const auto external_path = external_dir / "mapped.simple";
+  {
+    std::ofstream mapped(external_path);
+    mapped << "module Mapped.Lib\nmappedFunc : i32 () { return 9 }";
+  }
+  {
+    std::ofstream map(map_path);
+    map << "Mapped.Lib=\"" << external_path.generic_string() << "\"\n";
+  }
+  const std::string main_uri = "file://" + main_path.generic_string();
+  const std::string external_uri = "file://" + external_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_workspace_symbols_module_map_in.txt");
+  const std::string out_path = TempPath("simple_lsp_workspace_symbols_module_map_out.txt");
+  const std::string err_path = TempPath("simple_lsp_workspace_symbols_module_map_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"main : i32 () { return 0 }\"}}}";
+  const std::string symbol_req = "{\"jsonrpc\":\"2.0\",\"id\":73,\"method\":\"workspace/symbol\",\"params\":{\"query\":\"mapped\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(symbol_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  fs::remove_all(external_dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":73") != std::string::npos &&
+         out_contents.find("mappedFunc") != std::string::npos &&
+         out_contents.find(external_uri) != std::string::npos;
+}
+
 bool LspReferencesIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
   const auto dir = fs::temp_directory_path() / "simple_lsp_references_files_test";
@@ -3982,6 +4042,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_hover_includes_declared_type", LspHoverIncludesDeclaredType},
   {"lsp_hover_includes_immutable_declared_type", LspHoverIncludesImmutableDeclaredType},
+  {"lsp_hover_prefers_exact_immutable_declaration", LspHoverPrefersExactImmutableDeclaration},
   {"lsp_hover_includes_function_parameter_type", LspHoverIncludesFunctionParameterType},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},
@@ -4083,6 +4144,7 @@ const TestCase kLspTests[] = {
   {"lsp_document_link_resolves_module_map_entries", LspDocumentLinkResolvesModuleMapEntries},
   {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
   {"lsp_workspace_symbols_index_nested_simple_files", LspWorkspaceSymbolsIndexNestedSimpleFiles},
+  {"lsp_workspace_symbols_index_module_map_files", LspWorkspaceSymbolsIndexModuleMapFiles},
   {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},
   {"lsp_formatting_returns_whole_document_edit", LspFormattingReturnsWholeDocumentEdit},
   {"lsp_range_formatting_returns_line_edit", LspRangeFormattingReturnsLineEdit},

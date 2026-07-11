@@ -527,6 +527,12 @@ std::string TokenRangeJson(const Simple::Lang::Token& tk) {
 void PublishDiagnostics(std::ostream& out,
                         const std::string& uri,
                         const std::string& source_text) {
+  std::string source_path;
+  if (FileUriToPath(uri, &source_path) &&
+      std::filesystem::path(source_path).filename() == "simple.modules") {
+    WriteLspMessage(out, Simple::LSP::PublishDiagnosticsMessage(uri, nullptr));
+    return;
+  }
   const size_t first_content = source_text.find_first_not_of(" \t\r\n");
   if (first_content == std::string::npos) {
     WriteLspMessage(out, Simple::LSP::PublishDiagnosticsMessage(uri, nullptr));
@@ -756,22 +762,42 @@ std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
     const std::unordered_map<std::string, std::string>& open_docs);
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
 bool IsFunctionDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
+bool ParseSimpleModulesMapLine(const std::string& line_text,
+                               std::string* out_name,
+                               std::string* out_path,
+                               size_t* out_path_pos);
 const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character);
 
-bool ResolveDeclaredTypeForIdent(const std::string& text, const std::string& ident, std::string* out_type) {
+bool ResolveDeclaredTypeAtRef(const std::vector<TokenRef>& refs,
+                              size_t index,
+                              std::string* out_type,
+                              bool* out_immutable = nullptr) {
+  if (!out_type || index >= refs.size()) return false;
+  if (!IsDeclNameAt(refs, index)) return false;
+  if (index + 2 < refs.size() &&
+      (refs[index + 1].token.kind == Simple::Lang::TokenKind::Colon ||
+       refs[index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon) &&
+      refs[index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
+    *out_type = refs[index + 2].token.text;
+    if (out_immutable) {
+      *out_immutable = refs[index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon;
+    }
+    return true;
+  }
+  return false;
+}
+
+bool ResolveDeclaredTypeForIdent(const std::string& text,
+                                 const std::string& ident,
+                                 std::string* out_type,
+                                 bool* out_immutable = nullptr) {
   if (!out_type || ident.empty()) return false;
   const auto refs = LexTokenRefs(text);
   for (const auto& ref : refs) {
     if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
     if (ref.token.text != ident) continue;
     if (!IsDeclNameAt(refs, ref.index)) continue;
-    if (ref.index + 2 < refs.size() &&
-        (refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::Colon ||
-         refs[ref.index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon) &&
-        refs[ref.index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
-      *out_type = refs[ref.index + 2].token.text;
-      return true;
-    }
+    if (ResolveDeclaredTypeAtRef(refs, ref.index, out_type, out_immutable)) return true;
   }
   return false;
 }
@@ -1641,17 +1667,20 @@ void ReplyHover(std::ostream& out,
     hover_text = signature;
   } else {
   std::string decl_type;
-  if (!ResolveDeclaredTypeForIdent(it->second, ident, &decl_type)) {
-    const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
-    for (const auto& other_uri : sorted_uris) {
-      const auto other_it = open_docs.find(other_uri);
-      if (other_it == open_docs.end()) continue;
-      const std::string& other_text = other_it->second;
-      if (ResolveDeclaredTypeForIdent(other_text, ident, &decl_type)) break;
+  bool decl_immutable = false;
+  if (!target || !ResolveDeclaredTypeAtRef(refs, target->index, &decl_type, &decl_immutable)) {
+    if (!ResolveDeclaredTypeForIdent(it->second, ident, &decl_type, &decl_immutable)) {
+      const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
+      for (const auto& other_uri : sorted_uris) {
+        const auto other_it = open_docs.find(other_uri);
+        if (other_it == open_docs.end()) continue;
+        const std::string& other_text = other_it->second;
+        if (ResolveDeclaredTypeForIdent(other_text, ident, &decl_type, &decl_immutable)) break;
+      }
     }
   }
   if (!decl_type.empty()) {
-    hover_text = ident + " : " + decl_type;
+    hover_text = ident + (decl_immutable ? " :: " : " : ") + decl_type;
   } else {
     const std::string call_name = QualifiedMemberAtPosition(it->second, line, character);
     ReservedSignature reserved_sig;
@@ -3293,15 +3322,38 @@ std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
         continue;
       }
       if (!it->is_regular_file(ec) || ec) continue;
-      if (it->path().extension() != ".simple") continue;
-      const std::string file_uri = PathToFileUri(it->path());
-      if (docs.find(file_uri) != docs.end()) continue;
-      std::ifstream in(it->path(), std::ios::binary);
-      if (!in) continue;
-      std::ostringstream buffer;
-      buffer << in.rdbuf();
-      docs.emplace(file_uri, buffer.str());
-      ++indexed_files;
+      auto index_simple_file = [&](const std::filesystem::path& file_path) {
+        const std::string file_uri = PathToFileUri(file_path);
+        if (docs.find(file_uri) != docs.end()) return;
+        std::ifstream in(file_path, std::ios::binary);
+        if (!in) return;
+        std::ostringstream buffer;
+        buffer << in.rdbuf();
+        docs.emplace(file_uri, buffer.str());
+        ++indexed_files;
+      };
+      if (it->path().extension() == ".simple") {
+        index_simple_file(it->path());
+        continue;
+      }
+      if (it->path().filename() != "simple.modules") continue;
+      std::ifstream map_in(it->path());
+      if (!map_in) continue;
+      std::string line;
+      while (indexed_files < kMaxIndexedWorkspaceFiles && std::getline(map_in, line)) {
+        std::string module_name;
+        std::string module_path;
+        size_t module_path_pos = 0;
+        if (!ParseSimpleModulesMapLine(line, &module_name, &module_path, &module_path_pos)) continue;
+        std::filesystem::path target_path(module_path);
+        if (target_path.is_relative()) target_path = it->path().parent_path() / target_path;
+        if (!target_path.has_extension()) target_path += ".simple";
+        if (!std::filesystem::is_regular_file(target_path, ec) || ec) {
+          ec.clear();
+          continue;
+        }
+        index_simple_file(target_path);
+      }
     }
   }
   return docs;
