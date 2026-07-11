@@ -823,15 +823,15 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Log") {
-    if (member == "log") {
+  if (resolved == "SystemLog" || resolved == "StandardLog") {
+    if (resolved == "SystemLog" && member == "log") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "info" || member == "warn" || member == "error") {
+    if (resolved == "StandardLog" && (member == "info" || member == "warn" || member == "error")) {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
@@ -849,6 +849,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    return false;
   }
   return TryGetNativeReservedModuleCallTarget(resolved, member, out);
 }

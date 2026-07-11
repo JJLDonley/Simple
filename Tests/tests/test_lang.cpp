@@ -1741,6 +1741,32 @@ bool LangValidateStandardRandomRangeApi() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRejectSystemLogConvenienceApis() {
+  const char* src =
+      "import System.Log\n"
+      "main : void () { System.Log.info(\"no\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangRejectStandardLogRawApi() {
+  const char* src =
+      "import Standard.Log\n"
+      "main : void () { Standard.Log.log(\"no\", 1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateSplitLogApis() {
+  const char* src =
+      "import System.Log\nimport Standard.Log\n"
+      "main : void () { System.Log.log(\"raw\", 1); Standard.Log.info(\"hi\"); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateStandardFsProbeApis() {
   const char* src =
       "import Standard.FS\n"
@@ -3343,6 +3369,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
   {"lang_reject_system_random_range_api", LangRejectSystemRandomRangeApi},
   {"lang_validate_standard_random_range_api", LangValidateStandardRandomRangeApi},
+  {"lang_reject_system_log_convenience_apis", LangRejectSystemLogConvenienceApis},
+  {"lang_reject_standard_log_raw_api", LangRejectStandardLogRawApi},
+  {"lang_validate_split_log_apis", LangValidateSplitLogApis},
   {"lang_validate_standard_fs_probe_apis", LangValidateStandardFsProbeApis},
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},

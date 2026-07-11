@@ -1075,7 +1075,8 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
       {"Buffer", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
-      {"Log", {"log", "info", "warn", "error", "setLevel"}},
+      {"SystemLog", {"log", "setLevel", "setFile"}},
+      {"StandardLog", {"info", "warn", "error", "setLevel", "setFile"}},
   };
 
   std::unordered_set<std::string> labels;
@@ -1540,13 +1541,13 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Log") {
-    if (member == "log") {
+  if (module == "SystemLog" || module == "StandardLog") {
+    if (module == "SystemLog" && member == "log") {
       out->params = {"message", "level"};
       out->return_type = "void";
       return true;
     }
-    if (member == "info" || member == "warn" || member == "error") {
+    if (module == "StandardLog" && (member == "info" || member == "warn" || member == "error")) {
       out->params = {"message"};
       out->return_type = "void";
       return true;
@@ -1554,6 +1555,11 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     if (member == "setLevel") {
       out->params = {"level"};
       out->return_type = "void";
+      return true;
+    }
+    if (member == "setFile") {
+      out->params = {"path"};
+      out->return_type = "bool";
       return true;
     }
     return false;

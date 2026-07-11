@@ -29,7 +29,7 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "FS") *out = "System.fs";
   else if (canonical_module == "Json") *out = "System.json";
   else if (canonical_module == "Buffer") *out = "System.buffer";
-  else if (canonical_module == "Log") *out = "System.log";
+  else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
   else return false;
   return true;
 }
@@ -123,11 +123,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
-  if (canonical_module == "Log") {
-    out = {"log", "info", "warn", "error", "setLevel", "setFile"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
+  if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile"};
+  if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
   return out;
 }
 
@@ -186,6 +183,8 @@ bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_i
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
   if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "f64";
   if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "range" || member == "f64";
+  if (canonical_module == "SystemLog") return member == "log" || member == "setLevel" || member == "setFile";
+  if (canonical_module == "StandardLog") return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   std::string native_module;
   if (NativeModuleNameForReserved(canonical_module, &native_module) &&
       ReservedNativeRegistry().Find(native_module, member)) {
@@ -244,7 +243,6 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
     return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
            member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
   }
-  if (canonical_module == "Log") return member == "log" || member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   return false;
 }
 
