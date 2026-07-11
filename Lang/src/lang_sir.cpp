@@ -379,23 +379,38 @@ bool GetModuleNameFromExpr(const Expr& base, std::string* out) {
   return false;
 }
 
-bool ResolveReservedModuleName(const EmitState& st,
-                               const std::string& name,
-                               std::string* out) {
+bool ResolveReservedModuleId(const EmitState& st,
+                             const std::string& name,
+                             LibraryModuleId* out) {
   if (!out) return false;
   if (auto info = ParseLibraryImportPath(name)) {
     LibraryModuleId id{info->root, info->module_index};
     if (st.reserved_imports.find(id) != st.reserved_imports.end()) {
-      *out = std::string(ToCanonicalName(id));
+      *out = id;
+      return true;
+    }
+  }
+  if (auto module = ParseCanonicalLibraryModule(name)) {
+    if (st.reserved_imports.find(*module) != st.reserved_imports.end()) {
+      *out = *module;
       return true;
     }
   }
   auto it = st.reserved_import_aliases.find(name);
   if (it != st.reserved_import_aliases.end()) {
-    *out = std::string(ToCanonicalName(it->second));
+    *out = it->second;
     return true;
   }
   return false;
+}
+
+bool ResolveReservedModuleName(const EmitState& st,
+                               const std::string& name,
+                               std::string* out) {
+  LibraryModuleId id{};
+  if (!out || !ResolveReservedModuleId(st, name, &id)) return false;
+  *out = std::string(ToCanonicalName(id));
+  return true;
 }
 
 bool ResolveUsingReservedMember(const EmitState& st,
@@ -447,8 +462,10 @@ bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   if (!IsIoPrintName(callee.text)) return false;
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
-  std::string resolved;
-  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "StandardIO";
+  LibraryModuleId resolved{};
+  return ResolveReservedModuleId(st, module_name, &resolved) &&
+         resolved.root == LibraryRoot::Standard &&
+         static_cast<StandardModule>(resolved.module_index) == StandardModule::IO;
 }
 
 bool HostIsLinux() {
@@ -485,9 +502,11 @@ bool IsCoreDlOpenCallExpr(const Expr& expr, const EmitState& st) {
   if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
-  std::string resolved;
-  if (!ResolveReservedModuleName(st, module_name, &resolved)) return false;
-  return resolved == "DL" && NormalizeCoreDlMember(callee.text) == "open";
+  LibraryModuleId resolved{};
+  if (!ResolveReservedModuleId(st, module_name, &resolved)) return false;
+  return resolved.root == LibraryRoot::System &&
+         static_cast<SystemModule>(resolved.module_index) == SystemModule::FFI &&
+         ParseMember(SystemModule::FFI, NormalizeCoreDlMember(callee.text)) == SystemMember(SystemFFIMember::Open);
 }
 
 bool GetDlOpenManifestModule(const Expr& expr, const EmitState& st, std::string* out_module) {
@@ -552,8 +571,10 @@ bool FindDlHandleGlobalForModule(const EmitState& st,
 bool GetCoreDlSymImportId(const EmitState& st, std::string* out_id) {
   if (!out_id) return false;
   for (const auto& entry : st.extern_ids_by_module) {
-    std::string resolved;
-    if (!ResolveReservedModuleName(st, entry.first, &resolved) || resolved != "DL") continue;
+    LibraryModuleId resolved{};
+    if (!ResolveReservedModuleId(st, entry.first, &resolved) ||
+        resolved.root != LibraryRoot::System ||
+        static_cast<SystemModule>(resolved.module_index) != SystemModule::FFI) continue;
     auto it = entry.second.find("sym");
     if (it != entry.second.end()) {
       *out_id = it->second;
