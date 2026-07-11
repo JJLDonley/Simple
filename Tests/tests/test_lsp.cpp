@@ -1766,6 +1766,60 @@ bool LspSemanticTokensClassifyUsingKeyword() {
   return false;
 }
 
+bool LspSemanticTokensCoverCorrectnessMatrix() {
+  const std::string in_path = TempPath("simple_lsp_tokens_matrix_in.txt");
+  const std::string out_path = TempPath("simple_lsp_tokens_matrix_out.txt");
+  const std::string err_path = TempPath("simple_lsp_tokens_matrix_err.txt");
+  const std::string uri = "file:///workspace/tokens_matrix.simple";
+  const std::string text =
+      "module Tools.Math\n"
+      "import Foo.Bar as Bar\n"
+      "count : i32 = 1;\n"
+      "limit :: i64 = 2;\n"
+      "add : i32 (lhs : i32, rhs :: i32) { return lhs; }\n"
+      "Color :: artifact { r : u8 }\n"
+      "Mode :: enum { Fill = 1, Line = 2 }\n"
+      "add(1, 2);";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string tokens_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":82,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(tokens_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  std::vector<SemanticTokenEntry> entries;
+  if (!ReadFileText(err_path).empty() || !DecodeSemanticData(ReadFileText(out_path), &entries)) return false;
+  constexpr int kDecl = 1 << 0;
+  constexpr int kReadonly = 1 << 1;
+  auto has = [&](int line, int col, int len, int type, int required, int forbidden = 0) {
+    for (const auto& entry : entries) {
+      if (entry.line == line && entry.col == col && entry.len == len && entry.type == type &&
+          (entry.modifiers & required) == required && (entry.modifiers & forbidden) == 0) return true;
+    }
+    return false;
+  };
+  return has(0, 7, 5, 7, kDecl) &&
+         has(0, 13, 4, 7, kDecl) &&
+         has(1, 7, 3, 7, 0) &&
+         has(1, 11, 3, 7, 0) &&
+         has(1, 18, 3, 7, kDecl) &&
+         has(2, 0, 5, 3, kDecl, kReadonly) &&
+         has(3, 0, 5, 3, kDecl | kReadonly) &&
+         has(4, 0, 3, 2, kDecl) &&
+         has(4, 11, 3, 4, kDecl, kReadonly) &&
+         has(4, 22, 3, 4, kDecl | kReadonly) &&
+         has(4, 43, 3, 4, 0) &&
+         has(5, 0, 5, 1, kDecl) &&
+         has(5, 20, 1, 5, kDecl) &&
+         has(6, 0, 4, 1, kDecl) &&
+         has(6, 15, 4, 6, kDecl) &&
+         has(7, 0, 3, 2, 0);
+}
+
 bool LspSemanticTokensClassifyImmutableVariablesAndParameters() {
   const std::string in_path = TempPath("simple_lsp_tokens_immutable_in.txt");
   const std::string out_path = TempPath("simple_lsp_tokens_immutable_out.txt");
@@ -4218,6 +4272,7 @@ const TestCase kLspTests[] = {
   {"lsp_semantic_tokens_returns_data", LspSemanticTokensReturnsData},
   {"lsp_semantic_tokens_classify_module_keyword", LspSemanticTokensClassifyModuleKeyword},
   {"lsp_semantic_tokens_classify_using_keyword", LspSemanticTokensClassifyUsingKeyword},
+  {"lsp_semantic_tokens_cover_correctness_matrix", LspSemanticTokensCoverCorrectnessMatrix},
   {"lsp_semantic_tokens_classify_immutable_variables_and_parameters", LspSemanticTokensClassifyImmutableVariablesAndParameters},
   {"lsp_semantic_tokens_mark_function_declarations", LspSemanticTokensMarkFunctionDeclarations},
   {"lsp_semantic_tokens_debug_env_does_not_break_response",

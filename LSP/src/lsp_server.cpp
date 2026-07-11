@@ -2643,6 +2643,8 @@ bool IsReservedModuleAliasToken(const std::string& name) {
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<std::string>& import_aliases,
+                                      const std::unordered_set<size_t>& namespace_indices,
+                                      const std::unordered_set<size_t>& parameter_use_indices,
                                       const std::unordered_set<size_t>& enum_member_indices,
                                       const std::unordered_set<std::string>& enum_names,
                                       const std::unordered_set<std::string>& module_names,
@@ -2658,6 +2660,8 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
   if (token.kind == TK::Integer || token.kind == TK::Float) return 9; // number
   if (IsOperatorToken(token.kind)) return 10; // operator
   if (token.kind == TK::Identifier) {
+    if (namespace_indices.find(i) != namespace_indices.end()) return 7; // namespace/module/import path
+    if (parameter_use_indices.find(i) != parameter_use_indices.end()) return 4; // parameter use
     if (i < member_depths.size() && member_depths[i] > 0) {
       if (i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen) return 2; // function
       if (i < member_receivers.size() &&
@@ -2688,28 +2692,37 @@ uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
 uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<size_t>& enum_member_indices,
-                                      const std::unordered_set<size_t>& artifact_field_indices) {
+                                      const std::unordered_set<size_t>& artifact_field_indices,
+                                      const std::unordered_set<size_t>& readonly_decl_indices,
+                                      const std::unordered_set<size_t>& namespace_decl_indices) {
   using TK = Simple::Lang::TokenKind;
   if (i >= refs.size()) return 0;
+  uint32_t modifiers = 0;
   if (refs[i].token.kind == TK::Identifier &&
       IsReservedModuleAliasToken(refs[i].token.text)) {
-    return 1u << 2; // defaultLibrary
+    modifiers |= 1u << 2; // defaultLibrary
   }
   if (IsMemberNameAt(refs, i) &&
       IsReservedModuleAliasToken(refs[i - 2].token.text)) {
-    return 1u << 2; // defaultLibrary
+    modifiers |= 1u << 2; // defaultLibrary
   }
   if (enum_member_indices.find(i) != enum_member_indices.end()) {
-    return 1u << 0; // declaration
+    modifiers |= 1u << 0; // declaration
   }
   if (artifact_field_indices.find(i) != artifact_field_indices.end()) {
-    return 1u << 0; // declaration
+    modifiers |= 1u << 0; // declaration
+  }
+  if (namespace_decl_indices.find(i) != namespace_decl_indices.end()) {
+    modifiers |= 1u << 0; // declaration
   }
   if (refs[i].token.kind == TK::Identifier &&
       (IsDeclNameAt(refs, i) || IsParameterDeclNameAt(refs, i))) {
-    return 1u << 0; // declaration
+    modifiers |= 1u << 0; // declaration
   }
-  return 0;
+  if (readonly_decl_indices.find(i) != readonly_decl_indices.end()) {
+    modifiers |= 1u << 1; // readonly
+  }
+  return modifiers;
 }
 
 void CollectSemanticTokensFallback(const std::string& text, std::vector<SemanticTokenEntry>* out) {
@@ -2936,6 +2949,61 @@ void ReplySemanticTokensFull(std::ostream& out,
   }
   std::unordered_set<std::string> import_aliases;
   CollectImportAliases(text, &import_aliases);
+  std::unordered_set<size_t> namespace_indices;
+  std::unordered_set<size_t> namespace_decl_indices;
+  std::unordered_set<size_t> readonly_decl_indices;
+  std::unordered_set<size_t> parameter_use_indices;
+  {
+    using TK = Simple::Lang::TokenKind;
+    const auto facts = BuildSimpleLspFacts(refs);
+    for (const auto& fact : facts) {
+      if (fact.immutable &&
+          (fact.kind == SimpleLspFact::Kind::Variable || fact.kind == SimpleLspFact::Kind::Parameter)) {
+        readonly_decl_indices.insert(fact.token_index);
+      }
+      if (fact.kind == SimpleLspFact::Kind::Module || fact.kind == SimpleLspFact::Kind::Namespace) {
+        namespace_indices.insert(fact.token_index);
+        namespace_decl_indices.insert(fact.token_index);
+      }
+    }
+    for (size_t i = 0; i < refs.size(); ++i) {
+      if (refs[i].token.kind == TK::KwImport) {
+        for (size_t j = i + 1; j < refs.size(); ++j) {
+          if (refs[j].token.kind == TK::Identifier) namespace_indices.insert(j);
+          if (refs[j].token.kind == TK::KwAs && j + 1 < refs.size() && refs[j + 1].token.kind == TK::Identifier) {
+            namespace_indices.insert(j + 1);
+            namespace_decl_indices.insert(j + 1);
+            break;
+          }
+          if (refs[j].token.kind != TK::Identifier && refs[j].token.kind != TK::Dot && refs[j].token.kind != TK::String) break;
+        }
+      }
+      if (!IsFunctionDeclNameAt(refs, i)) continue;
+      std::unordered_set<std::string> param_names;
+      size_t j = i + 4;
+      int paren_depth = 1;
+      for (; j < refs.size() && paren_depth > 0; ++j) {
+        if (refs[j].token.kind == TK::LParen) { ++paren_depth; continue; }
+        if (refs[j].token.kind == TK::RParen) { --paren_depth; continue; }
+        if (paren_depth == 1 && refs[j].token.kind == TK::Identifier &&
+            j + 2 < refs.size() &&
+            (refs[j + 1].token.kind == TK::Colon || refs[j + 1].token.kind == TK::DoubleColon) &&
+            refs[j + 2].token.kind == TK::Identifier) {
+          param_names.insert(refs[j].token.text);
+        }
+      }
+      while (j < refs.size() && refs[j].token.kind != TK::LBrace) ++j;
+      if (j >= refs.size() || refs[j].token.kind != TK::LBrace || param_names.empty()) continue;
+      const uint32_t body_depth = refs[j].depth + 1;
+      for (++j; j < refs.size(); ++j) {
+        if (refs[j].token.kind == TK::RBrace && refs[j].depth == body_depth) break;
+        if (refs[j].token.kind == TK::Identifier && param_names.find(refs[j].token.text) != param_names.end() &&
+            !IsParameterDeclNameAt(refs, j)) {
+          parameter_use_indices.insert(j);
+        }
+      }
+    }
+  }
   std::unordered_set<size_t> enum_member_indices;
   {
     using TK = Simple::Lang::TokenKind;
@@ -3060,6 +3128,8 @@ void ReplySemanticTokensFull(std::ostream& out,
       const uint32_t token_type = SemanticTokenTypeIndexForRef(refs,
                                                                i,
                                                                import_aliases,
+                                                               namespace_indices,
+                                                               parameter_use_indices,
                                                                enum_member_indices,
                                                                enum_names,
                                                                module_names,
@@ -3076,7 +3146,12 @@ void ReplySemanticTokensFull(std::ostream& out,
           token.column > 0 ? (token.column - 1) : 0,
           static_cast<uint32_t>(token.text.size() > 0 ? token.text.size() : 1),
           token_type,
-          SemanticTokenModifiersForRef(refs, i, enum_member_indices, artifact_field_indices),
+          SemanticTokenModifiersForRef(refs,
+                                       i,
+                                       enum_member_indices,
+                                       artifact_field_indices,
+                                       readonly_decl_indices,
+                                       namespace_decl_indices),
       });
     }
   }
