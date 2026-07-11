@@ -7,6 +7,7 @@
 
 #include "AST/ast.h"
 #include "RAST/rast.h"
+#include "lang_library.h"
 
 namespace Simple::Lang::RAST {
 
@@ -17,23 +18,23 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
 bool GetReservedModuleVarType(const std::string& canonical_module,
                               const std::string& member,
                               Simple::Lang::AST::TypeRef* out);
-bool IsReservedModuleEnabled(const std::unordered_set<std::string>& reserved_imports,
-                             const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+bool IsReservedModuleEnabled(const Simple::Lang::LibraryModuleSet& reserved_imports,
+                             const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                              const std::string& name);
-bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_imports,
-                               const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+bool ResolveReservedModuleName(const Simple::Lang::LibraryModuleSet& reserved_imports,
+                               const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                                const std::string& name,
                                std::string* out);
 bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
-                       const std::unordered_set<std::string>& reserved_imports,
-                       const std::unordered_map<std::string, std::string>& reserved_import_aliases);
+                       const Simple::Lang::LibraryModuleSet& reserved_imports,
+                       const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases);
 bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
-                          const std::unordered_set<std::string>& reserved_imports,
-                          const std::unordered_map<std::string, std::string>& reserved_import_aliases);
+                          const Simple::Lang::LibraryModuleSet& reserved_imports,
+                          const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases);
 bool GetDlOpenManifestModule(
     const Simple::Lang::AST::Expr& expr,
-    const std::unordered_set<std::string>& reserved_imports,
-    const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+    const Simple::Lang::LibraryModuleSet& reserved_imports,
+    const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
     const std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>>& externs_by_module,
     std::string* out_module);
 std::string NormalizeDlMemberName(const std::string& name);

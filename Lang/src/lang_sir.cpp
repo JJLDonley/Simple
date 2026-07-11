@@ -44,8 +44,8 @@ struct EmitState {
   std::vector<FuncDecl> lambda_funcs;
   std::unordered_map<std::string, std::string> proc_sig_names;
   std::vector<std::string> proc_sig_lines;
-  std::unordered_set<std::string> reserved_imports;
-  std::unordered_map<std::string, std::string> reserved_import_aliases;
+  LibraryModuleSet reserved_imports;
+  LibraryModuleAliasMap reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
   std::unordered_set<std::string> using_modules;
   std::unordered_set<std::string> imported_modules;
@@ -382,15 +382,16 @@ bool ResolveReservedModuleName(const EmitState& st,
                                const std::string& name,
                                std::string* out) {
   if (!out) return false;
-  std::string canonical;
-  if (CanonicalizeReservedImportPath(name, &canonical) &&
-      st.reserved_imports.find(canonical) != st.reserved_imports.end()) {
-    *out = canonical;
-    return true;
+  if (auto info = ParseLibraryImportPath(name)) {
+    LibraryModuleId id{info->root, info->module_index};
+    if (st.reserved_imports.find(id) != st.reserved_imports.end()) {
+      *out = std::string(ToCanonicalName(id));
+      return true;
+    }
   }
   auto it = st.reserved_import_aliases.find(name);
   if (it != st.reserved_import_aliases.end()) {
-    *out = it->second;
+    *out = std::string(ToCanonicalName(it->second));
     return true;
   }
   return false;
@@ -4874,7 +4875,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
           const auto alias_it = st.reserved_import_aliases.find(decl.import_decl.path);
           if (alias_it != st.reserved_import_aliases.end()) {
             st.reserved_imports.insert(alias_it->second);
-            st.using_reserved_modules.insert(alias_it->second);
+            st.using_reserved_modules.insert(std::string(ToCanonicalName(alias_it->second)));
           } else if (st.extern_ids_by_module.find(decl.import_decl.path) != st.extern_ids_by_module.end()) {
             st.using_modules.insert(decl.import_decl.path);
           } else if (st.imported_modules.find(decl.import_decl.path) != st.imported_modules.end()) {
@@ -4884,16 +4885,17 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
             st.using_modules.insert(dot == std::string::npos ? decl.import_decl.path : decl.import_decl.path.substr(dot + 1));
           }
         } else {
-          std::string canonical_import;
-          if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
+          const auto library_import = ParseLibraryImportPath(decl.import_decl.path);
+          if (!library_import) {
             st.imported_modules.insert(decl.import_decl.path);
             continue;
           }
-          st.reserved_imports.insert(canonical_import);
+          LibraryModuleId module_id{library_import->root, library_import->module_index};
+          st.reserved_imports.insert(module_id);
           if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
-            st.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+            st.reserved_import_aliases[decl.import_decl.alias] = module_id;
           } else {
-            st.reserved_import_aliases[decl.import_decl.path] = canonical_import;
+            st.reserved_import_aliases[decl.import_decl.path] = module_id;
           }
         }
       }
@@ -5311,16 +5313,25 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     return true;
   };
 
+  auto module_id_for_name = [](const std::string& name) -> std::optional<LibraryModuleId> {
+    if (auto module = ParseCanonicalLibraryModule(name)) return module;
+    return std::nullopt;
+  };
+  auto has_reserved_name = [&](const std::string& name) {
+    const auto module = module_id_for_name(name);
+    return module && st.reserved_imports.find(*module) != st.reserved_imports.end();
+  };
   auto reserved_aliases_for = [&](const std::string& name) {
     std::vector<std::string> aliases;
     aliases.push_back(name);
+    const auto module = module_id_for_name(name);
     for (const auto& entry : st.reserved_import_aliases) {
-      if (entry.second == name) aliases.push_back(entry.first);
+      if (module && entry.second == *module) aliases.push_back(entry.first);
     }
     return aliases;
   };
 
-  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
+  if (has_reserved_name("File")) {
     for (const auto& alias : reserved_aliases_for("File")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
@@ -5343,7 +5354,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("DL") != st.reserved_imports.end()) {
+  if (has_reserved_name("DL")) {
     for (const auto& alias : reserved_aliases_for("DL")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
@@ -5362,7 +5373,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("StandardTime") != st.reserved_imports.end()) {
+  if (has_reserved_name("StandardTime")) {
     for (const auto& alias : reserved_aliases_for("StandardTime")) {
       std::vector<TypeRef> format_params;
       format_params.push_back(make_type("i64"));
@@ -5370,7 +5381,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("OS") != st.reserved_imports.end()) {
+  if (has_reserved_name("OS")) {
     for (const auto& alias : reserved_aliases_for("OS")) {
       if (!add_reserved_import(alias, "System.os", "platform", {}, make_type("string"))) return false;
       if (!add_reserved_import(alias, "System.os", "arch", {}, make_type("string"))) return false;
@@ -5443,8 +5454,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (st.reserved_imports.find("FS") != st.reserved_imports.end() && !add_fs_imports("FS", true)) return false;
-  if (st.reserved_imports.find("StandardFS") != st.reserved_imports.end() && !add_fs_imports("StandardFS", false)) return false;
+  if (has_reserved_name("FS") && !add_fs_imports("FS", true)) return false;
+  if (has_reserved_name("StandardFS") && !add_fs_imports("StandardFS", false)) return false;
 
   auto add_path_imports = [&](const std::string& canonical_module, bool low_level) {
     for (const auto& alias : reserved_aliases_for(canonical_module)) {
@@ -5468,10 +5479,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (st.reserved_imports.find("Path") != st.reserved_imports.end() && !add_path_imports("Path", true)) return false;
-  if (st.reserved_imports.find("StandardPath") != st.reserved_imports.end() && !add_path_imports("StandardPath", false)) return false;
+  if (has_reserved_name("Path") && !add_path_imports("Path", true)) return false;
+  if (has_reserved_name("StandardPath") && !add_path_imports("StandardPath", false)) return false;
 
-  if (st.reserved_imports.find("Env") != st.reserved_imports.end()) {
+  if (has_reserved_name("Env")) {
     for (const auto& alias : reserved_aliases_for("Env")) {
       if (!add_reserved_import(alias, "System.env", "argsCount", {}, make_type("i32"))) return false;
       std::vector<TypeRef> arg_params;
@@ -5513,12 +5524,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (st.reserved_imports.find("SystemRandom") != st.reserved_imports.end() &&
+  if (has_reserved_name("SystemRandom") &&
       !add_random_imports("SystemRandom", false)) return false;
-  if (st.reserved_imports.find("StandardRandom") != st.reserved_imports.end() &&
+  if (has_reserved_name("StandardRandom") &&
       !add_random_imports("StandardRandom", true)) return false;
 
-  if (st.reserved_imports.find("Channel") != st.reserved_imports.end()) {
+  if (has_reserved_name("Channel")) {
     for (const auto& alias : reserved_aliases_for("Channel")) {
       auto add_channel = [&](const std::string& suffix, const std::string& type_name) -> bool {
         if (!add_reserved_import(alias, "System.channel", "new" + suffix, {}, make_type("i64"))) return false;
@@ -5569,7 +5580,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Thread") != st.reserved_imports.end()) {
+  if (has_reserved_name("Thread")) {
     for (const auto& alias : reserved_aliases_for("Thread")) {
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
@@ -5579,7 +5590,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("IO") != st.reserved_imports.end()) {
+  if (has_reserved_name("IO")) {
     for (const auto& alias : reserved_aliases_for("IO")) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
@@ -5611,7 +5622,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("File") != st.reserved_imports.end()) {
+  if (has_reserved_name("File")) {
     for (const auto& alias : reserved_aliases_for("File")) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
@@ -5634,7 +5645,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("SystemJson") != st.reserved_imports.end()) {
+  if (has_reserved_name("SystemJson")) {
     for (const auto& alias : reserved_aliases_for("SystemJson")) {
       std::vector<TypeRef> parse_params;
       parse_params.push_back(make_type("string"));
@@ -5691,9 +5702,9 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   const std::string system_buffer_name(ToCanonicalName(SystemModule::Buffer));
   const std::string system_bytes_name(ToCanonicalName(SystemModule::Bytes));
   const std::string standard_bytes_name(ToCanonicalName(StandardModule::Bytes));
-  if (st.reserved_imports.find(system_buffer_name) != st.reserved_imports.end() && !add_bytes_imports(system_buffer_name, true)) return false;
-  if (st.reserved_imports.find(system_bytes_name) != st.reserved_imports.end() && !add_bytes_imports(system_bytes_name, true)) return false;
-  if (st.reserved_imports.find(standard_bytes_name) != st.reserved_imports.end() && !add_bytes_imports(standard_bytes_name, false)) return false;
+  if (has_reserved_name(system_buffer_name) && !add_bytes_imports(system_buffer_name, true)) return false;
+  if (has_reserved_name(system_bytes_name) && !add_bytes_imports(system_bytes_name, true)) return false;
+  if (has_reserved_name(standard_bytes_name) && !add_bytes_imports(standard_bytes_name, false)) return false;
 
   auto add_log_control_imports = [&](const std::string& alias) {
     std::vector<TypeRef> level_params;
@@ -5704,7 +5715,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     if (!add_reserved_import(alias, "System.log", "setFile", std::move(file_params), make_type("bool"))) return false;
     return true;
   };
-  if (st.reserved_imports.find("SystemLog") != st.reserved_imports.end()) {
+  if (has_reserved_name("SystemLog")) {
     for (const auto& alias : reserved_aliases_for("SystemLog")) {
       std::vector<TypeRef> params;
       params.push_back(make_type("i32"));
@@ -5714,7 +5725,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_log_control_imports(alias)) return false;
     }
   }
-  if (st.reserved_imports.find("StandardLog") != st.reserved_imports.end()) {
+  if (has_reserved_name("StandardLog")) {
     for (const auto& alias : reserved_aliases_for("StandardLog")) {
       for (const std::string member : {"info", "warn", "error"}) {
         std::vector<TypeRef> message_params;
@@ -5726,7 +5737,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   for (const std::string native_reserved : {"IO", "DL", "Thread", "Path", "FS"}) {
-    if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
+    if (has_reserved_name(native_reserved) &&
         !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
       return false;
     }

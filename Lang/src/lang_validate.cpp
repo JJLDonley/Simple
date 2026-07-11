@@ -38,8 +38,8 @@ struct ValidateContext {
   std::unordered_map<std::string, const FuncDecl*> functions;
   std::unordered_map<std::string, const ExternDecl*> externs;
   std::unordered_map<std::string, std::unordered_map<std::string, const ExternDecl*>> externs_by_module;
-  std::unordered_set<std::string> reserved_imports;
-  std::unordered_map<std::string, std::string> reserved_import_aliases;
+  LibraryModuleSet reserved_imports;
+  LibraryModuleAliasMap reserved_import_aliases;
   std::unordered_set<std::string> using_reserved_modules;
   std::unordered_set<std::string> using_modules;
   std::unordered_set<std::string> imported_modules;
@@ -3478,12 +3478,10 @@ bool ValidateProgram(const Program& program, std::string* error) {
       case DeclKind::Import:
       {
         if (decl.import_decl.is_using) {
-          if (CheckUsingImportHasPriorAlias(decl.import_decl.path,
-                                            ctx.reserved_import_aliases,
-                                            nullptr)) {
-            const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
+          const auto alias_it = ctx.reserved_import_aliases.find(decl.import_decl.path);
+          if (alias_it != ctx.reserved_import_aliases.end()) {
             ctx.reserved_imports.insert(alias_it->second);
-            ctx.using_reserved_modules.insert(alias_it->second);
+            ctx.using_reserved_modules.insert(std::string(ToCanonicalName(alias_it->second)));
             break;
           }
           if (ctx.modules.find(decl.import_decl.path) != ctx.modules.end() ||
@@ -3506,8 +3504,8 @@ bool ValidateProgram(const Program& program, std::string* error) {
           if (error) *error = "using requires prior import or namespace: " + decl.import_decl.path;
           return false;
         }
-        std::string canonical_import;
-        if (!CanonicalizeReservedImportPath(decl.import_decl.path, &canonical_import)) {
+        const auto library_import = ParseLibraryImportPath(decl.import_decl.path);
+        if (!library_import) {
           std::string replacement;
           if (LegacyReservedImportReplacement(decl.import_decl.path, &replacement)) {
             if (error) *error = "unsupported import path: " + decl.import_decl.path + "; use " + replacement;
@@ -3516,11 +3514,12 @@ bool ValidateProgram(const Program& program, std::string* error) {
           ctx.imported_modules.insert(decl.import_decl.path);
           break;
         }
-        ctx.reserved_imports.insert(canonical_import);
+        LibraryModuleId module_id{library_import->root, library_import->module_index};
+        ctx.reserved_imports.insert(module_id);
         if (decl.import_decl.has_alias && !decl.import_decl.alias.empty()) {
-          ctx.reserved_import_aliases[decl.import_decl.alias] = canonical_import;
+          ctx.reserved_import_aliases[decl.import_decl.alias] = module_id;
         } else {
-          ctx.reserved_import_aliases[decl.import_decl.path] = canonical_import;
+          ctx.reserved_import_aliases[decl.import_decl.path] = module_id;
         }
         break;
       }

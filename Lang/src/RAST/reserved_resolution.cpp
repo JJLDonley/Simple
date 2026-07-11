@@ -138,30 +138,40 @@ bool GetReservedModuleVarType(const std::string& canonical_module,
   return false;
 }
 
-bool IsReservedModuleEnabled(const std::unordered_set<std::string>& reserved_imports,
-                             const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+bool IsReservedModuleEnabled(const Simple::Lang::LibraryModuleSet& reserved_imports,
+                             const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                              const std::string& name) {
   if (reserved_import_aliases.find(name) != reserved_import_aliases.end()) return true;
-  if (reserved_imports.find(name) != reserved_imports.end()) return true;
-  std::string canonical;
-  if (!CanonicalizeReservedImportPath(name, &canonical)) return false;
-  return reserved_imports.find(canonical) != reserved_imports.end();
+  if (auto info = ParseLibraryImportPath(name)) {
+    return reserved_imports.find(LibraryModuleId{info->root, info->module_index}) != reserved_imports.end();
+  }
+  if (auto module = ParseCanonicalLibraryModule(name)) {
+    return reserved_imports.find(*module) != reserved_imports.end();
+  }
+  return false;
 }
 
-bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_imports,
-                               const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+bool ResolveReservedModuleName(const Simple::Lang::LibraryModuleSet& reserved_imports,
+                               const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
                                const std::string& name,
                                std::string* out) {
   if (!out) return false;
-  std::string canonical;
-  if (CanonicalizeReservedImportPath(name, &canonical) &&
-      reserved_imports.find(canonical) != reserved_imports.end()) {
-    *out = canonical;
-    return true;
+  if (auto info = ParseLibraryImportPath(name)) {
+    LibraryModuleId id{info->root, info->module_index};
+    if (reserved_imports.find(id) != reserved_imports.end()) {
+      *out = std::string(ToCanonicalName(id));
+      return true;
+    }
+  }
+  if (auto module = ParseCanonicalLibraryModule(name)) {
+    if (reserved_imports.find(*module) != reserved_imports.end()) {
+      *out = std::string(ToCanonicalName(*module));
+      return true;
+    }
   }
   auto it = reserved_import_aliases.find(name);
   if (it != reserved_import_aliases.end()) {
-    *out = it->second;
+    *out = std::string(ToCanonicalName(it->second));
     return true;
   }
   return false;
@@ -265,8 +275,8 @@ bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out
 }
 
 bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
-                       const std::unordered_set<std::string>& reserved_imports,
-                       const std::unordered_map<std::string, std::string>& reserved_import_aliases) {
+                       const Simple::Lang::LibraryModuleSet& reserved_imports,
+                       const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases) {
   if (callee.kind != Simple::Lang::AST::ExprKind::Member || callee.op != "." || callee.children.empty()) {
     return false;
   }
@@ -279,8 +289,8 @@ bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
 }
 
 bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
-                          const std::unordered_set<std::string>& reserved_imports,
-                          const std::unordered_map<std::string, std::string>& reserved_import_aliases) {
+                          const Simple::Lang::LibraryModuleSet& reserved_imports,
+                          const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases) {
   if (expr.kind != Simple::Lang::AST::ExprKind::Call || expr.children.empty()) return false;
   const auto& callee = expr.children[0];
   if (callee.kind != Simple::Lang::AST::ExprKind::Member || callee.op != "." || callee.children.empty()) {
@@ -296,8 +306,8 @@ bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,
 
 bool GetDlOpenManifestModule(
     const Simple::Lang::AST::Expr& expr,
-    const std::unordered_set<std::string>& reserved_imports,
-    const std::unordered_map<std::string, std::string>& reserved_import_aliases,
+    const Simple::Lang::LibraryModuleSet& reserved_imports,
+    const Simple::Lang::LibraryModuleAliasMap& reserved_import_aliases,
     const std::unordered_map<std::string, std::unordered_map<std::string, const Simple::Lang::AST::ExternDecl*>>& externs_by_module,
     std::string* out_module) {
   if (!out_module) return false;

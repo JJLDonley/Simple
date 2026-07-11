@@ -5,6 +5,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -135,6 +137,19 @@ struct LibraryModuleId {
   LibraryRoot root;
   int module_index;
 };
+
+inline bool operator==(LibraryModuleId lhs, LibraryModuleId rhs) {
+  return lhs.root == rhs.root && lhs.module_index == rhs.module_index;
+}
+
+struct LibraryModuleIdHash {
+  size_t operator()(LibraryModuleId id) const {
+    return (static_cast<size_t>(id.root) << 16u) ^ static_cast<size_t>(id.module_index);
+  }
+};
+
+using LibraryModuleSet = std::unordered_set<LibraryModuleId, LibraryModuleIdHash>;
+using LibraryModuleAliasMap = std::unordered_map<std::string, LibraryModuleId>;
 
 struct LibrarySymbol {
   LibraryModuleId module;
@@ -1040,6 +1055,18 @@ inline std::string_view ToCanonicalName(StandardModule module) {
   return {};
 }
 
+inline std::string_view ToCanonicalName(LibraryModuleId module) {
+  return module.root == LibraryRoot::System
+             ? ToCanonicalName(static_cast<SystemModule>(module.module_index))
+             : ToCanonicalName(static_cast<StandardModule>(module.module_index));
+}
+
+inline std::string_view ToImportPath(LibraryModuleId module) {
+  return module.root == LibraryRoot::System
+             ? ToImportPath(static_cast<SystemModule>(module.module_index))
+             : ToImportPath(static_cast<StandardModule>(module.module_index));
+}
+
 inline std::optional<SystemModule> ParseSystemImportPath(std::string_view path) {
   for (SystemModule module : kSystemModules) {
     if (path == ToImportPath(module)) return module;
@@ -1121,6 +1148,14 @@ inline std::vector<std::string_view> MemberNames(StandardModule module) {
     case StandardModule::Option: return {ToMember(StandardOptionMember::Some), ToMember(StandardOptionMember::None), ToMember(StandardOptionMember::IsSome), ToMember(StandardOptionMember::Unwrap)};
   }
   return {};
+}
+
+inline LibraryModuleId ToLibraryModuleId(SystemModule module) {
+  return LibraryModuleId{LibraryRoot::System, static_cast<int>(module)};
+}
+
+inline LibraryModuleId ToLibraryModuleId(StandardModule module) {
+  return LibraryModuleId{LibraryRoot::Standard, static_cast<int>(module)};
 }
 
 inline std::optional<LibraryModuleId> ParseCanonicalLibraryModule(std::string_view canonical) {

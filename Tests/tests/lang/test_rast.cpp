@@ -273,8 +273,11 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
     return false;
   };
   Simple::Lang::AST::TypeRef reserved_var_type;
-  std::unordered_set<std::string> reserved_imports = {"FS", "DL"};
-  std::unordered_map<std::string, std::string> reserved_aliases = {{"Files", "FS"}};
+  Simple::Lang::LibraryModuleSet reserved_imports = {
+      Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS),
+      Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI)};
+  Simple::Lang::LibraryModuleAliasMap reserved_aliases = {
+      {"Files", Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS)}};
   std::string resolved_reserved;
   const bool resolves_reserved_alias = Simple::Lang::RAST::ResolveReservedModuleName(
       reserved_imports, reserved_aliases, "Files", &resolved_reserved) && resolved_reserved == "FS";
@@ -290,8 +293,8 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   io_print.op = ".";
   io_print.text = "println";
   io_print.children.push_back(io_base);
-  reserved_imports.insert("StandardIO");
-  reserved_aliases["Printer"] = "StandardIO";
+  reserved_imports.insert(Simple::Lang::ToLibraryModuleId(Simple::Lang::StandardModule::IO));
+  reserved_aliases["Printer"] = Simple::Lang::ToLibraryModuleId(Simple::Lang::StandardModule::IO);
   const bool recognizes_io_print = Simple::Lang::RAST::IsIoPrintCallExpr(
       io_print, reserved_imports, reserved_aliases);
   io_print.text = "write";
@@ -308,7 +311,7 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   Simple::Lang::AST::Expr dl_call;
   dl_call.kind = Simple::Lang::AST::ExprKind::Call;
   dl_call.children.push_back(dl_member);
-  reserved_aliases["Dyn"] = "DL";
+  reserved_aliases["Dyn"] = Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI);
   const bool recognizes_dl_open = Simple::Lang::RAST::IsCoreDlOpenCallExpr(
       dl_call, reserved_imports, reserved_aliases);
   Simple::Lang::AST::ExternDecl manifest_ext;
