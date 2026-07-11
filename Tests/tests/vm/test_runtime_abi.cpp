@@ -644,6 +644,7 @@ bool VmRuntimeAbiClassifiesNativeJitCalls() {
   spec.symbol_name = "pure";
   spec.parameter_types = {TypeKind::String, TypeKind::I32};
   spec.result_type = TypeKind::I32;
+  spec.doc_summary = "pure native JIT classifier test";
   spec.blocking = NativeBlockingBehavior::NonBlocking;
   spec.allocation = NativeAllocationBehavior::NoAllocation;
   spec.gc_behavior = NativeGcBehavior::NoSafepoint;

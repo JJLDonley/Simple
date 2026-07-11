@@ -1300,6 +1300,7 @@ NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
   spec.result_type = result_type;
   spec.layer = NativeLayer::System;
   spec.stability = NativeStability::Experimental;
+  spec.doc_summary = std::string(module_name) + "." + symbol_name;
   if (result_type == Simple::Byte::TypeKind::String || result_type == Simple::Byte::TypeKind::Ref) {
     spec.allocation = NativeAllocationBehavior::MayAllocateVm;
     spec.gc_behavior = NativeGcBehavior::MaySafepoint;
@@ -1636,6 +1637,14 @@ bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string*
     if (error) *error = name + " missing handler";
     return false;
   }
+  if (spec.module_name.rfind("System.", 0) == 0 && spec.layer != NativeLayer::System) {
+    if (error) *error = name + " system native function must declare system layer";
+    return false;
+  }
+  if (spec.doc_summary.empty()) {
+    if (error) *error = name + " missing doc summary";
+    return false;
+  }
   std::string abi_error;
   if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
                                                          false, &abi_error)) {
@@ -1684,6 +1693,20 @@ bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string*
     if (!ValidateNativeFunctionMetadata(spec, error)) return false;
   }
   return true;
+}
+
+std::string LayerMarkdown(NativeLayer layer) {
+  switch (layer) {
+    case NativeLayer::Core:
+      return "core";
+    case NativeLayer::System:
+      return "system";
+    case NativeLayer::Standard:
+      return "standard";
+    case NativeLayer::Domain:
+      return "domain";
+  }
+  return "unknown";
 }
 
 std::string TypeKindMarkdown(Simple::Byte::TypeKind kind) {
@@ -1883,10 +1906,10 @@ std::string GenerateStdLibMarkdown(const NativeRegistry& registry) {
       return lhs->symbol_name < rhs->symbol_name;
     });
     out << "\n## " << entry.first << "\n\n";
-    out << "| Symbol | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |\n"
-        << "|---|---|---|---|---|---|---|---|---|---|---|\n";
+    out << "| Symbol | Layer | Signature | Blocking | Allocation | GC | Direct | Capabilities | Resources | Platforms | Stability | Summary |\n"
+        << "|---|---|---|---|---|---|---|---|---|---|---|---|\n";
     for (const NativeFunctionSpec* spec : entry.second) {
-      out << "| `" << spec->symbol_name << "` | `(";
+      out << "| `" << spec->symbol_name << "` | `" << LayerMarkdown(spec->layer) << "` | `(";
       for (size_t i = 0; i < spec->parameter_types.size(); ++i) {
         if (i > 0) out << ", ";
         out << TypeKindMarkdown(spec->parameter_types[i]);

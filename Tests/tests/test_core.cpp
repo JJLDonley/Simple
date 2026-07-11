@@ -16136,6 +16136,22 @@ bool RunNativeRegistryModuleTest() {
   ctx.args.push_back(123);
   const auto result = found->handler(ctx);
   Simple::VM::Native::NativeRegistry default_registry = Simple::VM::Native::BuildDefaultRegistry();
+  std::string metadata_error;
+  const bool default_metadata_valid =
+      Simple::VM::Native::ValidateNativeRegistryMetadata(default_registry, &metadata_error);
+  Simple::VM::Native::NativeFunctionSpec missing_doc_spec = *found;
+  missing_doc_spec.doc_summary.clear();
+  std::string missing_doc_error;
+  const bool missing_doc_rejected =
+      !Simple::VM::Native::ValidateNativeFunctionMetadata(missing_doc_spec, &missing_doc_error) &&
+      missing_doc_error.find("missing doc summary") != std::string::npos;
+  Simple::VM::Native::NativeFunctionSpec bad_layer_spec = *found;
+  bad_layer_spec.doc_summary = "bad layer test";
+  bad_layer_spec.layer = Simple::VM::Native::NativeLayer::Standard;
+  std::string bad_layer_error;
+  const bool bad_layer_rejected =
+      !Simple::VM::Native::ValidateNativeFunctionMetadata(bad_layer_spec, &bad_layer_error) &&
+      bad_layer_error.find("system layer") != std::string::npos;
   const std::string stdlib_markdown = Simple::VM::Native::GenerateStdLibMarkdown(default_registry);
   bool stdlib_markdown_complete = true;
   for (const auto& native_spec : default_registry.Functions()) {
@@ -16653,10 +16669,11 @@ bool RunNativeRegistryModuleTest() {
   HeapObject* slice_obj = metadata_heap.Get(static_cast<uint32_t>(buffer_slice_result.value));
   if (!slice_obj) return false;
   return registry.Size() == 1 && result.ok && result.value == 123 &&
+         default_metadata_valid && missing_doc_rejected && bad_layer_rejected &&
          stdlib_markdown_complete &&
          stdlib_markdown.find("## System.fs") != std::string::npos &&
-         stdlib_markdown.find("| `readText` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` |") != std::string::npos &&
-         stdlib_markdown.find("| `buffer_copy` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `readText` | `system` | `(string) -> string` | `may-block` | `vm-alloc` | `may-safepoint` | `-` | `filesystem.read` | `-` |") != std::string::npos &&
+         stdlib_markdown.find("| `buffer_copy` | `system` | `(ref, ref, i32) -> i32` | `non-blocking` | `no-alloc` | `no-safepoint` | `-` | `-` | `-` |") != std::string::npos &&
          stdlib_markdown.find("out:file:to-caller:vm-shutdown") != std::string::npos &&
          random_i32 && os_time &&
          os_sleep && os_cwd && os_format && os_args_count && os_args_get && os_env_get &&
