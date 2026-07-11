@@ -23,7 +23,7 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "DL") *out = "System.dl";
   else if (canonical_module == "OS") *out = "System.os";
   else if (canonical_module == "Thread") *out = "System.thread";
-  else if (canonical_module == "Random") *out = "System.random";
+  else if (canonical_module == "SystemRandom" || canonical_module == "StandardRandom") *out = "System.random";
   else if (canonical_module == "Env") *out = "System.env";
   else if (canonical_module == "Path") *out = "System.path";
   else if (canonical_module == "FS") *out = "System.fs";
@@ -78,11 +78,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
-  if (canonical_module == "Random") {
-    out = {"seed", "i32", "range", "f64"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
+  if (canonical_module == "SystemRandom") return {"seed", "i32", "f64"};
+  if (canonical_module == "StandardRandom") return {"seed", "i32", "range", "f64"};
   if (canonical_module == "Env") {
     out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
     AddNativeReservedMembers(canonical_module, &out);
@@ -187,6 +184,8 @@ bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_i
 }
 
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
+  if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "f64";
+  if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "range" || member == "f64";
   std::string native_module;
   if (NativeModuleNameForReserved(canonical_module, &native_module) &&
       ReservedNativeRegistry().Find(native_module, member)) {
@@ -214,9 +213,6 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   }
   if (canonical_module == "Thread") {
     return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
-  }
-  if (canonical_module == "Random") {
-    return member == "seed" || member == "i32" || member == "range" || member == "f64";
   }
   if (canonical_module == "Env") {
     return member == "argsCount" || member == "arg" || member == "get" || member == "set" ||

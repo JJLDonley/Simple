@@ -420,8 +420,9 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "Random" &&
-               (member == "seed" || member == "i32" || member == "range" || member == "f64")) {
+    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "f64")) ||
+               (module == "StandardRandom" &&
+                (member == "seed" || member == "i32" || member == "range" || member == "f64"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -1747,7 +1748,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2881,7 +2882,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5272,7 +5273,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     else if (reserved == "DL") *out = "System.dl";
     else if (reserved == "OS") *out = "System.os";
     else if (reserved == "Thread") *out = "System.thread";
-    else if (reserved == "Random") *out = "System.random";
+    else if (reserved == "SystemRandom" || reserved == "StandardRandom") *out = "System.random";
     else if (reserved == "Env") *out = "System.env";
     else if (reserved == "Path") *out = "System.path";
     else if (reserved == "FS") *out = "System.fs";
@@ -5487,19 +5488,26 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Random") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Random")) {
+  auto add_random_imports = [&](const std::string& canonical_module, bool include_range) {
+    for (const auto& alias : reserved_aliases_for(canonical_module)) {
       std::vector<TypeRef> seed_params;
       seed_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.random", "seed", std::move(seed_params), make_type("void"))) return false;
       if (!add_reserved_import(alias, "System.random", "i32", {}, make_type("i32"))) return false;
-      std::vector<TypeRef> range_params;
-      range_params.push_back(make_type("i32"));
-      range_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.random", "range", std::move(range_params), make_type("i32"))) return false;
+      if (include_range) {
+        std::vector<TypeRef> range_params;
+        range_params.push_back(make_type("i32"));
+        range_params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "System.random", "range", std::move(range_params), make_type("i32"))) return false;
+      }
       if (!add_reserved_import(alias, "System.random", "f64", {}, make_type("f64"))) return false;
     }
-  }
+    return true;
+  };
+  if (st.reserved_imports.find("SystemRandom") != st.reserved_imports.end() &&
+      !add_random_imports("SystemRandom", false)) return false;
+  if (st.reserved_imports.find("StandardRandom") != st.reserved_imports.end() &&
+      !add_random_imports("StandardRandom", true)) return false;
 
   if (st.reserved_imports.find("Channel") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Channel")) {
@@ -5687,7 +5695,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Random", "Env", "Path", "FS",
+  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Env", "Path", "FS",
                                             "Json", "Buffer", "Log"}) {
     if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
         !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {

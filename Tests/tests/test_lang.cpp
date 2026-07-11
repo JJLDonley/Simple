@@ -1724,6 +1724,23 @@ bool LangValidateStandardTimeFormattingApi() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRejectSystemRandomRangeApi() {
+  const char* src =
+      "import System.Random\n"
+      "main : void () { value : i32 = System.Random.range(1, 3); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateStandardRandomRangeApi() {
+  const char* src =
+      "import Standard.Random\n"
+      "main : void () { value : i32 = Standard.Random.range(1, 3); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateStandardFsProbeApis() {
   const char* src =
       "import Standard.FS\n"
@@ -3324,6 +3341,8 @@ const TestCase kLangTests[] = {
   {"lang_reject_standard_path_fs_probe_apis", LangRejectStandardPathFsProbeApis},
   {"lang_reject_system_time_formatting_api", LangRejectSystemTimeFormattingApi},
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
+  {"lang_reject_system_random_range_api", LangRejectSystemRandomRangeApi},
+  {"lang_validate_standard_random_range_api", LangValidateStandardRandomRangeApi},
   {"lang_validate_standard_fs_probe_apis", LangValidateStandardFsProbeApis},
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},

@@ -603,7 +603,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Random") {
+  if (resolved == "SystemRandom" || resolved == "StandardRandom") {
     if (member == "seed") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("void");
@@ -615,7 +615,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "range") {
+    if (resolved == "StandardRandom" && member == "range") {
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
@@ -627,6 +627,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    return false;
   }
   if (resolved == "Channel") {
     auto channel_value_type = [](const std::string& suffix) -> TypeRef {
@@ -2927,7 +2928,8 @@ bool CheckExpr(const Expr& expr,
             IsReservedModuleEnabled(ctx, "Time") || IsReservedModuleEnabled(ctx, "DL") ||
             IsReservedModuleEnabled(ctx, "OS") || IsReservedModuleEnabled(ctx, "File") ||
             IsReservedModuleEnabled(ctx, "Log") || IsReservedModuleEnabled(ctx, "Thread") ||
-            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "Random") ||
+            IsReservedModuleEnabled(ctx, "Channel") || IsReservedModuleEnabled(ctx, "SystemRandom") ||
+            IsReservedModuleEnabled(ctx, "StandardRandom") ||
             IsReservedModuleEnabled(ctx, "Env") || IsReservedModuleEnabled(ctx, "Path") ||
             IsReservedModuleEnabled(ctx, "FS")) {
           return true;
