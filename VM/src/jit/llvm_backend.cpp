@@ -1188,23 +1188,16 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
   };
   auto dl_call_loop_safe = [&](const Simple::Byte::SigRow& row) -> bool {
     if (row.param_count == 0 || row.param_type_start + row.param_count > module.param_types.size()) return false;
-    if (!type_is_scalar_loop_call_safe(row.ret_type_id)) return false;
     std::vector<uint32_t> param_type_ids;
     param_type_ids.reserve(row.param_count);
     for (uint16_t i = 0; i < row.param_count; ++i) {
-      const uint32_t type_id = module.param_types[row.param_type_start + i];
-      if (type_id >= module.types.size()) return false;
-      if (i != 0) {
-        const auto kind = static_cast<Simple::Byte::TypeKind>(module.types[type_id].kind);
-        if (kind != Simple::Byte::TypeKind::String && !type_is_scalar_loop_call_safe(type_id)) return false;
-      }
-      param_type_ids.push_back(type_id);
+      param_type_ids.push_back(module.param_types[row.param_type_start + i]);
     }
     const auto abi = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module,
                                                                         row.ret_type_id,
                                                                         !sig_returns_void(row),
                                                                         param_type_ids);
-    return abi.abi_valid && abi.vm_marshal_supported;
+    return abi.jit_loop_safe;
   };
   auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
                                                const Simple::Byte::SigRow& row) -> bool {

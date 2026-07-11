@@ -601,19 +601,26 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
   module.fields.push_back(Simple::Byte::FieldRow{0, 0, 4, 0});
 
   auto scalar = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 0});
-  if (!scalar.abi_valid || !scalar.vm_marshal_supported || scalar.may_allocate || scalar.needs_roots) return false;
+  if (!scalar.abi_valid || !scalar.vm_marshal_supported || !scalar.jit_helper_safe || !scalar.jit_loop_safe ||
+      scalar.may_allocate || scalar.needs_roots) {
+    return false;
+  }
 
   auto cstring = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, true, {1, 2});
-  if (!cstring.abi_valid || !cstring.vm_marshal_supported || !cstring.needs_roots || cstring.may_allocate) return false;
+  if (!cstring.abi_valid || !cstring.vm_marshal_supported || !cstring.jit_helper_safe || !cstring.jit_loop_safe ||
+      !cstring.needs_roots || cstring.may_allocate) {
+    return false;
+  }
 
   auto aggregate = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 0, false, {1, 4});
-  if (!aggregate.abi_valid || !aggregate.vm_marshal_supported || !aggregate.needs_roots || aggregate.may_allocate) {
+  if (!aggregate.abi_valid || !aggregate.vm_marshal_supported || !aggregate.jit_helper_safe ||
+      aggregate.jit_loop_safe || !aggregate.needs_roots || aggregate.may_allocate) {
     return false;
   }
 
   auto aggregate_ret = Simple::VM::Ffi::AnalyzeDynamicDlFunctionSignature(module, 4, true, {1});
-  if (!aggregate_ret.abi_valid || !aggregate_ret.vm_marshal_supported || !aggregate_ret.needs_roots ||
-      !aggregate_ret.may_allocate) {
+  if (!aggregate_ret.abi_valid || !aggregate_ret.vm_marshal_supported || !aggregate_ret.jit_helper_safe ||
+      aggregate_ret.jit_loop_safe || !aggregate_ret.needs_roots || !aggregate_ret.may_allocate) {
     return false;
   }
 

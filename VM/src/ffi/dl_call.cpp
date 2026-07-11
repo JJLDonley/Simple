@@ -976,6 +976,54 @@ bool ValidateDlVmMarshalSignature(const SbcModule& module,
   return true;
 }
 
+bool IsDlJitLoopScalarType(TypeKind kind) {
+  switch (kind) {
+    case TypeKind::Unspecified:
+    case TypeKind::Void:
+    case TypeKind::I8:
+    case TypeKind::I16:
+    case TypeKind::I32:
+    case TypeKind::I64:
+    case TypeKind::U8:
+    case TypeKind::U16:
+    case TypeKind::U32:
+    case TypeKind::U64:
+    case TypeKind::F32:
+    case TypeKind::F64:
+    case TypeKind::Bool:
+    case TypeKind::Char:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool IsDlJitLoopSafeTypeId(const SbcModule& module, uint32_t type_id, bool allow_string) {
+  if (type_id == 0xFFFFFFFFu) return true;
+  if (type_id >= module.types.size()) return false;
+  if (IsStructTypeId(module, type_id)) return false;
+  const auto kind = static_cast<TypeKind>(module.types[type_id].kind);
+  return (allow_string && kind == TypeKind::String) || IsDlJitLoopScalarType(kind);
+}
+
+bool ValidateDlJitLoopSignature(const SbcModule& module,
+                                uint32_t ret_type_id,
+                                bool has_ret,
+                                const std::vector<uint32_t>& arg_type_ids,
+                                std::string* out_error) {
+  if (has_ret && !IsDlJitLoopSafeTypeId(module, ret_type_id, false)) {
+    if (out_error) *out_error = "System.dl.call result is not JIT loop safe";
+    return false;
+  }
+  for (uint32_t type_id : arg_type_ids) {
+    if (!IsDlJitLoopSafeTypeId(module, type_id, true)) {
+      if (out_error) *out_error = "System.dl.call parameter is not JIT loop safe";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool ValidateDlNativeAbiSignature(const SbcModule& module,
                                   uint32_t ret_type_id,
                                   bool has_ret,
@@ -1046,6 +1094,10 @@ DynamicDlAbiValidation AnalyzeDynamicDlCallSignature(const SbcModule& module,
     return result;
   }
   result.may_block = true;
+  result.jit_helper_safe = true;
+  error.clear();
+  result.jit_loop_safe = ValidateDlJitLoopSignature(module, ret_type_id, has_ret, arg_type_ids, &error);
+  if (!result.jit_loop_safe && result.reason.empty()) result.reason = error;
   return result;
 }
 

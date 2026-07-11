@@ -18,6 +18,8 @@ struct DynamicDlAbiValidation {
   bool may_allocate = false;
   bool may_block = true;
   bool needs_roots = false;
+  bool jit_helper_safe = false;
+  bool jit_loop_safe = false;
   std::string reason;
 };
 
