@@ -16,22 +16,22 @@ There are no public compatibility aliases in the target model. Source imports mu
 
 | Module | Purpose | Current transitional backing |
 |---|---|---|
-| `System.IO` | low-level streams | current `IO` / `System.IO` native surface |
-| `System.FS` | low-level file/dir handles | current `FS`/`File` / `System.FS` |
-| `System.Path` | platform path operations | current `Path` / `System.Path` |
-| `System.Env` | process args/env | current `Env` / `System.Env` |
-| `System.OS` | platform/process facts | current `OS` / `System.OS` |
-| `System.Time` | clocks/timers | current `Time` |
-| `System.FFI` | dynamic loading/extern FFI | current `DL` / `System.FFI` |
+| `System.IO` | low-level streams | native `System.IO` surface |
+| `System.FS` | low-level file/dir handles | native `System.FS` surface |
+| `System.Path` | platform path operations | native `System.Path` surface |
+| `System.Env` | process args/env | native `System.Env` surface |
+| `System.OS` | platform/process facts | native `System.OS` surface |
+| `System.Time` | clocks/timers | native `System.OS`/time backing |
+| `System.FFI` | dynamic loading/extern FFI | native `System.FFI` surface |
 | `System.ASM` | C/DynASM/native unit compilation/linking | planned |
-| `System.Buffer` | low-level mutable/native/runtime buffer handles, C/C++-style data handling, FFI/pinning/explicit cleanup semantics | current `System.Buffer` runtime backing, to be renamed canonically |
+| `System.Buffer` | low-level mutable/native/runtime buffer handles, C/C++-style data handling, FFI/pinning/explicit cleanup semantics | canonical `System.Buffer` runtime backing |
 | `System.Bytes` | low-level immutable/owned byte values if distinct from buffers | planned/value-level byte surface |
 | `System.Json` | isolated low-level JSON handles (`parse`, `stringify`, `free`) | current `System.Json` runtime backing |
-| `System.Log` | logging sink | current `Log` / `System.Log` |
-| `System.Random` | low-level RNG | current `Random` / `System.Random` |
-| `System.Thread` | OS/runtime thread primitives | current `Thread` / `System.Thread` |
+| `System.Log` | logging sink | native `System.Log` surface |
+| `System.Random` | low-level RNG | native `System.Random` surface |
+| `System.Thread` | OS/runtime thread primitives | native `System.Thread` surface |
 | `System.Job` | VM jobs/promises | planned on Promise runtime |
-| `System.Channel` | low-level channels | current `Channel` / `System.Channel` |
+| `System.Channel` | low-level channels | native `System.Channel` surface |
 | `System.Process` | process spawning/control | planned |
 | `System.Net` | sockets/listeners | planned |
 | `System.HTTP` | low-level HTTP client/server handles | planned |

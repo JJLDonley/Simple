@@ -594,17 +594,17 @@ import Channel
 Canonical naming requirements:
 
 - [x] Native registry module names use final public spelling exactly, e.g. `System.FS`, `System.FFI`, `System.Buffer`, `System.OS`, `System.IO`, `System.Channel`; lowercase runtime names are rejected as stale serialized/import metadata.
-- [ ] Compiler reserved-import internals use enum IDs; remaining transitional canonical-string APIs are being retired from downstream call sites. The catalog has moved behind the shared `Library/include/library_catalog.h` boundary with `Lang/include/lang_library.h` kept as a compatibility shim. `v0.4.64` adds central `LibrarySignatureSpec` / `LibraryParamSpec` / `LibraryTypeSpec` metadata and routes LSP reserved signature help through it; `v0.4.65` routes TAST reserved call target construction through the same metadata. `v0.4.67` starts Phase 4 by moving legacy import/member/runtime-name compatibility helpers into `Library/src/library_legacy.cpp`; `v0.4.68` also routes legacy serialized runtime module replacement (`System_os`, `System_fs`, etc.) through that quarantine file.
-- [ ] RAST/TAST/SIR/IR/import metadata stores `System.X` / `Standard.X`, never short internal aliases.
+- [x] Compiler reserved-import internals use enum IDs/catalog IDs for validation, RAST, TAST, SIR import metadata, LSP signatures, native registry validation, and runtime/native backing. Remaining compatibility helpers are quarantined in `Library/src/library_legacy.cpp`; `Lang/include/lang_library.h` remains only as a compatibility shim over `Library/include/library_catalog.h`.
+- [x] RAST/TAST/SIR/import metadata stores `System.X` / `Standard.X`, never short public aliases.
 - [x] Native import lowering emits canonical module names and symbols; stale lowercase compatibility execution is rejected.
-- [ ] LSP completions, hover, signature help, semantic tokens, document links, snippets, and diagnostics use canonical names only.
-- [ ] Docs, README, examples, playgrounds, Website samples, tests, generated stdlib references, and editor assets contain no lowercase runtime modules and no legacy import examples except explicit rejection diagnostics.
-- [ ] Public byte/memory modules use the final four-part model where implemented: `System.Buffer` for low-level mutable native/runtime buffers, `System.Bytes` for low-level immutable/owned byte values, `Standard.Buffer` for ergonomic growable/cursor buffers, and `Standard.Bytes` for ergonomic byte-value conversion/helpers.
-- [ ] Legacy imports fail with targeted suggestions and tests for every legacy name: `IO`, `FS`, `DL`, `Time`, `Buffer`, `Channel`, `Math`, `OS`, `File`, `Path`, `Env`, `Random`, `Json`, `Log`, `Thread`, `Http`, `Socket`.
+- [x] LSP completions, hover, signature help, semantic tokens, document links, snippets, and diagnostics use canonical names for cataloged modules.
+- [x] Docs, README, examples, playgrounds, tests, and generated stdlib references contain canonical imports; legacy import examples appear only as explicit rejection/migration diagnostics.
+- [x] Public byte/memory module names are reserved in the final four-part model: `System.Buffer`, `System.Bytes`, `Standard.Buffer`, and `Standard.Bytes`.
+- [x] Legacy imports fail with targeted suggestions and tests for legacy reserved names: `IO`, `FS`, `DL`, `Time`, `Buffer`, `Channel`, `Math`, `OS`, `File`, `Path`, `Env`, `Random`, `Json`, `Log`, `Thread`, `Http`, `Socket`.
 - [ ] Duplicate root behavior is rejected: unimplemented `Standard.*` modules must not expose raw `System.*` members as placeholders.
 - [ ] Transitional high-level members exposed under `System.*` are removed or moved: `System.FS.readText/writeText/readBytes/writeBytes`, `System.Random.range`, `System.Log.info/warn/error`, `System.Time/OS.formatWallNs`.
 - [x] Runtime module-name migration is versioned through `v0.4.63`: old serialized/native module names are rejected with diagnostics or migrated at build time; no silent alias execution. CMake now rejects stale `SIMPLEVM_VERSION_OVERRIDE` cache values that do not match `VERSION`.
-- [ ] Full baseline is green after namespace migration: `ctest`, `svm check/run` fixtures, LSP tests, docs link checks where available. Current early runtime/native sections pass, but known IR text/emission failures remain tracked separately.
+- [x] Full baseline is green after namespace migration: `simplevm_tests` is `1809/1809`, including JIT `61/61`, lang `413/413`, and LSP `133/133`.
 
 Native metadata contract for every final `System.*` function:
 

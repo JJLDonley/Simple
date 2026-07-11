@@ -13,7 +13,9 @@
   <a href="https://github.com/JJLDonley/Simple/releases">Releases</a>
 </p>
 
-Simple is a C-like, statically typed, general-purpose programming language with quick scripting capability. It compiles `.simple` source to SIR, then SBC bytecode, then runs on the Simple VM.
+Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.
+
+It compiles `.simple` source to SIR, then SBC bytecode, then runs on the Simple VM.
 
 The project includes the language front-end, resolver, type checker, SIR/IR lowering, SBC loader/verifier, interpreter runtime, native modules, CLI, LSP server, and JIT scaffolding.
 
@@ -39,7 +41,7 @@ The project includes the language front-end, resolver, type checker, SIR/IR lowe
 
 ## Why Simple
 
-Simple came about from wanting a C-like, statically typed, general-purpose language that still has quick and easy scripting capability.
+Simple came about from wanting a high-level, statically typed language with an identity-first paradigm, built on Standard and System libraries.
 
 Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.
 
@@ -302,7 +304,7 @@ extern raylib.CloseWindow : void ()
 
 lib : i64 = System.FFI.open("libraylib.so", raylib)
 if (lib == 0) {
-  Standard.IO.println("raylib load failed: {}", System.FFI.last_error())
+  Standard.IO.println("raylib load failed: {}", System.FFI.lastError())
   return 1
 }
 
@@ -360,7 +362,7 @@ Simple’s native library roadmap is layered:
 | VM Native Core | Resource registry, handle validation, metadata, cleanup, capability policy. |
 | `System.*` | Low-level APIs close to host/runtime behavior. |
 | `Standard.*` | High-level APIs built over `System.*`. |
-| Aliases | Short Standard-library imports such as `FS`, `HTTP`, `HTTPS`, `Console`, `Terminal`. |
+| Legacy diagnostics | Short imports are rejected with canonical `System.*` / `Standard.*` replacements; they are not aliases. |
 
 ### Core native-facing types
 
@@ -381,7 +383,7 @@ Simple’s native library roadmap is layered:
 | `System.Bytes` | Heap-owned byte sequences and byte/string conversion. |
 | `System.Net` | TCP/UDP sockets, listeners, connect/listen/accept/send/receive/close. |
 | `System.HTTP` | HTTP clients, server handles, request/response IO, limits, timeouts. |
-| `System.HTTPS` | TLS-backed clients/servers, cert loading, verification diagnostics. |
+| `Standard.HTTPS` | TLS-backed clients/servers, cert loading, verification diagnostics over `System.HTTP`/`System.Net`. |
 | `System.Terminal` | Raw mode, alternate screen, cursor, style, key/mouse/resize events. |
 | `System.Process` | Spawn, wait, kill, stdio, capability checks. |
 | `System.Thread` | OS thread handles and thread-related runtime operations. |

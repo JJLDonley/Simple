@@ -84,7 +84,7 @@ VM boundary types should be explicit and named:
 - `InterpreterState`
 - `RootTraceContext`
 
-Interpreter modules own opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps. They must not own native stdlib implementation, DL/FFI internals, JSON parsing, channel registries, or platform FS code.
+Interpreter modules own opcode loop, stack operations, frames, locals/globals, calls/tailcalls, and traps. They must not own native stdlib implementation, System.FFI internals, JSON parsing, channel registries, or platform FS code.
 
 New language features should respect phase boundaries:
 

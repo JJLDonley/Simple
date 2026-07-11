@@ -27,9 +27,12 @@ The root `bin/` directory should contain only these two files after `./build.sh`
 ```txt
 --help, -h, help
 --version, -v, version
+-int, --interpreter
+-jit
+--jit-stats
 ```
 
-Help prints command usage. Version prints the Simple tool version.
+Help prints command usage. Version prints the Simple tool version and whether LLVM ORC JIT support is compiled in. CLI `run` uses JIT by default when available. `-int` / `--interpreter` forces interpreter execution. `-jit` remains accepted for compatibility. `--jit-stats` prints JIT/fallback counters.
 
 ## Commands
 
@@ -60,7 +63,7 @@ An SBC bytecode file is loaded, verified, and optionally executed.
 
 ### `run`
 
-Runs the selected input through the necessary pipeline and executes it in the VM.
+Runs the selected input through the necessary pipeline and executes it in the VM. JIT is enabled by default when available; pass `-int` or `--interpreter` to force interpreter execution.
 
 ### `check`
 
@@ -100,4 +103,4 @@ Use the root scripts for local builds:
 build.bat
 ```
 
-They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root.
+They build the CMake `simplevm` compiler target and `simple_stub` runtime target, then publish only `bin/svm` plus `bin/simple` at the repository root. The maintained CMake build tree is `Compiler/build`; stale alternate build trees such as `build-llvm` or `build-lsp` should not be kept.

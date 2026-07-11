@@ -1,6 +1,8 @@
 # Simple Language Reference
 
-Simple is a strict, statically typed language that compiles `.simple` source to SIR text and then to SBC bytecode for the Simple VM.
+Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.
+
+It compiles `.simple` source to SIR text and then to SBC bytecode for the Simple VM.
 
 This page is the canonical language reference for the syntax and behavior covered by the current parser, validator, fixtures, and tests.
 
@@ -29,7 +31,7 @@ This page is the canonical language reference for the syntax and behavior covere
 - [Imports and `using`](#imports-and-using)
 - [Reserved/System modules and standard library](#reservedsystem-modules-and-standard-library)
 - [Functions, procedure types, and function literals](#functions-procedure-types-and-function-literals)
-- [Extern declarations and DL ABI](#extern-declarations-and-dl-abi)
+- [Extern declarations and FFI ABI](#extern-declarations-and-ffi-abi)
 - [Pointers and member access](#pointers-and-member-access)
 - [Diagnostics](#diagnostics)
 - [Known limitations](#known-limitations)
@@ -301,24 +303,24 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | `import Module.Name` | RAST | Import source/module identity. |
 | ✅ | `using Module` | RAST | Use reserved/native module member lookup. |
 | ✅ | `extern Name : Ret (params)` | TAST/IRE | External call declaration. |
-| ✅ | `System.FFI.Open` manifest pattern | TAST/IRE | Dynamic-library import support. |
+| ✅ | `System.FFI.open` manifest pattern | TAST/IRE | Dynamic-library import support. |
 | ❌ | unqualified enum variant | RAST/TAST | Rejected; use `Type.Member`. |
 | ❌ | unknown module/member/import | RAST/TAST | Rejected. |
 | ❌ | unsupported extern ABI type | TAST | Rejected. |
 
-### Reserved/System modules
+### Reserved/System/Standard modules
 
 | Status | Module | Surface |
 |:---:|---|---|
-| ✅ | `IO` | print/println/format style output paths. |
-| ✅ | `Math` | math constants/functions covered by fixtures. |
-| ✅ | `Time` | time APIs covered by fixtures. |
-| ✅ | `Random` | random APIs covered by fixtures. |
-| ✅ | `Thread` | thread APIs covered by fixtures. |
-| ✅ | `Channel` | typed channel creation plus send/recv/pending/close variants. |
-| ✅ | `Env`, `OS`, `Path`, `FS`, `File` | environment, OS args, path, filesystem/file APIs. |
-| ✅ | `JSON`, `Buffer`, `Log`, `DL` | JSON/buffer/log/dynamic-library APIs. |
-| ❌ | unknown reserved member | RAST/TAST | Rejected. |
+| ✅ | `Standard.IO` | print/println/format style output paths. |
+| ✅ | `Standard.Math` | math constants/functions covered by fixtures. |
+| ✅ | `System.Time`, `Standard.Time` | time APIs covered by fixtures/catalog. |
+| ✅ | `System.Random`, `Standard.Random` | random APIs covered by fixtures/catalog. |
+| ✅ | `System.Thread` | thread APIs covered by fixtures/catalog. |
+| ✅ | `System.Channel` | typed channel creation plus send/recv/pending/close variants. |
+| ✅ | `System.Env`, `System.OS`, `System.Path`, `Standard.Path`, `System.FS`, `Standard.FS` | environment, OS, path, filesystem/file APIs. |
+| ✅ | `System.Json`, `System.Buffer`, `System.Bytes`, `System.Log`, `Standard.Log`, `System.FFI` | JSON/buffer/bytes/log/dynamic-library APIs. |
+| ❌ | short reserved imports and unknown reserved members | RAST/TAST | Rejected. |
 
 ### Diagnostics and rejection classes
 
@@ -330,7 +332,7 @@ type           = primitive-type | named-type | array-type | list-type | proc-typ
 | ✅ | type error | TAST | mismatched assignment/call/operator types. |
 | ✅ | mutability error | TAST | assign immutable binding/field/global. |
 | ✅ | control-flow error | TAST | invalid break/skip/return path. |
-| ✅ | ABI error | TAST/IRE | unsupported extern/DL type/layout. |
+| ✅ | ABI error | TAST/IRE | unsupported extern/FFI type/layout. |
 | ✅ | lowering error | IRE/IR | unsupported validated construct or backend path. |
 | ✅ | runtime trap | Runtime | bounds, null/native/runtime failures. |
 
@@ -877,7 +879,7 @@ Counter :: artifact {
 }
 ```
 
-Artifact ABI flattening is used for supported extern/DL cases. Recursive artifact ABI is rejected.
+Artifact ABI flattening is used for supported extern/FFI cases. Recursive artifact ABI is rejected.
 
 ## Modules
 
@@ -945,55 +947,46 @@ CLI import resolution handles project-root imports, relative imports, module-map
 
 ## Reserved/System modules and standard library
 
-`System.*` is canonical for low-level runtime modules. `Standard.*` is the planned high-level library root that wraps `System.*`. The final library model has no short compatibility aliases; current short imports are migration-only. See `Docs/System.md`, `Docs/Standard.md`, and `Docs/LibraryMigration.md` for the no-alias plan. Covered migration-era modules include:
+`System.*` is canonical for low-level runtime modules. `Standard.*` is the high-level library root that wraps or composes `System.*`. There are no public short compatibility aliases. See `Docs/System.md`, `Docs/Standard.md`, and `Docs/LibraryMigration.md` for the no-alias model.
 
-```txt
-Math IO Time File DL OS FS Log Buffer Json Channel
-Env Path Random Thread
-System.math System.IO System.time System.FS System.FFI System.OS
-System.Env System.Path System.Random System.Thread System.Channel
-System.Buffer System.Json System.Log
+The standard library is part of the language-facing runtime surface. Reserved imports map onto enum-backed catalog entries and native-backed runtime modules; no implicit ABI coercion is performed. If a module/member is not listed in the catalog or covered by tests, treat it as unsupported.
+
+### Import model
+
+Valid reserved imports use only canonical roots:
+
+```simple
+import System.FFI
+import System.FS
+import System.OS
+import System.Channel
+import Standard.IO
+import Standard.Math
 ```
 
-The standard library is part of the language-facing runtime surface. Reserved imports map onto native-backed runtime modules; no implicit ABI coercion is performed. If a module/member is not listed here or covered by tests, treat it as unsupported.
-
-### Import mapping
-
-| Import | Runtime namespace |
-|---|---|
-| `Math` / `System.math` | `System.math` |
-| `IO` / `System.IO` | `System.IO` |
-| `Time` / `System.time` | `System.time` |
-| `File` / `FS` / `System.FS` | `System.FS` |
-| `DL` / `System.FFI` | `System.FFI` |
-| `OS` / `System.OS` | `System.OS` |
-| `Env` / `System.Env` | `System.Env` |
-| `Path` / `System.Path` | `System.Path` |
-| `Random` / `System.Random` | `System.Random` |
-| `Thread` / `System.Thread` | `System.Thread` |
-| `Log` / `System.Log` | `System.Log` |
-| `Buffer` / `System.Buffer` | `System.Buffer` |
-| `Json` / `System.Json` | `System.Json` |
-| `Channel` / `System.Channel` | `System.Channel` |
+Short imports such as `IO`, `FS`, `DL`, `Time`, `Buffer`, and `Channel` are rejected with diagnostics that point to canonical replacements.
 
 ### Core modules
 
 | Module | Examples / members |
 |---|---|
-| `Math` | `abs`, `min`, `max`, `sqrt`, `PI` |
-| `IO` | `print`, `println`, `buffer_new`, `buffer_len`, `buffer_fill`, `buffer_copy` |
-| `Time` | `mono_ns`, `wall_ns`, `formatWallNs` in using-style tests |
-| `FS` / `File` | file descriptors, `read`, `write`, `close`, `readBytes`, `writeBytes`, `listDir` |
-| `OS` | args, env, cwd, sleep/time/platform constants |
-| `Env` | environment helpers covered by reserved env fixtures |
-| `Path` | path helpers covered by reserved path fixtures |
-| `Random` | random helpers covered by reserved random fixtures |
-| `Thread` | thread helpers covered by reserved thread fixtures |
-| `Log` | `log`, `info`, `warn`, `error`, `setLevel`, `setFile` |
-| `Buffer` | `new`, `len`, `readU16LE`, `readU32LE`, `writeU16LE`, `writeU32LE`, `slice`, `copy` |
-| `Json` | `parse`, `stringify`, `free` |
-| `Channel` | typed channel creation plus `send*`, `trySend*`, `recv*`, `tryRecv*`, `pending*`, `close` |
-| `DL` | `open`, `sym`, `close`, `last_error`, `supported`; also `System.FFI.Open(path, ffi)` fixture style |
+| `Standard.Math` | `abs`, `min`, `max`, `sqrt`, `PI` |
+| `Standard.IO` | `print`, `println`, `readLine` |
+| `System.IO` | low-level stream handles and buffer compatibility helpers |
+| `System.Time` | `monoNs`, `wallNs`, `sleepNs`, `sleepMs` plus compatibility `mono_ns`/`wall_ns` |
+| `System.FS` | file descriptors and low-level file/dir helpers including `readText`, `writeText`, `readBytes`, `writeBytes`, `listDir` |
+| `Standard.FS` | high-level file helpers backed by `System.FS` |
+| `System.OS` | `platform`, `arch`, process facts, `sleepMs` |
+| `System.Env` | args/env/executable path helpers |
+| `System.Path` / `Standard.Path` | low-level and ergonomic path helpers |
+| `System.Random` / `Standard.Random` | raw RNG and high-level random helpers |
+| `System.Thread` | low-level thread helpers |
+| `System.Log` / `Standard.Log` | sink/level/file control and high-level log helpers |
+| `System.Buffer` / `System.Bytes` | low-level mutable buffers and byte helpers |
+| `Standard.Buffer` / `Standard.Bytes` | high-level buffer/byte helper modules, reserved as catalog modules |
+| `System.Json` | low-level JSON handles |
+| `System.Channel` | typed channel creation plus `send*`, `trySend*`, `recv*`, `tryRecv*`, `pending*`, `close` |
+| `System.FFI` | `open`, `sym`, `symbol`, `close`, `lastError`, `supported`, scalar dynamic-call helpers |
 
 `using ModuleName` exposes module members for unqualified calls where that module supports it:
 
@@ -1028,7 +1021,7 @@ Unsupported/rejected procedure cases include:
 - procedure values inside unsupported list/array/generic emission paths
 - direct inline invocation of an anonymous function literal
 
-## Extern declarations and DL ABI
+## Extern declarations and FFI ABI
 
 Extern declarations describe imported host or dynamic-library functions:
 
@@ -1040,14 +1033,14 @@ extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
 Extern names may be module-qualified. Calls are checked for argument count and type compatibility.
 
-Dynamic-library usage is exposed through `DL` / `System.FFI` runtime APIs. Example shape from fixtures:
+Dynamic-library usage is exposed through the canonical `System.FFI` runtime API. Example shape from fixtures:
 
 ```simple
 import System.FFI
 
 extern ffi.simple_add_i32 : i32 (a : i32, b : i32)
 
-lib :: i64 = System.FFI.Open("Tests/ffi/libsimpleffi.so", ffi)
+lib :: i64 = System.FFI.open("Tests/ffi/libsimpleffi.so", ffi)
 
 main : i32 () {
   return ffi.simple_add_i32(40, 2)
@@ -1108,7 +1101,7 @@ Current tests intentionally reject or limit:
 - closure capture for procedure literals
 - procedure values at extern boundaries
 - procedure values in unsupported containers/generic contexts
-- recursive artifact ABI for extern/DL
+- recursive artifact ABI for extern/FFI
 - direct inline invocation of anonymous function literals
 - using modules/functions as types or enum types as values
 

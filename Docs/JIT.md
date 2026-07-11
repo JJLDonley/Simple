@@ -15,7 +15,7 @@ The Simple JIT is an optional execution path layered on top of the VM. The inter
 
 ## Status
 
-The `-jit` path is LLVM ORC first: it attempts to execute supported SBC functions as native LLVM code and falls back to the interpreter for unsupported shapes. The old tiered compiled-runner implementation has been removed.
+The LLVM ORC JIT path is stable for the current explicit JIT suite. It attempts to execute supported SBC functions as native LLVM code and falls back to the interpreter for unsupported shapes. The old tiered compiled-runner implementation has been removed.
 
 The LLVM ORC backend is present behind CMake option `SIMPLEVM_ENABLE_LLVM_JIT`. This is the migration path toward JVM/CLR-style execution:
 
@@ -27,7 +27,9 @@ When enabled and completed, `.sbc` remains the portable artifact while the platf
 
 ## Enabling JIT
 
-JIT behavior is controlled through the VM execution API:
+CLI execution uses JIT by default when `svm` is built with LLVM ORC support. Use `-int` or `--interpreter` to force the interpreter. The compatibility `-jit` flag is still accepted.
+
+Library/API execution remains interpreter-first unless the caller explicitly opts in:
 
 ```cpp
 ExecuteModule(module, verify, enable_jit, options)
@@ -48,17 +50,16 @@ Not every method can run through LLVM yet. Unsupported methods stay on or fall b
 Build-time switch:
 
 ```bash
-cmake -S Compiler -B Compiler/build-llvm -DSIMPLEVM_ENABLE_LLVM_JIT=ON
+cmake -S Compiler -B Compiler/build -DSIMPLEVM_ENABLE_LLVM_JIT=ON
 ```
 
 Runtime selection during the migration:
 
 ```bash
-svm run -jit main.simple     # use JIT paths where supported
-svm run -int main.simple     # force interpreter
+svm run main.simple          # use JIT paths where supported
+svm run main.simple -int     # force interpreter
+svm run main.simple -jit     # accepted compatibility spelling
 ```
-
-Until the LLVM JIT is complete, CLI execution defaults to interpreter mode and `-jit` opts in. Later this should flip so JIT is default and `-int` is the fallback/debug mode.
 
 The ORC backend caches generated entries by module/function/code hash and verifies generated IR before installation. Current LLVM lowering covers scalar functions with constants including validated 128-bit placeholder constants, locals, uninitialized and numeric f32/f64-initialized globals in non-calling functions, integer/unsigned/floating arithmetic, checked i32/u32/i64/u64 arithmetic/div/mod, checked integer/float scalar conversions, checked/guard bounds, simple pointer guards/comparisons and pseudo-memory, trap/intrinsic-trap/syscall/throw/panic fallback, address/capture-local/global, algebraic wrapper, iterator/task placeholder, atomic placeholder, vector placeholder ops, comparisons, simple conversions, forward branches, `JmpTable`, loop state merging for validated scalar/ref-stack cases, scalar-safe direct Simple calls inside loops, including void methods encoded as unspecified returns, scalar/void helper-bridged import calls inside loops, `Yield`, selected intrinsics, self calls, no-capture function literals via `NewClosure` + `CallIndirect`, and helper-bridged direct/import/native/indirect non-self calls. Loop-call safety diagnostics are scoped to calls that are actually inside detected backward-branch ranges, so pre-loop setup imports no longer block render/update loop lowering. Native import calls inside loops require safe metadata: matching signature, non-blocking, no allocation, no GC safepoint, and no output/mutating resources; managed string/ref arguments and borrowed resource inputs are allowed through the helper ABI when those metadata checks pass. Dynamic `System.FFI.call$...` loop calls must pass the canonical VM ABI/native ABI FFI verifier before LLVM loop-call acceptance, and then remain scalar/void or borrowed C-string input calls before LLVM accepts the helper path; accepted scalar/string-input dynamic-DL calls use generic VM ABI/native ABI helper dispatch through `JitCallContext` caller snapshots/root publication. Library-specific dynamic-DL direct binds are intentionally not part of LLVM lowering; aggregate external-C calls remain behind the canonical VM ABI/native ABI marshaler until generic aggregate support is proven. The LLVM cache/helper ABI versions are part of the cache key and are bumped when helper signatures or JIT acceptance rules change. Loop-call rejection diagnostics include the opcode PC, call category, target label, SBC signature shape, and aggregate field layout fingerprints so remaining FFI blockers can be mapped to concrete ABI forms. Resource/allocating direct/import calls, managed-result imports, managed direct calls, and indirect/procedure calls inside loops are still conservatively rejected until full caller-frame root publication, exact target metadata, and safepoint state are hardened. `--jit-stats` prints function names with indexes and rejection reasons include opcode/pc plus call category/safety reason and target labels where available, so mixed workloads, such as raylib loops, can identify the exact hot function, callee, and bytecode operation that fell back.
 
@@ -84,4 +85,4 @@ The JIT must never define different language semantics from the interpreter. If 
 
 ## Tests
 
-JIT behavior is covered by LLVM ORC tests in `Tests/tests/test_jit.cpp`, `Tests/tests/vm/test_jit.cpp`, and VM integration tests that inspect JIT counters, reject reasons, and interpreter fallback.
+JIT behavior is covered by LLVM ORC tests in `Tests/tests/test_jit.cpp`, `Tests/tests/vm/test_jit.cpp`, and VM integration tests that inspect JIT counters, reject reasons, and interpreter fallback. The current explicit JIT section is green at `61/61` tests.
