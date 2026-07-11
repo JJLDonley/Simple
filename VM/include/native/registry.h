@@ -142,6 +142,17 @@ struct NativeFunction {
   NativeFunctionSpec spec;
 };
 
+struct NativeJitCallValidation {
+  bool metadata_valid = false;
+  bool signature_matches = false;
+  bool jit_helper_safe = false;
+  bool jit_loop_safe = false;
+  bool may_allocate = true;
+  bool may_block = true;
+  bool needs_roots = false;
+  std::string reason;
+};
+
 struct NativeModule {
   std::string name;
   std::vector<NativeFunction> functions;
@@ -172,8 +183,12 @@ void RegisterSystemFs(NativeRegistry& registry);
 void RegisterSystemIo(NativeRegistry& registry);
 void RegisterSystemDl(NativeRegistry& registry);
 NativeRegistry BuildDefaultRegistry();
+bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string* error);
 bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error);
 bool IsDirectNativeBindingSafe(const NativeFunctionSpec& spec);
+NativeJitCallValidation AnalyzeNativeJitCall(const NativeFunctionSpec& spec,
+                                             const std::vector<Simple::Byte::TypeKind>& parameter_types,
+                                             Simple::Byte::TypeKind result_type);
 std::string GenerateStdLibMarkdown(const NativeRegistry& registry);
 
 } // namespace Simple::VM::Native

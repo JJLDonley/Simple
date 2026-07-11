@@ -1199,17 +1199,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
                                                                         param_type_ids);
     return abi.jit_loop_safe;
   };
-  auto native_metadata_matches_signature = [&](const Simple::VM::Native::NativeFunctionSpec& spec,
-                                               const Simple::Byte::SigRow& row) -> bool {
-    std::vector<Simple::Byte::TypeKind> params;
-    Simple::Byte::TypeKind result = Simple::Byte::TypeKind::Unspecified;
-    if (!signature_type_kinds(row, &params, &result)) return false;
-    if (spec.parameter_types.size() != params.size()) return false;
-    for (size_t i = 0; i < params.size(); ++i) {
-      if (spec.parameter_types[i] != params[i]) return false;
-    }
-    return spec.result_type == Simple::Byte::TypeKind::Unspecified || spec.result_type == result;
-  };
   auto function_name = [&](uint32_t func_id) -> std::string {
     if (func_id >= module.functions.size()) return {};
     const uint32_t method_id = module.functions[func_id].method_id;
@@ -1326,13 +1315,6 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
     const bool may_allocate = spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation;
     return {may_block, may_allocate};
   };
-  auto native_resources_loop_safe = [](const Simple::VM::Native::NativeFunctionSpec& spec) -> bool {
-    for (const auto& resource : spec.resources) {
-      if (resource.access != Simple::VM::Native::NativeResourceAccess::Input) return false;
-      if (resource.parameter_index >= spec.parameter_types.size()) return false;
-    }
-    return true;
-  };
   auto describe_import_loop_call_safety = [&](uint32_t func_id, const Simple::Byte::SigRow& row) -> std::string {
     auto unsafe = [&](const std::string& category, const std::string& why, const std::string& target) {
       return "category=" + category + " reason=" + why + (target.empty() ? std::string() : " target=" + target) +
@@ -1355,11 +1337,13 @@ bool LlvmJitBackend::TryRunFunctionWithRuntime(const Simple::Byte::SbcModule& mo
       if (!sig_is_scalar_loop_call_safe(row)) return unsafe("native/import", "non-scalar-or-managed-signature", target);
       return unsafe("native-registry", "missing-native-metadata", target);
     }
-    if (!native_metadata_matches_signature(*spec, row)) return unsafe("native-registry", "metadata-signature-mismatch", target);
-    if (!native_resources_loop_safe(*spec)) return unsafe("native-registry", "resource-argument-or-result", target);
-    if (spec->blocking != Simple::VM::Native::NativeBlockingBehavior::NonBlocking) return unsafe("native-registry", "blocking-call", target);
-    if (spec->allocation != Simple::VM::Native::NativeAllocationBehavior::NoAllocation) return unsafe("native-registry", "allocating-call", target);
-    if (spec->gc_behavior != Simple::VM::Native::NativeGcBehavior::NoSafepoint) return unsafe("native-registry", "gc-safepoint-call", target);
+    std::vector<Simple::Byte::TypeKind> params;
+    Simple::Byte::TypeKind result = Simple::Byte::TypeKind::Unspecified;
+    if (!signature_type_kinds(row, &params, &result)) return unsafe("native-registry", "metadata-signature-mismatch", target);
+    const auto safety = Simple::VM::Native::AnalyzeNativeJitCall(*spec, params, result);
+    if (!safety.jit_loop_safe) {
+      return unsafe("native-registry", safety.reason.empty() ? "unknown-target-effects" : safety.reason, target);
+    }
     return std::string();
   };
   const uint16_t param_count = sig.param_count;

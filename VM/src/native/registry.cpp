@@ -1567,57 +1567,121 @@ bool IsDirectNativeBindingSafe(const NativeFunctionSpec& spec) {
          spec.gc_behavior == NativeGcBehavior::NoSafepoint && spec.resources.empty();
 }
 
+NativeJitCallValidation AnalyzeNativeJitCall(const NativeFunctionSpec& spec,
+                                             const std::vector<Simple::Byte::TypeKind>& parameter_types,
+                                             Simple::Byte::TypeKind result_type) {
+  NativeJitCallValidation out;
+  out.may_block = spec.blocking != NativeBlockingBehavior::NonBlocking;
+  out.may_allocate = spec.allocation != NativeAllocationBehavior::NoAllocation;
+  auto needs_root = [](Simple::Byte::TypeKind kind) {
+    return kind == Simple::Byte::TypeKind::String || kind == Simple::Byte::TypeKind::Ref;
+  };
+  for (Simple::Byte::TypeKind kind : parameter_types) {
+    if (needs_root(kind)) out.needs_roots = true;
+  }
+  if (needs_root(result_type)) out.needs_roots = true;
+
+  std::string metadata_error;
+  out.metadata_valid = ValidateNativeFunctionMetadata(spec, &metadata_error);
+  if (!out.metadata_valid) {
+    out.reason = "invalid-native-abi-metadata";
+    return out;
+  }
+  if (spec.parameter_types.size() != parameter_types.size()) {
+    out.reason = "metadata-signature-mismatch";
+    return out;
+  }
+  for (size_t i = 0; i < parameter_types.size(); ++i) {
+    if (spec.parameter_types[i] != parameter_types[i]) {
+      out.reason = "metadata-signature-mismatch";
+      return out;
+    }
+  }
+  if (spec.result_type != Simple::Byte::TypeKind::Unspecified && spec.result_type != result_type) {
+    out.reason = "metadata-signature-mismatch";
+    return out;
+  }
+  out.signature_matches = true;
+  out.jit_helper_safe = true;
+
+  for (const NativeResourceUse& resource : spec.resources) {
+    if (resource.access != NativeResourceAccess::Input || resource.parameter_index >= spec.parameter_types.size()) {
+      out.reason = "resource-argument-or-result";
+      return out;
+    }
+  }
+  if (out.may_block) {
+    out.reason = "blocking-call";
+    return out;
+  }
+  if (out.may_allocate) {
+    out.reason = "allocating-call";
+    return out;
+  }
+  if (spec.gc_behavior != NativeGcBehavior::NoSafepoint) {
+    out.reason = "gc-safepoint-call";
+    return out;
+  }
+  out.jit_loop_safe = true;
+  return out;
+}
+
+bool ValidateNativeFunctionMetadata(const NativeFunctionSpec& spec, std::string* error) {
+  const std::string name = spec.module_name + "." + spec.symbol_name;
+  if (spec.module_name.empty() || spec.symbol_name.empty()) {
+    if (error) *error = "native metadata has empty module or symbol";
+    return false;
+  }
+  if (!spec.handler) {
+    if (error) *error = name + " missing handler";
+    return false;
+  }
+  std::string abi_error;
+  if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
+                                                         false, &abi_error)) {
+    if (error) *error = name + " has invalid ABI signature: " + abi_error;
+    return false;
+  }
+  if (spec.allocation == NativeAllocationBehavior::MayAllocateVm &&
+      spec.gc_behavior != NativeGcBehavior::MaySafepoint) {
+    if (error) *error = name + " VM allocation metadata must declare GC safepoint behavior";
+    return false;
+  }
+  if (spec.direct_binding_safe && !IsDirectNativeBindingSafe(spec)) {
+    if (error) *error = name + " direct native binding marked safe with unsafe metadata";
+    return false;
+  }
+  for (const NativeResourceUse& resource : spec.resources) {
+    if (resource.kind == NativeResourceKind::Unknown) {
+      if (error) *error = name + " declares unknown resource kind";
+      return false;
+    }
+    if (resource.access != NativeResourceAccess::Output &&
+        resource.parameter_index >= spec.parameter_types.size()) {
+      if (error) *error = name + " resource parameter index out of range";
+      return false;
+    }
+    if (resource.ownership == NativeOwnershipRule::None) {
+      if (error) *error = name + " resource missing ownership rule";
+      return false;
+    }
+    if (resource.access == NativeResourceAccess::Output &&
+        resource.cleanup == NativeCleanupBehavior::None) {
+      if (error) *error = name + " resource output missing cleanup behavior";
+      return false;
+    }
+    if (resource.access == NativeResourceAccess::InputOutput &&
+        resource.cleanup != NativeCleanupBehavior::CloseRequired) {
+      if (error) *error = name + " inout resource must require close";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool ValidateNativeRegistryMetadata(const NativeRegistry& registry, std::string* error) {
   for (const NativeFunctionSpec& spec : registry.Functions()) {
-    const std::string name = spec.module_name + "." + spec.symbol_name;
-    if (spec.module_name.empty() || spec.symbol_name.empty()) {
-      if (error) *error = "native metadata has empty module or symbol";
-      return false;
-    }
-    if (!spec.handler) {
-      if (error) *error = name + " missing handler";
-      return false;
-    }
-    std::string abi_error;
-    if (!Simple::VM::Runtime::ValidateAbiCallableSignature(spec.parameter_types, spec.result_type,
-                                                           false, &abi_error)) {
-      if (error) *error = name + " has invalid ABI signature: " + abi_error;
-      return false;
-    }
-    if (spec.allocation == NativeAllocationBehavior::MayAllocateVm &&
-        spec.gc_behavior != NativeGcBehavior::MaySafepoint) {
-      if (error) *error = name + " VM allocation metadata must declare GC safepoint behavior";
-      return false;
-    }
-    if (spec.direct_binding_safe && !IsDirectNativeBindingSafe(spec)) {
-      if (error) *error = name + " direct native binding marked safe with unsafe metadata";
-      return false;
-    }
-    for (const NativeResourceUse& resource : spec.resources) {
-      if (resource.kind == NativeResourceKind::Unknown) {
-        if (error) *error = name + " declares unknown resource kind";
-        return false;
-      }
-      if (resource.access != NativeResourceAccess::Output &&
-          resource.parameter_index >= spec.parameter_types.size()) {
-        if (error) *error = name + " resource parameter index out of range";
-        return false;
-      }
-      if (resource.ownership == NativeOwnershipRule::None) {
-        if (error) *error = name + " resource missing ownership rule";
-        return false;
-      }
-      if (resource.access == NativeResourceAccess::Output &&
-          resource.cleanup == NativeCleanupBehavior::None) {
-        if (error) *error = name + " resource output missing cleanup behavior";
-        return false;
-      }
-      if (resource.access == NativeResourceAccess::InputOutput &&
-          resource.cleanup != NativeCleanupBehavior::CloseRequired) {
-        if (error) *error = name + " inout resource must require close";
-        return false;
-      }
-    }
+    if (!ValidateNativeFunctionMetadata(spec, error)) return false;
   }
   return true;
 }

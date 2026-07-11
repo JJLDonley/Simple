@@ -1,6 +1,7 @@
 #include "test_utils.h"
 
 #include "ffi/dl_call.h"
+#include "native/registry.h"
 #include "runtime/abi.h"
 #include "runtime/promise.h"
 #include "runtime/type_identity.h"
@@ -634,6 +635,55 @@ bool VmRuntimeAbiValidatesDynamicDlAbi() {
          bad_ref_param.reason.find("unsupported VM marshal type") != std::string::npos;
 }
 
+bool VmRuntimeAbiClassifiesNativeJitCalls() {
+  using Simple::Byte::TypeKind;
+  using namespace Simple::VM::Native;
+
+  NativeFunctionSpec spec;
+  spec.module_name = "Test";
+  spec.symbol_name = "pure";
+  spec.parameter_types = {TypeKind::String, TypeKind::I32};
+  spec.result_type = TypeKind::I32;
+  spec.blocking = NativeBlockingBehavior::NonBlocking;
+  spec.allocation = NativeAllocationBehavior::NoAllocation;
+  spec.gc_behavior = NativeGcBehavior::NoSafepoint;
+  spec.handler = [](NativeCallContext&) { return NativeCallResult::I32(0); };
+
+  auto pure = AnalyzeNativeJitCall(spec, {TypeKind::String, TypeKind::I32}, TypeKind::I32);
+  if (!pure.metadata_valid || !pure.signature_matches || !pure.jit_helper_safe || !pure.jit_loop_safe ||
+      !pure.needs_roots || pure.may_allocate || pure.may_block) {
+    return false;
+  }
+
+  NativeFunctionSpec missing_handler = spec;
+  missing_handler.handler = nullptr;
+  auto invalid = AnalyzeNativeJitCall(missing_handler, {TypeKind::String, TypeKind::I32}, TypeKind::I32);
+  if (invalid.metadata_valid || invalid.jit_helper_safe || invalid.reason != "invalid-native-abi-metadata") return false;
+
+  auto mismatch = AnalyzeNativeJitCall(spec, {TypeKind::I32}, TypeKind::I32);
+  if (mismatch.jit_loop_safe || mismatch.reason != "metadata-signature-mismatch") return false;
+
+  spec.blocking = NativeBlockingBehavior::MayBlock;
+  auto blocking = AnalyzeNativeJitCall(spec, {TypeKind::String, TypeKind::I32}, TypeKind::I32);
+  if (blocking.jit_loop_safe || blocking.reason != "blocking-call") return false;
+  spec.blocking = NativeBlockingBehavior::NonBlocking;
+
+  spec.allocation = NativeAllocationBehavior::MayAllocateVm;
+  spec.gc_behavior = NativeGcBehavior::MaySafepoint;
+  auto allocating = AnalyzeNativeJitCall(spec, {TypeKind::String, TypeKind::I32}, TypeKind::I32);
+  if (allocating.jit_loop_safe || allocating.reason != "allocating-call") return false;
+  spec.allocation = NativeAllocationBehavior::NoAllocation;
+  spec.gc_behavior = NativeGcBehavior::NoSafepoint;
+
+  spec.resources.push_back(NativeResourceUse{NativeResourceKind::File,
+                                             NativeResourceAccess::InputOutput,
+                                             NativeOwnershipRule::Borrow,
+                                             NativeCleanupBehavior::CloseRequired,
+                                             0});
+  auto resource = AnalyzeNativeJitCall(spec, {TypeKind::String, TypeKind::I32}, TypeKind::I32);
+  return !resource.jit_loop_safe && resource.reason == "resource-argument-or-result";
+}
+
 bool VmRuntimeAbiComputesStableAggregateLayout() {
   using Simple::Byte::TypeKind;
   using Simple::VM::Runtime::ComputeStableAggregateLayout;
@@ -692,6 +742,7 @@ const TestCase kVmRuntimeAbiTests[] = {
   {"vm_runtime_abi_data_methods_do_not_affect_layout", VmRuntimeAbiDataMethodsDoNotAffectLayout},
   {"vm_runtime_abi_rejects_recursive_value_containment", VmRuntimeAbiRejectsRecursiveValueContainment},
   {"vm_runtime_abi_validates_dynamic_dl_abi", VmRuntimeAbiValidatesDynamicDlAbi},
+  {"vm_runtime_abi_classifies_native_jit_calls", VmRuntimeAbiClassifiesNativeJitCalls},
   {"vm_runtime_abi_computes_stable_aggregate_layout", VmRuntimeAbiComputesStableAggregateLayout},
 };
 

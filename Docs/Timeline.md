@@ -294,6 +294,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
     - [x] Runtime verifier accepts explicit external C wrappers for C string, string view, and bytes view.
     - [x] Dynamic library call dispatch gates libffi setup behind external ABI type-info validation.
 - [ ] Keep interpreter, LLVM ORC JIT, and future AOT on the same Simple Native ABI contract.
+  - [x] LLVM loop-call acceptance for native/import calls uses canonical native metadata validation instead of duplicating signature/effect checks in the backend.
 
 ### Exact ABI Mapping Table
 
@@ -376,6 +377,7 @@ The Simple ABI has two layers. The primary ABI is the Simple Native ABI used by 
 - [x] Add ABI classification helper for scalar, float, ref, aggregate, variant, promise, and opaque classes.
 - [x] Add layout hash for stable `data` types and generic specializations.
 - [x] Add ABI verifier checks for native-callable signatures.
+- [x] Add native JIT-call ABI classification tests for metadata validity, signature matching, root needs, blocking/allocation effects, and resource mutation rejection.
 - [ ] Add interpreter/JIT shared tests for the same native ABI calls.
 - [ ] Document all mappings in `Docs/Language.md`, `Docs/VM.md`, `Docs/IR.md`, and `Docs/Byte.md`.
 
@@ -538,7 +540,7 @@ The LLVM ORC JIT is an optional execution backend over verified SBC. CLI executi
 - [x] Scalar/void direct and import helper calls are allowed through the shared helper ABI inside LLVM-lowered loops.
 - [x] Indirect/procedure calls inside loops reject until exact target metadata/effects are available.
 - [x] Ref/string/resource direct calls inside loops reject until caller-frame roots/safepoints are complete.
-- [x] Native import loop enabling is gated by metadata: matching signature, non-blocking, no allocation, no GC safepoint, and no resources.
+- [x] Native import loop enabling is gated by canonical native metadata validation: valid handler/signature metadata, matching SBC signature, non-blocking, no allocation, no GC safepoint, and no mutating/output resources.
 - [x] Managed string/ref arguments are allowed for safe native import loop calls via `JitCallContext` roots.
 - [x] Borrowed resource input arguments are allowed for safe native import loop calls while output/mutating resources still reject.
 - [x] Dynamic `System.dl.call$...` loop enabling requires scalar/void signatures that pass the external C ABI verifier.
