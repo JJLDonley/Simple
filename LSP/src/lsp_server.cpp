@@ -1196,6 +1196,7 @@ std::string NormalizeCoreDlMember(const std::string& member) {
 bool ResolveReservedModuleSignature(const std::string& call_name,
                                     const std::string& text,
                                     ReservedSignature* out) {
+  using namespace Simple::Lang;
   if (!out) return false;
   out->params.clear();
   out->return_type.clear();
@@ -1245,340 +1246,236 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
   }
   if (!ResolveImportedModuleAndMember(call_name, text, &module, &member)) return false;
-  if (module == "Math") {
-    if (member == "abs") {
-      out->params = {"value"};
-      out->return_type = "i32|i64";
-      return true;
-    }
-    if (member == "min" || member == "max") {
-      out->params = {"lhs", "rhs"};
-      out->return_type = "numeric";
-      return true;
-    }
-    return false;
-  }
-  if (module == "StandardIO") {
-    if (member == "print" || member == "println") {
-      out->params = {"value"};
-      out->return_type = "void";
-      return true;
-    }
-    return false;
-  }
-  if (module == "IO") {
-    if (member == "buffer_new") {
-      out->params = {"length"};
-      out->return_type = "i32[]";
-      return true;
-    }
-    if (member == "buffer_len") {
-      out->params = {"buffer"};
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "buffer_fill") {
-      out->params = {"buffer", "value", "count"};
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "buffer_copy") {
-      out->params = {"dst", "src", "count"};
-      out->return_type = "i32";
-      return true;
-    }
-    return false;
-  }
-  if (module == "Time" || module == "StandardTime") {
-    if (member == "mono_ns" || member == "wall_ns") {
-      out->return_type = "i64";
-      return true;
-    }
-    if (module == "StandardTime" && member == "formatWallNs") {
-      out->params = {"timestamp"};
-      out->return_type = "string";
-      return true;
-    }
-    return false;
-  }
-  if (module == "File" || module == "File") {
-    if (member == "open") {
-      out->params = {"path", "flags"};
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "close") {
-      out->params = {"fd"};
-      out->return_type = "void";
-      return true;
-    }
-    if (member == "read" || member == "write") {
-      out->params = {"fd", "buffer", "count"};
-      out->return_type = "i32";
-      return true;
-    }
-    return false;
-  }
-  if (module == "OS") {
-    if (member == "platform" || member == "arch") {
-      out->return_type = "string";
-      return true;
-    }
-    if (member == "isLinux" || member == "isMacos" || member == "isWindows") {
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "pid" || member == "cpuCount" || member == "pageSize") {
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "exit") {
-      out->params = {"code"};
-      out->return_type = "void";
-      return true;
-    }
-    if (member == "sleepMs") {
-      out->params = {"milliseconds"};
-      out->return_type = "void";
-      return true;
-    }
-    return false;
-  }
-  if (module == "FS" || module == "StandardFS") {
-    if (member == "readText") {
-      out->params = {"path"};
-      out->return_type = "string";
-      return true;
-    }
-    if (member == "writeText") {
-      out->params = {"path", "text"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "readBytes") {
-      out->params = {"path"};
-      out->return_type = "i32[]";
-      return true;
-    }
-    if (member == "writeBytes") {
-      out->params = {"path", "bytes"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "exists" || member == "isFile" || member == "isDir") {
-      out->params = {"path"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "copy") {
-      out->params = {"from", "to"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "listDir") {
-      out->params = {"path"};
-      out->return_type = "string[]";
-      return true;
-    }
-    if (member == "remove" || member == "mkdir" || member == "mkdirAll" || member == "setCwd") {
-      out->params = {"path"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "cwd") {
-      out->return_type = "string";
-      return true;
-    }
-    return false;
-  }
-  if (module == "Path" || module == "StandardPath") {
-    if (module == "Path" && (member == "separator" || member == "delimiter")) {
-      out->return_type = "string";
-      return true;
-    }
-    if (module == "Path" && member == "isAbsolute") {
-      out->params = {"path"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "join") {
-      out->params = {"lhs", "rhs"};
-      out->return_type = "string";
-      return true;
-    }
-    if (member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize") {
-      out->params = {"path"};
-      out->return_type = "string";
-      return true;
-    }
-    return false;
-  }
-  if (module == "Env") {
-    if (member == "argsCount") {
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "arg") {
-      out->params = {"index"};
-      out->return_type = "string";
-      return true;
-    }
-    if (member == "get") {
-      out->params = {"name"};
-      out->return_type = "string";
-      return true;
-    }
-    if (member == "set") {
-      out->params = {"name", "value"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "unset") {
-      out->params = {"name"};
-      out->return_type = "bool";
-      return true;
-    }
-    if (member == "exePath") {
-      out->return_type = "string";
-      return true;
-    }
-    return false;
-  }
-  if (module == "SystemRandom" || module == "StandardRandom") {
-    if (member == "seed") {
-      out->params = {"seed"};
-      out->return_type = "void";
-      return true;
-    }
-    if (member == "i32") {
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "i64") {
-      out->return_type = "i64";
-      return true;
-    }
-    if (module == "StandardRandom" && member == "range") {
-      out->params = {"min", "max"};
-      out->return_type = "i32";
-      return true;
-    }
-    if (member == "f64") {
-      out->return_type = "f64";
-      return true;
-    }
-    if (module == "SystemRandom" && member == "fillBytes") {
-      out->params = {"bytes"};
-      out->return_type = "bool";
-      return true;
-    }
-    return false;
-  }
-  if (module == "Channel") {
-    auto channel_type = [](const std::string& suffix) -> std::string {
-      if (suffix == "I64") return "i64";
-      if (suffix == "F32") return "f32";
-      if (suffix == "F64") return "f64";
-      if (suffix == "Bool") return "bool";
-      if (suffix == "String") return "string";
-      if (suffix == "Bytes") return "i32[]";
-      return "i32";
-    };
-    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
-    for (const char* suffix_c : suffixes) {
-      const std::string suffix = suffix_c;
-      if (member == "new" + suffix) {
-        out->return_type = "i64";
-        return true;
+  const auto module_id = ParseCanonicalLibraryModule(module);
+  if (!module_id) return false;
+  auto set = [&](std::vector<std::string> params, std::string ret) {
+    out->params = std::move(params);
+    out->return_type = std::move(ret);
+    return true;
+  };
+  if (module_id->root == LibraryRoot::Standard) {
+    const StandardModule mod = static_cast<StandardModule>(module_id->module_index);
+    const auto parsed = ParseMember(mod, member);
+    if (!parsed) return false;
+    switch (mod) {
+      case StandardModule::IO: {
+        const auto m = std::get<StandardIOMember>(*parsed);
+        if (m == StandardIOMember::Print || m == StandardIOMember::Println) return set({"value"}, "void");
+        return false;
       }
-      if (member == "send" + suffix || member == "trySend" + suffix) {
-        out->params = {"handle", "value"};
-        out->return_type = "bool";
-        return true;
+      case StandardModule::Math: {
+        const auto m = std::get<StandardMathMember>(*parsed);
+        if (m == StandardMathMember::Abs) return set({"value"}, "i32|i64");
+        if (m == StandardMathMember::Min || m == StandardMathMember::Max) return set({"lhs", "rhs"}, "numeric");
+        return false;
       }
-      if (member == "recv" + suffix || member == "tryRecv" + suffix) {
-        out->params = {"handle"};
-        out->return_type = channel_type(suffix);
-        return true;
+      case StandardModule::Time: {
+        const auto m = std::get<StandardTimeMember>(*parsed);
+        if (m == StandardTimeMember::MonoSnake || m == StandardTimeMember::WallSnake ||
+            m == StandardTimeMember::MonoNs || m == StandardTimeMember::NowNs) return set({}, "i64");
+        if (m == StandardTimeMember::FormatWallNs) return set({"timestamp"}, "string");
+        if (m == StandardTimeMember::SleepMs) return set({"milliseconds"}, "void");
+        return false;
       }
+      case StandardModule::FS: {
+        const auto m = std::get<StandardFSMember>(*parsed);
+        if (m == StandardFSMember::ReadText) return set({"path"}, "string");
+        if (m == StandardFSMember::WriteText) return set({"path", "text"}, "bool");
+        if (m == StandardFSMember::ReadBytes) return set({"path"}, "i32[]");
+        if (m == StandardFSMember::WriteBytes) return set({"path", "bytes"}, "bool");
+        if (m == StandardFSMember::Exists || m == StandardFSMember::IsFile || m == StandardFSMember::IsDir) return set({"path"}, "bool");
+        if (m == StandardFSMember::Copy) return set({"from", "to"}, "bool");
+        if (m == StandardFSMember::ListDir) return set({"path"}, "string[]");
+        if (m == StandardFSMember::Remove || m == StandardFSMember::Mkdir || m == StandardFSMember::MkdirAll || m == StandardFSMember::SetCwd) return set({"path"}, "bool");
+        if (m == StandardFSMember::Cwd) return set({}, "string");
+        return false;
+      }
+      case StandardModule::Path: {
+        const auto m = std::get<StandardPathMember>(*parsed);
+        if (m == StandardPathMember::Join) return set({"lhs", "rhs"}, "string");
+        if (m == StandardPathMember::Dirname || m == StandardPathMember::Basename || m == StandardPathMember::Ext || m == StandardPathMember::Stem || m == StandardPathMember::Normalize) return set({"path"}, "string");
+        return false;
+      }
+      case StandardModule::Random: {
+        const auto m = std::get<StandardRandomMember>(*parsed);
+        if (m == StandardRandomMember::Seed) return set({"seed"}, "void");
+        if (m == StandardRandomMember::I32 || m == StandardRandomMember::Range) return m == StandardRandomMember::Range ? set({"min", "max"}, "i32") : set({}, "i32");
+        if (m == StandardRandomMember::I64) return set({}, "i64");
+        if (m == StandardRandomMember::F64) return set({}, "f64");
+        return false;
+      }
+      case StandardModule::Bytes: {
+        const auto m = std::get<StandardBytesMember>(*parsed);
+        if (m == StandardBytesMember::New) return set({"length"}, "i32[]");
+        if (m == StandardBytesMember::Slice) return set({"bytes", "start", "length"}, "i32[]");
+        return false;
+      }
+      case StandardModule::Log: {
+        const auto m = std::get<StandardLogMember>(*parsed);
+        if (m == StandardLogMember::Info || m == StandardLogMember::Warn || m == StandardLogMember::Error) return set({"message"}, "void");
+        if (m == StandardLogMember::SetLevel) return set({"level"}, "void");
+        if (m == StandardLogMember::SetFile) return set({"path"}, "bool");
+        return false;
+      }
+      case StandardModule::Console:
+      case StandardModule::Buffer:
+      case StandardModule::Text:
+      case StandardModule::Json:
+      case StandardModule::Process:
+      case StandardModule::Net:
+      case StandardModule::HTTP:
+      case StandardModule::HTTPS:
+      case StandardModule::Terminal:
+      case StandardModule::Promise:
+      case StandardModule::Channel:
+      case StandardModule::Collections:
+      case StandardModule::Result:
+      case StandardModule::Option:
+        return false;
     }
-    if (member == "close") {
-      out->params = {"handle"};
-      out->return_type = "void";
-      return true;
-    }
-    return false;
   }
-  if (module == "Thread") {
-    if (member == "sleep") {
-      out->params = {"milliseconds"};
-      out->return_type = "void";
-      return true;
+
+  const SystemModule mod = static_cast<SystemModule>(module_id->module_index);
+  const std::string normalized_member = mod == SystemModule::FFI ? NormalizeCoreDlMember(member) : member;
+  const auto parsed = ParseMember(mod, normalized_member);
+  if (!parsed) return false;
+  switch (mod) {
+    case SystemModule::IO: {
+      const auto m = std::get<SystemIOMember>(*parsed);
+      if (m == SystemIOMember::BufferNew) return set({"length"}, "i32[]");
+      if (m == SystemIOMember::BufferLen) return set({"buffer"}, "i32");
+      if (m == SystemIOMember::BufferFill) return set({"buffer", "value", "count"}, "i32");
+      if (m == SystemIOMember::BufferCopy) return set({"dst", "src", "count"}, "i32");
+      return false;
     }
-    if (member == "yield") {
-      out->return_type = "void";
-      return true;
+    case SystemModule::Time: {
+      const auto m = std::get<SystemTimeMember>(*parsed);
+      if (m == SystemTimeMember::MonoSnake || m == SystemTimeMember::WallSnake || m == SystemTimeMember::MonoNs || m == SystemTimeMember::WallNs) return set({}, "i64");
+      return false;
     }
-    if (member == "hardwareConcurrency") {
-      out->return_type = "i32";
-      return true;
+    case SystemModule::OS: {
+      const auto m = std::get<SystemOSMember>(*parsed);
+      if (m == SystemOSMember::Platform || m == SystemOSMember::Arch) return set({}, "string");
+      if (m == SystemOSMember::IsLinux || m == SystemOSMember::IsMacos || m == SystemOSMember::IsWindows) return set({}, "bool");
+      if (m == SystemOSMember::Pid || m == SystemOSMember::CpuCount || m == SystemOSMember::PageSize) return set({}, "i32");
+      if (m == SystemOSMember::Exit) return set({"code"}, "void");
+      if (m == SystemOSMember::SleepMs) return set({"milliseconds"}, "void");
+      return false;
     }
-    return false;
-  }
-  if (module == "SystemLog" || module == "StandardLog") {
-    if (module == "SystemLog" && member == "log") {
-      out->params = {"level", "message"};
-      out->return_type = "void";
-      return true;
+    case SystemModule::FS: {
+      const auto m = std::get<SystemFSMember>(*parsed);
+      if (m == SystemFSMember::Open) return set({"path", "flags"}, "i32");
+      if (m == SystemFSMember::Close) return set({"fd"}, "void");
+      if (m == SystemFSMember::Read || m == SystemFSMember::Write) return set({"fd", "buffer", "count"}, "i32");
+      if (m == SystemFSMember::ReadText) return set({"path"}, "string");
+      if (m == SystemFSMember::WriteText) return set({"path", "text"}, "bool");
+      if (m == SystemFSMember::ReadBytes) return set({"path"}, "i32[]");
+      if (m == SystemFSMember::WriteBytes) return set({"path", "bytes"}, "bool");
+      if (m == SystemFSMember::Exists || m == SystemFSMember::IsFile || m == SystemFSMember::IsDir) return set({"path"}, "bool");
+      if (m == SystemFSMember::Copy) return set({"from", "to"}, "bool");
+      if (m == SystemFSMember::ListDir) return set({"path"}, "string[]");
+      if (m == SystemFSMember::Remove || m == SystemFSMember::Mkdir || m == SystemFSMember::MkdirAll || m == SystemFSMember::SetCwd) return set({"path"}, "bool");
+      if (m == SystemFSMember::Cwd) return set({}, "string");
+      return false;
     }
-    if (module == "StandardLog" && (member == "info" || member == "warn" || member == "error")) {
-      out->params = {"message"};
-      out->return_type = "void";
-      return true;
+    case SystemModule::Path: {
+      const auto m = std::get<SystemPathMember>(*parsed);
+      if (m == SystemPathMember::Separator || m == SystemPathMember::Delimiter) return set({}, "string");
+      if (m == SystemPathMember::IsAbsolute) return set({"path"}, "bool");
+      if (m == SystemPathMember::Join) return set({"lhs", "rhs"}, "string");
+      if (m == SystemPathMember::Dirname || m == SystemPathMember::Basename || m == SystemPathMember::Ext || m == SystemPathMember::Stem || m == SystemPathMember::Normalize) return set({"path"}, "string");
+      return false;
     }
-    if (member == "setLevel") {
-      out->params = {"level"};
-      out->return_type = "void";
-      return true;
+    case SystemModule::Env: {
+      const auto m = std::get<SystemEnvMember>(*parsed);
+      if (m == SystemEnvMember::ArgsCount) return set({}, "i32");
+      if (m == SystemEnvMember::Arg) return set({"index"}, "string");
+      if (m == SystemEnvMember::Get) return set({"name"}, "string");
+      if (m == SystemEnvMember::Set) return set({"name", "value"}, "bool");
+      if (m == SystemEnvMember::Unset) return set({"name"}, "bool");
+      if (m == SystemEnvMember::ExePath) return set({}, "string");
+      return false;
     }
-    if (member == "setFile") {
-      out->params = {"path"};
-      out->return_type = "bool";
-      return true;
+    case SystemModule::Random: {
+      const auto m = std::get<SystemRandomMember>(*parsed);
+      if (m == SystemRandomMember::Seed) return set({"seed"}, "void");
+      if (m == SystemRandomMember::I32) return set({}, "i32");
+      if (m == SystemRandomMember::I64) return set({}, "i64");
+      if (m == SystemRandomMember::F64) return set({}, "f64");
+      if (m == SystemRandomMember::FillBytes) return set({"bytes"}, "bool");
+      return false;
     }
-    if (module == "SystemLog" && member == "flush") {
-      out->return_type = "bool";
-      return true;
+    case SystemModule::Channel: {
+      auto channel_type = [](const std::string& suffix) -> std::string {
+        if (suffix == "I64") return "i64"; if (suffix == "F32") return "f32"; if (suffix == "F64") return "f64";
+        if (suffix == "Bool") return "bool"; if (suffix == "String") return "string"; if (suffix == "Bytes") return "i32[]"; return "i32";
+      };
+      static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
+      for (const char* suffix_c : suffixes) {
+        const std::string suffix = suffix_c;
+        if (member == "new" + suffix) return set({}, "i64");
+        if (member == "send" + suffix || member == "trySend" + suffix) return set({"handle", "value"}, "bool");
+        if (member == "recv" + suffix || member == "tryRecv" + suffix) return set({"handle"}, channel_type(suffix));
+        if (member == "pending" + suffix) return set({"handle"}, "i32");
+      }
+      if (std::get<SystemChannelMember>(*parsed) == SystemChannelMember::Close) return set({"handle"}, "void");
+      return false;
     }
-    return false;
-  }
-  if (module == "DL") {
-    member = NormalizeCoreDlMember(member);
-    if (member == "open") {
-      out->params = {"path"};
-      out->return_type = "i64";
-      return true;
+    case SystemModule::Thread: {
+      const auto m = std::get<SystemThreadMember>(*parsed);
+      if (m == SystemThreadMember::Sleep) return set({"milliseconds"}, "void");
+      if (m == SystemThreadMember::Yield) return set({}, "void");
+      if (m == SystemThreadMember::HardwareConcurrency) return set({}, "i32");
+      return false;
     }
-    if (member == "sym") {
-      out->params = {"handle", "name"};
-      out->return_type = "i64";
-      return true;
+    case SystemModule::Log: {
+      const auto m = std::get<SystemLogMember>(*parsed);
+      if (m == SystemLogMember::Log) return set({"level", "message"}, "void");
+      if (m == SystemLogMember::SetLevel) return set({"level"}, "void");
+      if (m == SystemLogMember::SetFile) return set({"path"}, "bool");
+      if (m == SystemLogMember::Flush) return set({}, "bool");
+      return false;
     }
-    if (member == "close" || member == "call_str0") {
-      out->params = {"handle"};
-      out->return_type = (member == "close") ? "i32" : "string";
-      return true;
+    case SystemModule::FFI: {
+      const auto m = std::get<SystemFFIMember>(*parsed);
+      if (m == SystemFFIMember::Open) return set({"path"}, "i64");
+      if (m == SystemFFIMember::Sym || m == SystemFFIMember::Symbol) return set({"handle", "name"}, "i64");
+      if (m == SystemFFIMember::Close) return set({"handle"}, "i32");
+      if (m == SystemFFIMember::LastError || m == SystemFFIMember::LastErrorSnake) return set({}, "string");
+      if (m == SystemFFIMember::CallStr0) return set({"handle"}, "string");
+      if (m == SystemFFIMember::CallI32) return set({"fn_ptr", "a0", "a1"}, "i32");
+      if (m == SystemFFIMember::CallI64) return set({"fn_ptr", "a0", "a1"}, "i64");
+      if (m == SystemFFIMember::CallF32) return set({"fn_ptr", "a0", "a1"}, "f32");
+      if (m == SystemFFIMember::CallF64) return set({"fn_ptr", "a0", "a1"}, "f64");
+      return false;
     }
-    if (member == "last_error") {
-      out->return_type = "string";
-      return true;
+    case SystemModule::Json: {
+      const auto m = std::get<SystemJsonMember>(*parsed);
+      if (m == SystemJsonMember::Parse) return set({"text"}, "i64");
+      if (m == SystemJsonMember::Stringify) return set({"handle"}, "string");
+      if (m == SystemJsonMember::Free) return set({"handle"}, "bool");
+      return false;
     }
-    if (member == "call_i32" || member == "call_i64" || member == "call_f32" || member == "call_f64") {
-      out->params = {"fn_ptr", "a0", "a1"};
-      out->return_type = member.substr(5);
-      return true;
+    case SystemModule::Buffer:
+    case SystemModule::Bytes: {
+      if (member == "new") return set({"length"}, "i32[]");
+      if (member == "len") return set({"buffer"}, "i32");
+      if (member == "readU16LE" || member == "readU32LE") return set({"buffer", "offset"}, "i32");
+      if (member == "writeU16LE" || member == "writeU32LE") return set({"buffer", "offset", "value"}, "bool");
+      if (member == "slice") return set({"buffer", "start", "length"}, "i32[]");
+      if (member == "copy") return set({"dst", "dstOffset", "src", "srcOffset", "count"}, "i32");
+      return false;
     }
-    return false;
+    case SystemModule::ASM:
+    case SystemModule::Job:
+    case SystemModule::Process:
+    case SystemModule::Net:
+    case SystemModule::HTTP:
+    case SystemModule::Terminal:
+    case SystemModule::Capability:
+    case SystemModule::Runtime:
+    case SystemModule::Debug:
+      return false;
   }
   return false;
 }
