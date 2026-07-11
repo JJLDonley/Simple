@@ -3240,10 +3240,18 @@ void ReplyTypeDefinition(std::ostream& out,
                            (found ? ("[" + LocationJson(best_uri, best_token) + "]") : "[]") + "}");
 }
 
+bool ShouldSkipWorkspaceIndexDir(const std::filesystem::path& path) {
+  const std::string name = path.filename().generic_string();
+  return name == ".git" || name == ".hg" || name == ".svn" ||
+         name == "build" || name == "node_modules" || name == ".vscode";
+}
+
 std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
     const std::unordered_map<std::string, std::string>& open_docs) {
   std::unordered_map<std::string, std::string> docs = open_docs;
   std::unordered_set<std::string> visited_dirs;
+  size_t indexed_files = 0;
+  constexpr size_t kMaxIndexedWorkspaceFiles = 1024;
   for (const auto& [uri, _] : open_docs) {
     std::string path_text;
     if (!FileUriToPath(uri, &path_text)) continue;
@@ -3252,17 +3260,24 @@ std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
     const std::string dir_key = std::filesystem::absolute(dir).lexically_normal().generic_string();
     if (!visited_dirs.insert(dir_key).second) continue;
     std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    std::filesystem::recursive_directory_iterator it(dir, std::filesystem::directory_options::skip_permission_denied, ec);
+    const std::filesystem::recursive_directory_iterator end;
+    for (; !ec && it != end && indexed_files < kMaxIndexedWorkspaceFiles; it.increment(ec)) {
       if (ec) break;
-      if (!entry.is_regular_file(ec) || ec) continue;
-      if (entry.path().extension() != ".simple") continue;
-      const std::string file_uri = PathToFileUri(entry.path());
+      if (it->is_directory(ec)) {
+        if (!ec && ShouldSkipWorkspaceIndexDir(it->path())) it.disable_recursion_pending();
+        continue;
+      }
+      if (!it->is_regular_file(ec) || ec) continue;
+      if (it->path().extension() != ".simple") continue;
+      const std::string file_uri = PathToFileUri(it->path());
       if (docs.find(file_uri) != docs.end()) continue;
-      std::ifstream in(entry.path(), std::ios::binary);
+      std::ifstream in(it->path(), std::ios::binary);
       if (!in) continue;
       std::ostringstream buffer;
       buffer << in.rdbuf();
       docs.emplace(file_uri, buffer.str());
+      ++indexed_files;
     }
   }
   return docs;

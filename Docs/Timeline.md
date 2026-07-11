@@ -884,6 +884,7 @@ Next Simple-specific LSP capabilities:
 - [x] Code actions for unknown identifiers and quick emit/build actions.
 - [ ] Code actions for unresolved imports, missing modules, and signature mismatch fixes.
 - [x] Workspace symbols and references across opened documents plus sibling indexed `.simple` files.
+- [x] Workspace symbols across recursive opened-document project directories.
 - [ ] Workspace symbols and references across full project roots/module maps.
 - [x] Range-based document sync with incremental text changes tested across open/change/close.
 
@@ -895,7 +896,7 @@ Next Simple-specific LSP capabilities:
   call hierarchy, code actions, code lenses, and workspace index.
 - [x] Add opened-document version tracking and incremental range-change application.
 - [ ] Build a reusable opened-document store with URI, version, language id, text, and dirty flag.
-- [x] Build an initial Simple workspace index over opened document directories and sibling `.simple` files.
+- [x] Build an initial Simple workspace index over opened document directories and recursive `.simple` files.
 - [ ] Extend the workspace index over `.sir`, `.sbc`, module/import paths, declarations, exported symbols, type IDs, and native metadata.
 - [ ] Cache parse/RAST/TAST/SIR facts per document with invalidation on text/file/import changes.
 - [ ] Reuse the compiler pipeline exactly for diagnostics; LSP should only map spans/ranges and shape JSON-RPC responses.

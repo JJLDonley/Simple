@@ -3471,6 +3471,37 @@ bool LspWorkspaceSymbolsIndexSiblingSimpleFiles() {
          out_contents.find(sibling_uri) != std::string::npos;
 }
 
+bool LspWorkspaceSymbolsIndexNestedSimpleFiles() {
+  namespace fs = std::filesystem;
+  const auto dir = fs::temp_directory_path() / "simple_lsp_workspace_symbols_nested_test";
+  const auto nested_dir = dir / "nested" / "deeper";
+  fs::create_directories(nested_dir);
+  const auto main_path = dir / "main.simple";
+  const auto nested_path = nested_dir / "nested.simple";
+  {
+    std::ofstream nested(nested_path);
+    nested << "nestedFunc : i32 () { return 7 }";
+  }
+  const std::string main_uri = "file://" + main_path.generic_string();
+  const std::string nested_uri = "file://" + nested_path.generic_string();
+  const std::string in_path = TempPath("simple_lsp_workspace_symbols_nested_in.txt");
+  const std::string out_path = TempPath("simple_lsp_workspace_symbols_nested_out.txt");
+  const std::string err_path = TempPath("simple_lsp_workspace_symbols_nested_err.txt");
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"main : i32 () { return 0 }\"}}}";
+  const std::string symbol_req = "{\"jsonrpc\":\"2.0\",\"id\":62,\"method\":\"workspace/symbol\",\"params\":{\"query\":\"nested\"}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  const bool wrote = WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(symbol_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req));
+  const bool ran = wrote && RunCommand(LspPipeCommand(in_path, out_path, err_path));
+  const std::string out_contents = ReadFileText(out_path);
+  const std::string err_contents = ReadFileText(err_path);
+  fs::remove_all(dir);
+  return ran && err_contents.empty() && out_contents.find("\"id\":62") != std::string::npos &&
+         out_contents.find("nestedFunc") != std::string::npos &&
+         out_contents.find(nested_uri) != std::string::npos;
+}
+
 bool LspReferencesIndexSiblingSimpleFiles() {
   namespace fs = std::filesystem;
   const auto dir = fs::temp_directory_path() / "simple_lsp_references_files_test";
@@ -3838,6 +3869,7 @@ const TestCase kLspTests[] = {
   {"lsp_document_link_resolves_module_header_imports", LspDocumentLinkResolvesModuleHeaderImports},
   {"lsp_document_link_resolves_reserved_import_docs", LspDocumentLinkResolvesReservedImportDocs},
   {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
+  {"lsp_workspace_symbols_index_nested_simple_files", LspWorkspaceSymbolsIndexNestedSimpleFiles},
   {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},
   {"lsp_formatting_returns_whole_document_edit", LspFormattingReturnsWholeDocumentEdit},
   {"lsp_range_formatting_returns_line_edit", LspRangeFormattingReturnsLineEdit},
