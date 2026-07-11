@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag/version (e.g. v0.4.0). Leave empty for auto-increment."
+        description: "Release tag/version (e.g. v0.4.42). Leave empty to use VERSION."
         required: false
         type: string
 
@@ -27,27 +27,14 @@ jobs:
         id: ver
         shell: bash
         run: |
-          git fetch --tags --force
           if [[ -n "${{ github.event.inputs.version || '' }}" ]]; then
             ver="${{ github.event.inputs.version }}"
           else
-            latest="$(git tag --list 'v*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
-            if [[ -z "${latest}" ]]; then
-              ver="v0.4.0"
-            else
-              core="${latest#v}"
-              major="${core%%.*}"
-              rest="${core#*.}"
-              if [[ "${rest}" == *.* ]]; then
-                minor="${rest%%.*}"
-                patch="${rest##*.}"
-                next_patch=$((10#${patch} + 1))
-                ver="v${major}.${minor}.${next_patch}"
-              else
-                minor="${rest}"
-                ver="v${major}.${minor}.1"
-              fi
-            fi
+            ver="$(tr -d '[:space:]' < VERSION)"
+          fi
+          if [[ ! "${ver}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "invalid version '${ver}'; expected vMAJOR.MINOR.PATCH" >&2
+            exit 1
           fi
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
 

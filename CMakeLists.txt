@@ -51,6 +51,16 @@ foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
 endforeach()
 
 set(SIMPLEVM_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(SIMPLEVM_VERSION_OVERRIDE "" CACHE STRING "Override SimpleVM tool/package version")
+if (SIMPLEVM_VERSION_OVERRIDE)
+  set(SIMPLEVM_VERSION "${SIMPLEVM_VERSION_OVERRIDE}")
+else()
+  file(READ "${SIMPLEVM_ROOT}/VERSION" SIMPLEVM_VERSION)
+  string(STRIP "${SIMPLEVM_VERSION}" SIMPLEVM_VERSION)
+endif()
+if (NOT SIMPLEVM_VERSION MATCHES "^v[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "VERSION must be vMAJOR.MINOR.PATCH, got '${SIMPLEVM_VERSION}'")
+endif()
 set(SIMPLEVM_VM_ROOT ${SIMPLEVM_ROOT}/VM)
 set(SIMPLEVM_IR_ROOT ${SIMPLEVM_ROOT}/IR)
 set(SIMPLEVM_BYTE_ROOT ${SIMPLEVM_ROOT}/Byte)
@@ -263,7 +273,10 @@ target_include_directories(simplevm PRIVATE
   ${SIMPLEVM_LSP_ROOT}/include
 )
 target_link_libraries(simplevm PRIVATE simplevm_core_static)
-target_compile_definitions(simplevm PRIVATE SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}")
+target_compile_definitions(simplevm PRIVATE
+  SIMPLEVM_PROJECT_ROOT="${SIMPLEVM_ROOT}"
+  SIMPLEVM_VERSION="${SIMPLEVM_VERSION}"
+)
 if (SIMPLEVM_ENABLE_LLVM_JIT)
   target_compile_definitions(simplevm PRIVATE SIMPLEVM_EMBED_LLVM_LINK_FLAGS="${SIMPLEVM_LLVM_EMBED_LINK_FLAGS}")
 endif()

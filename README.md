@@ -456,3 +456,5 @@ cmake --build build --target simplevm_tests -j2
 ## Version
 
 Current tool version: `v0.4.42`.
+
+The canonical tool/package version lives in `VERSION`. Build scripts and release CI read that file, and CMake embeds the same value into `svm version`.
