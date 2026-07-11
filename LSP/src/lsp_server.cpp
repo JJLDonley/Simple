@@ -799,6 +799,54 @@ bool ParseSimpleModulesMapLine(const std::string& line_text,
                                size_t* out_path_pos);
 const TokenRef* FindIdentifierAt(const std::vector<TokenRef>& refs, uint32_t line, uint32_t character);
 
+std::string TypeTokenText(const TokenRef& ref) {
+  using TK = Simple::Lang::TokenKind;
+  switch (ref.token.kind) {
+    case TK::LBrace: return "{";
+    case TK::RBrace: return "}";
+    case TK::LBracket: return "[";
+    case TK::RBracket: return "]";
+    case TK::Star: return "*";
+    case TK::Amp: return "&";
+    default: return ref.token.text;
+  }
+}
+
+std::string BuildDeclaredTypeTextAt(const std::vector<TokenRef>& refs, size_t type_index) {
+  if (type_index >= refs.size()) return {};
+  std::string type = refs[type_index].token.text;
+  size_t i = type_index + 1;
+  while (i < refs.size()) {
+    if (refs[i].token.kind == Simple::Lang::TokenKind::Star ||
+        refs[i].token.kind == Simple::Lang::TokenKind::Amp) {
+      type += TypeTokenText(refs[i]);
+      ++i;
+      continue;
+    }
+    if (refs[i].token.kind == Simple::Lang::TokenKind::LBrace) {
+      int depth = 0;
+      while (i < refs.size()) {
+        type += TypeTokenText(refs[i]);
+        if (refs[i].token.kind == Simple::Lang::TokenKind::LBrace) ++depth;
+        if (refs[i].token.kind == Simple::Lang::TokenKind::RBrace && --depth <= 0) {
+          ++i;
+          break;
+        }
+        ++i;
+      }
+      continue;
+    }
+    if (i + 1 < refs.size() && refs[i].token.kind == Simple::Lang::TokenKind::LBracket &&
+        refs[i + 1].token.kind == Simple::Lang::TokenKind::RBracket) {
+      type += "[]";
+      i += 2;
+      continue;
+    }
+    break;
+  }
+  return type;
+}
+
 bool ResolveDeclaredTypeAtRef(const std::vector<TokenRef>& refs,
                               size_t index,
                               std::string* out_type,
@@ -809,7 +857,7 @@ bool ResolveDeclaredTypeAtRef(const std::vector<TokenRef>& refs,
       (refs[index + 1].token.kind == Simple::Lang::TokenKind::Colon ||
        refs[index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon) &&
       refs[index + 2].token.kind == Simple::Lang::TokenKind::Identifier) {
-    *out_type = refs[index + 2].token.text;
+    *out_type = BuildDeclaredTypeTextAt(refs, index + 2);
     if (out_immutable) {
       *out_immutable = refs[index + 1].token.kind == Simple::Lang::TokenKind::DoubleColon;
     }
@@ -1868,7 +1916,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     fact.kind = SimpleLspFact::Kind::Function;
     fact.name = refs[name_index].token.text;
     fact.qualified_name = fact.name;
-    fact.return_type = refs[name_index + 2].token.text;
+    fact.return_type = BuildDeclaredTypeTextAt(refs, name_index + 2);
     fact.token_index = name_index;
     int depth = 1;
     for (size_t j = name_index + 4; j < refs.size() && depth > 0; ++j) {
@@ -1880,7 +1928,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
       if (refs[j + 2].token.kind != TK::Identifier) continue;
       SimpleLspParamFact param;
       param.name = refs[j].token.text;
-      param.type = refs[j + 2].token.text;
+      param.type = BuildDeclaredTypeTextAt(refs, j + 2);
       param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
       param.token_index = j;
       fact.params.push_back(param);
@@ -1895,7 +1943,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     fact.name = refs[i].token.text;
     const std::string namespace_name = EnclosingNamespaceNameAt(namespace_spans, i);
     fact.qualified_name = namespace_name.empty() ? fact.name : (namespace_name + "." + fact.name);
-    fact.return_type = refs[i + 2].token.text;
+    fact.return_type = BuildDeclaredTypeTextAt(refs, i + 2);
     fact.token_index = i;
     int depth = 1;
     for (size_t j = i + 4; j < refs.size() && depth > 0; ++j) {
@@ -1907,7 +1955,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
       if (refs[j + 2].token.kind != TK::Identifier) continue;
       SimpleLspParamFact param;
       param.name = refs[j].token.text;
-      param.type = refs[j + 2].token.text;
+      param.type = BuildDeclaredTypeTextAt(refs, j + 2);
       param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
       param.token_index = j;
       fact.params.push_back(param);
@@ -1953,7 +2001,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
       fact.kind = SimpleLspFact::Kind::ArtifactField;
       fact.name = ref.token.text;
       fact.qualified_name = ref.token.text;
-      fact.type = refs[i + 2].token.text;
+      fact.type = BuildDeclaredTypeTextAt(refs, i + 2);
       fact.token_index = i;
       facts.push_back(std::move(fact));
     }
@@ -1994,7 +2042,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     fact.kind = SimpleLspFact::Kind::Variable;
     fact.name = refs[i].token.text;
     fact.qualified_name = fact.name;
-    fact.type = refs[i + 2].token.text;
+    fact.type = BuildDeclaredTypeTextAt(refs, i + 2);
     fact.immutable = refs[i + 1].token.kind == TK::DoubleColon;
     fact.token_index = i;
     facts.push_back(std::move(fact));
@@ -4757,6 +4805,12 @@ void ReplyDocumentRangeFormatting(std::ostream& out,
                            TextEditJsonForRange(start_line, 0, inclusive_end, replacement_end_col, formatted) + "]}");
 }
 
+uint32_t FirstNonSpaceColumnFrom(const std::string& text, uint32_t line, uint32_t col) {
+  const std::string line_text = GetLineText(text, line);
+  while (col < line_text.size() && std::isspace(static_cast<unsigned char>(line_text[col]))) ++col;
+  return col;
+}
+
 void ReplyInlayHints(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -4780,13 +4834,16 @@ void ReplyInlayHints(std::ostream& out,
     int depth = 1;
     bool expect_argument = true;
     size_t closing_paren = refs.size();
+    uint32_t argument_start_line = refs[i + 1].token.line > 0 ? refs[i + 1].token.line - 1 : 0;
+    uint32_t argument_start_col = FirstNonSpaceColumnFrom(doc_it->second, argument_start_line,
+                                                          refs[i + 1].token.column > 0 ? refs[i + 1].token.column : 0);
     for (size_t j = i + 2; j < refs.size() && depth > 0; ++j) {
       const auto kind = refs[j].token.kind;
       if (kind == TK::LParen || kind == TK::LBrace || kind == TK::LBracket) {
         if (expect_argument && depth == 1 && param_index < param_names.size()) {
           if (!result.empty()) result += ",";
-          result += "{\"position\":{\"line\":" + std::to_string(refs[j].token.line > 0 ? refs[j].token.line - 1 : 0) +
-                    ",\"character\":" + std::to_string(refs[j].token.column > 0 ? refs[j].token.column - 1 : 0) +
+          result += "{\"position\":{\"line\":" + std::to_string(argument_start_line) +
+                    ",\"character\":" + std::to_string(argument_start_col) +
                     "},\"label\":\"" + JsonEscape(param_names[param_index] + ": ") + "\",\"kind\":2}";
           expect_argument = false;
         }
@@ -4802,13 +4859,16 @@ void ReplyInlayHints(std::ostream& out,
       if (kind == TK::Comma) {
         ++param_index;
         expect_argument = true;
+        argument_start_line = refs[j].token.line > 0 ? refs[j].token.line - 1 : 0;
+        argument_start_col = FirstNonSpaceColumnFrom(doc_it->second, argument_start_line,
+                                                     refs[j].token.column > 0 ? refs[j].token.column : 0);
         continue;
       }
       if (!has_param_names || !expect_argument || param_index >= param_names.size()) continue;
       if (kind == TK::End || kind == TK::Invalid) continue;
       if (!result.empty()) result += ",";
-      result += "{\"position\":{\"line\":" + std::to_string(refs[j].token.line > 0 ? refs[j].token.line - 1 : 0) +
-                ",\"character\":" + std::to_string(refs[j].token.column > 0 ? refs[j].token.column - 1 : 0) +
+      result += "{\"position\":{\"line\":" + std::to_string(argument_start_line) +
+                ",\"character\":" + std::to_string(argument_start_col) +
                 "},\"label\":\"" + JsonEscape(param_names[param_index] + ": ") + "\",\"kind\":2}";
       expect_argument = false;
     }

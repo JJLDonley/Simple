@@ -696,6 +696,29 @@ bool LspHoverPrefersExactImmutableDeclaration() {
          out_contents.find("circleCount :: i32") != std::string::npos;
 }
 
+bool LspHoverShowsCanonicalTypeSyntaxMatrix() {
+  const std::string in_path = TempPath("simple_lsp_hover_type_matrix_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_type_matrix_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_type_matrix_err.txt");
+  const std::string uri = "file:///workspace/type_matrix.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"Image :: artifact { width : i32 }\\nColor :: artifact { r : u8 }\\nscalar : i32 = 1\\nstaticArray : f32{10000}\\ndynamicArray :: Color[] = []\\npointer : Image*\\nscalar;\\nstaticArray;\\ndynamicArray;\\npointer;\"}}}";
+  const std::string hover_scalar = "{\"jsonrpc\":\"2.0\",\"id\":64,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":6,\"character\":1}}}";
+  const std::string hover_static = "{\"jsonrpc\":\"2.0\",\"id\":65,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":7,\"character\":1}}}";
+  const std::string hover_dynamic = "{\"jsonrpc\":\"2.0\",\"id\":66,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":8,\"character\":1}}}";
+  const std::string hover_pointer = "{\"jsonrpc\":\"2.0\",\"id\":67,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":9,\"character\":1}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_scalar) + BuildLspFrame(hover_static) + BuildLspFrame(hover_dynamic) + BuildLspFrame(hover_pointer) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() &&
+         out_contents.find("scalar : i32") != std::string::npos &&
+         out_contents.find("staticArray : f32{10000}") != std::string::npos &&
+         out_contents.find("dynamicArray :: Color[]") != std::string::npos &&
+         out_contents.find("pointer : Image*") != std::string::npos;
+}
+
 bool LspHoverIncludesFunctionParameterType() {
   const std::string in_path = TempPath("simple_lsp_hover_param_type_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_param_type_out.txt");
@@ -900,7 +923,7 @@ bool LspRaylibNamespaceWrapperFactsDriveHoverSignatureAndInlay() {
   return ReadFileText(err_path).empty() &&
          out_contents.find("Raylib.DrawText : void (text : string, posX : i32, posY : i32, fontSize : i32, color : Color)") != std::string::npos &&
          out_contents.find("\"id\":94") != std::string::npos &&
-         out_contents.find("\"label\":\"text: \"") != std::string::npos &&
+         out_contents.find("\"position\":{\"line\":2,\"character\":16},\"label\":\"text: \"") != std::string::npos &&
          out_contents.find("\"label\":\"posX: \"") != std::string::npos &&
          out_contents.find("\"label\":\"posY: \"") != std::string::npos &&
          out_contents.find("\"label\":\"fontSize: \"") != std::string::npos &&
@@ -4367,6 +4390,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_includes_declared_type", LspHoverIncludesDeclaredType},
   {"lsp_hover_includes_immutable_declared_type", LspHoverIncludesImmutableDeclaredType},
   {"lsp_hover_prefers_exact_immutable_declaration", LspHoverPrefersExactImmutableDeclaration},
+  {"lsp_hover_shows_canonical_type_syntax_matrix", LspHoverShowsCanonicalTypeSyntaxMatrix},
   {"lsp_hover_includes_function_parameter_type", LspHoverIncludesFunctionParameterType},
   {"lsp_hover_includes_parameter_use_type", LspHoverIncludesParameterUseType},
   {"lsp_hover_shows_simple_function_signature_syntax", LspHoverShowsSimpleFunctionSignatureSyntax},
