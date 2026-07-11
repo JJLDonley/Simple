@@ -50,15 +50,18 @@
       <p class="landing-lead">Simple compiles source into portable SBC bytecode for the Simple VM, with JIT enabled by default when available, GC, canonical System and Standard libraries, and explicit FFI.</p>
 
       <div class="example-header">
-        <label for="example-select">Example</label>
+        <div class="example-title">
+          <label for="example-select">Example</label>
+          <span id="example-status" class="example-status" hidden>WIP domain</span>
+        </div>
         <select id="example-select">
-          <option value="toolScript">Tool script</option>
-          <option value="artifactModel">Artifact model</option>
-          <option value="namespaceApi">Namespace API</option>
-          <option value="moduleSurface">Module surface</option>
+          <option value="toolScript">Script + Standard/System</option>
+          <option value="artifactModel">Identity-first artifacts</option>
+          <option value="namespaceApi">Namespaces + control flow</option>
+          <option value="moduleSurface">Multi-file module surface</option>
           <option value="typedCollections">Typed collections</option>
-          <option value="ffiBinding">FFI binding</option>
-          <option value="systemFs">System FS pattern</option>
+          <option value="ffiBinding">Explicit FFI binding</option>
+          <option value="systemFs">System/Standard FS</option>
           <option value="httpServer">HTTP server pattern</option>
           <option value="terminalLoop">Terminal event loop</option>
           <option value="asyncFlow">Async result flow</option>
@@ -66,18 +69,18 @@
       </div>
       <pre class="example-code"><code id="hero-example" class="language-simple">import Standard.IO
 import Standard.FS
+import System.OS
+
+path :: string = "build.log"
+
+if (Standard.FS.exists(path)) {
+  Standard.IO.println("{} exists on {}", path, System.OS.platform())
+} else {
+  Standard.IO.println("{} missing", path)
+}
 
 main : i32 () {
-  path :: string = "build.log"
-  exists : bool = Standard.FS.exists(path)
-
-  if (exists) {
-    Standard.IO.println("{} exists", path)
-    return 0
-  }
-
-  Standard.IO.println("{} missing", path)
-  return 1
+  return 0
 }</code></pre>
 
       <div class="landing-actions">

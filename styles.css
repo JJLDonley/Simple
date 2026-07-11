@@ -413,11 +413,28 @@ pre code {
   border-radius: 8px 8px 0 0;
   background: var(--sidebar);
 }
+.example-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
 .example-header label {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 750;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.example-status {
+  padding: 0.16rem 0.42rem;
+  border: 1px solid rgba(181, 91, 43, 0.4);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 .example-header select {

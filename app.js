@@ -201,21 +201,34 @@ function highlightBash(source) {
     .replace(/(&quot;.*?&quot;|'.*?')/g, '<span class="tok-string">$1</span>');
 }
 
+const exampleMeta = {
+  toolScript: { wip: false },
+  artifactModel: { wip: false },
+  namespaceApi: { wip: false },
+  moduleSurface: { wip: false },
+  typedCollections: { wip: false },
+  ffiBinding: { wip: false },
+  systemFs: { wip: false },
+  httpServer: { wip: true },
+  terminalLoop: { wip: true },
+  asyncFlow: { wip: true }
+};
+
 const examples = {
   toolScript: `import Standard.IO
 import Standard.FS
+import System.OS
+
+path :: string = "build.log"
+
+if (Standard.FS.exists(path)) {
+  Standard.IO.println("{} exists on {}", path, System.OS.platform())
+} else {
+  Standard.IO.println("{} missing", path)
+}
 
 main : i32 () {
-  path :: string = "build.log"
-  exists : bool = Standard.FS.exists(path)
-
-  if (exists) {
-    Standard.IO.println("{} exists", path)
-    return 0
-  }
-
-  Standard.IO.println("{} missing", path)
-  return 1
+  return 0
 }`,
   artifactModel: `import Standard.IO
 
@@ -228,13 +241,14 @@ Vec2 :: artifact {
   }
 }
 
-Player :: artifact {
+Actor :: artifact {
   name : string
   pos : Vec2
   hp : i32
 
-  damage : void (amount : i32) {
-    self.hp = self.hp - amount
+  moveBy : void (delta : Vec2) {
+    self.pos.x = self.pos.x + delta.x
+    self.pos.y = self.pos.y + delta.y
   }
 
   alive : bool () {
@@ -243,44 +257,58 @@ Player :: artifact {
 }
 
 main : i32 () {
-  p : Player = { .name = "Ada", .pos = { .x = 3.0, .y = 4.0 }, .hp = 10 }
-  p.damage(3)
-  Standard.IO.println("{} alive={} dist2={}", p.name, p.alive(), p.pos.lengthSquared())
+  player : Actor = { .name = "Ada", .pos = { .x = 2.0, .y = 3.0 }, .hp = 10 }
+  player.moveBy({ .x = 1.0, .y = -1.0 })
+
+  Standard.IO.println("{} alive={} dist2={}",
+    player.name,
+    player.alive(),
+    player.pos.lengthSquared())
   return 0
 }`,
   namespaceApi: `import Standard.IO
 
 Checksum :: namespace {
+  seed :: i32 = 17
+
   step : i32 (hash : i32, value : i32) {
     return hash * 31 + value
   }
 
   list : i32 (values : i32[]) {
-    hash : i32 = 17
+    hash : i32 = Checksum.seed
     for (i : i32 = 0; i < len(values); i = i + 1) {
-      hash = Checksum.step(hash, values[i])
+      |> (values[i] < 0) { skip }
+      |> default { hash = Checksum.step(hash, values[i]) }
     }
     return hash
   }
 }
 
 main : i32 () {
-  values : i32[] = [4, 8, 15, 16, 23, 42]
+  values : i32[] = [4, 8, -1, 15, 16, 23, 42]
   Standard.IO.println("checksum={}", Checksum.list(values))
   return 0
 }`,
-  moduleSurface: `module app.config
+  moduleSurface: `// file: tools/math.simple
+module tools.math
 
-Config :: namespace {
-  APP_NAME :: string = "simple-tool"
-  VERSION :: string = "0.5.0"
-  MAX_RETRIES :: i32 = 3
+MathTools :: namespace {
+  clamp : i32 (value : i32, lo : i32, hi : i32) {
+    |> (value < lo) { return lo }
+    |> (value > hi) { return hi }
+    |> default { return value }
+  }
 }
 
+// file: main.simple
+import Standard.IO
+import tools.math
+
 main : i32 () {
-  // A real project imports this module by name.
-  // import app.config
-  return Config.MAX_RETRIES
+  score : i32 = MathTools.clamp(128, 0, 100)
+  Standard.IO.println("score={}", score)
+  return score
 }`,
   typedCollections: `import Standard.IO
 
@@ -303,8 +331,9 @@ main : i32 () {
     }
   }
 
-  Standard.IO.println("winner={} score={}", scores[best].name, scores[best].points)
-  return scores[best].points
+  winner : Score = scores[best]
+  Standard.IO.println("winner={} score={}", winner.name, winner.points)
+  return winner.points
 }`,
   ffiBinding: `import System.FFI
 import Standard.IO
@@ -332,23 +361,25 @@ main : i32 () {
     Raylib.EndDrawing()
   }
   Raylib.CloseWindow()
+  System.FFI.close(lib)
   return 0
 }`,
-  systemFs: `// current canonical System.FS / Standard.IO shape
-import System.FS
+  systemFs: `import System.FS
 import Standard.IO
 
 main : i32 () {
   path :: string = "simple.toml"
-  if (System.FS.exists(path)) {
-    text : string = System.FS.readText(path)
-    Standard.IO.println(text)
-    return 0
+
+  if (!System.FS.exists(path)) {
+    Standard.IO.println("missing {}", path)
+    return 1
   }
-  Standard.IO.println("missing {}", path)
-  return 1
+
+  text : string = System.FS.readText(path)
+  Standard.IO.println("{} bytes", len(text))
+  return 0
 }`,
-  httpServer: `// planned Standard.HTTP server shape
+  httpServer: `// WIP domain: Standard.HTTP
 import Standard.HTTP
 import Standard.IO
 
@@ -364,7 +395,7 @@ handler : Standard.HTTP.Response (request : Standard.HTTP.Request) {
   }
   return Standard.HTTP.Response.json(200, Standard.Json.object({ "name": "Simple" }))
 }`,
-  terminalLoop: `// planned Standard.Terminal primitives
+  terminalLoop: `// WIP domain: Standard.Terminal
 import Standard.Terminal
 
 main : i32 () {
@@ -377,9 +408,7 @@ main : i32 () {
   while (running) {
     event : Option<Standard.Terminal.Event> = Standard.Terminal.pollEvent(term)
     if (event.hasValue()) {
-      if (event.value().key == "q") {
-        running = false
-      }
+      if (event.value().key == "q") { running = false }
     }
     Standard.Terminal.writeAt(term, 2, 2, "press q to quit")?
     Standard.Terminal.flush(term)?
@@ -390,7 +419,7 @@ main : i32 () {
   Standard.Terminal.close(term)?
   return 0
 }`,
-  asyncFlow: `// planned async result flow
+  asyncFlow: `// WIP domain: Standard.Promise / Standard.HTTP.async
 import Standard.HTTP
 import Standard.IO
 
@@ -412,11 +441,20 @@ function highlightCodeBlock(code) {
 
 const exampleSelect = document.getElementById('example-select');
 const heroExample = document.getElementById('hero-example');
+const exampleStatus = document.getElementById('example-status');
+function updateHeroExample() {
+  if (!exampleSelect || !heroExample) return;
+  const key = exampleSelect.value;
+  heroExample.textContent = examples[key] || examples.toolScript;
+  if (exampleStatus) {
+    const isWip = Boolean(exampleMeta[key]?.wip);
+    exampleStatus.hidden = !isWip;
+  }
+  highlightCodeBlock(heroExample);
+}
 if (exampleSelect && heroExample) {
-  exampleSelect.addEventListener('change', () => {
-    heroExample.textContent = examples[exampleSelect.value] || examples.hello;
-    highlightCodeBlock(heroExample);
-  });
+  exampleSelect.addEventListener('change', updateHeroExample);
+  updateHeroExample();
 }
 
 for (const code of document.querySelectorAll('code.language-simple, code.language-bash')) {
