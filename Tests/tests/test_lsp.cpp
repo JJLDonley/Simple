@@ -3169,6 +3169,7 @@ bool LspInitializeAdvertisesModernNavigationProviders() {
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() &&
          out_contents.find("\"typeDefinitionProvider\":true") != std::string::npos &&
+         out_contents.find("\"callHierarchyProvider\":true") != std::string::npos &&
          out_contents.find("\"codeLensProvider\":{\"resolveProvider\":false}") != std::string::npos &&
          out_contents.find("\"documentLinkProvider\":{\"resolveProvider\":false}") != std::string::npos &&
          out_contents.find("\"foldingRangeProvider\":true") != std::string::npos &&
@@ -3243,6 +3244,34 @@ bool LspDocumentLinkResolvesLocalImports() {
   return ran && err_contents.empty() && out_contents.find("\"id\":43") != std::string::npos &&
          out_contents.find("\"target\":\"file://") != std::string::npos &&
          out_contents.find("dep.simple") != std::string::npos;
+}
+
+bool LspCallHierarchyReturnsFunctionCalls() {
+  const std::string in_path = TempPath("simple_lsp_call_hierarchy_in.txt");
+  const std::string out_path = TempPath("simple_lsp_call_hierarchy_out.txt");
+  const std::string err_path = TempPath("simple_lsp_call_hierarchy_err.txt");
+  const std::string uri = "file:///workspace/calls.simple";
+  const std::string text =
+      "callee : i32 () { return 1 }\\n"
+      "caller : i32 () { return callee() }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string prepare_req = "{\"jsonrpc\":\"2.0\",\"id\":46,\"method\":\"textDocument/prepareCallHierarchy\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":1}}}";
+  const std::string item = "{\"name\":\"caller\",\"kind\":12,\"uri\":\"" + uri + "\",\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":6}},\"selectionRange\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":1,\"character\":6}}}";
+  const std::string outgoing_req = "{\"jsonrpc\":\"2.0\",\"id\":47,\"method\":\"callHierarchy/outgoingCalls\",\"params\":{\"item\":" + item + "}}";
+  const std::string callee_item = "{\"name\":\"callee\",\"kind\":12,\"uri\":\"" + uri + "\",\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":6}},\"selectionRange\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":6}}}";
+  const std::string incoming_req = "{\"jsonrpc\":\"2.0\",\"id\":48,\"method\":\"callHierarchy/incomingCalls\",\"params\":{\"item\":" + callee_item + "}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(prepare_req) + BuildLspFrame(outgoing_req) + BuildLspFrame(incoming_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":46") != std::string::npos &&
+         out_contents.find("\"name\":\"caller\"") != std::string::npos &&
+         out_contents.find("\"id\":47") != std::string::npos &&
+         out_contents.find("\"to\":{\"name\":\"callee\"") != std::string::npos &&
+         out_contents.find("\"id\":48") != std::string::npos &&
+         out_contents.find("\"from\":{\"name\":\"caller\"") != std::string::npos;
 }
 
 bool LspCodeLensReturnsSimpleCommands() {
@@ -3445,6 +3474,7 @@ const TestCase kLspTests[] = {
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
+  {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
   {"lsp_responses_follow_request_order", LspResponsesFollowRequestOrder},

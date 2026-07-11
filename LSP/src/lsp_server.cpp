@@ -3063,6 +3063,72 @@ uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
   return 13;
 }
 
+bool IsFunctionDeclAt(const std::vector<TokenRef>& refs, size_t i) {
+  return i < refs.size() && refs[i].token.kind == Simple::Lang::TokenKind::Identifier &&
+         refs[i].depth == 0 && IsDeclNameAt(refs, i) && SymbolKindFor(refs, i) == 12;
+}
+
+bool IsCallExpressionAt(const std::vector<TokenRef>& refs, size_t i) {
+  using TK = Simple::Lang::TokenKind;
+  if (i >= refs.size() || refs[i].token.kind != TK::Identifier) return false;
+  if (IsDeclNameAt(refs, i)) return false;
+  return i + 1 < refs.size() && refs[i + 1].token.kind == TK::LParen;
+}
+
+std::string CallHierarchyItemJson(const std::string& uri, const Simple::Lang::Token& tk) {
+  const std::string range = TokenRangeJson(tk);
+  return "{\"name\":\"" + JsonEscape(tk.text) + "\",\"kind\":12,\"uri\":\"" +
+         JsonEscape(uri) + "\",\"range\":" + range + ",\"selectionRange\":" + range + "}";
+}
+
+bool FindFunctionDecl(const std::unordered_map<std::string, std::string>& open_docs,
+                      const std::string& preferred_uri,
+                      const std::string& name,
+                      std::string* out_uri,
+                      Simple::Lang::Token* out_token) {
+  auto find_in_doc = [&](const std::string& doc_uri, const std::string& text) -> bool {
+    const auto refs = LexTokenRefs(text);
+    for (const auto& ref : refs) {
+      if (!IsFunctionDeclAt(refs, ref.index)) continue;
+      if (ref.token.text != name) continue;
+      if (out_uri) *out_uri = doc_uri;
+      if (out_token) *out_token = ref.token;
+      return true;
+    }
+    return false;
+  };
+  const auto preferred = open_docs.find(preferred_uri);
+  if (preferred != open_docs.end() && find_in_doc(preferred_uri, preferred->second)) return true;
+  const auto sorted_uris = SortedOpenDocUris(open_docs, preferred_uri);
+  for (const auto& uri : sorted_uris) {
+    const auto it = open_docs.find(uri);
+    if (it != open_docs.end() && find_in_doc(uri, it->second)) return true;
+  }
+  return false;
+}
+
+bool FunctionBodyRange(const std::vector<TokenRef>& refs, size_t function_index, size_t* out_begin, size_t* out_end) {
+  using TK = Simple::Lang::TokenKind;
+  if (!out_begin || !out_end) return false;
+  for (size_t i = function_index + 1; i < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::LBrace) continue;
+    int depth = 0;
+    for (size_t j = i + 1; j < refs.size(); ++j) {
+      if (refs[j].token.kind == TK::LBrace) ++depth;
+      if (refs[j].token.kind == TK::RBrace) {
+        if (depth == 0) {
+          *out_begin = i + 1;
+          *out_end = j;
+          return true;
+        }
+        --depth;
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
 void ReplyDocumentSymbols(std::ostream& out,
                           const std::string& id_raw,
                           const std::string& uri,
@@ -3108,6 +3174,101 @@ void ReplyDocumentSymbols(std::ostream& out,
     }
     if (!result.empty()) result += ",";
     result += DocumentSymbolJson(ref.token, ref.token.text, kind, children);
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+void ReplyPrepareCallHierarchy(std::ostream& out,
+                               const std::string& id_raw,
+                               const std::string& uri,
+                               uint32_t line,
+                               uint32_t character,
+                               const std::unordered_map<std::string, std::string>& open_docs) {
+  const auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  std::string item_uri;
+  Simple::Lang::Token item_token;
+  if (IsFunctionDeclAt(refs, target->index)) {
+    item_uri = uri;
+    item_token = target->token;
+  } else if (!FindFunctionDecl(open_docs, uri, target->token.text, &item_uri, &item_token)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
+                           CallHierarchyItemJson(item_uri, item_token) + "]}");
+}
+
+void ReplyOutgoingCallHierarchy(std::ostream& out,
+                                const std::string& id_raw,
+                                const std::string& item_uri,
+                                const std::string& item_name,
+                                const std::unordered_map<std::string, std::string>& open_docs) {
+  const auto doc_it = open_docs.find(item_uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  size_t function_index = refs.size();
+  for (const auto& ref : refs) {
+    if (IsFunctionDeclAt(refs, ref.index) && ref.token.text == item_name) {
+      function_index = ref.index;
+      break;
+    }
+  }
+  size_t begin = 0;
+  size_t end = 0;
+  if (function_index == refs.size() || !FunctionBodyRange(refs, function_index, &begin, &end)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  std::string result;
+  for (size_t i = begin; i < end; ++i) {
+    if (!IsCallExpressionAt(refs, i)) continue;
+    std::string target_uri;
+    Simple::Lang::Token target_token;
+    if (!FindFunctionDecl(open_docs, item_uri, refs[i].token.text, &target_uri, &target_token)) continue;
+    if (!result.empty()) result += ",";
+    result += "{\"to\":" + CallHierarchyItemJson(target_uri, target_token) +
+              ",\"fromRanges\":[" + TokenRangeJson(refs[i].token) + "]}";
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
+void ReplyIncomingCallHierarchy(std::ostream& out,
+                                const std::string& id_raw,
+                                const std::string& item_name,
+                                const std::unordered_map<std::string, std::string>& open_docs) {
+  std::string result;
+  for (const auto& [uri, text] : open_docs) {
+    const auto refs = LexTokenRefs(text);
+    for (const auto& function_ref : refs) {
+      if (!IsFunctionDeclAt(refs, function_ref.index)) continue;
+      size_t begin = 0;
+      size_t end = 0;
+      if (!FunctionBodyRange(refs, function_ref.index, &begin, &end)) continue;
+      std::string ranges;
+      for (size_t i = begin; i < end; ++i) {
+        if (!IsCallExpressionAt(refs, i)) continue;
+        if (refs[i].token.text != item_name) continue;
+        if (!ranges.empty()) ranges += ",";
+        ranges += TokenRangeJson(refs[i].token);
+      }
+      if (ranges.empty()) continue;
+      if (!result.empty()) result += ",";
+      result += "{\"from\":" + CallHierarchyItemJson(uri, function_ref.token) +
+                ",\"fromRanges\":[" + ranges + "]}";
+    }
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
@@ -3527,6 +3688,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"workspaceSymbolProvider\":true,"
                 "\"documentLinkProvider\":{\"resolveProvider\":false},"
                 "\"foldingRangeProvider\":true,\"selectionRangeProvider\":true,"
+                "\"callHierarchyProvider\":true,"
                 "\"codeLensProvider\":{\"resolveProvider\":false},"
                 "\"renameProvider\":{\"prepareProvider\":true},"
                 "\"codeActionProvider\":true,"
@@ -3656,6 +3818,47 @@ int RunServer(std::istream& in, std::ostream& out) {
         ExtractJsonUintField(body, "line", &line);
         ExtractJsonUintField(body, "character", &character);
         ReplyCompletion(out, id_raw, uri, line, character, open_docs);
+      }
+      continue;
+    }
+
+    if (method == "textDocument/prepareCallHierarchy") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyPrepareCallHierarchy(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "callHierarchy/incomingCalls") {
+      if (has_id) {
+        std::string name;
+        if (ExtractJsonStringField(body, "name", &name)) {
+          ReplyIncomingCallHierarchy(out, id_raw, name, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "callHierarchy/outgoingCalls") {
+      if (has_id) {
+        std::string uri;
+        std::string name;
+        if (ExtractJsonStringField(body, "uri", &uri) && ExtractJsonStringField(body, "name", &name)) {
+          ReplyOutgoingCallHierarchy(out, id_raw, uri, name, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
       }
       continue;
     }
