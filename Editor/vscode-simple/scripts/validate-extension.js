@@ -69,11 +69,20 @@ for (const requiredGrammarScope of [
 }
 const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
 for (const [name, sample] of [
+  ['meta.declaration.aggregate.simple', 'Packet :: data'],
   ['meta.declaration.variable.simple', 'colors :: Color[]'],
+  ['meta.declaration.variable.simple', 'grid :: Color[][]'],
+  ['meta.declaration.variable.simple', 'buffers : f32{10000}[]'],
   ['meta.declaration.variable.simple', 'texture : Texture2D'],
   ['meta.declaration.variable.simple', 'image : Image*'],
+  ['meta.declaration.variable.simple', 'imagePtr : Image**'],
+  ['meta.declaration.variable.simple', 'box : Box<Color>'],
+  ['meta.declaration.variable.proc-type.simple', 'callback : fn i32 (value : i32)'],
   ['meta.declaration.variable.static-array.simple', 'posX : f32{10000}'],
   ['meta.declaration.function.simple', 'makeColors : Color[] (count : i32)'],
+  ['meta.declaration.function.simple', 'makeGrid : Color[][] ()'],
+  ['meta.declaration.function.simple', 'makePtr : Image** ()'],
+  ['meta.declaration.function.simple', 'makeBox : Box<Color> ()'],
   ['meta.declaration.function.static-array-return.simple', 'makeBuffer : f32{10000} ()']
 ]) {
   const pattern = declarationPatterns.get(name);
