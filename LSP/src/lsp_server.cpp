@@ -3848,6 +3848,44 @@ std::string ParameterNameFromLabel(const std::string& label) {
   return name;
 }
 
+bool IsInlayReturnTypeInteresting(const std::string& return_type) {
+  return !return_type.empty() && return_type != "void" && return_type != "unspecified";
+}
+
+bool ResolveCallReturnType(const std::string& text,
+                           const std::string& uri,
+                           const std::string& call_name,
+                           const std::unordered_map<std::string, std::string>& open_docs,
+                           std::string* out_return_type) {
+  if (!out_return_type) return false;
+  out_return_type->clear();
+  ReservedSignature reserved;
+  if (ResolveReservedModuleSignature(call_name, text, &reserved) &&
+      IsInlayReturnTypeInteresting(reserved.return_type)) {
+    *out_return_type = reserved.return_type;
+    return true;
+  }
+  std::vector<std::string> params;
+  std::string return_type;
+  if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(text), call_name, &params, &return_type) &&
+      IsInlayReturnTypeInteresting(return_type)) {
+    *out_return_type = return_type;
+    return true;
+  }
+  const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+  for (const auto& [other_uri, other_text] : workspace_docs) {
+    if (other_uri == uri) continue;
+    params.clear();
+    return_type.clear();
+    if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(other_text), call_name, &params, &return_type) &&
+        IsInlayReturnTypeInteresting(return_type)) {
+      *out_return_type = return_type;
+      return true;
+    }
+  }
+  return false;
+}
+
 bool ResolveCallParameterNames(const std::string& text,
                                const std::string& uri,
                                const std::string& call_name,
@@ -3947,10 +3985,14 @@ void ReplyInlayHints(std::ostream& out,
   for (size_t i = 0; i + 1 < refs.size(); ++i) {
     if (!IsCallExpressionAt(refs, i)) continue;
     std::vector<std::string> param_names;
-    if (!ResolveCallParameterNames(doc_it->second, uri, refs[i].token.text, open_docs, &param_names)) continue;
+    const bool has_param_names = ResolveCallParameterNames(doc_it->second, uri, refs[i].token.text, open_docs, &param_names);
+    std::string return_type;
+    const bool has_return_type = ResolveCallReturnType(doc_it->second, uri, refs[i].token.text, open_docs, &return_type);
+    if (!has_param_names && !has_return_type) continue;
     size_t param_index = 0;
     int depth = 1;
     bool expect_argument = true;
+    size_t closing_paren = refs.size();
     for (size_t j = i + 2; j < refs.size() && depth > 0; ++j) {
       const auto kind = refs[j].token.kind;
       if (kind == TK::LParen || kind == TK::LBrace || kind == TK::LBracket) {
@@ -3966,6 +4008,7 @@ void ReplyInlayHints(std::ostream& out,
       }
       if (kind == TK::RParen || kind == TK::RBrace || kind == TK::RBracket) {
         --depth;
+        if (depth == 0 && kind == TK::RParen) closing_paren = j;
         continue;
       }
       if (depth != 1) continue;
@@ -3974,13 +4017,22 @@ void ReplyInlayHints(std::ostream& out,
         expect_argument = true;
         continue;
       }
-      if (!expect_argument || param_index >= param_names.size()) continue;
+      if (!has_param_names || !expect_argument || param_index >= param_names.size()) continue;
       if (kind == TK::End || kind == TK::Invalid) continue;
       if (!result.empty()) result += ",";
       result += "{\"position\":{\"line\":" + std::to_string(refs[j].token.line > 0 ? refs[j].token.line - 1 : 0) +
                 ",\"character\":" + std::to_string(refs[j].token.column > 0 ? refs[j].token.column - 1 : 0) +
                 "},\"label\":\"" + JsonEscape(param_names[param_index] + ":") + "\",\"kind\":2}";
       expect_argument = false;
+    }
+    if (has_return_type && closing_paren < refs.size()) {
+      const auto& token = refs[closing_paren].token;
+      const uint32_t hint_line = token.line > 0 ? token.line - 1 : 0;
+      const uint32_t hint_col = token.column > 0 ? token.column : 0;
+      if (!result.empty()) result += ",";
+      result += "{\"position\":{\"line\":" + std::to_string(hint_line) +
+                ",\"character\":" + std::to_string(hint_col) +
+                "},\"label\":\"" + JsonEscape(" -> " + return_type) + "\",\"kind\":1}";
     }
   }
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");

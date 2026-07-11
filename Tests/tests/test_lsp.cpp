@@ -3604,6 +3604,8 @@ bool LspInlayHintReturnsParameterHints() {
   return ReadFileText(err_path).empty() && out_contents.find("\"id\":52") != std::string::npos &&
          out_contents.find("\"label\":\"lhs:\"") != std::string::npos &&
          out_contents.find("\"label\":\"rhs:\"") != std::string::npos &&
+         out_contents.find("\"label\":\" -> i32\"") != std::string::npos &&
+         out_contents.find("\"kind\":1") != std::string::npos &&
          out_contents.find("\"kind\":2") != std::string::npos;
 }
 
