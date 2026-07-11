@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Simple::Lang {
 
@@ -64,16 +65,53 @@ enum class StandardModule {
   Option,
 };
 
-enum class SystemBufferMember {
-  New,
-  Len,
-  ReadU16LE,
-  ReadU32LE,
-  WriteU16LE,
-  WriteU32LE,
-  Slice,
-  Copy,
-};
+enum class SystemIOMember { Stdin, Stdout, Stderr, Write, WriteText, Flush, BufferNew, BufferLen, BufferFill, BufferCopy };
+enum class SystemFSMember { Open, Close, Read, Write, Flush, Seek, Tell, Stat, Exists, IsFile, IsDir, ListDir, NextDirEntry, CloseDir, Mkdir, MkdirAll, Remove, Copy, Rename, Cwd, SetCwd, ReadText, WriteText, ReadBytes, WriteBytes };
+enum class SystemPathMember { Separator, Delimiter, IsAbsolute, Normalize, Absolute, Relative, Join, Dirname, Basename, Ext, Stem, Exists, IsFile, IsDir };
+enum class SystemEnvMember { ArgsCount, Arg, Get, Set, Unset, ExePath };
+enum class SystemOSMember { Platform, Arch, IsLinux, IsMacos, IsWindows, Pid, CpuCount, PageSize, Exit, SleepMs, ArgsCount, ArgsGet, EnvGet, CwdGet, TimeMonoNs, TimeWallNs, FormatWallNs };
+enum class SystemTimeMember { MonoNs, WallNs, SleepNs, SleepMs, TimerStart, TimerCancel, MonoSnake, WallSnake };
+enum class SystemFFIMember { Supported, Open, Symbol, Sym, Close, LastError, LastErrorSnake, CallI32, CallI64, CallF32, CallF64, CallStr0 };
+enum class SystemASMMember { FromC, FromDynASM, Compile, Symbol, LinkStub, LinkAot, CloseUnit, CloseObject };
+enum class SystemBytesMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
+enum class SystemJsonMember { Parse, Free, Stringify, Kind, Get, At, Len, AsString, AsI64, AsF64, AsBool };
+enum class SystemLogMember { Log, SetLevel, SetFile, Flush, Info, Warn, Error };
+enum class SystemRandomMember { Seed, I32, I64, F64, FillBytes, Range };
+enum class SystemThreadMember { Yield, SleepMs, Sleep, HardwareConcurrency, Spawn, Join, Detach };
+enum class SystemJobMember { Spawn, Cancel, Poll, Await };
+enum class SystemChannelMember { NewI32, SendI32, TrySendI32, RecvI32, TryRecvI32, PendingI32, NewI64, SendI64, TrySendI64, RecvI64, TryRecvI64, PendingI64, NewF32, SendF32, TrySendF32, RecvF32, TryRecvF32, PendingF32, NewF64, SendF64, TrySendF64, RecvF64, TryRecvF64, PendingF64, NewBool, SendBool, TrySendBool, RecvBool, TryRecvBool, PendingBool, NewString, SendString, TrySendString, RecvString, TryRecvString, PendingString, NewBytes, SendBytes, TrySendBytes, RecvBytes, TryRecvBytes, PendingBytes, Close };
+enum class SystemProcessMember { Spawn, Wait, Kill, Stdin, Stdout, Stderr };
+enum class SystemNetMember { TcpConnect, TcpListen, Accept, Send, Recv, Close, UdpOpen, UdpSendTo, UdpRecvFrom };
+enum class SystemHTTPMember { ClientRequest, SetHeader, WriteBody, Send, ResponseStatus, ResponseBody, CloseResponse, ListenHttp, ListenHttps, Accept, WriteResponse, CloseServer };
+enum class SystemTerminalMember { Open, Close, EnterRaw, ExitRaw, EnterAltScreen, ExitAltScreen, Size, Clear, ClearLine, MoveCursor, ShowCursor, HideCursor, Write, WriteAt, Flush, PollEvent, ReadEvent };
+enum class SystemCapabilityMember { Has, Require, Deny };
+enum class SystemRuntimeMember { Version, GcCollect, GcStats, HeapStats, JitEnabled, JitStats };
+enum class SystemDebugMember { Trap, Assert, StackTrace, Breakpoint };
+
+enum class StandardIOMember { Print, Println, ReadLine };
+enum class StandardConsoleMember { Write, WriteLine, ReadLine, Clear, SetColor, ResetColor };
+enum class StandardFSMember { ReadText, WriteText, AppendText, ReadBytes, WriteBytes, Exists, IsFile, IsDir, Copy, Move, Remove, EnsureDir, List, Walk, Mkdir, MkdirAll, ListDir, Cwd, SetCwd };
+enum class StandardPathMember { Join, Dirname, Basename, Ext, Stem, Normalize, Absolute, Relative };
+enum class StandardBufferMember { New, WithCapacity, Len, Capacity, Clear, WriteBytes, WriteString, WriteU16LE, WriteU32LE, WriteU64LE, ReadU16LE, ReadU32LE, ReadU64LE, ToBytes, FromBytes };
+enum class StandardBytesMember { New, FromString, ToString, Concat, Slice, ToHex, FromHex, ToBase64, FromBase64 };
+enum class StandardTextMember { Len, IsEmpty, Contains, StartsWith, EndsWith, Trim, Split, Join, Replace };
+enum class StandardJsonMember { Parse, Stringify, Get, At, AsString, AsI64, AsF64, AsBool };
+enum class StandardMathMember { PI, Abs, Min, Max, Sqrt, Clamp, Lerp };
+enum class StandardRandomMember { Seed, I32, I64, Range, F64, Bool, Bytes, FillBytes };
+enum class StandardTimeMember { MonoNs, NowNs, SleepMs, FormatWallNs, MonoSnake, WallSnake };
+enum class StandardLogMember { Debug, Info, Warn, Error, SetLevel, SetFile };
+enum class StandardProcessMember { Run, RunText };
+enum class StandardNetMember { Connect, Listen, Read, Write, Close };
+enum class StandardHTTPMember { Get, Post, Put, Delete, Serve };
+enum class StandardHTTPSMember { Get, Post, Serve };
+enum class StandardTerminalMember { Open, Close, WithRaw, WithAltScreen, Clear, Size, MoveCursor, WriteAt, ReadEvent, PollEvent };
+enum class StandardPromiseMember { Run, Await, Poll, Cancel, IsDone };
+enum class StandardChannelMember { New, Send, TrySend, Recv, TryRecv, Close };
+enum class StandardCollectionsMember { List, Map, Set, Queue, Stack };
+enum class StandardResultMember { Ok, Err, IsOk, Unwrap };
+enum class StandardOptionMember { Some, None, IsSome, Unwrap };
+
+enum class SystemBufferMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
 
 struct LibraryImportInfo {
   LibraryRoot root;
@@ -133,15 +171,19 @@ inline constexpr std::array<StandardModule, 22> kStandardModules = {{
     StandardModule::Option,
 }};
 
-inline constexpr std::array<SystemBufferMember, 8> kSystemBufferMembers = {{
+inline constexpr std::array<SystemBufferMember, 12> kSystemBufferMembers = {{
     SystemBufferMember::New,
     SystemBufferMember::Len,
-    SystemBufferMember::ReadU16LE,
-    SystemBufferMember::ReadU32LE,
-    SystemBufferMember::WriteU16LE,
-    SystemBufferMember::WriteU32LE,
+    SystemBufferMember::Get,
+    SystemBufferMember::Set,
     SystemBufferMember::Slice,
     SystemBufferMember::Copy,
+    SystemBufferMember::ReadU16LE,
+    SystemBufferMember::ReadU32LE,
+    SystemBufferMember::ReadU64LE,
+    SystemBufferMember::WriteU16LE,
+    SystemBufferMember::WriteU32LE,
+    SystemBufferMember::WriteU64LE,
 }};
 
 inline std::string_view ToImportPath(SystemModule module) {
@@ -201,22 +243,690 @@ inline std::string_view ToImportPath(StandardModule module) {
   return {};
 }
 
-inline std::string_view ToMember(SystemBufferMember member) {
+inline std::string_view ToMember(SystemIOMember member) {
   switch (member) {
-    case SystemBufferMember::New: return "new";
-    case SystemBufferMember::Len: return "len";
-    case SystemBufferMember::ReadU16LE: return "readU16LE";
-    case SystemBufferMember::ReadU32LE: return "readU32LE";
-    case SystemBufferMember::WriteU16LE: return "writeU16LE";
-    case SystemBufferMember::WriteU32LE: return "writeU32LE";
-    case SystemBufferMember::Slice: return "slice";
-    case SystemBufferMember::Copy: return "copy";
+    case SystemIOMember::Stdin: return "stdin";
+    case SystemIOMember::Stdout: return "stdout";
+    case SystemIOMember::Stderr: return "stderr";
+    case SystemIOMember::Write: return "write";
+    case SystemIOMember::WriteText: return "writeText";
+    case SystemIOMember::Flush: return "flush";
+    case SystemIOMember::BufferNew: return "buffer_new";
+    case SystemIOMember::BufferLen: return "buffer_len";
+    case SystemIOMember::BufferFill: return "buffer_fill";
+    case SystemIOMember::BufferCopy: return "buffer_copy";
   }
   return {};
 }
 
-inline std::array<std::string_view, 8> SystemBufferMemberNames() {
-  std::array<std::string_view, 8> names{};
+inline std::string_view ToMember(SystemFSMember member) {
+  switch (member) {
+    case SystemFSMember::Open: return "open";
+    case SystemFSMember::Close: return "close";
+    case SystemFSMember::Read: return "read";
+    case SystemFSMember::Write: return "write";
+    case SystemFSMember::Flush: return "flush";
+    case SystemFSMember::Seek: return "seek";
+    case SystemFSMember::Tell: return "tell";
+    case SystemFSMember::Stat: return "stat";
+    case SystemFSMember::Exists: return "exists";
+    case SystemFSMember::IsFile: return "isFile";
+    case SystemFSMember::IsDir: return "isDir";
+    case SystemFSMember::ListDir: return "listDir";
+    case SystemFSMember::NextDirEntry: return "nextDirEntry";
+    case SystemFSMember::CloseDir: return "closeDir";
+    case SystemFSMember::Mkdir: return "mkdir";
+    case SystemFSMember::MkdirAll: return "mkdirAll";
+    case SystemFSMember::Remove: return "remove";
+    case SystemFSMember::Copy: return "copy";
+    case SystemFSMember::Rename: return "rename";
+    case SystemFSMember::Cwd: return "cwd";
+    case SystemFSMember::SetCwd: return "setCwd";
+    case SystemFSMember::ReadText: return "readText";
+    case SystemFSMember::WriteText: return "writeText";
+    case SystemFSMember::ReadBytes: return "readBytes";
+    case SystemFSMember::WriteBytes: return "writeBytes";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemPathMember member) {
+  switch (member) {
+    case SystemPathMember::Separator: return "separator";
+    case SystemPathMember::Delimiter: return "delimiter";
+    case SystemPathMember::IsAbsolute: return "isAbsolute";
+    case SystemPathMember::Normalize: return "normalize";
+    case SystemPathMember::Absolute: return "absolute";
+    case SystemPathMember::Relative: return "relative";
+    case SystemPathMember::Join: return "join";
+    case SystemPathMember::Dirname: return "dirname";
+    case SystemPathMember::Basename: return "basename";
+    case SystemPathMember::Ext: return "ext";
+    case SystemPathMember::Stem: return "stem";
+    case SystemPathMember::Exists: return "exists";
+    case SystemPathMember::IsFile: return "isFile";
+    case SystemPathMember::IsDir: return "isDir";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemEnvMember member) {
+  switch (member) {
+    case SystemEnvMember::ArgsCount: return "argsCount";
+    case SystemEnvMember::Arg: return "arg";
+    case SystemEnvMember::Get: return "get";
+    case SystemEnvMember::Set: return "set";
+    case SystemEnvMember::Unset: return "unset";
+    case SystemEnvMember::ExePath: return "exePath";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemOSMember member) {
+  switch (member) {
+    case SystemOSMember::Platform: return "platform";
+    case SystemOSMember::Arch: return "arch";
+    case SystemOSMember::IsLinux: return "isLinux";
+    case SystemOSMember::IsMacos: return "isMacos";
+    case SystemOSMember::IsWindows: return "isWindows";
+    case SystemOSMember::Pid: return "pid";
+    case SystemOSMember::CpuCount: return "cpuCount";
+    case SystemOSMember::PageSize: return "pageSize";
+    case SystemOSMember::Exit: return "exit";
+    case SystemOSMember::SleepMs: return "sleepMs";
+    case SystemOSMember::ArgsCount: return "args_count";
+    case SystemOSMember::ArgsGet: return "args_get";
+    case SystemOSMember::EnvGet: return "env_get";
+    case SystemOSMember::CwdGet: return "cwd_get";
+    case SystemOSMember::TimeMonoNs: return "time_mono_ns";
+    case SystemOSMember::TimeWallNs: return "time_wall_ns";
+    case SystemOSMember::FormatWallNs: return "formatWallNs";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemTimeMember member) {
+  switch (member) {
+    case SystemTimeMember::MonoNs: return "monoNs";
+    case SystemTimeMember::WallNs: return "wallNs";
+    case SystemTimeMember::SleepNs: return "sleepNs";
+    case SystemTimeMember::SleepMs: return "sleepMs";
+    case SystemTimeMember::TimerStart: return "timerStart";
+    case SystemTimeMember::TimerCancel: return "timerCancel";
+    case SystemTimeMember::MonoSnake: return "mono_ns";
+    case SystemTimeMember::WallSnake: return "wall_ns";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemFFIMember member) {
+  switch (member) {
+    case SystemFFIMember::Supported: return "supported";
+    case SystemFFIMember::Open: return "open";
+    case SystemFFIMember::Symbol: return "symbol";
+    case SystemFFIMember::Sym: return "sym";
+    case SystemFFIMember::Close: return "close";
+    case SystemFFIMember::LastError: return "lastError";
+    case SystemFFIMember::LastErrorSnake: return "last_error";
+    case SystemFFIMember::CallI32: return "call_i32";
+    case SystemFFIMember::CallI64: return "call_i64";
+    case SystemFFIMember::CallF32: return "call_f32";
+    case SystemFFIMember::CallF64: return "call_f64";
+    case SystemFFIMember::CallStr0: return "call_str0";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemASMMember member) {
+  switch (member) {
+    case SystemASMMember::FromC: return "fromC";
+    case SystemASMMember::FromDynASM: return "fromDynASM";
+    case SystemASMMember::Compile: return "compile";
+    case SystemASMMember::Symbol: return "symbol";
+    case SystemASMMember::LinkStub: return "linkStub";
+    case SystemASMMember::LinkAot: return "linkAot";
+    case SystemASMMember::CloseUnit: return "closeUnit";
+    case SystemASMMember::CloseObject: return "closeObject";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemBytesMember member) {
+  switch (member) {
+    case SystemBytesMember::New: return "new";
+    case SystemBytesMember::Len: return "len";
+    case SystemBytesMember::Get: return "get";
+    case SystemBytesMember::Set: return "set";
+    case SystemBytesMember::Slice: return "slice";
+    case SystemBytesMember::Copy: return "copy";
+    case SystemBytesMember::ReadU16LE: return "readU16LE";
+    case SystemBytesMember::ReadU32LE: return "readU32LE";
+    case SystemBytesMember::ReadU64LE: return "readU64LE";
+    case SystemBytesMember::WriteU16LE: return "writeU16LE";
+    case SystemBytesMember::WriteU32LE: return "writeU32LE";
+    case SystemBytesMember::WriteU64LE: return "writeU64LE";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemJsonMember member) {
+  switch (member) {
+    case SystemJsonMember::Parse: return "parse";
+    case SystemJsonMember::Free: return "free";
+    case SystemJsonMember::Stringify: return "stringify";
+    case SystemJsonMember::Kind: return "kind";
+    case SystemJsonMember::Get: return "get";
+    case SystemJsonMember::At: return "at";
+    case SystemJsonMember::Len: return "len";
+    case SystemJsonMember::AsString: return "asString";
+    case SystemJsonMember::AsI64: return "asI64";
+    case SystemJsonMember::AsF64: return "asF64";
+    case SystemJsonMember::AsBool: return "asBool";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemLogMember member) {
+  switch (member) {
+    case SystemLogMember::Log: return "log";
+    case SystemLogMember::SetLevel: return "setLevel";
+    case SystemLogMember::SetFile: return "setFile";
+    case SystemLogMember::Flush: return "flush";
+    case SystemLogMember::Info: return "info";
+    case SystemLogMember::Warn: return "warn";
+    case SystemLogMember::Error: return "error";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemRandomMember member) {
+  switch (member) {
+    case SystemRandomMember::Seed: return "seed";
+    case SystemRandomMember::I32: return "i32";
+    case SystemRandomMember::I64: return "i64";
+    case SystemRandomMember::F64: return "f64";
+    case SystemRandomMember::FillBytes: return "fillBytes";
+    case SystemRandomMember::Range: return "range";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemThreadMember member) {
+  switch (member) {
+    case SystemThreadMember::Yield: return "yield";
+    case SystemThreadMember::SleepMs: return "sleepMs";
+    case SystemThreadMember::Sleep: return "sleep";
+    case SystemThreadMember::HardwareConcurrency: return "hardwareConcurrency";
+    case SystemThreadMember::Spawn: return "spawn";
+    case SystemThreadMember::Join: return "join";
+    case SystemThreadMember::Detach: return "detach";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemJobMember member) {
+  switch (member) {
+    case SystemJobMember::Spawn: return "spawn";
+    case SystemJobMember::Cancel: return "cancel";
+    case SystemJobMember::Poll: return "poll";
+    case SystemJobMember::Await: return "await";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemChannelMember member) {
+  switch (member) {
+    case SystemChannelMember::NewI32: return "newI32";
+    case SystemChannelMember::SendI32: return "sendI32";
+    case SystemChannelMember::TrySendI32: return "trySendI32";
+    case SystemChannelMember::RecvI32: return "recvI32";
+    case SystemChannelMember::TryRecvI32: return "tryRecvI32";
+    case SystemChannelMember::PendingI32: return "pendingI32";
+    case SystemChannelMember::NewI64: return "newI64";
+    case SystemChannelMember::SendI64: return "sendI64";
+    case SystemChannelMember::TrySendI64: return "trySendI64";
+    case SystemChannelMember::RecvI64: return "recvI64";
+    case SystemChannelMember::TryRecvI64: return "tryRecvI64";
+    case SystemChannelMember::PendingI64: return "pendingI64";
+    case SystemChannelMember::NewF32: return "newF32";
+    case SystemChannelMember::SendF32: return "sendF32";
+    case SystemChannelMember::TrySendF32: return "trySendF32";
+    case SystemChannelMember::RecvF32: return "recvF32";
+    case SystemChannelMember::TryRecvF32: return "tryRecvF32";
+    case SystemChannelMember::PendingF32: return "pendingF32";
+    case SystemChannelMember::NewF64: return "newF64";
+    case SystemChannelMember::SendF64: return "sendF64";
+    case SystemChannelMember::TrySendF64: return "trySendF64";
+    case SystemChannelMember::RecvF64: return "recvF64";
+    case SystemChannelMember::TryRecvF64: return "tryRecvF64";
+    case SystemChannelMember::PendingF64: return "pendingF64";
+    case SystemChannelMember::NewBool: return "newBool";
+    case SystemChannelMember::SendBool: return "sendBool";
+    case SystemChannelMember::TrySendBool: return "trySendBool";
+    case SystemChannelMember::RecvBool: return "recvBool";
+    case SystemChannelMember::TryRecvBool: return "tryRecvBool";
+    case SystemChannelMember::PendingBool: return "pendingBool";
+    case SystemChannelMember::NewString: return "newString";
+    case SystemChannelMember::SendString: return "sendString";
+    case SystemChannelMember::TrySendString: return "trySendString";
+    case SystemChannelMember::RecvString: return "recvString";
+    case SystemChannelMember::TryRecvString: return "tryRecvString";
+    case SystemChannelMember::PendingString: return "pendingString";
+    case SystemChannelMember::NewBytes: return "newBytes";
+    case SystemChannelMember::SendBytes: return "sendBytes";
+    case SystemChannelMember::TrySendBytes: return "trySendBytes";
+    case SystemChannelMember::RecvBytes: return "recvBytes";
+    case SystemChannelMember::TryRecvBytes: return "tryRecvBytes";
+    case SystemChannelMember::PendingBytes: return "pendingBytes";
+    case SystemChannelMember::Close: return "close";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemProcessMember member) {
+  switch (member) {
+    case SystemProcessMember::Spawn: return "spawn";
+    case SystemProcessMember::Wait: return "wait";
+    case SystemProcessMember::Kill: return "kill";
+    case SystemProcessMember::Stdin: return "stdin";
+    case SystemProcessMember::Stdout: return "stdout";
+    case SystemProcessMember::Stderr: return "stderr";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemNetMember member) {
+  switch (member) {
+    case SystemNetMember::TcpConnect: return "tcpConnect";
+    case SystemNetMember::TcpListen: return "tcpListen";
+    case SystemNetMember::Accept: return "accept";
+    case SystemNetMember::Send: return "send";
+    case SystemNetMember::Recv: return "recv";
+    case SystemNetMember::Close: return "close";
+    case SystemNetMember::UdpOpen: return "udpOpen";
+    case SystemNetMember::UdpSendTo: return "udpSendTo";
+    case SystemNetMember::UdpRecvFrom: return "udpRecvFrom";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemHTTPMember member) {
+  switch (member) {
+    case SystemHTTPMember::ClientRequest: return "clientRequest";
+    case SystemHTTPMember::SetHeader: return "setHeader";
+    case SystemHTTPMember::WriteBody: return "writeBody";
+    case SystemHTTPMember::Send: return "send";
+    case SystemHTTPMember::ResponseStatus: return "responseStatus";
+    case SystemHTTPMember::ResponseBody: return "responseBody";
+    case SystemHTTPMember::CloseResponse: return "closeResponse";
+    case SystemHTTPMember::ListenHttp: return "listenHttp";
+    case SystemHTTPMember::ListenHttps: return "listenHttps";
+    case SystemHTTPMember::Accept: return "accept";
+    case SystemHTTPMember::WriteResponse: return "writeResponse";
+    case SystemHTTPMember::CloseServer: return "closeServer";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemTerminalMember member) {
+  switch (member) {
+    case SystemTerminalMember::Open: return "open";
+    case SystemTerminalMember::Close: return "close";
+    case SystemTerminalMember::EnterRaw: return "enterRaw";
+    case SystemTerminalMember::ExitRaw: return "exitRaw";
+    case SystemTerminalMember::EnterAltScreen: return "enterAltScreen";
+    case SystemTerminalMember::ExitAltScreen: return "exitAltScreen";
+    case SystemTerminalMember::Size: return "size";
+    case SystemTerminalMember::Clear: return "clear";
+    case SystemTerminalMember::ClearLine: return "clearLine";
+    case SystemTerminalMember::MoveCursor: return "moveCursor";
+    case SystemTerminalMember::ShowCursor: return "showCursor";
+    case SystemTerminalMember::HideCursor: return "hideCursor";
+    case SystemTerminalMember::Write: return "write";
+    case SystemTerminalMember::WriteAt: return "writeAt";
+    case SystemTerminalMember::Flush: return "flush";
+    case SystemTerminalMember::PollEvent: return "pollEvent";
+    case SystemTerminalMember::ReadEvent: return "readEvent";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemCapabilityMember member) {
+  switch (member) {
+    case SystemCapabilityMember::Has: return "has";
+    case SystemCapabilityMember::Require: return "require";
+    case SystemCapabilityMember::Deny: return "deny";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemRuntimeMember member) {
+  switch (member) {
+    case SystemRuntimeMember::Version: return "version";
+    case SystemRuntimeMember::GcCollect: return "gcCollect";
+    case SystemRuntimeMember::GcStats: return "gcStats";
+    case SystemRuntimeMember::HeapStats: return "heapStats";
+    case SystemRuntimeMember::JitEnabled: return "jitEnabled";
+    case SystemRuntimeMember::JitStats: return "jitStats";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemDebugMember member) {
+  switch (member) {
+    case SystemDebugMember::Trap: return "trap";
+    case SystemDebugMember::Assert: return "assert";
+    case SystemDebugMember::StackTrace: return "stackTrace";
+    case SystemDebugMember::Breakpoint: return "breakpoint";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardIOMember member) {
+  switch (member) {
+    case StandardIOMember::Print: return "print";
+    case StandardIOMember::Println: return "println";
+    case StandardIOMember::ReadLine: return "readLine";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardConsoleMember member) {
+  switch (member) {
+    case StandardConsoleMember::Write: return "write";
+    case StandardConsoleMember::WriteLine: return "writeLine";
+    case StandardConsoleMember::ReadLine: return "readLine";
+    case StandardConsoleMember::Clear: return "clear";
+    case StandardConsoleMember::SetColor: return "setColor";
+    case StandardConsoleMember::ResetColor: return "resetColor";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardFSMember member) {
+  switch (member) {
+    case StandardFSMember::ReadText: return "readText";
+    case StandardFSMember::WriteText: return "writeText";
+    case StandardFSMember::AppendText: return "appendText";
+    case StandardFSMember::ReadBytes: return "readBytes";
+    case StandardFSMember::WriteBytes: return "writeBytes";
+    case StandardFSMember::Exists: return "exists";
+    case StandardFSMember::IsFile: return "isFile";
+    case StandardFSMember::IsDir: return "isDir";
+    case StandardFSMember::Copy: return "copy";
+    case StandardFSMember::Move: return "move";
+    case StandardFSMember::Remove: return "remove";
+    case StandardFSMember::EnsureDir: return "ensureDir";
+    case StandardFSMember::List: return "list";
+    case StandardFSMember::Walk: return "walk";
+    case StandardFSMember::Mkdir: return "mkdir";
+    case StandardFSMember::MkdirAll: return "mkdirAll";
+    case StandardFSMember::ListDir: return "listDir";
+    case StandardFSMember::Cwd: return "cwd";
+    case StandardFSMember::SetCwd: return "setCwd";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardPathMember member) {
+  switch (member) {
+    case StandardPathMember::Join: return "join";
+    case StandardPathMember::Dirname: return "dirname";
+    case StandardPathMember::Basename: return "basename";
+    case StandardPathMember::Ext: return "ext";
+    case StandardPathMember::Stem: return "stem";
+    case StandardPathMember::Normalize: return "normalize";
+    case StandardPathMember::Absolute: return "absolute";
+    case StandardPathMember::Relative: return "relative";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardBufferMember member) {
+  switch (member) {
+    case StandardBufferMember::New: return "new";
+    case StandardBufferMember::WithCapacity: return "withCapacity";
+    case StandardBufferMember::Len: return "len";
+    case StandardBufferMember::Capacity: return "capacity";
+    case StandardBufferMember::Clear: return "clear";
+    case StandardBufferMember::WriteBytes: return "writeBytes";
+    case StandardBufferMember::WriteString: return "writeString";
+    case StandardBufferMember::WriteU16LE: return "writeU16LE";
+    case StandardBufferMember::WriteU32LE: return "writeU32LE";
+    case StandardBufferMember::WriteU64LE: return "writeU64LE";
+    case StandardBufferMember::ReadU16LE: return "readU16LE";
+    case StandardBufferMember::ReadU32LE: return "readU32LE";
+    case StandardBufferMember::ReadU64LE: return "readU64LE";
+    case StandardBufferMember::ToBytes: return "toBytes";
+    case StandardBufferMember::FromBytes: return "fromBytes";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardBytesMember member) {
+  switch (member) {
+    case StandardBytesMember::New: return "new";
+    case StandardBytesMember::FromString: return "fromString";
+    case StandardBytesMember::ToString: return "toString";
+    case StandardBytesMember::Concat: return "concat";
+    case StandardBytesMember::Slice: return "slice";
+    case StandardBytesMember::ToHex: return "toHex";
+    case StandardBytesMember::FromHex: return "fromHex";
+    case StandardBytesMember::ToBase64: return "toBase64";
+    case StandardBytesMember::FromBase64: return "fromBase64";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardTextMember member) {
+  switch (member) {
+    case StandardTextMember::Len: return "len";
+    case StandardTextMember::IsEmpty: return "isEmpty";
+    case StandardTextMember::Contains: return "contains";
+    case StandardTextMember::StartsWith: return "startsWith";
+    case StandardTextMember::EndsWith: return "endsWith";
+    case StandardTextMember::Trim: return "trim";
+    case StandardTextMember::Split: return "split";
+    case StandardTextMember::Join: return "join";
+    case StandardTextMember::Replace: return "replace";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardJsonMember member) {
+  switch (member) {
+    case StandardJsonMember::Parse: return "parse";
+    case StandardJsonMember::Stringify: return "stringify";
+    case StandardJsonMember::Get: return "get";
+    case StandardJsonMember::At: return "at";
+    case StandardJsonMember::AsString: return "asString";
+    case StandardJsonMember::AsI64: return "asI64";
+    case StandardJsonMember::AsF64: return "asF64";
+    case StandardJsonMember::AsBool: return "asBool";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardMathMember member) {
+  switch (member) {
+    case StandardMathMember::PI: return "PI";
+    case StandardMathMember::Abs: return "abs";
+    case StandardMathMember::Min: return "min";
+    case StandardMathMember::Max: return "max";
+    case StandardMathMember::Sqrt: return "sqrt";
+    case StandardMathMember::Clamp: return "clamp";
+    case StandardMathMember::Lerp: return "lerp";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardRandomMember member) {
+  switch (member) {
+    case StandardRandomMember::Seed: return "seed";
+    case StandardRandomMember::I32: return "i32";
+    case StandardRandomMember::I64: return "i64";
+    case StandardRandomMember::Range: return "range";
+    case StandardRandomMember::F64: return "f64";
+    case StandardRandomMember::Bool: return "bool";
+    case StandardRandomMember::Bytes: return "bytes";
+    case StandardRandomMember::FillBytes: return "fillBytes";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardTimeMember member) {
+  switch (member) {
+    case StandardTimeMember::MonoNs: return "monoNs";
+    case StandardTimeMember::NowNs: return "nowNs";
+    case StandardTimeMember::SleepMs: return "sleepMs";
+    case StandardTimeMember::FormatWallNs: return "formatWallNs";
+    case StandardTimeMember::MonoSnake: return "mono_ns";
+    case StandardTimeMember::WallSnake: return "wall_ns";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardLogMember member) {
+  switch (member) {
+    case StandardLogMember::Debug: return "debug";
+    case StandardLogMember::Info: return "info";
+    case StandardLogMember::Warn: return "warn";
+    case StandardLogMember::Error: return "error";
+    case StandardLogMember::SetLevel: return "setLevel";
+    case StandardLogMember::SetFile: return "setFile";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardProcessMember member) {
+  switch (member) {
+    case StandardProcessMember::Run: return "run";
+    case StandardProcessMember::RunText: return "runText";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardNetMember member) {
+  switch (member) {
+    case StandardNetMember::Connect: return "connect";
+    case StandardNetMember::Listen: return "listen";
+    case StandardNetMember::Read: return "read";
+    case StandardNetMember::Write: return "write";
+    case StandardNetMember::Close: return "close";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardHTTPMember member) {
+  switch (member) {
+    case StandardHTTPMember::Get: return "get";
+    case StandardHTTPMember::Post: return "post";
+    case StandardHTTPMember::Put: return "put";
+    case StandardHTTPMember::Delete: return "delete";
+    case StandardHTTPMember::Serve: return "serve";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardHTTPSMember member) {
+  switch (member) {
+    case StandardHTTPSMember::Get: return "get";
+    case StandardHTTPSMember::Post: return "post";
+    case StandardHTTPSMember::Serve: return "serve";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardTerminalMember member) {
+  switch (member) {
+    case StandardTerminalMember::Open: return "open";
+    case StandardTerminalMember::Close: return "close";
+    case StandardTerminalMember::WithRaw: return "withRaw";
+    case StandardTerminalMember::WithAltScreen: return "withAltScreen";
+    case StandardTerminalMember::Clear: return "clear";
+    case StandardTerminalMember::Size: return "size";
+    case StandardTerminalMember::MoveCursor: return "moveCursor";
+    case StandardTerminalMember::WriteAt: return "writeAt";
+    case StandardTerminalMember::ReadEvent: return "readEvent";
+    case StandardTerminalMember::PollEvent: return "pollEvent";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardPromiseMember member) {
+  switch (member) {
+    case StandardPromiseMember::Run: return "run";
+    case StandardPromiseMember::Await: return "await";
+    case StandardPromiseMember::Poll: return "poll";
+    case StandardPromiseMember::Cancel: return "cancel";
+    case StandardPromiseMember::IsDone: return "isDone";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardChannelMember member) {
+  switch (member) {
+    case StandardChannelMember::New: return "new";
+    case StandardChannelMember::Send: return "send";
+    case StandardChannelMember::TrySend: return "trySend";
+    case StandardChannelMember::Recv: return "recv";
+    case StandardChannelMember::TryRecv: return "tryRecv";
+    case StandardChannelMember::Close: return "close";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardCollectionsMember member) {
+  switch (member) {
+    case StandardCollectionsMember::List: return "List";
+    case StandardCollectionsMember::Map: return "Map";
+    case StandardCollectionsMember::Set: return "Set";
+    case StandardCollectionsMember::Queue: return "Queue";
+    case StandardCollectionsMember::Stack: return "Stack";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardResultMember member) {
+  switch (member) {
+    case StandardResultMember::Ok: return "ok";
+    case StandardResultMember::Err: return "err";
+    case StandardResultMember::IsOk: return "isOk";
+    case StandardResultMember::Unwrap: return "unwrap";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(StandardOptionMember member) {
+  switch (member) {
+    case StandardOptionMember::Some: return "some";
+    case StandardOptionMember::None: return "none";
+    case StandardOptionMember::IsSome: return "isSome";
+    case StandardOptionMember::Unwrap: return "unwrap";
+  }
+  return {};
+}
+
+inline std::string_view ToMember(SystemBufferMember member) {
+  switch (member) {
+    case SystemBufferMember::New: return "new";
+    case SystemBufferMember::Len: return "len";
+    case SystemBufferMember::Get: return "get";
+    case SystemBufferMember::Set: return "set";
+    case SystemBufferMember::Slice: return "slice";
+    case SystemBufferMember::Copy: return "copy";
+    case SystemBufferMember::ReadU16LE: return "readU16LE";
+    case SystemBufferMember::ReadU32LE: return "readU32LE";
+    case SystemBufferMember::ReadU64LE: return "readU64LE";
+    case SystemBufferMember::WriteU16LE: return "writeU16LE";
+    case SystemBufferMember::WriteU32LE: return "writeU32LE";
+    case SystemBufferMember::WriteU64LE: return "writeU64LE";
+  }
+  return {};
+}
+
+inline std::array<std::string_view, kSystemBufferMembers.size()> SystemBufferMemberNames() {
+  std::array<std::string_view, kSystemBufferMembers.size()> names{};
   for (size_t i = 0; i < kSystemBufferMembers.size(); ++i) {
     names[i] = ToMember(kSystemBufferMembers[i]);
   }
@@ -325,6 +1035,63 @@ inline std::optional<LibraryImportInfo> ParseLibraryImportPath(std::string_view 
                              ToCanonicalName(*module)};
   }
   return std::nullopt;
+}
+
+inline std::vector<std::string_view> MemberNames(SystemModule module) {
+  switch (module) {
+    case SystemModule::IO: return {ToMember(SystemIOMember::Stdin), ToMember(SystemIOMember::Stdout), ToMember(SystemIOMember::Stderr), ToMember(SystemIOMember::Write), ToMember(SystemIOMember::WriteText), ToMember(SystemIOMember::Flush), ToMember(SystemIOMember::BufferNew), ToMember(SystemIOMember::BufferLen), ToMember(SystemIOMember::BufferFill), ToMember(SystemIOMember::BufferCopy)};
+    case SystemModule::FS: return {ToMember(SystemFSMember::Open), ToMember(SystemFSMember::Close), ToMember(SystemFSMember::Read), ToMember(SystemFSMember::Write), ToMember(SystemFSMember::Flush), ToMember(SystemFSMember::Seek), ToMember(SystemFSMember::Tell), ToMember(SystemFSMember::Stat), ToMember(SystemFSMember::Exists), ToMember(SystemFSMember::IsFile), ToMember(SystemFSMember::IsDir), ToMember(SystemFSMember::ListDir), ToMember(SystemFSMember::NextDirEntry), ToMember(SystemFSMember::CloseDir), ToMember(SystemFSMember::Mkdir), ToMember(SystemFSMember::MkdirAll), ToMember(SystemFSMember::Remove), ToMember(SystemFSMember::Copy), ToMember(SystemFSMember::Rename), ToMember(SystemFSMember::Cwd), ToMember(SystemFSMember::SetCwd), ToMember(SystemFSMember::ReadText), ToMember(SystemFSMember::WriteText), ToMember(SystemFSMember::ReadBytes), ToMember(SystemFSMember::WriteBytes)};
+    case SystemModule::Path: return {ToMember(SystemPathMember::Separator), ToMember(SystemPathMember::Delimiter), ToMember(SystemPathMember::IsAbsolute), ToMember(SystemPathMember::Normalize), ToMember(SystemPathMember::Absolute), ToMember(SystemPathMember::Relative), ToMember(SystemPathMember::Join), ToMember(SystemPathMember::Dirname), ToMember(SystemPathMember::Basename), ToMember(SystemPathMember::Ext), ToMember(SystemPathMember::Stem)};
+    case SystemModule::Env: return {ToMember(SystemEnvMember::ArgsCount), ToMember(SystemEnvMember::Arg), ToMember(SystemEnvMember::Get), ToMember(SystemEnvMember::Set), ToMember(SystemEnvMember::Unset), ToMember(SystemEnvMember::ExePath)};
+    case SystemModule::OS: return {ToMember(SystemOSMember::Platform), ToMember(SystemOSMember::Arch), ToMember(SystemOSMember::IsLinux), ToMember(SystemOSMember::IsMacos), ToMember(SystemOSMember::IsWindows), ToMember(SystemOSMember::Pid), ToMember(SystemOSMember::CpuCount), ToMember(SystemOSMember::PageSize), ToMember(SystemOSMember::Exit), ToMember(SystemOSMember::SleepMs)};
+    case SystemModule::Time: return {ToMember(SystemTimeMember::MonoNs), ToMember(SystemTimeMember::WallNs), ToMember(SystemTimeMember::SleepNs), ToMember(SystemTimeMember::SleepMs), ToMember(SystemTimeMember::TimerStart), ToMember(SystemTimeMember::TimerCancel), ToMember(SystemTimeMember::MonoSnake), ToMember(SystemTimeMember::WallSnake)};
+    case SystemModule::FFI: return {ToMember(SystemFFIMember::Supported), ToMember(SystemFFIMember::Open), ToMember(SystemFFIMember::Symbol), ToMember(SystemFFIMember::Sym), ToMember(SystemFFIMember::Close), ToMember(SystemFFIMember::LastError), ToMember(SystemFFIMember::LastErrorSnake)};
+    case SystemModule::ASM: return {ToMember(SystemASMMember::FromC), ToMember(SystemASMMember::FromDynASM), ToMember(SystemASMMember::Compile), ToMember(SystemASMMember::Symbol), ToMember(SystemASMMember::LinkStub), ToMember(SystemASMMember::LinkAot), ToMember(SystemASMMember::CloseUnit), ToMember(SystemASMMember::CloseObject)};
+    case SystemModule::Buffer: return {ToMember(SystemBufferMember::New), ToMember(SystemBufferMember::Len), ToMember(SystemBufferMember::Get), ToMember(SystemBufferMember::Set), ToMember(SystemBufferMember::Slice), ToMember(SystemBufferMember::Copy), ToMember(SystemBufferMember::ReadU16LE), ToMember(SystemBufferMember::ReadU32LE), ToMember(SystemBufferMember::ReadU64LE), ToMember(SystemBufferMember::WriteU16LE), ToMember(SystemBufferMember::WriteU32LE), ToMember(SystemBufferMember::WriteU64LE)};
+    case SystemModule::Bytes: return {ToMember(SystemBytesMember::New), ToMember(SystemBytesMember::Len), ToMember(SystemBytesMember::Get), ToMember(SystemBytesMember::Set), ToMember(SystemBytesMember::Slice), ToMember(SystemBytesMember::Copy), ToMember(SystemBytesMember::ReadU16LE), ToMember(SystemBytesMember::ReadU32LE), ToMember(SystemBytesMember::ReadU64LE), ToMember(SystemBytesMember::WriteU16LE), ToMember(SystemBytesMember::WriteU32LE), ToMember(SystemBytesMember::WriteU64LE)};
+    case SystemModule::Json: return {ToMember(SystemJsonMember::Parse), ToMember(SystemJsonMember::Free), ToMember(SystemJsonMember::Stringify), ToMember(SystemJsonMember::Kind), ToMember(SystemJsonMember::Get), ToMember(SystemJsonMember::At), ToMember(SystemJsonMember::Len), ToMember(SystemJsonMember::AsString), ToMember(SystemJsonMember::AsI64), ToMember(SystemJsonMember::AsF64), ToMember(SystemJsonMember::AsBool)};
+    case SystemModule::Log: return {ToMember(SystemLogMember::Log), ToMember(SystemLogMember::SetLevel), ToMember(SystemLogMember::SetFile), ToMember(SystemLogMember::Flush), ToMember(SystemLogMember::Info), ToMember(SystemLogMember::Warn), ToMember(SystemLogMember::Error)};
+    case SystemModule::Random: return {ToMember(SystemRandomMember::Seed), ToMember(SystemRandomMember::I32), ToMember(SystemRandomMember::I64), ToMember(SystemRandomMember::F64), ToMember(SystemRandomMember::FillBytes), ToMember(SystemRandomMember::Range)};
+    case SystemModule::Thread: return {ToMember(SystemThreadMember::Yield), ToMember(SystemThreadMember::SleepMs), ToMember(SystemThreadMember::Sleep), ToMember(SystemThreadMember::HardwareConcurrency), ToMember(SystemThreadMember::Spawn), ToMember(SystemThreadMember::Join), ToMember(SystemThreadMember::Detach)};
+    case SystemModule::Job: return {ToMember(SystemJobMember::Spawn), ToMember(SystemJobMember::Cancel), ToMember(SystemJobMember::Poll), ToMember(SystemJobMember::Await)};
+    case SystemModule::Channel: return {ToMember(SystemChannelMember::NewI32), ToMember(SystemChannelMember::SendI32), ToMember(SystemChannelMember::TrySendI32), ToMember(SystemChannelMember::RecvI32), ToMember(SystemChannelMember::TryRecvI32), ToMember(SystemChannelMember::PendingI32), ToMember(SystemChannelMember::Close)};
+    case SystemModule::Process: return {ToMember(SystemProcessMember::Spawn), ToMember(SystemProcessMember::Wait), ToMember(SystemProcessMember::Kill), ToMember(SystemProcessMember::Stdin), ToMember(SystemProcessMember::Stdout), ToMember(SystemProcessMember::Stderr)};
+    case SystemModule::Net: return {ToMember(SystemNetMember::TcpConnect), ToMember(SystemNetMember::TcpListen), ToMember(SystemNetMember::Accept), ToMember(SystemNetMember::Send), ToMember(SystemNetMember::Recv), ToMember(SystemNetMember::Close), ToMember(SystemNetMember::UdpOpen), ToMember(SystemNetMember::UdpSendTo), ToMember(SystemNetMember::UdpRecvFrom)};
+    case SystemModule::HTTP: return {ToMember(SystemHTTPMember::ClientRequest), ToMember(SystemHTTPMember::SetHeader), ToMember(SystemHTTPMember::WriteBody), ToMember(SystemHTTPMember::Send), ToMember(SystemHTTPMember::ResponseStatus), ToMember(SystemHTTPMember::ResponseBody), ToMember(SystemHTTPMember::CloseResponse), ToMember(SystemHTTPMember::ListenHttp), ToMember(SystemHTTPMember::ListenHttps), ToMember(SystemHTTPMember::Accept), ToMember(SystemHTTPMember::WriteResponse), ToMember(SystemHTTPMember::CloseServer)};
+    case SystemModule::Terminal: return {ToMember(SystemTerminalMember::Open), ToMember(SystemTerminalMember::Close), ToMember(SystemTerminalMember::EnterRaw), ToMember(SystemTerminalMember::ExitRaw), ToMember(SystemTerminalMember::EnterAltScreen), ToMember(SystemTerminalMember::ExitAltScreen), ToMember(SystemTerminalMember::Size), ToMember(SystemTerminalMember::Clear), ToMember(SystemTerminalMember::ClearLine), ToMember(SystemTerminalMember::MoveCursor), ToMember(SystemTerminalMember::ShowCursor), ToMember(SystemTerminalMember::HideCursor), ToMember(SystemTerminalMember::Write), ToMember(SystemTerminalMember::WriteAt), ToMember(SystemTerminalMember::Flush), ToMember(SystemTerminalMember::PollEvent), ToMember(SystemTerminalMember::ReadEvent)};
+    case SystemModule::Capability: return {ToMember(SystemCapabilityMember::Has), ToMember(SystemCapabilityMember::Require), ToMember(SystemCapabilityMember::Deny)};
+    case SystemModule::Runtime: return {ToMember(SystemRuntimeMember::Version), ToMember(SystemRuntimeMember::GcCollect), ToMember(SystemRuntimeMember::GcStats), ToMember(SystemRuntimeMember::HeapStats), ToMember(SystemRuntimeMember::JitEnabled), ToMember(SystemRuntimeMember::JitStats)};
+    case SystemModule::Debug: return {ToMember(SystemDebugMember::Trap), ToMember(SystemDebugMember::Assert), ToMember(SystemDebugMember::StackTrace), ToMember(SystemDebugMember::Breakpoint)};
+  }
+  return {};
+}
+
+inline std::vector<std::string_view> MemberNames(StandardModule module) {
+  switch (module) {
+    case StandardModule::IO: return {ToMember(StandardIOMember::Print), ToMember(StandardIOMember::Println), ToMember(StandardIOMember::ReadLine)};
+    case StandardModule::Console: return {ToMember(StandardConsoleMember::Write), ToMember(StandardConsoleMember::WriteLine), ToMember(StandardConsoleMember::ReadLine), ToMember(StandardConsoleMember::Clear), ToMember(StandardConsoleMember::SetColor), ToMember(StandardConsoleMember::ResetColor)};
+    case StandardModule::FS: return {ToMember(StandardFSMember::ReadText), ToMember(StandardFSMember::WriteText), ToMember(StandardFSMember::AppendText), ToMember(StandardFSMember::ReadBytes), ToMember(StandardFSMember::WriteBytes), ToMember(StandardFSMember::Exists), ToMember(StandardFSMember::IsFile), ToMember(StandardFSMember::IsDir), ToMember(StandardFSMember::Copy), ToMember(StandardFSMember::Move), ToMember(StandardFSMember::Remove), ToMember(StandardFSMember::EnsureDir), ToMember(StandardFSMember::List), ToMember(StandardFSMember::Walk)};
+    case StandardModule::Path: return {ToMember(StandardPathMember::Join), ToMember(StandardPathMember::Dirname), ToMember(StandardPathMember::Basename), ToMember(StandardPathMember::Ext), ToMember(StandardPathMember::Stem), ToMember(StandardPathMember::Normalize), ToMember(StandardPathMember::Absolute), ToMember(StandardPathMember::Relative)};
+    case StandardModule::Buffer: return {ToMember(StandardBufferMember::New), ToMember(StandardBufferMember::WithCapacity), ToMember(StandardBufferMember::Len), ToMember(StandardBufferMember::Capacity), ToMember(StandardBufferMember::Clear), ToMember(StandardBufferMember::WriteBytes), ToMember(StandardBufferMember::WriteString), ToMember(StandardBufferMember::WriteU16LE), ToMember(StandardBufferMember::WriteU32LE), ToMember(StandardBufferMember::WriteU64LE), ToMember(StandardBufferMember::ReadU16LE), ToMember(StandardBufferMember::ReadU32LE), ToMember(StandardBufferMember::ReadU64LE), ToMember(StandardBufferMember::ToBytes), ToMember(StandardBufferMember::FromBytes)};
+    case StandardModule::Bytes: return {ToMember(StandardBytesMember::New), ToMember(StandardBytesMember::FromString), ToMember(StandardBytesMember::ToString), ToMember(StandardBytesMember::Concat), ToMember(StandardBytesMember::Slice), ToMember(StandardBytesMember::ToHex), ToMember(StandardBytesMember::FromHex), ToMember(StandardBytesMember::ToBase64), ToMember(StandardBytesMember::FromBase64)};
+    case StandardModule::Text: return {ToMember(StandardTextMember::Len), ToMember(StandardTextMember::IsEmpty), ToMember(StandardTextMember::Contains), ToMember(StandardTextMember::StartsWith), ToMember(StandardTextMember::EndsWith), ToMember(StandardTextMember::Trim), ToMember(StandardTextMember::Split), ToMember(StandardTextMember::Join), ToMember(StandardTextMember::Replace)};
+    case StandardModule::Json: return {ToMember(StandardJsonMember::Parse), ToMember(StandardJsonMember::Stringify), ToMember(StandardJsonMember::Get), ToMember(StandardJsonMember::At), ToMember(StandardJsonMember::AsString), ToMember(StandardJsonMember::AsI64), ToMember(StandardJsonMember::AsF64), ToMember(StandardJsonMember::AsBool)};
+    case StandardModule::Math: return {ToMember(StandardMathMember::PI), ToMember(StandardMathMember::Abs), ToMember(StandardMathMember::Min), ToMember(StandardMathMember::Max), ToMember(StandardMathMember::Sqrt), ToMember(StandardMathMember::Clamp), ToMember(StandardMathMember::Lerp)};
+    case StandardModule::Random: return {ToMember(StandardRandomMember::Seed), ToMember(StandardRandomMember::I32), ToMember(StandardRandomMember::I64), ToMember(StandardRandomMember::Range), ToMember(StandardRandomMember::F64), ToMember(StandardRandomMember::Bool), ToMember(StandardRandomMember::Bytes), ToMember(StandardRandomMember::FillBytes)};
+    case StandardModule::Time: return {ToMember(StandardTimeMember::MonoNs), ToMember(StandardTimeMember::NowNs), ToMember(StandardTimeMember::SleepMs), ToMember(StandardTimeMember::FormatWallNs), ToMember(StandardTimeMember::MonoSnake), ToMember(StandardTimeMember::WallSnake)};
+    case StandardModule::Log: return {ToMember(StandardLogMember::Debug), ToMember(StandardLogMember::Info), ToMember(StandardLogMember::Warn), ToMember(StandardLogMember::Error), ToMember(StandardLogMember::SetLevel), ToMember(StandardLogMember::SetFile)};
+    case StandardModule::Process: return {ToMember(StandardProcessMember::Run), ToMember(StandardProcessMember::RunText)};
+    case StandardModule::Net: return {ToMember(StandardNetMember::Connect), ToMember(StandardNetMember::Listen), ToMember(StandardNetMember::Read), ToMember(StandardNetMember::Write), ToMember(StandardNetMember::Close)};
+    case StandardModule::HTTP: return {ToMember(StandardHTTPMember::Get), ToMember(StandardHTTPMember::Post), ToMember(StandardHTTPMember::Put), ToMember(StandardHTTPMember::Delete), ToMember(StandardHTTPMember::Serve)};
+    case StandardModule::HTTPS: return {ToMember(StandardHTTPSMember::Get), ToMember(StandardHTTPSMember::Post), ToMember(StandardHTTPSMember::Serve)};
+    case StandardModule::Terminal: return {ToMember(StandardTerminalMember::Open), ToMember(StandardTerminalMember::Close), ToMember(StandardTerminalMember::WithRaw), ToMember(StandardTerminalMember::WithAltScreen), ToMember(StandardTerminalMember::Clear), ToMember(StandardTerminalMember::Size), ToMember(StandardTerminalMember::MoveCursor), ToMember(StandardTerminalMember::WriteAt), ToMember(StandardTerminalMember::ReadEvent), ToMember(StandardTerminalMember::PollEvent)};
+    case StandardModule::Promise: return {ToMember(StandardPromiseMember::Run), ToMember(StandardPromiseMember::Await), ToMember(StandardPromiseMember::Poll), ToMember(StandardPromiseMember::Cancel), ToMember(StandardPromiseMember::IsDone)};
+    case StandardModule::Channel: return {ToMember(StandardChannelMember::New), ToMember(StandardChannelMember::Send), ToMember(StandardChannelMember::TrySend), ToMember(StandardChannelMember::Recv), ToMember(StandardChannelMember::TryRecv), ToMember(StandardChannelMember::Close)};
+    case StandardModule::Collections: return {ToMember(StandardCollectionsMember::List), ToMember(StandardCollectionsMember::Map), ToMember(StandardCollectionsMember::Set), ToMember(StandardCollectionsMember::Queue), ToMember(StandardCollectionsMember::Stack)};
+    case StandardModule::Result: return {ToMember(StandardResultMember::Ok), ToMember(StandardResultMember::Err), ToMember(StandardResultMember::IsOk), ToMember(StandardResultMember::Unwrap)};
+    case StandardModule::Option: return {ToMember(StandardOptionMember::Some), ToMember(StandardOptionMember::None), ToMember(StandardOptionMember::IsSome), ToMember(StandardOptionMember::Unwrap)};
+  }
+  return {};
 }
 
 inline bool IsSystemBufferLikeCanonical(std::string_view canonical) {
