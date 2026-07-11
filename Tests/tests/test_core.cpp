@@ -15979,7 +15979,7 @@ bool RunNativeFsModuleTest() {
   std::vector<int32_t> bytes;
   if (!Simple::VM::Native::Fs::ReadBytes(file, &bytes) || bytes.size() != 3) return false;
   if (!Simple::VM::Native::Fs::WriteBytes(copy, bytes)) return false;
-  if (!Simple::VM::Native::Fs::CopyFile(copy, file)) return false;
+  if (!Simple::VM::Native::Fs::CopyPath(copy, file)) return false;
   std::vector<std::string> names;
   if (!Simple::VM::Native::Fs::ListDir(dir, &names) || names.empty()) return false;
   std::string cwd;

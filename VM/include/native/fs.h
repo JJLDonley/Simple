@@ -12,7 +12,7 @@ bool WriteText(const std::string& path, const std::string& text);
 bool ReadBytes(const std::string& path, std::vector<int32_t>* out);
 bool WriteBytes(const std::string& path, const std::vector<int32_t>& bytes);
 bool ListDir(const std::string& path, std::vector<std::string>* out);
-bool CopyFile(const std::string& from, const std::string& to);
+bool CopyPath(const std::string& from, const std::string& to);
 bool Remove(const std::string& path);
 bool Mkdir(const std::string& path);
 bool MkdirAll(const std::string& path);

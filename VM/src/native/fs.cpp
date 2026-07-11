@@ -54,7 +54,7 @@ bool ListDir(const std::string& path, std::vector<std::string>* out) {
   return true;
 }
 
-bool CopyFile(const std::string& from, const std::string& to) {
+bool CopyPath(const std::string& from, const std::string& to) {
   std::error_code ec;
   const bool ok = std::filesystem::copy_file(from, to, std::filesystem::copy_options::overwrite_existing, ec);
   return ok && !ec;

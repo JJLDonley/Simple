@@ -940,7 +940,7 @@ NativeCallResult FsCopy(NativeCallContext& context) {
   std::string from;
   std::string to;
   result.value = PackI32(ReadStringArg(context, 0, &from) && ReadStringArg(context, 1, &to) &&
-                                 Fs::CopyFile(from, to)
+                                 Fs::CopyPath(from, to)
                              ? 1
                              : 0);
   return result;
