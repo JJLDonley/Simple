@@ -30,6 +30,13 @@ if (semanticScopes?.type?.[0] !== 'support.type.simple') {
 if (semanticScopes?.['function.declaration']?.[0] === semanticScopes?.type?.[0]) {
   fail('semantic function declaration and type scopes must not match');
 }
+const semanticColorRules = pkg.contributes?.configurationDefaults?.['editor.semanticTokenColorCustomizations']?.rules;
+if (semanticColorRules?.['function.declaration:simple']?.foreground === semanticColorRules?.['type:simple']?.foreground) {
+  fail('semantic token color defaults must distinguish function declarations from types');
+}
+if (!pkg.contributes?.configurationDefaults?.['[simple]']?.['editor.semanticHighlighting.enabled']) {
+  fail('Simple language must enable semantic highlighting by default');
+}
 if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
 if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
 const simpleLanguage = (pkg.contributes?.languages ?? []).find((l) => l.id === 'simple');

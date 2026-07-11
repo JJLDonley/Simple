@@ -60,6 +60,24 @@
         }
       }
     ],
+    "configurationDefaults": {
+      "[simple]": {
+        "editor.semanticHighlighting.enabled": true
+      },
+      "editor.semanticTokenColorCustomizations": {
+        "enabled": true,
+        "rules": {
+          "function.declaration:simple": { "foreground": "#DCDCAA" },
+          "function:simple": { "foreground": "#DCDCAA" },
+          "type:simple": { "foreground": "#4EC9B0" },
+          "type.declaration:simple": { "foreground": "#4EC9B0" },
+          "variable.declaration:simple": { "foreground": "#9CDCFE" },
+          "parameter:simple": { "foreground": "#9CDCFE" },
+          "property:simple": { "foreground": "#9CDCFE" },
+          "namespace:simple": { "foreground": "#4EC9B0" }
+        }
+      }
+    },
     "commands": [
       {
         "command": "simple.checkCurrentFile",
