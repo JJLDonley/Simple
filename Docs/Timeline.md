@@ -608,6 +608,7 @@ Canonical naming requirements:
 
 Native metadata contract for every final `System.*` function:
 
+- [x] Native registry entries carry enum-backed `LibraryModuleId` metadata when their module is a cataloged `System.*` / `Standard.*` module.
 - [ ] `layer = system`.
 - [ ] canonical `module`, canonical `symbol`, and exact Simple signature.
 - [ ] resource inputs/outputs, ownership transfer, cleanup behavior, blocking behavior, allocation behavior, and GC safepoint behavior.
