@@ -832,6 +832,38 @@ bool LspHoverShowsArtifactAndEnumFacts() {
          out_contents.find("Mode.Fill") != std::string::npos;
 }
 
+bool LspHoverShowsExternFunctionSignatureFromOpenModule() {
+  const std::string in_path = TempPath("simple_lsp_hover_extern_fn_in.txt");
+  const std::string out_path = TempPath("simple_lsp_hover_extern_fn_out.txt");
+  const std::string err_path = TempPath("simple_lsp_hover_extern_fn_err.txt");
+  const std::string lib_uri = "file:///workspace/raylib.simple";
+  const std::string main_uri = "file:///workspace/main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"module Raylib\\nextern ffi.LoadRenderTexture :: RenderTexture2D (width : i32, height : i32)\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Raylib\\nusing Raylib\\ntexture : RenderTexture2D = RL.LoadRenderTexture(8, 8);\"}}}";
+  const std::string hover_decl =
+      "{\"jsonrpc\":\"2.0\",\"id\":83,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + lib_uri + "\"},\"position\":{\"line\":1,\"character\":15}}}";
+  const std::string hover_call =
+      "{\"jsonrpc\":\"2.0\",\"id\":84,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":2,\"character\":35}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_lib) + BuildLspFrame(open_main) + BuildLspFrame(hover_decl) + BuildLspFrame(hover_call) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() &&
+         out_contents.find("\"id\":83") != std::string::npos &&
+         out_contents.find("LoadRenderTexture : RenderTexture2D (width : i32, height : i32)") != std::string::npos &&
+         out_contents.find("\"id\":84") != std::string::npos;
+}
+
 bool LspHoverResolvesTypeAcrossOpenDocuments() {
   const std::string in_path = TempPath("simple_lsp_hover_xdoc_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_xdoc_out.txt");
@@ -4157,6 +4189,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_simple_function_signature_syntax", LspHoverShowsSimpleFunctionSignatureSyntax},
   {"lsp_hover_shows_module_and_import_syntax", LspHoverShowsModuleAndImportSyntax},
   {"lsp_hover_shows_artifact_and_enum_facts", LspHoverShowsArtifactAndEnumFacts},
+  {"lsp_hover_shows_extern_function_signature_from_open_module", LspHoverShowsExternFunctionSignatureFromOpenModule},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},
   {"lsp_hover_shows_io_alias_signature", LspHoverShowsIoAliasSignature},

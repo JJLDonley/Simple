@@ -1561,6 +1561,41 @@ bool ResolveFunctionSignatureInRefs(const std::vector<TokenRef>& refs,
     *out = std::move(sig);
     return true;
   }
+  for (size_t i = 0; i + 5 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::KwExtern) continue;
+    size_t name_index = i + 1;
+    if (refs[name_index].token.kind != TK::Identifier) continue;
+    if (name_index + 2 < refs.size() && refs[name_index + 1].token.kind == TK::Dot &&
+        refs[name_index + 2].token.kind == TK::Identifier) {
+      name_index += 2;
+    }
+    if (refs[name_index].token.text != name) continue;
+    if (name_index + 3 >= refs.size()) continue;
+    if (refs[name_index + 1].token.kind != TK::DoubleColon) continue;
+    if (refs[name_index + 2].token.kind != TK::Identifier) continue;
+    if (refs[name_index + 3].token.kind != TK::LParen) continue;
+    const std::string return_type = refs[name_index + 2].token.text;
+    std::vector<std::string> params;
+    int depth = 1;
+    for (size_t j = name_index + 4; j < refs.size() && depth > 0; ++j) {
+      const auto& tk = refs[j].token;
+      if (tk.kind == TK::LParen) { ++depth; continue; }
+      if (tk.kind == TK::RParen) { --depth; continue; }
+      if (depth != 1 || tk.kind != TK::Identifier) continue;
+      if (j + 2 >= refs.size()) continue;
+      if (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon) continue;
+      if (refs[j + 2].token.kind != TK::Identifier) continue;
+      params.push_back(tk.text + (refs[j + 1].token.kind == TK::DoubleColon ? " :: " : " : ") + refs[j + 2].token.text);
+    }
+    std::string sig = name + " : " + return_type + " (";
+    for (size_t p = 0; p < params.size(); ++p) {
+      if (p > 0) sig += ", ";
+      sig += params[p];
+    }
+    sig += ")";
+    *out = std::move(sig);
+    return true;
+  }
   return false;
 }
 
@@ -1603,6 +1638,33 @@ bool ResolveFunctionSignaturePartsInRefs(const std::vector<TokenRef>& refs,
         param += refs[j + 2].token.text;
       }
       out_params->push_back(std::move(param));
+    }
+    return true;
+  }
+  for (size_t i = 0; i + 5 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::KwExtern) continue;
+    size_t name_index = i + 1;
+    if (refs[name_index].token.kind != TK::Identifier) continue;
+    if (name_index + 2 < refs.size() && refs[name_index + 1].token.kind == TK::Dot &&
+        refs[name_index + 2].token.kind == TK::Identifier) {
+      name_index += 2;
+    }
+    if (refs[name_index].token.text != name) continue;
+    if (name_index + 3 >= refs.size()) continue;
+    if (refs[name_index + 1].token.kind != TK::DoubleColon) continue;
+    if (refs[name_index + 2].token.kind != TK::Identifier) continue;
+    if (refs[name_index + 3].token.kind != TK::LParen) continue;
+    *out_return = refs[name_index + 2].token.text;
+    int depth = 1;
+    for (size_t j = name_index + 4; j < refs.size() && depth > 0; ++j) {
+      const auto& tk = refs[j].token;
+      if (tk.kind == TK::LParen) { ++depth; continue; }
+      if (tk.kind == TK::RParen) { --depth; continue; }
+      if (depth != 1 || tk.kind != TK::Identifier) continue;
+      if (j + 2 >= refs.size()) continue;
+      if (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon) continue;
+      if (refs[j + 2].token.kind != TK::Identifier) continue;
+      out_params->push_back(tk.text + (refs[j + 1].token.kind == TK::DoubleColon ? " :: " : " : ") + refs[j + 2].token.text);
     }
     return true;
   }
@@ -1731,6 +1793,42 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     } else if (refs[i + 1].token.kind == TK::DoubleColon && refs[i + 2].token.kind == TK::KwNamespace) {
       push_type_decl(i, SimpleLspFact::Kind::Namespace, "namespace");
     }
+  }
+
+  for (size_t i = 0; i + 5 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::KwExtern) continue;
+    size_t name_index = i + 1;
+    if (refs[name_index].token.kind != TK::Identifier) continue;
+    if (name_index + 2 < refs.size() && refs[name_index + 1].token.kind == TK::Dot &&
+        refs[name_index + 2].token.kind == TK::Identifier) {
+      name_index += 2;
+    }
+    if (name_index + 3 >= refs.size()) continue;
+    if (refs[name_index + 1].token.kind != TK::DoubleColon) continue;
+    if (refs[name_index + 2].token.kind != TK::Identifier) continue;
+    if (refs[name_index + 3].token.kind != TK::LParen) continue;
+    SimpleLspFact fact;
+    fact.kind = SimpleLspFact::Kind::Function;
+    fact.name = refs[name_index].token.text;
+    fact.qualified_name = fact.name;
+    fact.return_type = refs[name_index + 2].token.text;
+    fact.token_index = name_index;
+    int depth = 1;
+    for (size_t j = name_index + 4; j < refs.size() && depth > 0; ++j) {
+      if (refs[j].token.kind == TK::LParen) { ++depth; continue; }
+      if (refs[j].token.kind == TK::RParen) { --depth; continue; }
+      if (depth != 1 || refs[j].token.kind != TK::Identifier) continue;
+      if (j + 2 >= refs.size()) continue;
+      if (refs[j + 1].token.kind != TK::Colon && refs[j + 1].token.kind != TK::DoubleColon) continue;
+      if (refs[j + 2].token.kind != TK::Identifier) continue;
+      SimpleLspParamFact param;
+      param.name = refs[j].token.text;
+      param.type = refs[j + 2].token.text;
+      param.immutable = refs[j + 1].token.kind == TK::DoubleColon;
+      param.token_index = j;
+      fact.params.push_back(param);
+    }
+    facts.push_back(std::move(fact));
   }
 
   for (size_t i = 0; i + 3 < refs.size(); ++i) {
