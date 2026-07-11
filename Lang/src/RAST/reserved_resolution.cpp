@@ -59,7 +59,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     return out;
   }
   if (canonical_module == "Math") return {"abs", "min", "max", "sqrt", "PI"};
-  if (canonical_module == "Time") return {"mono_ns", "wall_ns", "formatWallNs"};
+  if (canonical_module == "Time") return {"mono_ns", "wall_ns"};
+  if (canonical_module == "StandardTime") return {"mono_ns", "wall_ns", "formatWallNs"};
   if (canonical_module == "DL") {
     out = {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
            "call_str0", "supported"};
@@ -198,7 +199,8 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   if (canonical_module == "Math") {
     return member == "abs" || member == "min" || member == "max" || member == "sqrt";
   }
-  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
+  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns";
+  if (canonical_module == "StandardTime") return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
   if (canonical_module == "DL") {
     return member == "open" || member == "sym" || member == "close" ||
            member == "last_error" || member == "call_i32" || member == "call_i64" ||

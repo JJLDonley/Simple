@@ -410,7 +410,8 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "Time" && (member == "mono_ns" || member == "wall_ns" || member == "formatWallNs")) {
+    } else if ((module == "Time" && (member == "mono_ns" || member == "wall_ns")) ||
+               (module == "StandardTime" && (member == "mono_ns" || member == "wall_ns" || member == "formatWallNs"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -1737,7 +1738,7 @@ bool InferExprType(const Expr& expr,
             if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
             return true;
           }
-          if (using_module == "Time" && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+          if ((using_module == "Time" || using_module == "StandardTime") && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
             out->name = "i64";
             out->type_args.clear();
             out->dims.clear();
@@ -1746,7 +1747,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -1799,7 +1800,7 @@ bool InferExprType(const Expr& expr,
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if (reserved_module == "Time" &&
+            if ((reserved_module == "Time" || reserved_module == "StandardTime") &&
                 (member_name == "mono_ns" || member_name == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -2869,7 +2870,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+          if ((using_module == "Time" || using_module == "StandardTime") && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
             if (!expr.args.empty()) {
               if (error) *error = "call argument count mismatch for '" + callee.text + "'";
               return false;
@@ -2880,7 +2881,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "Random" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "Log") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -3406,7 +3407,7 @@ bool EmitExpr(EmitState& st,
               return true;
             }
           }
-          if (resolved == "Time") {
+          if (resolved == "Time" || resolved == "StandardTime") {
             if (callee.text == "mono_ns") {
               if (!expr.args.empty()) {
                 if (error) *error = "Time.mono_ns expects no arguments";
@@ -5357,8 +5358,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Time") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Time")) {
+  if (st.reserved_imports.find("StandardTime") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("StandardTime")) {
       std::vector<TypeRef> format_params;
       format_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;

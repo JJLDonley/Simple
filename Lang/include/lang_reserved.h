@@ -50,7 +50,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Standard.Json", "StandardJson"},
       {"Standard.Math", "Math"},
       {"Standard.Random", "Random"},
-      {"Standard.Time", "Time"},
+      {"Standard.Time", "StandardTime"},
       {"Standard.Log", "Log"},
       {"Standard.Process", "StandardProcess"},
       {"Standard.Net", "StandardNet"},

@@ -1707,6 +1707,23 @@ bool LangRejectStandardPathFsProbeApis() {
   return error.find("unknown module member") != std::string::npos;
 }
 
+bool LangRejectSystemTimeFormattingApi() {
+  const char* src =
+      "import System.Time\n"
+      "main : void () { text : string = System.Time.formatWallNs(0); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateStandardTimeFormattingApi() {
+  const char* src =
+      "import Standard.Time\n"
+      "main : void () { text : string = Standard.Time.formatWallNs(0); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateStandardFsProbeApis() {
   const char* src =
       "import Standard.FS\n"
@@ -3305,6 +3322,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
   {"lang_reject_standard_fs_handle_apis", LangRejectStandardFsHandleApis},
   {"lang_reject_standard_path_fs_probe_apis", LangRejectStandardPathFsProbeApis},
+  {"lang_reject_system_time_formatting_api", LangRejectSystemTimeFormattingApi},
+  {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
   {"lang_validate_standard_fs_probe_apis", LangValidateStandardFsProbeApis},
   {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
   {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},

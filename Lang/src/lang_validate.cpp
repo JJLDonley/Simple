@@ -381,13 +381,13 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Time") {
+  if (resolved == "Time" || resolved == "StandardTime") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = MakeSimpleType("i64");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "formatWallNs") {
+    if (resolved == "StandardTime" && member == "formatWallNs") {
       out->params.push_back(MakeSimpleType("i64"));
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;

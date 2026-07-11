@@ -1051,6 +1051,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"IO", {"buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
       {"Math", {"abs", "min", "max", "pi"}},
       {"Time", {"mono_ns", "wall_ns"}},
+      {"StandardTime", {"mono_ns", "wall_ns", "formatWallNs"}},
       {"File", {"open", "close", "read", "write"}},
       {"DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
@@ -1326,9 +1327,14 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "Time") {
+  if (module == "Time" || module == "StandardTime") {
     if (member == "mono_ns" || member == "wall_ns") {
       out->return_type = "i64";
+      return true;
+    }
+    if (module == "StandardTime" && member == "formatWallNs") {
+      out->params = {"timestamp"};
+      out->return_type = "string";
       return true;
     }
     return false;
