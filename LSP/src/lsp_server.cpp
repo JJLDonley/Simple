@@ -1690,6 +1690,47 @@ bool ResolveImportedModuleAndMember(const std::string& call_name,
   return true;
 }
 
+struct NamespaceSpan {
+  std::string name;
+  size_t open_index = 0;
+  size_t close_index = 0;
+  uint32_t body_depth = 0;
+};
+
+std::vector<NamespaceSpan> CollectNamespaceSpans(const std::vector<TokenRef>& refs) {
+  using TK = Simple::Lang::TokenKind;
+  std::vector<NamespaceSpan> spans;
+  for (size_t i = 0; i + 3 < refs.size(); ++i) {
+    if (refs[i].token.kind != TK::Identifier || refs[i + 1].token.kind != TK::DoubleColon ||
+        refs[i + 2].token.kind != TK::KwNamespace) continue;
+    size_t open = i + 3;
+    while (open < refs.size() && refs[open].token.kind != TK::LBrace) ++open;
+    if (open >= refs.size()) continue;
+    const uint32_t body_depth = refs[open].depth + 1;
+    size_t close = open + 1;
+    while (close < refs.size()) {
+      if (refs[close].token.kind == TK::RBrace && refs[close].depth == body_depth) break;
+      ++close;
+    }
+    if (close >= refs.size()) continue;
+    spans.push_back(NamespaceSpan{refs[i].token.text, open, close, body_depth});
+  }
+  return spans;
+}
+
+std::string EnclosingNamespaceNameAt(const std::vector<NamespaceSpan>& spans, size_t token_index) {
+  std::string best;
+  size_t best_open = 0;
+  for (const auto& span : spans) {
+    if (token_index <= span.open_index || token_index >= span.close_index) continue;
+    if (best.empty() || span.open_index >= best_open) {
+      best = span.name;
+      best_open = span.open_index;
+    }
+  }
+  return best;
+}
+
 std::string FormatSimpleFunctionFact(const SimpleLspFact& fact) {
   std::string out = fact.qualified_name.empty() ? fact.name : fact.qualified_name;
   if (!fact.return_type.empty()) out += " : " + fact.return_type;
@@ -1754,6 +1795,7 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
   using TK = Simple::Lang::TokenKind;
   std::vector<SimpleLspFact> facts;
   std::unordered_set<size_t> parameter_indices;
+  const auto namespace_spans = CollectNamespaceSpans(refs);
   auto push_type_decl = [&](size_t i, SimpleLspFact::Kind kind, const std::string& suffix) {
     SimpleLspFact fact;
     fact.kind = kind;
@@ -1836,7 +1878,8 @@ std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs
     SimpleLspFact fact;
     fact.kind = SimpleLspFact::Kind::Function;
     fact.name = refs[i].token.text;
-    fact.qualified_name = fact.name;
+    const std::string namespace_name = EnclosingNamespaceNameAt(namespace_spans, i);
+    fact.qualified_name = namespace_name.empty() ? fact.name : (namespace_name + "." + fact.name);
     fact.return_type = refs[i + 2].token.text;
     fact.token_index = i;
     int depth = 1;
@@ -2040,14 +2083,22 @@ void ReplyHover(std::ostream& out,
         target->index + 1 < refs.size() &&
         refs[target->index + 1].token.kind == Simple::Lang::TokenKind::LParen &&
         !IsDeclNameAt(refs, target->index)) {
-      call_name = ident;
+      call_name = QualifiedMemberAtPosition(it->second, line, character);
+      if (call_name.empty()) call_name = ident;
     } else {
       call_name = CallNameAtPosition(it->second, line, character);
     }
     if (!call_name.empty()) {
-      if (ResolveFunctionSignatureInRefs(refs, call_name, &signature)) {
+      for (const auto& fact : facts) {
+        if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name) {
+          signature = FormatSimpleFunctionFact(fact);
+          has_signature = true;
+          break;
+        }
+      }
+      if (!has_signature && ResolveFunctionSignatureInRefs(refs, call_name, &signature)) {
         has_signature = true;
-      } else {
+      } else if (!has_signature) {
         const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
         for (const auto& other_uri : sorted_uris) {
           const auto other_it = open_docs.find(other_uri);
@@ -2357,6 +2408,33 @@ void ReplySignatureHelp(std::ostream& out,
             "\"activeSignature\":0,\"activeParameter\":" +
             std::to_string(clamped_active) + "}}");
     return;
+  }
+
+  if (!call_name.empty() && call_name.find('.') != std::string::npos && call_name[0] != '@') {
+    auto reply_fact_signature = [&](const SimpleLspFact& fact) {
+      std::string parameters_json;
+      for (const auto& param : fact.params) {
+        std::string label = param.name;
+        if (!param.type.empty()) label += (param.immutable ? " :: " : " : ") + param.type;
+        if (!parameters_json.empty()) parameters_json += ",";
+        parameters_json += "{\"label\":\"" + JsonEscape(label) + "\"}";
+      }
+      const uint32_t clamped_active =
+          fact.params.empty() ? 0 : std::min(active_parameter, static_cast<uint32_t>(fact.params.size() - 1));
+      WriteLspMessage(out,
+                      "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                          ",\"result\":{\"signatures\":[{\"label\":\"" +
+                          JsonEscape(FormatSimpleFunctionFact(fact)) +
+                          "\",\"parameters\":[" + parameters_json + "]}],\"activeSignature\":0,\"activeParameter\":" +
+                          std::to_string(clamped_active) + "}}");
+    };
+    const auto current_facts = BuildSimpleLspFacts(LexTokenRefs(it->second));
+    for (const auto& fact : current_facts) {
+      if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name) {
+        reply_fact_signature(fact);
+        return;
+      }
+    }
   }
 
   if (!call_name.empty() &&
@@ -4488,9 +4566,19 @@ bool ResolveCallReturnType(const std::string& text,
     *out_return_type = reserved.return_type;
     return true;
   }
+  const auto current_refs = LexTokenRefs(text);
+  if (call_name.find('.') != std::string::npos) {
+    for (const auto& fact : BuildSimpleLspFacts(current_refs)) {
+      if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name &&
+          IsInlayReturnTypeInteresting(fact.return_type)) {
+        *out_return_type = fact.return_type;
+        return true;
+      }
+    }
+  }
   std::vector<std::string> params;
   std::string return_type;
-  if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(text), call_name, &params, &return_type) &&
+  if (ResolveFunctionSignaturePartsInRefs(current_refs, call_name, &params, &return_type) &&
       IsInlayReturnTypeInteresting(return_type)) {
     *out_return_type = return_type;
     return true;
@@ -4500,7 +4588,17 @@ bool ResolveCallReturnType(const std::string& text,
     if (other_uri == uri) continue;
     params.clear();
     return_type.clear();
-    if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(other_text), call_name, &params, &return_type) &&
+    const auto other_refs = LexTokenRefs(other_text);
+    if (call_name.find('.') != std::string::npos) {
+      for (const auto& fact : BuildSimpleLspFacts(other_refs)) {
+        if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name &&
+            IsInlayReturnTypeInteresting(fact.return_type)) {
+          *out_return_type = fact.return_type;
+          return true;
+        }
+      }
+    }
+    if (ResolveFunctionSignaturePartsInRefs(other_refs, call_name, &params, &return_type) &&
         IsInlayReturnTypeInteresting(return_type)) {
       *out_return_type = return_type;
       return true;
@@ -4527,7 +4625,17 @@ bool ResolveCallParameterNames(const std::string& text,
 
   std::string return_type;
   std::vector<std::string> params;
-  if (ResolveFunctionSignaturePartsInRefs(LexTokenRefs(text), call_name, &params, &return_type)) {
+  const auto current_refs = LexTokenRefs(text);
+  if (call_name.find('.') != std::string::npos) {
+    for (const auto& fact : BuildSimpleLspFacts(current_refs)) {
+      if (fact.kind != SimpleLspFact::Kind::Function || fact.qualified_name != call_name) continue;
+      for (const auto& param : fact.params) {
+        if (!param.name.empty()) out_names->push_back(param.name);
+      }
+      return !out_names->empty();
+    }
+  }
+  if (ResolveFunctionSignaturePartsInRefs(current_refs, call_name, &params, &return_type)) {
     for (const auto& param : params) {
       const std::string name = ParameterNameFromLabel(param);
       if (!name.empty()) out_names->push_back(name);
@@ -4540,7 +4648,17 @@ bool ResolveCallParameterNames(const std::string& text,
     if (other_uri == uri) continue;
     params.clear();
     return_type.clear();
-    if (!ResolveFunctionSignaturePartsInRefs(LexTokenRefs(other_text), call_name, &params, &return_type)) continue;
+    const auto other_refs = LexTokenRefs(other_text);
+    if (call_name.find('.') != std::string::npos) {
+      for (const auto& fact : BuildSimpleLspFacts(other_refs)) {
+        if (fact.kind != SimpleLspFact::Kind::Function || fact.qualified_name != call_name) continue;
+        for (const auto& param : fact.params) {
+          if (!param.name.empty()) out_names->push_back(param.name);
+        }
+        return !out_names->empty();
+      }
+    }
+    if (!ResolveFunctionSignaturePartsInRefs(other_refs, call_name, &params, &return_type)) continue;
     for (const auto& param : params) {
       const std::string name = ParameterNameFromLabel(param);
       if (!name.empty()) out_names->push_back(name);

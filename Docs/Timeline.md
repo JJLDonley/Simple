@@ -868,7 +868,7 @@ Correctness-first LSP basics before new capability work:
 - [x] Semantic tokens distinguish mutable/immutable declarations, parameters, functions, namespaces/modules, artifacts, artifact fields, enums, and enum members with exact token types/modifiers.
 - [x] Inlay hints use only valid Simple syntax and never invent unknown parameter/type facts.
 - [x] Signature help uses canonical Simple function syntax for Simple and reserved/native functions.
-- [ ] Namespace/member functions use canonical qualified names in hover, signature help, semantic tokens, and inlay hints.
+- [x] Namespace/member functions use canonical qualified names in hover, signature help, semantic tokens, and inlay hints.
 
 Next Simple-specific LSP capabilities:
 

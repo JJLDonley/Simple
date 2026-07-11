@@ -864,6 +864,46 @@ bool LspHoverShowsExternFunctionSignatureFromOpenModule() {
          out_contents.find("\"id\":84") != std::string::npos;
 }
 
+bool LspNamespaceMemberBasicsUseQualifiedNames() {
+  const std::string in_path = TempPath("simple_lsp_namespace_member_in.txt");
+  const std::string out_path = TempPath("simple_lsp_namespace_member_out.txt");
+  const std::string err_path = TempPath("simple_lsp_namespace_member_err.txt");
+  const std::string uri = "file:///workspace/namespace_member.simple";
+  const std::string text =
+      "Math :: namespace {\\n"
+      "  add : i32 (lhs : i32, rhs : i32) { return lhs; }\\n"
+      "}\\n"
+      "main : i32 () { return Math.add(1, 2); }";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string hover_ns = "{\"jsonrpc\":\"2.0\",\"id\":87,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":0,\"character\":1}}}";
+  const std::string hover_decl = "{\"jsonrpc\":\"2.0\",\"id\":88,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":3}}}";
+  const std::string hover_call = "{\"jsonrpc\":\"2.0\",\"id\":89,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":3,\"character\":29}}}";
+  const std::string sig_req = "{\"jsonrpc\":\"2.0\",\"id\":90,\"method\":\"textDocument/signatureHelp\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":3,\"character\":33}}}";
+  const std::string tokens_req = "{\"jsonrpc\":\"2.0\",\"id\":91,\"method\":\"textDocument/semanticTokens/full\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string inlay_req = "{\"jsonrpc\":\"2.0\",\"id\":92,\"method\":\"textDocument/inlayHint\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"range\":{\"start\":{\"line\":3,\"character\":0},\"end\":{\"line\":3,\"character\":50}}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(hover_ns) + BuildLspFrame(hover_decl) + BuildLspFrame(hover_call) + BuildLspFrame(sig_req) + BuildLspFrame(inlay_req) + BuildLspFrame(tokens_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  std::vector<SemanticTokenEntry> entries;
+  if (!ReadFileText(err_path).empty() || !DecodeSemanticData(out_contents, &entries)) return false;
+  bool saw_ns = false;
+  bool saw_call_fn = false;
+  for (const auto& entry : entries) {
+    if (entry.line == 0 && entry.col == 0 && entry.len == 4 && entry.type == 7 && (entry.modifiers & 1)) saw_ns = true;
+    if (entry.line == 3 && entry.col == 28 && entry.len == 3 && entry.type == 2) saw_call_fn = true;
+  }
+  return out_contents.find("Math :: namespace") != std::string::npos &&
+         out_contents.find("Math.add : i32 (lhs : i32, rhs : i32)") != std::string::npos &&
+         out_contents.find("\"id\":90") != std::string::npos &&
+         out_contents.find("\"id\":92") != std::string::npos &&
+         out_contents.find("\"label\":\"lhs: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"rhs: \"") != std::string::npos &&
+         out_contents.find("\"label\":\": i32\"") != std::string::npos && saw_ns && saw_call_fn;
+}
+
 bool LspHoverResolvesTypeAcrossOpenDocuments() {
   const std::string in_path = TempPath("simple_lsp_hover_xdoc_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_xdoc_out.txt");
@@ -4290,6 +4330,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_module_and_import_syntax", LspHoverShowsModuleAndImportSyntax},
   {"lsp_hover_shows_artifact_and_enum_facts", LspHoverShowsArtifactAndEnumFacts},
   {"lsp_hover_shows_extern_function_signature_from_open_module", LspHoverShowsExternFunctionSignatureFromOpenModule},
+  {"lsp_namespace_member_basics_use_qualified_names", LspNamespaceMemberBasicsUseQualifiedNames},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},
   {"lsp_hover_shows_io_alias_signature", LspHoverShowsIoAliasSignature},
