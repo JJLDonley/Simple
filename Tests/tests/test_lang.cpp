@@ -2419,6 +2419,32 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   const auto planned_meta = GetLibraryMemberMetadata(ToLibraryModuleId(StandardModule::Bytes), "toBase64");
   if (planned_meta.availability != LibraryApiAvailability::Planned ||
       planned_meta.level != LibraryApiLevel::HighLevelStandard) return false;
+  for (SystemModule module : kSystemModules) {
+    const auto id = ToLibraryModuleId(module);
+    const auto import_info = ParseLibraryImportPath(ToImportPath(module));
+    if (!import_info || import_info->root != LibraryRoot::System || import_info->module_index != id.module_index) return false;
+    const auto canonical = ParseCanonicalLibraryModule(ToCanonicalName(module));
+    if (!canonical || !(*canonical == id)) return false;
+    for (std::string_view member : MemberNames(module)) {
+      const auto parsed = ParseMember(module, member);
+      if (!parsed) return false;
+      const std::string_view emitted = std::visit([](auto value) { return ToMember(value); }, *parsed);
+      if (emitted != member) return false;
+    }
+  }
+  for (StandardModule module : kStandardModules) {
+    const auto id = ToLibraryModuleId(module);
+    const auto import_info = ParseLibraryImportPath(ToImportPath(module));
+    if (!import_info || import_info->root != LibraryRoot::Standard || import_info->module_index != id.module_index) return false;
+    const auto canonical = ParseCanonicalLibraryModule(ToCanonicalName(module));
+    if (!canonical || !(*canonical == id)) return false;
+    for (std::string_view member : MemberNames(module)) {
+      const auto parsed = ParseMember(module, member);
+      if (!parsed) return false;
+      const std::string_view emitted = std::visit([](auto value) { return ToMember(value); }, *parsed);
+      if (emitted != member) return false;
+    }
+  }
   if (!ParseLibraryImportPath("System.Buffer")) return false;
   if (!ParseLibraryImportPath("Standard.Buffer")) return false;
   if (ParseLibraryImportPath("Buffer")) return false;
