@@ -146,16 +146,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
 }
 
 std::string NormalizeDlMemberName(const std::string& name) {
-  if (name == "Open") return "open";
-  if (name == "Sym") return "sym";
-  if (name == "Close") return "close";
-  if (name == "LastError") return "last_error";
-  if (name == "CallI32") return "call_i32";
-  if (name == "CallI64") return "call_i64";
-  if (name == "CallF32") return "call_f32";
-  if (name == "CallF64") return "call_f64";
-  if (name == "CallStr0") return "call_str0";
-  return name;
+  return NormalizeSystemFFIMemberName(name);
 }
 
 bool GetModuleNameFromExpr(const Simple::Lang::AST::Expr& base, std::string* out) {

@@ -1181,16 +1181,7 @@ std::unordered_map<std::string, std::string> CollectImportAliasMap(const std::st
 }
 
 std::string NormalizeCoreDlMember(const std::string& member) {
-  if (member == "Open") return "open";
-  if (member == "Sym") return "sym";
-  if (member == "Close") return "close";
-  if (member == "LastError") return "last_error";
-  if (member == "CallI32") return "call_i32";
-  if (member == "CallI64") return "call_i64";
-  if (member == "CallF32") return "call_f32";
-  if (member == "CallF64") return "call_f64";
-  if (member == "CallStr0") return "call_str0";
-  return member;
+  return Simple::Lang::NormalizeSystemFFIMemberName(member);
 }
 
 bool ResolveReservedModuleSignature(const std::string& call_name,

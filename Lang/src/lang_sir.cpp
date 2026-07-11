@@ -343,16 +343,7 @@ TypeRef MakeTypeRef(const char* name) {
 }
 
 std::string NormalizeCoreDlMember(const std::string& name) {
-  if (name == "Open") return "open";
-  if (name == "Sym") return "sym";
-  if (name == "Close") return "close";
-  if (name == "LastError") return "last_error";
-  if (name == "CallI32") return "call_i32";
-  if (name == "CallI64") return "call_i64";
-  if (name == "CallF32") return "call_f32";
-  if (name == "CallF64") return "call_f64";
-  if (name == "CallStr0") return "call_str0";
-  return name;
+  return NormalizeSystemFFIMemberName(name);
 }
 
 std::string ResolveImportModule(const std::string& module) {
@@ -1794,7 +1785,7 @@ bool InferExprType(const Expr& expr,
           }
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
-          const bool ext_is_System_dl =
+          const bool ext_is_system_ffi =
               (ParseCanonicalLibraryModule(module_name) &&
                IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
               (has_reserved_module && IsLibraryModule(reserved_module_id, SystemModule::FFI));
@@ -1806,7 +1797,7 @@ bool InferExprType(const Expr& expr,
           }
           if (ext_mod_it != st.extern_returns_by_module.end()) {
             const std::string member_name =
-                ext_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
             auto ext_it = ext_mod_it->second.find(member_name);
             if (ext_it != ext_mod_it->second.end()) {
               return CloneTypeRef(ext_it->second, out);
@@ -1814,12 +1805,12 @@ bool InferExprType(const Expr& expr,
           }
           LibraryModuleId resolved_module_id{};
           const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
-          const bool module_is_System_dl =
+          const bool module_is_system_ffi =
               (ParseCanonicalLibraryModule(module_name) &&
                IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
               (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
           const std::string member_name =
-              module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -3423,12 +3414,12 @@ bool EmitExpr(EmitState& st,
         if (GetModuleNameFromExpr(base, &module_name)) {
           LibraryModuleId resolved_module_id{};
           const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
-          const bool module_is_System_dl =
+          const bool module_is_system_ffi =
               (ParseCanonicalLibraryModule(module_name) &&
                IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
               (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
           const std::string member_name =
-              module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+              module_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
           auto module_it = st.module_func_names.find(key);
           if (module_it != st.module_func_names.end()) {
@@ -3469,7 +3460,7 @@ bool EmitExpr(EmitState& st,
               ResolveReservedModuleId(st, module_name, &resolved_module_id_for_ext);
           std::string resolved_module_name_for_ext;
           if (has_resolved_module_for_ext) resolved_module_name_for_ext = std::string(ToCanonicalName(resolved_module_id_for_ext));
-          bool ext_is_System_dl =
+          bool ext_is_system_ffi =
               (ParseCanonicalLibraryModule(ext_module_name) &&
                IsCanonicalLibraryModule(ext_module_name, SystemModule::FFI)) ||
               (has_resolved_module_for_ext && IsLibraryModule(resolved_module_id_for_ext, SystemModule::FFI));
@@ -3482,7 +3473,7 @@ bool EmitExpr(EmitState& st,
           }
           if (ext_mod_it != st.extern_ids_by_module.end()) {
             const std::string extern_member_name =
-                ext_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
+                ext_is_system_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
             const std::string ext_key = ext_module_name + "." + extern_member_name;
             auto id_it = ext_mod_it->second.find(extern_member_name);
             if (id_it != ext_mod_it->second.end()) {

@@ -1447,11 +1447,11 @@ bool CheckCallTarget(const Expr& callee,
           CallTargetInfo info;
           if (GetReservedModuleCallTarget(ctx, module_name, callee.text, &info)) {
             LibraryModuleId resolved_module{};
-            const bool is_System_dl_open =
+            const bool is_system_ffi_open =
                 ResolveReservedModuleId(ctx, module_name, &resolved_module) &&
                 IsLibraryModule(resolved_module, SystemModule::FFI) &&
                 ParseMember(SystemModule::FFI, NormalizeDlMemberName(callee.text)) == SystemMember(SystemFFIMember::Open);
-            if (!is_System_dl_open && info.params.size() != arg_count) {
+            if (!is_system_ffi_open && info.params.size() != arg_count) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
                          ": expected " + std::to_string(info.params.size()) +
@@ -1459,7 +1459,7 @@ bool CheckCallTarget(const Expr& callee,
               }
               return false;
             }
-            if (is_System_dl_open && arg_count != 1 && arg_count != 2) {
+            if (is_system_ffi_open && arg_count != 1 && arg_count != 2) {
               if (error) {
                 *error = "call argument count mismatch for " + module_name + "." + callee.text +
                          ": expected 1 or 2, got " + std::to_string(arg_count);

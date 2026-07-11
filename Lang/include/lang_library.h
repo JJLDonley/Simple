@@ -1619,6 +1619,20 @@ inline bool IsSystemBufferMember(std::string_view member) {
   return false;
 }
 
+inline std::string NormalizeSystemFFIMemberName(std::string_view member) {
+  if (ParseMember(SystemModule::FFI, member)) return std::string(member);
+  if (member == "Open") return std::string(ToMember(SystemFFIMember::Open));
+  if (member == "Sym") return std::string(ToMember(SystemFFIMember::Sym));
+  if (member == "Close") return std::string(ToMember(SystemFFIMember::Close));
+  if (member == "LastError") return std::string(ToMember(SystemFFIMember::LastErrorSnake));
+  if (member == "CallI32") return std::string(ToMember(SystemFFIMember::CallI32));
+  if (member == "CallI64") return std::string(ToMember(SystemFFIMember::CallI64));
+  if (member == "CallF32") return std::string(ToMember(SystemFFIMember::CallF32));
+  if (member == "CallF64") return std::string(ToMember(SystemFFIMember::CallF64));
+  if (member == "CallStr0") return std::string(ToMember(SystemFFIMember::CallStr0));
+  return std::string(member);
+}
+
 inline bool EqualsStaleLowercaseRuntimeModule(std::string_view stale,
                                              std::string_view canonical) {
   constexpr std::string_view prefix = "System.";
