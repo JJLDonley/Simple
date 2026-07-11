@@ -321,13 +321,13 @@ int main(int argc, char** argv) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <module.sbc> [-jit|-int] [--jit-stats] [--no-verify]\n"
-                << "  " << tool_name << " <module.sbc> [-jit|-int] [--jit-stats] [--no-verify]\n";
+                << "  " << tool_name << " run <module.sbc> [-int|--interpreter] [--jit-stats] [--no-verify]\n"
+                << "  " << tool_name << " <module.sbc> [-int|--interpreter] [--jit-stats] [--no-verify]\n";
     } else if (compiler_frontend) {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
                 << "  " << tool_name << " help\n"
-                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [-jit|-int] [--jit-stats] [--no-verify]\n"
+                << "  " << tool_name << " run <module.sbc|file.sir|file.simple> [-int|--interpreter] [--jit-stats] [--no-verify]\n"
                 << "  " << tool_name
                 << " build <file.simple|file.sir> [--out <file.exe|file.sbc>] [-d|--dynamic|-s|--static] [--no-verify]\n"
                 << "  " << tool_name
@@ -336,7 +336,7 @@ int main(int argc, char** argv) {
                 << "  " << tool_name << " emit -sbc <file.sir|file.simple> [--out <file.sbc>] [--no-verify]\n"
                 << "  " << tool_name << " check <file.sbc|file.sir|file.simple>\n"
                 << "  " << tool_name << " lsp\n"
-                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [-jit|-int] [--jit-stats] [--no-verify]\n";
+                << "  " << tool_name << " <module.sbc|file.sir|file.simple> [-int|--interpreter] [--jit-stats] [--no-verify]\n";
     } else {
       std::cerr << "  " << tool_name << " --version | -v\n"
                 << "  " << tool_name << " --help | -h\n"
@@ -368,8 +368,8 @@ int main(int argc, char** argv) {
   const bool is_command = Simple::CLI::IsKnownCommand(cmd);
   std::string path = ResolveImplicitSimplePath(is_command ? (argc > 2 ? argv[2] : "") : cmd);
   bool verify = true;
-  bool use_jit = false;
-  bool force_interpreter = true;
+  bool use_jit = true;
+  bool force_interpreter = false;
   bool build_exe = false;
   bool build_static = false;
   bool print_jit_stats = false;
