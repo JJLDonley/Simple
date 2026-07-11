@@ -11,7 +11,13 @@
 #include <utility>
 
 #if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
+#ifdef Yield
+#undef Yield
+#endif
 #else
 #include <unistd.h>
 #endif
@@ -244,7 +250,7 @@ NativeCallResult ThreadSleep(NativeCallContext& context) {
 }
 
 NativeCallResult ThreadYield(NativeCallContext&) {
-  Thread::Yield();
+  (Thread::Yield)();
   return NativeCallResult::Void();
 }
 

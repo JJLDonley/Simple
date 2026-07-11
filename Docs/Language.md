@@ -1,8 +1,8 @@
 # Simple Language Reference
 
-Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.
+Simple: identity-first, strictly typed — scripted in minutes, portable everywhere.
 
-It compiles `.simple` source to SIR text and then to SBC bytecode for the Simple VM.
+It compiles `.simple` source to SIR text and then to portable SBC bytecode for the Simple VM, with JIT, GC, canonical System and Standard libraries, and explicit FFI.
 
 This page is the canonical language reference for the syntax and behavior covered by the current parser, validator, fixtures, and tests.
 

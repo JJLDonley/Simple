@@ -84,8 +84,8 @@ int32_t Pending(Registry<T>& registry, int64_t handle) {
   if (!state) return 0;
   std::lock_guard<std::mutex> lock(state->mutex);
   const size_t count = state->values.size();
-  return count > static_cast<size_t>(std::numeric_limits<int32_t>::max())
-             ? std::numeric_limits<int32_t>::max()
+  return count > static_cast<size_t>((std::numeric_limits<int32_t>::max)())
+             ? (std::numeric_limits<int32_t>::max)()
              : static_cast<int32_t>(count);
 }
 

@@ -13,9 +13,9 @@
   <a href="https://github.com/JJLDonley/Simple/releases">Releases</a>
 </p>
 
-Simple: a high-level, statically typed language. Identity-first paradigm, built on Standard and System libraries.
+Simple: identity-first, strictly typed — scripted in minutes, portable everywhere.
 
-It compiles `.simple` source to SIR, then SBC bytecode, then runs on the Simple VM.
+It compiles `.simple` source to portable SBC bytecode for the Simple VM, with JIT, GC, canonical System and Standard libraries, and explicit FFI.
 
 The project includes the language front-end, resolver, type checker, SIR/IR lowering, SBC loader/verifier, interpreter runtime, native modules, CLI, LSP server, and JIT scaffolding.
 
@@ -41,7 +41,7 @@ The project includes the language front-end, resolver, type checker, SIR/IR lowe
 
 ## Why Simple
 
-Simple came about from wanting a high-level, statically typed language with an identity-first paradigm, built on Standard and System libraries.
+Simple came about from wanting an identity-first, strictly typed language that scripts quickly and ships as portable VM bytecode.
 
 Simple keeps data, functions, namespaces, artifacts, modules, and native APIs as direct language tools. Use the shape that fits the program.
 
