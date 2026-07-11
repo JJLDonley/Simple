@@ -2409,8 +2409,16 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   const auto parsed_standard_member = ParseMember(StandardModule::Bytes, "toBase64");
   if (!parsed_standard_member || !std::holds_alternative<StandardBytesMember>(*parsed_standard_member) ||
       std::get<StandardBytesMember>(*parsed_standard_member) != StandardBytesMember::ToBase64) return false;
+  if (ParseMember(SystemModule::Channel, "tryRecvBytes") == std::nullopt) return false;
+  if (ParseMember(StandardModule::HTTP, "serve") == std::nullopt) return false;
   if (ParseMember(StandardModule::Bytes, "definitelyMissing")) return false;
   if (ParseLibrarySymbol("StandardBytes", "definitelyMissing")) return false;
+  const auto implemented_meta = GetLibraryMemberMetadata(ToLibraryModuleId(SystemModule::Buffer), "readU32LE");
+  if (implemented_meta.availability != LibraryApiAvailability::Implemented ||
+      implemented_meta.level != LibraryApiLevel::LowLevelSystem) return false;
+  const auto planned_meta = GetLibraryMemberMetadata(ToLibraryModuleId(StandardModule::Bytes), "toBase64");
+  if (planned_meta.availability != LibraryApiAvailability::Planned ||
+      planned_meta.level != LibraryApiLevel::HighLevelStandard) return false;
   if (!ParseLibraryImportPath("System.Buffer")) return false;
   if (!ParseLibraryImportPath("Standard.Buffer")) return false;
   if (ParseLibraryImportPath("Buffer")) return false;

@@ -1244,6 +1244,156 @@ inline std::optional<StandardMember> ParseMember(StandardModule module, std::str
   return std::nullopt;
 }
 
+
+enum class LibraryApiAvailability {
+  Planned,
+  Implemented,
+};
+
+enum class LibraryApiLevel {
+  LowLevelSystem,
+  HighLevelStandard,
+};
+
+enum class LibraryApiBacking {
+  Native,
+  Source,
+  CompilerIntrinsic,
+  Planned,
+};
+
+struct LibraryMemberMetadata {
+  LibrarySymbol symbol;
+  LibraryApiAvailability availability = LibraryApiAvailability::Planned;
+  LibraryApiLevel level = LibraryApiLevel::LowLevelSystem;
+  LibraryApiBacking backing = LibraryApiBacking::Planned;
+  std::string_view summary;
+};
+
+inline bool IsImplementedSystemMember(SystemModule module, std::string_view member) {
+  const auto parsed = ParseMember(module, member);
+  if (!parsed) return false;
+  switch (module) {
+    case SystemModule::IO:
+      return std::holds_alternative<SystemIOMember>(*parsed) &&
+             (std::get<SystemIOMember>(*parsed) == SystemIOMember::BufferNew ||
+              std::get<SystemIOMember>(*parsed) == SystemIOMember::BufferLen ||
+              std::get<SystemIOMember>(*parsed) == SystemIOMember::BufferFill ||
+              std::get<SystemIOMember>(*parsed) == SystemIOMember::BufferCopy);
+    case SystemModule::FS:
+      return std::holds_alternative<SystemFSMember>(*parsed) &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::Flush &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::Seek &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::Tell &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::Stat &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::NextDirEntry &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::CloseDir &&
+             std::get<SystemFSMember>(*parsed) != SystemFSMember::Rename;
+    case SystemModule::Path:
+      return std::holds_alternative<SystemPathMember>(*parsed) &&
+             std::get<SystemPathMember>(*parsed) != SystemPathMember::Absolute &&
+             std::get<SystemPathMember>(*parsed) != SystemPathMember::Relative;
+    case SystemModule::Env:
+    case SystemModule::OS:
+      return true;
+    case SystemModule::Time:
+      return std::holds_alternative<SystemTimeMember>(*parsed) &&
+             (std::get<SystemTimeMember>(*parsed) == SystemTimeMember::MonoSnake ||
+              std::get<SystemTimeMember>(*parsed) == SystemTimeMember::WallSnake);
+    case SystemModule::FFI:
+      return true;
+    case SystemModule::ASM:
+      return false;
+    case SystemModule::Buffer:
+    case SystemModule::Bytes:
+      return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
+             member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
+    case SystemModule::Json:
+      return member == "parse" || member == "stringify" || member == "free";
+    case SystemModule::Log:
+      return member == "log" || member == "setLevel" || member == "setFile" || member == "flush";
+    case SystemModule::Random:
+      return member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes";
+    case SystemModule::Thread:
+      return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
+    case SystemModule::Channel:
+      return true;
+    case SystemModule::Job:
+    case SystemModule::Process:
+    case SystemModule::Net:
+    case SystemModule::HTTP:
+    case SystemModule::Terminal:
+    case SystemModule::Capability:
+    case SystemModule::Runtime:
+    case SystemModule::Debug:
+      return false;
+  }
+  return false;
+}
+
+inline bool IsImplementedStandardMember(StandardModule module, std::string_view member) {
+  const auto parsed = ParseMember(module, member);
+  if (!parsed) return false;
+  switch (module) {
+    case StandardModule::IO:
+      return member == "print" || member == "println";
+    case StandardModule::FS:
+      return member == "readText" || member == "writeText" || member == "readBytes" ||
+             member == "writeBytes" || member == "exists" || member == "isFile" || member == "isDir" ||
+             member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
+             member == "listDir" || member == "cwd" || member == "setCwd";
+    case StandardModule::Path:
+      return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
+             member == "stem" || member == "normalize";
+    case StandardModule::Bytes:
+      return member == "new" || member == "slice";
+    case StandardModule::Math:
+      return member == "abs" || member == "min" || member == "max" || member == "sqrt" || member == "PI";
+    case StandardModule::Random:
+      return member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64";
+    case StandardModule::Time:
+      return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
+    case StandardModule::Log:
+      return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
+    case StandardModule::Console:
+    case StandardModule::Buffer:
+    case StandardModule::Text:
+    case StandardModule::Json:
+    case StandardModule::Process:
+    case StandardModule::Net:
+    case StandardModule::HTTP:
+    case StandardModule::HTTPS:
+    case StandardModule::Terminal:
+    case StandardModule::Promise:
+    case StandardModule::Channel:
+    case StandardModule::Collections:
+    case StandardModule::Result:
+    case StandardModule::Option:
+      return false;
+  }
+  return false;
+}
+
+inline bool IsImplementedLibraryMember(LibraryModuleId module, std::string_view member) {
+  return module.root == LibraryRoot::System
+             ? IsImplementedSystemMember(static_cast<SystemModule>(module.module_index), member)
+             : IsImplementedStandardMember(static_cast<StandardModule>(module.module_index), member);
+}
+
+inline LibraryMemberMetadata GetLibraryMemberMetadata(LibraryModuleId module, std::string_view member) {
+  LibraryMemberMetadata metadata;
+  metadata.symbol = LibrarySymbol{module, 0xffffu, member};
+  metadata.availability = IsImplementedLibraryMember(module, member)
+                              ? LibraryApiAvailability::Implemented
+                              : LibraryApiAvailability::Planned;
+  metadata.level = module.root == LibraryRoot::System ? LibraryApiLevel::LowLevelSystem
+                                                       : LibraryApiLevel::HighLevelStandard;
+  metadata.backing = module.root == LibraryRoot::System ? LibraryApiBacking::Native
+                                                         : LibraryApiBacking::Source;
+  metadata.summary = member;
+  return metadata;
+}
+
 inline std::optional<LibrarySymbol> ParseLibraryMember(LibraryModuleId module,
                                                        std::string_view member) {
   const auto names = MemberNames(module);
