@@ -3046,6 +3046,40 @@ void ReplyDocumentHighlight(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+void ReplyLinkedEditingRange(std::ostream& out,
+                             const std::string& id_raw,
+                             const std::string& uri,
+                             uint32_t line,
+                             uint32_t character,
+                             const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  const TokenRef* target = FindIdentifierAt(refs, line, character);
+  if (!target || IsProtectedReservedMemberToken(refs, target->index, doc_it->second)) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  std::string ranges;
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.token.text != target->token.text) continue;
+    if (IsProtectedReservedMemberToken(refs, ref.index, doc_it->second)) continue;
+    if (!ranges.empty()) ranges += ",";
+    ranges += TokenRangeJson(ref.token);
+  }
+  if (ranges.empty()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
+    return;
+  }
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw +
+                           ",\"result\":{\"ranges\":[" + ranges +
+                           "],\"wordPattern\":\"[A-Za-z_][A-Za-z0-9_]*\"}}");
+}
+
 uint32_t SymbolKindFor(const std::vector<TokenRef>& refs, size_t i) {
   using TK = Simple::Lang::TokenKind;
   if (i > 0 && refs[i - 1].token.kind == TK::KwFn) return 12;
@@ -3688,6 +3722,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"workspaceSymbolProvider\":true,"
                 "\"documentLinkProvider\":{\"resolveProvider\":false},"
                 "\"foldingRangeProvider\":true,\"selectionRangeProvider\":true,"
+                "\"linkedEditingRangeProvider\":true,"
                 "\"callHierarchyProvider\":true,"
                 "\"codeLensProvider\":{\"resolveProvider\":false},"
                 "\"renameProvider\":{\"prepareProvider\":true},"
@@ -3956,6 +3991,22 @@ int RunServer(std::istream& in, std::ostream& out) {
           ReplyDocumentHighlight(out, id_raw, uri, line, character, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/linkedEditingRange") {
+      if (has_id) {
+        std::string uri;
+        uint32_t line = 0;
+        uint32_t character = 0;
+        if (ExtractJsonStringField(body, "uri", &uri) &&
+            ExtractJsonUintField(body, "line", &line) &&
+            ExtractJsonUintField(body, "character", &character)) {
+          ReplyLinkedEditingRange(out, id_raw, uri, line, character, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":null}");
         }
       }
       continue;

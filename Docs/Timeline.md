@@ -860,7 +860,7 @@ Next Simple-specific LSP capabilities:
 - [ ] Full and range formatting backed by a Simple formatter for `.simple` source.
 - [x] Type-definition lookup for artifact/enum type declarations and typed variable usages.
 - [ ] Type-definition lookup for generic/handle/native ABI type uses.
-- [ ] Linked editing ranges for paired declarations/usages where Simple syntax has paired names.
+- [x] Linked editing ranges for same-document Simple identifier declarations/usages.
 - [x] Call hierarchy prepare/incoming/outgoing for Simple top-level functions across opened documents.
 - [ ] Call hierarchy for methods, imports, and native wrappers.
 - [x] Folding ranges for brace-delimited Simple regions.

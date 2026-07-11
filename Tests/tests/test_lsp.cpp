@@ -3169,6 +3169,7 @@ bool LspInitializeAdvertisesModernNavigationProviders() {
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() &&
          out_contents.find("\"typeDefinitionProvider\":true") != std::string::npos &&
+         out_contents.find("\"linkedEditingRangeProvider\":true") != std::string::npos &&
          out_contents.find("\"callHierarchyProvider\":true") != std::string::npos &&
          out_contents.find("\"codeLensProvider\":{\"resolveProvider\":false}") != std::string::npos &&
          out_contents.find("\"documentLinkProvider\":{\"resolveProvider\":false}") != std::string::npos &&
@@ -3244,6 +3245,27 @@ bool LspDocumentLinkResolvesLocalImports() {
   return ran && err_contents.empty() && out_contents.find("\"id\":43") != std::string::npos &&
          out_contents.find("\"target\":\"file://") != std::string::npos &&
          out_contents.find("dep.simple") != std::string::npos;
+}
+
+bool LspLinkedEditingRangeReturnsIdentifierRanges() {
+  const std::string in_path = TempPath("simple_lsp_linked_editing_in.txt");
+  const std::string out_path = TempPath("simple_lsp_linked_editing_out.txt");
+  const std::string err_path = TempPath("simple_lsp_linked_editing_err.txt");
+  const std::string uri = "file:///workspace/linked.simple";
+  const std::string text = "main : i32 () {\\n  value : i32 = 1;\\n  return value;\\n}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string linked_req = "{\"jsonrpc\":\"2.0\",\"id\":49,\"method\":\"textDocument/linkedEditingRange\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":3}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(linked_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":49") != std::string::npos &&
+         out_contents.find("\"ranges\":[") != std::string::npos &&
+         out_contents.find("\"wordPattern\":\"[A-Za-z_][A-Za-z0-9_]*\"") != std::string::npos &&
+         out_contents.find("\"character\":2") != std::string::npos &&
+         out_contents.find("\"character\":9") != std::string::npos;
 }
 
 bool LspCallHierarchyReturnsFunctionCalls() {
@@ -3474,6 +3496,7 @@ const TestCase kLspTests[] = {
   {"lsp_folding_range_returns_brace_regions", LspFoldingRangeReturnsBraceRegions},
   {"lsp_selection_range_returns_nested_ranges", LspSelectionRangeReturnsNestedRanges},
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
+  {"lsp_linked_editing_range_returns_identifier_ranges", LspLinkedEditingRangeReturnsIdentifierRanges},
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
   {"lsp_code_lens_returns_simple_commands", LspCodeLensReturnsSimpleCommands},
   {"lsp_cancel_request_suppresses_response", LspCancelRequestSuppressesResponse},
