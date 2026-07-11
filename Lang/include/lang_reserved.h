@@ -1,8 +1,9 @@
 #pragma once
 
 #include <cctype>
-#include <array>
 #include <string>
+
+#include "lang_library.h"
 
 namespace Simple::Lang {
 
@@ -13,64 +14,10 @@ inline std::string LowerAscii(std::string text) {
 
 inline bool CanonicalizeReservedImportPath(const std::string& path, std::string* out) {
   if (!out) return false;
-  struct ReservedImportEntry {
-    const char* name;
-    const char* canonical;
-  };
-  static constexpr std::array<ReservedImportEntry, 45> kReserved = {{
-      {"System.IO", "SystemIO"},
-      {"System.FS", "FS"},
-      {"System.Path", "Path"},
-      {"System.Env", "Env"},
-      {"System.OS", "OS"},
-      {"System.Time", "Time"},
-      {"System.FFI", "DL"},
-      {"System.ASM", "SystemASM"},
-      {"System.Buffer", "SystemBuffer"},
-      {"System.Bytes", "SystemBytes"},
-      {"System.Json", "SystemJson"},
-      {"System.Log", "SystemLog"},
-      {"System.Random", "SystemRandom"},
-      {"System.Thread", "Thread"},
-      {"System.Job", "SystemJob"},
-      {"System.Channel", "Channel"},
-      {"System.Process", "SystemProcess"},
-      {"System.Net", "SystemNet"},
-      {"System.HTTP", "SystemHTTP"},
-      {"System.Terminal", "SystemTerminal"},
-      {"System.Capability", "SystemCapability"},
-      {"System.Runtime", "SystemRuntime"},
-      {"System.Debug", "SystemDebug"},
-      {"Standard.IO", "StandardIO"},
-      {"Standard.Console", "StandardConsole"},
-      {"Standard.FS", "StandardFS"},
-      {"Standard.Path", "StandardPath"},
-      {"Standard.Buffer", "StandardBuffer"},
-      {"Standard.Bytes", "StandardBytes"},
-      {"Standard.Text", "StandardText"},
-      {"Standard.Json", "StandardJson"},
-      {"Standard.Math", "Math"},
-      {"Standard.Random", "StandardRandom"},
-      {"Standard.Time", "StandardTime"},
-      {"Standard.Log", "StandardLog"},
-      {"Standard.Process", "StandardProcess"},
-      {"Standard.Net", "StandardNet"},
-      {"Standard.HTTP", "StandardHTTP"},
-      {"Standard.HTTPS", "StandardHTTPS"},
-      {"Standard.Terminal", "StandardTerminal"},
-      {"Standard.Promise", "StandardPromise"},
-      {"Standard.Channel", "StandardChannel"},
-      {"Standard.Collections", "StandardCollections"},
-      {"Standard.Result", "StandardResult"},
-      {"Standard.Option", "StandardOption"},
-  }};
-  for (const auto& entry : kReserved) {
-    if (path == entry.name) {
-      *out = entry.canonical;
-      return true;
-    }
-  }
-  return false;
+  const auto info = ParseLibraryImportPath(path);
+  if (!info) return false;
+  *out = std::string(info->canonical_name);
+  return true;
 }
 
 inline bool IsReservedImportPath(const std::string& path) {
@@ -80,24 +27,9 @@ inline bool IsReservedImportPath(const std::string& path) {
 
 inline bool LegacyReservedImportReplacement(const std::string& path, std::string* out) {
   if (!out) return false;
-  if (path == "IO") *out = "Standard.IO";
-  else if (path == "Math") *out = "Standard.Math";
-  else if (path == "Time") *out = "System.Time or Standard.Time";
-  else if (path == "DL") *out = "System.FFI";
-  else if (path == "OS") *out = "System.OS";
-  else if (path == "File") *out = "System.FS";
-  else if (path == "FS") *out = "Standard.FS or System.FS";
-  else if (path == "Path") *out = "Standard.Path or System.Path";
-  else if (path == "Env") *out = "System.Env";
-  else if (path == "Random") *out = "Standard.Random or System.Random";
-  else if (path == "Buffer") *out = "System.Buffer, Standard.Buffer, System.Bytes, or Standard.Bytes";
-  else if (path == "Json") *out = "System.Json or Standard.Json";
-  else if (path == "Log") *out = "Standard.Log or System.Log";
-  else if (path == "Thread") *out = "System.Thread";
-  else if (path == "Channel") *out = "System.Channel";
-  else if (path == "Http") *out = "Standard.HTTP or System.HTTP";
-  else if (path == "Socket") *out = "Standard.Net or System.Net";
-  else return false;
+  const auto replacement = LegacyReservedImportReplacementView(path);
+  if (!replacement) return false;
+  *out = std::string(*replacement);
   return true;
 }
 

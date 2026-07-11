@@ -28,8 +28,8 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "Path") *out = "System.path";
   else if (canonical_module == "FS") *out = "System.fs";
   else if (canonical_module == "SystemJson") *out = "System.json";
-  else if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes" ||
-           canonical_module == "StandardBytes") *out = "System.buffer";
+  else if (IsSystemBufferLikeCanonical(canonical_module) ||
+           canonical_module == ToCanonicalName(StandardModule::Bytes)) *out = std::string(ToNativeModule(SystemModule::Buffer));
   else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
   else return false;
   return true;
@@ -107,11 +107,13 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
   }
   if (canonical_module == "File") return {"open", "close", "read", "write"};
   if (canonical_module == "SystemJson") return {"parse", "stringify", "free"};
-  if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes") {
-    return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
+  if (IsSystemBufferLikeCanonical(canonical_module)) {
+    const auto names = SystemBufferMemberNames();
+    for (std::string_view name : names) out.emplace_back(name);
+    return out;
   }
-  if (canonical_module == "StandardBuffer") return {};
-  if (canonical_module == "StandardBytes") return {"new", "slice"};
+  if (canonical_module == ToCanonicalName(StandardModule::Buffer)) return {};
+  if (canonical_module == ToCanonicalName(StandardModule::Bytes)) return {"new", "slice"};
   if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile", "flush"};
   if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
   return out;
@@ -228,12 +230,9 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
   if (canonical_module == "SystemJson") return member == "parse" || member == "stringify" || member == "free";
-  if (canonical_module == "SystemBuffer" || canonical_module == "SystemBytes") {
-    return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
-           member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
-  }
-  if (canonical_module == "StandardBuffer") return false;
-  if (canonical_module == "StandardBytes") return member == "new" || member == "slice";
+  if (IsSystemBufferLikeCanonical(canonical_module)) return IsSystemBufferMember(member);
+  if (canonical_module == ToCanonicalName(StandardModule::Buffer)) return false;
+  if (canonical_module == ToCanonicalName(StandardModule::Bytes)) return member == "new" || member == "slice";
   return false;
 }
 

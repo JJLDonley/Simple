@@ -1001,16 +1001,10 @@ bool ImportPrefixAtPosition(const std::string& text,
 
 std::vector<std::string> CollectImportCandidates(
     const std::unordered_map<std::string, std::string>& open_docs) {
-  static const std::vector<std::string> kReservedImports = {
-      "System.IO", "System.FS", "System.Path", "System.Env", "System.OS", "System.Time", "System.FFI",
-      "System.ASM", "System.Buffer", "System.Bytes", "System.Json", "System.Log", "System.Random",
-      "System.Thread", "System.Job", "System.Channel", "System.Process", "System.Net", "System.HTTP",
-      "System.Terminal", "System.Capability", "System.Runtime", "System.Debug", "Standard.IO",
-      "Standard.Console", "Standard.FS", "Standard.Path", "Standard.Buffer", "Standard.Bytes", "Standard.Text", "Standard.Json",
-      "Standard.Math", "Standard.Random", "Standard.Time", "Standard.Log", "Standard.Process", "Standard.Net",
-      "Standard.HTTP", "Standard.HTTPS", "Standard.Terminal", "Standard.Promise", "Standard.Channel",
-      "Standard.Collections", "Standard.Result", "Standard.Option"};
-  std::vector<std::string> labels = kReservedImports;
+  std::vector<std::string> labels;
+  for (std::string_view import_path : Simple::Lang::AllLibraryImportPaths()) {
+    labels.emplace_back(import_path);
+  }
   std::unordered_set<std::string> seen(labels.begin(), labels.end());
   for (const auto& [uri, _] : open_docs) {
     constexpr const char* kSuffix = ".simple";

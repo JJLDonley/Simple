@@ -788,10 +788,9 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "SystemBuffer" || resolved == "SystemBytes" ||
-      resolved == "StandardBuffer" || resolved == "StandardBytes") {
-    if (resolved == "StandardBuffer") return false;
-    const bool low_level_buffer = resolved == "SystemBuffer" || resolved == "SystemBytes";
+  if (IsSystemBufferLikeCanonical(resolved) || IsStandardBufferLikeCanonical(resolved)) {
+    if (resolved == ToCanonicalName(StandardModule::Buffer)) return false;
+    const bool low_level_buffer = IsSystemBufferLikeCanonical(resolved);
     if (member == "new") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeListType("i32");

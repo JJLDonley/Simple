@@ -465,10 +465,8 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (((module == "SystemBuffer" || module == "SystemBytes") &&
-                (member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
-                 member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy")) ||
-               (module == "StandardBytes" && (member == "new" || member == "slice"))) {
+    } else if ((IsSystemBufferLikeCanonical(module) && IsSystemBufferMember(member)) ||
+               (module == ToCanonicalName(StandardModule::Bytes) && (member == "new" || member == "slice"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -5283,7 +5281,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     else if (reserved == "Path") *out = "System.path";
     else if (reserved == "FS") *out = "System.fs";
     else if (reserved == "SystemJson") *out = "System.json";
-    else if (reserved == "SystemBuffer" || reserved == "SystemBytes" || reserved == "StandardBuffer" || reserved == "StandardBytes") *out = "System.buffer";
+    else if (IsSystemBufferLikeCanonical(reserved) || IsStandardBufferLikeCanonical(reserved)) *out = std::string(ToNativeModule(SystemModule::Buffer));
     else if (reserved == "SystemLog" || reserved == "StandardLog") *out = "System.log";
     else return false;
     return true;
@@ -5690,9 +5688,12 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (st.reserved_imports.find("SystemBuffer") != st.reserved_imports.end() && !add_bytes_imports("SystemBuffer", true)) return false;
-  if (st.reserved_imports.find("SystemBytes") != st.reserved_imports.end() && !add_bytes_imports("SystemBytes", true)) return false;
-  if (st.reserved_imports.find("StandardBytes") != st.reserved_imports.end() && !add_bytes_imports("StandardBytes", false)) return false;
+  const std::string system_buffer_name(ToCanonicalName(SystemModule::Buffer));
+  const std::string system_bytes_name(ToCanonicalName(SystemModule::Bytes));
+  const std::string standard_bytes_name(ToCanonicalName(StandardModule::Bytes));
+  if (st.reserved_imports.find(system_buffer_name) != st.reserved_imports.end() && !add_bytes_imports(system_buffer_name, true)) return false;
+  if (st.reserved_imports.find(system_bytes_name) != st.reserved_imports.end() && !add_bytes_imports(system_bytes_name, true)) return false;
+  if (st.reserved_imports.find(standard_bytes_name) != st.reserved_imports.end() && !add_bytes_imports(standard_bytes_name, false)) return false;
 
   auto add_log_control_imports = [&](const std::string& alias) {
     std::vector<TypeRef> level_params;
