@@ -413,6 +413,29 @@ bool ResolveReservedModuleName(const EmitState& st,
   return true;
 }
 
+bool IsLibraryModule(LibraryModuleId id, SystemModule module) {
+  return id.root == LibraryRoot::System && static_cast<SystemModule>(id.module_index) == module;
+}
+
+bool IsLibraryModule(LibraryModuleId id, StandardModule module) {
+  return id.root == LibraryRoot::Standard && static_cast<StandardModule>(id.module_index) == module;
+}
+
+bool IsCanonicalLibraryModule(const std::string& canonical, SystemModule module) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && IsLibraryModule(*id, module);
+}
+
+bool IsCanonicalLibraryModule(const std::string& canonical, StandardModule module) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && IsLibraryModule(*id, module);
+}
+
+bool IsNativeReservedModule(const std::string& canonical) {
+  const auto id = ParseCanonicalLibraryModule(canonical);
+  return id && !ToNativeModule(*id).empty();
+}
+
 bool ResolveUsingReservedMember(const EmitState& st,
                                 const std::string& member,
                                 std::string* out_module) {
@@ -1583,19 +1606,21 @@ bool InferExprType(const Expr& expr,
       const Expr& base = expr.children[0];
       const bool is_ptr = (expr.op == "->");
       if (base.kind == ExprKind::Identifier) {
-        std::string resolved;
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "Math" && expr.text == "PI") {
+        LibraryModuleId resolved_id{};
+        if (ResolveReservedModuleId(st, base.text, &resolved_id) &&
+            IsLibraryModule(resolved_id, StandardModule::Math) &&
+            ParseMember(StandardModule::Math, expr.text) == StandardMember(StandardMathMember::PI)) {
           out->name = "f64";
           return true;
         }
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "DL" && expr.text == "supported") {
+        if (ResolveReservedModuleId(st, base.text, &resolved_id) &&
+            IsLibraryModule(resolved_id, SystemModule::FFI) &&
+            ParseMember(SystemModule::FFI, expr.text) == SystemMember(SystemFFIMember::Supported)) {
           out->name = "bool";
           return true;
         }
-        if (ResolveReservedModuleName(st, base.text, &resolved) &&
-            resolved == "OS" &&
+        if (ResolveReservedModuleId(st, base.text, &resolved_id) &&
+            IsLibraryModule(resolved_id, SystemModule::OS) &&
             (expr.text == "is_linux" || expr.text == "is_macos" ||
              expr.text == "is_windows" || expr.text == "has_dl")) {
           out->name = "bool";
@@ -1682,7 +1707,7 @@ bool InferExprType(const Expr& expr,
         }
         std::string using_module;
         if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
-          if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
+          if (IsCanonicalLibraryModule(using_module, StandardModule::IO) && IsIoPrintName(callee.text)) {
             out->name = "void";
             out->type_args.clear();
             out->dims.clear();
@@ -1691,13 +1716,15 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Math" &&
-              (callee.text == "abs" || callee.text == "min" || callee.text == "max" || callee.text == "sqrt") &&
+          if (IsCanonicalLibraryModule(using_module, StandardModule::Math) &&
+              ParseMember(StandardModule::Math, callee.text) &&
               !expr.args.empty()) {
             if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
             return true;
           }
-          if ((using_module == "Time" || using_module == "StandardTime") && (callee.text == "mono_ns" || callee.text == "wall_ns")) {
+          if ((IsCanonicalLibraryModule(using_module, SystemModule::Time) ||
+               IsCanonicalLibraryModule(using_module, StandardModule::Time)) &&
+              (callee.text == "mono_ns" || callee.text == "wall_ns")) {
             out->name = "i64";
             out->type_args.clear();
             out->dims.clear();
@@ -1706,7 +1733,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBuffer" || using_module == "SystemBytes" || using_module == "StandardBuffer" || using_module == "StandardBytes" || using_module == "SystemJson" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (IsNativeReservedModule(using_module)) {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -1747,19 +1774,23 @@ bool InferExprType(const Expr& expr,
         }
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name)) {
-          std::string reserved_module;
+          LibraryModuleId reserved_module_id{};
           const bool has_reserved_module =
-              ResolveReservedModuleName(st, module_name, &reserved_module);
+              ResolveReservedModuleId(st, module_name, &reserved_module_id);
+          std::string reserved_module;
+          if (has_reserved_module) reserved_module = std::string(ToCanonicalName(reserved_module_id));
           if (has_reserved_module) {
+            const bool reserved_is_ffi = IsLibraryModule(reserved_module_id, SystemModule::FFI);
             const std::string member_name =
-                (reserved_module == "DL") ? NormalizeCoreDlMember(callee.text) : callee.text;
-            if (reserved_module == "Math" &&
-                (member_name == "abs" || member_name == "min" || member_name == "max" || member_name == "sqrt") &&
+                reserved_is_ffi ? NormalizeCoreDlMember(callee.text) : callee.text;
+            if (IsLibraryModule(reserved_module_id, StandardModule::Math) &&
+                ParseMember(StandardModule::Math, member_name) &&
                 !expr.args.empty()) {
               if (!InferExprType(expr.args[0], st, out, nullptr)) return false;
               return true;
             }
-            if ((reserved_module == "Time" || reserved_module == "StandardTime") &&
+            if ((IsLibraryModule(reserved_module_id, SystemModule::Time) ||
+                 IsLibraryModule(reserved_module_id, StandardModule::Time)) &&
                 (member_name == "mono_ns" || member_name == "wall_ns")) {
               out->name = "i64";
               out->type_args.clear();
@@ -1773,7 +1804,9 @@ bool InferExprType(const Expr& expr,
           auto ext_mod_it = st.extern_returns_by_module.find(module_name);
           std::string ext_module_name = module_name;
           const bool ext_is_System_dl =
-              (module_name == "DL") || (has_reserved_module && reserved_module == "DL");
+              (ParseCanonicalLibraryModule(module_name) &&
+               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
+              (has_reserved_module && IsLibraryModule(reserved_module_id, SystemModule::FFI));
           if (ext_mod_it == st.extern_returns_by_module.end() && has_reserved_module) {
             ext_mod_it = st.extern_returns_by_module.find(reserved_module);
             if (ext_mod_it != st.extern_returns_by_module.end()) {
@@ -1788,11 +1821,12 @@ bool InferExprType(const Expr& expr,
               return CloneTypeRef(ext_it->second, out);
             }
           }
-          std::string resolved_module_name;
-          const bool module_is_reserved =
-              ResolveReservedModuleName(st, module_name, &resolved_module_name);
+          LibraryModuleId resolved_module_id{};
+          const bool module_is_reserved = ResolveReservedModuleId(st, module_name, &resolved_module_id);
           const bool module_is_System_dl =
-              module_name == "DL" || (module_is_reserved && resolved_module_name == "DL");
+              (ParseCanonicalLibraryModule(module_name) &&
+               IsCanonicalLibraryModule(module_name, SystemModule::FFI)) ||
+              (module_is_reserved && IsLibraryModule(resolved_module_id, SystemModule::FFI));
           const std::string member_name =
               module_is_System_dl ? NormalizeCoreDlMember(callee.text) : callee.text;
           const std::string key = module_name + "." + member_name;
