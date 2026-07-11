@@ -31,87 +31,26 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   return true;
 }
 
-namespace {
-
-void AddNativeReservedMembers(const std::string& canonical_module, std::vector<std::string>* out) {
-  if (!out) return;
-  std::string native_module;
-  if (!NativeModuleNameForReserved(canonical_module, &native_module)) return;
-  for (const auto& spec : ReservedNativeRegistry().Functions()) {
-    if (spec.module_name != native_module) continue;
-    if (std::find(out->begin(), out->end(), spec.symbol_name) == out->end()) {
-      out->push_back(spec.symbol_name);
-    }
-  }
-}
-
-} // namespace
-
 std::vector<std::string> ReservedModuleMembers(const std::string& canonical_module) {
   std::vector<std::string> out;
-  if (canonical_module == "StandardIO") return {"print", "println"};
-  if (canonical_module == "IO") {
-    out = {"buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
-    AddNativeReservedMembers(canonical_module, &out);
+  const auto module = ParseCanonicalLibraryModule(canonical_module);
+  if (!module) {
+    if (canonical_module == "File") return {"open", "close", "read", "write"};
+    if (canonical_module == "Json") return {"parse", "stringify", "free"};
     return out;
   }
-  if (canonical_module == "Math") return {"abs", "min", "max", "sqrt", "PI"};
-  if (canonical_module == "Time") return {"mono_ns", "wall_ns"};
-  if (canonical_module == "StandardTime") return {"mono_ns", "wall_ns", "formatWallNs"};
-  if (canonical_module == "DL") {
-    out = {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
-           "call_str0", "supported"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
+  for (std::string_view member : MemberNames(*module)) {
+    if (IsImplementedLibraryMember(*module, member)) out.emplace_back(member);
   }
-  if (canonical_module == "OS") {
-    return {"platform", "arch", "isLinux", "isMacos", "isWindows", "pid", "cpuCount",
-            "pageSize", "exit", "sleepMs"};
+  std::string native_module;
+  if (NativeModuleNameForReserved(canonical_module, &native_module)) {
+    for (const auto& spec : ReservedNativeRegistry().Functions()) {
+      if (spec.module_name != native_module) continue;
+      if (std::find(out.begin(), out.end(), spec.symbol_name) == out.end()) {
+        out.push_back(spec.symbol_name);
+      }
+    }
   }
-  if (canonical_module == "Thread") {
-    out = {"sleep", "yield", "hardwareConcurrency"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
-  if (canonical_module == "SystemRandom") return {"seed", "i32", "i64", "f64", "fillBytes"};
-  if (canonical_module == "StandardRandom") return {"seed", "i32", "i64", "range", "f64"};
-  if (canonical_module == "Env") return {"argsCount", "arg", "get", "set", "unset", "exePath"};
-  if (canonical_module == "StandardPath") return {"join", "dirname", "basename", "ext", "stem", "normalize"};
-  if (canonical_module == "Path") {
-    return {"separator", "delimiter", "isAbsolute", "join", "dirname", "basename", "ext", "stem", "normalize"};
-  }
-  if (canonical_module == "StandardFS") {
-    return {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir",
-            "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
-  }
-  if (canonical_module == "FS") {
-    out = {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir",
-           "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
-  if (canonical_module == "Channel") {
-    out = {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32", "pendingI32",
-           "newI64", "sendI64", "trySendI64", "recvI64", "tryRecvI64", "pendingI64",
-           "newF32", "sendF32", "trySendF32", "recvF32", "tryRecvF32", "pendingF32",
-           "newF64", "sendF64", "trySendF64", "recvF64", "tryRecvF64", "pendingF64",
-           "newBool", "sendBool", "trySendBool", "recvBool", "tryRecvBool", "pendingBool",
-           "newString", "sendString", "trySendString", "recvString", "tryRecvString", "pendingString",
-           "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "pendingBytes", "close"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
-  if (canonical_module == "File") return {"open", "close", "read", "write"};
-  if (canonical_module == "SystemJson") return {"parse", "stringify", "free"};
-  if (IsSystemBufferLikeCanonical(canonical_module)) {
-    const auto names = SystemBufferMemberNames();
-    for (std::string_view name : names) out.emplace_back(name);
-    return out;
-  }
-  if (canonical_module == ToCanonicalName(StandardModule::Buffer)) return {};
-  if (canonical_module == ToCanonicalName(StandardModule::Bytes)) return {"new", "slice"};
-  if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile", "flush"};
-  if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
   return out;
 }
 
@@ -129,6 +68,17 @@ bool GetReservedModuleVarType(const std::string& canonical_module,
     }
     return true;
   };
+  const auto module = ParseCanonicalLibraryModule(canonical_module);
+  if (module && module->root == LibraryRoot::Standard &&
+      static_cast<StandardModule>(module->module_index) == StandardModule::Math &&
+      ParseMember(StandardModule::Math, member) == StandardMember(StandardMathMember::PI)) {
+    return set_simple("f64");
+  }
+  if (module && module->root == LibraryRoot::System &&
+      static_cast<SystemModule>(module->module_index) == SystemModule::FFI &&
+      ParseMember(SystemModule::FFI, member) == SystemMember(SystemFFIMember::Supported)) {
+    return set_simple("bool");
+  }
   if (canonical_module == "Math" && member == "PI") return set_simple("f64");
   if (canonical_module == "DL" && member == "supported") return set_simple("bool");
   return false;
@@ -174,71 +124,18 @@ bool ResolveReservedModuleName(const Simple::Lang::LibraryModuleSet& reserved_im
 }
 
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
-  if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "i64" || member == "f64" || member == "fillBytes";
-  if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64";
-  if (canonical_module == "SystemLog") return member == "log" || member == "setLevel" || member == "setFile" || member == "flush";
-  if (canonical_module == "StandardLog") return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
-  std::string native_module;
-  if (NativeModuleNameForReserved(canonical_module, &native_module) &&
-      ReservedNativeRegistry().Find(native_module, member)) {
+  const auto module = ParseCanonicalLibraryModule(canonical_module);
+  if (module) {
+    if (!IsImplementedLibraryMember(*module, member)) return false;
+    if (module->root == LibraryRoot::System &&
+        static_cast<SystemModule>(module->module_index) == SystemModule::FFI &&
+        ParseMember(SystemModule::FFI, member) == SystemMember(SystemFFIMember::Supported)) {
+      return false;
+    }
     return true;
   }
-  if (canonical_module == "StandardIO") return member == "print" || member == "println";
-  if (canonical_module == "IO") {
-    return member == "buffer_new" || member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
-  }
-  if (canonical_module == "Math") {
-    return member == "abs" || member == "min" || member == "max" || member == "sqrt";
-  }
-  if (canonical_module == "Time") return member == "mono_ns" || member == "wall_ns";
-  if (canonical_module == "StandardTime") return member == "mono_ns" || member == "wall_ns" || member == "formatWallNs";
-  if (canonical_module == "DL") {
-    return member == "open" || member == "sym" || member == "close" ||
-           member == "last_error" || member == "call_i32" || member == "call_i64" ||
-           member == "call_f32" || member == "call_f64" || member == "call_str0";
-  }
-  if (canonical_module == "OS") {
-    return member == "platform" || member == "arch" || member == "isLinux" || member == "isMacos" ||
-           member == "isWindows" || member == "pid" || member == "cpuCount" || member == "pageSize" ||
-           member == "exit" || member == "sleepMs";
-  }
-  if (canonical_module == "Thread") {
-    return member == "sleep" || member == "yield" || member == "hardwareConcurrency";
-  }
-  if (canonical_module == "Env") {
-    return member == "argsCount" || member == "arg" || member == "get" || member == "set" ||
-           member == "unset" || member == "exePath";
-  }
-  if (canonical_module == "StandardPath") {
-    return member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-           member == "stem" || member == "normalize";
-  }
-  if (canonical_module == "Path") {
-    return member == "separator" || member == "delimiter" || member == "isAbsolute" ||
-           member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-           member == "stem" || member == "normalize";
-  }
-  if (canonical_module == "StandardFS" || canonical_module == "FS") {
-    return member == "readText" || member == "writeText" || member == "readBytes" || member == "writeBytes" ||
-           member == "exists" || member == "isFile" || member == "isDir" ||
-           member == "copy" || member == "remove" || member == "mkdir" || member == "mkdirAll" ||
-           member == "listDir" || member == "cwd" || member == "setCwd";
-  }
-  if (canonical_module == "Channel") {
-    return member == "newI32" || member == "sendI32" || member == "trySendI32" || member == "recvI32" || member == "tryRecvI32" || member == "pendingI32" ||
-           member == "newI64" || member == "sendI64" || member == "trySendI64" || member == "recvI64" || member == "tryRecvI64" || member == "pendingI64" ||
-           member == "newF32" || member == "sendF32" || member == "trySendF32" || member == "recvF32" || member == "tryRecvF32" || member == "pendingF32" ||
-           member == "newF64" || member == "sendF64" || member == "trySendF64" || member == "recvF64" || member == "tryRecvF64" || member == "pendingF64" ||
-           member == "newBool" || member == "sendBool" || member == "trySendBool" || member == "recvBool" || member == "tryRecvBool" || member == "pendingBool" ||
-           member == "newString" || member == "sendString" || member == "trySendString" || member == "recvString" || member == "tryRecvString" || member == "pendingString" ||
-           member == "newBytes" || member == "sendBytes" || member == "trySendBytes" || member == "recvBytes" || member == "tryRecvBytes" || member == "pendingBytes" ||
-           member == "close";
-  }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
-  if (canonical_module == "SystemJson") return member == "parse" || member == "stringify" || member == "free";
-  if (IsSystemBufferLikeCanonical(canonical_module)) return IsSystemBufferMember(member);
-  if (canonical_module == ToCanonicalName(StandardModule::Buffer)) return false;
-  if (canonical_module == ToCanonicalName(StandardModule::Bytes)) return member == "new" || member == "slice";
+  if (canonical_module == "Json") return member == "parse" || member == "stringify" || member == "free";
   return false;
 }
 
