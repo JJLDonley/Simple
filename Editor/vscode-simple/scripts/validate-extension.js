@@ -70,7 +70,7 @@ for (const requiredGrammarScope of [
 }
 const declarationPatterns = new Map((grammar.repository?.declarations?.patterns ?? []).map((pattern) => [pattern.name, pattern.match]));
 for (const [name, sample] of [
-  ['meta.declaration.namespace.simple', 'Raylib :: namespace'],
+  ['meta.declaration.namespace.simple', 'Tools :: namespace'],
   ['meta.declaration.aggregate.simple', 'Packet :: data'],
   ['meta.declaration.variable.simple', 'colors :: Color[]'],
   ['meta.declaration.variable.simple', 'grid :: Color[][]'],
