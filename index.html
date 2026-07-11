@@ -383,32 +383,50 @@ result : i32 = add(x, y)</code></pre>
           <p class="section-status">Status: Implemented</p>
           <p>Blocks create scopes. <code>if</code>, loops, <code>break</code>, <code>skip</code>, <code>return</code>, and switch-style forms are checked by the validator.</p>
 
+          <h3>If statements</h3>
+          <pre><code class="language-simple">status : string = ""
+
+if (score >= 70) {
+  status = "pass"
+} else {
+  status = "retry"
+}</code></pre>
+
+          <h3>Condition chains</h3>
           <pre><code class="language-simple">scoreLabel : string (score : i32) {
   |> (score >= 90) { return "great" }
   |> (score >= 70) { return "solid" }
   |> default { return "needs work" }
-}
+}</code></pre>
 
-dayName : string (day : i32) {
+          <h3>Switch expressions</h3>
+          <pre><code class="language-simple">dayName : string (day : i32) {
   return switch (day) {
     day == 1 => "mon"
     day == 2 => "tue"
     day == 3 => "wed"
     default => "other"
   }
-}
+}</code></pre>
 
-main : i32 () {
-  total : i32 = 0
+          <h3>For loops</h3>
+          <pre><code class="language-simple">total : i32 = 0
 
-  for (i : i32 = 0; i < 10; i = i + 1) {
-    if (i == 5) { skip }
-    total = total + i
-  }
+for (i : i32 = 0; i < 10; i = i + 1) {
+  if (i == 5) { skip }
+  total = total + i
+}</code></pre>
 
-  for n : i32 = 1 .. 4 {
-    total = total + n
-  }
+          <h3>Range loops</h3>
+          <pre><code class="language-simple">total : i32 = 0
+
+for n : i32 = 1 .. 4 {
+  total = total + n
+}</code></pre>
+
+          <h3>While loops, break, and return</h3>
+          <pre><code class="language-simple">main : i32 () {
+  total : i32 = 30
 
   while (total > 20) {
     total = total - 1
