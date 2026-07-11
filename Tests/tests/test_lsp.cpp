@@ -864,6 +864,49 @@ bool LspHoverShowsExternFunctionSignatureFromOpenModule() {
          out_contents.find("\"id\":84") != std::string::npos;
 }
 
+bool LspRaylibNamespaceWrapperFactsDriveHoverSignatureAndInlay() {
+  const std::string in_path = TempPath("simple_lsp_raylib_namespace_wrapper_in.txt");
+  const std::string out_path = TempPath("simple_lsp_raylib_namespace_wrapper_out.txt");
+  const std::string err_path = TempPath("simple_lsp_raylib_namespace_wrapper_err.txt");
+  const std::string lib_uri = "file:///workspace/raylib.simple";
+  const std::string main_uri = "file:///workspace/main.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_lib =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + lib_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"module Raylib\\n"
+      "extern raylib.DrawText : void (text : string, posX : i32, posY : i32, fontSize : i32, color : Color)\\n"
+      "Raylib :: namespace {\\n"
+      "  DrawText : void (text : string, posX : i32, posY : i32, fontSize : i32, color : Color) { lib.DrawText(text, posX, posY, fontSize, color) }\\n"
+      "}\"}}}";
+  const std::string open_main =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + main_uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"import Raylib\\nusing Raylib\\nRaylib.DrawText(\\\"10,000 fixed-array sprite circles + wall collision\\\", 20, 40, 20, BLACK);\"}}}";
+  const std::string hover_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":93,\"method\":\"textDocument/hover\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":2,\"character\":9}}}";
+  const std::string sig_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":94,\"method\":\"textDocument/signatureHelp\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"position\":{\"line\":2,\"character\":80}}}";
+  const std::string inlay_req =
+      "{\"jsonrpc\":\"2.0\",\"id\":95,\"method\":\"textDocument/inlayHint\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + main_uri + "\"},\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":2,\"character\":120}}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_lib) + BuildLspFrame(open_main) + BuildLspFrame(hover_req) + BuildLspFrame(sig_req) + BuildLspFrame(inlay_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() &&
+         out_contents.find("Raylib.DrawText : void (text : string, posX : i32, posY : i32, fontSize : i32, color : Color)") != std::string::npos &&
+         out_contents.find("\"id\":94") != std::string::npos &&
+         out_contents.find("\"label\":\"text: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"posX: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"posY: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"fontSize: \"") != std::string::npos &&
+         out_contents.find("\"label\":\"color: \"") != std::string::npos;
+}
+
 bool LspNamespaceMemberBasicsUseQualifiedNames() {
   const std::string in_path = TempPath("simple_lsp_namespace_member_in.txt");
   const std::string out_path = TempPath("simple_lsp_namespace_member_out.txt");
@@ -4330,6 +4373,7 @@ const TestCase kLspTests[] = {
   {"lsp_hover_shows_module_and_import_syntax", LspHoverShowsModuleAndImportSyntax},
   {"lsp_hover_shows_artifact_and_enum_facts", LspHoverShowsArtifactAndEnumFacts},
   {"lsp_hover_shows_extern_function_signature_from_open_module", LspHoverShowsExternFunctionSignatureFromOpenModule},
+  {"lsp_raylib_namespace_wrapper_facts_drive_hover_signature_and_inlay", LspRaylibNamespaceWrapperFactsDriveHoverSignatureAndInlay},
   {"lsp_namespace_member_basics_use_qualified_names", LspNamespaceMemberBasicsUseQualifiedNames},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
   {"lsp_hover_shows_reserved_alias_signature", LspHoverShowsReservedAliasSignature},

@@ -788,6 +788,7 @@ struct SimpleLspFact {
 };
 
 std::vector<TokenRef> LexTokenRefs(const std::string& text);
+std::vector<SimpleLspFact> BuildSimpleLspFacts(const std::vector<TokenRef>& refs);
 std::unordered_map<std::string, std::string> CollectWorkspaceSimpleDocs(
     const std::unordered_map<std::string, std::string>& open_docs);
 bool IsDeclNameAt(const std::vector<TokenRef>& refs, size_t i);
@@ -1770,6 +1771,20 @@ std::string FormatSimpleLspFactHover(const SimpleLspFact& fact) {
   return fact.name;
 }
 
+bool ResolveFunctionFactByQualifiedName(const std::string& text,
+                                        const std::string& qualified_name,
+                                        SimpleLspFact* out_fact) {
+  if (!out_fact || qualified_name.empty()) return false;
+  const bool wants_qualified = qualified_name.find('.') != std::string::npos;
+  for (const auto& fact : BuildSimpleLspFacts(LexTokenRefs(text))) {
+    if (fact.kind != SimpleLspFact::Kind::Function) continue;
+    if (fact.qualified_name != qualified_name && (wants_qualified || fact.name != qualified_name)) continue;
+    *out_fact = fact;
+    return true;
+  }
+  return false;
+}
+
 std::string DottedIdentifierAtPosition(const std::string& text, uint32_t line, uint32_t character) {
   const std::string line_text = GetLineText(text, line);
   if (line_text.empty()) return {};
@@ -2096,14 +2111,26 @@ void ReplyHover(std::ostream& out,
           break;
         }
       }
+      if (!has_signature) {
+        SimpleLspFact fact;
+        if (ResolveFunctionFactByQualifiedName(it->second, call_name, &fact)) {
+          signature = FormatSimpleFunctionFact(fact);
+          has_signature = true;
+        }
+      }
       if (!has_signature && ResolveFunctionSignatureInRefs(refs, call_name, &signature)) {
         has_signature = true;
       } else if (!has_signature) {
-        const auto sorted_uris = SortedOpenDocUris(open_docs, uri);
-        for (const auto& other_uri : sorted_uris) {
-          const auto other_it = open_docs.find(other_uri);
-          if (other_it == open_docs.end()) continue;
-          if (resolve_signature(other_it->second, call_name, &signature)) {
+        const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+        for (const auto& [other_uri, other_text] : workspace_docs) {
+          if (other_uri == uri) continue;
+          SimpleLspFact fact;
+          if (ResolveFunctionFactByQualifiedName(other_text, call_name, &fact)) {
+            signature = FormatSimpleFunctionFact(fact);
+            has_signature = true;
+            break;
+          }
+          if (resolve_signature(other_text, call_name, &signature)) {
             has_signature = true;
             break;
           }
@@ -2410,8 +2437,7 @@ void ReplySignatureHelp(std::ostream& out,
     return;
   }
 
-  if (!call_name.empty() && call_name.find('.') != std::string::npos && call_name[0] != '@') {
-    auto reply_fact_signature = [&](const SimpleLspFact& fact) {
+  auto reply_fact_signature = [&](const SimpleLspFact& fact) {
       std::string parameters_json;
       for (const auto& param : fact.params) {
         std::string label = param.name;
@@ -2428,9 +2454,20 @@ void ReplySignatureHelp(std::ostream& out,
                           "\",\"parameters\":[" + parameters_json + "]}],\"activeSignature\":0,\"activeParameter\":" +
                           std::to_string(clamped_active) + "}}");
     };
+
+  if (!call_name.empty() && call_name.find('.') != std::string::npos && call_name[0] != '@') {
     const auto current_facts = BuildSimpleLspFacts(LexTokenRefs(it->second));
     for (const auto& fact : current_facts) {
       if (fact.kind == SimpleLspFact::Kind::Function && fact.qualified_name == call_name) {
+        reply_fact_signature(fact);
+        return;
+      }
+    }
+    const auto workspace_docs = CollectWorkspaceSimpleDocs(open_docs);
+    for (const auto& [other_uri, other_text] : workspace_docs) {
+      if (other_uri == uri) continue;
+      SimpleLspFact fact;
+      if (ResolveFunctionFactByQualifiedName(other_text, call_name, &fact)) {
         reply_fact_signature(fact);
         return;
       }
@@ -2440,6 +2477,15 @@ void ReplySignatureHelp(std::ostream& out,
   if (!call_name.empty() &&
       call_name.find('.') == std::string::npos &&
       call_name[0] != '@') {
+    const auto workspace_docs_for_facts = CollectWorkspaceSimpleDocs(open_docs);
+    for (const auto& [other_uri, other_text] : workspace_docs_for_facts) {
+      if (other_uri == uri) continue;
+      SimpleLspFact fact;
+      if (ResolveFunctionFactByQualifiedName(other_text, call_name, &fact)) {
+        reply_fact_signature(fact);
+        return;
+      }
+    }
     std::vector<std::string> params;
     std::string return_type;
     if (!ResolveFunctionSignaturePartsInRefs(LexTokenRefs(it->second),
