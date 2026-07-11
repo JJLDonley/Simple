@@ -5,10 +5,10 @@ VS Code support for the Simple language. The extension starts the real `svm lsp`
 ## Features
 
 - Starts `svm lsp` over stdio with `vscode-languageclient`
-- Registers `.simple` language id (`simple`)
+- Registers `.simple`, `.sir`, and `.sbc` files with the Simple language id (`simple`)
 - Provides TextMate grammar fallback highlighting
 - Provides bracket/comment language configuration
-- Adds Simple command palette, editor-title, editor-context, and explorer-context commands
+- Adds Simple command palette, editor-title, editor-context, and explorer-context commands for source and generated artifacts
 - Adds Simple tasks for check/run/build/emit flows with a `path:line:column: message` problem matcher
 - Discovers `svm` from `simple.compilerPath`, bundled binaries, then PATH `svm`
 

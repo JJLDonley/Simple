@@ -22,6 +22,14 @@ if (!pkg.contributes?.configuration?.properties?.['simple.trace']) fail('simple.
 if (!Array.isArray(pkg.contributes?.taskDefinitions) || !pkg.contributes.taskDefinitions.some((t) => t.type === 'simple')) fail('simple task definition missing');
 if (!Array.isArray(pkg.contributes?.problemMatchers) || !pkg.contributes.problemMatchers.some((m) => m.name === 'simple-svm')) fail('simple problem matcher missing');
 if (!Array.isArray(pkg.contributes?.menus?.['explorer/context']) || pkg.contributes.menus['explorer/context'].length === 0) fail('explorer context entries missing');
+const simpleLanguage = (pkg.contributes?.languages ?? []).find((l) => l.id === 'simple');
+for (const ext of ['.simple', '.sir', '.sbc']) {
+  if (!simpleLanguage?.extensions?.includes(ext)) fail(`language extension missing: ${ext}`);
+}
+const explorerText = JSON.stringify(pkg.contributes.menus['explorer/context']);
+for (const ext of ['.simple', '.sir', '.sbc']) {
+  if (!explorerText.includes(ext)) fail(`explorer context missing: ${ext}`);
+}
 
 const commands = new Set((pkg.contributes?.commands ?? []).map((c) => c.command));
 for (const command of [

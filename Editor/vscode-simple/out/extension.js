@@ -174,18 +174,21 @@ function activeSimpleDocument(showWarning = true) {
     const editor = vscode.window.activeTextEditor;
     if (!editor || editor.document.languageId !== 'simple') {
         if (showWarning)
-            vscode.window.showWarningMessage('Open a .simple file first.');
+            vscode.window.showWarningMessage('Open a .simple, .sir, or .sbc file first.');
         return undefined;
     }
     return editor.document;
 }
+function isSimpleCliInputPath(file) {
+    return file.endsWith('.simple') || file.endsWith('.sir') || file.endsWith('.sbc');
+}
 async function commandDocument(resource) {
-    if (resource instanceof vscode.Uri && resource.scheme === 'file' && resource.fsPath.endsWith('.simple')) {
+    if (resource instanceof vscode.Uri && resource.scheme === 'file' && isSimpleCliInputPath(resource.fsPath)) {
         return vscode.workspace.openTextDocument(resource);
     }
     if (typeof resource === 'string') {
         const uri = vscode.Uri.parse(resource);
-        if (uri.scheme === 'file' && uri.fsPath.endsWith('.simple')) {
+        if (uri.scheme === 'file' && isSimpleCliInputPath(uri.fsPath)) {
             return vscode.workspace.openTextDocument(uri);
         }
     }
@@ -254,6 +257,17 @@ function outputPath(document, extension) {
     ensureDirectory(dir);
     return path.join(dir, `${path.basename(file, path.extname(file))}.${extension}`);
 }
+function canEmitSir(document) {
+    return currentFilePath(document).endsWith('.simple');
+}
+function canEmitSbc(document) {
+    const file = currentFilePath(document);
+    return file.endsWith('.simple') || file.endsWith('.sir');
+}
+function canBuild(document) {
+    const file = currentFilePath(document);
+    return file.endsWith('.simple') || file.endsWith('.sir');
+}
 function binaryOutputPath(document) {
     const file = currentFilePath(document);
     const dir = configuredOutputDirectory(document);
@@ -321,14 +335,18 @@ class SimpleTaskProvider {
         const cwd = workspaceCwd(document);
         const folder = vscode.workspace.getWorkspaceFolder(document.uri);
         const scope = folder ?? vscode.TaskScope.Workspace;
-        return [
+        const tasks = [
             simpleTask(this.context, 'Simple: check current file', ['check', file], scope, cwd),
             simpleTask(this.context, 'Simple: run current file', runArgs(document, false), scope, cwd),
-            simpleTask(this.context, 'Simple: run current file with JIT', runArgs(document, true), scope, cwd),
-            simpleTask(this.context, 'Simple: build current file', ['build', file, '--out', binaryOutputPath(document)], scope, cwd),
-            simpleTask(this.context, 'Simple: emit SIR', ['emit', '-ir', file, '--out', outputPath(document, 'sir')], scope, cwd),
-            simpleTask(this.context, 'Simple: emit SBC', ['emit', '-sbc', file, '--out', outputPath(document, 'sbc')], scope, cwd)
+            simpleTask(this.context, 'Simple: run current file with JIT', runArgs(document, true), scope, cwd)
         ];
+        if (canBuild(document))
+            tasks.push(simpleTask(this.context, 'Simple: build current file', ['build', file, '--out', binaryOutputPath(document)], scope, cwd));
+        if (canEmitSir(document))
+            tasks.push(simpleTask(this.context, 'Simple: emit SIR', ['emit', '-ir', file, '--out', outputPath(document, 'sir')], scope, cwd));
+        if (canEmitSbc(document))
+            tasks.push(simpleTask(this.context, 'Simple: emit SBC', ['emit', '-sbc', file, '--out', outputPath(document, 'sbc')], scope, cwd));
+        return tasks;
     }
     async resolveTask(task) {
         const document = activeSimpleDocument(false);
@@ -383,23 +401,43 @@ function registerCommands(context) {
     });
     registerCommand(context, COMMANDS.buildCurrentFile, async (resource) => {
         const doc = await commandDocument(resource);
-        if (doc)
-            await runSvm(context, 'Simple build', ['build', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
+        if (!doc)
+            return;
+        if (!canBuild(doc)) {
+            vscode.window.showWarningMessage('Simple build supports .simple and .sir files.');
+            return;
+        }
+        await runSvm(context, 'Simple build', ['build', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
     });
     registerCommand(context, COMMANDS.compileCurrentFile, async (resource) => {
         const doc = await commandDocument(resource);
-        if (doc)
-            await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
+        if (!doc)
+            return;
+        if (!canBuild(doc)) {
+            vscode.window.showWarningMessage('Simple compile supports .simple and .sir files.');
+            return;
+        }
+        await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc), '--out', binaryOutputPath(doc)], doc);
     });
     registerCommand(context, COMMANDS.emitSir, async (resource) => {
         const doc = await commandDocument(resource);
-        if (doc)
-            await runSvm(context, 'Simple emit SIR', ['emit', '-ir', currentFilePath(doc), '--out', outputPath(doc, 'sir')], doc);
+        if (!doc)
+            return;
+        if (!canEmitSir(doc)) {
+            vscode.window.showWarningMessage('Simple SIR emission supports .simple files.');
+            return;
+        }
+        await runSvm(context, 'Simple emit SIR', ['emit', '-ir', currentFilePath(doc), '--out', outputPath(doc, 'sir')], doc);
     });
     registerCommand(context, COMMANDS.emitSbc, async (resource) => {
         const doc = await commandDocument(resource);
-        if (doc)
-            await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', currentFilePath(doc), '--out', outputPath(doc, 'sbc')], doc);
+        if (!doc)
+            return;
+        if (!canEmitSbc(doc)) {
+            vscode.window.showWarningMessage('Simple SBC emission supports .simple and .sir files.');
+            return;
+        }
+        await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', currentFilePath(doc), '--out', outputPath(doc, 'sbc')], doc);
     });
 }
 async function activate(context) {

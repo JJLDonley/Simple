@@ -846,7 +846,7 @@ Simple toolchain facts this plan must respect:
   - [x] Add trace settings command.
 - [x] Add command palette, editor title, and editor context entries for `.simple` files.
 - [x] Add explorer context entries for `.simple` files.
-- [ ] Add explorer context entries for `.sir` and `.sbc` where appropriate.
+- [x] Add explorer context entries for `.sir` and `.sbc` where appropriate.
 - [x] Add Simple task provider:
   - [x] default build task for active `.simple` file.
   - [x] run/check/emit tasks for active file.

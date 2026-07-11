@@ -30,7 +30,9 @@
           "simple"
         ],
         "extensions": [
-          ".simple"
+          ".simple",
+          ".sir",
+          ".sbc"
         ],
         "semanticHighlighting": true,
         "configuration": "./language-configuration.json"
@@ -223,23 +225,28 @@
       "explorer/context": [
         {
           "command": "simple.checkCurrentFile",
-          "when": "resourceExtname == .simple",
+          "when": "resourceExtname == .simple || resourceExtname == .sir || resourceExtname == .sbc",
           "group": "simple@10"
         },
         {
           "command": "simple.runCurrentFile",
-          "when": "resourceExtname == .simple",
+          "when": "resourceExtname == .simple || resourceExtname == .sir || resourceExtname == .sbc",
           "group": "simple@20"
         },
         {
           "command": "simple.runCurrentFileWithJit",
-          "when": "resourceExtname == .simple",
+          "when": "resourceExtname == .simple || resourceExtname == .sir || resourceExtname == .sbc",
           "group": "simple@30"
         },
         {
           "command": "simple.buildCurrentFile",
-          "when": "resourceExtname == .simple",
+          "when": "resourceExtname == .simple || resourceExtname == .sir",
           "group": "simple@40"
+        },
+        {
+          "command": "simple.compileCurrentFile",
+          "when": "resourceExtname == .simple || resourceExtname == .sir",
+          "group": "simple@45"
         },
         {
           "command": "simple.emitSir",
@@ -248,7 +255,7 @@
         },
         {
           "command": "simple.emitSbc",
-          "when": "resourceExtname == .simple",
+          "when": "resourceExtname == .simple || resourceExtname == .sir",
           "group": "simple@60"
         }
       ]
