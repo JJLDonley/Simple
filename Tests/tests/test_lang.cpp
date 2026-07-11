@@ -2203,6 +2203,38 @@ bool LangValidateCanonicalSystemStandardImports() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangValidateAllPlannedSystemStandardImports() {
+  const char* src =
+    "import System.IO\nimport System.FS\nimport System.Path\nimport System.Env\nimport System.OS\n"
+    "import System.Time\nimport System.FFI\nimport System.ASM\nimport System.Bytes\nimport System.Buffer\n"
+    "import System.Json\nimport System.Log\nimport System.Random\nimport System.Thread\nimport System.Job\n"
+    "import System.Channel\nimport System.Process\nimport System.Net\nimport System.HTTP\nimport System.Terminal\n"
+    "import System.Capability\nimport System.Runtime\nimport System.Debug\n"
+    "import Standard.IO\nimport Standard.Console\nimport Standard.FS\nimport Standard.Path\nimport Standard.Bytes\n"
+    "import Standard.Text\nimport Standard.Json\nimport Standard.Math\nimport Standard.Random\nimport Standard.Time\n"
+    "import Standard.Log\nimport Standard.Process\nimport Standard.Net\nimport Standard.HTTP\nimport Standard.HTTPS\n"
+    "import Standard.Terminal\nimport Standard.Promise\nimport Standard.Channel\nimport Standard.Collections\n"
+    "import Standard.Result\nimport Standard.Option\n"
+    "main : void () { }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangRejectSystemIoPrintln() {
+  const char* src = "import System.IO\nmain : void () { System.IO.println(1); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos ||
+         error.find("not callable") != std::string::npos ||
+         error.find("undeclared identifier") != std::string::npos;
+}
+
+bool LangRejectUnplannedSystemMathImport() {
+  const char* src = "import System.Math\nmain : void () { }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateNamespaceExternManifestAndCall() {
   namespace fs = std::filesystem;
   const fs::path dir = fs::temp_directory_path() / "simple_ns_extern_manifest_test";
@@ -3473,6 +3505,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
   {"lang_reject_legacy_reserved_imports", LangRejectLegacyReservedImports},
   {"lang_validate_canonical_system_standard_imports", LangValidateCanonicalSystemStandardImports},
+  {"lang_validate_all_planned_system_standard_imports", LangValidateAllPlannedSystemStandardImports},
+  {"lang_reject_system_io_println", LangRejectSystemIoPrintln},
+  {"lang_reject_unplanned_system_math_import", LangRejectUnplannedSystemMathImport},
   {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
   {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},

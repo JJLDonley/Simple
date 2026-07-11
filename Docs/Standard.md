@@ -23,7 +23,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.Bytes` | byte creation/conversion/hex/base64 | `System.Bytes` |
 | `Standard.Text` | string/text helpers | runtime string helpers |
 | `Standard.Json` | high-level JSON value API | `System.Json` |
-| `Standard.Math` | math helpers/intrinsics | compiler intrinsics / `System.Math` |
+| `Standard.Math` | math helpers/intrinsics | compiler intrinsics |
 | `Standard.Random` | range/bool/bytes helpers | `System.Random`, `System.Bytes` |
 | `Standard.Time` | now/mono/sleep/format/durations | `System.Time` |
 | `Standard.Log` | debug/info/warn/error | `System.Log` |

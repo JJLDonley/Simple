@@ -1780,7 +1780,7 @@ bool LspSemanticTokensReturnsData() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import \\\"IO\\\"\\nfoo : i32 = 1;\\nStandard.IO.println(foo);\"}}}";
+      "\"text\":\"import Standard.IO\\nfoo : i32 = 1;\\nStandard.IO.println(foo);\"}}}";
   const std::string tokens_req =
       "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"textDocument/semanticTokens/full\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
