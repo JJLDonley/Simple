@@ -89,8 +89,59 @@ using Simple::VM::Runtime::UnpackU32Bits;
 using Simple::VM::Runtime::UnpackU64Bits;
 constexpr uint32_t kNullRef = 0xFFFFFFFFu;
 
+bool CheckedMulOverflowI64(int64_t a, int64_t b, int64_t* out) {
+  if (a > 0) {
+    if (b > 0) {
+      if (a > std::numeric_limits<int64_t>::max() / b) return true;
+    } else if (b < 0) {
+      if (b < std::numeric_limits<int64_t>::min() / a) return true;
+    }
+  } else if (a < 0) {
+    if (b > 0) {
+      if (a < std::numeric_limits<int64_t>::min() / b) return true;
+    } else if (b < 0) {
+      if (a < std::numeric_limits<int64_t>::max() / b) return true;
+    }
+  }
+  *out = a * b;
+  return false;
+}
 
+bool CheckedAddOverflowU32(uint32_t a, uint32_t b, uint32_t* out) {
+  if (a > std::numeric_limits<uint32_t>::max() - b) return true;
+  *out = a + b;
+  return false;
+}
 
+bool CheckedSubOverflowU32(uint32_t a, uint32_t b, uint32_t* out) {
+  if (a < b) return true;
+  *out = a - b;
+  return false;
+}
+
+bool CheckedMulOverflowU32(uint32_t a, uint32_t b, uint32_t* out) {
+  if (b != 0 && a > std::numeric_limits<uint32_t>::max() / b) return true;
+  *out = a * b;
+  return false;
+}
+
+bool CheckedAddOverflowU64(uint64_t a, uint64_t b, uint64_t* out) {
+  if (a > std::numeric_limits<uint64_t>::max() - b) return true;
+  *out = a + b;
+  return false;
+}
+
+bool CheckedSubOverflowU64(uint64_t a, uint64_t b, uint64_t* out) {
+  if (a < b) return true;
+  *out = a - b;
+  return false;
+}
+
+bool CheckedMulOverflowU64(uint64_t a, uint64_t b, uint64_t* out) {
+  if (b != 0 && a > std::numeric_limits<uint64_t>::max() / b) return true;
+  *out = a * b;
+  return false;
+}
 
 } // namespace
 
@@ -349,7 +400,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               int64_t b = UnpackI64(Pop(stack));
               int64_t a = UnpackI64(Pop(stack));
               int64_t r = 0;
-              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_I64 overflow");
+              if (CheckedMulOverflowI64(a, b, &r)) return Trap("CHECKED_MUL_I64 overflow");
               Push(stack, PackI64(r));
               break;
             }
@@ -377,7 +428,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint32_t b = UnpackU32Bits(Pop(stack));
               uint32_t a = UnpackU32Bits(Pop(stack));
               uint32_t r = 0;
-              if (__builtin_add_overflow(a, b, &r)) return Trap("CHECKED_ADD_U32 overflow");
+              if (CheckedAddOverflowU32(a, b, &r)) return Trap("CHECKED_ADD_U32 overflow");
               Push(stack, static_cast<uint64_t>(r));
               break;
             }
@@ -385,7 +436,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint32_t b = UnpackU32Bits(Pop(stack));
               uint32_t a = UnpackU32Bits(Pop(stack));
               uint32_t r = 0;
-              if (__builtin_sub_overflow(a, b, &r)) return Trap("CHECKED_SUB_U32 overflow");
+              if (CheckedSubOverflowU32(a, b, &r)) return Trap("CHECKED_SUB_U32 overflow");
               Push(stack, static_cast<uint64_t>(r));
               break;
             }
@@ -393,7 +444,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint32_t b = UnpackU32Bits(Pop(stack));
               uint32_t a = UnpackU32Bits(Pop(stack));
               uint32_t r = 0;
-              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_U32 overflow");
+              if (CheckedMulOverflowU32(a, b, &r)) return Trap("CHECKED_MUL_U32 overflow");
               Push(stack, static_cast<uint64_t>(r));
               break;
             }
@@ -415,7 +466,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint64_t b = UnpackU64Bits(Pop(stack));
               uint64_t a = UnpackU64Bits(Pop(stack));
               uint64_t r = 0;
-              if (__builtin_add_overflow(a, b, &r)) return Trap("CHECKED_ADD_U64 overflow");
+              if (CheckedAddOverflowU64(a, b, &r)) return Trap("CHECKED_ADD_U64 overflow");
               Push(stack, r);
               break;
             }
@@ -423,7 +474,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint64_t b = UnpackU64Bits(Pop(stack));
               uint64_t a = UnpackU64Bits(Pop(stack));
               uint64_t r = 0;
-              if (__builtin_sub_overflow(a, b, &r)) return Trap("CHECKED_SUB_U64 overflow");
+              if (CheckedSubOverflowU64(a, b, &r)) return Trap("CHECKED_SUB_U64 overflow");
               Push(stack, r);
               break;
             }
@@ -431,7 +482,7 @@ ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit, 
               uint64_t b = UnpackU64Bits(Pop(stack));
               uint64_t a = UnpackU64Bits(Pop(stack));
               uint64_t r = 0;
-              if (__builtin_mul_overflow(a, b, &r)) return Trap("CHECKED_MUL_U64 overflow");
+              if (CheckedMulOverflowU64(a, b, &r)) return Trap("CHECKED_MUL_U64 overflow");
               Push(stack, r);
               break;
             }
