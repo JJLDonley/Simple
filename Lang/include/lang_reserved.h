@@ -17,7 +17,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     const char* name;
     const char* canonical;
   };
-  static constexpr std::array<ReservedImportEntry, 17> kReserved = {{
+  static constexpr std::array<ReservedImportEntry, 48> kReserved = {{
       {"Math", "Math"},
       {"IO", "IO"},
       {"Time", "Time"},
@@ -35,6 +35,37 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Env", "Env"},
       {"Path", "Path"},
       {"FS", "FS"},
+      {"System.Math", "Math"},
+      {"System.IO", "IO"},
+      {"System.Time", "Time"},
+      {"System.FFI", "DL"},
+      {"System.OS", "OS"},
+      {"System.FS", "FS"},
+      {"System.Bytes", "Buffer"},
+      {"System.Buffer", "Buffer"},
+      {"System.Json", "Json"},
+      {"System.Thread", "Thread"},
+      {"System.Channel", "Channel"},
+      {"System.Random", "Random"},
+      {"System.Env", "Env"},
+      {"System.Path", "Path"},
+      {"System.Log", "Log"},
+      {"Standard.Math", "Math"},
+      {"Standard.IO", "IO"},
+      {"Standard.Time", "Time"},
+      {"Standard.FS", "FS"},
+      {"Standard.Bytes", "Buffer"},
+      {"Standard.Json", "Json"},
+      {"Standard.Random", "Random"},
+      {"Standard.Env", "Env"},
+      {"Standard.Path", "Path"},
+      {"Standard.Log", "Log"},
+      {"Standard.Console", "IO"},
+      {"Standard.Process", "OS"},
+      {"Standard.Net", "Socket"},
+      {"Standard.HTTP", "Http"},
+      {"Standard.HTTPS", "Http"},
+      {"Standard.Terminal", "IO"},
   }};
   for (const auto& entry : kReserved) {
     if (path == entry.name) {

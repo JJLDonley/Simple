@@ -3156,7 +3156,8 @@ bool CheckExpr(const Expr& expr,
         }
         std::string whole_module_name;
         if (GetModuleNameFromExpr(expr, &whole_module_name) &&
-            (ctx.modules.find(whole_module_name) != ctx.modules.end() ||
+            (IsReservedModuleEnabled(ctx, whole_module_name) ||
+             ctx.modules.find(whole_module_name) != ctx.modules.end() ||
              ctx.externs_by_module.find(whole_module_name) != ctx.externs_by_module.end())) {
           return true;
         }
@@ -3264,6 +3265,7 @@ bool CheckExpr(const Expr& expr,
             return false;
           }
         }
+        if (IsIoPrintCallExpr(expr, ctx)) return true;
         std::string module_name;
         if (GetModuleNameFromExpr(base, &module_name) && IsReservedModuleEnabled(ctx, module_name)) {
           TypeRef var_type;

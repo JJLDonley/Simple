@@ -2185,6 +2185,17 @@ bool LangValidateAssignToModuleFunctionFail() {
   return true;
 }
 
+bool LangValidateCanonicalSystemStandardImports() {
+  const char* src =
+    "import Standard.IO\n"
+    "import Standard.Math\n"
+    "import System.Time\n"
+    "import System.FFI\n"
+    "main : void () { Standard.IO.println(\"ok\"); best : i32 = Standard.Math.max(1, 2); now : i64 = System.Time.mono_ns(); ok :: bool = System.FFI.supported; }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangValidateNamespaceExternManifestAndCall() {
   namespace fs = std::filesystem;
   const fs::path dir = fs::temp_directory_path() / "simple_ns_extern_manifest_test";
@@ -3453,6 +3464,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_immutable_module_assign", LangValidateImmutableModuleAssign},
   {"lang_validate_assign_to_function_fail", LangValidateAssignToFunctionFail},
   {"lang_validate_assign_to_module_function_fail", LangValidateAssignToModuleFunctionFail},
+  {"lang_validate_canonical_system_standard_imports", LangValidateCanonicalSystemStandardImports},
   {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
   {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},

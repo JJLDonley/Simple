@@ -2,7 +2,7 @@
   "name": "simple-vscode",
   "displayName": "Simple Language",
   "description": "VS Code support for the Simple language (LSP + syntax highlighting)",
-  "version": "0.4.42",
+  "version": "0.4.43",
   "publisher": "jjldonley",
   "license": "MIT",
   "repository": {
@@ -49,14 +49,30 @@
       {
         "language": "simple",
         "scopes": {
-          "function": ["entity.name.function.simple"],
-          "function.declaration": ["entity.name.function.declaration.simple"],
-          "type": ["support.type.simple"],
-          "type.declaration": ["entity.name.type.declaration.simple"],
-          "variable.declaration": ["variable.other.definition.simple"],
-          "parameter": ["variable.parameter.simple"],
-          "property": ["variable.other.property.simple"],
-          "namespace": ["entity.name.namespace.simple"]
+          "function": [
+            "entity.name.function.simple"
+          ],
+          "function.declaration": [
+            "entity.name.function.declaration.simple"
+          ],
+          "type": [
+            "support.type.simple"
+          ],
+          "type.declaration": [
+            "entity.name.type.declaration.simple"
+          ],
+          "variable.declaration": [
+            "variable.other.definition.simple"
+          ],
+          "parameter": [
+            "variable.parameter.simple"
+          ],
+          "property": [
+            "variable.other.property.simple"
+          ],
+          "namespace": [
+            "entity.name.namespace.simple"
+          ]
         }
       }
     ],
@@ -67,14 +83,30 @@
       "editor.semanticTokenColorCustomizations": {
         "enabled": true,
         "rules": {
-          "function.declaration:simple": { "foreground": "#DCDCAA" },
-          "function:simple": { "foreground": "#DCDCAA" },
-          "type:simple": { "foreground": "#4EC9B0" },
-          "type.declaration:simple": { "foreground": "#4EC9B0" },
-          "variable.declaration:simple": { "foreground": "#9CDCFE" },
-          "parameter:simple": { "foreground": "#9CDCFE" },
-          "property:simple": { "foreground": "#9CDCFE" },
-          "namespace:simple": { "foreground": "#4EC9B0" }
+          "function.declaration:simple": {
+            "foreground": "#DCDCAA"
+          },
+          "function:simple": {
+            "foreground": "#DCDCAA"
+          },
+          "type:simple": {
+            "foreground": "#4EC9B0"
+          },
+          "type.declaration:simple": {
+            "foreground": "#4EC9B0"
+          },
+          "variable.declaration:simple": {
+            "foreground": "#9CDCFE"
+          },
+          "parameter:simple": {
+            "foreground": "#9CDCFE"
+          },
+          "property:simple": {
+            "foreground": "#9CDCFE"
+          },
+          "namespace:simple": {
+            "foreground": "#4EC9B0"
+          }
         }
       }
     },

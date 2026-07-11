@@ -11,7 +11,7 @@ Order of work:
 5. VM Native Core resource registry and safety model.
 6. LLVM ORC JIT broad Tier 0, then optimized Tier 1.
 7. Low-level `System.*` APIs.
-8. High-level `Standard.*` APIs and approved aliases.
+8. High-level `Standard.*` APIs. Public short aliases are not part of the final model.
 9. Documentation, generated API references, and cross-platform tests.
 10. Lower-priority SRP/backlog cleanup only when it directly supports the above.
 
@@ -24,7 +24,7 @@ Locked architecture decisions:
 - Generic arguments may be any type with stable type identity: primitives, strings, arrays, lists, data, artifacts, enums, pointers, functions, handles, results/options/promises, and instantiated generic types.
 - Native calls are metadata-driven. Interpreter, JIT, future AOT, docs, and language reserved signatures must consume the same native-function metadata.
 - Host resources are generational opaque handles. Raw platform handles and VM heap internals are never exposed directly to Simple code.
-- `System.*` is explicit, low-level, capability-aware, and returns `Result`/`Option` for expected host failures. `Standard.*` is ergonomic and wraps `System.*`.
+- `System.*` is explicit, low-level, capability-aware, and returns `Result`/`Option` for expected host failures. `Standard.*` is ergonomic and wraps `System.*`. The final public library model has no short compatibility aliases; source imports use only `System.X` or `Standard.X`.
 
 ---
 
@@ -722,16 +722,16 @@ Low-level terminal/console control; enough to build TUIs/games in user code, not
 
 ---
 
-## Phase 4: High-Level `Standard.*` APIs and Aliases
+## Phase 4: High-Level `Standard.*` APIs
 
-Canonical high-level modules live under `Standard.*`. Approved aliases expose ergonomic top-level domains such as `FS`, `Path`, `Bytes`, `Json`, `HTTP`, `HTTPS`, `Net`, `Process`, `Console`, `Terminal`, `Random`, `Time`, and `Log`.
+Canonical high-level modules live under `Standard.*`. The final public model has no top-level short aliases; old imports such as `IO`, `FS`, `DL`, and `Time` are migration-only and must be removed after the codebase moves to `System.*` and `Standard.*`.
 
 Rules:
 
 - [ ] High-level APIs wrap `System.*`; they do not bypass resource ownership.
-- [ ] High-level aliases preserve lowercase `.async`, e.g. `HTTP.async.get`, `FS.async.readText`.
-- [ ] Top-level aliases are high-level only; low-level APIs stay under `System.*`.
-- [ ] Generated docs show both canonical names and aliases.
+- [ ] High-level APIs preserve lowercase `.async`, e.g. `Standard.HTTP.async.get`, `Standard.FS.async.readText`.
+- [ ] Low-level APIs stay under `System.*`.
+- [ ] Generated docs show canonical `System.*` and `Standard.*` names only.
 
 ### Files / Paths / Bytes
 

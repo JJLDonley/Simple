@@ -945,7 +945,7 @@ CLI import resolution handles project-root imports, relative imports, module-map
 
 ## Reserved/System modules and standard library
 
-`System.*` is canonical for standard-library modules. Reserved compatibility imports are mapped by the compiler/runtime. Covered modules include:
+`System.*` is canonical for low-level runtime modules. `Standard.*` is the planned high-level library root that wraps `System.*`. The final library model has no short compatibility aliases; current short imports are migration-only. See `Docs/System.md`, `Docs/Standard.md`, and `Docs/LibraryMigration.md` for the no-alias plan. Covered migration-era modules include:
 
 ```txt
 Math IO Time File DL OS FS Log Buffer Json Channel
