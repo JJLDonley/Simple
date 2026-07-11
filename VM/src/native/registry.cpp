@@ -3,10 +3,18 @@
 #include "runtime/abi.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <sstream>
+#include <thread>
 #include <utility>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "native/buffer.h"
 #include "native/channel.h"
@@ -149,25 +157,83 @@ NativeCallResult OsTimeWallNs(NativeCallContext&) {
   return NativeCallResult::I64(Time::WallNs());
 }
 
-NativeCallResult OsSleepMs(NativeCallContext& context) {
-  int32_t ms = 0;
-  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.os.sleepMs missing duration");
-  Thread::SleepMs(ms);
-  return NativeCallResult::Void();
-}
-
 NativeCallResult OsCwdGet(NativeCallContext&) {
   std::string cwd;
-  if (!Os::CurrentWorkingDirectory(&cwd)) {
-    return NativeCallResult::Ref(HeapLayout::kNullRef);
-  }
+  if (!Os::CurrentWorkingDirectory(&cwd)) return NativeCallResult::Ref(HeapLayout::kNullRef);
   return NativeCallResult::String(std::move(cwd));
+}
+
+NativeCallResult OsPlatform(NativeCallContext&) {
+  return NativeCallResult::String(Env::PlatformName());
+}
+
+NativeCallResult OsArch(NativeCallContext&) {
+  return NativeCallResult::String(Env::ArchName());
+}
+
+NativeCallResult OsIsLinux(NativeCallContext&) {
+#if defined(__linux__)
+  return NativeCallResult::Bool(true);
+#else
+  return NativeCallResult::Bool(false);
+#endif
+}
+
+NativeCallResult OsIsMacos(NativeCallContext&) {
+#if defined(__APPLE__)
+  return NativeCallResult::Bool(true);
+#else
+  return NativeCallResult::Bool(false);
+#endif
+}
+
+NativeCallResult OsIsWindows(NativeCallContext&) {
+#if defined(_WIN32)
+  return NativeCallResult::Bool(true);
+#else
+  return NativeCallResult::Bool(false);
+#endif
+}
+
+NativeCallResult OsPid(NativeCallContext&) {
+#if defined(_WIN32)
+  return NativeCallResult::I32(static_cast<int32_t>(GetCurrentProcessId()));
+#else
+  return NativeCallResult::I32(static_cast<int32_t>(getpid()));
+#endif
+}
+
+NativeCallResult OsCpuCount(NativeCallContext&) {
+  return NativeCallResult::I32(static_cast<int32_t>(std::thread::hardware_concurrency()));
+}
+
+NativeCallResult OsPageSize(NativeCallContext&) {
+#if defined(_WIN32)
+  SYSTEM_INFO info{};
+  GetSystemInfo(&info);
+  return NativeCallResult::I32(static_cast<int32_t>(info.dwPageSize));
+#else
+  return NativeCallResult::I32(static_cast<int32_t>(sysconf(_SC_PAGESIZE)));
+#endif
+}
+
+NativeCallResult OsExit(NativeCallContext& context) {
+  int32_t code = 0;
+  if (!context.ArgI32(0, &code)) return NativeCallResult::Error("System.os.exit missing code");
+  std::exit(code);
 }
 
 NativeCallResult OsFormatWallNs(NativeCallContext& context) {
   int64_t ns = 0;
   if (!context.ArgI64(0, &ns)) return NativeCallResult::Error("System.os.formatWallNs missing timestamp");
   return NativeCallResult::String(Time::FormatWallNsUtc(ns));
+}
+
+NativeCallResult OsSleepMs(NativeCallContext& context) {
+  int32_t ms = 0;
+  if (!context.ArgI32(0, &ms)) return NativeCallResult::Error("System.os.sleepMs missing duration");
+  Thread::SleepMs(ms);
+  return NativeCallResult::Void();
 }
 
 NativeCallResult ThreadSleep(NativeCallContext& context) {
@@ -1997,27 +2063,30 @@ void RegisterSystemRandom(NativeRegistry& registry) {
 
 void RegisterSystemOs(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
-  registry.Register(WithCapability(MakeSpec("System.os", "args_count", {}, TypeKind::I32,
-                                            EnvArgsCount),
+  registry.Register(WithCapability(MakeSpec("System.os", "args_count", {}, TypeKind::I32, EnvArgsCount),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.os", "args_get", {TypeKind::I32},
-                                            TypeKind::String, EnvArg),
+  registry.Register(WithCapability(MakeSpec("System.os", "args_get", {TypeKind::I32}, TypeKind::String, EnvArg),
                                    "process.args"));
-  registry.Register(WithCapability(MakeSpec("System.os", "env_get", {TypeKind::String},
-                                            TypeKind::String, EnvGet),
+  registry.Register(WithCapability(MakeSpec("System.os", "env_get", {TypeKind::String}, TypeKind::String, EnvGet),
                                    "environment.read"));
-  registry.Register(WithCapability(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64,
-                                            OsTimeMonoNs),
+  registry.Register(WithCapability(MakeSpec("System.os", "cwd_get", {}, TypeKind::String, OsCwdGet),
+                                   "filesystem.read"));
+  registry.Register(WithCapability(MakeSpec("System.os", "time_mono_ns", {}, TypeKind::I64, OsTimeMonoNs),
                                    "clock.time"));
-  registry.Register(WithCapability(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64,
-                                            OsTimeWallNs),
+  registry.Register(WithCapability(MakeSpec("System.os", "time_wall_ns", {}, TypeKind::I64, OsTimeWallNs),
                                    "clock.time"));
-  registry.Register(WithCapability(MayBlock(MakeSpec("System.os", "sleep_ms", {TypeKind::I32},
+  registry.Register(MakeSpec("System.os", "platform", {}, TypeKind::String, OsPlatform));
+  registry.Register(MakeSpec("System.os", "arch", {}, TypeKind::String, OsArch));
+  registry.Register(MakeSpec("System.os", "isLinux", {}, TypeKind::Bool, OsIsLinux));
+  registry.Register(MakeSpec("System.os", "isMacos", {}, TypeKind::Bool, OsIsMacos));
+  registry.Register(MakeSpec("System.os", "isWindows", {}, TypeKind::Bool, OsIsWindows));
+  registry.Register(MakeSpec("System.os", "pid", {}, TypeKind::I32, OsPid));
+  registry.Register(MakeSpec("System.os", "cpuCount", {}, TypeKind::I32, OsCpuCount));
+  registry.Register(MakeSpec("System.os", "pageSize", {}, TypeKind::I32, OsPageSize));
+  registry.Register(MakeSpec("System.os", "exit", {TypeKind::I32}, TypeKind::Unspecified, OsExit));
+  registry.Register(WithCapability(MayBlock(MakeSpec("System.os", "sleepMs", {TypeKind::I32},
                                                      TypeKind::Unspecified, OsSleepMs)),
                                    "threading"));
-  registry.Register(WithCapability(MakeSpec("System.os", "cwd_get", {}, TypeKind::String,
-                                            OsCwdGet),
-                                   "filesystem.read"));
   registry.Register(WithCapability(MakeSpec("System.os", "formatWallNs", {TypeKind::I64},
                                             TypeKind::String, OsFormatWallNs),
                                    "clock.time"));

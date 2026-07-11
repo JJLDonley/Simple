@@ -77,4 +77,4 @@ These are diagnostics, not aliases.
 
 ## Duplicate root rule
 
-A planned `Standard.*` module may be reserved before its source-level wrapper exists, but it must not expose raw `System.*` members as a duplicate root. For example, `Standard.Process` must not surface `System.OS.sleep_ms`, and `Standard.Console` must not surface `Standard.IO.println`; wrappers land only when their documented Standard API and tests land.
+A planned `Standard.*` module may be reserved before its source-level wrapper exists, but it must not expose raw `System.*` members as a duplicate root. For example, `Standard.Process` must not surface `System.OS.sleepMs`, and `Standard.Console` must not surface `Standard.IO.println`; wrappers land only when their documented Standard API and tests land.

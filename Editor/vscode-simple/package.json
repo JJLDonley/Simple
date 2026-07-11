@@ -2,7 +2,7 @@
   "name": "simple-vscode",
   "displayName": "Simple Language",
   "description": "VS Code support for the Simple language (LSP + syntax highlighting)",
-  "version": "0.4.59",
+  "version": "0.4.60",
   "publisher": "jjldonley",
   "license": "MIT",
   "repository": {

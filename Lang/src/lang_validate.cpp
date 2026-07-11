@@ -715,45 +715,28 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
   }
   if (resolved == "OS") {
-    if (member == "args_count") {
+    if (member == "platform" || member == "arch") {
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "isLinux" || member == "isMacos" || member == "isWindows") {
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (member == "pid" || member == "cpuCount" || member == "pageSize") {
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "args_get") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "env_get") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "cwd_get") {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "time_mono_ns" || member == "time_wall_ns") {
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "formatWallNs") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "sleep_ms") {
+    if (member == "exit" || member == "sleepMs") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("void");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    return false;
   }
   if (resolved == "File") {
     if (member == "open") {

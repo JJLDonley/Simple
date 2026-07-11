@@ -5374,27 +5374,19 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
 
   if (st.reserved_imports.find("OS") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("OS")) {
-      if (!add_reserved_import(alias, "System.os", "args_count", {}, make_type("i32"))) return false;
-
-      std::vector<TypeRef> idx_params;
-      idx_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.os", "args_get", std::move(idx_params), make_type("string"))) return false;
-
-      std::vector<TypeRef> env_params;
-      env_params.push_back(make_type("string"));
-      if (!add_reserved_import(alias, "System.os", "env_get", std::move(env_params), make_type("string"))) return false;
-
-      if (!add_reserved_import(alias, "System.os", "cwd_get", {}, make_type("string"))) return false;
-      if (!add_reserved_import(alias, "System.os", "time_mono_ns", {}, make_type("i64"))) return false;
-      if (!add_reserved_import(alias, "System.os", "time_wall_ns", {}, make_type("i64"))) return false;
-
-      std::vector<TypeRef> format_params;
-      format_params.push_back(make_type("i64"));
-      if (!add_reserved_import(alias, "System.os", "formatWallNs", std::move(format_params), make_type("string"))) return false;
-
-      std::vector<TypeRef> sleep_params;
-      sleep_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.os", "sleep_ms", std::move(sleep_params), make_type("void"))) return false;
+      if (!add_reserved_import(alias, "System.os", "platform", {}, make_type("string"))) return false;
+      if (!add_reserved_import(alias, "System.os", "arch", {}, make_type("string"))) return false;
+      for (const std::string member : {"isLinux", "isMacos", "isWindows"}) {
+        if (!add_reserved_import(alias, "System.os", member, {}, make_type("bool"))) return false;
+      }
+      for (const std::string member : {"pid", "cpuCount", "pageSize"}) {
+        if (!add_reserved_import(alias, "System.os", member, {}, make_type("i32"))) return false;
+      }
+      for (const std::string member : {"exit", "sleepMs"}) {
+        std::vector<TypeRef> params;
+        params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "System.os", member, std::move(params), make_type("void"))) return false;
+      }
     }
   }
 
@@ -5730,7 +5722,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Env", "Path", "FS"}) {
+  for (const std::string native_reserved : {"IO", "DL", "Thread", "Env", "Path", "FS"}) {
     if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
         !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
       return false;

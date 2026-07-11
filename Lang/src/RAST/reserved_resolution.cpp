@@ -68,10 +68,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     return out;
   }
   if (canonical_module == "OS") {
-    out = {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
-           "formatWallNs", "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
+    return {"platform", "arch", "isLinux", "isMacos", "isWindows", "pid", "cpuCount",
+            "pageSize", "exit", "sleepMs"};
   }
   if (canonical_module == "Thread") {
     out = {"sleep", "yield", "hardwareConcurrency"};
@@ -137,10 +135,6 @@ bool GetReservedModuleVarType(const std::string& canonical_module,
   };
   if (canonical_module == "Math" && member == "PI") return set_simple("f64");
   if (canonical_module == "DL" && member == "supported") return set_simple("bool");
-  if (canonical_module == "OS" &&
-      (member == "is_linux" || member == "is_macos" || member == "is_windows" || member == "has_dl")) {
-    return set_simple("bool");
-  }
   return false;
 }
 
@@ -198,10 +192,9 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "call_f32" || member == "call_f64" || member == "call_str0";
   }
   if (canonical_module == "OS") {
-    return member == "args_count" || member == "args_get" || member == "env_get" ||
-           member == "cwd_get" || member == "time_mono_ns" || member == "time_wall_ns" ||
-           member == "formatWallNs" ||
-           member == "sleep_ms";
+    return member == "platform" || member == "arch" || member == "isLinux" || member == "isMacos" ||
+           member == "isWindows" || member == "pid" || member == "cpuCount" || member == "pageSize" ||
+           member == "exit" || member == "sleepMs";
   }
   if (canonical_module == "Thread") {
     return member == "sleep" || member == "yield" || member == "hardwareConcurrency";

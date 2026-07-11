@@ -1016,7 +1016,7 @@ bool LspHoverShowsReservedAliasSignature() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import System.OS as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import System.OS as OS\\nOS.sleepMs(0);\"}}}";
   const std::string hover_req =
       "{\"jsonrpc\":\"2.0\",\"id\":35,\"method\":\"textDocument/hover\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";
@@ -1035,7 +1035,7 @@ bool LspHoverShowsReservedAliasSignature() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":35") != std::string::npos &&
-         out_contents.find("```simple\\nOS.args_get : string (index)\\n```") != std::string::npos;
+         out_contents.find("```simple\\nOS.sleepMs : void (milliseconds)\\n```") != std::string::npos;
 }
 
 bool LspHoverShowsIoAliasSignature() {
@@ -1645,7 +1645,7 @@ bool LspSignatureHelpForReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import System.OS as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import System.OS as OS\\nOS.sleepMs(0);\"}}}";
   const std::string signature_req =
       "{\"jsonrpc\":\"2.0\",\"id\":34,\"method\":\"textDocument/signatureHelp\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":13}}}";
@@ -1664,8 +1664,8 @@ bool LspSignatureHelpForReservedAliasMember() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":34") != std::string::npos &&
-         out_contents.find("OS.args_get : string (index)") != std::string::npos &&
-         out_contents.find("\"label\":\"index\"") != std::string::npos &&
+         out_contents.find("OS.sleepMs : void (milliseconds)") != std::string::npos &&
+         out_contents.find("\"label\":\"milliseconds\"") != std::string::npos &&
          out_contents.find("\"activeSignature\":0") != std::string::npos &&
          out_contents.find("\"activeParameter\":0") != std::string::npos;
 }
@@ -3237,7 +3237,7 @@ bool LspRenameRejectsReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import System.OS as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import System.OS as OS\\nOS.sleepMs(0);\"}}}";
   const std::string rename_req =
       "{\"jsonrpc\":\"2.0\",\"id\":39,\"method\":\"textDocument/rename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7},"
@@ -3344,7 +3344,7 @@ bool LspPrepareRenameRejectsReservedAliasMember() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import System.OS as OS\\nOS.args_get(0);\"}}}";
+      "\"text\":\"import System.OS as OS\\nOS.sleepMs(0);\"}}}";
   const std::string prepare_req =
       "{\"jsonrpc\":\"2.0\",\"id\":40,\"method\":\"textDocument/prepareRename\",\"params\":{"
       "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":7}}}";

@@ -1647,12 +1647,21 @@ bool LangDiagnosticsFormatStructuredDiagnostic() {
          formatted.find("help: check the import") != std::string::npos;
 }
 
-bool LangValidateSystemOsCapabilityConstants() {
+bool LangValidateSystemOsHostFacts() {
   const char* src =
       "import System.OS\n"
-      "main : i32 () { if (System.OS.is_linux || System.OS.is_macos || System.OS.is_windows) { return 1 } return 0 }";
+      "main : void () { platform : string = System.OS.platform(); arch : string = System.OS.arch(); linux : bool = System.OS.isLinux(); macos : bool = System.OS.isMacos(); windows : bool = System.OS.isWindows(); pid : i32 = System.OS.pid(); cpus : i32 = System.OS.cpuCount(); page : i32 = System.OS.pageSize(); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangRejectSystemOsForeignDomains() {
+  const char* src =
+      "import System.OS\n"
+      "main : void () { count : i32 = System.OS.args_count(); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
 }
 
 bool LangValidateSystemDlCapabilityConstant() {
@@ -3448,7 +3457,8 @@ const TestCase kLangTests[] = {
   {"cli_diagnostic_renderer_classifies_and_formats", CliDiagnosticRendererClassifiesAndFormats},
   {"lang_validate_program_returns_structured_diagnostic", LangValidateProgramReturnsStructuredDiagnostic},
   {"lang_diagnostics_format_structured_diagnostic", LangDiagnosticsFormatStructuredDiagnostic},
-  {"lang_validate_system_os_capability_constants", LangValidateSystemOsCapabilityConstants},
+  {"lang_validate_system_os_host_facts", LangValidateSystemOsHostFacts},
+  {"lang_reject_system_os_foreign_domains", LangRejectSystemOsForeignDomains},
   {"lang_validate_system_dl_capability_constant", LangValidateSystemDlCapabilityConstant},
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
   {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},

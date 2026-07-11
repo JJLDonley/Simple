@@ -1056,8 +1056,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"DL",
        {"open", "sym", "close", "last_error", "call_i32", "call_i64", "call_f32", "call_f64",
         "call_str0", "supported"}},
-      {"OS", {"args_count", "args_get", "env_get", "cwd_get", "time_mono_ns", "time_wall_ns",
-                   "sleep_ms", "is_linux", "is_macos", "is_windows", "has_dl"}},
+      {"OS", {"platform", "arch", "isLinux", "isMacos", "isWindows", "pid", "cpuCount", "pageSize", "exit", "sleepMs"}},
       {"Thread", {"sleep", "yield", "hardwareConcurrency"}},
       {"SystemRandom", {"seed", "i32", "i64", "f64", "fillBytes"}},
       {"StandardRandom", {"seed", "i32", "i64", "range", "f64"}},
@@ -1362,23 +1361,24 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     return false;
   }
   if (module == "OS") {
-    if (member == "args_count" || member == "cwd_get" || member == "time_mono_ns" ||
-        member == "time_wall_ns") {
-      out->return_type =
-          (member == "args_count") ? "i32" : ((member == "cwd_get") ? "string" : "i64");
-      return true;
-    }
-    if (member == "args_get") {
-      out->params = {"index"};
+    if (member == "platform" || member == "arch") {
       out->return_type = "string";
       return true;
     }
-    if (member == "env_get") {
-      out->params = {"key"};
-      out->return_type = "string";
+    if (member == "isLinux" || member == "isMacos" || member == "isWindows") {
+      out->return_type = "bool";
       return true;
     }
-    if (member == "sleep_ms") {
+    if (member == "pid" || member == "cpuCount" || member == "pageSize") {
+      out->return_type = "i32";
+      return true;
+    }
+    if (member == "exit") {
+      out->params = {"code"};
+      out->return_type = "void";
+      return true;
+    }
+    if (member == "sleepMs") {
       out->params = {"milliseconds"};
       out->return_type = "void";
       return true;
