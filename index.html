@@ -125,6 +125,7 @@ main : i32 () {
         <a href="#types" data-route="types">Types</a>
         <a href="#literals" data-route="literals">Literals</a>
         <a href="#expressions" data-route="expressions">Expressions</a>
+        <a href="#builtins" data-route="builtins">Built-ins</a>
         <a href="#control-flow" data-route="control-flow">Control flow</a>
         <a href="#arrays-lists" data-route="arrays-lists">Arrays and lists</a>
         <a href="#artifacts" data-route="artifacts">Artifacts</a>
@@ -376,6 +377,54 @@ first : i32 = values[0]
 result : i32 = add(x, y)</code></pre>
 
           <p>Invalid operations such as boolean arithmetic, non-integer indexes, unknown members, incompatible assignment, and unsupported casts are rejected during validation.</p>
+        </section>
+
+        <section id="builtins" class="doc-section" data-title="Built-ins">
+          <h2>Built-in functions and forms</h2>
+          <p class="section-status">Status: Implemented where listed</p>
+          <p>Simple keeps built-ins small and explicit. Library work belongs under <code>System.*</code> and <code>Standard.*</code>; language built-ins cover core operations that need compiler knowledge.</p>
+
+          <h3><code>len(value)</code></h3>
+          <p>Returns the length of a string, fixed array, or list as <code>i32</code>.</p>
+          <pre><code class="language-simple">name : string = "Simple"
+letters : i32 = len(name)
+
+fixed : i32{3} = {1, 2, 3}
+fixedCount : i32 = len(fixed)
+
+items : i32[] = [10, 20, 30]
+itemCount : i32 = len(items)</code></pre>
+
+          <h3>Explicit primitive casts: <code>@Type(value)</code></h3>
+          <p>Primitive conversions must be requested explicitly. Calls like <code>i32(value)</code> are rejected; use <code>@i32(value)</code>. This is how Simple enforces no implicit coercion.</p>
+          <pre><code class="language-simple">wide : i64 = 42
+narrow : i32 = @i32(wide)
+
+ratio : f64 = 3.5
+whole : i32 = @i32(ratio)
+
+text : string = "42"
+parsed : i32 = @i32(text)</code></pre>
+
+          <h3>List methods</h3>
+          <p>Growable lists expose checked methods for common mutations and queries.</p>
+          <pre><code class="language-simple">items : i32[] = []
+items.push(10)
+items.push(20)
+
+count : i32 = items.len()
+last : i32 = items.pop()
+
+items.insert(0, 5)
+removed : i32 = items.remove(0)
+items.clear()</code></pre>
+
+          <h3>Standard output helpers</h3>
+          <p>Printing is library-provided, not a global builtin. Use <code>Standard.IO</code> for output and format strings.</p>
+          <pre><code class="language-simple">import Standard.IO
+
+Standard.IO.print("answer={}", 42)
+Standard.IO.println(" done")</code></pre>
         </section>
 
         <section id="control-flow" class="doc-section" data-title="Control flow">
