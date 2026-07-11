@@ -239,6 +239,103 @@ bool ExtractJsonBoolField(const std::string& json, const std::string& field, boo
   return false;
 }
 
+struct JsonTextChange {
+  bool has_range = false;
+  uint32_t start_line = 0;
+  uint32_t start_character = 0;
+  uint32_t end_line = 0;
+  uint32_t end_character = 0;
+  std::string text;
+};
+
+std::vector<std::string> ExtractJsonObjectsFromArrayField(const std::string& json, const std::string& field) {
+  std::vector<std::string> objects;
+  const std::string key = "\"" + field + "\"";
+  const size_t key_pos = json.find(key);
+  if (key_pos == std::string::npos) return objects;
+  const size_t array_begin = json.find('[', key_pos + key.size());
+  if (array_begin == std::string::npos) return objects;
+  bool in_string = false;
+  bool escaped = false;
+  int object_depth = 0;
+  int array_depth = 1;
+  size_t object_begin = std::string::npos;
+  for (size_t i = array_begin + 1; i < json.size(); ++i) {
+    const char c = json[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (in_string && c == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (c == '"') {
+      in_string = !in_string;
+      continue;
+    }
+    if (in_string) continue;
+    if (c == '[') {
+      ++array_depth;
+      continue;
+    }
+    if (c == ']') {
+      --array_depth;
+      if (array_depth == 0) break;
+      continue;
+    }
+    if (array_depth != 1) continue;
+    if (c == '{') {
+      if (object_depth == 0) object_begin = i;
+      ++object_depth;
+      continue;
+    }
+    if (c == '}') {
+      if (object_depth <= 0) continue;
+      --object_depth;
+      if (object_depth == 0 && object_begin != std::string::npos) {
+        objects.push_back(json.substr(object_begin, i - object_begin + 1));
+        object_begin = std::string::npos;
+      }
+    }
+  }
+  return objects;
+}
+
+bool ExtractJsonRangeField(const std::string& json,
+                           uint32_t* start_line,
+                           uint32_t* start_character,
+                           uint32_t* end_line,
+                           uint32_t* end_character) {
+  if (!start_line || !start_character || !end_line || !end_character) return false;
+  const size_t range_key = json.find("\"range\"");
+  if (range_key == std::string::npos) return false;
+  const size_t start_key = json.find("\"start\"", range_key);
+  const size_t end_key = json.find("\"end\"", range_key);
+  if (start_key == std::string::npos || end_key == std::string::npos || end_key < start_key) return false;
+  if (!ExtractJsonUintField(json.substr(start_key, end_key - start_key), "line", start_line) ||
+      !ExtractJsonUintField(json.substr(start_key, end_key - start_key), "character", start_character)) {
+    return false;
+  }
+  return ExtractJsonUintField(json.substr(end_key), "line", end_line) &&
+         ExtractJsonUintField(json.substr(end_key), "character", end_character);
+}
+
+std::vector<JsonTextChange> ExtractContentChanges(const std::string& json) {
+  std::vector<JsonTextChange> changes;
+  for (const auto& object : ExtractJsonObjectsFromArrayField(json, "contentChanges")) {
+    JsonTextChange change;
+    if (!ExtractJsonStringField(object, "text", &change.text)) continue;
+    change.has_range = ExtractJsonRangeField(object,
+                                             &change.start_line,
+                                             &change.start_character,
+                                             &change.end_line,
+                                             &change.end_character);
+    changes.push_back(std::move(change));
+  }
+  return changes;
+}
+
 bool CodeActionContextAllowsQuickFix(const std::string& json) {
   const size_t only_key = json.find("\"only\"");
   if (only_key == std::string::npos) return true;
@@ -2712,6 +2809,51 @@ uint32_t LineLengthAt(const std::string& text, uint32_t target_line) {
   return line == target_line ? col : 0;
 }
 
+bool OffsetFromLineCharacter(const std::string& text, uint32_t target_line, uint32_t target_character, size_t* out) {
+  if (!out) return false;
+  uint32_t line = 0;
+  uint32_t character = 0;
+  for (size_t i = 0; i < text.size(); ++i) {
+    if (line == target_line && character == target_character) {
+      *out = i;
+      return true;
+    }
+    const char c = text[i];
+    if (c == '\n') {
+      if (line == target_line && character <= target_character) {
+        *out = i;
+        return true;
+      }
+      ++line;
+      character = 0;
+      continue;
+    }
+    if (c != '\r') ++character;
+  }
+  if (line == target_line && character <= target_character) {
+    *out = text.size();
+    return true;
+  }
+  return false;
+}
+
+bool ApplyContentChange(std::string* text, const JsonTextChange& change) {
+  if (!text) return false;
+  if (!change.has_range) {
+    *text = change.text;
+    return true;
+  }
+  size_t start = 0;
+  size_t end = 0;
+  if (!OffsetFromLineCharacter(*text, change.start_line, change.start_character, &start) ||
+      !OffsetFromLineCharacter(*text, change.end_line, change.end_character, &end) ||
+      end < start) {
+    return false;
+  }
+  text->replace(start, end - start, change.text);
+  return true;
+}
+
 int BraceDeltaIgnoringStringsAndComments(const std::string& line, bool leading_closers_only) {
   int delta = 0;
   bool in_string = false;
@@ -4073,12 +4215,11 @@ int RunServer(std::istream& in, std::ostream& out) {
 
     if (method == "textDocument/didChange") {
       std::string uri;
-      std::string text;
       uint32_t version = 0;
       const bool has_version = ExtractJsonUintField(body, "version", &version);
-      if (ExtractJsonStringField(body, "uri", &uri) &&
-          ExtractJsonStringField(body, "text", &text)) {
-        if (open_docs.find(uri) == open_docs.end()) {
+      if (ExtractJsonStringField(body, "uri", &uri)) {
+        auto doc_it = open_docs.find(uri);
+        if (doc_it == open_docs.end()) {
           continue; // Ignore changes for unopened documents.
         }
         if (has_version) {
@@ -4086,10 +4227,20 @@ int RunServer(std::istream& in, std::ostream& out) {
           if (it != open_doc_versions.end() && version <= it->second) {
             continue; // Ignore out-of-order or duplicate-version updates.
           }
-          open_doc_versions[uri] = version;
         }
-        open_docs[uri] = text;
-        PublishDiagnostics(out, uri, text);
+        std::string updated_text = doc_it->second;
+        bool applied = false;
+        for (const auto& change : ExtractContentChanges(body)) {
+          if (!ApplyContentChange(&updated_text, change)) {
+            applied = false;
+            break;
+          }
+          applied = true;
+        }
+        if (!applied) continue;
+        if (has_version) open_doc_versions[uri] = version;
+        open_docs[uri] = updated_text;
+        PublishDiagnostics(out, uri, updated_text);
       }
       continue;
     }

@@ -879,7 +879,7 @@ Next Simple-specific LSP capabilities:
 - [ ] Code actions for unresolved imports, missing modules, unknown identifiers, signature mismatch fixes, and quick emit/build actions.
 - [x] Workspace symbols and references across opened documents plus sibling indexed `.simple` files.
 - [ ] Workspace symbols and references across full project roots/module maps.
-- [ ] Range-based document sync with incremental text changes tested across open/change/close.
+- [x] Range-based document sync with incremental text changes tested across open/change/close.
 
 ### Simple LSP Architecture
 
@@ -887,7 +887,8 @@ Next Simple-specific LSP capabilities:
   JSON-RPC/framing, document store, diagnostics, formatting, symbols, semantic tokens,
   completion, hover, signature help, inlay hints, document links, folding, selection ranges,
   call hierarchy, code actions, code lenses, and workspace index.
-- [ ] Build a reusable opened-document store with URI, version, language id, text, dirty flag, and incremental change application.
+- [x] Add opened-document version tracking and incremental range-change application.
+- [ ] Build a reusable opened-document store with URI, version, language id, text, and dirty flag.
 - [x] Build an initial Simple workspace index over opened document directories and sibling `.simple` files.
 - [ ] Extend the workspace index over `.sir`, `.sbc`, module/import paths, declarations, exported symbols, type IDs, and native metadata.
 - [ ] Cache parse/RAST/TAST/SIR facts per document with invalidation on text/file/import changes.

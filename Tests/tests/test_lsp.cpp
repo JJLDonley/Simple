@@ -531,6 +531,64 @@ bool LspDidChangeIgnoresDuplicateVersion() {
          second_tail.find("\"diagnostics\":[]") != std::string::npos;
 }
 
+bool LspDidChangeAppliesIncrementalRanges() {
+  const std::string in_path = TempPath("simple_lsp_incremental_change_in.txt");
+  const std::string out_path = TempPath("simple_lsp_incremental_change_out.txt");
+  const std::string err_path = TempPath("simple_lsp_incremental_change_err.txt");
+  const std::string uri = "file:///workspace/incremental.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
+      "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
+      "\"text\":\"main : i32 () {\\nvalue : i32 = 1;\\nreturn value;\\n}\"}}}";
+  const std::string change_req =
+      "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{"
+      "\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},
+      "\"contentChanges\":[{\"range\":{\"start\":{\"line\":2,\"character\":0},"
+      "\"end\":{\"line\":2,\"character\":6}},\"rangeLength\":6,\"text\":\"ok : i32 = value;\\nreturn\"}]}}";
+  const std::string hover_req = "{\"jsonrpc\":\"2.0\",\"id\":55,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":2,\"character\":1}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(change_req) + BuildLspFrame(hover_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  const size_t first_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"");
+  if (first_diag == std::string::npos) return false;
+  const size_t second_diag = out_contents.find("\"method\":\"textDocument/publishDiagnostics\"", first_diag + 1);
+  if (second_diag == std::string::npos) return false;
+  const std::string tail = out_contents.substr(second_diag);
+  return ReadFileText(err_path).empty() && tail.find("\"diagnostics\":[]") != std::string::npos &&
+         out_contents.find("\"id\":55") != std::string::npos &&
+         out_contents.find("`ok : i32`") != std::string::npos;
+}
+
+bool LspDidCloseClearsIncrementalDocumentState() {
+  const std::string in_path = TempPath("simple_lsp_incremental_close_in.txt");
+  const std::string out_path = TempPath("simple_lsp_incremental_close_out.txt");
+  const std::string err_path = TempPath("simple_lsp_incremental_close_err.txt");
+  const std::string uri = "file:///workspace/incremental_close.simple";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"x : i32 = 1;\"}}}";
+  const std::string close_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"}}}";
+  const std::string ignored_change_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"version\":2},\"contentChanges\":[{\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":1}},\"text\":\"y\"}]}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(close_req) + BuildLspFrame(ignored_change_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  size_t diag_count = 0;
+  size_t search_pos = 0;
+  const std::string marker = "\"method\":\"textDocument/publishDiagnostics\"";
+  for (;;) {
+    const size_t found = out_contents.find(marker, search_pos);
+    if (found == std::string::npos) break;
+    ++diag_count;
+    search_pos = found + marker.size();
+  }
+  return ReadFileText(err_path).empty() && diag_count == 2 &&
+         out_contents.find("\"id\":2") != std::string::npos;
+}
+
 bool LspHoverReturnsIdentifier() {
   const std::string in_path = TempPath("simple_lsp_hover_in.txt");
   const std::string out_path = TempPath("simple_lsp_hover_out.txt");
@@ -3524,6 +3582,8 @@ const TestCase kLspTests[] = {
   {"lsp_did_change_ignores_stale_version", LspDidChangeIgnoresStaleVersion},
   {"lsp_did_change_ignores_unknown_document", LspDidChangeIgnoresUnknownDocument},
   {"lsp_did_change_ignores_duplicate_version", LspDidChangeIgnoresDuplicateVersion},
+  {"lsp_did_change_applies_incremental_ranges", LspDidChangeAppliesIncrementalRanges},
+  {"lsp_did_close_clears_incremental_document_state", LspDidCloseClearsIncrementalDocumentState},
   {"lsp_hover_returns_identifier", LspHoverReturnsIdentifier},
   {"lsp_hover_includes_declared_type", LspHoverIncludesDeclaredType},
   {"lsp_hover_resolves_type_across_open_documents", LspHoverResolvesTypeAcrossOpenDocuments},
