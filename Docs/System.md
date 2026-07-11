@@ -59,7 +59,7 @@ Every public `System.*` native function must declare:
 
 ## Migration rule
 
-Current short imports are temporary implementation compatibility only during migration. Final public code must use:
+Short imports are rejected. Public code must use:
 
 ```simple
 import System.FS
@@ -70,9 +70,9 @@ import System.Time
 not:
 
 ```simple
-import Standard.FS
-import System.FFI
-import System.Time
+import FS
+import DL
+import Time
 ```
 
-Old imports must eventually produce diagnostics with suggested canonical replacements, not aliases.
+Old imports produce diagnostics with suggested canonical replacements, not aliases. Planned `System.*` modules may be importable before their APIs are implemented; they must not expose duplicate high-level `Standard.*` behavior.

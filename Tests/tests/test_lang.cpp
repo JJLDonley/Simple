@@ -2235,6 +2235,18 @@ bool LangRejectUnplannedSystemMathImport() {
   return !Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRejectUnimplementedStandardDuplicateRootMembers() {
+  const char* src =
+      "import Standard.Console\n"
+      "import Standard.Process\n"
+      "import Standard.Json\n"
+      "main : void () { Standard.Console.println(1); Standard.Process.sleep_ms(1); Standard.Json.parse(\"{}\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos ||
+         error.find("not callable") != std::string::npos;
+}
+
 bool LangValidateNamespaceExternManifestAndCall() {
   namespace fs = std::filesystem;
   const fs::path dir = fs::temp_directory_path() / "simple_ns_extern_manifest_test";
@@ -3508,6 +3520,7 @@ const TestCase kLangTests[] = {
   {"lang_validate_all_planned_system_standard_imports", LangValidateAllPlannedSystemStandardImports},
   {"lang_reject_system_io_println", LangRejectSystemIoPrintln},
   {"lang_reject_unplanned_system_math_import", LangRejectUnplannedSystemMathImport},
+  {"lang_reject_unimplemented_standard_duplicate_root_members", LangRejectUnimplementedStandardDuplicateRootMembers},
   {"lang_validate_namespace_extern_manifest_and_call", LangValidateNamespaceExternManifestAndCall},
   {"lang_validate_assign_to_artifact_method_fail", LangValidateAssignToArtifactMethodFail},
   {"lang_validate_proc_value_rejects_artifact_method", LangValidateProcValueRejectsArtifactMethod},

@@ -64,9 +64,9 @@ import Standard.Path
 not:
 
 ```simple
-import Standard.IO
-import Standard.FS
-import Standard.Path
+import IO
+import FS
+import Path
 ```
 
-Old imports must eventually produce diagnostics with canonical replacements, not aliases.
+Old imports produce diagnostics with canonical replacements, not aliases. Planned `Standard.*` modules may be importable before their wrappers are implemented; they must not expose unrelated `System.*` members as compatibility aliases.
