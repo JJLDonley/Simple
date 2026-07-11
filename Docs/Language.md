@@ -717,7 +717,17 @@ main : i32 () {
 }
 ```
 
-Nested `if`/`else` chains are normalized and checked for return flow.
+Condition chains use `|>` branches. They are checked for return flow and can end with `|> default`:
+
+```simple
+scoreLabel : string (score : i32) {
+  |> (score >= 90) { return "great" }
+  |> (score >= 70) { return "solid" }
+  |> default { return "needs work" }
+}
+```
+
+Nested `if`/`else` chains are also normalized and checked for return flow, but `|>` is the preferred syntax when documenting chain-style control flow.
 
 ### While
 
