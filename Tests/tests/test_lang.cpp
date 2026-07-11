@@ -1724,6 +1724,14 @@ bool LangValidateStandardTimeFormattingApi() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangValidateRandomI64Apis() {
+  const char* src =
+      "import System.Random\nimport Standard.Random\n"
+      "main : void () { raw : i64 = System.Random.i64(); value : i64 = Standard.Random.i64(); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangRejectSystemRandomRangeApi() {
   const char* src =
       "import System.Random\n"
@@ -3407,6 +3415,7 @@ const TestCase kLangTests[] = {
   {"lang_reject_standard_path_fs_probe_apis", LangRejectStandardPathFsProbeApis},
   {"lang_reject_system_time_formatting_api", LangRejectSystemTimeFormattingApi},
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
+  {"lang_validate_random_i64_apis", LangValidateRandomI64Apis},
   {"lang_reject_system_random_range_api", LangRejectSystemRandomRangeApi},
   {"lang_validate_standard_random_range_api", LangValidateStandardRandomRangeApi},
   {"lang_reject_unimplemented_standard_json", LangRejectUnimplementedStandardJson},

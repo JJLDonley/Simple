@@ -615,6 +615,11 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    if (member == "i64") {
+      out->return_type = MakeSimpleType("i64");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
     if (resolved == "StandardRandom" && member == "range") {
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeSimpleType("i32"));

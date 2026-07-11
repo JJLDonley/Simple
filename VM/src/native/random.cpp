@@ -21,6 +21,11 @@ int32_t I32() {
   return static_cast<int32_t>(g_engine() & 0x7fffffffu);
 }
 
+int64_t I64() {
+  std::lock_guard<std::mutex> lock(g_mutex);
+  return static_cast<int64_t>(g_engine() & 0x7fffffffffffffffull);
+}
+
 int32_t Range(int32_t lo, int32_t hi) {
   if (hi <= lo) return lo;
   std::uniform_int_distribution<int32_t> dist(lo, hi - 1);

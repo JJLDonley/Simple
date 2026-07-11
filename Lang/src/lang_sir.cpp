@@ -420,9 +420,9 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "f64")) ||
+    } else if ((module == "SystemRandom" && (member == "seed" || member == "i32" || member == "i64" || member == "f64")) ||
                (module == "StandardRandom" &&
-                (member == "seed" || member == "i32" || member == "range" || member == "f64"))) {
+                (member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -5496,6 +5496,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       seed_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.random", "seed", std::move(seed_params), make_type("void"))) return false;
       if (!add_reserved_import(alias, "System.random", "i32", {}, make_type("i32"))) return false;
+      if (!add_reserved_import(alias, "System.random", "i64", {}, make_type("i64"))) return false;
       if (include_range) {
         std::vector<TypeRef> range_params;
         range_params.push_back(make_type("i32"));

@@ -113,6 +113,10 @@ NativeCallResult RandomI32(NativeCallContext&) {
   return NativeCallResult::I32(Random::I32());
 }
 
+NativeCallResult RandomI64(NativeCallContext&) {
+  return NativeCallResult::I64(Random::I64());
+}
+
 NativeCallResult RandomRange(NativeCallContext& context) {
   int32_t min_value = 0;
   int32_t max_value = 0;
@@ -1936,6 +1940,9 @@ void RegisterSystemRandom(NativeRegistry& registry) {
                                    "randomness"));
   registry.Register(WithCapability(MakeSpec("System.random", "i32", {}, TypeKind::I32,
                                             RandomI32),
+                                   "randomness"));
+  registry.Register(WithCapability(MakeSpec("System.random", "i64", {}, TypeKind::I64,
+                                            RandomI64),
                                    "randomness"));
   registry.Register(WithCapability(MakeSpec("System.random", "range",
                                             {TypeKind::I32, TypeKind::I32}, TypeKind::I32,

@@ -78,8 +78,8 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
-  if (canonical_module == "SystemRandom") return {"seed", "i32", "f64"};
-  if (canonical_module == "StandardRandom") return {"seed", "i32", "range", "f64"};
+  if (canonical_module == "SystemRandom") return {"seed", "i32", "i64", "f64"};
+  if (canonical_module == "StandardRandom") return {"seed", "i32", "i64", "range", "f64"};
   if (canonical_module == "Env") {
     out = {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"};
     AddNativeReservedMembers(canonical_module, &out);
@@ -176,8 +176,8 @@ bool ResolveReservedModuleName(const std::unordered_set<std::string>& reserved_i
 }
 
 bool IsReservedModuleFunction(const std::string& canonical_module, const std::string& member) {
-  if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "f64";
-  if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "range" || member == "f64";
+  if (canonical_module == "SystemRandom") return member == "seed" || member == "i32" || member == "i64" || member == "f64";
+  if (canonical_module == "StandardRandom") return member == "seed" || member == "i32" || member == "i64" || member == "range" || member == "f64";
   if (canonical_module == "SystemLog") return member == "log" || member == "setLevel" || member == "setFile";
   if (canonical_module == "StandardLog") return member == "info" || member == "warn" || member == "error" || member == "setLevel" || member == "setFile";
   std::string native_module;
