@@ -52,8 +52,9 @@ void AddNativeReservedMembers(const std::string& canonical_module, std::vector<s
 
 std::vector<std::string> ReservedModuleMembers(const std::string& canonical_module) {
   std::vector<std::string> out;
+  if (canonical_module == "StandardIO") return {"print", "println"};
   if (canonical_module == "IO") {
-    out = {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
+    out = {"buffer_new", "buffer_len", "buffer_fill", "buffer_copy"};
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
@@ -185,9 +186,9 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
       ReservedNativeRegistry().Find(native_module, member)) {
     return true;
   }
+  if (canonical_module == "StandardIO") return member == "print" || member == "println";
   if (canonical_module == "IO") {
-    return member == "print" || member == "println" || member == "buffer_new" ||
-           member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
+    return member == "buffer_new" || member == "buffer_len" || member == "buffer_fill" || member == "buffer_copy";
   }
   if (canonical_module == "Math") {
     return member == "abs" || member == "min" || member == "max" || member == "sqrt";
@@ -278,14 +279,11 @@ bool IsIoPrintCallExpr(const Simple::Lang::AST::Expr& callee,
     return false;
   }
   if (!IsIoPrintName(callee.text)) return false;
-  if (callee.children[0].kind == Simple::Lang::AST::ExprKind::Identifier && callee.children[0].text == "IO") {
-    return true;
-  }
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
   return ResolveReservedModuleName(reserved_imports, reserved_import_aliases, module_name, &resolved) &&
-         resolved == "IO";
+         resolved == "StandardIO";
 }
 
 bool IsCoreDlOpenCallExpr(const Simple::Lang::AST::Expr& expr,

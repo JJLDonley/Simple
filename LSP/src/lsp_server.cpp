@@ -644,19 +644,20 @@ bool ParseImportDeclLine(const std::string& line_text,
   }
 
   std::string alias = DefaultImportAlias(import_path);
-  std::string canonical_import;
-  if (Simple::Lang::CanonicalizeReservedImportPath(import_path, &canonical_import)) {
-    alias = canonical_import;
-  }
+  const bool reserved_import = Simple::Lang::IsReservedImportPath(import_path);
+  if (reserved_import) alias = import_path;
+  bool explicit_alias = false;
   while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
   if (pos + 2 <= trimmed.size() && trimmed.compare(pos, 2, "as") == 0) {
+    explicit_alias = true;
     pos += 2;
     while (pos < trimmed.size() && std::isspace(static_cast<unsigned char>(trimmed[pos]))) ++pos;
     size_t alias_end = pos;
     while (alias_end < trimmed.size() && IsIdentChar(trimmed[alias_end])) ++alias_end;
     if (alias_end > pos) alias = trimmed.substr(pos, alias_end - pos);
   }
-  if (!IsValidIdentifierName(alias)) return false;
+  if (explicit_alias && !IsValidIdentifierName(alias)) return false;
+  if (!explicit_alias && !reserved_import && !IsValidIdentifierName(alias)) return false;
 
   *out_import_path = std::move(import_path);
   *out_alias = std::move(alias);
@@ -948,7 +949,10 @@ std::string CompletionMemberReceiverAtPosition(const std::string& text,
   if (begin == 0 || line_text[begin - 1] != '.') return {};
   size_t recv_end = begin - 1;
   size_t recv_begin = recv_end;
-  while (recv_begin > 0 && IsIdentChar(line_text[recv_begin - 1])) --recv_begin;
+  while (recv_begin > 0 && (IsIdentChar(line_text[recv_begin - 1]) || line_text[recv_begin - 1] == '.')) {
+    --recv_begin;
+  }
+  if (recv_begin < recv_end && line_text[recv_begin] == '.') ++recv_begin;
   if (recv_begin == recv_end) return {};
   return line_text.substr(recv_begin, recv_end - recv_begin);
 }
@@ -1043,7 +1047,8 @@ std::string DefaultImportAlias(const std::string& path) {
 
 std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& text) {
   static const std::unordered_map<std::string, std::vector<std::string>> kModuleMembers = {
-      {"IO", {"print", "println", "buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
+      {"StandardIO", {"print", "println"}},
+      {"IO", {"buffer_new", "buffer_len", "buffer_fill", "buffer_copy"}},
       {"Math", {"abs", "min", "max", "pi"}},
       {"Time", {"mono_ns", "wall_ns"}},
       {"File", {"open", "close", "read", "write"}},
@@ -1065,6 +1070,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newString", "sendString", "trySendString", "recvString", "tryRecvString",
                    "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
+      {"Buffer", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
       {"Log", {"log", "info", "warn", "error", "setLevel"}},
   };
 
@@ -1287,12 +1293,15 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     }
     return false;
   }
-  if (module == "IO") {
+  if (module == "StandardIO") {
     if (member == "print" || member == "println") {
       out->params = {"value"};
       out->return_type = "void";
       return true;
     }
+    return false;
+  }
+  if (module == "IO") {
     if (member == "buffer_new") {
       out->params = {"length"};
       out->return_type = "i32[]";
@@ -2328,7 +2337,7 @@ void ReplyCompletion(std::ostream& out,
     const std::string& label = labels[i];
     std::string item_label = label;
     if (!receiver_lc.empty()) {
-      const size_t dot = label.find('.');
+      const size_t dot = label.find_last_of('.');
       if (dot == std::string::npos) continue;
       const std::string left = LowerAscii(label.substr(0, dot));
       const std::string right = LowerAscii(label.substr(dot + 1));
@@ -2390,7 +2399,7 @@ void ReplySignatureHelp(std::ostream& out,
   std::string imported_module;
   std::string imported_member;
   if (ResolveImportedModuleAndMember(call_name, it->second, &imported_module, &imported_member) &&
-      imported_module == "IO" && (imported_member == "print" || imported_member == "println")) {
+      imported_module == "StandardIO" && (imported_member == "print" || imported_member == "println")) {
     const uint32_t active_signature = active_parameter == 0 ? 0 : 1;
     const uint32_t active_param_for_sig = active_parameter == 0 ? 0 : 1;
     WriteLspMessage(

@@ -363,7 +363,7 @@ bool LangTopLevelReturnDisallowed() {
 
 bool LangTopLevelIoPrintlnArithmetic() {
   const char* src =
-      "import \"IO\"\n"
+      "import Standard.IO\n"
       "Standard.IO.println(\"Hello World\");\n"
       "Standard.IO.println(10 + 20 + 60 / 3);\n";
   std::string sir;
@@ -1689,15 +1689,24 @@ bool LangValidateNativeMetadataReservedFsSuggestion() {
   return error.find("did you mean 'open'") != std::string::npos;
 }
 
-bool LangValidateSystemIoBufferApis() {
+bool LangRejectStandardIoBufferApis() {
   const char* src =
       "import Standard.IO\n"
+      "main : i32 () { Standard.IO.buffer_new(4); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateSystemBytesBufferApis() {
+  const char* src =
+      "import System.Bytes\n"
       "main : i32 () {\n"
-      "  a : i32[] = Standard.IO.buffer_new(4);\n"
-      "  b : i32[] = Standard.IO.buffer_new(4);\n"
-      "  Standard.IO.buffer_fill(a, 7, 3);\n"
-      "  Standard.IO.buffer_copy(b, a, 4);\n"
-      "  return Standard.IO.buffer_len(b);\n"
+      "  a : i32[] = System.Bytes.new(4);\n"
+      "  b : i32[] = System.Bytes.new(4);\n"
+      "  System.Bytes.writeU16LE(a, 0, 7);\n"
+      "  System.Bytes.copy(b, 0, a, 0, 4);\n"
+      "  return System.Bytes.len(b);\n"
       "}";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
@@ -3268,7 +3277,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_unknown_reserved_member_suggests_closest", LangValidateUnknownReservedMemberSuggestsClosest},
   {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},
   {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
-  {"lang_validate_system_io_buffer_apis", LangValidateSystemIoBufferApis},
+  {"lang_reject_standard_io_buffer_apis", LangRejectStandardIoBufferApis},
+  {"lang_validate_system_bytes_buffer_apis", LangValidateSystemBytesBufferApis},
   {"lang_validate_extern_call_ok", LangValidateExternCallOk},
   {"lang_validate_extern_recursive_artifact_rejected", LangValidateExternRecursiveArtifactRejected},
   {"lang_validate_extern_pointer_call_ok", LangValidateExternPointerCallOk},

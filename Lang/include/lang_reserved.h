@@ -41,7 +41,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"System.Capability", "SystemCapability"},
       {"System.Runtime", "SystemRuntime"},
       {"System.Debug", "SystemDebug"},
-      {"Standard.IO", "IO"},
+      {"Standard.IO", "StandardIO"},
       {"Standard.Console", "StandardConsole"},
       {"Standard.FS", "FS"},
       {"Standard.Path", "Path"},

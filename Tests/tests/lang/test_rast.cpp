@@ -290,8 +290,8 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   io_print.op = ".";
   io_print.text = "println";
   io_print.children.push_back(io_base);
-  reserved_imports.insert("IO");
-  reserved_aliases["Printer"] = "IO";
+  reserved_imports.insert("StandardIO");
+  reserved_aliases["Printer"] = "StandardIO";
   const bool recognizes_io_print = Simple::Lang::RAST::IsIoPrintCallExpr(
       io_print, reserved_imports, reserved_aliases);
   io_print.text = "write";

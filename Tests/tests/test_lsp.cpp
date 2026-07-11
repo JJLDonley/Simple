@@ -1445,10 +1445,10 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
-      "\"text\":\"import Standard.IO\\nio.bu\"}}}";
+      "\"text\":\"import System.Bytes\\nSystem.Bytes.n\"}}}";
   const std::string completion_req =
       "{\"jsonrpc\":\"2.0\",\"id\":47,\"method\":\"textDocument/completion\",\"params\":{"
-      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":5}}}";
+      "\"textDocument\":{\"uri\":\"" + uri + "\"},\"position\":{\"line\":1,\"character\":14}}}";
   const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
   const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
   const std::string input =
@@ -1464,8 +1464,8 @@ bool LspCompletionIncludesSystemImplicitAliasMembers() {
   const std::string err_contents = ReadFileText(err_path);
   return err_contents.empty() &&
          out_contents.find("\"id\":47") != std::string::npos &&
-         out_contents.find("\"label\":\"buffer_new\"") != std::string::npos &&
-         out_contents.find("\"label\":\"buffer_copy\"") != std::string::npos;
+         out_contents.find("\"label\":\"new\"") != std::string::npos &&
+         out_contents.find("\"label\":\"copy\"") == std::string::npos;
 }
 
 bool LspSignatureHelpReturnsSignature() {

@@ -1,14 +1,11 @@
-import Standard.IO
+import System.Bytes
 
 main : i32 () {
-  src : i32[] = Standard.IO.buffer_new(4)
-  dst : i32[] = Standard.IO.buffer_new(4)
-  if (Standard.IO.buffer_len(src) != 4) { return 1 }
-  if (Standard.IO.buffer_fill(src, 7, 3) != 3) { return 2 }
-  if (Standard.IO.buffer_copy(dst, src, 4) != 4) { return 3 }
-  if (dst[0] != 7) { return 4 }
-  if (dst[1] != 7) { return 5 }
-  if (dst[2] != 7) { return 6 }
-  if (dst[3] != 0) { return 7 }
+  src : i32[] = System.Bytes.new(4)
+  dst : i32[] = System.Bytes.new(4)
+  if (System.Bytes.len(src) != 4) { return 1 }
+  if (!System.Bytes.writeU16LE(src, 0, 1799)) { return 2 }
+  if (System.Bytes.copy(dst, 0, src, 0, 4) != 4) { return 3 }
+  if (System.Bytes.readU16LE(dst, 0) != 1799) { return 4 }
   return 0
 }

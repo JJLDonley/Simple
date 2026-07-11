@@ -281,7 +281,7 @@ bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
   CallTargetInfo found_info;
   for (const auto& module : ctx.using_reserved_modules) {
     CallTargetInfo candidate;
-    if (module == "IO" && IsIoPrintName(member)) {
+    if (module == "StandardIO" && IsIoPrintName(member)) {
       candidate.params.push_back(MakeSimpleType("T"));
       candidate.return_type = MakeSimpleType("void");
       candidate.type_params = {"T"};
@@ -1442,7 +1442,7 @@ bool CheckCallTarget(const Expr& callee,
     std::string using_module;
     if (ResolveUsingReservedCallTarget(ctx, callee.text, &using_module, &using_info) ||
         ResolveUsingModuleExternCallTarget(ctx, callee.text, &using_module, &using_info)) {
-      if (using_module == "IO" && IsIoPrintName(callee.text)) {
+      if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
         if (arg_count == 0) {
           if (error) *error = "call argument count mismatch for " + callee.text;
           return false;
@@ -3136,7 +3136,7 @@ bool CheckExpr(const Expr& expr,
         if (expr.children[0].kind == ExprKind::Identifier && IsIoPrintName(expr.children[0].text)) {
           std::string using_module;
           is_using_io_print = ResolveUsingReservedCallTarget(ctx, expr.children[0].text, &using_module, nullptr) &&
-                              using_module == "IO";
+                              using_module == "StandardIO";
         }
         if (!IsIoPrintCallExpr(expr.children[0], ctx) && !is_using_io_print &&
             !(expr.children[0].kind == ExprKind::Identifier &&

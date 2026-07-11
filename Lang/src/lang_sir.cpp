@@ -406,7 +406,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "IO" && IsIoPrintName(member)) {
+    } else if (module == "StandardIO" && IsIoPrintName(member)) {
       if (found) return false;
       found = true;
       result = module;
@@ -506,11 +506,10 @@ bool ResolveUsingModuleExternMember(const EmitState& st,
 bool IsIoPrintCallExpr(const Expr& callee, const EmitState& st) {
   if (callee.kind != ExprKind::Member || callee.op != "." || callee.children.empty()) return false;
   if (!IsIoPrintName(callee.text)) return false;
-  if (callee.children[0].kind == ExprKind::Identifier && callee.children[0].text == "IO") return true;
   std::string module_name;
   if (!GetModuleNameFromExpr(callee.children[0], &module_name)) return false;
   std::string resolved;
-  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "IO";
+  return ResolveReservedModuleName(st, module_name, &resolved) && resolved == "StandardIO";
 }
 
 bool HostIsLinux() {
@@ -1723,7 +1722,7 @@ bool InferExprType(const Expr& expr,
         }
         std::string using_module;
         if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
-          if (using_module == "IO" && IsIoPrintName(callee.text)) {
+          if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
             out->name = "void";
             out->type_args.clear();
             out->dims.clear();
@@ -2799,7 +2798,7 @@ bool EmitExpr(EmitState& st,
       if (callee.kind == ExprKind::Identifier) {
         std::string using_module;
         if (ResolveUsingReservedMember(st, callee.text, &using_module)) {
-          if (using_module == "IO" && IsIoPrintName(callee.text)) {
+          if (using_module == "StandardIO" && IsIoPrintName(callee.text)) {
             if (expr.args.empty()) {
               if (error) *error = "call argument count mismatch for '" + callee.text + "'";
               return false;
