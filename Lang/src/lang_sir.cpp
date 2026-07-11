@@ -432,9 +432,12 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if ((module == "Path" || module == "StandardPath") &&
-               (member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
-                member == "normalize")) {
+    } else if (((module == "Path") &&
+                (member == "separator" || member == "delimiter" || member == "isAbsolute" || member == "join" ||
+                 member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize")) ||
+               ((module == "StandardPath") &&
+                (member == "join" || member == "dirname" || member == "basename" || member == "ext" ||
+                 member == "stem" || member == "normalize"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -5453,13 +5456,20 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   if (st.reserved_imports.find("FS") != st.reserved_imports.end() && !add_fs_imports("FS", true)) return false;
   if (st.reserved_imports.find("StandardFS") != st.reserved_imports.end() && !add_fs_imports("StandardFS", false)) return false;
 
-  auto add_path_imports = [&](const std::string& canonical_module) {
+  auto add_path_imports = [&](const std::string& canonical_module, bool low_level) {
     for (const auto& alias : reserved_aliases_for(canonical_module)) {
+      if (low_level) {
+        if (!add_reserved_import(alias, "System.path", "separator", {}, make_type("string"))) return false;
+        if (!add_reserved_import(alias, "System.path", "delimiter", {}, make_type("string"))) return false;
+        std::vector<TypeRef> absolute_params;
+        absolute_params.push_back(make_type("string"));
+        if (!add_reserved_import(alias, "System.path", "isAbsolute", std::move(absolute_params), make_type("bool"))) return false;
+      }
       std::vector<TypeRef> join_params;
       join_params.push_back(make_type("string"));
       join_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.path", "join", std::move(join_params), make_type("string"))) return false;
-      for (const std::string member : {"dirname", "basename", "ext", "normalize"}) {
+      for (const std::string member : {"dirname", "basename", "ext", "stem", "normalize"}) {
         std::vector<TypeRef> params;
         params.push_back(make_type("string"));
         if (!add_reserved_import(alias, "System.path", member, std::move(params), make_type("string"))) return false;
@@ -5468,8 +5478,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (st.reserved_imports.find("Path") != st.reserved_imports.end() && !add_path_imports("Path")) return false;
-  if (st.reserved_imports.find("StandardPath") != st.reserved_imports.end() && !add_path_imports("StandardPath")) return false;
+  if (st.reserved_imports.find("Path") != st.reserved_imports.end() && !add_path_imports("Path", true)) return false;
+  if (st.reserved_imports.find("StandardPath") != st.reserved_imports.end() && !add_path_imports("StandardPath", false)) return false;
 
   if (st.reserved_imports.find("Env") != st.reserved_imports.end()) {
     for (const auto& alias : reserved_aliases_for("Env")) {

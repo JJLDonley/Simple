@@ -741,6 +741,19 @@ bool ReadStringArg(NativeCallContext& context, size_t index, std::string* out_va
   return true;
 }
 
+NativeCallResult PathSeparator(NativeCallContext&) {
+  return NativeCallResult::String(Path::Separator());
+}
+
+NativeCallResult PathDelimiter(NativeCallContext&) {
+  return NativeCallResult::String(Path::Delimiter());
+}
+
+NativeCallResult PathIsAbsolute(NativeCallContext& context) {
+  std::string value;
+  return NativeCallResult::Bool(ReadStringArg(context, 0, &value) && Path::IsAbsolute(value));
+}
+
 NativeCallResult PathJoin(NativeCallContext& context) {
   NativeCallResult result;
   std::string left;
@@ -783,6 +796,17 @@ NativeCallResult PathExt(NativeCallContext& context) {
     return result;
   }
   result.string_value = Path::Extension(value);
+  return result;
+}
+
+NativeCallResult PathStem(NativeCallContext& context) {
+  NativeCallResult result;
+  std::string value;
+  if (!ReadStringArg(context, 0, &value)) {
+    result.value = PackRef(HeapLayout::kNullRef);
+    return result;
+  }
+  result.string_value = Path::Stem(value);
   return result;
 }
 
@@ -2070,6 +2094,10 @@ void RegisterSystemLog(NativeRegistry& registry) {
 
 void RegisterSystemPath(NativeRegistry& registry) {
   using Simple::Byte::TypeKind;
+  registry.Register(MakeSpec("System.path", "separator", {}, TypeKind::String, PathSeparator));
+  registry.Register(MakeSpec("System.path", "delimiter", {}, TypeKind::String, PathDelimiter));
+  registry.Register(MakeSpec("System.path", "isAbsolute", {TypeKind::String}, TypeKind::Bool,
+                             PathIsAbsolute));
   registry.Register(MakeSpec("System.path", "join", {TypeKind::String, TypeKind::String},
                              TypeKind::String, PathJoin));
   registry.Register(MakeSpec("System.path", "dirname", {TypeKind::String}, TypeKind::String,
@@ -2078,6 +2106,8 @@ void RegisterSystemPath(NativeRegistry& registry) {
                              PathBasename));
   registry.Register(MakeSpec("System.path", "ext", {TypeKind::String}, TypeKind::String,
                              PathExt));
+  registry.Register(MakeSpec("System.path", "stem", {TypeKind::String}, TypeKind::String,
+                             PathStem));
   registry.Register(MakeSpec("System.path", "normalize", {TypeKind::String}, TypeKind::String,
                              PathNormalize));
   registry.Register(WithCapability(MakeSpec("System.path", "exists", {TypeKind::String},

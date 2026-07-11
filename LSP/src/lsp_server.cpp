@@ -1062,8 +1062,8 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
       {"SystemRandom", {"seed", "i32", "i64", "f64", "fillBytes"}},
       {"StandardRandom", {"seed", "i32", "i64", "range", "f64"}},
       {"Env", {"argsCount", "arg", "get", "set", "platform", "arch", "exePath"}},
-      {"StandardPath", {"join", "dirname", "basename", "ext", "normalize"}},
-      {"Path", {"join", "dirname", "basename", "ext", "normalize"}},
+      {"StandardPath", {"join", "dirname", "basename", "ext", "stem", "normalize"}},
+      {"Path", {"separator", "delimiter", "isAbsolute", "join", "dirname", "basename", "ext", "stem", "normalize"}},
       {"StandardFS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"FS", {"readText", "writeText", "readBytes", "writeBytes", "exists", "isFile", "isDir", "copy", "remove", "mkdir", "mkdirAll", "listDir", "cwd", "setCwd"}},
       {"Channel", {"newI32", "sendI32", "trySendI32", "recvI32", "tryRecvI32",
@@ -1433,12 +1433,21 @@ bool ResolveReservedModuleSignature(const std::string& call_name,
     return false;
   }
   if (module == "Path" || module == "StandardPath") {
+    if (module == "Path" && (member == "separator" || member == "delimiter")) {
+      out->return_type = "string";
+      return true;
+    }
+    if (module == "Path" && member == "isAbsolute") {
+      out->params = {"path"};
+      out->return_type = "bool";
+      return true;
+    }
     if (member == "join") {
       out->params = {"lhs", "rhs"};
       out->return_type = "string";
       return true;
     }
-    if (member == "dirname" || member == "basename" || member == "ext" || member == "normalize") {
+    if (member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize") {
       out->params = {"path"};
       out->return_type = "string";
       return true;

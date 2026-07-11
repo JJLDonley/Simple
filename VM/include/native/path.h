@@ -5,10 +5,14 @@
 
 namespace Simple::VM::Native::Path {
 
+std::string Separator();
+std::string Delimiter();
+bool IsAbsolute(const std::string& value);
 std::string Join(const std::string& left, const std::string& right);
 std::string Dirname(const std::string& value);
 std::string Basename(const std::string& value);
 std::string Extension(const std::string& value);
+std::string Stem(const std::string& value);
 std::string Normalize(const std::string& value);
 bool Exists(const std::string& value);
 bool IsFile(const std::string& value);

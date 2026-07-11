@@ -4,6 +4,22 @@
 
 namespace Simple::VM::Native::Path {
 
+std::string Separator() {
+  return std::string(1, std::filesystem::path::preferred_separator);
+}
+
+std::string Delimiter() {
+#if defined(_WIN32)
+  return ";";
+#else
+  return ":";
+#endif
+}
+
+bool IsAbsolute(const std::string& value) {
+  return std::filesystem::path(value).is_absolute();
+}
+
 std::string Join(const std::string& left, const std::string& right) {
   return (std::filesystem::path(left) / std::filesystem::path(right)).lexically_normal().generic_string();
 }
@@ -18,6 +34,10 @@ std::string Basename(const std::string& value) {
 
 std::string Extension(const std::string& value) {
   return std::filesystem::path(value).extension().generic_string();
+}
+
+std::string Stem(const std::string& value) {
+  return std::filesystem::path(value).stem().generic_string();
 }
 
 std::string Normalize(const std::string& value) {

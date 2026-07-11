@@ -1,5 +1,6 @@
 import Standard.Path
 import Standard.FS
+import System.Path
 
 main : i32 () {
   p : string = Standard.Path.join("Tests", "simple/hello.simple")
@@ -8,6 +9,10 @@ main : i32 () {
   if (Standard.FS.isDir(p)) { return 0 }
   if (len(Standard.Path.basename(p)) != 12) { return 0 }
   if (len(Standard.Path.ext(p)) != 7) { return 0 }
+  if (Standard.Path.stem(p) != "hello") { return 0 }
+  if (System.Path.separator() == "") { return 0 }
+  if (System.Path.delimiter() == "") { return 0 }
+  if (System.Path.isAbsolute(p)) { return 0 }
   d : string = Standard.Path.dirname(p)
   if (!Standard.FS.isDir(d)) { return 0 }
   n : string = Standard.Path.normalize("Tests/simple/../simple/hello.simple")

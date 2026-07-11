@@ -557,6 +557,17 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
     }
   }
   if (resolved == "Path" || resolved == "StandardPath") {
+    if (resolved == "Path" && (member == "separator" || member == "delimiter")) {
+      out->return_type = MakeSimpleType("string");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
+    if (resolved == "Path" && member == "isAbsolute") {
+      out->params.push_back(MakeSimpleType("string"));
+      out->return_type = MakeSimpleType("bool");
+      out->return_mutability = Mutability::Mutable;
+      return true;
+    }
     if (member == "join") {
       out->params.push_back(MakeSimpleType("string"));
       out->params.push_back(MakeSimpleType("string"));
@@ -564,7 +575,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "dirname" || member == "basename" || member == "ext" || member == "normalize") {
+    if (member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("string");
       out->return_mutability = Mutability::Mutable;

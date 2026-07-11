@@ -1698,6 +1698,23 @@ bool LangRejectStandardFsHandleApis() {
   return error.find("unknown module member") != std::string::npos;
 }
 
+bool LangRejectStandardPathPlatformFacts() {
+  const char* src =
+      "import Standard.Path\n"
+      "main : void () { separator : string = Standard.Path.separator(); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateSystemPathPlatformApis() {
+  const char* src =
+      "import System.Path\nimport Standard.Path\n"
+      "main : void () { separator : string = System.Path.separator(); delimiter : string = System.Path.delimiter(); absolute : bool = System.Path.isAbsolute(\"/tmp\"); stem : string = Standard.Path.stem(\"a.txt\"); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangRejectStandardPathFsProbeApis() {
   const char* src =
       "import Standard.Path\n"
@@ -3437,6 +3454,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_native_metadata_reserved_fs_fd_apis", LangValidateNativeMetadataReservedFsFdApis},
   {"lang_validate_native_metadata_reserved_fs_suggestion", LangValidateNativeMetadataReservedFsSuggestion},
   {"lang_reject_standard_fs_handle_apis", LangRejectStandardFsHandleApis},
+  {"lang_reject_standard_path_platform_facts", LangRejectStandardPathPlatformFacts},
+  {"lang_validate_system_path_platform_apis", LangValidateSystemPathPlatformApis},
   {"lang_reject_standard_path_fs_probe_apis", LangRejectStandardPathFsProbeApis},
   {"lang_reject_system_time_formatting_api", LangRejectSystemTimeFormattingApi},
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
