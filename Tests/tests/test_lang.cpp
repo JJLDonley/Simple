@@ -2396,6 +2396,14 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ToMember(StandardBufferMember::WithCapacity) != "withCapacity") return false;
   if (MemberNames(SystemModule::Buffer).size() != 12) return false;
   if (MemberNames(StandardModule::Buffer).size() != 15) return false;
+  const auto buffer_module = ParseCanonicalLibraryModule("SystemBuffer");
+  if (!buffer_module || buffer_module->root != LibraryRoot::System ||
+      static_cast<SystemModule>(buffer_module->module_index) != SystemModule::Buffer) return false;
+  const auto buffer_symbol = ParseLibrarySymbol("SystemBuffer", "readU32LE");
+  if (!buffer_symbol || buffer_symbol->member_name != "readU32LE") return false;
+  const auto std_bytes_symbol = ParseLibrarySymbol("StandardBytes", "toBase64");
+  if (!std_bytes_symbol || std_bytes_symbol->member_name != "toBase64") return false;
+  if (ParseLibrarySymbol("StandardBytes", "definitelyMissing")) return false;
   if (!ParseLibraryImportPath("System.Buffer")) return false;
   if (!ParseLibraryImportPath("Standard.Buffer")) return false;
   if (ParseLibraryImportPath("Buffer")) return false;

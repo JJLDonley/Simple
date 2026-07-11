@@ -113,6 +113,17 @@ enum class StandardOptionMember { Some, None, IsSome, Unwrap };
 
 enum class SystemBufferMember { New, Len, Get, Set, Slice, Copy, ReadU16LE, ReadU32LE, ReadU64LE, WriteU16LE, WriteU32LE, WriteU64LE };
 
+struct LibraryModuleId {
+  LibraryRoot root;
+  int module_index;
+};
+
+struct LibrarySymbol {
+  LibraryModuleId module;
+  uint16_t member_index = 0xffffu;
+  std::string_view member_name;
+};
+
 struct LibraryImportInfo {
   LibraryRoot root;
   int module_index;
@@ -1092,6 +1103,48 @@ inline std::vector<std::string_view> MemberNames(StandardModule module) {
     case StandardModule::Option: return {ToMember(StandardOptionMember::Some), ToMember(StandardOptionMember::None), ToMember(StandardOptionMember::IsSome), ToMember(StandardOptionMember::Unwrap)};
   }
   return {};
+}
+
+inline std::optional<LibraryModuleId> ParseCanonicalLibraryModule(std::string_view canonical) {
+  for (SystemModule module : kSystemModules) {
+    if (canonical == ToCanonicalName(module)) {
+      return LibraryModuleId{LibraryRoot::System, static_cast<int>(module)};
+    }
+  }
+  for (StandardModule module : kStandardModules) {
+    if (canonical == ToCanonicalName(module)) {
+      return LibraryModuleId{LibraryRoot::Standard, static_cast<int>(module)};
+    }
+  }
+  return std::nullopt;
+}
+
+inline std::vector<std::string_view> MemberNames(LibraryModuleId module) {
+  return module.root == LibraryRoot::System
+             ? MemberNames(static_cast<SystemModule>(module.module_index))
+             : MemberNames(static_cast<StandardModule>(module.module_index));
+}
+
+inline std::optional<LibrarySymbol> ParseLibraryMember(LibraryModuleId module,
+                                                       std::string_view member) {
+  const auto names = MemberNames(module);
+  for (size_t i = 0; i < names.size(); ++i) {
+    if (names[i] == member) {
+      return LibrarySymbol{module, static_cast<uint16_t>(i), names[i]};
+    }
+  }
+  return std::nullopt;
+}
+
+inline std::optional<LibrarySymbol> ParseLibrarySymbol(std::string_view canonical_module,
+                                                       std::string_view member) {
+  const auto module = ParseCanonicalLibraryModule(canonical_module);
+  if (!module) return std::nullopt;
+  return ParseLibraryMember(*module, member);
+}
+
+inline bool IsLibraryMember(std::string_view canonical_module, std::string_view member) {
+  return ParseLibrarySymbol(canonical_module, member).has_value();
 }
 
 inline bool IsSystemBufferLikeCanonical(std::string_view canonical) {
