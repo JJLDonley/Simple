@@ -1074,6 +1074,7 @@ std::vector<std::string> CollectReservedModuleMemberLabels(const std::string& te
                    "newString", "sendString", "trySendString", "recvString", "tryRecvString",
                    "newBytes", "sendBytes", "trySendBytes", "recvBytes", "tryRecvBytes", "close"}},
       {"File", {"open", "close", "read", "write"}},
+      {"SystemJson", {"parse", "stringify", "free"}},
       {"SystemBytes", {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"}},
       {"StandardBytes", {"new", "slice"}},
       {"SystemLog", {"log", "setLevel", "setFile"}},

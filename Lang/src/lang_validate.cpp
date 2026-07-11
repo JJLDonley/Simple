@@ -756,7 +756,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Json") {
+  if (resolved == "SystemJson") {
     if (member == "parse") {
       out->params.push_back(MakeSimpleType("string"));
       out->return_type = MakeSimpleType("i64");

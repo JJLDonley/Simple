@@ -25,7 +25,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `System.FFI` | dynamic loading/extern FFI | current `DL` / `System.dl` |
 | `System.ASM` | C/DynASM/native unit compilation/linking | planned |
 | `System.Bytes` | canonical low-level bytes | isolated over the current `System.buffer` runtime backing |
-| `System.Json` | JSON handles | current `Json` / `System.json` |
+| `System.Json` | isolated low-level JSON handles (`parse`, `stringify`, `free`) | current `System.json` runtime backing |
 | `System.Log` | logging sink | current `Log` / `System.log` |
 | `System.Random` | low-level RNG | current `Random` / `System.random` |
 | `System.Thread` | OS/runtime thread primitives | current `Thread` / `System.thread` |

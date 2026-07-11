@@ -1741,6 +1741,23 @@ bool LangValidateStandardRandomRangeApi() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRejectUnimplementedStandardJson() {
+  const char* src =
+      "import Standard.Json\n"
+      "main : void () { value : i64 = Standard.Json.parse(\"{}\"); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateSystemJsonHandleApi() {
+  const char* src =
+      "import System.Json\n"
+      "main : void () { value : i64 = System.Json.parse(\"{}\"); text : string = System.Json.stringify(value); ok : bool = System.Json.free(value); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangRejectStandardBytesLowLevelApis() {
   const char* src =
       "import Standard.Bytes\n"
@@ -3392,6 +3409,8 @@ const TestCase kLangTests[] = {
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
   {"lang_reject_system_random_range_api", LangRejectSystemRandomRangeApi},
   {"lang_validate_standard_random_range_api", LangValidateStandardRandomRangeApi},
+  {"lang_reject_unimplemented_standard_json", LangRejectUnimplementedStandardJson},
+  {"lang_validate_system_json_handle_api", LangValidateSystemJsonHandleApi},
   {"lang_reject_standard_bytes_low_level_apis", LangRejectStandardBytesLowLevelApis},
   {"lang_validate_split_bytes_apis", LangValidateSplitBytesApis},
   {"lang_reject_removed_system_buffer", LangRejectRemovedSystemBuffer},

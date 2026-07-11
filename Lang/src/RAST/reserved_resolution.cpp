@@ -27,7 +27,7 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "Env") *out = "System.env";
   else if (canonical_module == "Path") *out = "System.path";
   else if (canonical_module == "FS") *out = "System.fs";
-  else if (canonical_module == "Json") *out = "System.json";
+  else if (canonical_module == "SystemJson") *out = "System.json";
   else if (canonical_module == "SystemBytes" || canonical_module == "StandardBytes") *out = "System.buffer";
   else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
   else return false;
@@ -113,11 +113,7 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     return out;
   }
   if (canonical_module == "File") return {"open", "close", "read", "write"};
-  if (canonical_module == "Json") {
-    out = {"parse", "stringify", "free"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
-  }
+  if (canonical_module == "SystemJson") return {"parse", "stringify", "free"};
   if (canonical_module == "SystemBytes") {
     return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   }
@@ -237,7 +233,7 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
            member == "close";
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
-  if (canonical_module == "Json") return member == "parse" || member == "stringify" || member == "free";
+  if (canonical_module == "SystemJson") return member == "parse" || member == "stringify" || member == "free";
   if (canonical_module == "SystemBytes") {
     return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
            member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";

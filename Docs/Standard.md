@@ -22,7 +22,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.Path` | ergonomic path helpers | `System.Path` |
 | `Standard.Bytes` | byte creation/conversion/hex/base64; currently `new` and `slice` | `System.Bytes` |
 | `Standard.Text` | string/text helpers | runtime string helpers |
-| `Standard.Json` | high-level JSON value API | `System.Json` |
+| `Standard.Json` | reserved but intentionally unavailable until a real high-level JSON value/wrapper API exists | `System.Json` |
 | `Standard.Math` | math helpers/intrinsics | compiler intrinsics |
 | `Standard.Random` | range/bool/bytes helpers | `System.Random`, `System.Bytes` |
 | `Standard.Time` | now/mono/sleep/format/durations | `System.Time` |

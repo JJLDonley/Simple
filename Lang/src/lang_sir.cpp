@@ -458,7 +458,7 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "Json" && (member == "parse" || member == "stringify" || member == "free")) {
+    } else if (module == "SystemJson" && (member == "parse" || member == "stringify" || member == "free")) {
       if (found) return false;
       found = true;
       result = module;
@@ -1750,7 +1750,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "SystemJson" || using_module == "SystemLog" || using_module == "StandardLog") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2884,7 +2884,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "SystemJson" || using_module == "SystemLog" || using_module == "StandardLog") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5279,7 +5279,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     else if (reserved == "Env") *out = "System.env";
     else if (reserved == "Path") *out = "System.path";
     else if (reserved == "FS") *out = "System.fs";
-    else if (reserved == "Json") *out = "System.json";
+    else if (reserved == "SystemJson") *out = "System.json";
     else if (reserved == "SystemBytes" || reserved == "StandardBytes") *out = "System.buffer";
     else if (reserved == "SystemLog" || reserved == "StandardLog") *out = "System.log";
     else return false;
@@ -5627,8 +5627,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Json") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Json")) {
+  if (st.reserved_imports.find("SystemJson") != st.reserved_imports.end()) {
+    for (const auto& alias : reserved_aliases_for("SystemJson")) {
       std::vector<TypeRef> parse_params;
       parse_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.json", "parse", std::move(parse_params), make_type("i64"))) return false;
@@ -5713,8 +5713,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Env", "Path", "FS",
-                                            "Json"}) {
+  for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Env", "Path", "FS"}) {
     if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
         !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
       return false;

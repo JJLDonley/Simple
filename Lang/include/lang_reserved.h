@@ -27,7 +27,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"System.FFI", "DL"},
       {"System.ASM", "SystemASM"},
       {"System.Bytes", "SystemBytes"},
-      {"System.Json", "Json"},
+      {"System.Json", "SystemJson"},
       {"System.Log", "SystemLog"},
       {"System.Random", "SystemRandom"},
       {"System.Thread", "Thread"},
