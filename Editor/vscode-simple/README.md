@@ -1,61 +1,66 @@
 # Simple VS Code Extension
 
-This extension wires VS Code to the `simple lsp` language server and provides TextMate syntax highlighting fallback for `.simple` files.
+VS Code support for the Simple language. The extension starts the real `svm lsp` server and adds editor commands that call the real `svm` CLI.
 
 ## Features
 
-- Launches `simple lsp` via stdio using `vscode-languageclient`
+- Starts `svm lsp` over stdio with `vscode-languageclient`
 - Registers `.simple` language id (`simple`)
 - Provides TextMate grammar fallback highlighting
 - Provides bracket/comment language configuration
-- Adds `Simple: Restart Language Server` command and editor-title restart button for `.simple` files
+- Adds Simple command palette, editor-title, and editor-context commands
+- Discovers `svm` from `simple.compilerPath`, bundled binaries, workspace build outputs, then `PATH`
 
 ## Settings
 
-- `simple.lspPath`: path to `simple` CLI executable (default: `simple`)
-- `simple.lspArgs`: args used to launch LSP (default: `["lsp"]`)
+- `simple.compilerPath`: optional path to `svm`; empty means auto-discover
+- `simple.lspArgs`: args used to launch LSP, default `[
+  "lsp"
+]`
 
 ## Commands
 
+- `Simple: Check Current File` -> `svm check <file>`
+- `Simple: Run Current File` -> `svm run <file>`
+- `Simple: Run Current File With JIT` -> `svm run <file> -jit --jit-stats`
+- `Simple: Build Current File` -> `svm build <file>`
+- `Simple: Compile Current File` -> `svm compile <file>`
+- `Simple: Emit SIR` -> `svm emit -ir <file> --out <file.sir>`
+- `Simple: Emit SBC` -> `svm emit -sbc <file> --out <file.sbc>`
 - `Simple: Restart Language Server`
+- `Simple: Show Language Server Output`
+- `Simple: Show svm Version`
+- `Simple: Show svm Help`
+- `Simple: Configure Compiler Path`
+
+The extension never invokes the `simple` runtime stub for compiler/editor commands.
 
 ## Local Development
 
-1. Open `Editor/vscode-simple` in VS Code.
-2. Run `npm install`.
-3. Press `F5` to start Extension Development Host.
-4. Open a `.simple` file in the host window.
-
-## Install From VSIX
-
-From the repository root, rebuild the LSP executable and package the extension:
-
 ```bash
-./scripts/rebuild_vscode_lsp_package.sh
+npm ci
+npm run validate
 ```
 
-To package and install in one step:
+Press `F5` from this folder to start an Extension Development Host.
+
+## Package and Install
 
 ```bash
-./scripts/rebuild_vscode_lsp_package.sh --install
+npm run package -- --out simple-vscode.vsix
+code --install-extension simple-vscode.vsix --force
 ```
 
-Manual package-only command from this directory:
+Or use:
 
 ```bash
-npx --yes @vscode/vsce package --out simple-vscode.vsix
+npm run install:vsix
 ```
+
+after packaging.
 
 ## CI Packaging
 
 - GitHub Actions workflow: `.github/workflows/vscode-extension.yml`
-- On pushes to `main` that touch `Editor/vscode-simple/**`, CI builds `simple-vscode.vsix` and uploads it as an artifact.
+- CI runs `npm ci`, `npm run validate`, and packages `simple-vscode.vsix`.
 - Manual dispatch can optionally attach the VSIX and checksum to an existing release tag via `tag_name` input.
-
-## Notes
-
-This extension expects the CLI to support the `lsp` command and be available on your `PATH` (or configured via `simple.lspPath`).
-
-Packaging note:
-- Runtime dependency `vscode-languageclient` must be included in the VSIX (`extension/node_modules/...`).
-- If activation fails with `Cannot find module 'vscode-languageclient/node'`, rebuild the VSIX after `npm install` and reinstall it.

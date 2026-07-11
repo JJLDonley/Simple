@@ -811,43 +811,47 @@ Simple toolchain facts this plan must respect:
 
 ### VS Code Build and Packaging
 
-- [ ] Convert `Editor/vscode-simple` from hand-written JavaScript to a TypeScript extension build.
-  - [ ] Add `src/extension.ts`, `tsconfig.json`, typed command constants, and generated `out/extension.js`.
-  - [ ] Add `compile`, `watch`, `lint`, `package`, and prepublish scripts.
-  - [ ] Add `@types/vscode`, `typescript`, and `@vscode/vsce` dev dependencies.
-  - [ ] Keep checked-in generated output only if VSIX packaging/release requires it.
+- [x] Convert `Editor/vscode-simple` from hand-written JavaScript to a TypeScript extension build.
+  - [x] Add `src/extension.ts`, `tsconfig.json`, typed command constants, and generated `out/extension.js`.
+  - [x] Add `compile`, `watch`, `lint`, `package`, and prepublish scripts.
+  - [x] Add `@types/vscode`, `typescript`, and `@vscode/vsce` dev dependencies.
+  - [x] Keep checked-in generated output only if VSIX packaging/release requires it.
 - [ ] Keep VSIX version synchronized with `VERSION`, but do not let extension packaging change the `svm` version.
-- [ ] Package VSIX in CI by running `npm ci`, `npm run compile`, lint, and `vsce package`.
-- [ ] Support `svm` discovery in this order:
-  - [ ] explicit `simple.compilerPath` setting.
-  - [ ] bundled release binary under the extension/package layout when present.
-  - [ ] workspace-local `Compiler/bin/svm` or `Compiler/build/bin/svm` for source checkouts.
-  - [ ] `svm` on `PATH`.
-- [ ] Show a clear error with settings shortcut when no usable `svm` is found.
-- [ ] Add extension smoke tests for activation, command registration, configured path resolution, and package manifest validity.
+- [x] Package VSIX in CI by running `npm ci`, extension validation, and `vsce package`.
+- [x] Support `svm` discovery in this order:
+  - [x] explicit `simple.compilerPath` setting.
+  - [x] bundled release binary under the extension/package layout when present.
+  - [x] workspace-local `Compiler/bin/svm` or `Compiler/build/bin/svm` for source checkouts.
+  - [x] `svm` on `PATH`.
+- [x] Show a clear error with settings shortcut when no usable `svm` is found.
+- [x] Add extension smoke validation for command registration and package manifest validity.
+- [ ] Add extension smoke tests for activation and configured path resolution.
 
 ### Simple VS Code Commands and Tasks
 
-- [ ] Add VS Code commands that execute real `svm` commands:
-  - [ ] `Simple: Check Current File` -> `svm check <file>`.
-  - [ ] `Simple: Run Current File` -> `svm run <file>`.
-  - [ ] `Simple: Run Current File With JIT` -> `svm run <file> -jit --jit-stats`.
-  - [ ] `Simple: Build Current File` -> `svm build <file>`.
-  - [ ] `Simple: Compile Current File` -> `svm compile <file>`.
-  - [ ] `Simple: Emit SIR` -> `svm emit -ir <file> --out <file.sir>`.
-  - [ ] `Simple: Emit SBC` -> `svm emit -sbc <file> --out <file.sbc>`.
-  - [ ] `Simple: Restart Language Server` -> stop/start `svm lsp`.
-  - [ ] `Simple: Show Language Server Output`.
-  - [ ] `Simple: Show svm Version` -> `svm version` task.
-  - [ ] `Simple: Show svm Help` -> `svm help` task.
-  - [ ] `Simple: Configure Compiler Path`, build output directory, trace, JIT default, and settings.
-- [ ] Add command palette, editor title, editor context, and explorer context entries for `.simple`, `.sir`, and `.sbc` where appropriate.
+- [x] Add VS Code commands that execute real `svm` commands:
+  - [x] `Simple: Check Current File` -> `svm check <file>`.
+  - [x] `Simple: Run Current File` -> `svm run <file>`.
+  - [x] `Simple: Run Current File With JIT` -> `svm run <file> -jit --jit-stats`.
+  - [x] `Simple: Build Current File` -> `svm build <file>`.
+  - [x] `Simple: Compile Current File` -> `svm compile <file>`.
+  - [x] `Simple: Emit SIR` -> `svm emit -ir <file> --out <file.sir>`.
+  - [x] `Simple: Emit SBC` -> `svm emit -sbc <file> --out <file.sbc>`.
+  - [x] `Simple: Restart Language Server` -> stop/start `svm lsp`.
+  - [x] `Simple: Show Language Server Output`.
+  - [x] `Simple: Show svm Version` -> `svm version` task.
+  - [x] `Simple: Show svm Help` -> `svm help` task.
+  - [x] `Simple: Configure Compiler Path` settings shortcut.
+  - [ ] Add build output directory, trace, JIT default, and settings commands.
+- [x] Add command palette, editor title, and editor context entries for `.simple` files.
+- [ ] Add explorer context entries for `.simple`, `.sir`, and `.sbc` where appropriate.
 - [ ] Add Simple task provider:
   - [ ] default build task for active `.simple` file.
   - [ ] run/check/emit tasks for active file.
   - [ ] optional problem matcher for `path:line:column: message` diagnostics emitted by `svm`.
-- [ ] Route all command tasks through `svm` with workspace-aware cwd and optional configured output directory.
-- [ ] Never invoke the `simple` runtime stub for check/build/emit/lsp.
+- [x] Route all command tasks through `svm` with workspace-aware cwd.
+- [ ] Add optional configured output directory.
+- [x] Never invoke the `simple` runtime stub for check/build/emit/lsp.
 
 ### Simple LSP Feature Roadmap
 

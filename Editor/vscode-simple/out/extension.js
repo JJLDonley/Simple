@@ -1,0 +1,296 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deactivate = exports.activate = void 0;
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const vscode = __importStar(require("vscode"));
+const node_1 = require("vscode-languageclient/node");
+const COMMANDS = {
+    restartLanguageServer: 'simple.restartLanguageServer',
+    checkCurrentFile: 'simple.checkCurrentFile',
+    runCurrentFile: 'simple.runCurrentFile',
+    runCurrentFileWithJit: 'simple.runCurrentFileWithJit',
+    buildCurrentFile: 'simple.buildCurrentFile',
+    compileCurrentFile: 'simple.compileCurrentFile',
+    emitSir: 'simple.emitSir',
+    emitSbc: 'simple.emitSbc',
+    showLanguageServerOutput: 'simple.showLanguageServerOutput',
+    showVersion: 'simple.showVersion',
+    showHelp: 'simple.showHelp',
+    configureCompilerPath: 'simple.configureCompilerPath'
+};
+let client;
+let restartInFlight = false;
+let restartStatusItem;
+let lspOutputChannel;
+let taskOutputChannel;
+function asStringArray(value, fallback) {
+    if (!Array.isArray(value))
+        return fallback;
+    const strings = value.filter((v) => typeof v === 'string');
+    return strings.length > 0 ? strings : fallback;
+}
+function executableName() {
+    return process.platform === 'win32' ? 'svm.exe' : 'svm';
+}
+function pathExists(candidate) {
+    try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+async function commandWorks(command) {
+    return new Promise((resolve) => {
+        const proc = require('child_process').spawn(command, ['version'], { shell: process.platform === 'win32' });
+        proc.on('error', () => resolve(false));
+        proc.on('close', (code) => resolve(code === 0));
+    });
+}
+async function discoverSvm(context) {
+    const config = vscode.workspace.getConfiguration('simple');
+    const configured = config.get('compilerPath', '').trim();
+    if (configured && (path.isAbsolute(configured) ? pathExists(configured) : await commandWorks(configured))) {
+        return configured;
+    }
+    const bundled = path.join(context.extensionPath, 'bin', executableName());
+    if (pathExists(bundled))
+        return bundled;
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+        const root = folder.uri.fsPath;
+        const candidates = [
+            path.join(root, 'Compiler', 'bin', executableName()),
+            path.join(root, 'Compiler', 'build', 'bin', executableName()),
+            path.join(root, 'bin', executableName()),
+            path.join(root, 'build', 'bin', executableName())
+        ];
+        for (const candidate of candidates) {
+            if (pathExists(candidate))
+                return candidate;
+        }
+    }
+    if (await commandWorks('svm'))
+        return 'svm';
+    return undefined;
+}
+async function requireSvm(context) {
+    const svm = await discoverSvm(context);
+    if (svm)
+        return svm;
+    const action = await vscode.window.showErrorMessage('Simple compiler not found. Configure simple.compilerPath or add svm to PATH.', 'Open Settings');
+    if (action === 'Open Settings') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'simple.compilerPath');
+    }
+    return undefined;
+}
+async function createServerOptions(context) {
+    const command = await requireSvm(context);
+    if (!command)
+        throw new Error('Simple compiler not found');
+    const config = vscode.workspace.getConfiguration('simple');
+    const args = asStringArray(config.get('lspArgs'), ['lsp']);
+    return {
+        run: { command, args, transport: node_1.TransportKind.stdio },
+        debug: { command, args, transport: node_1.TransportKind.stdio }
+    };
+}
+function createClientOptions() {
+    return {
+        documentSelector: [{ language: 'simple' }],
+        outputChannel: lspOutputChannel,
+        synchronize: {
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.simple')
+        }
+    };
+}
+function updateRestartStatusVisibility() {
+    if (!restartStatusItem)
+        return;
+    const editor = vscode.window.activeTextEditor;
+    if (editor && editor.document.languageId === 'simple')
+        restartStatusItem.show();
+    else
+        restartStatusItem.hide();
+}
+async function createLanguageClient(context) {
+    const serverOptions = await createServerOptions(context);
+    return new node_1.LanguageClient('simpleLanguageServer', 'Simple Language Server', serverOptions, createClientOptions());
+}
+async function startClient(context) {
+    client = await createLanguageClient(context);
+    await client.start();
+}
+async function restartClient(context) {
+    if (restartInFlight)
+        return;
+    restartInFlight = true;
+    try {
+        if (client) {
+            await client.stop();
+            client = undefined;
+        }
+        await startClient(context);
+        vscode.window.setStatusBarMessage('Simple language server restarted', 2000);
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const action = await vscode.window.showErrorMessage(`Failed to restart Simple language server: ${message}`, 'Open Settings');
+        if (action === 'Open Settings') {
+            await vscode.commands.executeCommand('workbench.action.openSettings', 'simple.compilerPath');
+        }
+    }
+    finally {
+        restartInFlight = false;
+    }
+}
+function activeSimpleDocument() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'simple') {
+        vscode.window.showWarningMessage('Open a .simple file first.');
+        return undefined;
+    }
+    return editor.document;
+}
+function workspaceCwd(document) {
+    if (document) {
+        const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+        if (folder)
+            return folder.uri.fsPath;
+        if (document.uri.scheme === 'file')
+            return path.dirname(document.uri.fsPath);
+    }
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+async function runSvm(context, label, args, document) {
+    const svm = await requireSvm(context);
+    if (!svm)
+        return;
+    taskOutputChannel.show(true);
+    taskOutputChannel.appendLine(`> ${svm} ${args.join(' ')}`);
+    await new Promise((resolve) => {
+        const proc = require('child_process').spawn(svm, args, {
+            cwd: workspaceCwd(document),
+            shell: process.platform === 'win32'
+        });
+        proc.stdout.on('data', (data) => taskOutputChannel.append(data.toString()));
+        proc.stderr.on('data', (data) => taskOutputChannel.append(data.toString()));
+        proc.on('error', (error) => {
+            taskOutputChannel.appendLine(error.message);
+            vscode.window.showErrorMessage(`${label} failed: ${error.message}`);
+            resolve();
+        });
+        proc.on('close', (code) => {
+            const ok = code === 0;
+            taskOutputChannel.appendLine(`\n${label} ${ok ? 'completed' : `failed (${code ?? 'signal'})`}`);
+            if (!ok)
+                vscode.window.showErrorMessage(`${label} failed. See Simple output.`);
+            resolve();
+        });
+    });
+}
+function currentFilePath(document) {
+    if (document.uri.scheme !== 'file')
+        throw new Error('Current document is not a file.');
+    return document.uri.fsPath;
+}
+function outputPath(document, extension) {
+    const file = currentFilePath(document);
+    return path.join(path.dirname(file), `${path.basename(file, path.extname(file))}.${extension}`);
+}
+function registerCommand(context, command, callback) {
+    context.subscriptions.push(vscode.commands.registerCommand(command, callback));
+}
+function registerCommands(context) {
+    registerCommand(context, COMMANDS.restartLanguageServer, () => restartClient(context));
+    registerCommand(context, COMMANDS.showLanguageServerOutput, () => lspOutputChannel.show(true));
+    registerCommand(context, COMMANDS.configureCompilerPath, () => vscode.commands.executeCommand('workbench.action.openSettings', 'simple.compilerPath'));
+    registerCommand(context, COMMANDS.showVersion, () => runSvm(context, 'Simple version', ['version']));
+    registerCommand(context, COMMANDS.showHelp, () => runSvm(context, 'Simple help', ['help']));
+    registerCommand(context, COMMANDS.checkCurrentFile, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple check', ['check', currentFilePath(doc)], doc);
+    });
+    registerCommand(context, COMMANDS.runCurrentFile, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple run', ['run', currentFilePath(doc)], doc);
+    });
+    registerCommand(context, COMMANDS.runCurrentFileWithJit, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple run with JIT', ['run', currentFilePath(doc), '-jit', '--jit-stats'], doc);
+    });
+    registerCommand(context, COMMANDS.buildCurrentFile, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple build', ['build', currentFilePath(doc)], doc);
+    });
+    registerCommand(context, COMMANDS.compileCurrentFile, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple compile', ['compile', currentFilePath(doc)], doc);
+    });
+    registerCommand(context, COMMANDS.emitSir, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple emit SIR', ['emit', '-ir', currentFilePath(doc), '--out', outputPath(doc, 'sir')], doc);
+    });
+    registerCommand(context, COMMANDS.emitSbc, async () => {
+        const doc = activeSimpleDocument();
+        if (doc)
+            await runSvm(context, 'Simple emit SBC', ['emit', '-sbc', currentFilePath(doc), '--out', outputPath(doc, 'sbc')], doc);
+    });
+}
+async function activate(context) {
+    lspOutputChannel = vscode.window.createOutputChannel('Simple Language Server');
+    taskOutputChannel = vscode.window.createOutputChannel('Simple');
+    context.subscriptions.push(lspOutputChannel, taskOutputChannel);
+    restartStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    restartStatusItem.command = COMMANDS.restartLanguageServer;
+    restartStatusItem.text = '$(debug-restart) Simple LSP';
+    restartStatusItem.tooltip = 'Restart Simple language server';
+    context.subscriptions.push(restartStatusItem);
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateRestartStatusVisibility));
+    updateRestartStatusVisibility();
+    registerCommands(context);
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (event) => {
+        if (!event.affectsConfiguration('simple.compilerPath') && !event.affectsConfiguration('simple.lspArgs'))
+            return;
+        await restartClient(context);
+    }));
+    await restartClient(context);
+}
+exports.activate = activate;
+async function deactivate() {
+    if (!client)
+        return;
+    await client.stop();
+    client = undefined;
+}
+exports.deactivate = deactivate;

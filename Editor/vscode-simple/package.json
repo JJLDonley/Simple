@@ -20,7 +20,7 @@
   "categories": [
     "Programming Languages"
   ],
-  "main": "./extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
@@ -45,33 +45,163 @@
     ],
     "commands": [
       {
+        "command": "simple.checkCurrentFile",
+        "title": "Simple: Check Current File",
+        "category": "Simple",
+        "icon": "$(check)"
+      },
+      {
+        "command": "simple.runCurrentFile",
+        "title": "Simple: Run Current File",
+        "category": "Simple",
+        "icon": "$(play)"
+      },
+      {
+        "command": "simple.runCurrentFileWithJit",
+        "title": "Simple: Run Current File With JIT",
+        "category": "Simple",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "simple.buildCurrentFile",
+        "title": "Simple: Build Current File",
+        "category": "Simple",
+        "icon": "$(package)"
+      },
+      {
+        "command": "simple.compileCurrentFile",
+        "title": "Simple: Compile Current File",
+        "category": "Simple",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "simple.emitSir",
+        "title": "Simple: Emit SIR",
+        "category": "Simple"
+      },
+      {
+        "command": "simple.emitSbc",
+        "title": "Simple: Emit SBC",
+        "category": "Simple"
+      },
+      {
         "command": "simple.restartLanguageServer",
         "title": "Simple: Restart Language Server",
         "category": "Simple",
         "icon": "$(debug-restart)"
+      },
+      {
+        "command": "simple.showLanguageServerOutput",
+        "title": "Simple: Show Language Server Output",
+        "category": "Simple"
+      },
+      {
+        "command": "simple.showVersion",
+        "title": "Simple: Show svm Version",
+        "category": "Simple"
+      },
+      {
+        "command": "simple.showHelp",
+        "title": "Simple: Show svm Help",
+        "category": "Simple"
+      },
+      {
+        "command": "simple.configureCompilerPath",
+        "title": "Simple: Configure Compiler Path",
+        "category": "Simple"
       }
     ],
     "menus": {
       "commandPalette": [
         {
+          "command": "simple.checkCurrentFile"
+        },
+        {
+          "command": "simple.runCurrentFile"
+        },
+        {
+          "command": "simple.runCurrentFileWithJit"
+        },
+        {
+          "command": "simple.buildCurrentFile"
+        },
+        {
+          "command": "simple.compileCurrentFile"
+        },
+        {
+          "command": "simple.emitSir"
+        },
+        {
+          "command": "simple.emitSbc"
+        },
+        {
           "command": "simple.restartLanguageServer"
+        },
+        {
+          "command": "simple.showLanguageServerOutput"
+        },
+        {
+          "command": "simple.showVersion"
+        },
+        {
+          "command": "simple.showHelp"
+        },
+        {
+          "command": "simple.configureCompilerPath"
         }
       ],
       "editor/title": [
         {
+          "command": "simple.runCurrentFile",
+          "when": "editorLangId == simple",
+          "group": "navigation@10"
+        },
+        {
+          "command": "simple.checkCurrentFile",
+          "when": "editorLangId == simple",
+          "group": "navigation@20"
+        },
+        {
           "command": "simple.restartLanguageServer",
           "when": "editorLangId == simple",
           "group": "navigation@90"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "simple.checkCurrentFile",
+          "when": "editorLangId == simple",
+          "group": "simple@10"
+        },
+        {
+          "command": "simple.runCurrentFile",
+          "when": "editorLangId == simple",
+          "group": "simple@20"
+        },
+        {
+          "command": "simple.runCurrentFileWithJit",
+          "when": "editorLangId == simple",
+          "group": "simple@30"
+        },
+        {
+          "command": "simple.emitSir",
+          "when": "editorLangId == simple",
+          "group": "simple@40"
+        },
+        {
+          "command": "simple.emitSbc",
+          "when": "editorLangId == simple",
+          "group": "simple@50"
         }
       ]
     },
     "configuration": {
       "title": "Simple",
       "properties": {
-        "simple.lspPath": {
+        "simple.compilerPath": {
           "type": "string",
-          "default": "simple",
-          "description": "Path to the Simple CLI executable used to launch the LSP server."
+          "default": "",
+          "description": "Path to the svm executable. Empty means discover bundled, workspace-local, then PATH svm."
         },
         "simple.lspArgs": {
           "type": "array",
@@ -81,15 +211,42 @@
           "items": {
             "type": "string"
           },
-          "description": "Arguments passed to the Simple LSP command."
+          "description": "Arguments passed to svm to start the Simple LSP server."
         }
       }
     }
   },
   "scripts": {
-    "lint": "echo 'No lint configured'"
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc -p ./ --noEmit",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile",
+    "validate": "npm run compile && node scripts/validate-extension.js",
+    "install:vsix": "code --install-extension simple-vscode.vsix --force"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
-  }
+  },
+  "devDependencies": {
+    "@types/node": "20.11.30",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "5.4.5"
+  },
+  "activationEvents": [
+    "onLanguage:simple",
+    "onCommand:simple.restartLanguageServer",
+    "onCommand:simple.checkCurrentFile",
+    "onCommand:simple.runCurrentFile",
+    "onCommand:simple.runCurrentFileWithJit",
+    "onCommand:simple.buildCurrentFile",
+    "onCommand:simple.compileCurrentFile",
+    "onCommand:simple.emitSir",
+    "onCommand:simple.emitSbc",
+    "onCommand:simple.showLanguageServerOutput",
+    "onCommand:simple.showVersion",
+    "onCommand:simple.showHelp",
+    "onCommand:simple.configureCompilerPath"
+  ]
 }

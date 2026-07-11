@@ -3,3 +3,7 @@
 **/.vscode/**
 **/Tests/**
 **/bin/**
+src/**
+scripts/**
+tsconfig.json
+out/**/*.map
