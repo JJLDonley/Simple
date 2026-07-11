@@ -1890,7 +1890,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
           if (!infer_arg(i, &arg)) return true;
           arg_types.push_back(std::move(arg));
         }
-        return CheckReservedMathCallArgTypes(name, arg_types, error);
+        const auto member = ParseMember(StandardModule::Math, name);
+        if (!member || !std::holds_alternative<StandardMathMember>(*member)) return true;
+        return CheckReservedMathCallArgTypes(std::get<StandardMathMember>(*member), arg_types, error);
       }
       if (IsLibraryModule(mod, SystemModule::IO)) {
         std::vector<TypeRef> arg_types;
@@ -1900,7 +1902,9 @@ bool CheckCallArgTypes(const Expr& call_expr,
           if (!infer_arg(i, &arg)) return true;
           arg_types.push_back(std::move(arg));
         }
-        return CheckReservedIoBufferCallArgTypes(name, arg_types, error);
+        const auto member = ParseMember(SystemModule::IO, name);
+        if (!member || !std::holds_alternative<SystemIOMember>(*member)) return true;
+        return CheckReservedIoBufferCallArgTypes(std::get<SystemIOMember>(*member), arg_types, error);
       }
       if (IsLibraryModule(mod, SystemModule::Time)) {
         std::vector<TypeRef> arg_types;

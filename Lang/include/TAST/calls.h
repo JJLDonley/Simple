@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "TAST/tast.h"
+#include "lang_library.h"
 
 namespace Simple::Lang::TAST {
 
@@ -22,15 +23,27 @@ bool CheckUniqueParamName(const std::string& name,
 bool CheckCallTypeArgCount(size_t type_param_count,
                            size_t explicit_type_arg_count,
                            std::string* error);
+bool CheckReservedMathCallArgTypes(StandardMathMember member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error);
 bool CheckReservedMathCallArgTypes(const std::string& member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error);
+bool CheckReservedTimeCallArgTypes(StandardTimeMember member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error);
 bool CheckReservedTimeCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error);
+bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
+                                       const std::vector<TypeRef>& args,
+                                       std::string* error);
 bool CheckReservedIoBufferCallArgTypes(const std::string& member,
                                        const std::vector<TypeRef>& args,
                                        std::string* error);
+bool CheckReservedFileCallArgTypes(SystemFSMember member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error);
 bool CheckReservedFileCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error);

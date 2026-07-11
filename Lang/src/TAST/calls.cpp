@@ -113,41 +113,56 @@ bool CheckCallTypeArgCount(size_t type_param_count,
   return true;
 }
 
+bool CheckReservedMathCallArgTypes(StandardMathMember member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  switch (member) {
+    case StandardMathMember::Abs: {
+      if (args.size() != 1) return true;
+      const TypeRef& arg = args[0];
+      if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
+        if (error) *error = "Math.abs expects i32 or i64 argument";
+        return false;
+      }
+      return true;
+    }
+    case StandardMathMember::Sqrt: {
+      if (args.size() != 1) return true;
+      const TypeRef& arg = args[0];
+      if ((arg.name != "f32" && arg.name != "f64") || !arg.dims.empty() || arg.is_proc) {
+        if (error) *error = "Math.sqrt expects f32 or f64 argument";
+        return false;
+      }
+      return true;
+    }
+    case StandardMathMember::Min:
+    case StandardMathMember::Max: {
+      if (args.size() != 2) return true;
+      const TypeRef& a = args[0];
+      const TypeRef& b = args[1];
+      auto allowed = [](const TypeRef& t) {
+        return t.name == "i32" || t.name == "i64" || t.name == "f32" || t.name == "f64";
+      };
+      if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
+        if (error) *error = "Math." + std::string(ToMember(member)) + " expects two numeric arguments of the same type";
+        return false;
+      }
+      return true;
+    }
+    case StandardMathMember::PI:
+    case StandardMathMember::Clamp:
+    case StandardMathMember::Lerp:
+      return true;
+  }
+  return true;
+}
+
 bool CheckReservedMathCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error) {
-  if (member == "abs") {
-    if (args.size() != 1) return true;
-    const TypeRef& arg = args[0];
-    if ((arg.name != "i32" && arg.name != "i64") || !arg.dims.empty() || arg.is_proc) {
-      if (error) *error = "Math.abs expects i32 or i64 argument";
-      return false;
-    }
-    return true;
-  }
-  if (member == "sqrt") {
-    if (args.size() != 1) return true;
-    const TypeRef& arg = args[0];
-    if ((arg.name != "f32" && arg.name != "f64") || !arg.dims.empty() || arg.is_proc) {
-      if (error) *error = "Math.sqrt expects f32 or f64 argument";
-      return false;
-    }
-    return true;
-  }
-  if (member == "min" || member == "max") {
-    if (args.size() != 2) return true;
-    const TypeRef& a = args[0];
-    const TypeRef& b = args[1];
-    auto allowed = [](const TypeRef& t) {
-      return t.name == "i32" || t.name == "i64" || t.name == "f32" || t.name == "f64";
-    };
-    if (!allowed(a) || !allowed(b) || !TypeEquals(a, b) || !a.dims.empty() || !b.dims.empty()) {
-      if (error) *error = "Math." + member + " expects two numeric arguments of the same type";
-      return false;
-    }
-    return true;
-  }
-  return true;
+  const auto parsed = ParseMember(StandardModule::Math, member);
+  if (!parsed || !std::holds_alternative<StandardMathMember>(*parsed)) return true;
+  return CheckReservedMathCallArgTypes(std::get<StandardMathMember>(*parsed), args, error);
 }
 
 bool IsFormatArgTypeName(const std::string& name) {
@@ -230,39 +245,127 @@ bool CheckReservedDlOpenArgTypes(const std::vector<TypeRef>& args,
   return true;
 }
 
+bool CheckReservedFileCallArgTypes(SystemFSMember member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  switch (member) {
+    case SystemFSMember::Open: {
+      if (args.size() != 2) return true;
+      const TypeRef& path = args[0];
+      const TypeRef& flags = args[1];
+      if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
+        if (error) *error = "File.open expects (string, i32)";
+        return false;
+      }
+      return true;
+    }
+    case SystemFSMember::Close: {
+      if (args.size() != 1) return true;
+      const TypeRef& fd = args[0];
+      if (fd.name != "i32" || !fd.dims.empty()) {
+        if (error) *error = "File.close expects (i32)";
+        return false;
+      }
+      return true;
+    }
+    case SystemFSMember::Read:
+    case SystemFSMember::Write: {
+      if (args.size() != 3) return true;
+      const TypeRef& fd = args[0];
+      const TypeRef& buf = args[1];
+      const TypeRef& len = args[2];
+      if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
+          !IsI32BufferType(buf)) {
+        if (error) *error = "File." + std::string(ToMember(member)) + " expects (i32, i32[], i32)";
+        return false;
+      }
+      return true;
+    }
+    case SystemFSMember::Flush:
+    case SystemFSMember::Seek:
+    case SystemFSMember::Tell:
+    case SystemFSMember::Stat:
+    case SystemFSMember::Exists:
+    case SystemFSMember::IsFile:
+    case SystemFSMember::IsDir:
+    case SystemFSMember::ListDir:
+    case SystemFSMember::NextDirEntry:
+    case SystemFSMember::CloseDir:
+    case SystemFSMember::Mkdir:
+    case SystemFSMember::MkdirAll:
+    case SystemFSMember::Remove:
+    case SystemFSMember::Copy:
+    case SystemFSMember::Rename:
+    case SystemFSMember::Cwd:
+    case SystemFSMember::SetCwd:
+    case SystemFSMember::ReadText:
+    case SystemFSMember::WriteText:
+    case SystemFSMember::ReadBytes:
+    case SystemFSMember::WriteBytes:
+      return true;
+  }
+  return true;
+}
+
 bool CheckReservedFileCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error) {
-  if (member == "open") {
-    if (args.size() != 2) return true;
-    const TypeRef& path = args[0];
-    const TypeRef& flags = args[1];
-    if (path.name != "string" || !path.dims.empty() || flags.name != "i32" || !flags.dims.empty()) {
-      if (error) *error = "File.open expects (string, i32)";
-      return false;
+  const auto parsed = ParseMember(SystemModule::FS, member);
+  if (!parsed || !std::holds_alternative<SystemFSMember>(*parsed)) return true;
+  return CheckReservedFileCallArgTypes(std::get<SystemFSMember>(*parsed), args, error);
+}
+
+bool CheckReservedIoBufferCallArgTypes(SystemIOMember member,
+                                       const std::vector<TypeRef>& args,
+                                       std::string* error) {
+  switch (member) {
+    case SystemIOMember::BufferNew: {
+      if (args.size() != 1) return true;
+      const TypeRef& len = args[0];
+      if (len.name != "i32" || !len.dims.empty()) {
+        if (error) *error = "IO.buffer_new expects (i32)";
+        return false;
+      }
+      return true;
     }
-    return true;
-  }
-  if (member == "close") {
-    if (args.size() != 1) return true;
-    const TypeRef& fd = args[0];
-    if (fd.name != "i32" || !fd.dims.empty()) {
-      if (error) *error = "File.close expects (i32)";
-      return false;
+    case SystemIOMember::BufferLen: {
+      if (args.size() != 1) return true;
+      if (!IsI32BufferType(args[0])) {
+        if (error) *error = "IO.buffer_len expects (i32[])";
+        return false;
+      }
+      return true;
     }
-    return true;
-  }
-  if (member == "read" || member == "write") {
-    if (args.size() != 3) return true;
-    const TypeRef& fd = args[0];
-    const TypeRef& buf = args[1];
-    const TypeRef& len = args[2];
-    if (fd.name != "i32" || !fd.dims.empty() || len.name != "i32" || !len.dims.empty() ||
-        !IsI32BufferType(buf)) {
-      if (error) *error = "File." + member + " expects (i32, i32[], i32)";
-      return false;
+    case SystemIOMember::BufferFill: {
+      if (args.size() != 3) return true;
+      const TypeRef& buf = args[0];
+      const TypeRef& value = args[1];
+      const TypeRef& count = args[2];
+      if (!IsI32BufferType(buf) || value.name != "i32" || !value.dims.empty() ||
+          count.name != "i32" || !count.dims.empty()) {
+        if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
+        return false;
+      }
+      return true;
     }
-    return true;
+    case SystemIOMember::BufferCopy: {
+      if (args.size() != 3) return true;
+      const TypeRef& dst = args[0];
+      const TypeRef& src = args[1];
+      const TypeRef& count = args[2];
+      if (!IsI32BufferType(dst) || !IsI32BufferType(src) || count.name != "i32" || !count.dims.empty()) {
+        if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
+        return false;
+      }
+      return true;
+    }
+    case SystemIOMember::Stdin:
+    case SystemIOMember::Stdout:
+    case SystemIOMember::Stderr:
+    case SystemIOMember::Write:
+    case SystemIOMember::WriteText:
+    case SystemIOMember::Flush:
+      return true;
   }
   return true;
 }
@@ -270,45 +373,38 @@ bool CheckReservedFileCallArgTypes(const std::string& member,
 bool CheckReservedIoBufferCallArgTypes(const std::string& member,
                                        const std::vector<TypeRef>& args,
                                        std::string* error) {
-  if (member == "buffer_new") {
-    if (args.size() != 1) return true;
-    const TypeRef& len = args[0];
-    if (len.name != "i32" || !len.dims.empty()) {
-      if (error) *error = "IO.buffer_new expects (i32)";
-      return false;
+  const auto parsed = ParseMember(SystemModule::IO, member);
+  if (!parsed || !std::holds_alternative<SystemIOMember>(*parsed)) return true;
+  return CheckReservedIoBufferCallArgTypes(std::get<SystemIOMember>(*parsed), args, error);
+}
+
+bool CheckReservedTimeCallArgTypes(StandardTimeMember member,
+                                   const std::vector<TypeRef>& args,
+                                   std::string* error) {
+  switch (member) {
+    case StandardTimeMember::MonoNs:
+    case StandardTimeMember::NowNs:
+    case StandardTimeMember::MonoSnake:
+    case StandardTimeMember::WallSnake:
+      if (!args.empty()) {
+        if (error) *error = "Time." + std::string(ToMember(member)) + " expects no arguments";
+        return false;
+      }
+      return true;
+    case StandardTimeMember::FormatWallNs: {
+      if (args.size() != 1) {
+        if (error) *error = "Time.formatWallNs expects (i64)";
+        return false;
+      }
+      const TypeRef& ns = args[0];
+      if (ns.name != "i64" || !ns.dims.empty()) {
+        if (error) *error = "Time.formatWallNs expects (i64)";
+        return false;
+      }
+      return true;
     }
-    return true;
-  }
-  if (member == "buffer_len") {
-    if (args.size() != 1) return true;
-    if (!IsI32BufferType(args[0])) {
-      if (error) *error = "IO.buffer_len expects (i32[])";
-      return false;
-    }
-    return true;
-  }
-  if (member == "buffer_fill") {
-    if (args.size() != 3) return true;
-    const TypeRef& buf = args[0];
-    const TypeRef& value = args[1];
-    const TypeRef& count = args[2];
-    if (!IsI32BufferType(buf) || value.name != "i32" || !value.dims.empty() ||
-        count.name != "i32" || !count.dims.empty()) {
-      if (error) *error = "IO.buffer_fill expects (i32[], i32, i32)";
-      return false;
-    }
-    return true;
-  }
-  if (member == "buffer_copy") {
-    if (args.size() != 3) return true;
-    const TypeRef& dst = args[0];
-    const TypeRef& src = args[1];
-    const TypeRef& count = args[2];
-    if (!IsI32BufferType(dst) || !IsI32BufferType(src) || count.name != "i32" || !count.dims.empty()) {
-      if (error) *error = "IO.buffer_copy expects (i32[], i32[], i32)";
-      return false;
-    }
-    return true;
+    case StandardTimeMember::SleepMs:
+      return true;
   }
   return true;
 }
@@ -316,26 +412,9 @@ bool CheckReservedIoBufferCallArgTypes(const std::string& member,
 bool CheckReservedTimeCallArgTypes(const std::string& member,
                                    const std::vector<TypeRef>& args,
                                    std::string* error) {
-  if (member == "mono_ns" || member == "wall_ns") {
-    if (!args.empty()) {
-      if (error) *error = "Time." + member + " expects no arguments";
-      return false;
-    }
-    return true;
-  }
-  if (member == "formatWallNs") {
-    if (args.size() != 1) {
-      if (error) *error = "Time.formatWallNs expects (i64)";
-      return false;
-    }
-    const TypeRef& ns = args[0];
-    if (ns.name != "i64" || !ns.dims.empty()) {
-      if (error) *error = "Time.formatWallNs expects (i64)";
-      return false;
-    }
-    return true;
-  }
-  return true;
+  const auto parsed = ParseMember(StandardModule::Time, member);
+  if (!parsed || !std::holds_alternative<StandardTimeMember>(*parsed)) return true;
+  return CheckReservedTimeCallArgTypes(std::get<StandardTimeMember>(*parsed), args, error);
 }
 
 bool CheckFnLiteralAgainstType(const Expr& fn_expr,
