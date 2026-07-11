@@ -2448,6 +2448,12 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (!ParseLibraryImportPath("System.Buffer")) return false;
   if (!ParseLibraryImportPath("Standard.Buffer")) return false;
   if (ParseLibraryImportPath("Buffer")) return false;
+  const auto stale_fs = StaleLowercaseRuntimeModuleReplacement("System.fs");
+  if (!stale_fs || *stale_fs != "System.FS") return false;
+  const auto stale_ffi = StaleLowercaseRuntimeModuleReplacement("System.ffi");
+  if (!stale_ffi || *stale_ffi != "System.FFI") return false;
+  if (StaleLowercaseRuntimeModuleReplacement("System.FS")) return false;
+  if (StaleLowercaseRuntimeModuleReplacement("Standard.fs")) return false;
   const auto replacement = LegacyReservedImportReplacementView("Buffer");
   return replacement && replacement->find("System.Buffer") != std::string_view::npos;
 }

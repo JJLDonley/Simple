@@ -1,6 +1,7 @@
 #include "runtime/import_dispatch.h"
 
 #include "ffi/dl_call.h"
+#include "../../../Lang/include/lang_library.h"
 #include "native/dispatch.h"
 #include "runtime/values.h"
 #include "sbc_loader.h"
@@ -42,11 +43,8 @@ bool DispatchImportCallByName(const Simple::Byte::SbcModule& module,
     out_error = "import name invalid";
     return false;
   }
-  if (mod == "System.io" || mod == "System.fs" || mod == "System.path" ||
-      mod == "System.env" || mod == "System.os" || mod == "System.dl" ||
-      mod == "System.buffer" || mod == "System.json" || mod == "System.log" ||
-      mod == "System.random" || mod == "System.thread" || mod == "System.channel") {
-    out_error = "stale lowercase native module name: " + mod;
+  if (const auto replacement = Simple::Lang::StaleLowercaseRuntimeModuleReplacement(mod)) {
+    out_error = "stale lowercase native module name: " + mod + "; use " + std::string(*replacement);
     return false;
   }
   if (func_id >= module.functions.size()) {

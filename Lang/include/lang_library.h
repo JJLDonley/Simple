@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cctype>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -1419,6 +1420,33 @@ inline bool IsSystemBufferMember(std::string_view member) {
     if (member == ToMember(item)) return true;
   }
   return false;
+}
+
+inline bool EqualsStaleLowercaseRuntimeModule(std::string_view stale,
+                                             std::string_view canonical) {
+  constexpr std::string_view prefix = "System.";
+  if (stale.size() != canonical.size()) return false;
+  if (stale.substr(0, prefix.size()) != prefix || canonical.substr(0, prefix.size()) != prefix) {
+    return false;
+  }
+  for (size_t i = 0; i < prefix.size(); ++i) {
+    if (stale[i] != canonical[i]) return false;
+  }
+  bool differs = false;
+  for (size_t i = prefix.size(); i < canonical.size(); ++i) {
+    const char expected = static_cast<char>(std::tolower(static_cast<unsigned char>(canonical[i])));
+    if (stale[i] != expected) return false;
+    if (stale[i] != canonical[i]) differs = true;
+  }
+  return differs;
+}
+
+inline std::optional<std::string_view> StaleLowercaseRuntimeModuleReplacement(std::string_view module) {
+  for (SystemModule system_module : kSystemModules) {
+    const std::string_view canonical = ToImportPath(system_module);
+    if (EqualsStaleLowercaseRuntimeModule(module, canonical)) return canonical;
+  }
+  return std::nullopt;
 }
 
 inline std::optional<std::string_view> LegacyReservedImportReplacementView(std::string_view path) {
