@@ -776,27 +776,27 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       return true;
     }
   }
-  if (resolved == "Buffer") {
+  if (resolved == "SystemBytes" || resolved == "StandardBytes") {
     if (member == "new") {
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeListType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "len") {
+    if (resolved == "SystemBytes" && member == "len") {
       out->params.push_back(MakeListType("i32"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "readU16LE" || member == "readU32LE") {
+    if (resolved == "SystemBytes" && (member == "readU16LE" || member == "readU32LE")) {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->return_type = MakeSimpleType("i32");
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "writeU16LE" || member == "writeU32LE") {
+    if (resolved == "SystemBytes" && (member == "writeU16LE" || member == "writeU32LE")) {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
@@ -812,7 +812,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
-    if (member == "copy") {
+    if (resolved == "SystemBytes" && member == "copy") {
       out->params.push_back(MakeListType("i32"));
       out->params.push_back(MakeSimpleType("i32"));
       out->params.push_back(MakeListType("i32"));
@@ -822,6 +822,7 @@ bool GetReservedModuleCallTarget(const ValidateContext& ctx,
       out->return_mutability = Mutability::Mutable;
       return true;
     }
+    return false;
   }
   if (resolved == "SystemLog" || resolved == "StandardLog") {
     if (resolved == "SystemLog" && member == "log") {

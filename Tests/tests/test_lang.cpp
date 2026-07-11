@@ -1741,6 +1741,29 @@ bool LangValidateStandardRandomRangeApi() {
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
+bool LangRejectStandardBytesLowLevelApis() {
+  const char* src =
+      "import Standard.Bytes\n"
+      "main : void () { data : i32[] = Standard.Bytes.new(4); size : i32 = Standard.Bytes.len(data); }";
+  std::string error;
+  if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
+  return error.find("unknown module member") != std::string::npos;
+}
+
+bool LangValidateSplitBytesApis() {
+  const char* src =
+      "import System.Bytes\nimport Standard.Bytes\n"
+      "main : void () { data : i32[] = Standard.Bytes.new(4); size : i32 = System.Bytes.len(data); part : i32[] = Standard.Bytes.slice(data, 0, 2); }";
+  std::string error;
+  return Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
+bool LangRejectRemovedSystemBuffer() {
+  const char* src = "import System.Buffer\nmain : void () { }";
+  std::string error;
+  return !Simple::Lang::ValidateProgramFromString(src, &error);
+}
+
 bool LangRejectSystemLogConvenienceApis() {
   const char* src =
       "import System.Log\n"
@@ -2301,7 +2324,7 @@ bool LangValidateCanonicalSystemStandardImports() {
 bool LangValidateAllPlannedSystemStandardImports() {
   const char* src =
     "import System.IO\nimport System.FS\nimport System.Path\nimport System.Env\nimport System.OS\n"
-    "import System.Time\nimport System.FFI\nimport System.ASM\nimport System.Bytes\nimport System.Buffer\n"
+    "import System.Time\nimport System.FFI\nimport System.ASM\nimport System.Bytes\n"
     "import System.Json\nimport System.Log\nimport System.Random\nimport System.Thread\nimport System.Job\n"
     "import System.Channel\nimport System.Process\nimport System.Net\nimport System.HTTP\nimport System.Terminal\n"
     "import System.Capability\nimport System.Runtime\nimport System.Debug\n"
@@ -3369,6 +3392,9 @@ const TestCase kLangTests[] = {
   {"lang_validate_standard_time_formatting_api", LangValidateStandardTimeFormattingApi},
   {"lang_reject_system_random_range_api", LangRejectSystemRandomRangeApi},
   {"lang_validate_standard_random_range_api", LangValidateStandardRandomRangeApi},
+  {"lang_reject_standard_bytes_low_level_apis", LangRejectStandardBytesLowLevelApis},
+  {"lang_validate_split_bytes_apis", LangValidateSplitBytesApis},
+  {"lang_reject_removed_system_buffer", LangRejectRemovedSystemBuffer},
   {"lang_reject_system_log_convenience_apis", LangRejectSystemLogConvenienceApis},
   {"lang_reject_standard_log_raw_api", LangRejectStandardLogRawApi},
   {"lang_validate_split_log_apis", LangValidateSplitLogApis},

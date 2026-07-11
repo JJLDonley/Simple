@@ -24,7 +24,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `System.Time` | clocks/timers | current `Time` |
 | `System.FFI` | dynamic loading/extern FFI | current `DL` / `System.dl` |
 | `System.ASM` | C/DynASM/native unit compilation/linking | planned |
-| `System.Bytes` | canonical low-level bytes | current `Buffer`/VM `Bytes` work |
+| `System.Bytes` | canonical low-level bytes | isolated over the current `System.buffer` runtime backing |
 | `System.Json` | JSON handles | current `Json` / `System.json` |
 | `System.Log` | logging sink | current `Log` / `System.log` |
 | `System.Random` | low-level RNG | current `Random` / `System.random` |
@@ -76,3 +76,5 @@ import Time
 ```
 
 Old imports produce diagnostics with suggested canonical replacements, not aliases. Planned `System.*` modules may be importable before their APIs are implemented; they must not expose duplicate high-level `Standard.*` behavior.
+
+`System.Buffer` is not public: the runtime does not currently provide a native-buffer resource distinct from heap bytes. `System.Bytes` is the sole low-level byte module.

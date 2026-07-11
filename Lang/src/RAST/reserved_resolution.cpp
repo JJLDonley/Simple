@@ -28,7 +28,7 @@ bool NativeModuleNameForReserved(const std::string& canonical_module, std::strin
   else if (canonical_module == "Path") *out = "System.path";
   else if (canonical_module == "FS") *out = "System.fs";
   else if (canonical_module == "Json") *out = "System.json";
-  else if (canonical_module == "Buffer") *out = "System.buffer";
+  else if (canonical_module == "SystemBytes" || canonical_module == "StandardBytes") *out = "System.buffer";
   else if (canonical_module == "SystemLog" || canonical_module == "StandardLog") *out = "System.log";
   else return false;
   return true;
@@ -118,11 +118,10 @@ std::vector<std::string> ReservedModuleMembers(const std::string& canonical_modu
     AddNativeReservedMembers(canonical_module, &out);
     return out;
   }
-  if (canonical_module == "Buffer") {
-    out = {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
-    AddNativeReservedMembers(canonical_module, &out);
-    return out;
+  if (canonical_module == "SystemBytes") {
+    return {"new", "len", "readU16LE", "readU32LE", "writeU16LE", "writeU32LE", "slice", "copy"};
   }
+  if (canonical_module == "StandardBytes") return {"new", "slice"};
   if (canonical_module == "SystemLog") return {"log", "setLevel", "setFile"};
   if (canonical_module == "StandardLog") return {"info", "warn", "error", "setLevel", "setFile"};
   return out;
@@ -239,10 +238,11 @@ bool IsReservedModuleFunction(const std::string& canonical_module, const std::st
   }
   if (canonical_module == "File") return member == "open" || member == "close" || member == "read" || member == "write";
   if (canonical_module == "Json") return member == "parse" || member == "stringify" || member == "free";
-  if (canonical_module == "Buffer") {
+  if (canonical_module == "SystemBytes") {
     return member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
            member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy";
   }
+  if (canonical_module == "StandardBytes") return member == "new" || member == "slice";
   return false;
 }
 

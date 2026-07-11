@@ -20,7 +20,7 @@ There are no public compatibility aliases in the target model. Source imports mu
 | `Standard.Console` | user-friendly console colors/clear/readline | `System.IO`, `System.Terminal` |
 | `Standard.FS` | readText/writeText/readBytes/writeBytes/list/walk | `System.FS`, `System.Path`, `System.Bytes` |
 | `Standard.Path` | ergonomic path helpers | `System.Path` |
-| `Standard.Bytes` | byte creation/conversion/hex/base64 | `System.Bytes` |
+| `Standard.Bytes` | byte creation/conversion/hex/base64; currently `new` and `slice` | `System.Bytes` |
 | `Standard.Text` | string/text helpers | runtime string helpers |
 | `Standard.Json` | high-level JSON value API | `System.Json` |
 | `Standard.Math` | math helpers/intrinsics | compiler intrinsics |

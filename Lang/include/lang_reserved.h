@@ -17,7 +17,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
     const char* name;
     const char* canonical;
   };
-  static constexpr std::array<ReservedImportEntry, 44> kReserved = {{
+  static constexpr std::array<ReservedImportEntry, 43> kReserved = {{
       {"System.IO", "SystemIO"},
       {"System.FS", "FS"},
       {"System.Path", "Path"},
@@ -26,8 +26,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"System.Time", "Time"},
       {"System.FFI", "DL"},
       {"System.ASM", "SystemASM"},
-      {"System.Bytes", "Buffer"},
-      {"System.Buffer", "Buffer"},
+      {"System.Bytes", "SystemBytes"},
       {"System.Json", "Json"},
       {"System.Log", "SystemLog"},
       {"System.Random", "SystemRandom"},
@@ -45,7 +44,7 @@ inline bool CanonicalizeReservedImportPath(const std::string& path, std::string*
       {"Standard.Console", "StandardConsole"},
       {"Standard.FS", "StandardFS"},
       {"Standard.Path", "StandardPath"},
-      {"Standard.Bytes", "Buffer"},
+      {"Standard.Bytes", "StandardBytes"},
       {"Standard.Text", "StandardText"},
       {"Standard.Json", "StandardJson"},
       {"Standard.Math", "Math"},

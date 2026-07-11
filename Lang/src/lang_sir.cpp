@@ -462,9 +462,10 @@ bool ResolveUsingReservedMember(const EmitState& st,
       if (found) return false;
       found = true;
       result = module;
-    } else if (module == "Buffer" &&
-               (member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
-                member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy")) {
+    } else if ((module == "SystemBytes" &&
+                (member == "new" || member == "len" || member == "readU16LE" || member == "readU32LE" ||
+                 member == "writeU16LE" || member == "writeU32LE" || member == "slice" || member == "copy")) ||
+               (module == "StandardBytes" && (member == "new" || member == "slice"))) {
       if (found) return false;
       found = true;
       result = module;
@@ -1749,7 +1750,7 @@ bool InferExprType(const Expr& expr,
             out->proc_return.reset();
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
             auto ret_mod_it = st.extern_returns_by_module.find(using_module);
             if (ret_mod_it == st.extern_returns_by_module.end()) return false;
             auto ret_it = ret_mod_it->second.find(callee.text);
@@ -2883,7 +2884,7 @@ bool EmitExpr(EmitState& st,
             PushStack(st, 1);
             return true;
           }
-          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "Buffer" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
+          if (using_module == "Time" || using_module == "StandardTime" || using_module == "Thread" || using_module == "Channel" || using_module == "SystemRandom" || using_module == "StandardRandom" || using_module == "Env" || using_module == "Path" || using_module == "StandardPath" || using_module == "FS" || using_module == "StandardFS" || using_module == "SystemBytes" || using_module == "StandardBytes" || using_module == "Json" || using_module == "SystemLog" || using_module == "StandardLog") {
             auto ext_mod_it = st.extern_ids_by_module.find(using_module);
             const std::string qualified_name = using_module + "." + callee.text;
             if (ext_mod_it == st.extern_ids_by_module.end()) {
@@ -5279,7 +5280,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     else if (reserved == "Path") *out = "System.path";
     else if (reserved == "FS") *out = "System.fs";
     else if (reserved == "Json") *out = "System.json";
-    else if (reserved == "Buffer") *out = "System.buffer";
+    else if (reserved == "SystemBytes" || reserved == "StandardBytes") *out = "System.buffer";
     else if (reserved == "SystemLog" || reserved == "StandardLog") *out = "System.log";
     else return false;
     return true;
@@ -5640,21 +5641,23 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (st.reserved_imports.find("Buffer") != st.reserved_imports.end()) {
-    for (const auto& alias : reserved_aliases_for("Buffer")) {
+  auto add_bytes_imports = [&](const std::string& canonical, bool low_level) {
+    for (const auto& alias : reserved_aliases_for(canonical)) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "System.buffer", "new", std::move(new_params), make_list_type("i32"))) return false;
-      std::vector<TypeRef> len_params;
-      len_params.push_back(make_list_type("i32"));
-      if (!add_reserved_import(alias, "System.buffer", "len", std::move(len_params), make_type("i32"))) return false;
-      for (const std::string member : {"readU16LE", "readU32LE"}) {
+      if (low_level) {
+        std::vector<TypeRef> len_params;
+        len_params.push_back(make_list_type("i32"));
+        if (!add_reserved_import(alias, "System.buffer", "len", std::move(len_params), make_type("i32"))) return false;
+      }
+      if (low_level) for (const std::string member : {"readU16LE", "readU32LE"}) {
         std::vector<TypeRef> params;
         params.push_back(make_list_type("i32"));
         params.push_back(make_type("i32"));
         if (!add_reserved_import(alias, "System.buffer", member, std::move(params), make_type("i32"))) return false;
       }
-      for (const std::string member : {"writeU16LE", "writeU32LE"}) {
+      if (low_level) for (const std::string member : {"writeU16LE", "writeU32LE"}) {
         std::vector<TypeRef> params;
         params.push_back(make_list_type("i32"));
         params.push_back(make_type("i32"));
@@ -5666,15 +5669,20 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       slice_params.push_back(make_type("i32"));
       slice_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "System.buffer", "slice", std::move(slice_params), make_list_type("i32"))) return false;
-      std::vector<TypeRef> copy_params;
-      copy_params.push_back(make_list_type("i32"));
-      copy_params.push_back(make_type("i32"));
-      copy_params.push_back(make_list_type("i32"));
-      copy_params.push_back(make_type("i32"));
-      copy_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
+      if (low_level) {
+        std::vector<TypeRef> copy_params;
+        copy_params.push_back(make_list_type("i32"));
+        copy_params.push_back(make_type("i32"));
+        copy_params.push_back(make_list_type("i32"));
+        copy_params.push_back(make_type("i32"));
+        copy_params.push_back(make_type("i32"));
+        if (!add_reserved_import(alias, "System.buffer", "copy", std::move(copy_params), make_type("i32"))) return false;
+      }
     }
-  }
+    return true;
+  };
+  if (st.reserved_imports.find("SystemBytes") != st.reserved_imports.end() && !add_bytes_imports("SystemBytes", true)) return false;
+  if (st.reserved_imports.find("StandardBytes") != st.reserved_imports.end() && !add_bytes_imports("StandardBytes", false)) return false;
 
   auto add_log_control_imports = [&](const std::string& alias) {
     std::vector<TypeRef> level_params;
@@ -5706,7 +5714,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
   }
 
   for (const std::string native_reserved : {"IO", "DL", "OS", "Thread", "Env", "Path", "FS",
-                                            "Json", "Buffer"}) {
+                                            "Json"}) {
     if (st.reserved_imports.find(native_reserved) != st.reserved_imports.end() &&
         !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
       return false;
