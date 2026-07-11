@@ -4,10 +4,12 @@
 #include <cstdint>
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "heap.h"
+#include "../../../Lang/include/lang_library.h"
 #include "native/resource_registry.h"
 #include "runtime/abi.h"
 #include "sbc_types.h"
@@ -122,6 +124,7 @@ struct NativeResourceUse {
 
 struct NativeFunctionSpec {
   std::string module_name;
+  std::optional<Simple::Lang::LibraryModuleId> library_module;
   std::string symbol_name;
   std::vector<Simple::Byte::TypeKind> parameter_types;
   Simple::Byte::TypeKind result_type = Simple::Byte::TypeKind::Unspecified;

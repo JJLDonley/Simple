@@ -273,6 +273,18 @@ bool VmNativeFunctionMetadataDeclaresCapabilities() {
          HasCapability(registry.Find("System.Random", "i32"), "randomness");
 }
 
+bool VmNativeFunctionMetadataDeclaresLibraryModuleIds() {
+  const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const auto* fs_open = registry.Find("System.FS", "open");
+  const auto* ffi_open = registry.Find("System.FFI", "open");
+  const auto* standard_missing = registry.Find("Standard.FS", "readText");
+  return fs_open && fs_open->library_module &&
+         *fs_open->library_module == Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS) &&
+         ffi_open && ffi_open->library_module &&
+         *ffi_open->library_module == Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FFI) &&
+         standard_missing == nullptr;
+}
+
 bool VmNativeFunctionMetadataDeclaresStability() {
   using Simple::VM::Native::NativeStability;
 
@@ -672,6 +684,7 @@ const TestCase kVmNativeFsTests[] = {
   {"vm_native_call_context_typed_accessors_and_builders_work", VmNativeCallContextTypedAccessorsAndBuildersWork},
   {"vm_native_registry_metadata_validates_specs", VmNativeRegistryMetadataValidatesSpecs},
   {"vm_native_function_metadata_declares_capabilities", VmNativeFunctionMetadataDeclaresCapabilities},
+  {"vm_native_function_metadata_declares_library_module_ids", VmNativeFunctionMetadataDeclaresLibraryModuleIds},
   {"vm_native_function_metadata_declares_stability", VmNativeFunctionMetadataDeclaresStability},
   {"vm_native_function_metadata_declares_resources", VmNativeFunctionMetadataDeclaresResources},
   {"vm_native_generated_docs_include_capabilities_and_resources", VmNativeGeneratedDocsIncludeCapabilitiesAndResources},

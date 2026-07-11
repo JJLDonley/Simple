@@ -1397,6 +1397,9 @@ NativeFunctionSpec MakeSpec(const char* module_name, const char* symbol_name,
                             NativeFunctionHandler handler) {
   NativeFunctionSpec spec;
   spec.module_name = module_name;
+  if (const auto module = Simple::Lang::ParseLibraryImportPath(module_name)) {
+    spec.library_module = Simple::Lang::LibraryModuleId{module->root, module->module_index};
+  }
   spec.symbol_name = symbol_name;
   spec.parameter_types = std::move(params);
   spec.result_type = result_type;
