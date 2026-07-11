@@ -146,11 +146,11 @@ bool CheckedMulOverflowU64(uint64_t a, uint64_t b, uint64_t* out) {
 } // namespace
 
 ExecResult ExecuteModule(const SbcModule& module) {
-  return ExecuteModule(module, true, true, ExecOptions{});
+  return ExecuteModule(module, true, false, ExecOptions{});
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify) {
-  return ExecuteModule(module, verify, true, ExecOptions{});
+  return ExecuteModule(module, verify, false, ExecOptions{});
 }
 
 ExecResult ExecuteModule(const SbcModule& module, bool verify, bool enable_jit) {
