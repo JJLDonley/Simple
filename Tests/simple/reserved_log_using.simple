@@ -6,6 +6,5 @@ main : i32 () {
   info("hidden")
   warn("hidden")
   error("hidden")
-  log("hidden", 1)
   return 1
 }

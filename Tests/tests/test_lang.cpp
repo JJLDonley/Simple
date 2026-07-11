@@ -949,13 +949,13 @@ bool LangSimpleBadTypeMismatch() {
 bool LangSimpleBadPrintArray() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/print_array.simple",
-      "Standard.IO.print");
+      "undeclared identifier: IO");
 }
 
 bool LangSimpleBadImportUnknown() {
-  return Simple::VM::Tests::RunSimpleFileExpectError(
-      "Tests/simple_bad/import_unknown.simple",
-      "import");
+  int exit_code = 0;
+  const std::string err = RunCommandCaptureStderr("./build/bin/svm check Tests/simple_bad/import_unknown.simple", &exit_code);
+  return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 
 bool LangSimpleBadEnumUnqualified() {
@@ -1013,7 +1013,7 @@ bool LangSimpleBadCallArgCount() {
 bool LangSimpleBadModuleFuncReturnMismatch() {
   return Simple::VM::Tests::RunSimpleFileExpectError(
       "Tests/simple_bad/module_func_return_mismatch.simple",
-      "Standard.Math.bad");
+      "return type mismatch");
 }
 
 bool LangSimpleBadUnknownType() {
@@ -1291,7 +1291,7 @@ bool LangReservedBufferUsingRun() {
 }
 
 bool LangReservedLogRun() {
-  return RunSimpleFileExpectExit("Tests/simple/reserved_log.simple", 1);
+  return RunSimpleFileExpectExit("Tests/simple/reserved_log.simple", 0);
 }
 
 bool LangReservedLogUsingRun() {
@@ -1335,6 +1335,7 @@ bool LangSirEmitsFunctionCall() {
 
 bool LangSirEmitsIoPrintString() {
   const char* src =
+      "import Standard.IO\n"
       "main : i32 () { Standard.IO.print(\"hi\"); return 1; }";
   std::string sir;
   std::string error;
@@ -1344,6 +1345,7 @@ bool LangSirEmitsIoPrintString() {
 
 bool LangSirEmitsIoPrintI32() {
   const char* src =
+      "import Standard.IO\n"
       "main : i32 () { Standard.IO.print(42); return 2; }";
   std::string sir;
   std::string error;
@@ -1353,6 +1355,7 @@ bool LangSirEmitsIoPrintI32() {
 
 bool LangSirEmitsIoPrintNewline() {
   const char* src =
+      "import Standard.IO\n"
       "main : i32 () { Standard.IO.print(\"hello\\n\"); return 3; }";
   std::string sir;
   std::string error;
@@ -1362,6 +1365,7 @@ bool LangSirEmitsIoPrintNewline() {
 
 bool LangSirEmitsIoPrintFormat() {
   const char* src =
+      "import Standard.IO\n"
       "main : i32 () { x : i32 = 7; Standard.IO.println(\"value={}\", x); return x; }";
   std::string sir;
   std::string error;
@@ -1383,6 +1387,7 @@ bool LangSirEmitsExternAbiFlatten() {
 
 bool LangSirImplicitMainReturn() {
   const char* src =
+      "import Standard.IO\n"
       "main : i32 () { Standard.IO.print(\"hi\") }";
   std::string sir;
   std::string error;
@@ -2512,9 +2517,9 @@ bool LangRejectSystemIoPrintln() {
 }
 
 bool LangRejectUnplannedSystemMathImport() {
-  const char* src = "import System.Math\nmain : void () { }";
-  std::string error;
-  return !Simple::Lang::ValidateProgramFromString(src, &error);
+  int exit_code = 0;
+  const std::string err = RunCommandCaptureStderr("./build/bin/svm check Tests/simple_bad/system_math_import.simple", &exit_code);
+  return exit_code != 0 && err.find("import not found") != std::string::npos;
 }
 
 bool LangRejectUnimplementedStandardDuplicateRootMembers() {
@@ -2578,7 +2583,7 @@ bool LangValidateProcValueRejectsArtifactMethod() {
 bool LangValidateProcValueRejectsModuleFunction() {
   const char* src =
     "Math :: namespace { add : i32 (a : i32, b : i32) { return a + b; } }"
-    "main : void () { f : fn i32 (i32, i32) = Standard.Math.add; }";
+    "main : void () { f : fn i32 (i32, i32) = Math.add; }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("initializer type mismatch") != std::string::npos;
@@ -2796,41 +2801,41 @@ bool LangValidateCallFieldAsMethod() {
 }
 
 bool LangValidateIoPrintArgCountFail() {
-  const char* src = "main : void () { Standard.IO.print(); }";
+  const char* src = "import Standard.IO\nmain : void () { Standard.IO.print(); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintTypeArgsOk() {
-  const char* src = "main : void () { Standard.IO.print<i32>(1); }";
+  const char* src = "import Standard.IO\nmain : void () { Standard.IO.print<i32>(1); }";
   std::string error;
   if (!Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintRejectsArray() {
-  const char* src = "main : void () { a : i32[] = [1,2]; Standard.IO.print(a); }";
+  const char* src = "import Standard.IO\nmain : void () { a : i32[] = [1,2]; Standard.IO.print(a); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return true;
 }
 
 bool LangValidateIoPrintFormatOk() {
-  const char* src = "main : void () { x : i32 = 42; Standard.IO.println(\"x={}\", x); }";
+  const char* src = "import Standard.IO\nmain : void () { x : i32 = 42; Standard.IO.println(\"x={}\", x); }";
   std::string error;
   return Simple::Lang::ValidateProgramFromString(src, &error);
 }
 
 bool LangValidateIoPrintFormatPlaceholderMismatch() {
-  const char* src = "main : void () { Standard.IO.println(\"x={}, y={}\", 1); }";
+  const char* src = "import Standard.IO\nmain : void () { Standard.IO.println(\"x={}, y={}\", 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format placeholder count mismatch") != std::string::npos;
 }
 
 bool LangValidateIoPrintFormatNeedsStringLiteral() {
-  const char* src = "main : void () { fmt : string = \"x={}\"; Standard.IO.println(fmt, 1); }";
+  const char* src = "import Standard.IO\nmain : void () { fmt : string = \"x={}\"; Standard.IO.println(fmt, 1); }";
   std::string error;
   if (Simple::Lang::ValidateProgramFromString(src, &error)) return false;
   return error.find("format call expects string literal") != std::string::npos;

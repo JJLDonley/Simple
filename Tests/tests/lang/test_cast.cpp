@@ -387,7 +387,7 @@ bool LangParsesImportDeclUnquotedPath() {
   if (program.decls.size() != 1) return false;
   const auto& decl = program.decls[0];
   if (decl.kind != Simple::Lang::DeclKind::Import) return false;
-  if (decl.import_decl.path != "IO") return false;
+  if (decl.import_decl.path != "Standard.IO") return false;
   if (decl.import_decl.has_alias) return false;
   return true;
 }

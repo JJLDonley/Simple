@@ -2595,7 +2595,7 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
   const std::string err_path = TempPath("simple_lsp_tokens_reserved_member_err.txt");
   const std::string uri = "file:///workspace/tokens_reserved_member.simple";
   const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
-  const std::string open_text = "Standard.IO.println(\"hi\");";
+  const std::string open_text = "import Standard.IO\\nStandard.IO.println(\\\"hi\\\");";
   const std::string open_req =
       "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{"
       "\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,"
@@ -2621,8 +2621,8 @@ bool LspSemanticTokensMarkReservedMemberDefaultLibrary() {
   if (!DecodeSemanticData(out_contents, &entries)) return false;
   const size_t member_pos = open_text.find("println");
   if (member_pos == std::string::npos) return false;
-  const int target_line = 0;
-  const int target_col = static_cast<int>(member_pos);
+  const int target_line = 1;
+  const int target_col = 12;
   const int target_len = 7;
   bool found_default_lib = false;
   for (const auto& entry : entries) {

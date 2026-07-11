@@ -1,4 +1,4 @@
-import "raylib"
+import "definitely_missing_module"
 
 main : i32 () {
   return 0

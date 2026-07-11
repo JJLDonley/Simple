@@ -139,12 +139,12 @@ bool LangRastResolverDisambiguatesMemberRefs() {
       "Mode :: enum { Off = 0, On = 1 }\n"
       "extern Ray.InitWindow : void (w : i32, h : i32)\n"
       "extern ffi.simple_add_i32 : i32 (a : i32, b : i32)\n"
-      "glib :: i64 = System.FFI.Open(\"libffi.so\", ffi)\n"
+      "glib :: i64 = System.FFI.open(\"libffi.so\", ffi)\n"
       "UseGlobal : i32 () { return glib.simple_add_i32(3, 4); }\n"
       "main : i32 () {\n"
       "  Standard.IO.println(1);\n"
       "  Ray.InitWindow(1, 2);\n"
-      "  lib : i64 = System.FFI.Open(\"libffi.so\", ffi);\n"
+      "  lib : i64 = System.FFI.open(\"libffi.so\", ffi);\n"
       "  dyn : i32 = lib.simple_add_i32(1, 2);\n"
       "  x : i32 = Config.Max;\n"
       "  m : Mode = Mode.On;\n"
@@ -229,7 +229,7 @@ bool LangRastMemberLookupFindsDeclMembers() {
       "Math", "zzzzzz", module_members);
 
   return suggestion.find("did you mean 'answer'") != std::string::npos &&
-         no_suggestion == "unknown module member: Standard.Math.zzzzzz" &&
+         no_suggestion == "unknown module member: Math.zzzzzz" &&
          saw_module_var &&
          saw_module_func &&
          Simple::Lang::RAST::ModuleMembers(nullptr).empty() &&
@@ -306,7 +306,7 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
   Simple::Lang::AST::Expr dl_member;
   dl_member.kind = Simple::Lang::AST::ExprKind::Member;
   dl_member.op = ".";
-  dl_member.text = "Open";
+  dl_member.text = "open";
   dl_member.children.push_back(dl_base);
   Simple::Lang::AST::Expr dl_call;
   dl_call.kind = Simple::Lang::AST::ExprKind::Call;

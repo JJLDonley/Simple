@@ -224,7 +224,15 @@ bool GetDlOpenManifestModule(const ResolvedProgram* program,
   std::string module_alias;
   if (!GetModuleNameFromExpr(callee.children[0], &module_alias)) return false;
   std::string canonical;
-  if (!ResolveReservedImportAlias(program->program, module_alias, &canonical)) return false;
+  if (!ResolveReservedImportAlias(program->program, module_alias, &canonical)) {
+    for (const auto& import : ResolveReservedImports(program->program)) {
+      if (import.canonical_module == module_alias) {
+        canonical = import.canonical_module;
+        break;
+      }
+    }
+  }
+  if (canonical.empty()) return false;
   const auto resolved = ParseCanonicalLibraryModule(canonical);
   if (!resolved || resolved->root != LibraryRoot::System ||
       static_cast<SystemModule>(resolved->module_index) != SystemModule::FFI) return false;

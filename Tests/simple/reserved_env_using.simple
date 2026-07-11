@@ -1,5 +1,7 @@
 import System.Env
+import System.OS
 using System.Env
+using System.OS
 
 main : i32 () {
   set("SIMPLE_TEST_ENV_USING", "yes")

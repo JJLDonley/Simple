@@ -1269,6 +1269,12 @@ bool GetCallTargetInfo(const Expr& callee,
   }
   if (callee.kind == ExprKind::Member && callee.op == "." && !callee.children.empty()) {
     const Expr& base = callee.children[0];
+    std::string qualified_module_name;
+    if (GetModuleNameFromExpr(base, &qualified_module_name) &&
+        IsReservedModuleEnabled(ctx, qualified_module_name) &&
+        GetReservedModuleCallTarget(ctx, qualified_module_name, callee.text, out)) {
+      return true;
+    }
     if (base.kind == ExprKind::Identifier) {
       if (IsIoPrintCallExpr(callee, ctx)) {
         out->params.clear();

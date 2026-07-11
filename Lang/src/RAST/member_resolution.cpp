@@ -239,6 +239,26 @@ void ResolveExprMemberRefs(ResolvedProgram* out,
         }
       }
     }
+    std::string reserved_module_name;
+    if (GetModuleNameFromExpr(base, &reserved_module_name)) {
+      std::string reserved_module;
+      if (!ResolveReservedImportAlias(out->program, reserved_module_name, &reserved_module)) {
+        for (const auto& import : ResolveReservedImports(out->program)) {
+          if (import.canonical_module == reserved_module_name) {
+            reserved_module = import.canonical_module;
+            break;
+          }
+        }
+      }
+      if (!reserved_module.empty() && IsReservedModuleFunction(reserved_module, expr.text)) {
+        AddResolvedMemberRef(out,
+                             MemberRefKind::ReservedModuleFunction,
+                             reserved_module_name,
+                             expr.text,
+                             reserved_module + "." + expr.text,
+                             kInvalidSymbolId);
+      }
+    }
     auto it = out->by_qualified_name.find(qualified);
     if (it != out->by_qualified_name.end()) {
       if (kind != MemberRefKind::DLManifestCall) {

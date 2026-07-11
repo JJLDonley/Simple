@@ -2524,6 +2524,24 @@ bool IsReservedModuleAliasToken(const std::string& name) {
          Simple::Lang::ParseCanonicalLibraryModule(name).has_value();
 }
 
+bool IsReservedModuleMemberPath(const std::vector<TokenRef>& refs, size_t member_index) {
+  using TK = Simple::Lang::TokenKind;
+  if (member_index < 2 || refs[member_index - 1].token.kind != TK::Dot ||
+      refs[member_index - 2].token.kind != TK::Identifier) {
+    return false;
+  }
+  size_t first = member_index - 2;
+  while (first >= 2 && refs[first - 1].token.kind == TK::Dot && refs[first - 2].token.kind == TK::Identifier) {
+    first -= 2;
+  }
+  std::string module;
+  for (size_t idx = first; idx + 1 < member_index; ++idx) {
+    module += refs[idx].token.kind == TK::Dot ? "." : refs[idx].token.text;
+  }
+  return Simple::Lang::ParseLibraryImportPath(module).has_value() ||
+         Simple::Lang::ParseCanonicalLibraryModule(module).has_value();
+}
+
 uint32_t SemanticTokenTypeIndexForRef(const std::vector<TokenRef>& refs,
                                       size_t i,
                                       const std::unordered_set<std::string>& import_aliases,
@@ -2586,8 +2604,9 @@ uint32_t SemanticTokenModifiersForRef(const std::vector<TokenRef>& refs,
       IsReservedModuleAliasToken(refs[i].token.text)) {
     modifiers |= 1u << 2; // defaultLibrary
   }
-  if (IsMemberNameAt(refs, i) &&
-      IsReservedModuleAliasToken(refs[i - 2].token.text)) {
+  if (refs[i].token.kind == TK::Identifier &&
+      ((IsMemberNameAt(refs, i) && IsReservedModuleAliasToken(refs[i - 2].token.text)) ||
+       IsReservedModuleMemberPath(refs, i))) {
     modifiers |= 1u << 2; // defaultLibrary
   }
   if (enum_member_indices.find(i) != enum_member_indices.end()) {

@@ -1585,14 +1585,17 @@ bool InferExprType(const Expr& expr,
       }
       const Expr& base = expr.children[0];
       const bool is_ptr = (expr.op == "->");
-      if (base.kind == ExprKind::Identifier) {
-        LibraryModuleId resolved_id{};
-        if (ResolveReservedModuleId(st, base.text, &resolved_id) &&
-            IsLibraryModule(resolved_id, StandardModule::Math) &&
-            ParseMember(StandardModule::Math, expr.text) == StandardMember(StandardMathMember::PI)) {
-          out->name = "f64";
+      std::string module_name;
+      LibraryModuleId module_id{};
+      if (GetModuleNameFromExpr(base, &module_name) && ResolveReservedModuleId(st, module_name, &module_id)) {
+        Simple::Lang::AST::TypeRef reserved_var_type;
+        if (RAST::GetReservedModuleVarType(std::string(ToCanonicalName(module_id)), expr.text, &reserved_var_type)) {
+          if (!CloneTypeRef(reserved_var_type, out)) return false;
           return true;
         }
+      }
+      if (base.kind == ExprKind::Identifier) {
+        LibraryModuleId resolved_id{};
         if (ResolveReservedModuleId(st, base.text, &resolved_id) &&
             IsLibraryModule(resolved_id, SystemModule::FFI) &&
             ParseMember(SystemModule::FFI, expr.text) == SystemMember(SystemFFIMember::Supported)) {
@@ -4170,14 +4173,22 @@ bool EmitExpr(EmitState& st,
         return false;
       }
       const Expr& base = expr.children[0];
-      if (base.kind == ExprKind::Identifier) {
-        LibraryModuleId resolved{};
-        if (ResolveReservedModuleId(st, base.text, &resolved) &&
-            IsLibraryModule(resolved, StandardModule::Math) &&
+      std::string module_name;
+      LibraryModuleId module_id{};
+      if (GetModuleNameFromExpr(base, &module_name) && ResolveReservedModuleId(st, module_name, &module_id)) {
+        if (IsLibraryModule(module_id, StandardModule::Math) &&
             ParseMember(StandardModule::Math, expr.text) == StandardMember(StandardMathMember::PI)) {
           (*st.out) << "  const f64 3.141592653589793\n";
           return PushStack(st, 1);
         }
+        if (IsLibraryModule(module_id, SystemModule::FFI) &&
+            ParseMember(SystemModule::FFI, expr.text) == SystemMember(SystemFFIMember::Supported)) {
+          (*st.out) << "  const i32 " << (HostHasDl() ? 1 : 0) << "\n";
+          return PushStack(st, 1);
+        }
+      }
+      if (base.kind == ExprKind::Identifier) {
+        LibraryModuleId resolved{};
         if (ResolveReservedModuleId(st, base.text, &resolved) &&
             IsLibraryModule(resolved, SystemModule::FFI) &&
             ParseMember(SystemModule::FFI, expr.text) == SystemMember(SystemFFIMember::Supported)) {
@@ -5378,6 +5389,7 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       close_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.FFI", "close", std::move(close_params), make_type("i32"))) return false;
 
+      if (!add_reserved_import(alias, "System.FFI", "lastError", {}, make_type("string"))) return false;
       if (!add_reserved_import(alias, "System.FFI", "last_error", {}, make_type("string"))) return false;
     }
   }
