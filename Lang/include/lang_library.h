@@ -1036,60 +1036,11 @@ inline std::string_view ToNativeModule(LibraryModuleId module) {
 }
 
 inline std::string_view ToCanonicalName(SystemModule module) {
-  switch (module) {
-    case SystemModule::IO: return "SystemIO";
-    case SystemModule::FS: return "FS";
-    case SystemModule::Path: return "Path";
-    case SystemModule::Env: return "Env";
-    case SystemModule::OS: return "OS";
-    case SystemModule::Time: return "Time";
-    case SystemModule::FFI: return "DL";
-    case SystemModule::ASM: return "SystemASM";
-    case SystemModule::Buffer: return "SystemBuffer";
-    case SystemModule::Bytes: return "SystemBytes";
-    case SystemModule::Json: return "SystemJson";
-    case SystemModule::Log: return "SystemLog";
-    case SystemModule::Random: return "SystemRandom";
-    case SystemModule::Thread: return "Thread";
-    case SystemModule::Job: return "SystemJob";
-    case SystemModule::Channel: return "Channel";
-    case SystemModule::Process: return "SystemProcess";
-    case SystemModule::Net: return "SystemNet";
-    case SystemModule::HTTP: return "SystemHTTP";
-    case SystemModule::Terminal: return "SystemTerminal";
-    case SystemModule::Capability: return "SystemCapability";
-    case SystemModule::Runtime: return "SystemRuntime";
-    case SystemModule::Debug: return "SystemDebug";
-  }
-  return {};
+  return ToImportPath(module);
 }
 
 inline std::string_view ToCanonicalName(StandardModule module) {
-  switch (module) {
-    case StandardModule::IO: return "StandardIO";
-    case StandardModule::Console: return "StandardConsole";
-    case StandardModule::FS: return "StandardFS";
-    case StandardModule::Path: return "StandardPath";
-    case StandardModule::Buffer: return "StandardBuffer";
-    case StandardModule::Bytes: return "StandardBytes";
-    case StandardModule::Text: return "StandardText";
-    case StandardModule::Json: return "StandardJson";
-    case StandardModule::Math: return "Math";
-    case StandardModule::Random: return "StandardRandom";
-    case StandardModule::Time: return "StandardTime";
-    case StandardModule::Log: return "StandardLog";
-    case StandardModule::Process: return "StandardProcess";
-    case StandardModule::Net: return "StandardNet";
-    case StandardModule::HTTP: return "StandardHTTP";
-    case StandardModule::HTTPS: return "StandardHTTPS";
-    case StandardModule::Terminal: return "StandardTerminal";
-    case StandardModule::Promise: return "StandardPromise";
-    case StandardModule::Channel: return "StandardChannel";
-    case StandardModule::Collections: return "StandardCollections";
-    case StandardModule::Result: return "StandardResult";
-    case StandardModule::Option: return "StandardOption";
-  }
-  return {};
+  return ToImportPath(module);
 }
 
 inline std::string_view ToCanonicalName(LibraryModuleId module) {

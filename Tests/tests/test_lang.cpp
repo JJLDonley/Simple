@@ -2387,8 +2387,8 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ToImportPath(SystemModule::Buffer) != "System.Buffer") return false;
   if (ToImportPath(StandardModule::Buffer) != "Standard.Buffer") return false;
   if (ToNativeModule(SystemModule::Buffer) != "System.Buffer") return false;
-  if (ToCanonicalName(SystemModule::Buffer) != "SystemBuffer") return false;
-  if (ToCanonicalName(StandardModule::Buffer) != "StandardBuffer") return false;
+  if (ToCanonicalName(SystemModule::Buffer) != "System.Buffer") return false;
+  if (ToCanonicalName(StandardModule::Buffer) != "Standard.Buffer") return false;
   if (ToMember(SystemBufferMember::ReadU32LE) != "readU32LE") return false;
   if (ToMember(SystemFSMember::NextDirEntry) != "nextDirEntry") return false;
   if (ToMember(SystemFFIMember::LastError) != "lastError") return false;
@@ -2396,12 +2396,12 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ToMember(StandardBufferMember::WithCapacity) != "withCapacity") return false;
   if (MemberNames(SystemModule::Buffer).size() != 12) return false;
   if (MemberNames(StandardModule::Buffer).size() != 15) return false;
-  const auto buffer_module = ParseCanonicalLibraryModule("SystemBuffer");
+  const auto buffer_module = ParseCanonicalLibraryModule("System.Buffer");
   if (!buffer_module || buffer_module->root != LibraryRoot::System ||
       static_cast<SystemModule>(buffer_module->module_index) != SystemModule::Buffer) return false;
-  const auto buffer_symbol = ParseLibrarySymbol("SystemBuffer", "readU32LE");
+  const auto buffer_symbol = ParseLibrarySymbol("System.Buffer", "readU32LE");
   if (!buffer_symbol || buffer_symbol->member_name != "readU32LE") return false;
-  const auto std_bytes_symbol = ParseLibrarySymbol("StandardBytes", "toBase64");
+  const auto std_bytes_symbol = ParseLibrarySymbol("Standard.Bytes", "toBase64");
   if (!std_bytes_symbol || std_bytes_symbol->member_name != "toBase64") return false;
   const auto parsed_system_member = ParseMember(SystemModule::Buffer, "readU32LE");
   if (!parsed_system_member || !std::holds_alternative<SystemBufferMember>(*parsed_system_member) ||
@@ -2412,7 +2412,7 @@ bool LangLibraryCatalogCoversAllModulesAndMembers() {
   if (ParseMember(SystemModule::Channel, "tryRecvBytes") == std::nullopt) return false;
   if (ParseMember(StandardModule::HTTP, "serve") == std::nullopt) return false;
   if (ParseMember(StandardModule::Bytes, "definitelyMissing")) return false;
-  if (ParseLibrarySymbol("StandardBytes", "definitelyMissing")) return false;
+  if (ParseLibrarySymbol("Standard.Bytes", "definitelyMissing")) return false;
   const auto implemented_meta = GetLibraryMemberMetadata(ToLibraryModuleId(SystemModule::Buffer), "readU32LE");
   if (implemented_meta.availability != LibraryApiAvailability::Implemented ||
       implemented_meta.level != LibraryApiLevel::LowLevelSystem) return false;

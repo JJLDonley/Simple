@@ -265,7 +265,7 @@ bool LangRastMemberResolutionRecordsMemberRefs() {
 
 bool LangRastReservedResolutionUsesNativeMetadata() {
   std::string native_module;
-  const auto fs_members = Simple::Lang::RAST::ReservedModuleMembers("FS");
+  const auto fs_members = Simple::Lang::RAST::ReservedModuleMembers("System.FS");
   const auto has_fs_member = [&fs_members](const std::string& name) {
     for (const auto& member : fs_members) {
       if (member == name) return true;
@@ -280,9 +280,9 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
       {"Files", Simple::Lang::ToLibraryModuleId(Simple::Lang::SystemModule::FS)}};
   std::string resolved_reserved;
   const bool resolves_reserved_alias = Simple::Lang::RAST::ResolveReservedModuleName(
-      reserved_imports, reserved_aliases, "Files", &resolved_reserved) && resolved_reserved == "FS";
+      reserved_imports, reserved_aliases, "Files", &resolved_reserved) && resolved_reserved == "System.FS";
   const bool resolves_reserved_direct = Simple::Lang::RAST::ResolveReservedModuleName(
-      reserved_imports, reserved_aliases, "DL", &resolved_reserved) && resolved_reserved == "DL";
+      reserved_imports, reserved_aliases, "System.FFI", &resolved_reserved) && resolved_reserved == "System.FFI";
   const bool enables_reserved_alias = Simple::Lang::RAST::IsReservedModuleEnabled(
       reserved_imports, reserved_aliases, "Files");
   Simple::Lang::AST::Expr io_base;
@@ -335,10 +335,10 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
       dl_call, reserved_imports, reserved_aliases) &&
       !Simple::Lang::RAST::GetDlOpenManifestModule(
           dl_call, reserved_imports, reserved_aliases, externs_by_module, &manifest_module);
-  const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Math", "PI", &reserved_var_type) &&
+  const bool math_pi_type = Simple::Lang::RAST::GetReservedModuleVarType("Standard.Math", "PI", &reserved_var_type) &&
                             reserved_var_type.name == "f64";
-  const bool os_flag_type = Simple::Lang::RAST::GetReservedModuleVarType("OS", "has_dl", &reserved_var_type) &&
-                            reserved_var_type.name == "bool";
+  const bool ffi_supported_type = Simple::Lang::RAST::GetReservedModuleVarType("System.FFI", "supported", &reserved_var_type) &&
+                                  reserved_var_type.name == "bool";
   return resolves_reserved_alias &&
          resolves_reserved_direct &&
          enables_reserved_alias &&
@@ -348,18 +348,18 @@ bool LangRastReservedResolutionUsesNativeMetadata() {
          extracts_manifest &&
          rejects_dl_sym &&
          math_pi_type &&
-         os_flag_type &&
-         !Simple::Lang::RAST::GetReservedModuleVarType("Math", "missing", &reserved_var_type) &&
+         ffi_supported_type &&
+         !Simple::Lang::RAST::GetReservedModuleVarType("Standard.Math", "missing", &reserved_var_type) &&
          has_fs_member("readText") &&
          has_fs_member("open") &&
          Simple::Lang::RAST::ReservedModuleMembers("Missing").empty() &&
-         Simple::Lang::RAST::NativeModuleNameForReserved("FS", &native_module) &&
+         Simple::Lang::RAST::NativeModuleNameForReserved("System.FS", &native_module) &&
          native_module == "System.FS" &&
          Simple::Lang::RAST::IsIoPrintName("print") &&
          Simple::Lang::RAST::IsIoPrintName("println") &&
          !Simple::Lang::RAST::IsIoPrintName("write") &&
-         Simple::Lang::RAST::IsReservedModuleFunction("FS", "open") &&
-         Simple::Lang::RAST::IsReservedModuleFunction("Json", "parse") &&
+         Simple::Lang::RAST::IsReservedModuleFunction("System.FS", "open") &&
+         Simple::Lang::RAST::IsReservedModuleFunction("System.Json", "parse") &&
          Simple::Lang::RAST::NormalizeDlMemberName("Open") == "open";
 }
 
@@ -434,19 +434,19 @@ bool LangRastImportGraphResolvesReservedAliases() {
   std::string canonical;
   const auto imports = Simple::Lang::RAST::ResolveReservedImports(&ast_program);
   return imports.size() == 1 && imports[0].alias == "FileSystem" &&
-         imports[0].canonical_module == "FS" &&
+         imports[0].canonical_module == "Standard.FS" &&
          Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "FileSystem", &canonical) &&
-         canonical == "FS" &&
+         canonical == "Standard.FS" &&
          !Simple::Lang::RAST::ResolveReservedImportAlias(&ast_program, "Missing", &canonical);
 }
 
 bool LangRastImportGraphChecksUsingPriorImport() {
   std::unordered_map<std::string, std::string> aliases;
-  aliases["FS"] = "FileSystem";
+  aliases["Standard.FS"] = "FileSystem";
   std::string error;
-  if (!Simple::Lang::RAST::CheckUsingImportHasPriorAlias("FS", aliases, &error)) return false;
-  if (Simple::Lang::RAST::CheckUsingImportHasPriorAlias("Time", aliases, &error)) return false;
-  return error.find("using requires prior import: Time") != std::string::npos;
+  if (!Simple::Lang::RAST::CheckUsingImportHasPriorAlias("Standard.FS", aliases, &error)) return false;
+  if (Simple::Lang::RAST::CheckUsingImportHasPriorAlias("System.Time", aliases, &error)) return false;
+  return error.find("using requires prior import: System.Time") != std::string::npos;
 }
 
 
