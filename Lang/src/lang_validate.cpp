@@ -70,6 +70,17 @@ bool InferExprType(const Expr& expr,
                    const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
                    const ArtifactDecl* current_artifact,
                    TypeRef* out);
+bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
+                                          const std::string& member,
+                                          CallTargetInfo* out);
+bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
+                                    const std::string& member,
+                                    std::string* out_module,
+                                    CallTargetInfo* out);
+bool ResolveUsingModuleExternCallTarget(const ValidateContext& ctx,
+                                        const std::string& member,
+                                        std::string* out_module,
+                                        CallTargetInfo* out);
 bool AnalyzeSwitchExpr(const Expr& expr,
                        const ValidateContext& ctx,
                        const std::vector<std::unordered_map<std::string, LocalInfo>>& scopes,
@@ -267,10 +278,292 @@ bool ResolveReservedModuleVarType(const ValidateContext& ctx,
   return GetReservedModuleVarType(resolved, member, out);
 }
 
+bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
+                                          const std::string& member,
+                                          CallTargetInfo* out) {
+  if (!out) return false;
+  std::string native_module;
+  if (!NativeModuleNameForReserved(resolved, &native_module)) return false;
+  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
+  const Simple::VM::Native::NativeFunctionSpec* spec = registry.Find(native_module, member);
+  if (!spec) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = false;
+  for (Simple::Byte::TypeKind param_kind : spec->parameter_types) {
+    TypeRef param;
+    if (!NativeTypeToLangType(param_kind, &param)) return false;
+    out->params.push_back(std::move(param));
+  }
+  if (!NativeTypeToLangType(spec->result_type, &out->return_type)) return false;
+  out->return_mutability = Mutability::Mutable;
+  return true;
+}
+
 bool GetReservedModuleCallTarget(const ValidateContext& ctx,
                                  const std::string& module,
                                  const std::string& member,
-                                 CallTargetInfo* out);
+                                 CallTargetInfo* out) {
+  std::string resolved;
+  if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
+  if (!out) return false;
+  out->params.clear();
+  out->type_params.clear();
+  out->is_proc = false;
+
+  auto set_ret = [&](TypeRef ret) {
+    out->return_type = std::move(ret);
+    out->return_mutability = Mutability::Mutable;
+    return true;
+  };
+  auto add = [&](TypeRef param) { out->params.push_back(std::move(param)); };
+  auto simple = [](const char* name) { return MakeSimpleType(name); };
+  auto list_i32 = []() { return MakeListType("i32"); };
+
+  const auto module_id = ParseCanonicalLibraryModule(resolved);
+  if (!module_id) {
+    if (resolved == "File") {
+      const auto file_member = member;
+      if (file_member == "open") { add(simple("string")); add(simple("i32")); return set_ret(simple("i32")); }
+      if (file_member == "close") { add(simple("i32")); return set_ret(simple("void")); }
+      if (file_member == "read" || file_member == "write") { add(simple("i32")); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
+    }
+    return TryGetNativeReservedModuleCallTarget(resolved, member, out);
+  }
+
+  if (module_id->root == LibraryRoot::Standard) {
+    const StandardModule mod = static_cast<StandardModule>(module_id->module_index);
+    const auto parsed = ParseMember(mod, member);
+    if (!parsed) return false;
+    switch (mod) {
+      case StandardModule::IO:
+        if (std::holds_alternative<StandardIOMember>(*parsed) &&
+            (std::get<StandardIOMember>(*parsed) == StandardIOMember::Print ||
+             std::get<StandardIOMember>(*parsed) == StandardIOMember::Println)) {
+          add(simple("T")); out->type_params = {"T"}; return set_ret(simple("void"));
+        }
+        return false;
+      case StandardModule::Math: {
+        const auto m = std::get<StandardMathMember>(*parsed);
+        if (m == StandardMathMember::Abs || m == StandardMathMember::Sqrt) { add(simple("T")); out->type_params = {"T"}; return set_ret(simple("T")); }
+        if (m == StandardMathMember::Min || m == StandardMathMember::Max) { add(simple("T")); add(simple("T")); out->type_params = {"T"}; return set_ret(simple("T")); }
+        return false;
+      }
+      case StandardModule::Time: {
+        const auto m = std::get<StandardTimeMember>(*parsed);
+        if (m == StandardTimeMember::MonoSnake || m == StandardTimeMember::WallSnake ||
+            m == StandardTimeMember::MonoNs || m == StandardTimeMember::NowNs) return set_ret(simple("i64"));
+        if (m == StandardTimeMember::FormatWallNs) { add(simple("i64")); return set_ret(simple("string")); }
+        if (m == StandardTimeMember::SleepMs) { add(simple("i32")); return set_ret(simple("void")); }
+        return false;
+      }
+      case StandardModule::FS: {
+        const auto m = std::get<StandardFSMember>(*parsed);
+        if (m == StandardFSMember::ReadText) { add(simple("string")); return set_ret(simple("string")); }
+        if (m == StandardFSMember::WriteText) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
+        if (m == StandardFSMember::ReadBytes) { add(simple("string")); return set_ret(list_i32()); }
+        if (m == StandardFSMember::WriteBytes) { add(simple("string")); add(list_i32()); return set_ret(simple("bool")); }
+        if (m == StandardFSMember::Exists || m == StandardFSMember::IsFile || m == StandardFSMember::IsDir) { add(simple("string")); return set_ret(simple("bool")); }
+        if (m == StandardFSMember::Copy) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
+        if (m == StandardFSMember::Remove || m == StandardFSMember::Mkdir || m == StandardFSMember::MkdirAll || m == StandardFSMember::SetCwd) { add(simple("string")); return set_ret(simple("bool")); }
+        if (m == StandardFSMember::ListDir) { add(simple("string")); return set_ret(MakeListType("string")); }
+        if (m == StandardFSMember::Cwd) return set_ret(simple("string"));
+        return false;
+      }
+      case StandardModule::Path: {
+        const auto m = std::get<StandardPathMember>(*parsed);
+        if (m == StandardPathMember::Join) { add(simple("string")); add(simple("string")); return set_ret(simple("string")); }
+        if (m == StandardPathMember::Dirname || m == StandardPathMember::Basename || m == StandardPathMember::Ext || m == StandardPathMember::Stem || m == StandardPathMember::Normalize) { add(simple("string")); return set_ret(simple("string")); }
+        return false;
+      }
+      case StandardModule::Random: {
+        const auto m = std::get<StandardRandomMember>(*parsed);
+        if (m == StandardRandomMember::Seed) { add(simple("i64")); return set_ret(simple("void")); }
+        if (m == StandardRandomMember::I32 || m == StandardRandomMember::Range) { if (m == StandardRandomMember::Range) { add(simple("i32")); add(simple("i32")); } return set_ret(simple("i32")); }
+        if (m == StandardRandomMember::I64) return set_ret(simple("i64"));
+        if (m == StandardRandomMember::F64) return set_ret(simple("f64"));
+        return false;
+      }
+      case StandardModule::Bytes: {
+        const auto m = std::get<StandardBytesMember>(*parsed);
+        if (m == StandardBytesMember::New) { add(simple("i32")); return set_ret(list_i32()); }
+        if (m == StandardBytesMember::Slice) { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32()); }
+        return false;
+      }
+      case StandardModule::Log: {
+        const auto m = std::get<StandardLogMember>(*parsed);
+        if (m == StandardLogMember::Info || m == StandardLogMember::Warn || m == StandardLogMember::Error) { add(simple("string")); return set_ret(simple("void")); }
+        if (m == StandardLogMember::SetLevel) { add(simple("i32")); return set_ret(simple("void")); }
+        if (m == StandardLogMember::SetFile) { add(simple("string")); return set_ret(simple("bool")); }
+        return false;
+      }
+      case StandardModule::Console:
+      case StandardModule::Buffer:
+      case StandardModule::Text:
+      case StandardModule::Json:
+      case StandardModule::Process:
+      case StandardModule::Net:
+      case StandardModule::HTTP:
+      case StandardModule::HTTPS:
+      case StandardModule::Terminal:
+      case StandardModule::Promise:
+      case StandardModule::Channel:
+      case StandardModule::Collections:
+      case StandardModule::Result:
+      case StandardModule::Option:
+        return false;
+    }
+    return false;
+  }
+
+  const SystemModule mod = static_cast<SystemModule>(module_id->module_index);
+  const auto normalized_member = mod == SystemModule::FFI ? NormalizeDlMemberName(member) : member;
+  const auto parsed = ParseMember(mod, normalized_member);
+  if (!parsed) return false;
+  switch (mod) {
+    case SystemModule::IO: {
+      const auto m = std::get<SystemIOMember>(*parsed);
+      if (m == SystemIOMember::BufferNew) { add(simple("i32")); return set_ret(list_i32()); }
+      if (m == SystemIOMember::BufferLen) { add(list_i32()); return set_ret(simple("i32")); }
+      if (m == SystemIOMember::BufferFill) { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
+      if (m == SystemIOMember::BufferCopy) { add(list_i32()); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
+      return false;
+    }
+    case SystemModule::Time: {
+      const auto m = std::get<SystemTimeMember>(*parsed);
+      if (m == SystemTimeMember::MonoSnake || m == SystemTimeMember::WallSnake || m == SystemTimeMember::MonoNs || m == SystemTimeMember::WallNs) return set_ret(simple("i64"));
+      return false;
+    }
+    case SystemModule::FFI: {
+      const auto m = std::get<SystemFFIMember>(*parsed);
+      if (m == SystemFFIMember::Open) { add(simple("string")); return set_ret(simple("i64")); }
+      if (m == SystemFFIMember::Sym || m == SystemFFIMember::Symbol) { add(simple("i64")); add(simple("string")); return set_ret(simple("i64")); }
+      if (m == SystemFFIMember::Close) { add(simple("i64")); return set_ret(simple("i32")); }
+      if (m == SystemFFIMember::LastError || m == SystemFFIMember::LastErrorSnake) return set_ret(simple("string"));
+      if (m == SystemFFIMember::CallI32) { add(simple("i64")); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
+      if (m == SystemFFIMember::CallI64) { add(simple("i64")); add(simple("i64")); add(simple("i64")); return set_ret(simple("i64")); }
+      if (m == SystemFFIMember::CallF32) { add(simple("i64")); add(simple("f32")); add(simple("f32")); return set_ret(simple("f32")); }
+      if (m == SystemFFIMember::CallF64) { add(simple("i64")); add(simple("f64")); add(simple("f64")); return set_ret(simple("f64")); }
+      if (m == SystemFFIMember::CallStr0) { add(simple("i64")); return set_ret(simple("string")); }
+      return false;
+    }
+    case SystemModule::FS: {
+      const auto m = std::get<SystemFSMember>(*parsed);
+      if (m == SystemFSMember::ReadText) { add(simple("string")); return set_ret(simple("string")); }
+      if (m == SystemFSMember::WriteText) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemFSMember::ReadBytes) { add(simple("string")); return set_ret(list_i32()); }
+      if (m == SystemFSMember::WriteBytes) { add(simple("string")); add(list_i32()); return set_ret(simple("bool")); }
+      if (m == SystemFSMember::ListDir) { add(simple("string")); return set_ret(MakeListType("string")); }
+      if (m == SystemFSMember::Exists || m == SystemFSMember::IsFile || m == SystemFSMember::IsDir) { add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemFSMember::Copy) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemFSMember::Remove || m == SystemFSMember::Mkdir || m == SystemFSMember::MkdirAll || m == SystemFSMember::SetCwd) { add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemFSMember::Cwd) return set_ret(simple("string"));
+      if (m == SystemFSMember::Open) { add(simple("string")); add(simple("i32")); return set_ret(simple("i32")); }
+      if (m == SystemFSMember::Close) { add(simple("i32")); return set_ret(simple("void")); }
+      if (m == SystemFSMember::Read || m == SystemFSMember::Write) { add(simple("i32")); add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
+      return false;
+    }
+    case SystemModule::Path: {
+      const auto m = std::get<SystemPathMember>(*parsed);
+      if (m == SystemPathMember::Separator || m == SystemPathMember::Delimiter) return set_ret(simple("string"));
+      if (m == SystemPathMember::IsAbsolute) { add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemPathMember::Join) { add(simple("string")); add(simple("string")); return set_ret(simple("string")); }
+      if (m == SystemPathMember::Dirname || m == SystemPathMember::Basename || m == SystemPathMember::Ext || m == SystemPathMember::Stem || m == SystemPathMember::Normalize) { add(simple("string")); return set_ret(simple("string")); }
+      return false;
+    }
+    case SystemModule::Env: {
+      const auto m = std::get<SystemEnvMember>(*parsed);
+      if (m == SystemEnvMember::ArgsCount) return set_ret(simple("i32"));
+      if (m == SystemEnvMember::Arg) { add(simple("i32")); return set_ret(simple("string")); }
+      if (m == SystemEnvMember::Get) { add(simple("string")); return set_ret(simple("string")); }
+      if (m == SystemEnvMember::Set) { add(simple("string")); add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemEnvMember::Unset) { add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemEnvMember::ExePath) return set_ret(simple("string"));
+      return false;
+    }
+    case SystemModule::OS: {
+      const auto m = std::get<SystemOSMember>(*parsed);
+      if (m == SystemOSMember::Platform || m == SystemOSMember::Arch) return set_ret(simple("string"));
+      if (m == SystemOSMember::IsLinux || m == SystemOSMember::IsMacos || m == SystemOSMember::IsWindows) return set_ret(simple("bool"));
+      if (m == SystemOSMember::Pid || m == SystemOSMember::CpuCount || m == SystemOSMember::PageSize) return set_ret(simple("i32"));
+      if (m == SystemOSMember::Exit || m == SystemOSMember::SleepMs) { add(simple("i32")); return set_ret(simple("void")); }
+      return false;
+    }
+    case SystemModule::Random: {
+      const auto m = std::get<SystemRandomMember>(*parsed);
+      if (m == SystemRandomMember::Seed) { add(simple("i64")); return set_ret(simple("void")); }
+      if (m == SystemRandomMember::I32) return set_ret(simple("i32"));
+      if (m == SystemRandomMember::I64) return set_ret(simple("i64"));
+      if (m == SystemRandomMember::F64) return set_ret(simple("f64"));
+      if (m == SystemRandomMember::FillBytes) { add(list_i32()); return set_ret(simple("bool")); }
+      return false;
+    }
+    case SystemModule::Channel: {
+      auto channel_value_type = [](const std::string& suffix) -> TypeRef {
+        if (suffix == "I64") return MakeSimpleType("i64");
+        if (suffix == "F32") return MakeSimpleType("f32");
+        if (suffix == "F64") return MakeSimpleType("f64");
+        if (suffix == "Bool") return MakeSimpleType("bool");
+        if (suffix == "String") return MakeSimpleType("string");
+        if (suffix == "Bytes") return MakeListType("i32");
+        return MakeSimpleType("i32");
+      };
+      static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
+      for (const char* suffix_c : suffixes) {
+        const std::string suffix = suffix_c;
+        if (member == "new" + suffix) return set_ret(simple("i64"));
+        if (member == "send" + suffix || member == "trySend" + suffix) { add(simple("i64")); add(channel_value_type(suffix)); return set_ret(simple("bool")); }
+        if (member == "recv" + suffix || member == "tryRecv" + suffix) { add(simple("i64")); return set_ret(channel_value_type(suffix)); }
+        if (member == "pending" + suffix) { add(simple("i64")); return set_ret(simple("i32")); }
+      }
+      if (std::get<SystemChannelMember>(*parsed) == SystemChannelMember::Close) { add(simple("i64")); return set_ret(simple("void")); }
+      return false;
+    }
+    case SystemModule::Thread: {
+      const auto m = std::get<SystemThreadMember>(*parsed);
+      if (m == SystemThreadMember::Sleep) { add(simple("i32")); return set_ret(simple("void")); }
+      if (m == SystemThreadMember::Yield) return set_ret(simple("void"));
+      if (m == SystemThreadMember::HardwareConcurrency) return set_ret(simple("i32"));
+      return false;
+    }
+    case SystemModule::Json: {
+      const auto m = std::get<SystemJsonMember>(*parsed);
+      if (m == SystemJsonMember::Parse) { add(simple("string")); return set_ret(simple("i64")); }
+      if (m == SystemJsonMember::Stringify) { add(simple("i64")); return set_ret(simple("string")); }
+      if (m == SystemJsonMember::Free) { add(simple("i64")); return set_ret(simple("bool")); }
+      return false;
+    }
+    case SystemModule::Buffer:
+    case SystemModule::Bytes: {
+      if (member == "new") { add(simple("i32")); return set_ret(list_i32()); }
+      if (member == "len") { add(list_i32()); return set_ret(simple("i32")); }
+      if (member == "readU16LE" || member == "readU32LE") { add(list_i32()); add(simple("i32")); return set_ret(simple("i32")); }
+      if (member == "writeU16LE" || member == "writeU32LE") { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("bool")); }
+      if (member == "slice") { add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(list_i32()); }
+      if (member == "copy") { add(list_i32()); add(simple("i32")); add(list_i32()); add(simple("i32")); add(simple("i32")); return set_ret(simple("i32")); }
+      return false;
+    }
+    case SystemModule::Log: {
+      const auto m = std::get<SystemLogMember>(*parsed);
+      if (m == SystemLogMember::Log) { add(simple("i32")); add(simple("string")); return set_ret(simple("void")); }
+      if (m == SystemLogMember::SetLevel) { add(simple("i32")); return set_ret(simple("void")); }
+      if (m == SystemLogMember::SetFile) { add(simple("string")); return set_ret(simple("bool")); }
+      if (m == SystemLogMember::Flush) return set_ret(simple("bool"));
+      return false;
+    }
+    case SystemModule::ASM:
+    case SystemModule::Job:
+    case SystemModule::Process:
+    case SystemModule::Net:
+    case SystemModule::HTTP:
+    case SystemModule::Terminal:
+    case SystemModule::Capability:
+    case SystemModule::Runtime:
+    case SystemModule::Debug:
+      return false;
+  }
+  return TryGetNativeReservedModuleCallTarget(resolved, member, out);
+}
 
 bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
                                     const std::string& member,
@@ -281,11 +574,7 @@ bool ResolveUsingReservedCallTarget(const ValidateContext& ctx,
   CallTargetInfo found_info;
   for (const auto& module : ctx.using_reserved_modules) {
     CallTargetInfo candidate;
-    if (module == "StandardIO" && IsIoPrintName(member)) {
-      candidate.params.push_back(MakeSimpleType("T"));
-      candidate.return_type = MakeSimpleType("void");
-      candidate.type_params = {"T"};
-    } else if (!GetReservedModuleCallTarget(ctx, module, member, &candidate)) continue;
+    if (!GetReservedModuleCallTarget(ctx, module, member, &candidate)) continue;
     if (found) return false;
     found = true;
     found_module = module;
@@ -323,555 +612,6 @@ bool ResolveUsingModuleExternCallTarget(const ValidateContext& ctx,
   if (out_module) *out_module = std::move(found_module);
   if (out) *out = std::move(found_info);
   return true;
-}
-
-bool TryGetNativeReservedModuleCallTarget(const std::string& resolved,
-                                          const std::string& member,
-                                          CallTargetInfo* out) {
-  if (!out) return false;
-  std::string native_module;
-  if (!NativeModuleNameForReserved(resolved, &native_module)) return false;
-  static const Simple::VM::Native::NativeRegistry registry = Simple::VM::Native::BuildDefaultRegistry();
-  const Simple::VM::Native::NativeFunctionSpec* spec = registry.Find(native_module, member);
-  if (!spec) return false;
-  out->params.clear();
-  out->type_params.clear();
-  out->is_proc = false;
-  for (Simple::Byte::TypeKind param_kind : spec->parameter_types) {
-    TypeRef param;
-    if (!NativeTypeToLangType(param_kind, &param)) return false;
-    out->params.push_back(std::move(param));
-  }
-  if (!NativeTypeToLangType(spec->result_type, &out->return_type)) return false;
-  out->return_mutability = Mutability::Mutable;
-  return true;
-}
-
-bool GetReservedModuleCallTarget(const ValidateContext& ctx,
-                                 const std::string& module,
-                                 const std::string& member,
-                                 CallTargetInfo* out) {
-  std::string resolved;
-  if (!ResolveReservedModuleName(ctx, module, &resolved)) return false;
-  if (!out) return false;
-  out->params.clear();
-  out->type_params.clear();
-  out->is_proc = false;
-  if (resolved == "Math") {
-    if (member == "abs") {
-      out->params.push_back(MakeSimpleType("T"));
-      out->return_type = MakeSimpleType("T");
-      out->return_mutability = Mutability::Mutable;
-      out->type_params = {"T"};
-      return true;
-    }
-    if (member == "min" || member == "max") {
-      out->params.push_back(MakeSimpleType("T"));
-      out->params.push_back(MakeSimpleType("T"));
-      out->return_type = MakeSimpleType("T");
-      out->return_mutability = Mutability::Mutable;
-      out->type_params = {"T"};
-      return true;
-    }
-    if (member == "sqrt") {
-      out->params.push_back(MakeSimpleType("T"));
-      out->return_type = MakeSimpleType("T");
-      out->return_mutability = Mutability::Mutable;
-      out->type_params = {"T"};
-      return true;
-    }
-  }
-  if (resolved == "Time" || resolved == "StandardTime") {
-    if (member == "mono_ns" || member == "wall_ns") {
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "StandardTime" && member == "formatWallNs") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "IO") {
-    if (member == "buffer_new") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeListType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "buffer_len") {
-      out->params.push_back(MakeListType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "buffer_fill") {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "buffer_copy") {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "DL") {
-    std::string dl_member = member;
-    if (dl_member == "Open") dl_member = "open";
-    else if (dl_member == "Sym") dl_member = "sym";
-    else if (dl_member == "Close") dl_member = "close";
-    else if (dl_member == "LastError") dl_member = "last_error";
-    else if (dl_member == "CallI32") dl_member = "call_i32";
-    else if (dl_member == "CallI64") dl_member = "call_i64";
-    else if (dl_member == "CallF32") dl_member = "call_f32";
-    else if (dl_member == "CallF64") dl_member = "call_f64";
-    else if (dl_member == "CallStr0") dl_member = "call_str0";
-    if (dl_member == "open") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "sym") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "close") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "last_error") {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "call_i32") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "call_i64") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "call_f32") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("f32"));
-      out->params.push_back(MakeSimpleType("f32"));
-      out->return_type = MakeSimpleType("f32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "call_f64") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->params.push_back(MakeSimpleType("f64"));
-      out->params.push_back(MakeSimpleType("f64"));
-      out->return_type = MakeSimpleType("f64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (dl_member == "call_str0") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "FS" || resolved == "StandardFS") {
-    if (member == "readText") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "writeText") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "readBytes") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeListType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "listDir") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeListType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "writeBytes") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeListType("i32"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "exists" || member == "isFile" || member == "isDir") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "copy") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "remove" || member == "mkdir" || member == "mkdirAll" || member == "setCwd") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "cwd") {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "Path" || resolved == "StandardPath") {
-    if (resolved == "Path" && (member == "separator" || member == "delimiter")) {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "Path" && member == "isAbsolute") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "join") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "dirname" || member == "basename" || member == "ext" || member == "stem" || member == "normalize") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-
-  }
-  if (resolved == "Env") {
-    if (member == "argsCount") {
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "arg") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "get") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "set") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "unset") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "exePath") {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    return false;
-  }
-  if (resolved == "SystemRandom" || resolved == "StandardRandom") {
-    if (member == "seed") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "i32") {
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "i64") {
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "StandardRandom" && member == "range") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "f64") {
-      out->return_type = MakeSimpleType("f64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "SystemRandom" && member == "fillBytes") {
-      out->params.push_back(MakeListType("i32"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    return false;
-  }
-  if (resolved == "Channel") {
-    auto channel_value_type = [](const std::string& suffix) -> TypeRef {
-      if (suffix == "I64") return MakeSimpleType("i64");
-      if (suffix == "F32") return MakeSimpleType("f32");
-      if (suffix == "F64") return MakeSimpleType("f64");
-      if (suffix == "Bool") return MakeSimpleType("bool");
-      if (suffix == "String") return MakeSimpleType("string");
-      if (suffix == "Bytes") return MakeListType("i32");
-      return MakeSimpleType("i32");
-    };
-    static constexpr const char* suffixes[] = {"I32", "I64", "F32", "F64", "Bool", "String", "Bytes"};
-    for (const char* suffix_c : suffixes) {
-      const std::string suffix = suffix_c;
-      if (member == "new" + suffix) {
-        out->return_type = MakeSimpleType("i64");
-        out->return_mutability = Mutability::Mutable;
-        return true;
-      }
-      if (member == "send" + suffix || member == "trySend" + suffix) {
-        out->params.push_back(MakeSimpleType("i64"));
-        out->params.push_back(channel_value_type(suffix));
-        out->return_type = MakeSimpleType("bool");
-        out->return_mutability = Mutability::Mutable;
-        return true;
-      }
-      if (member == "recv" + suffix || member == "tryRecv" + suffix) {
-        out->params.push_back(MakeSimpleType("i64"));
-        out->return_type = channel_value_type(suffix);
-        out->return_mutability = Mutability::Mutable;
-        return true;
-      }
-      if (member == "pending" + suffix) {
-        out->params.push_back(MakeSimpleType("i64"));
-        out->return_type = MakeSimpleType("i32");
-        out->return_mutability = Mutability::Mutable;
-        return true;
-      }
-    }
-    if (member == "close") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "Thread") {
-    if (member == "sleep") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "yield") {
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "hardwareConcurrency") {
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "OS") {
-    if (member == "platform" || member == "arch") {
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "isLinux" || member == "isMacos" || member == "isWindows") {
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "pid" || member == "cpuCount" || member == "pageSize") {
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "exit" || member == "sleepMs") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    return false;
-  }
-  if (resolved == "File") {
-    if (member == "open") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "close") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "read" || member == "write") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (resolved == "SystemJson") {
-    if (member == "parse") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("i64");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "stringify") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("string");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "free") {
-      out->params.push_back(MakeSimpleType("i64"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-  }
-  if (IsSystemBufferLikeCanonical(resolved) || IsStandardBufferLikeCanonical(resolved)) {
-    if (resolved == ToCanonicalName(StandardModule::Buffer)) return false;
-    const bool low_level_buffer = IsSystemBufferLikeCanonical(resolved);
-    if (member == "new") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeListType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (low_level_buffer && member == "len") {
-      out->params.push_back(MakeListType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (low_level_buffer && (member == "readU16LE" || member == "readU32LE")) {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (low_level_buffer && (member == "writeU16LE" || member == "writeU32LE")) {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "slice") {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeListType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (low_level_buffer && member == "copy") {
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeListType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("i32");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    return false;
-  }
-  if (resolved == "SystemLog" || resolved == "StandardLog") {
-    if (resolved == "SystemLog" && member == "log") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "StandardLog" && (member == "info" || member == "warn" || member == "error")) {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "setLevel") {
-      out->params.push_back(MakeSimpleType("i32"));
-      out->return_type = MakeSimpleType("void");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (member == "setFile") {
-      out->params.push_back(MakeSimpleType("string"));
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    if (resolved == "SystemLog" && member == "flush") {
-      out->return_type = MakeSimpleType("bool");
-      out->return_mutability = Mutability::Mutable;
-      return true;
-    }
-    return false;
-  }
-  return TryGetNativeReservedModuleCallTarget(resolved, member, out);
 }
 
 bool InferTypeArgsFromCall(const std::vector<TypeRef>& param_types,
