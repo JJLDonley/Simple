@@ -5311,32 +5311,26 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return aliases;
   };
-
-  if (has_reserved_name("File")) {
-    for (const auto& alias : reserved_aliases_for("File")) {
-      std::vector<TypeRef> open_params;
-      open_params.push_back(make_type("string"));
-      open_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.FS", "open", std::move(open_params), make_type("i32"))) return false;
-
-      std::vector<TypeRef> close_params;
-      close_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.FS", "close", std::move(close_params), make_type("void"))) return false;
-
-      auto make_rw_params = [&]() {
-        std::vector<TypeRef> params;
-        params.push_back(make_type("i32"));
-        params.push_back(make_list_type("i32"));
-        params.push_back(make_type("i32"));
-        return params;
-      };
-      if (!add_reserved_import(alias, "System.FS", "read", make_rw_params(), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "System.FS", "write", make_rw_params(), make_type("i32"))) return false;
+  auto system_id = [](SystemModule module) {
+    return LibraryModuleId{LibraryRoot::System, static_cast<int>(module)};
+  };
+  auto standard_id = [](StandardModule module) {
+    return LibraryModuleId{LibraryRoot::Standard, static_cast<int>(module)};
+  };
+  auto has_reserved_module = [&](LibraryModuleId module) {
+    return st.reserved_imports.find(module) != st.reserved_imports.end();
+  };
+  auto reserved_aliases_for_id = [&](LibraryModuleId module) {
+    std::vector<std::string> aliases;
+    aliases.emplace_back(ToCanonicalName(module));
+    for (const auto& entry : st.reserved_import_aliases) {
+      if (entry.second == module) aliases.push_back(entry.first);
     }
-  }
+    return aliases;
+  };
 
-  if (has_reserved_name("DL")) {
-    for (const auto& alias : reserved_aliases_for("DL")) {
+  if (has_reserved_module(system_id(SystemModule::FFI))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::FFI))) {
       std::vector<TypeRef> open_params;
       open_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.FFI", "open", std::move(open_params), make_type("i64"))) return false;
@@ -5354,16 +5348,16 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (has_reserved_name("StandardTime")) {
-    for (const auto& alias : reserved_aliases_for("StandardTime")) {
+  if (has_reserved_module(standard_id(StandardModule::Time))) {
+    for (const auto& alias : reserved_aliases_for_id(standard_id(StandardModule::Time))) {
       std::vector<TypeRef> format_params;
       format_params.push_back(make_type("i64"));
       if (!add_reserved_import(alias, "System.OS", "formatWallNs", std::move(format_params), make_type("string"))) return false;
     }
   }
 
-  if (has_reserved_name("OS")) {
-    for (const auto& alias : reserved_aliases_for("OS")) {
+  if (has_reserved_module(system_id(SystemModule::OS))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::OS))) {
       if (!add_reserved_import(alias, "System.OS", "platform", {}, make_type("string"))) return false;
       if (!add_reserved_import(alias, "System.OS", "arch", {}, make_type("string"))) return false;
       for (const std::string member : {"isLinux", "isMacos", "isWindows"}) {
@@ -5435,8 +5429,10 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (has_reserved_name("FS") && !add_fs_imports("FS", true)) return false;
-  if (has_reserved_name("StandardFS") && !add_fs_imports("StandardFS", false)) return false;
+  if (has_reserved_module(system_id(SystemModule::FS)) &&
+      !add_fs_imports(std::string(ToCanonicalName(system_id(SystemModule::FS))), true)) return false;
+  if (has_reserved_module(standard_id(StandardModule::FS)) &&
+      !add_fs_imports(std::string(ToCanonicalName(standard_id(StandardModule::FS))), false)) return false;
 
   auto add_path_imports = [&](const std::string& canonical_module, bool low_level) {
     for (const auto& alias : reserved_aliases_for(canonical_module)) {
@@ -5460,11 +5456,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (has_reserved_name("Path") && !add_path_imports("Path", true)) return false;
-  if (has_reserved_name("StandardPath") && !add_path_imports("StandardPath", false)) return false;
+  if (has_reserved_module(system_id(SystemModule::Path)) &&
+      !add_path_imports(std::string(ToCanonicalName(system_id(SystemModule::Path))), true)) return false;
+  if (has_reserved_module(standard_id(StandardModule::Path)) &&
+      !add_path_imports(std::string(ToCanonicalName(standard_id(StandardModule::Path))), false)) return false;
 
-  if (has_reserved_name("Env")) {
-    for (const auto& alias : reserved_aliases_for("Env")) {
+  if (has_reserved_module(system_id(SystemModule::Env))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Env))) {
       if (!add_reserved_import(alias, "System.Env", "argsCount", {}, make_type("i32"))) return false;
       std::vector<TypeRef> arg_params;
       arg_params.push_back(make_type("i32"));
@@ -5505,13 +5503,13 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
     return true;
   };
-  if (has_reserved_name("SystemRandom") &&
-      !add_random_imports("SystemRandom", false)) return false;
-  if (has_reserved_name("StandardRandom") &&
-      !add_random_imports("StandardRandom", true)) return false;
+  if (has_reserved_module(system_id(SystemModule::Random)) &&
+      !add_random_imports(std::string(ToCanonicalName(system_id(SystemModule::Random))), false)) return false;
+  if (has_reserved_module(standard_id(StandardModule::Random)) &&
+      !add_random_imports(std::string(ToCanonicalName(standard_id(StandardModule::Random))), true)) return false;
 
-  if (has_reserved_name("Channel")) {
-    for (const auto& alias : reserved_aliases_for("Channel")) {
+  if (has_reserved_module(system_id(SystemModule::Channel))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Channel))) {
       auto add_channel = [&](const std::string& suffix, const std::string& type_name) -> bool {
         if (!add_reserved_import(alias, "System.Channel", "new" + suffix, {}, make_type("i64"))) return false;
 
@@ -5561,8 +5559,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (has_reserved_name("Thread")) {
-    for (const auto& alias : reserved_aliases_for("Thread")) {
+  if (has_reserved_module(system_id(SystemModule::Thread))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Thread))) {
       std::vector<TypeRef> sleep_params;
       sleep_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "System.Thread", "sleep", std::move(sleep_params), make_type("void"))) return false;
@@ -5571,8 +5569,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (has_reserved_name("IO")) {
-    for (const auto& alias : reserved_aliases_for("IO")) {
+  if (has_reserved_module(system_id(SystemModule::IO))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::IO))) {
       std::vector<TypeRef> new_params;
       new_params.push_back(make_type("i32"));
       if (!add_reserved_import(alias, "System.IO", "buffer_new", std::move(new_params), make_list_type("i32"))) {
@@ -5603,31 +5601,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  if (has_reserved_name("File")) {
-    for (const auto& alias : reserved_aliases_for("File")) {
-      std::vector<TypeRef> open_params;
-      open_params.push_back(make_type("string"));
-      open_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.FS", "open", std::move(open_params), make_type("i32"))) return false;
-
-      std::vector<TypeRef> close_params;
-      close_params.push_back(make_type("i32"));
-      if (!add_reserved_import(alias, "System.FS", "close", std::move(close_params), make_type("void"))) return false;
-
-      auto make_rw_params = [&]() {
-        std::vector<TypeRef> params;
-        params.push_back(make_type("i32"));
-        params.push_back(make_list_type("i32"));
-        params.push_back(make_type("i32"));
-        return params;
-      };
-      if (!add_reserved_import(alias, "System.FS", "read", make_rw_params(), make_type("i32"))) return false;
-      if (!add_reserved_import(alias, "System.FS", "write", make_rw_params(), make_type("i32"))) return false;
-    }
-  }
-
-  if (has_reserved_name("SystemJson")) {
-    for (const auto& alias : reserved_aliases_for("SystemJson")) {
+  if (has_reserved_module(system_id(SystemModule::Json))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Json))) {
       std::vector<TypeRef> parse_params;
       parse_params.push_back(make_type("string"));
       if (!add_reserved_import(alias, "System.Json", "parse", std::move(parse_params), make_type("i64"))) return false;
@@ -5696,8 +5671,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     if (!add_reserved_import(alias, "System.Log", "setFile", std::move(file_params), make_type("bool"))) return false;
     return true;
   };
-  if (has_reserved_name("SystemLog")) {
-    for (const auto& alias : reserved_aliases_for("SystemLog")) {
+  if (has_reserved_module(system_id(SystemModule::Log))) {
+    for (const auto& alias : reserved_aliases_for_id(system_id(SystemModule::Log))) {
       std::vector<TypeRef> params;
       params.push_back(make_type("i32"));
       params.push_back(make_type("string"));
@@ -5706,8 +5681,8 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
       if (!add_log_control_imports(alias)) return false;
     }
   }
-  if (has_reserved_name("StandardLog")) {
-    for (const auto& alias : reserved_aliases_for("StandardLog")) {
+  if (has_reserved_module(standard_id(StandardModule::Log))) {
+    for (const auto& alias : reserved_aliases_for_id(standard_id(StandardModule::Log))) {
       for (const std::string member : {"info", "warn", "error"}) {
         std::vector<TypeRef> message_params;
         message_params.push_back(make_type("string"));
@@ -5717,9 +5692,14 @@ bool EmitProgramImpl(const Program& program, std::string* out, std::string* erro
     }
   }
 
-  for (const std::string native_reserved : {"IO", "DL", "Thread", "Path", "FS"}) {
-    if (has_reserved_name(native_reserved) &&
-        !add_native_reserved_imports(native_reserved, reserved_aliases_for(native_reserved))) {
+  for (const LibraryModuleId native_reserved : {system_id(SystemModule::IO),
+                                               system_id(SystemModule::FFI),
+                                               system_id(SystemModule::Thread),
+                                               system_id(SystemModule::Path),
+                                               system_id(SystemModule::FS)}) {
+    if (has_reserved_module(native_reserved) &&
+        !add_native_reserved_imports(std::string(ToCanonicalName(native_reserved)),
+                                     reserved_aliases_for_id(native_reserved))) {
       return false;
     }
   }
