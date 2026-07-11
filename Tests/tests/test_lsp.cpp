@@ -3169,6 +3169,8 @@ bool LspInitializeAdvertisesModernNavigationProviders() {
   const std::string out_contents = ReadFileText(out_path);
   return ReadFileText(err_path).empty() &&
          out_contents.find("\"typeDefinitionProvider\":true") != std::string::npos &&
+         out_contents.find("\"documentFormattingProvider\":true") != std::string::npos &&
+         out_contents.find("\"documentRangeFormattingProvider\":true") != std::string::npos &&
          out_contents.find("\"linkedEditingRangeProvider\":true") != std::string::npos &&
          out_contents.find("\"inlayHintProvider\":true") != std::string::npos &&
          out_contents.find("\"callHierarchyProvider\":true") != std::string::npos &&
@@ -3305,6 +3307,44 @@ bool LspReferencesIndexSiblingSimpleFiles() {
   fs::remove_all(dir);
   return ran && err_contents.empty() && out_contents.find("\"id\":51") != std::string::npos &&
          out_contents.find(sibling_uri) != std::string::npos;
+}
+
+bool LspFormattingReturnsWholeDocumentEdit() {
+  const std::string in_path = TempPath("simple_lsp_formatting_in.txt");
+  const std::string out_path = TempPath("simple_lsp_formatting_out.txt");
+  const std::string err_path = TempPath("simple_lsp_formatting_err.txt");
+  const std::string uri = "file:///workspace/format.simple";
+  const std::string text = "main : i32 () {\\nreturn 1;\\n}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string format_req = "{\"jsonrpc\":\"2.0\",\"id\":53,\"method\":\"textDocument/formatting\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"options\":{\"tabSize\":2,\"insertSpaces\":true}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(format_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":53") != std::string::npos &&
+         out_contents.find("main : i32 () {\\n  return 1;\\n}") != std::string::npos &&
+         out_contents.find("\"range\":{\"start\":{\"line\":0,\"character\":0}") != std::string::npos;
+}
+
+bool LspRangeFormattingReturnsLineEdit() {
+  const std::string in_path = TempPath("simple_lsp_range_formatting_in.txt");
+  const std::string out_path = TempPath("simple_lsp_range_formatting_out.txt");
+  const std::string err_path = TempPath("simple_lsp_range_formatting_err.txt");
+  const std::string uri = "file:///workspace/range_format.simple";
+  const std::string text = "main : i32 () {\\nfirst : i32 = 1;\\nsecond : i32 = 2;\\n}";
+  const std::string init_req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}";
+  const std::string open_req = "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\",\"languageId\":\"simple\",\"version\":1,\"text\":\"" + text + "\"}}}";
+  const std::string format_req = "{\"jsonrpc\":\"2.0\",\"id\":54,\"method\":\"textDocument/rangeFormatting\",\"params\":{\"textDocument\":{\"uri\":\"" + uri + "\"},\"range\":{\"start\":{\"line\":1,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"options\":{\"tabSize\":2,\"insertSpaces\":true}}}";
+  const std::string shutdown_req = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\",\"params\":null}";
+  const std::string exit_req = "{\"jsonrpc\":\"2.0\",\"method\":\"exit\",\"params\":null}";
+  if (!WriteBinaryFile(in_path, BuildLspFrame(init_req) + BuildLspFrame(open_req) + BuildLspFrame(format_req) + BuildLspFrame(shutdown_req) + BuildLspFrame(exit_req))) return false;
+  if (!RunCommand(LspPipeCommand(in_path, out_path, err_path))) return false;
+  const std::string out_contents = ReadFileText(out_path);
+  return ReadFileText(err_path).empty() && out_contents.find("\"id\":54") != std::string::npos &&
+         out_contents.find("  first : i32 = 1;\\n  second : i32 = 2;") != std::string::npos &&
+         out_contents.find("\"start\":{\"line\":1,\"character\":0}") != std::string::npos;
 }
 
 bool LspLinkedEditingRangeReturnsIdentifierRanges() {
@@ -3578,6 +3618,8 @@ const TestCase kLspTests[] = {
   {"lsp_document_link_resolves_local_imports", LspDocumentLinkResolvesLocalImports},
   {"lsp_workspace_symbols_index_sibling_simple_files", LspWorkspaceSymbolsIndexSiblingSimpleFiles},
   {"lsp_references_index_sibling_simple_files", LspReferencesIndexSiblingSimpleFiles},
+  {"lsp_formatting_returns_whole_document_edit", LspFormattingReturnsWholeDocumentEdit},
+  {"lsp_range_formatting_returns_line_edit", LspRangeFormattingReturnsLineEdit},
   {"lsp_linked_editing_range_returns_identifier_ranges", LspLinkedEditingRangeReturnsIdentifierRanges},
   {"lsp_call_hierarchy_returns_function_calls", LspCallHierarchyReturnsFunctionCalls},
   {"lsp_inlay_hint_returns_parameter_hints", LspInlayHintReturnsParameterHints},

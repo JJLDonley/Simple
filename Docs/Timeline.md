@@ -861,7 +861,7 @@ symbols, workspace symbols, and semantic tokens.
 
 Next Simple-specific LSP capabilities:
 
-- [ ] Full and range formatting backed by a Simple formatter for `.simple` source.
+- [x] Full and range formatting backed by a Simple indentation formatter for `.simple` source.
 - [x] Type-definition lookup for artifact/enum type declarations and typed variable usages.
 - [ ] Type-definition lookup for generic/handle/native ABI type uses.
 - [x] Linked editing ranges for same-document Simple identifier declarations/usages.

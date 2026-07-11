@@ -2682,6 +2682,108 @@ uint32_t LineCount(const std::string& text) {
   return lines;
 }
 
+std::vector<std::string> SplitLinesPreserveContent(const std::string& text) {
+  std::vector<std::string> lines;
+  size_t start = 0;
+  for (size_t i = 0; i <= text.size(); ++i) {
+    if (i != text.size() && text[i] != '\n') continue;
+    size_t end = i;
+    if (end > start && text[end - 1] == '\r') --end;
+    lines.push_back(text.substr(start, end - start));
+    start = i + 1;
+  }
+  if (!text.empty() && text.back() == '\n') lines.pop_back();
+  if (lines.empty()) lines.push_back({});
+  return lines;
+}
+
+uint32_t LineLengthAt(const std::string& text, uint32_t target_line) {
+  uint32_t line = 0;
+  uint32_t col = 0;
+  for (char c : text) {
+    if (line == target_line && c == '\n') return col;
+    if (c == '\n') {
+      ++line;
+      col = 0;
+      continue;
+    }
+    if (line == target_line && c != '\r') ++col;
+  }
+  return line == target_line ? col : 0;
+}
+
+int BraceDeltaIgnoringStringsAndComments(const std::string& line, bool leading_closers_only) {
+  int delta = 0;
+  bool in_string = false;
+  bool in_char = false;
+  bool escaped = false;
+  bool seen_non_space = false;
+  for (size_t i = 0; i < line.size(); ++i) {
+    const char c = line[i];
+    if (!in_string && !in_char && c == '/' && i + 1 < line.size() && line[i + 1] == '/') break;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if ((in_string || in_char) && c == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (!in_char && c == '"') {
+      in_string = !in_string;
+      if (!std::isspace(static_cast<unsigned char>(c))) seen_non_space = true;
+      continue;
+    }
+    if (!in_string && c == '\'') {
+      in_char = !in_char;
+      if (!std::isspace(static_cast<unsigned char>(c))) seen_non_space = true;
+      continue;
+    }
+    if (in_string || in_char) continue;
+    if (leading_closers_only && seen_non_space) break;
+    if (c == '{') ++delta;
+    else if (c == '}') --delta;
+    if (!std::isspace(static_cast<unsigned char>(c))) seen_non_space = true;
+  }
+  return delta;
+}
+
+std::string FormatSimpleTextRange(const std::string& text, uint32_t start_line, uint32_t end_line_inclusive) {
+  const auto lines = SplitLinesPreserveContent(text);
+  if (lines.empty()) return {};
+  if (start_line >= lines.size()) return {};
+  if (end_line_inclusive >= lines.size()) end_line_inclusive = static_cast<uint32_t>(lines.size() - 1);
+  int indent = 0;
+  for (uint32_t i = 0; i < start_line; ++i) {
+    indent += BraceDeltaIgnoringStringsAndComments(lines[i], false);
+    if (indent < 0) indent = 0;
+  }
+  std::string out;
+  for (uint32_t i = start_line; i <= end_line_inclusive; ++i) {
+    const std::string trimmed = TrimCopy(lines[i]);
+    int line_indent = indent;
+    if (!trimmed.empty()) {
+      line_indent += BraceDeltaIgnoringStringsAndComments(trimmed, true);
+      if (line_indent < 0) line_indent = 0;
+      out.append(static_cast<size_t>(line_indent) * 2, ' ');
+      out += trimmed;
+    }
+    if (i < end_line_inclusive) out.push_back('\n');
+    indent += BraceDeltaIgnoringStringsAndComments(trimmed, false);
+    if (indent < 0) indent = 0;
+  }
+  return out;
+}
+
+std::string TextEditJsonForRange(uint32_t start_line,
+                                 uint32_t start_col,
+                                 uint32_t end_line,
+                                 uint32_t end_col,
+                                 const std::string& new_text) {
+  return "{\"range\":" + JsonRange(start_line, start_col, end_line, end_col) +
+         ",\"newText\":\"" + JsonEscape(new_text) + "\"}";
+}
+
 std::string PathToFileUri(const std::filesystem::path& path) {
   std::string value = std::filesystem::absolute(path).lexically_normal().generic_string();
   std::string out = "file://";
@@ -3556,6 +3658,49 @@ bool ResolveCallParameterNames(const std::string& text,
   return false;
 }
 
+void ReplyDocumentFormatting(std::ostream& out,
+                             const std::string& id_raw,
+                             const std::string& uri,
+                             const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const uint32_t last_line = LineCount(doc_it->second) - 1;
+  const uint32_t last_col = LineLengthAt(doc_it->second, last_line);
+  std::string formatted = FormatSimpleTextRange(doc_it->second, 0, last_line);
+  if (!doc_it->second.empty() && doc_it->second.back() == '\n') formatted.push_back('\n');
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
+                           TextEditJsonForRange(0, 0, last_line, last_col, formatted) + "]}");
+}
+
+void ReplyDocumentRangeFormatting(std::ostream& out,
+                                  const std::string& id_raw,
+                                  const std::string& uri,
+                                  uint32_t start_line,
+                                  uint32_t end_line,
+                                  uint32_t end_character,
+                                  const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const uint32_t last_line = LineCount(doc_it->second) - 1;
+  if (start_line > last_line) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  uint32_t inclusive_end = end_line;
+  if (inclusive_end > last_line) inclusive_end = last_line;
+  if (end_character == 0 && inclusive_end > start_line) --inclusive_end;
+  const uint32_t replacement_end_col = LineLengthAt(doc_it->second, inclusive_end);
+  const std::string formatted = FormatSimpleTextRange(doc_it->second, start_line, inclusive_end);
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" +
+                           TextEditJsonForRange(start_line, 0, inclusive_end, replacement_end_col, formatted) + "]}");
+}
+
 void ReplyInlayHints(std::ostream& out,
                      const std::string& id_raw,
                      const std::string& uri,
@@ -3852,6 +3997,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"documentHighlightProvider\":true,"
                 "\"referencesProvider\":true,\"documentSymbolProvider\":true,"
                 "\"workspaceSymbolProvider\":true,"
+                "\"documentFormattingProvider\":true,\"documentRangeFormattingProvider\":true,"
                 "\"documentLinkProvider\":{\"resolveProvider\":false},"
                 "\"foldingRangeProvider\":true,\"selectionRangeProvider\":true,"
                 "\"linkedEditingRangeProvider\":true,"
@@ -4246,6 +4392,35 @@ int RunServer(std::istream& in, std::ostream& out) {
         std::string uri;
         if (ExtractJsonStringField(body, "uri", &uri)) {
           ReplyCodeLens(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/formatting") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyDocumentFormatting(out, id_raw, uri, open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/rangeFormatting") {
+      if (has_id) {
+        std::string uri;
+        const auto positions = ExtractLspPositions(body);
+        if (ExtractJsonStringField(body, "uri", &uri) && positions.size() >= 2) {
+          ReplyDocumentRangeFormatting(out, id_raw, uri,
+                                       positions[0].first,
+                                       positions[1].first,
+                                       positions[1].second,
+                                       open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }
