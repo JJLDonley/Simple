@@ -786,6 +786,70 @@ main : i32 () {
 
 Switch branch locals are scoped to the branch. Validation checks branch shapes and result compatibility.
 
+## Built-in functions and forms
+
+Simple keeps built-ins small and explicit. Library work belongs under `System.*` and `Standard.*`; language built-ins cover core operations that need compiler knowledge.
+
+### `len(value)`
+
+Returns the length of a string, fixed array, or list as `i32`:
+
+```simple
+name : string = "Simple"
+letters : i32 = len(name)
+
+fixed : i32{3} = {1, 2, 3}
+fixedCount : i32 = len(fixed)
+
+items : i32[] = [10, 20, 30]
+itemCount : i32 = len(items)
+```
+
+### Explicit primitive casts: `@Type(value)`
+
+Primitive conversions must be requested explicitly. Calls like `i32(value)` are rejected; use `@i32(value)`. This is how Simple enforces no implicit coercion.
+
+```simple
+wide : i64 = 42
+narrow : i32 = @i32(wide)
+
+ratio : f64 = 3.5
+whole : i32 = @i32(ratio)
+
+text : string = "42"
+parsed : i32 = @i32(text)
+```
+
+Supported cast targets are primitive scalar types: `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`, `bool`, `char`, and `string`.
+
+### List methods
+
+Growable lists expose checked methods for common mutations and queries:
+
+```simple
+items : i32[] = []
+items.push(10)
+items.push(20)
+
+count : i32 = items.len()
+last : i32 = items.pop()
+
+items.insert(0, 5)
+removed : i32 = items.remove(0)
+items.clear()
+```
+
+### Standard output helpers
+
+Printing is library-provided, not a global builtin. Use `Standard.IO` for output and format strings:
+
+```simple
+import Standard.IO
+
+Standard.IO.print("answer={}", 42)
+Standard.IO.println(" done")
+```
+
 ## Arrays and lists
 
 Fixed arrays:
