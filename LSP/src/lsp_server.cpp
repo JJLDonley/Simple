@@ -3283,6 +3283,42 @@ void ReplyDocumentLinks(std::ostream& out,
   WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
 }
 
+void ReplyCodeLens(std::ostream& out,
+                   const std::string& id_raw,
+                   const std::string& uri,
+                   const std::unordered_map<std::string, std::string>& open_docs) {
+  auto doc_it = open_docs.find(uri);
+  if (doc_it == open_docs.end()) {
+    WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+    return;
+  }
+  const auto refs = LexTokenRefs(doc_it->second);
+  std::string result;
+  auto append_lens = [&](const Simple::Lang::Token& token,
+                         const std::string& title,
+                         const std::string& command) {
+    if (!result.empty()) result += ",";
+    result += "{\"range\":" + TokenRangeJson(token) +
+              ",\"command\":{\"title\":\"" + JsonEscape(title) +
+              "\",\"command\":\"" + JsonEscape(command) +
+              "\",\"arguments\":[\"" + JsonEscape(uri) + "\"]}}";
+  };
+
+  for (const auto& ref : refs) {
+    if (ref.token.kind != Simple::Lang::TokenKind::Identifier) continue;
+    if (ref.depth != 0) continue;
+    if (!IsDeclNameAt(refs, ref.index)) continue;
+    if (SymbolKindFor(refs, ref.index) != 12) continue;
+    append_lens(ref.token, "Simple: Check file", "simple.checkCurrentFile");
+    if (ref.token.text == "main" || ref.token.text == "__script_entry") {
+      append_lens(ref.token, "Simple: Run file", "simple.runCurrentFile");
+      append_lens(ref.token, "Simple: Run file with JIT", "simple.runCurrentFileWithJit");
+    }
+  }
+
+  WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[" + result + "]}");
+}
+
 void ReplyRename(std::ostream& out,
                  const std::string& id_raw,
                  const std::string& uri,
@@ -3491,6 +3527,7 @@ int RunServer(std::istream& in, std::ostream& out) {
                 "\"workspaceSymbolProvider\":true,"
                 "\"documentLinkProvider\":{\"resolveProvider\":false},"
                 "\"foldingRangeProvider\":true,\"selectionRangeProvider\":true,"
+                "\"codeLensProvider\":{\"resolveProvider\":false},"
                 "\"renameProvider\":{\"prepareProvider\":true},"
                 "\"codeActionProvider\":true,"
                 "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\",\"@\"]},"
@@ -3810,6 +3847,18 @@ int RunServer(std::istream& in, std::ostream& out) {
         std::string uri;
         if (ExtractJsonStringField(body, "uri", &uri)) {
           ReplySelectionRanges(out, id_raw, uri, ExtractLspPositions(body), open_docs);
+        } else {
+          WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
+        }
+      }
+      continue;
+    }
+
+    if (method == "textDocument/codeLens") {
+      if (has_id) {
+        std::string uri;
+        if (ExtractJsonStringField(body, "uri", &uri)) {
+          ReplyCodeLens(out, id_raw, uri, open_docs);
         } else {
           WriteLspMessage(out, "{\"jsonrpc\":\"2.0\",\"id\":" + id_raw + ",\"result\":[]}");
         }

@@ -867,7 +867,8 @@ Next Simple-specific LSP capabilities:
 - [ ] Inlay hints for inferred locals, generic instantiations, function result types, ABI/native-call effects, and optional JIT-safety facts.
 - [x] Document links for local `import` paths.
 - [ ] Document links for module-map entries, generated SIR/SBC outputs, and known standard/native docs.
-- [ ] Code lenses for runnable entrypoints, exported functions, tests/examples, and JIT-eligible hot functions where stats are available.
+- [x] Code lenses for check/run/JIT-run commands on top-level Simple functions and entrypoints.
+- [ ] Code lenses for exported functions, tests/examples, and persisted JIT stats.
 - [ ] Code actions for unresolved imports, missing modules, unknown identifiers, signature mismatch fixes, and quick emit/build actions.
 - [ ] Workspace symbols and references across opened documents plus indexed `.simple` files, not only the active document.
 - [ ] Range-based document sync with incremental text changes tested across open/change/close.
